@@ -91,14 +91,37 @@ function CardShell({
   );
 }
 
+/**
+ * [Bug-470 2026-05-15] 判断一个字符串是否是合法的图片 URL，避免脏数据
+ *   - 字面值 "无"
+ *   - 单个 emoji（如 "💊"）
+ *   - 空白字符串
+ * 等被误用作 <img src> 时，浏览器会把它当作相对路径解析（如 /ai-home/无），
+ * 触发 404 + 页面初始化卡死，进而导致 4 个上传按钮看起来"全部失灵"。
+ */
+function isValidImageUrl(s: any): boolean {
+  if (typeof s !== 'string') return false;
+  const t = s.trim();
+  if (!t) return false;
+  // 合法的 URL/路径形态
+  if (t.startsWith('http://') || t.startsWith('https://')) return true;
+  if (t.startsWith('/') || t.startsWith('./') || t.startsWith('data:image/') || t.startsWith('blob:')) return true;
+  return false;
+}
+
 function CardHeader({ button }: { button: ChatCardButton }) {
+  const hasValidImage = isValidImageUrl(button.coverImage);
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-      {button.coverImage ? (
+      {hasValidImage ? (
         <img
           src={button.coverImage}
           alt={button.title}
           style={{ width: 40, height: 40, borderRadius: 10, objectFit: 'cover' }}
+          onError={(e) => {
+            // 兜底：图片加载失败时降级为占位方块，避免破图标
+            (e.currentTarget as HTMLImageElement).style.display = 'none';
+          }}
         />
       ) : (
         <div

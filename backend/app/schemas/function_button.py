@@ -1,7 +1,41 @@
 from datetime import datetime
 from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
+
+
+# [Bug-470 2026-05-15] 把字面值 "无"/空白/明显非 URL 的脏数据规范成 None，
+# 防止前端把它当作 <img src> / <a href> 用，触发 /ai-home/无/ 这类 404。
+_PLACEHOLDER_VALUES = {"无", "无.", "none", "null", "n/a", "na", "暂无", "未设置", "未配置"}
+
+
+def _sanitize_image_url(v: Any) -> Any:
+    if v is None:
+        return None
+    if not isinstance(v, str):
+        return v
+    s = v.strip()
+    if not s:
+        return None
+    if s.lower() in _PLACEHOLDER_VALUES or s in _PLACEHOLDER_VALUES:
+        return None
+    if s.startswith(("http://", "https://", "/", "./", "data:image/", "blob:")):
+        return s
+    # 既不是占位词也不是合法 URL，按"非法兜底"返回 None
+    return None
+
+
+def _sanitize_text(v: Any) -> Any:
+    if v is None:
+        return None
+    if not isinstance(v, str):
+        return v
+    s = v.strip()
+    if not s:
+        return s
+    if s in _PLACEHOLDER_VALUES or s.lower() in _PLACEHOLDER_VALUES:
+        return ""
+    return s
 
 
 # ──────────────── ChatFunctionButton ────────────────
@@ -93,6 +127,18 @@ class ChatFunctionButtonResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    # [Bug-470 2026-05-15] URL 类字段清理脏数据（如字面值"无"），避免前端把它当作 <img src>
+    @field_validator("icon_url", "card_cover_image", "external_url", mode="before")
+    @classmethod
+    def _v_image_url(cls, v):
+        return _sanitize_image_url(v)
+
+    # 文本类字段清理：把"无"等占位词归一为空串
+    @field_validator("card_subtitle", "button_sub_desc", "photo_tip_text", mode="before")
+    @classmethod
+    def _v_text(cls, v):
+        return _sanitize_text(v)
 
 
 # ──────────────── DigitalHuman ────────────────

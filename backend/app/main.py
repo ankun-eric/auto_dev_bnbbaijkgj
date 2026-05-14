@@ -1402,6 +1402,56 @@ async def _migrate_bug433_chat_message_source_parent_id():
         _logger.error("[bug433] chat_messages 迁移异常（不影响启动）: %s", e)
 
 
+async def _migrate_bug470_cleanup_placeholder():
+    """[Bug-470 2026-05-15] 清理 chat_function_buttons 中 URL 字段的占位脏数据。
+
+    线上发现 `icon_url='无'` 等占位字面值被前端直接用作 `<img src>`，
+    浏览器把它当成相对路径解析为 `/ai-home/无` → 404 → 拍照识药首页初始化失败 → 4 按钮失灵。
+
+    一次性把以下字段中"无 / 暂无 / null / none / N/A / 未设置 / 未配置 / 空白"等占位词清空：
+      - chat_function_buttons.icon_url
+      - chat_function_buttons.card_cover_image
+      - chat_function_buttons.external_url
+    """
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text
+            placeholders = ("无", "无.", "暂无", "未设置", "未配置", "null", "NULL", "None", "none", "N/A", "n/a", "NA", "na")
+            placeholders_sql = ",".join([f"'{p}'" for p in placeholders])
+            fields = ("icon_url", "card_cover_image", "external_url")
+            cleaned = 0
+            for f in fields:
+                sql = f"""
+                    UPDATE chat_function_buttons
+                    SET {f} = NULL
+                    WHERE {f} IS NOT NULL
+                      AND TRIM({f}) <> ''
+                      AND (
+                        TRIM({f}) IN ({placeholders_sql})
+                        OR (
+                          TRIM({f}) NOT LIKE 'http://%%'
+                          AND TRIM({f}) NOT LIKE 'https://%%'
+                          AND TRIM({f}) NOT LIKE '/%%'
+                          AND TRIM({f}) NOT LIKE './%%'
+                          AND TRIM({f}) NOT LIKE 'data:image/%%'
+                          AND TRIM({f}) NOT LIKE 'blob:%%'
+                        )
+                      )
+                """
+                res = await db.execute(text(sql))
+                cleaned += res.rowcount or 0
+                print(f"[migrate] bug470_cleanup_placeholder: cleaned chat_function_buttons.{f} rows={res.rowcount}", flush=True)
+            await db.commit()
+            print(f"[migrate] bug470_cleanup_placeholder: total cleaned rows={cleaned}", flush=True)
+            _logger.info("[bug470] cleanup placeholder cleaned_rows=%s", cleaned)
+    except Exception as e:  # noqa: BLE001
+        print(f"[migrate] bug470_cleanup_placeholder: 迁移异常（不影响启动）: {e}", flush=True)
+        _logger.error("[bug470] 迁移异常（不影响启动）: %s", e)
+
+
 async def _migrate_health_opt_v1_ai_call():
     """[PRD-HEALTH-OPT-V1 2026-05-14] 健康档案优化：AI 外呼用药提醒。
 
@@ -1527,6 +1577,11 @@ async def lifespan(app: FastAPI):
     print("[migrate] prompt_type_config_v1: 迁移完成", flush=True)
     # [PRD-HEALTH-OPT-V1 2026-05-14] 健康档案优化：AI 外呼用药提醒
     await _migrate_health_opt_v1_ai_call()
+    # [Bug-470 2026-05-15] 一次性清理 chat_function_buttons 中 icon_url/card_cover_image/external_url 等
+    # URL 字段被错误存为字面值"无"等占位词的脏数据，避免前端把它拼作 <img src> 触发 /ai-home/无/ 404
+    print("[migrate] bug470_cleanup_placeholder: 启动迁移...", flush=True)
+    await _migrate_bug470_cleanup_placeholder()
+    print("[migrate] bug470_cleanup_placeholder: 迁移完成", flush=True)
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities

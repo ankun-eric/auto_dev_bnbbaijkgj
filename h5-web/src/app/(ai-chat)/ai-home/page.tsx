@@ -2254,7 +2254,57 @@ export default function AiHomePage() {
                             if (text) { lastMsgTimeRef.current = Date.now(); handleSend(text, 'preset'); }
                             return;
                           }
-                          // upload / sdk_call：先插入 autoUserMessage（如有），再触发对应 SDK / 上传逻辑
+                          // [Bug-470 2026-05-15] upload 类型 4 按钮：相册 / 拍照 / 本机 / 微信
+                          // 必须给到真实交互，否则点击"完全没反应"会被用户感知为死按钮。
+                          if (chatCardData!.cardType === 'upload') {
+                            const btnType = chatCardData!.button.buttonType;
+                            // 拍照识药/药品识别：跳到 /drug 入口
+                            // 报告解读：跳到 /checkup 入口
+                            // 其它 upload：用通用文件选择器，选中即先把"我上传了一张图片"作为用户消息发出
+                            const handleFile = (accept: string, capture?: 'environment') => {
+                              try {
+                                const input = document.createElement('input');
+                                input.type = 'file';
+                                input.accept = accept;
+                                if (capture) input.setAttribute('capture', capture);
+                                input.onchange = () => {
+                                  const auto = (chatCardData!.button.autoUserMessage || `我上传了一张${btnType === 'report_interpret' ? '体检报告' : '药品'}图片，请帮我识别`).trim();
+                                  lastMsgTimeRef.current = Date.now();
+                                  handleSend(auto, 'preset');
+                                };
+                                input.click();
+                              } catch {
+                                Toast.show({ icon: 'fail', content: '当前环境不支持文件选择' });
+                              }
+                            };
+                            const goRouter = (path: string) => {
+                              try { router.push(path); } catch { window.location.href = path; }
+                            };
+                            switch (sub) {
+                              case 'album':
+                                handleFile('image/*');
+                                return;
+                              case 'camera':
+                                handleFile('image/*', 'environment');
+                                return;
+                              case 'local':
+                                // 选择本机文件（图片/文档）
+                                handleFile('image/*,application/pdf');
+                                return;
+                              case 'wechat':
+                                // H5 没有"微信选图"原生能力，给出友好提示并退化到相册
+                                Toast.show({ content: '请先把图片保存到相册，再从相册中选择' });
+                                handleFile('image/*');
+                                return;
+                              default: {
+                                // 未识别子动作：兜底走 autoUserMessage
+                                const auto = (chatCardData!.button.autoUserMessage || '').trim();
+                                if (auto) { lastMsgTimeRef.current = Date.now(); handleSend(auto, 'preset'); }
+                                return;
+                              }
+                            }
+                          }
+                          // sdk_call 等其它类型：发 autoUserMessage（如有）
                           const auto = (chatCardData!.button.autoUserMessage || '').trim();
                           if (auto) { lastMsgTimeRef.current = Date.now(); handleSend(auto, 'preset'); }
                         }}

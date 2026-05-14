@@ -84,6 +84,49 @@ def _calc_bmi(height: float, weight: float) -> float:
     return weight / ((height / 100) ** 2)
 
 
+def _normalize_tag_list(raw) -> list[str]:
+    """[Bug-470 2026-05-15] 把 JSON 字段（既往病史/过敏史等）归一化为字符串数组。
+
+    历史/线上数据中同一字段同时存在以下三种形态，需统一兜底，避免
+    `"、".join(list-of-dict)` 抛 `TypeError: sequence item 0: expected str instance, dict found`
+    直接让 /api/chat/sessions/*/messages 与 /stream 全军覆没。
+
+    - list[str]：旧版结构，如 ["哮喘", "鼻炎"] → 原样保留
+    - list[dict]：新版结构（含 type/value/name/label/text 等键），如
+      [{"type": "custom", "value": "无"}] → 取 value/name/label/text/title 中第一个非空字符串
+    - None / 非 list / 空 list → 返回 []
+    - 任意元素既不是 str 也不是 dict（例如数字、None）→ 强转为 str，None 跳过
+    - dict 中所有候选键都为空 → 跳过该项（不要把空字符串塞进结果）
+    """
+    if not raw or not isinstance(raw, list):
+        return []
+    out: list[str] = []
+    for item in raw:
+        if item is None:
+            continue
+        if isinstance(item, str):
+            s = item.strip()
+            if s:
+                out.append(s)
+        elif isinstance(item, dict):
+            picked = None
+            for key in ("value", "name", "label", "text", "title"):
+                v = item.get(key)
+                if isinstance(v, str) and v.strip():
+                    picked = v.strip()
+                    break
+            if picked:
+                out.append(picked)
+        else:
+            try:
+                s = str(item).strip()
+                if s:
+                    out.append(s)
+            except Exception:
+                continue
+    return out
+
+
 async def _build_health_context(session: ChatSession, db: AsyncSession) -> str:
     """Build a health profile context string to append to system_prompt."""
     context_parts = []
@@ -112,12 +155,17 @@ async def _build_health_context(session: ChatSession, db: AsyncSession) -> str:
             medical_histories = (profile.medical_histories if profile and profile.medical_histories else None) or member.medical_histories or []
             allergies = (profile.allergies if profile and profile.allergies else None) or member.allergies or []
 
+            # [Bug-470 2026-05-15] medical_histories / allergies 在线上存在 list[dict] 形态，
+            # 直接 join 会抛 TypeError 导致 /messages 与 /stream 全军覆没。统一走归一化。
+            histories_list = _normalize_tag_list(medical_histories)
+            allergies_list = _normalize_tag_list(allergies)
+
             age_str = f"{_calc_age(birthday)}岁" if birthday else "年龄未知"
             bmi_str = f"，BMI：{_calc_bmi(height, weight):.1f}" if height and weight else ""
             height_str = f"{height}cm" if height else "未知"
             weight_str = f"{weight}kg" if weight else "未知"
-            histories_str = "、".join(medical_histories) if medical_histories else "无"
-            allergies_str = "、".join(allergies) if allergies else "无"
+            histories_str = "、".join(histories_list) if histories_list else "无"
+            allergies_str = "、".join(allergies_list) if allergies_list else "无"
 
             context_parts.append(f"\n\n## 本次咨询对象健康档案")
             context_parts.append(f"咨询对象：{rel}·{nickname}，{gender}，{age_str}")
@@ -188,8 +236,9 @@ async def _build_user_health_profile_context(user_id: int, db: AsyncSession) -> 
         if bmi:
             parts.append(f"BMI {bmi}")
 
-        chronic = profile.chronic_diseases or []
-        meds = profile.medications or []
+        # [Bug-470 2026-05-15] 同样兼容 list[dict] 数据形态
+        chronic = _normalize_tag_list(profile.chronic_diseases or [])
+        meds = _normalize_tag_list(profile.medications or [])
         if chronic:
             disease_str = "、".join(chronic)
             if meds:
@@ -199,7 +248,7 @@ async def _build_user_health_profile_context(user_id: int, db: AsyncSession) -> 
         elif meds:
             parts.append(f"服用{'、'.join(meds)}")
 
-        allergies = profile.allergies or []
+        allergies = _normalize_tag_list(profile.allergies or [])
         if allergies:
             parts.append(f"{'、'.join(allergies)}过敏")
 
