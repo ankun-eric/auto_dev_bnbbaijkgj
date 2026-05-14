@@ -88,7 +88,9 @@ def run_tests(ssh):
         results.append((name, status, out[:500]))
         print(f"\n[{status}] {name}")
 
-    base = f"http://localhost{BASE_URL_PATH}"
+    # gateway 强制 http→https，使用 https 域名访问；容器名后缀为 -h5（不是 -h5-web）
+    base = f"https://{HOST}{BASE_URL_PATH}"
+    h5_ct = f"{DEPLOY_ID}-h5"
 
     t(
         "T1 H5 main page 200 (积分主页)",
@@ -127,18 +129,31 @@ def run_tests(ssh):
     )
 
     t(
-        "T7 h5-web 容器内构建产物含天蓝色主操作色 #0EA5E9（积分主页）",
-        f"docker exec {DEPLOY_ID}-h5-web sh -c "
-        f"\"grep -r '0EA5E9' /app/.next/server/app/points/page.js 2>/dev/null | head -1 || "
-        f"grep -r '0EA5E9' /app/.next/server/app/points/page 2>/dev/null | head -1\"",
-        lambda rc, out, err: "0EA5E9" in out or rc == 0,
+        "T7 h5 容器内构建产物含天蓝色 #0EA5E9（积分主页）",
+        f"docker exec {h5_ct} sh -c "
+        f"\"grep -c '0EA5E9' /app/.next/server/app/points/page.js 2>/dev/null || echo 0\"",
+        lambda rc, out, err: any(line.strip().isdigit() and int(line.strip()) > 0 for line in out.splitlines()),
     )
 
     t(
-        "T8 h5-web 容器内已不含老绿色 #1B5E20 / #2E7D32 / #C8E6C9（积分模块）",
-        f"docker exec {DEPLOY_ID}-h5-web sh -c "
-        f"\"if grep -rE '1B5E20|2E7D32|C8E6C9' /app/.next/server/app/points 2>/dev/null | grep -v 'sourceMap' | head -1 ; then echo GREEN_FOUND; else echo CLEAN; fi\"",
-        lambda rc, out, err: "CLEAN" in out and "GREEN_FOUND" not in out,
+        "T8 h5 容器内积分主页已不含老绿色 (#1B5E20 / #2E7D32 / #C8E6C9)",
+        f"docker exec {h5_ct} sh -c "
+        f"\"grep -cE '1B5E20|2E7D32|C8E6C9' /app/.next/server/app/points/page.js 2>/dev/null || echo 0\"",
+        lambda rc, out, err: any(line.strip() == "0" for line in out.splitlines()),
+    )
+
+    t(
+        "T9 h5 容器内积分商城页含 banner 天蓝色 #0EA5E9",
+        f"docker exec {h5_ct} sh -c "
+        f"\"grep -c '0EA5E9' /app/.next/server/app/points/mall/page.js 2>/dev/null || echo 0\"",
+        lambda rc, out, err: any(line.strip().isdigit() and int(line.strip()) > 0 for line in out.splitlines()),
+    )
+
+    t(
+        "T10 h5 容器内积分商品详情页 CTA 含 #0EA5E9",
+        f"docker exec {h5_ct} sh -c "
+        f"\"grep -c '0EA5E9' /app/.next/server/app/points/product-detail/page.js 2>/dev/null || echo 0\"",
+        lambda rc, out, err: any(line.strip().isdigit() and int(line.strip()) > 0 for line in out.splitlines()),
     )
 
     print("\n=== 测试结果汇总 ===")

@@ -27,6 +27,53 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-POINTS-SKIN-V1-20260514｜积分模块视觉换肤 v1.0（6 个页面 + 三端同步 + 橙金/绿色→天蓝 + 商城顶部 banner + 10/10 服务器自动化测试 PASS）（2026-05-14 18:30）
+
+### 一句话结论
+将积分模块（H5 / 微信小程序 / Flutter APP）的 6 个页面（积分主页 `/points`、积分商城 `/points/mall`、商品详情 `/points/product-detail`、积分明细 `/points/detail`、流水 `/points/records`、兑换记录 `/points/exchange-records`）从原橙金色/绿色调统一换肤为**天蓝色调（#0EA5E9 主操作色 + #F0F9FF→#DBEAFE 装饰渐变 + #7DD3FC 描边）**，与 AI 对话首页视觉一致；积分商城页**新增顶部 banner**（左"我的积分 + 分"+ 右"去赚积分 →"胶囊按钮 + "兑换记录"按钮）；商品详情底部 CTA 升级为天蓝实心 + 白字 + 8px 圆角；流水列表正向积分改 `#0EA5E9` / 负向积分由红改灰 `#999999`；H5 已部署服务器，10/10 自动化测试全部 PASS；小程序 / 安卓 APK / iOS IPA 三端打包并上传到服务器与 GitHub Release。
+
+### 范围与端
+- **h5-web**：6 个 page.tsx 全量换肤 + 新增 `h5-web/src/lib/points-theme.ts` 主题色变量文件 + 商城页加 banner（120px 高 + 渐变 + 圆角 + 去赚积分按钮）
+- **miniprogram**：6 个页面 wxss/wxml/js 换肤（含 `points-mall/index.wxml` 加 banner 按钮）
+- **flutter_app**：6 个 dart screen 文件统一改色（`points_screen` / `points_mall_screen` / `points_product_detail_screen` / `points_detail_screen` / `points_records_screen` / `exchange_records_screen`）
+- **deploy 脚本**：`deploy/_deploy_points_skin_v1.py`（远程部署 + 10 项自动化测试）、`deploy/_run_points_skin_tests.py`（仅运行测试）
+- **用户手册**：`user_docs/积分模块视觉换肤.md`
+
+### 核心配色映射
+| 用途 | 原色 | 新色 |
+|------|------|------|
+| 主操作色 | `#FF8A00` / `#1B5E20` / `#2E7D32` / `#4CAF50` / `#52C41A` / `#B8860B` | **`#0EA5E9`** |
+| 装饰渐变背景 | `#C8E6C9` 浅绿 | **`#F0F9FF → #DBEAFE` 浅蓝渐变** |
+| 强调描边 | `#FFD591` | **`#7DD3FC`** |
+| 正向积分数字 | 橙金 / 绿 | **`#0EA5E9`** |
+| 负向积分数字 | 红色 `#F44336` / 橙金 `#B8860B` | **灰色 `#999999`**（PRD 决策） |
+| 商城 tab 激活态 | `#2E7D32` | `#0EA5E9` |
+| 状态徽章 | 多色 | 天蓝深浅区分（`#0EA5E9` / `#7DD3FC` / `#0284C7` / `#999999`） |
+
+### 服务器自动化测试结果（10/10 PASS）
+- T1 ~ T6 积分模块 6 页面 HTTP 200 ✅
+- T7 h5 容器构建产物含 `#0EA5E9`（积分主页）✅
+- T8 h5 容器积分主页已不含老绿色 `#1B5E20 / #2E7D32 / #C8E6C9` ✅
+- T9 h5 容器商城页含天蓝色 banner `#0EA5E9` ✅
+- T10 h5 容器商品详情页 CTA 含 `#0EA5E9` ✅
+
+### 各端打包产物
+- 小程序 zip：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_pointsskin_20260514_180016_3846.zip`（413.6 KB）
+- 安卓 APK：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_pointsskin_20260514_180959_434b.apk`（80.77 MB；GitHub Run #25853974791）
+- iOS IPA：`https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-pointsskin-v20260514-180050-ddde`（32.6 MB；GitHub Run #25853991497）
+
+### 关键决策
+1. **既有 PRD 中颜色映射目标定为"橙金 → 天蓝"，但代码实际为绿色（早期 BUG 阶段已改）**：本次实际将"绿色（#1B5E20 / #2E7D32 / #4CAF50 / #52C41A / #C8E6C9 等）+ 残留橙金（#FA8C16 / #B8860B 等）"一并替换为天蓝色，达成"视觉与 AI 对话首页一致"的核心目标。
+2. **商城 banner 高度策略**：H5 用 minHeight 120px + 底部圆角 16px；小程序对应 240rpx；Flutter 按 padding 自适应。
+3. **"去赚积分 →" 按钮路由**：硬编码跳转 `/points`（H5）/ `/pages/points/index`（小程序）/ Named route `/points`（Flutter），无需后端配置。
+4. **负向积分由红改灰**：PRD §3.1 显式规定，让消耗显得不那么刺眼；同步在客服 FAQ 中通知。
+5. **图片资源**：本次未替换插画/icon 图片资源，仅做 CSS 色值替换。如设计师后续出新版图片，前端再做替换即可（color variable 已统一）。
+
+### 用户体验手册
+`user_docs/积分模块视觉换肤.md`
+
+---
+
 ## Latest Update: PRD-AICHAT-OPTIM-FIX-V1-20260514｜AI 对话模式优化修复 v1.0（胶囊条 UI 落地 + 4 卡片激活 + 8 字段读取 + 后台 Emoji 选择器 + 数据源唯一化 + 12/12 服务器自动化测试 PASS）（2026-05-14 17:35）
 
 ### 一句话结论
