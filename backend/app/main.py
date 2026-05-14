@@ -1107,6 +1107,12 @@ async def _migrate_aichat_optim_fix_v1():
     """[AICHAT-OPTIM-FIX-V1 2026-05-14] AI 对话模式优化修复 PRD v1.0
 
     迁移内容：
+      1. chat_function_buttons 添加 icon VARCHAR(32) 列（幂等）
+      2. 根据按钮名关键字推荐 Emoji 自动回填空 icon 字段
+      3. app_settings.ai_home_config.func_grid 简化为 visible/max_count/cols(columns)
+    """
+
+    迁移内容：
     1. chat_function_buttons 表新增 icon VARCHAR(16) 列
     2. 对所有 icon 字段为空的记录：按按钮名关键字推荐 Emoji 自动填充
     3. 简化 ai_home_config.func_grid 模块：保留 visible / max_count / cols（columns），
@@ -1221,8 +1227,10 @@ async def _migrate_aichat_optim_fix_v1():
                 _logger.debug("[aichat_optim_fix_v1] func_grid 简化跳过: %s", e)
 
             await db.commit()
+            print("[migrate] aichat_optim_fix_v1: func_grid simplified DONE; AI 对话模式优化修复 v1 迁移完成", flush=True)
             _logger.info("[aichat_optim_fix_v1] AI 对话模式优化修复 v1 迁移完成")
     except Exception as e:  # noqa: BLE001
+        print(f"[migrate] aichat_optim_fix_v1: 迁移异常（不影响启动）: {e}", flush=True)
         _logger.error("[aichat_optim_fix_v1] 迁移异常（不影响启动）: %s", e)
 
 
@@ -1325,7 +1333,9 @@ async def lifespan(app: FastAPI):
     # [AI对话模式优化 PRD v1.0 2026-05-14] chat_function_buttons 8 字段 + medication_library.barcode
     await _migrate_aichat_optim_v1()
     # [AICHAT-OPTIM-FIX-V1 2026-05-14] chat_function_buttons 加 icon 字段 + 自动回填 Emoji + func_grid 简化
+    print("[migrate] aichat_optim_fix_v1: 启动迁移...", flush=True)
     await _migrate_aichat_optim_fix_v1()
+    print("[migrate] aichat_optim_fix_v1: 迁移完成", flush=True)
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities
