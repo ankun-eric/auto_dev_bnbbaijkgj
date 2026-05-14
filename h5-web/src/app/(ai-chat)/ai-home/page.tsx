@@ -23,6 +23,8 @@ import { trackEvent, aiChatTrack, aiHomeFnTrack, type AiChatTargetType } from '@
 import { FnCell } from '@/components/design-system';
 // [AICHAT-OPTIM-FIX-V1 F-06] ChatCards 调度器
 import { resolveCardType, backendButtonToCardButton, ChatCard, type ChatCardType } from '@/components/ai-chat/ChatCards';
+// [PRD-AICHAT-CAPSULE-V1 2026-05-15] 输入框上方胶囊条（与菜单模式共用 chat_function_buttons 数据）
+import CapsuleBar from '@/components/ai-chat/CapsuleBar';
 
 interface ChatMessage {
   id: string;
@@ -424,6 +426,8 @@ export default function AiHomePage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   // [PRD-426] 已移除 inputFocused 状态：原仅用于控制"+ 选择咨询人"浮层显隐，浮层删除后无需此状态
+  // [PRD-AICHAT-CAPSULE-V1 2026-05-15] 输入框 focus 时隐藏胶囊条（PRD §3.1 键盘联动）
+  const [isInputFocused, setIsInputFocused] = useState(false);
   const [sending, setSending] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   // [BUG-466 (2026-05-11)] 用 ref 同步保存"当前最新 sessionId"
@@ -2571,6 +2575,35 @@ export default function AiHomePage() {
         </div>
       )}
 
+      {/* [PRD-AICHAT-CAPSULE-V1 2026-05-15] AI 对话模式输入框上方胶囊条
+          - 数据源：复用菜单模式的 /api/function-buttons?is_enabled=true（funcButtons）
+          - 位置：输入框正上方，独立条带；数据为空 / 全部禁用 / 接口异常 → 不渲染
+          - 键盘联动：textarea focus 时 isInputFocused=true → 整体隐藏
+          - 点击：以"用户身份"自动发问（quick_ask 行为，复用 handleSend('preset')） */}
+      <CapsuleBar
+        buttons={funcButtons.map((b) => ({
+          id: b.id,
+          name: b.name,
+          icon: b.icon || '📌',
+          button_type: b.button_type,
+        }))}
+        hidden={isInputFocused}
+        onCapsuleClick={(cap) => {
+          const full = funcButtons.find((b) => String(b.id) === String(cap.id));
+          if (!full) return;
+          // [PRD §3.4] 立即以"用户身份"自动发出该胶囊对应的问题文本，AI 走正常回复流程
+          const presetText = (
+            full.preset_prompt ||
+            full.auto_user_message ||
+            full.name ||
+            ''
+          ).trim();
+          if (!presetText) return;
+          lastMsgTimeRef.current = Date.now();
+          handleSend(presetText, 'preset');
+        }}
+      />
+
       {/* Input Bar */}
       <div
         className="flex-shrink-0 px-4 py-3"
@@ -2650,7 +2683,10 @@ export default function AiHomePage() {
                 placeholder={aiHomeConfig.input?.placeholder || '发消息或按住说话...'}
                 value={inputValue}
                 onChange={handleTextareaInput}
-                /* [PRD-426] 已移除 onFocus/onBlur 监听：原用于"+ 选择咨询人"浮层显隐控制 */
+                /* [PRD-AICHAT-CAPSULE-V1 2026-05-15] focus/blur 用于胶囊条键盘联动（PRD §3.1）
+                   focus → 隐藏胶囊条；blur → 恢复显示。仅用于本胶囊条，不影响其它逻辑。 */
+                onFocus={() => setIsInputFocused(true)}
+                onBlur={() => setIsInputFocused(false)}
                 /* [Bug-431] 已彻底移除聚焦时自动收起：欢迎面板的唯一收起触发器 = 用户主动点击发送按钮（见 handleSend） */
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !e.shiftKey) {
