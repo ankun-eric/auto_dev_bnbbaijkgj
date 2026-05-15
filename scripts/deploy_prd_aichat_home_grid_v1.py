@@ -91,6 +91,15 @@ def main() -> int:
         run(client,
             f"cd {PROJECT_PATH} && docker compose -f docker-compose.prod.yml up -d --no-deps backend h5-web admin-web 2>&1 | tail -10")
 
+        print("\n===== 3b. 修复网络（backend/h5/admin 接入 DB 所在 network） =====")
+        DB_NETWORK = f"{DEPLOY_ID}_{DEPLOY_ID}-network"
+        for svc in ("backend", "h5", "admin"):
+            run(client, f"docker network disconnect {DB_NETWORK} {DEPLOY_ID}-{svc} 2>&1 || true")
+            run(client, f"docker network connect {DB_NETWORK} {DEPLOY_ID}-{svc} 2>&1 || true")
+        time.sleep(3)
+        run(client, f"docker restart {DEPLOY_ID}-backend 2>&1 || true")
+        time.sleep(8)
+
         print("\n===== 4. 等待容器健康 =====")
         time.sleep(15)
         for i in range(1, 24):

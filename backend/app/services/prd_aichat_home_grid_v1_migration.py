@@ -23,25 +23,58 @@ _logger = logging.getLogger("app.prd_aichat_home_grid_v1")
 
 
 async def run_migration_with_session(async_session_factory) -> Dict[str, Any]:
-    """对外入口：根据 is_enabled 历史值，回填 is_recommended / is_capsule。仅对 NULL 列回填。"""
-    stats: Dict[str, Any] = {"migrated_enabled": 0, "migrated_disabled": 0}
+    """对外入口：根据 is_enabled 历史值，回填 is_recommended / is_capsule。
+
+    迁移策略（幂等）：
+      - 通过 app_settings 表的 `_migration_done.prd_aichat_home_grid_v1` 标志记录是否已迁移
+      - 已迁移过 → 直接返回（绝不二次覆盖运营手工设置）
+      - 未迁移过 → 一次性按 is_enabled 回填：
+          is_enabled=1 → is_recommended=1, is_capsule=1
+          否则         → is_recommended=0, is_capsule=0
+        然后把标志写入 app_settings 永久保留
+    """
+    stats: Dict[str, Any] = {"migrated_enabled": 0, "migrated_disabled": 0, "skipped": False}
+    FLAG_KEY = "_migration_done.prd_aichat_home_grid_v1"
     async with async_session_factory() as db:
         try:
-            # 仅迁移两列均为 NULL 的历史行（防覆盖已被运营人工设置过的值）
+            # 1. 确保 app_settings 表存在（schema 同步通常已创建；这里只读，不创建）
+            try:
+                res_flag = await db.execute(text(
+                    "SELECT setting_value FROM app_settings WHERE setting_key = :k LIMIT 1"
+                ), {"k": FLAG_KEY})
+                row = res_flag.first()
+                if row and row[0]:
+                    stats["skipped"] = True
+                    return stats
+            except Exception:
+                # app_settings 表不存在或字段差异 → 退化为按 NULL 条件迁移（避免阻塞）
+                pass
+
+            # 2. 一次性回填
             res_enabled = await db.execute(text(
                 "UPDATE chat_function_buttons "
                 "SET is_recommended = 1, is_capsule = 1 "
-                "WHERE (is_recommended IS NULL AND is_capsule IS NULL) "
-                "  AND is_enabled = 1"
+                "WHERE is_enabled = 1"
             ))
             stats["migrated_enabled"] = int(getattr(res_enabled, "rowcount", 0) or 0)
+
             res_disabled = await db.execute(text(
                 "UPDATE chat_function_buttons "
                 "SET is_recommended = 0, is_capsule = 0 "
-                "WHERE (is_recommended IS NULL AND is_capsule IS NULL) "
-                "  AND (is_enabled = 0 OR is_enabled IS NULL)"
+                "WHERE (is_enabled = 0 OR is_enabled IS NULL)"
             ))
             stats["migrated_disabled"] = int(getattr(res_disabled, "rowcount", 0) or 0)
+
+            # 3. 写入完成标志
+            try:
+                await db.execute(text(
+                    "INSERT INTO app_settings (setting_key, setting_value, created_at, updated_at) "
+                    "VALUES (:k, '1', NOW(), NOW()) "
+                    "ON DUPLICATE KEY UPDATE setting_value = '1', updated_at = NOW()"
+                ), {"k": FLAG_KEY})
+            except Exception as e:
+                _logger.warning("[PRD-AICHAT-HOME-GRID-V1] 写入迁移标志失败（不影响主迁移）：%s", e)
+
             await db.commit()
         except Exception as e:
             await db.rollback()
