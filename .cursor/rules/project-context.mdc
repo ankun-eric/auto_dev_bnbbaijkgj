@@ -27,7 +27,31 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-AICHAT-CAPSULE-V2-20260515｜AI 咨询配置-功能按钮管理 4 项优化落地（后端+admin+h5+flutter，11/11 后端测试 PASS，远程部署 HTTP 全 OK）（2026-05-15 10:51）
+## Latest Update: PRD-HEALTH-SELF-CHECK-V1-20260515｜健康自查（health_self_check）全端落地（2026-05-15 17:45）
+
+- 范围
+  - 后端：新增 `body_part_dict` / `health_check_template` 两张表；`chat_function_buttons` 扩 4 字段（`health_check_template_id`/`archive_missing_strategy`/`prompt_override_enabled`/`prompt_override_text`）
+  - 后端 API：
+    - 公开：`GET /api/health-self-check/dict`、`GET /api/health-self-check/template/{id}`、`POST /api/health-self-check/start`
+    - 管理：`/api/admin/body-part-dict` + `/api/admin/health-check-templates` CRUD
+  - 启动迁移 `_migrate_health_self_check_v1`：表结构升级 + 初始化 10 个默认部位 + 1 个通用模板 + 默认按钮（含 `created_at/updated_at`）
+  - admin-web：新增 `/admin/body-part-dict`、`/admin/health-check-templates`、`/admin/function-buttons` 增加 health_self_check 类型表单
+  - h5-web：`/ai-home` 增加 `HealthSelfCheckDrawer` + `HealthSelfCheckCard`；按 `button_type='health_self_check'` 分发
+  - flutter_app：`lib/widgets/health_self_check_drawer.dart` + `health_self_check_card.dart` + `chat_screen` 接入
+  - miniprogram：`pages/chat` 增加抽屉与卡片气泡（wxml/wxss/js）
+- 部署 & 验证
+  - 部署脚本：`deploy/_deploy_health_self_check_v1.py`（git pull → docker build/up backend/h5/admin → 后端启动迁移日志确认 → 公网接口冒烟）
+  - 已修脏数据：`body_part_dict` / `health_check_template` / `chat_function_buttons` 中 created_at/updated_at NULL 行已 UPDATE NOW
+  - 公网验证：
+    - `/api/health-self-check/dict` → 200，10 个启用部位
+    - `/api/health-self-check/template/1` → 200
+    - `/api/function-buttons?is_enabled=true` → 200（已含 health_self_check 默认按钮）
+    - `/ai-home` / `/admin/body-part-dict` / `/admin/health-check-templates` → 308（Next.js 正常）
+- 用户手册：`user_docs/健康自查_用户体验手册.md`
+
+---
+
+## Previous Update: PRD-AICHAT-CAPSULE-V2-20260515｜AI 咨询配置-功能按钮管理 4 项优化落地（后端+admin+h5+flutter，11/11 后端测试 PASS，远程部署 HTTP 全 OK）（2026-05-15 10:51）
 
 ### 一句话结论
 按 PRD「AI 咨询配置-功能按钮管理 优化 v1.0」完成 4 项核心改动并部署到服务器：① **upload 来源收口**——`h5-web/src/components/ai-chat/ChatCards.tsx` 的 `UploadCard` 仅保留「相册 / 拍照」，移除「本机 / 微信」；② **「卡片封面图 URL」字段移除**——admin-web `function-buttons/page.tsx` 删除 Form.Item + 提交时 `card_cover_image: null`；用户端 `CardHeader` 统一渲染「Emoji 主题色头像」（40×40, radius 8, bg 主题色 10% 透明）；③ **删除「AI 回复模式」字段**——admin-web 删除 Form.Item；后端新增 `prompt_templates.code`/`is_builtin` 列（schema_sync 自动建列）+ 启动期写入 3 个系统内置模板（`MED_RECOG_FULL` id=10、`MED_RECOG_ADVICE_ONLY` id=11、`MED_RECOG_AUTO` id=12）+ 把存量 `photo_recognize_drug` 按钮的 `ai_reply_mode`（含 `params.ai_reply_mode` JSON 内字段）按映射表写入 `prompt_template_id`（已绑定的不动）；admin-web Prompt 模板页顶部新增「系统内置识药模板」卡片区 + 「复制为可编辑副本」按钮（调 `POST /api/admin/prompt-templates/{id}/duplicate`）；④ **胶囊点击按 type 分发**——h5-web `ai-home/page.tsx` 新增 `handleCapsuleByType`：upload→ActionSheet（相册/拍照）→图片消息+AI 回复；navigate/external_link/ai_chat_trigger→路由跳转；sdk_call/digital_human_call→navigate；quick_ask→对话区渲染 `kind='quick_ask_card'` 的可编辑卡片（多行 textarea + 取消/发送）；`ChatMessage` 接口扩展 `kind: 'text' | 'image' | 'quick_ask_card'`、`quickAskButton`、`quickAskState`；胶囊条顺序由后台 `sort_weight` 升序固定。Flutter 端 `function_button.dart` 模型补 `icon/presetPrompt/autoUserMessage/externalUrl/promptTemplateId` 字段；`chat_screen.dart` 的 `_handleFunctionButton` 补 `quick_ask`/`prompt_template`/`photo_recognize_drug` 分支。小程序经检查原本就只有「相册/拍照」二选，**无需改动**。
