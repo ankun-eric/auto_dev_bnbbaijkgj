@@ -573,9 +573,11 @@ export default function AiHomePage() {
       setFuncButtons([]);
     });
 
-    api.get('/api/health-plan/today-tasks').then((res: any) => {
+    // [BUG-FIX 2026-05-16] 接口名拼写错误：today-tasks → today-todos（与后端实际接口、小程序、Flutter 端保持一致）
+    api.get('/api/health-plan/today-todos').then((res: any) => {
       const data = res.data || res;
-      setHasHealthTask(!!data.has_tasks);
+      const totalCount = typeof data.total_count === 'number' ? data.total_count : 0;
+      setHasHealthTask(totalCount > 0 || !!data.has_tasks);
     }).catch(() => {});
 
     // [PRD-439 F-02] 提醒徽标：用药未打卡数 + 待核销订单数
@@ -1362,7 +1364,18 @@ export default function AiHomePage() {
       };
       setMessages((prev) => prev.concat(cardMsg, aiPlaceholder));
       try {
-        const res = await api.post<any>('/api/health-self-check/start', payload);
+        // [BUG-FIX 2026-05-16] 后端 schema 要求 body_part_id（整数），
+        // 不接受 archive_name/archive_age/archive_gender/body_part 对象。
+        // 展示模型（卡片气泡）仍保留完整 body_part 对象，但发给后端的 payload 只传 body_part_id。
+        const requestBody = {
+          template_id: payload.template_id,
+          button_id: payload.button_id,
+          archive_id: payload.archive_id ?? null,
+          body_part_id: payload.body_part?.id,
+          symptoms: payload.symptoms,
+          duration: payload.duration,
+        };
+        const res = await api.post<any>('/api/health-self-check/start', requestBody);
         const data = res?.data ?? res;
         const aiText = data?.ai_content || '分析失败，请稍后重试';
         setMessages((prev) =>
@@ -1410,6 +1423,20 @@ export default function AiHomePage() {
    */
   const handleFunctionButtonClick = (btn: FunctionButton) => {
     try {
+      // [BUG-FIX 2026-05-16] health_self_check 类型：与胶囊行为完全一致，直接弹出健康自查抽屉
+      // 修复前：宫格分发漏掉本分支，落入兜底逻辑被当成"导航卡片"渲染，导致点击无反应
+      if (btn.button_type === 'health_self_check') {
+        const strategy = btn.archive_missing_strategy || 'use_default';
+        if (!selectedConsultant && strategy === 'force_toast') {
+          Toast.show({ content: '请先在顶部选择咨询档案' });
+          return;
+        }
+        setHscDrawerButton(btn);
+        setHscDrawerPrefill(null);
+        setHscDrawerOpen(true);
+        return;
+      }
+
       const cardType: ChatCardType = resolveCardType(btn.button_type);
 
       // quick_ask 类型：直接以 preset_prompt（或 auto_user_message）作为用户消息发送

@@ -1007,14 +1007,26 @@ Page({
     }
     const part = (hscBodyParts || []).find((p) => p.id === hscSelectedPartId);
     if (!part || !hscButton || !hscTemplate) return;
-    const payload = {
+    // [BUG-FIX 2026-05-16] 拆分展示模型与接口请求模型：
+    // - displayPayload：用于卡片气泡展示（保留 body_part 对象、archive_name 等）
+    // - requestBody：用于发给后端（仅 body_part_id 整数，符合 HealthSelfCheckStartRequest schema）
+    const archiveName = this.data.consultTarget && this.data.consultTarget.name ? this.data.consultTarget.name : '本人';
+    const displayPayload = {
       template_id: hscTemplate.id,
       button_id: hscButton.id,
       archive_id: null,
-      archive_name: this.data.consultTarget && this.data.consultTarget.name ? this.data.consultTarget.name : '本人',
+      archive_name: archiveName,
       archive_age: null,
       archive_gender: null,
       body_part: { id: part.id, name: part.name, icon: part.icon || '' },
+      symptoms: hscSelectedSymptoms,
+      duration: hscSelectedDuration,
+    };
+    const requestBody = {
+      template_id: hscTemplate.id,
+      button_id: hscButton.id,
+      archive_id: null,
+      body_part_id: part.id,
       symptoms: hscSelectedSymptoms,
       duration: hscSelectedDuration,
     };
@@ -1027,14 +1039,14 @@ Page({
       type: 'health_self_check_card',
       content: '',
       hscPayload: {
-        archive_name: payload.archive_name,
-        archive_age: payload.archive_age,
-        archive_gender: payload.archive_gender,
-        body_part: payload.body_part,
-        symptoms: payload.symptoms,
-        duration: payload.duration,
-        button_id: payload.button_id,
-        template_id: payload.template_id,
+        archive_name: displayPayload.archive_name,
+        archive_age: displayPayload.archive_age,
+        archive_gender: displayPayload.archive_gender,
+        body_part: displayPayload.body_part,
+        symptoms: displayPayload.symptoms,
+        duration: displayPayload.duration,
+        button_id: displayPayload.button_id,
+        template_id: displayPayload.template_id,
       },
       created_at: new Date().toISOString(),
     };
@@ -1048,7 +1060,7 @@ Page({
     };
     const messages = (this.data.messages || []).concat([cardMsg, aiPlaceholder]);
     this.setData({ messages, scrollToId: aiPlaceholder.id });
-    post('/api/health-self-check/start', payload).then((res) => {
+    post('/api/health-self-check/start', requestBody).then((res) => {
       const data = (res && res.data) ? res.data : res;
       const aiText = (data && data.ai_content) || '分析失败，请稍后重试';
       const msgs = (this.data.messages || []).map((m) =>

@@ -25,17 +25,26 @@ class HealthSelfCheckResult {
     required this.duration,
   });
 
-  Map<String, dynamic> toJson() => {
-        'template_id': templateId,
-        'button_id': buttonId,
-        'archive_id': archiveId,
-        'archive_name': archiveName,
-        'archive_age': archiveAge,
-        'archive_gender': archiveGender,
-        'body_part': bodyPart,
-        'symptoms': symptoms,
-        'duration': duration,
-      };
+  /// [BUG-FIX 2026-05-16] 后端 HealthSelfCheckStartRequest schema 要求：
+  /// button_id / template_id / archive_id / body_part_id（整数）/ symptoms / duration / session_id
+  /// 不接受 archive_name / archive_age / archive_gender / body_part 对象，
+  /// 因此 toJson 仅输出与后端 schema 严格匹配的字段。
+  /// 展示模型（卡片气泡）需要的 archive_name / body_part 对象等请直接使用对象属性，
+  /// 不要走 toJson 通道。
+  Map<String, dynamic> toJson() {
+    final dynamic rawPartId = bodyPart['id'];
+    final int bodyPartId = rawPartId is int
+        ? rawPartId
+        : int.tryParse(rawPartId?.toString() ?? '') ?? 0;
+    return {
+      'template_id': templateId,
+      'button_id': buttonId,
+      'archive_id': archiveId,
+      'body_part_id': bodyPartId,
+      'symptoms': symptoms,
+      'duration': duration,
+    };
+  }
 }
 
 class HealthSelfCheckDrawer extends StatefulWidget {

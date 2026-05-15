@@ -622,8 +622,24 @@ class _ChatScreenState extends State<ChatScreen> {
     );
     provider.addMessageExternally(placeholder);
     try {
+      // [BUG-FIX 2026-05-16] 后端 schema 要求 body_part_id（整数），
+      // 不接受 body_part 对象 / archive_name / archive_age / archive_gender。
+      // 展示模型（卡片气泡 healthSelfCheckPayload）保留完整 body_part 对象，
+      // 但发给后端的 payload 只传 body_part_id。
+      final dynamic rawPartId = result.bodyPart['id'];
+      final int bodyPartId = rawPartId is int
+          ? rawPartId
+          : int.tryParse(rawPartId?.toString() ?? '') ?? 0;
+      final requestBody = <String, dynamic>{
+        'template_id': result.templateId,
+        'button_id': result.buttonId,
+        'archive_id': result.archiveId,
+        'body_part_id': bodyPartId,
+        'symptoms': result.symptoms,
+        'duration': result.duration,
+      };
       final resp = await _apiService.post('/api/health-self-check/start',
-          data: result.toJson());
+          data: requestBody);
       final data = resp.data is Map ? Map<String, dynamic>.from(resp.data as Map) : <String, dynamic>{};
       final aiText = (data['ai_content']?.toString() ?? '分析失败，请稍后重试');
       provider.replaceMessageById(
