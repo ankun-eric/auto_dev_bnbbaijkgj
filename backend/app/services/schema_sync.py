@@ -348,10 +348,13 @@ async def _sync_ocr_scene_templates(conn: AsyncConnection) -> None:
 async def _sync_prompt_templates(conn: AsyncConnection) -> None:
     def _load(sync_conn):
         inspector = inspect(sync_conn)
-        return "prompt_templates" in set(inspector.get_table_names())
+        tables = set(inspector.get_table_names())
+        if "prompt_templates" not in tables:
+            return None
+        return {col["name"] for col in inspector.get_columns("prompt_templates")}
 
-    exists = await conn.run_sync(_load)
-    if not exists:
+    columns = await conn.run_sync(_load)
+    if columns is None:
         await conn.execute(text(
             "CREATE TABLE prompt_templates ("
             "id INT AUTO_INCREMENT PRIMARY KEY, "
@@ -363,10 +366,22 @@ async def _sync_prompt_templates(conn: AsyncConnection) -> None:
             "parent_id INT NULL, "
             "preview_input TEXT NULL, "
             "created_by INT NULL, "
+            "code VARCHAR(64) NULL, "
+            "is_builtin BOOLEAN NOT NULL DEFAULT FALSE, "
             "created_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
             "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
             ")"
         ))
+    else:
+        # [PRD-AICHAT-CAPSULE-V2 2026-05-15] 增量补字段：code + is_builtin
+        if "code" not in columns:
+            await conn.execute(text(
+                "ALTER TABLE prompt_templates ADD COLUMN code VARCHAR(64) NULL"
+            ))
+        if "is_builtin" not in columns:
+            await conn.execute(text(
+                "ALTER TABLE prompt_templates ADD COLUMN is_builtin BOOLEAN NOT NULL DEFAULT FALSE"
+            ))
 
 
 async def _sync_share_links(conn: AsyncConnection) -> None:

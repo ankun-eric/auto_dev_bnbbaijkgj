@@ -527,12 +527,27 @@ class _ChatScreenState extends State<ChatScreen> {
         _sendMessageWithSSE(triggerMsg);
         break;
       case 'drug_identify':
+      // [PRD-AICHAT-CAPSULE-V2 2026-05-15] photo_recognize_drug 是新枚举值，复用识药交互
+      case 'photo_recognize_drug':
         _handleDrugIdentifyButton(btn);
         break;
       case 'external_link':
         final url = btn.params?['url']?.toString();
         if (url != null && url.isNotEmpty) {
           launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+        }
+        break;
+      // [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 4.1] quick_ask 胶囊：以"用户身份"发出 preset_prompt
+      case 'quick_ask':
+      case 'prompt_template':
+        final preset = (btn.presetPrompt ??
+                btn.autoUserMessage ??
+                btn.params?['preset_prompt']?.toString() ??
+                btn.params?['trigger_message']?.toString() ??
+                btn.name)
+            .trim();
+        if (preset.isNotEmpty) {
+          _sendMessageWithSSE(preset);
         }
         break;
     }

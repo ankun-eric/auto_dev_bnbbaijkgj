@@ -36,6 +36,23 @@ interface ChatMessage {
   consultantTargetId?: number | null;
   /** [PRD-433 F-14] 参考资料：仅当数组非空时渲染，接口未返回则不显示 */
   references?: Array<{ title: string; url?: string }>;
+  /**
+   * [PRD-AICHAT-CAPSULE-V2 2026-05-15] 消息种类：
+   *  - undefined / 'text' : 普通文本
+   *  - 'image' : 用户上传的图片消息（content = 图片 URL 或 base64）
+   *  - 'quick_ask_card' : 可编辑的快捷提问卡片消息（quickAskButton 字段携带按钮元数据）
+   */
+  kind?: 'text' | 'image' | 'quick_ask_card';
+  /** quick_ask 卡片消息携带的按钮元数据 */
+  quickAskButton?: {
+    id: number | string;
+    name: string;
+    icon?: string;
+    presetPrompt?: string;
+    autoUserMessage?: string;
+  };
+  /** quick_ask 卡片消息当前状态：pending（可编辑）/ sent（已发送，置灰）/ cancelled（已取消，置灰） */
+  quickAskState?: 'pending' | 'sent' | 'cancelled';
 }
 
 interface Banner {
@@ -425,6 +442,8 @@ export default function AiHomePage() {
   const [funcButtons, setFuncButtons] = useState<FunctionButton[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
+  // [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 4.1] 胶囊 upload ActionSheet 开关
+  const [capsuleUploadSheetOpen, setCapsuleUploadSheetOpen] = useState(false);
   // [PRD-426] 已移除 inputFocused 状态：原仅用于控制"+ 选择咨询人"浮层显隐，浮层删除后无需此状态
   // [PRD-AICHAT-CAPSULE-V1 2026-05-15] 输入框 focus 时隐藏胶囊条（PRD §3.1 键盘联动）
   const [isInputFocused, setIsInputFocused] = useState(false);
@@ -939,6 +958,189 @@ export default function AiHomePage() {
     // 读取最新 sid，闭包不再需要绑定 state；保留 selectedConsultant 是因为
     // createChatSession 内部需要使用最新选定的咨询对象。
   }, [inputValue, sending, selectedConsultant, idleTimeout]);
+
+  /**
+   * [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 4.1] 胶囊点击 = 按 button_type 直接触发对应功能
+   * - upload类（含 file_upload / photo_upload / photo_recognize_drug / report_interpret）
+   *   → 弹「相册 / 拍照」ActionSheet，选完图后对话区出现图片消息 + 触发 AI 回复
+   * - ai_chat_trigger / external_link / navigate 类 → 直接执行页面跳转，不在对话区留痕
+   * - quick_ask → 在对话区渲染可编辑的 QuickAskCard 消息（用户编辑后点发送）
+   * - digital_human_call / sdk_call → 直接调用 SDK 能力（视频通话），不在对话区留痕
+   */
+  const handleCapsuleByType = useCallback((btn: FunctionButton) => {
+    const type = btn.button_type;
+    // upload 类：统一弹 ActionSheet（H5 实现复用现有 file input 选择）
+    if (
+      type === 'photo_upload' ||
+      type === 'file_upload' ||
+      type === 'photo_recognize_drug' ||
+      type === 'drug_identify' ||
+      type === 'medication_recognize' ||
+      type === 'report_interpret'
+    ) {
+      try {
+        triggerCapsuleUpload(btn);
+      } catch (e) {
+        // 兜底：上传链路异常时退化为预设话术发送（旧行为）
+        const fb = (btn.preset_prompt || btn.auto_user_message || btn.name || '').trim();
+        if (fb) handleSend(fb, 'preset');
+      }
+      return;
+    }
+
+    // navigate / external_link / ai_chat_trigger：直接跳转，不在对话区留痕
+    if (type === 'external_link' || type === 'ai_chat_trigger' || type === 'ai_dialog_trigger') {
+      const url =
+        btn.external_url ||
+        (typeof btn.params === 'object' && btn.params ? (btn.params as any).url : null) ||
+        '';
+      if (url) {
+        try {
+          if (/^https?:\/\//.test(url)) {
+            window.location.href = url;
+          } else if (url.startsWith('/')) {
+            router.push(url);
+          } else {
+            router.push(`/${url}`);
+          }
+        } catch {}
+      } else if (FUNCTION_ROUTES[type]) {
+        router.push(FUNCTION_ROUTES[type]);
+      }
+      return;
+    }
+
+    // sdk_call（digital_human_call / video_consult 等）：直接调用 SDK，不在对话区留痕
+    if (type === 'digital_human_call' || type === 'video_consult' || type === 'live_chat') {
+      try {
+        if (FUNCTION_ROUTES[type]) {
+          router.push(FUNCTION_ROUTES[type]);
+        } else {
+          router.push('/voice-call');
+        }
+      } catch {}
+      return;
+    }
+
+    // quick_ask：插入一条「可编辑快捷提问卡片」消息（用户编辑后点击发送才真正发出）
+    if (type === 'quick_ask' || type === 'prompt_template') {
+      const preset = (
+        btn.preset_prompt ||
+        btn.auto_user_message ||
+        btn.name ||
+        ''
+      ).trim();
+      const cardMsg: ChatMessage = {
+        id: `qa-${Date.now()}`,
+        role: 'user',
+        content: preset,
+        time: new Date().toISOString(),
+        kind: 'quick_ask_card',
+        quickAskState: 'pending',
+        quickAskButton: {
+          id: btn.id,
+          name: btn.name,
+          icon: btn.icon || '⚡',
+          presetPrompt: btn.preset_prompt || undefined,
+          autoUserMessage: btn.auto_user_message || undefined,
+        },
+      };
+      // 将之前的同类卡片标记为 cancelled（PRD §4.2：未操作发起其他消息时变灰、不可再交互）
+      setMessages((prev) =>
+        prev
+          .map((m) =>
+            m.kind === 'quick_ask_card' && m.quickAskState === 'pending'
+              ? { ...m, quickAskState: 'cancelled' as const }
+              : m,
+          )
+          .concat(cardMsg),
+      );
+      return;
+    }
+
+    // 默认兜底：以"用户身份"发送预设话术
+    const fb = (btn.preset_prompt || btn.auto_user_message || btn.name || '').trim();
+    if (fb) {
+      lastMsgTimeRef.current = Date.now();
+      handleSend(fb, 'preset');
+    }
+  }, [handleSend, router]);
+
+  /**
+   * [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 4.1] upload 类胶囊点击触发的 ActionSheet
+   * H5 端通过一个隐藏 <input type=file> 实现「相册」「拍照」二选一（capture 属性区分），
+   * 用户选完图后：先在对话区显示「用户：[图片缩略图]」消息，再触发 AI 回复（preset_prompt 兜底）。
+   */
+  const capsuleUploadBtnRef = useRef<FunctionButton | null>(null);
+
+  const triggerCapsuleUpload = (btn: FunctionButton) => {
+    capsuleUploadBtnRef.current = btn;
+    setCapsuleUploadSheetOpen(true);
+  };
+
+  const handleCapsuleUploadPick = (source: 'album' | 'camera') => {
+    setCapsuleUploadSheetOpen(false);
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    if (source === 'camera') {
+      input.setAttribute('capture', 'environment');
+    }
+    input.style.display = 'none';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      // 转 base64 用于对话区即时缩略图渲染（不上传服务器，仅用于 PRD §4.1 的"图片消息气泡"展示）
+      try {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const url = String(reader.result || '');
+          const imgMsg: ChatMessage = {
+            id: `img-${Date.now()}`,
+            role: 'user',
+            content: url,
+            time: new Date().toISOString(),
+            kind: 'image',
+          };
+          setMessages((prev) => prev.concat(imgMsg));
+          // 触发 AI 回复：用按钮 preset_prompt 或名称作为"用户问题文本"
+          const btn = capsuleUploadBtnRef.current;
+          if (btn) {
+            const prompt = (btn.preset_prompt || btn.auto_user_message || btn.name || '').trim();
+            if (prompt) {
+              lastMsgTimeRef.current = Date.now();
+              setTimeout(() => handleSend(prompt, 'preset'), 50);
+            }
+          }
+        };
+        reader.readAsDataURL(file);
+      } catch {}
+    };
+    document.body.appendChild(input);
+    input.click();
+    setTimeout(() => document.body.removeChild(input), 1000);
+  };
+
+  /**
+   * [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 4.2] QuickAskCard「发送」按钮回调：
+   * - 把用户编辑后的文本以「用户身份」发出，触发 AI 回复
+   * - 当前卡片消息置为 sent（变灰、不可再交互）
+   */
+  const handleQuickAskCardSend = useCallback((cardMsgId: string, text: string) => {
+    const trimmed = (text || '').trim();
+    if (!trimmed) return;
+    setMessages((prev) =>
+      prev.map((m) => (m.id === cardMsgId ? { ...m, quickAskState: 'sent' as const, content: trimmed } : m)),
+    );
+    lastMsgTimeRef.current = Date.now();
+    handleSend(trimmed, 'preset');
+  }, [handleSend]);
+
+  const handleQuickAskCardCancel = useCallback((cardMsgId: string) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === cardMsgId ? { ...m, quickAskState: 'cancelled' as const } : m)),
+    );
+  }, []);
 
   const handleFuncButton = (btn: FunctionButton) => {
     const key = btn.button_type || String(btn.id);
@@ -2318,6 +2520,92 @@ export default function AiHomePage() {
                 );
               }
 
+              // [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 4.1] 用户上传的图片消息（来自 upload 类胶囊）
+              if (isUser && msg.kind === 'image') {
+                return (
+                  <div key={msg.id} style={{ marginBottom: 24 }} data-testid="ai-home-user-image-message">
+                    {showTime && (
+                      <div className="text-center" style={{ padding: '8px 0' }} data-testid="ai-home-time-divider">
+                        <span style={{ fontSize: 12, color: '#9CA3AF' }}>
+                          {formatWeChatTime(msg.time)}
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginRight: 16 }}>
+                      <div
+                        style={{
+                          background: '#E6F0FF',
+                          borderRadius: 14,
+                          padding: 6,
+                          maxWidth: 'min(60vw, 320px)',
+                        }}
+                      >
+                        <img
+                          src={msg.content}
+                          alt="用户上传"
+                          style={{
+                            maxWidth: '100%',
+                            maxHeight: 240,
+                            borderRadius: 10,
+                            display: 'block',
+                            objectFit: 'cover',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 4.2] QuickAskCard 卡片消息（用户编辑后才发送）
+              if (isUser && msg.kind === 'quick_ask_card') {
+                const qbtn = msg.quickAskButton!;
+                const state = msg.quickAskState || 'pending';
+                const cardDisabled = state !== 'pending';
+                return (
+                  <div key={msg.id} style={{ marginBottom: 24 }} data-testid="ai-home-quick-ask-card-message">
+                    {showTime && (
+                      <div className="text-center" style={{ padding: '8px 0' }} data-testid="ai-home-time-divider">
+                        <span style={{ fontSize: 12, color: '#9CA3AF' }}>
+                          {formatWeChatTime(msg.time)}
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ marginLeft: 16, marginRight: 16 }}>
+                      <ChatCard
+                        cardType="quick_ask"
+                        disabled={cardDisabled}
+                        button={{
+                          key: String(qbtn.id),
+                          buttonType: 'quick_ask',
+                          title: qbtn.name,
+                          iconEmoji: qbtn.icon || '⚡',
+                          presetPrompt: msg.content,
+                          autoUserMessage: qbtn.autoUserMessage,
+                        }}
+                        onAction={(sub, payload) => {
+                          if (sub === 'send') {
+                            handleQuickAskCardSend(msg.id, String(payload ?? ''));
+                          } else if (sub === 'cancel') {
+                            handleQuickAskCardCancel(msg.id);
+                          }
+                        }}
+                      />
+                      {state === 'sent' && (
+                        <div style={{ marginTop: 4, textAlign: 'right', fontSize: 12, color: '#9CA3AF' }}>
+                          已发送
+                        </div>
+                      )}
+                      {state === 'cancelled' && (
+                        <div style={{ marginTop: 4, textAlign: 'right', fontSize: 12, color: '#9CA3AF' }}>
+                          已取消
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+
               if (isUser) {
                 // [PRD-433 F-01 + F-04] 用户消息：右侧浅蓝气泡，无头像
                 return (
@@ -2591,18 +2879,92 @@ export default function AiHomePage() {
         onCapsuleClick={(cap) => {
           const full = funcButtons.find((b) => String(b.id) === String(cap.id));
           if (!full) return;
-          // [PRD §3.4] 立即以"用户身份"自动发出该胶囊对应的问题文本，AI 走正常回复流程
-          const presetText = (
-            full.preset_prompt ||
-            full.auto_user_message ||
-            full.name ||
-            ''
-          ).trim();
-          if (!presetText) return;
-          lastMsgTimeRef.current = Date.now();
-          handleSend(presetText, 'preset');
+          // [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 4.1] 胶囊点击按 button_type 分发
+          handleCapsuleByType(full);
         }}
       />
+
+      {/* [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 4.1] upload 胶囊触发的 ActionSheet（相册/拍照二选一） */}
+      {capsuleUploadSheetOpen && (
+        <div
+          data-testid="capsule-upload-actionsheet"
+          onClick={() => setCapsuleUploadSheetOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.45)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: 760,
+              background: '#fff',
+              borderRadius: '16px 16px 0 0',
+              padding: '12px 0 calc(8px + env(safe-area-inset-bottom))',
+              boxShadow: '0 -2px 12px rgba(0,0,0,0.08)',
+            }}
+          >
+            <button
+              type="button"
+              data-testid="capsule-upload-sheet-album"
+              onClick={() => handleCapsuleUploadPick('album')}
+              style={{
+                width: '100%',
+                padding: '14px 16px',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: '1px solid #F0F0F0',
+                fontSize: 16,
+                color: '#1F2937',
+                cursor: 'pointer',
+                textAlign: 'center',
+              }}
+            >
+              🖼️ 相册
+            </button>
+            <button
+              type="button"
+              data-testid="capsule-upload-sheet-camera"
+              onClick={() => handleCapsuleUploadPick('camera')}
+              style={{
+                width: '100%',
+                padding: '14px 16px',
+                background: 'transparent',
+                border: 'none',
+                fontSize: 16,
+                color: '#1F2937',
+                cursor: 'pointer',
+                textAlign: 'center',
+              }}
+            >
+              📷 拍照
+            </button>
+            <div style={{ height: 8, background: '#F5F5F7' }} />
+            <button
+              type="button"
+              onClick={() => setCapsuleUploadSheetOpen(false)}
+              style={{
+                width: '100%',
+                padding: '14px 16px',
+                background: 'transparent',
+                border: 'none',
+                fontSize: 16,
+                color: '#6B7280',
+                cursor: 'pointer',
+                textAlign: 'center',
+              }}
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Input Bar */}
       <div

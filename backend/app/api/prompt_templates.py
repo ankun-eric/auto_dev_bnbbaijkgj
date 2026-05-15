@@ -76,6 +76,9 @@ class PromptTemplateResponse(BaseModel):
     is_active: bool
     parent_id: Optional[int] = None
     preview_input: Optional[str] = None
+    # [PRD-AICHAT-CAPSULE-V2 2026-05-15] 系统内置标记字段
+    code: Optional[str] = None
+    is_builtin: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -117,6 +120,16 @@ class PromptPreviewResponse(BaseModel):
 class RollbackResponse(BaseModel):
     message: str
     active_version: int
+
+
+# [PRD-AICHAT-CAPSULE-V2 2026-05-15] 复制系统内置模板接口的响应
+class DuplicateBuiltinResponse(BaseModel):
+    id: int
+    name: str
+    prompt_type: str
+    code: Optional[str] = None
+    is_builtin: bool = False
+    message: str
 
 
 @router.get("", response_model=List[PromptTemplateGroupResponse])
@@ -297,6 +310,77 @@ async def preview_prompt_template(
         input_text=body.input_text,
         ai_result=ai_result,
     )
+
+
+# [PRD-AICHAT-CAPSULE-V2 2026-05-15] 列出全部模板（含系统内置 + 用户自建），按 is_builtin desc, id asc 排序
+# 用于「Prompt 模板管理」页面展示内置模板和用户副本
+@router.get("/all/flat", response_model=List[PromptTemplateResponse])
+async def list_all_prompt_templates_flat(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
+    res = await db.execute(
+        select(PromptTemplate).order_by(
+            PromptTemplate.is_builtin.desc(),  # 内置优先
+            PromptTemplate.id.asc(),
+        )
+    )
+    return [PromptTemplateResponse.model_validate(t) for t in res.scalars().all()]
+
+
+# [PRD-AICHAT-CAPSULE-V2 2026-05-15] 复制系统内置模板，生成用户可编辑副本
+# - 源模板必须是 is_builtin=1
+# - 副本 is_builtin=0、code=NULL、parent_id 指向源、prompt_type 沿用源、name 后缀 "（副本）"
+# - 副本默认 is_active=0（不影响线上激活模板）
+@router.post("/{template_id}/duplicate", response_model=DuplicateBuiltinResponse)
+async def duplicate_prompt_template(
+    template_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
+    src = await db.get(PromptTemplate, template_id)
+    if not src:
+        raise HTTPException(status_code=404, detail="模板不存在")
+    if not bool(src.is_builtin):
+        raise HTTPException(status_code=400, detail="只能复制系统内置模板（is_builtin=1）")
+
+    # 新副本：name+"（副本）"、code 置空、is_builtin=0、is_active=0
+    new_tpl = PromptTemplate(
+        name=f"{src.name}（副本）",
+        prompt_type=src.prompt_type,
+        content=src.content,
+        version=1,
+        is_active=False,
+        parent_id=src.id,
+        preview_input=src.preview_input,
+        created_by=getattr(current_user, "id", None),
+        code=None,
+        is_builtin=False,
+    )
+    db.add(new_tpl)
+    await db.flush()
+    await db.refresh(new_tpl)
+    return DuplicateBuiltinResponse(
+        id=new_tpl.id,
+        name=new_tpl.name,
+        prompt_type=new_tpl.prompt_type,
+        code=new_tpl.code,
+        is_builtin=new_tpl.is_builtin,
+        message="复制成功，已生成可编辑副本",
+    )
+
+
+# [PRD-AICHAT-CAPSULE-V2 2026-05-15] 通过 id 获取单条模板（前端在「复制后跳转编辑」场景使用）
+@router.get("/by-id/{template_id}", response_model=PromptTemplateResponse)
+async def get_prompt_template_by_id(
+    template_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
+):
+    tpl = await db.get(PromptTemplate, template_id)
+    if not tpl:
+        raise HTTPException(status_code=404, detail="模板不存在")
+    return PromptTemplateResponse.model_validate(tpl)
 
 
 @router.post("/{prompt_type}/rollback/{version}", response_model=RollbackResponse)

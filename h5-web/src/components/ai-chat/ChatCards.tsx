@@ -28,8 +28,10 @@ export interface ChatCardButton {
   title: string;
   /** 卡片副标题 */
   subtitle?: string;
-  /** 封面图（可选） */
+  /** 封面图（可选，已废弃；新版统一用 Emoji 渲染头像） */
   coverImage?: string;
+  /** [PRD-AICHAT-CAPSULE-V2 2026-05-15] Emoji 头像（取代 coverImage 成为主头像渲染源） */
+  iconEmoji?: string;
   /** 主按钮副说明文字 */
   buttonSubDesc?: string;
   /** 关联 prompt 模板 ID（仅部分类型用） */
@@ -49,10 +51,12 @@ export interface ChatCardProps {
   disabled?: boolean;
   /**
    * 用户与卡片交互回调：
-   *  - upload  ：sub_action ∈ {album, camera, local, wechat}
-   *  - navigate / sdk_call / quick_ask ：sub_action = 'primary'
+   *  - upload  ：sub_action ∈ {album, camera}（[PRD-AICHAT-CAPSULE-V2 2026-05-15] 收口为 2 项；
+   *               local/wechat 已废弃，存量数据自动忽略）
+   *  - navigate / sdk_call ：sub_action = 'primary'
+   *  - quick_ask ：sub_action ∈ {send, cancel}，payload 为用户编辑后的文本（通过 onQuickAskSend 回调透传）
    */
-  onAction?: (subAction: string) => void;
+  onAction?: (subAction: string, payload?: any) => void;
 }
 
 const COLORS = {
@@ -109,35 +113,43 @@ function isValidImageUrl(s: any): boolean {
   return false;
 }
 
+/**
+ * [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 2] 头像统一渲染为「圆角方块底色 + 大号 Emoji」。
+ * 规格：40x40，圆角 8px，背景 = 主题色 10% 透明度。
+ * 兼容旧数据：当 iconEmoji 为空时，回退到 coverImage（仅 URL 合法时才作为 <img>），都没有则用 ✨。
+ */
 function CardHeader({ button }: { button: ChatCardButton }) {
-  const hasValidImage = isValidImageUrl(button.coverImage);
+  const emoji = (button.iconEmoji || '').trim();
+  const hasEmoji = !!emoji;
+  const hasValidImage = !hasEmoji && isValidImageUrl(button.coverImage);
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
       {hasValidImage ? (
         <img
           src={button.coverImage}
           alt={button.title}
-          style={{ width: 40, height: 40, borderRadius: 10, objectFit: 'cover' }}
+          style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover' }}
           onError={(e) => {
-            // 兜底：图片加载失败时降级为占位方块，避免破图标
             (e.currentTarget as HTMLImageElement).style.display = 'none';
           }}
         />
       ) : (
         <div
+          data-testid="card-header-emoji-avatar"
           style={{
             width: 40,
             height: 40,
-            borderRadius: 10,
-            background: COLORS.primary,
-            color: '#fff',
+            borderRadius: 8,
+            // 主题色 10% 透明度（#6366F1 → rgba(99,102,241,0.10)）
+            background: 'rgba(99, 102, 241, 0.10)',
+            color: COLORS.primaryDark,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 20,
+            fontSize: 22,
           }}
         >
-          ✨
+          {hasEmoji ? emoji : '✨'}
         </div>
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -204,16 +216,16 @@ function PrimaryButton({
 // ─────────────────── A. upload 卡片 ───────────────────
 
 export function UploadCard({ button, disabled, onAction }: ChatCardProps) {
-  const entries: Array<{ key: 'album' | 'camera' | 'local' | 'wechat'; label: string; icon: string }> = [
+  // [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 1] 入口收口为 2 项：相册 + 拍照
+  // local（本机）和 wechat（微信）在 H5 形同摆设，全端一致移除
+  const entries: Array<{ key: 'album' | 'camera'; label: string; icon: string }> = [
     { key: 'album', label: '相册', icon: '🖼️' },
     { key: 'camera', label: '拍照', icon: '📷' },
-    { key: 'local', label: '本机', icon: '📁' },
-    { key: 'wechat', label: '微信', icon: '💬' },
   ];
   return (
     <CardShell disabled={disabled}>
       <CardHeader button={button} />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
         {entries.map((e) => (
           <button
             key={e.key}
@@ -285,17 +297,106 @@ export function SdkCallCard({ button, disabled, onAction }: ChatCardProps) {
 }
 
 // ─────────────────── D. quick_ask 卡片 ───────────────────
+// [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 4.2] 可编辑版快捷提问卡片
+// - 文本框多行可编辑，预填 presetPrompt（兜底 autoUserMessage / title），最长 500 字
+// - 点击「发送」：把当前文本以「用户身份」发出，卡片自身置灰（disabled=true 由父组件控制）
+// - 点击「取消」：交由父组件决定保留为灰色态或从对话区移除
 
 export function QuickAskCard({ button, disabled, onAction }: ChatCardProps) {
+  const defaultText =
+    (button.presetPrompt || button.autoUserMessage || button.title || '').trim();
+  const [text, setText] = React.useState<string>(defaultText);
+
+  // PRD §4.2 文本框最大长度 500（与对话输入框一致）
+  const MAX = 500;
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const v = e.target.value.slice(0, MAX);
+    setText(v);
+  };
+
+  const sendDisabled = disabled || !text.trim();
+
   return (
     <CardShell disabled={disabled}>
       <CardHeader button={button} />
-      <PrimaryButton
-        text={button.title || '立即提问'}
-        subDesc={button.buttonSubDesc}
+      <textarea
+        data-testid="quick-ask-textarea"
+        value={text}
+        onChange={handleChange}
         disabled={disabled}
-        onClick={() => onAction?.('primary')}
+        rows={3}
+        maxLength={MAX}
+        placeholder="编辑你的问题…"
+        style={{
+          width: '100%',
+          minHeight: 64,
+          resize: 'vertical',
+          padding: '10px 12px',
+          fontSize: 14,
+          lineHeight: 1.5,
+          color: COLORS.textPrimary,
+          background: disabled ? '#F3F4F6' : '#fff',
+          border: `1px solid ${COLORS.border}`,
+          borderRadius: 10,
+          outline: 'none',
+          boxSizing: 'border-box',
+        }}
       />
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: 8,
+          marginTop: 10,
+        }}
+      >
+        <button
+          type="button"
+          data-testid="quick-ask-cancel-btn"
+          disabled={disabled}
+          onClick={() => onAction?.('cancel')}
+          style={{
+            padding: '6px 16px',
+            borderRadius: 999,
+            border: `1px solid ${COLORS.border}`,
+            background: '#fff',
+            color: COLORS.textSecondary,
+            fontSize: 13,
+            cursor: disabled ? 'not-allowed' : 'pointer',
+          }}
+        >
+          取消
+        </button>
+        <button
+          type="button"
+          data-testid="quick-ask-send-btn"
+          disabled={sendDisabled}
+          onClick={() => onAction?.('send', text.trim())}
+          style={{
+            padding: '6px 18px',
+            borderRadius: 999,
+            border: 'none',
+            background: sendDisabled ? COLORS.disabled : COLORS.primary,
+            color: '#fff',
+            fontSize: 13,
+            fontWeight: 500,
+            cursor: sendDisabled ? 'not-allowed' : 'pointer',
+          }}
+        >
+          发送
+        </button>
+      </div>
+      {button.buttonSubDesc ? (
+        <div
+          style={{
+            fontSize: 12,
+            color: COLORS.textSecondary,
+            marginTop: 6,
+          }}
+        >
+          {button.buttonSubDesc}
+        </div>
+      ) : null}
     </CardShell>
   );
 }
@@ -362,7 +463,9 @@ export function resolveCardType(buttonType: string): ChatCardType {
 export interface BackendFunctionButton {
   id: number | string;
   name: string;
+  /** [PRD-AICHAT-CAPSULE-V2 2026-05-15] Emoji 主图标字段（chat_function_buttons.icon） */
   icon?: string;
+  /** @deprecated 旧字段，已不再使用，仅作向后兼容 */
   icon_url?: string;
   button_type: string;
   prompt_template_id?: number | null;
@@ -381,7 +484,10 @@ export function backendButtonToCardButton(b: BackendFunctionButton): ChatCardBut
     buttonType: b.button_type,
     title: b.card_title || b.name || '',
     subtitle: b.card_subtitle || undefined,
-    coverImage: b.card_cover_image || b.icon_url || undefined,
+    // [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 2] 卡片头像不再使用 cover_url；
+    // 统一改用 Emoji（chat_function_buttons.icon）。coverImage 仅作为旧数据回退渲染（CardHeader 内部判断）。
+    coverImage: b.card_cover_image || undefined,
+    iconEmoji: (b as any).icon || undefined,
     buttonSubDesc: b.button_sub_desc || undefined,
     promptTemplateId: b.prompt_template_id || undefined,
     externalUrl: b.external_url || undefined,

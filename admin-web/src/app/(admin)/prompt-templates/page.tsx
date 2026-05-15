@@ -142,6 +142,16 @@ const TYPE_HINTS: Record<string, string> = {
     '用药对话首条消息（多药对比 · 最多 2 个）。支持占位符 {member_info} + {drug_list}，系统会在调用 AI 时自动替换。',
 };
 
+// [PRD-AICHAT-CAPSULE-V2 2026-05-15] 系统内置模板条目
+interface BuiltinTemplate {
+  id: number;
+  name: string;
+  prompt_type: string;
+  content: string;
+  code?: string | null;
+  is_builtin: boolean;
+}
+
 export default function PromptTemplatesPage() {
   // [PRD-PROMPT-CONFIG-V1 2026-05-14] 改为按 business_group 分组展示，已下线类型默认隐藏
   const [groupedTypes, setGroupedTypes] = useState<PromptGroupItem[]>([]);
@@ -155,6 +165,9 @@ export default function PromptTemplatesPage() {
   const [previewResult, setPreviewResult] = useState('');
   const [previewing, setPreviewing] = useState(false);
   const [rollingBack, setRollingBack] = useState<number | null>(null);
+  // [PRD-AICHAT-CAPSULE-V2 2026-05-15] 系统内置模板列表 + 复制 loading
+  const [builtinTemplates, setBuiltinTemplates] = useState<BuiltinTemplate[]>([]);
+  const [duplicating, setDuplicating] = useState<number | null>(null);
 
   // 按 business_group 切分（隐藏 _deprecated）
   const groupsByBusiness = React.useMemo(() => {
@@ -206,6 +219,35 @@ export default function PromptTemplatesPage() {
   useEffect(() => {
     fetchTypes();
   }, [fetchTypes]);
+
+  // [PRD-AICHAT-CAPSULE-V2 2026-05-15] 拉取系统内置模板列表（用于顶部"系统内置识药模板"区域）
+  const fetchBuiltinTemplates = useCallback(async () => {
+    try {
+      const res = await get<BuiltinTemplate[]>('/api/admin/prompt-templates/all/flat');
+      const list = Array.isArray(res) ? res : [];
+      setBuiltinTemplates(list.filter((t) => t.is_builtin));
+    } catch {
+      setBuiltinTemplates([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBuiltinTemplates();
+  }, [fetchBuiltinTemplates]);
+
+  const handleDuplicateBuiltin = async (tpl: BuiltinTemplate) => {
+    setDuplicating(tpl.id);
+    try {
+      await post(`/api/admin/prompt-templates/${tpl.id}/duplicate`);
+      message.success(`已复制「${tpl.name}」为可编辑副本`);
+      fetchBuiltinTemplates();
+    } catch (e: any) {
+      const detail = e?.response?.data?.detail || e?.message || '复制失败';
+      message.error(typeof detail === 'string' ? detail : '复制失败');
+    } finally {
+      setDuplicating(null);
+    }
+  };
 
   // 初始化默认选中
   useEffect(() => {
@@ -344,6 +386,87 @@ export default function PromptTemplatesPage() {
       <Title level={4} style={{ marginBottom: 24 }}>
         Prompt 模板配置
       </Title>
+      {/* [PRD-AICHAT-CAPSULE-V2 2026-05-15] 系统内置识药模板区（不可删除，可复制为可编辑副本） */}
+      {builtinTemplates.length > 0 && (
+        <div
+          data-testid="builtin-prompt-templates"
+          style={{
+            marginBottom: 24,
+            padding: 16,
+            background: 'linear-gradient(135deg, #EEF2FF 0%, #F5F3FF 100%)',
+            borderRadius: 12,
+            border: '1px solid #E0E7FF',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 12,
+            }}
+          >
+            <div>
+              <Text strong style={{ fontSize: 15 }}>🔧 系统内置识药模板</Text>
+              <Text type="secondary" style={{ marginLeft: 12, fontSize: 12 }}>
+                不可删除，可点「复制」生成可编辑副本
+              </Text>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+            {builtinTemplates.map((tpl) => (
+              <div
+                key={tpl.id}
+                data-testid="builtin-template-card"
+                data-template-code={tpl.code || ''}
+                style={{
+                  background: '#fff',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: 8,
+                  padding: 12,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <Tag color="purple" data-testid="builtin-tag">系统内置</Tag>
+                  <Text strong style={{ fontSize: 14 }}>{tpl.name}</Text>
+                </div>
+                {tpl.code && (
+                  <div style={{ marginBottom: 6 }}>
+                    <Text type="secondary" style={{ fontSize: 12, fontFamily: 'monospace' }}>
+                      {tpl.code}
+                    </Text>
+                  </div>
+                )}
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: '#6B7280',
+                    marginBottom: 10,
+                    maxHeight: 48,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                  }}
+                >
+                  {tpl.content}
+                </div>
+                <Button
+                  size="small"
+                  type="primary"
+                  ghost
+                  loading={duplicating === tpl.id}
+                  onClick={() => handleDuplicateBuiltin(tpl)}
+                  data-testid="builtin-duplicate-btn"
+                >
+                  复制为可编辑副本
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {/* [PRD-PROMPT-CONFIG-V1 2026-05-14] 业务分组一级 Tab */}
       <div
         style={{

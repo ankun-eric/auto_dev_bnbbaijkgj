@@ -1807,6 +1807,19 @@ async def _prd432_profile_card_migrate() -> None:
         _logger.warning(f"[PRD-432] 迁移连接失败：{e}")
 
 
+# [PRD-AICHAT-CAPSULE-V2 2026-05-15] 启动期：写入 3 个识药内置模板 + 迁移 reply_mode → prompt_template_id
+@app.on_event("startup")
+async def _prd_aichat_capsule_v2_migrate() -> None:
+    _logger = logging.getLogger("app.prd_capsule_v2_startup")
+    try:
+        from app.core.database import async_session as _async_session
+        from app.services.prd_aichat_capsule_v2_migration import run_migration_with_session
+        stats = await run_migration_with_session(_async_session)
+        _logger.info("[PRD-CAPSULE-V2] startup migration stats=%s", stats)
+    except Exception as e:
+        _logger.warning("[PRD-CAPSULE-V2] startup migration failed: %s", e)
+
+
 # [Bug 修复] 启动期自检：路由挂载 + 加密密钥环境变量
 @app.on_event("startup")
 async def _payment_config_startup_self_check() -> None:

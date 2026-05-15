@@ -8,6 +8,12 @@ class FunctionButton {
   final int sortWeight;
   final bool isEnabled;
   final Map<String, dynamic>? params;
+  // [PRD-AICHAT-CAPSULE-V2 2026-05-15] 新增字段，对齐后端 chat_function_buttons 表
+  final String? icon; // Emoji
+  final String? presetPrompt; // quick_ask 预设话术
+  final String? autoUserMessage; // 自动用户消息
+  final String? externalUrl;
+  final int? promptTemplateId;
 
   FunctionButton({
     required this.id,
@@ -17,6 +23,11 @@ class FunctionButton {
     this.sortWeight = 0,
     this.isEnabled = true,
     this.params,
+    this.icon,
+    this.presetPrompt,
+    this.autoUserMessage,
+    this.externalUrl,
+    this.promptTemplateId,
   });
 
   factory FunctionButton.fromJson(Map<String, dynamic> json) {
@@ -28,6 +39,11 @@ class FunctionButton {
       sortWeight: json['sort_weight'] ?? 0,
       isEnabled: json['is_enabled'] ?? true,
       params: json['params'] as Map<String, dynamic>?,
+      icon: json['icon'] as String?,
+      presetPrompt: json['preset_prompt'] as String?,
+      autoUserMessage: json['auto_user_message'] as String?,
+      externalUrl: json['external_url'] as String?,
+      promptTemplateId: json['prompt_template_id'] as int?,
     );
   }
 
@@ -42,9 +58,13 @@ class FunctionButton {
       case 'ai_dialog_trigger':
         return Icons.auto_awesome;
       case 'drug_identify':
+      case 'photo_recognize_drug':
         return Icons.medication_outlined;
       case 'external_link':
         return Icons.open_in_new;
+      case 'quick_ask':
+      case 'prompt_template':
+        return Icons.bolt;
       default:
         return Icons.widgets;
     }

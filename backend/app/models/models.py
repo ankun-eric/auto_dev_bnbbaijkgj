@@ -2075,6 +2075,11 @@ class PromptTemplate(Base):
     parent_id = mapped_column(Integer, ForeignKey("prompt_templates.id"), nullable=True)
     preview_input = mapped_column(Text, nullable=True)
     created_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    # [PRD-AICHAT-CAPSULE-V2 2026-05-15] 系统内置模板标记
+    # code: 内置模板编码（如 MED_RECOG_FULL）；NULL 表示用户自建模板
+    # is_builtin: 系统内置模板（不可删除，可"复制"为副本）
+    code = mapped_column(String(64), nullable=True, unique=False, comment="模板编码，仅内置模板有值")
+    is_builtin = mapped_column(Boolean, default=False, nullable=False, comment="是否系统内置模板（不可删除，可复制）")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

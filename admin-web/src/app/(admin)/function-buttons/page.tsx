@@ -41,17 +41,13 @@ const BUTTON_TYPE_MAP: Record<string, { label: string; color: string }> = {
 };
 
 // 需要关联 Prompt 模板的按钮类型（PRD §3.2 + PRD-PROMPT-CONFIG-V1）
+// [PRD-AICHAT-CAPSULE-V2 2026-05-15] photo_recognize_drug 现仅使用「关联 Prompt 模板」，
+// 不再保留独立的「AI 回复模式」字段；3 档语义由系统内置的 3 个识药 Prompt 模板承载。
 const PROMPT_TEMPLATE_REQUIRED_TYPES = new Set([
   'ai_chat_trigger',
   'photo_recognize_drug',
   'report_interpret',
 ]);
-
-const AI_REPLY_MODE_OPTIONS = [
-  { value: 'complete_analysis', label: '完整分析（含药物相互作用）' },
-  { value: 'basic_advice', label: '仅用药建议' },
-  { value: 'ai_auto', label: 'AI 自动判断' },
-];
 
 interface FunctionButton {
   id: number;
@@ -194,8 +190,9 @@ export default function FunctionButtonsPage() {
         button_sub_desc: record.button_sub_desc || '',
       };
 
+      // [PRD-AICHAT-CAPSULE-V2 2026-05-15] 移除 ai_reply_mode 字段回填（统一由「关联 Prompt 模板」承载）；
+      // 保留 photo_tip_text / max_photo_count 用于拍照交互细节
       if ((record.button_type === 'photo_recognize_drug' || record.button_type === 'drug_identify') && parsedParams) {
-        formValues.ai_reply_mode = parsedParams.ai_reply_mode || 'ai_auto';
         formValues.photo_tip_text = parsedParams.photo_tip_text || '请确保药品名称、品牌、规格完整，拍摄清晰';
         formValues.max_photo_count = parsedParams.max_photo_count ?? 5;
       }
@@ -205,7 +202,6 @@ export default function FunctionButtonsPage() {
       form.setFieldsValue({
         is_enabled: true,
         sort_weight: 0,
-        ai_reply_mode: 'ai_auto',
         photo_tip_text: '请确保药品名称、品牌、规格完整，拍摄清晰',
         max_photo_count: 5,
         auto_user_message: '',
@@ -230,12 +226,12 @@ export default function FunctionButtonsPage() {
         }
       }
 
+      // [PRD-AICHAT-CAPSULE-V2 2026-05-15] 不再写 ai_reply_mode；保留 photo_tip_text / max_photo_count
       let finalParams = parsedParams || null;
       if (values.button_type === 'photo_recognize_drug' || values.button_type === 'drug_identify') {
         const base = (typeof finalParams === 'object' && finalParams) ? finalParams : {};
         finalParams = {
           ...base,
-          ai_reply_mode: values.ai_reply_mode || 'ai_auto',
           photo_tip_text: values.photo_tip_text || '请确保药品名称、品牌、规格完整，拍摄清晰',
           max_photo_count: values.max_photo_count ?? 5,
         };
@@ -259,7 +255,8 @@ export default function FunctionButtonsPage() {
         auto_user_message: values.auto_user_message || '',
         card_title: values.card_title || '',
         card_subtitle: values.card_subtitle || null,
-        card_cover_image: values.card_cover_image || null,
+        // [PRD-AICHAT-CAPSULE-V2 2026-05-15] 不再编辑「卡片封面图 URL」，前端永远传 null（后端兼容接收）
+        card_cover_image: null,
         button_sub_desc: values.button_sub_desc || null,
       };
 
@@ -464,11 +461,10 @@ export default function FunctionButtonsPage() {
           >
             <Select placeholder="请选择按钮类型" options={BUTTON_TYPE_OPTIONS} />
           </Form.Item>
+          {/* [PRD-AICHAT-CAPSULE-V2 2026-05-15] 拍照识药保留拍照参数，但不再有「AI 回复模式」字段；
+              AI 行为统一由下方「关联 Prompt 模板」承载（系统内置 3 个识药模板可选） */}
           {(watchedButtonType === 'photo_recognize_drug' || watchedButtonType === 'drug_identify') && (
             <>
-              <Form.Item label="AI 回复模式" name="ai_reply_mode" rules={[{ required: true, message: '请选择AI回复模式' }]}>
-                <Select placeholder="请选择AI回复模式" options={AI_REPLY_MODE_OPTIONS} />
-              </Form.Item>
               <Form.Item label="拍照提示语" name="photo_tip_text">
                 <Input placeholder="请确保药品名称、品牌、规格完整，拍摄清晰" />
               </Form.Item>
@@ -550,9 +546,7 @@ export default function FunctionButtonsPage() {
           <Form.Item label="卡片副标题" name="card_subtitle">
             <Input placeholder="卡片头部副标题（可选）" maxLength={100} />
           </Form.Item>
-          <Form.Item label="卡片封面图 URL" name="card_cover_image" extra="支持任意尺寸图片 URL">
-            <Input placeholder="https://..." />
-          </Form.Item>
+          {/* [PRD-AICHAT-CAPSULE-V2 2026-05-15] 移除「卡片封面图 URL」字段（用户端统一改为 Emoji + 主题色背景渲染） */}
           <Form.Item label="按钮副说明文字" name="button_sub_desc" extra="显示在卡片主按钮下方，例：约 6 道题，2 分钟完成">
             <Input placeholder="按钮副说明（可选）" maxLength={100} />
           </Form.Item>
