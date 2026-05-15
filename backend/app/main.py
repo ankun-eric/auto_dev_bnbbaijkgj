@@ -1586,8 +1586,8 @@ async def _migrate_health_self_check_v1():
                 for name, icon, syms, so in seed_parts:
                     try:
                         await db.execute(text(
-                            "INSERT INTO body_part_dict (name, icon, symptoms, sort_order, enabled) "
-                            "VALUES (:n, :i, :s, :so, 1)"
+                            "INSERT INTO body_part_dict (name, icon, symptoms, sort_order, enabled, created_at, updated_at) "
+                            "VALUES (:n, :i, :s, :so, 1, NOW(), NOW())"
                         ), {"n": name, "i": icon, "s": _json.dumps(syms, ensure_ascii=False), "so": so})
                     except Exception as ie:  # noqa: BLE001
                         _logger.debug("插入部位 %s 失败: %s", name, ie)
@@ -1626,8 +1626,8 @@ async def _migrate_health_self_check_v1():
                 try:
                     res = await db.execute(text(
                         "INSERT INTO health_check_template "
-                        "(name, description, body_parts, duration_options, default_prompt, enabled) "
-                        "VALUES (:n, :d, :bp, :du, :pp, 1)"
+                        "(name, description, body_parts, duration_options, default_prompt, enabled, created_at, updated_at) "
+                        "VALUES (:n, :d, :bp, :du, :pp, 1, NOW(), NOW())"
                     ), {
                         "n": "通用健康自查",
                         "d": "默认通用自查模板（含 10 个常见部位）",
@@ -1649,8 +1649,10 @@ async def _migrate_health_self_check_v1():
                         await db.execute(text(
                             "INSERT INTO chat_function_buttons "
                             "(name, icon, button_type, sort_weight, is_enabled, auto_user_message, card_title, "
-                            " health_check_template_id, archive_missing_strategy, prompt_override_enabled) "
-                            "VALUES ('健康自查', '🩺', 'health_self_check', 5, 1, '', '健康自查', :tid, 'use_default', 0)"
+                            " health_check_template_id, archive_missing_strategy, prompt_override_enabled, "
+                            " created_at, updated_at) "
+                            "VALUES ('健康自查', '🩺', 'health_self_check', 5, 1, '', '健康自查', :tid, 'use_default', 0, "
+                            "NOW(), NOW())"
                         ), {"tid": tpl_id_to_bind})
                         await db.commit()
                         print("[migrate] health_self_check_v1: 已初始化默认健康自查按钮", flush=True)
