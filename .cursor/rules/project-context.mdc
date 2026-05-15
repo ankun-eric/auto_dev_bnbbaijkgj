@@ -27,7 +27,50 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-HEALTH-SELF-CHECK-V1-20260515｜健康自查（health_self_check）全端落地（2026-05-15 17:45）
+## Latest Update: Bug-471-20260515｜AI 对话卡片「相册/拍照/本机/微信」点击无响应 修复（2026-05-15 23:50）
+
+### 一句话结论
+彻底修复 AI 对话区 upload 卡片「相册 / 拍照 / 本机 / 微信」4 按钮选完图后"对话区无任何变化、AI 不回复"的死按钮问题；同时把胶囊版「拍照识药」从「单图 base64」升级为「多图 + 服务器 URL」，全项目共用一套上传 handler。
+
+### 根因 & 修复要点
+1. **隐藏 input 没挂到 DOM**：原 `UploadCard` onAction 里 `document.createElement('input').click()` 后没 `appendChild`，iOS Safari / 微信内置浏览器判定该 input 无引用 → GC 提前回收 → onchange 不触发 → 用户感知为"选完图毫无反应"。**修复**：新增 `h5-web/src/lib/upload-utils.ts::pickFilesViaHiddenInput`，强制 `document.body.appendChild(input)` + try/finally removeChild。
+2. **没有"图片气泡 + AI 回复"链路**：原 onchange 回调直接调 `handleSend(autoText)`，跳过了"先冒图片气泡 → 再 AI 回复"的对话体验。**修复**：新增共用 handler `pickAndUploadThenSend`：选完图 → 逐张上传 `/api/upload/image`（PDF 走 `/api/upload/file`）→ 插入 `ChatMessage{kind:'image', images:[...urls]}` 用户气泡 → 把 URL 注入 prompt → 调 `handleSend(composedContent, 'preset')`。
+3. **photo_recognize_drug 跳走独立页**：原卡片版「拍照识药」会 `router.push('/drug')`，与胶囊版"留在对话内"严重割裂。**修复**：upload 卡片 onAction 把 `photo_recognize_drug` / `drug_identify` / `medication_recognize` / `report_interpret` 全部走 `pickAndUploadThenSend`，移除所有 `/drug` / `/checkup` 跳转分支。
+4. **多图支持**：input 增加 `multiple` 属性；超过 5 张时截取前 5 张 + Toast「最多 5 张」；用户气泡 UI 单图按原方式渲染、2~5 图按横向小图墙（grid `repeat(min(N,3), 1fr)` + 86px 缩略图）渲染。
+5. **AI 触发文本取值**：`preset_prompt → auto_user_message → button.name → 按类型兜底` 顺序，按类型兜底文案：药品类「我上传了一张药品图片，请帮我识别」/ 报告类「我上传了一份体检报告，请帮我解读」/ 普通图片「我上传了一张图片，请你帮我看看」/ 文件类「我上传了一份文件，请你帮我看看」。
+6. **失败兜底**：单张失败仅过滤 + Toast「N 张上传失败已跳过」；全失败不发消息 + Toast「图片上传失败请重试」；上传过程有 loading Toast 反馈。
+7. **胶囊版统一**：`handleCapsuleUploadPick` 改用同一个 `pickAndUploadThenSend`，彻底替换原"单图 base64+ readAsDataURL"实现。
+
+### 范围与端
+- h5-web（**必改**）：
+  - `src/lib/upload-utils.ts`：新增 `pickFilesViaHiddenInput` / `uploadImageToServer` / `uploadFileToServer`
+  - `src/app/(ai-chat)/ai-home/page.tsx`：
+    - `ChatMessage` 接口扩展 `kind: 'text' | 'image' | 'file' | 'quick_ask_card' | 'health_self_check_card'`、`images?: string[]`、`files?: Array<{url,name,size}>`
+    - 新增 `pickAndUploadThenSend(useCallback)` / `resolveUploadFallbackPrompt`
+    - `handleCapsuleUploadPick` 改用共用 handler
+    - upload 卡片 ChatCard onAction 改用共用 handler；删除 `/drug` 跳转 / `report_interpret` 特殊分支
+    - 用户图片消息气泡支持 1~5 张缩略图横向小图墙（grid，2~5 图 86px 缩略）；新增 `kind='file'` 文件消息气泡
+- backend（**仅新增测试**）：
+  - `tests/test_bug471_chatcard_upload.py`：6 用例全 PASS（PNG 上传 / PDF 拒绝 / file 接口 PDF 接受 / chat 会话接受嵌图 URL 长内容 / source=preset 兼容 / 401 鉴权）
+- miniprogram / flutter_app / admin-web（**未改动**）：本 bug 仅在 H5 端表现，其他端 chooseImage / pickImage 原生 API 不存在 GC 问题，无需修复
+
+### 部署 & 验证
+- 部署脚本：`deploy/_deploy_bug471_20260515.py`（paramiko SSH → git pull → docker compose build --no-cache backend h5-web → up -d → 11 项公网自动化测试全 PASS）
+- 服务器测试结果：T1~T11 全 PASS（health / ai-home 可达 / 图片单张上传拿到 COS URL / 多张图连续上传 / PDF 拒绝 image 接口 / file 接口接收 PDF / 创建 chat session / 含图片 URL 长内容会话消息不 422 / source=preset 兼容）
+- 用户手册：`user_docs/AI对话卡片相册拍照点击无响应修复_Bug471.md`
+
+### 关键决策
+1. **后端协议保持向前兼容**：不扩展 `ChatMessageCreate.images` 字段，前端把图片 URL 注入到 `content` 文本里（`"[用户上传的图片 N 张]\n1. url1\n2. url2\n\n我上传了一张药品图片..."`），后端零改动即可工作；AI 收到的 prompt 也带 URL 上下文。
+2. **用户气泡 UI 与后端持久化分离**：用户图片气泡的多图渲染纯靠 `ChatMessage.images` 数组（前端 state），不依赖 backend 协议；刷新后从 `chat_messages.content` 反序列化能得到带 URL 的纯文本气泡（无法还原图片缩略图，但这是合理 trade-off，不影响当前会话内的体验）。
+3. **AI 触发文本"自动用户消息"放在最后插入**：因为前面已经插入了图片气泡，再插入文本气泡是合理的，文本气泡承载"我上传了一张药品图片，请帮我识别"的问题文案，便于历史回看时看到完整意图。
+4. **保留 `/drug` 独立页**：本次修复只是"对话卡片版 + 胶囊版"不再跳转，原 `/drug` 页作为外部入口的旁路通道保留，未删除。
+
+### 历史卡片自愈
+修复后历史会话里所有"看起来死掉的"upload 卡片都会自动恢复点击响应——因为问题在组件实现（UploadCard onAction），与消息数据本身无关，历史 chat_messages.content 中存的 `kind:"ai-chat-card"` JSON 完全不需要清理。
+
+---
+
+## Previous Update: PRD-HEALTH-SELF-CHECK-V1-20260515｜健康自查（health_self_check）全端落地（2026-05-15 17:45）
 
 - 范围
   - 后端：新增 `body_part_dict` / `health_check_template` 两张表；`chat_function_buttons` 扩 4 字段（`health_check_template_id`/`archive_missing_strategy`/`prompt_override_enabled`/`prompt_override_text`）
