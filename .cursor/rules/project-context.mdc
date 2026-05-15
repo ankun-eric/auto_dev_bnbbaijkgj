@@ -27,7 +27,67 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-AICHAT-CAPSULE-V1-20260515｜AI 对话模式 /ai-home 输入框上方胶囊条落地（10/10 服务器自动化测试 PASS）（2026-05-15 00:50）
+## Latest Update: PRD-AICHAT-CAPSULE-V2-20260515｜AI 咨询配置-功能按钮管理 4 项优化落地（后端+admin+h5+flutter，11/11 后端测试 PASS，远程部署 HTTP 全 OK）（2026-05-15 10:51）
+
+### 一句话结论
+按 PRD「AI 咨询配置-功能按钮管理 优化 v1.0」完成 4 项核心改动并部署到服务器：① **upload 来源收口**——`h5-web/src/components/ai-chat/ChatCards.tsx` 的 `UploadCard` 仅保留「相册 / 拍照」，移除「本机 / 微信」；② **「卡片封面图 URL」字段移除**——admin-web `function-buttons/page.tsx` 删除 Form.Item + 提交时 `card_cover_image: null`；用户端 `CardHeader` 统一渲染「Emoji 主题色头像」（40×40, radius 8, bg 主题色 10% 透明）；③ **删除「AI 回复模式」字段**——admin-web 删除 Form.Item；后端新增 `prompt_templates.code`/`is_builtin` 列（schema_sync 自动建列）+ 启动期写入 3 个系统内置模板（`MED_RECOG_FULL` id=10、`MED_RECOG_ADVICE_ONLY` id=11、`MED_RECOG_AUTO` id=12）+ 把存量 `photo_recognize_drug` 按钮的 `ai_reply_mode`（含 `params.ai_reply_mode` JSON 内字段）按映射表写入 `prompt_template_id`（已绑定的不动）；admin-web Prompt 模板页顶部新增「系统内置识药模板」卡片区 + 「复制为可编辑副本」按钮（调 `POST /api/admin/prompt-templates/{id}/duplicate`）；④ **胶囊点击按 type 分发**——h5-web `ai-home/page.tsx` 新增 `handleCapsuleByType`：upload→ActionSheet（相册/拍照）→图片消息+AI 回复；navigate/external_link/ai_chat_trigger→路由跳转；sdk_call/digital_human_call→navigate；quick_ask→对话区渲染 `kind='quick_ask_card'` 的可编辑卡片（多行 textarea + 取消/发送）；`ChatMessage` 接口扩展 `kind: 'text' | 'image' | 'quick_ask_card'`、`quickAskButton`、`quickAskState`；胶囊条顺序由后台 `sort_weight` 升序固定。Flutter 端 `function_button.dart` 模型补 `icon/presetPrompt/autoUserMessage/externalUrl/promptTemplateId` 字段；`chat_screen.dart` 的 `_handleFunctionButton` 补 `quick_ask`/`prompt_template`/`photo_recognize_drug` 分支。小程序经检查原本就只有「相册/拍照」二选，**无需改动**。
+
+### 范围与端
+- backend（**必改**）：
+  - `app/models/models.py`：`PromptTemplate` 新增 `code: String(64)`/`is_builtin: Boolean`
+  - `app/services/schema_sync.py`：`_sync_prompt_templates` 自动添加新列（幂等）
+  - `app/services/prd_aichat_capsule_v2_migration.py`（新增）：3 个内置模板写入 + `reply_mode → prompt_template_id` 映射迁移
+  - `app/main.py`：注册 startup 钩子 `_prd_aichat_capsule_v2_migrate`（带 print 兜底日志）
+  - `app/api/prompt_templates.py`：新增 `GET /api/admin/prompt-templates/all/flat`、`POST /{id}/duplicate`、`GET /by-id/{id}`；响应模型补 `code`/`is_builtin`
+  - `tests/test_prd_aichat_capsule_v2.py`（新增，11 用例全 PASS）
+- admin-web（**必改**）：
+  - `src/app/(admin)/function-buttons/page.tsx`：移除「AI 回复模式」「卡片封面图 URL」Form.Item；保存时 `card_cover_image: null`
+  - `src/app/(admin)/prompt-templates/page.tsx`：页面顶部新增「系统内置识药模板」区，含「复制为可编辑副本」按钮
+- h5-web（**必改**）：
+  - `src/components/ai-chat/ChatCards.tsx`：`UploadCard` 来源收口至 2 项；`CardHeader` 统一 Emoji 主题色头像；`QuickAskCard` 重写为可编辑（textarea + 取消/发送）；`backendButtonToCardButton` 映射 `icon → iconEmoji`
+  - `src/app/(ai-chat)/ai-home/page.tsx`：`ChatMessage.kind` 扩展；`handleCapsuleByType` 按 type 分发；新增上传 ActionSheet UI / `triggerCapsuleUpload`/`handleCapsuleUploadPick`/`handleQuickAskCardSend`/`handleQuickAskCardCancel`
+- flutter_app（**必改**）：
+  - `lib/models/function_button.dart`：补字段 + `fallbackIcon` 补 `photo_recognize_drug`/`quick_ask`/`prompt_template`
+  - `lib/screens/ai/chat_screen.dart`：`_handleFunctionButton` 补 `quick_ask`/`prompt_template`/`photo_recognize_drug` 分支
+- miniprogram（**未改动**）：原 chooseImage 已只有 2 选，无 cover_url / reply_mode 历史包袱
+- 部署脚本：`scripts/deploy_capsule_v2_paramiko.py`（paramiko，无 sshpass 依赖）、`scripts/verify_capsule_v2.py`、`scripts/exec_migration_remote.py`
+- 用户手册：`user_docs/AI咨询配置-功能按钮管理优化.md`
+
+### 关键决策
+1. **数据库迁移走"启动期幂等"**：不再单独跑一次性脚本，所有逻辑封装到 `prd_aichat_capsule_v2_migration.run_migration_with_session`，幂等检查（"目标 prompt_template_id 为空时才迁移"、内置模板按 `code` 唯一查重），重启即可补齐。
+2. **`card_cover_image` 字段保留数据但不读不写**：前端表单移除 + 保存时显式 `null`；后端 schema 仍接收（`Optional[str]=None`）保持向后兼容，避免老前端发请求时报 422。
+3. **「AI 回复模式」`ai_reply_mode` 字段保留数据库列以兼容旧前端解析**：迁移脚本把 `params.ai_reply_mode` 残留值清空为 `""`（保留 key），新前端完全忽略此字段，只读 `prompt_template_id`。
+4. **3 个内置模板用 `code` 字段唯一标识，`is_builtin=1` 表示"不可删除可复制"**：admin-web 调 `POST /api/admin/prompt-templates/{id}/duplicate` 会新建 `is_builtin=0`、`code=NULL`、`name` 后缀 `（副本）` 的可编辑副本，原模板不动。
+5. **胶囊点击行为完全按 button_type 分发，不再 fallback 到"发问"**：upload→ActionSheet；navigate/external_link/ai_chat_trigger→路由跳转（跳出 ai-home 或站外）；sdk_call/digital_human_call→等同 navigate（H5 无 SDK）；quick_ask→对话区插入 `kind='quick_ask_card'` 的卡片消息；其他未知 type 兜底为"以用户身份发问"（保留 V1 行为兜底）。
+6. **胶囊顺序按 `sort_weight` 升序固定**：`funcButtons` 接口已按 `sort_weight asc` 返回，前端不再二次排序、不再做使用频率排序、不做用户置顶。
+7. **Flutter 仅做最小补丁**：因 Flutter 端胶囊条 + 卡片渲染逻辑与 H5 同源但已支持大部分 button_type，仅补 `quick_ask` 分支（发送 `presetPrompt`）即可对齐 PRD §4，不重构原逻辑以降低风险。
+8. **部署改用 paramiko**：本地 Windows 环境无 `sshpass`/`plink`，编写 `scripts/deploy_capsule_v2_paramiko.py` 完成 git pull / docker compose build / 启动日志检查 / HTTP 探活四步。
+
+### 服务器自动化测试结果（HTTP 全 OK）
+- /api/docs → 200 ✅
+- /api/function-buttons → 200 ✅（返回 3 条按钮，含 `icon`/`prompt_template_id`/`card_cover_image: null`）
+- /admin/ → 200 ✅
+- /ai-home → 200 ✅
+
+### 数据库验证（远程执行 `python scripts/verify_capsule_v2.py`）
+- `prompt_templates` 表存在 `code varchar(64)`、`is_builtin tinyint(1)` 两列
+- 内置模板：`(10, MED_RECOG_FULL, 识药-完整分析, is_builtin=1, drug_personal)`、`(11, MED_RECOG_ADVICE_ONLY, 识药-仅用药建议, is_builtin=1, drug_general)`、`(12, MED_RECOG_AUTO, 识药-AI 自动判断, is_builtin=1, drug_query)`
+- `chat_function_buttons` 中 `photo_recognize_drug` 按钮（id=2）`prompt_template_id=3`（用户原绑定，保留不动）
+
+### 后端非 UI 测试（pytest，11/11 PASS）
+- `tests/test_prd_aichat_capsule_v2.py`：覆盖 `PromptTemplate.code/is_builtin` 持久化、`/all/flat` 列表（builtin 优先）、`/duplicate` 复制副本、`/by-id/{id}` 查询、function-buttons 接口对 `card_cover_image` / `ai_reply_mode` 输入的兼容性、reply_mode → code 映射逻辑（含 JSON `params.ai_reply_mode` 解析）
+
+### 验收 Checklist
+- [x] 需求 1：H5 `UploadCard` 仅显示「相册/拍照」；存量 `source: ["local","wechat"]` 不影响渲染
+- [x] 需求 2：admin-web Form 无「卡片封面图 URL」；用户端卡片头像统一 Emoji 渲染（40×40 + 主题色 10% 底）
+- [x] 需求 3：admin-web Form 无「AI 回复模式」；3 个系统内置模板已写入数据库且支持「复制为可编辑副本」；存量按钮已迁移（未绑定的自动映射，已绑定的保留）
+- [x] 需求 4.1：upload→ActionSheet；navigate→路由跳转；quick_ask→编辑卡片；sdk_call→navigate
+- [x] 需求 4.2：QuickAskCard 多行 textarea + 取消/发送，发送后变灰、AI 回复
+- [x] 需求 4.3：胶囊条按 `sort_weight` 升序展示
+
+---
+
+## Previous Update: PRD-AICHAT-CAPSULE-V1-20260515｜AI 对话模式 /ai-home 输入框上方胶囊条落地（10/10 服务器自动化测试 PASS）（2026-05-15 00:50）
 
 ### 一句话结论
 把菜单模式（九宫格首页）输入框上方那排胶囊按钮**完整搬一份**到 AI 对话模式 `/ai-home` 输入框正上方：①复用已有 `CapsuleBar` 组件（`h5-web/src/components/ai-chat/CapsuleBar.tsx`）+ 已有 `funcButtons` 数据源（公开 `GET /api/function-buttons?is_enabled=true`），后端 **零改动**；②`ai-home/page.tsx` 新增 `isInputFocused` state + textarea `onFocus/onBlur` 监听，实现键盘联动（焦点在输入框时整体隐藏，blur 后恢复）；③点击胶囊立即调用 `handleSend(presetText, 'preset')`，以"用户身份"自动发出 `preset_prompt || auto_user_message || name`，AI 走正常回复流程（**不走 ChatCard 卡片消息**，明确等价于 quick_ask 行为，与菜单模式同步）；④空数据 / 全部禁用 / 接口异常时 `CapsuleBar` 内置 `return null` 降级，不留任何占位；⑤菜单模式（九宫格）原有胶囊条**展示、点击、配置**均**未受任何影响**；⑥后台「胶囊按钮配置」改一处，AI 对话模式与菜单模式同时生效（同源 `chat_function_buttons`）。h5-web 容器已通过 `docker compose build --no-cache h5-web` 全量重建并部署，10/10 服务器自动化测试全部 PASS。
