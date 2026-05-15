@@ -68,6 +68,9 @@ class ChatFunctionButtonCreate(BaseModel):
     button_type: str
     sort_weight: int = 0
     is_enabled: bool = True
+    # [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 两个独立开关（新增按钮默认两个都 OFF）
+    is_recommended: bool = False
+    is_capsule: bool = False
     params: Optional[dict] = None
     ai_reply_mode: Optional[str] = None
     photo_tip_text: Optional[str] = None
@@ -96,6 +99,9 @@ class ChatFunctionButtonUpdate(BaseModel):
     button_type: Optional[str] = None
     sort_weight: Optional[int] = None
     is_enabled: Optional[bool] = None
+    # [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 两个独立开关
+    is_recommended: Optional[bool] = None
+    is_capsule: Optional[bool] = None
     params: Optional[dict] = None
     ai_reply_mode: Optional[str] = None
     photo_tip_text: Optional[str] = None
@@ -125,6 +131,9 @@ class ChatFunctionButtonResponse(BaseModel):
     button_type: str
     sort_weight: int
     is_enabled: bool
+    # [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 两个独立开关
+    is_recommended: bool = False
+    is_capsule: bool = False
     params: Optional[dict] = None
     ai_reply_mode: Optional[str] = None
     photo_tip_text: Optional[str] = None

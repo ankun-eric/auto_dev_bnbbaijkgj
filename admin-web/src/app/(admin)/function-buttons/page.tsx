@@ -7,7 +7,7 @@ import {
   InputNumber, Typography, message, Empty,
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SmileOutlined } from '@ant-design/icons';
-import { get, post, put, del } from '@/lib/api';
+import { get, post, put, del, patch } from '@/lib/api';
 // [AICHAT-OPTIM-FIX-V1 F-01 2026-05-14] 接入公共 EmojiPicker（与首页菜单管理同一套组件）
 import { EmojiPickerModal } from '@/components/EmojiPicker';
 
@@ -68,6 +68,9 @@ interface FunctionButton {
   button_type: string;
   sort_weight: number;
   is_enabled: boolean;
+  // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 两个独立开关：是否推荐 / 是否胶囊
+  is_recommended?: boolean;
+  is_capsule?: boolean;
   params: any;
   // [AI对话模式优化 PRD v1.0] 8 个新字段
   prompt_template_id?: number | null;
@@ -223,6 +226,9 @@ export default function FunctionButtonsPage() {
         button_type: record.button_type,
         sort_weight: record.sort_weight,
         is_enabled: record.is_enabled,
+        // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 两个独立开关回填（无值时按 false）
+        is_recommended: !!record.is_recommended,
+        is_capsule: !!record.is_capsule,
         params: record.params
           ? (typeof record.params === 'string' ? record.params : JSON.stringify(record.params, null, 2))
           : '',
@@ -253,13 +259,15 @@ export default function FunctionButtonsPage() {
     } else {
       form.setFieldsValue({
         is_enabled: true,
+        // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 新增按钮的默认值：两个开关都强制 OFF
+        is_recommended: false,
+        is_capsule: false,
         sort_weight: 0,
         photo_tip_text: '请确保药品名称、品牌、规格完整，拍摄清晰',
         max_photo_count: 5,
         auto_user_message: '',
         card_title: '',
         icon: '📌',
-        // [PRD-HEALTH-SELF-CHECK-V1] 默认值
         archive_missing_strategy: 'use_default',
         prompt_override_enabled: false,
       });
@@ -300,6 +308,9 @@ export default function FunctionButtonsPage() {
         button_type: values.button_type,
         sort_weight: values.sort_weight ?? 0,
         is_enabled: values.is_enabled,
+        // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 两个独立开关
+        is_recommended: !!values.is_recommended,
+        is_capsule: !!values.is_capsule,
         params: finalParams,
         // [AI对话模式优化 PRD v1.0] 8 个新字段（按类型条件传）
         prompt_template_id: PROMPT_TEMPLATE_REQUIRED_TYPES.has(values.button_type)
@@ -370,6 +381,31 @@ export default function FunctionButtonsPage() {
     }
   };
 
+  // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 快速切换"是否推荐"——列表上点一下立即生效
+  const handleToggleRecommended = async (record: FunctionButton, checked: boolean) => {
+    // 乐观更新：先本地切，失败回滚
+    setItems((prev) => prev.map((it) => (it.id === record.id ? { ...it, is_recommended: checked } : it)));
+    try {
+      await patch(`/api/admin/function-buttons/${record.id}/toggle-recommended`, { value: checked });
+      message.success(checked ? '已开启（5 分钟内全端生效）' : '已关闭（5 分钟内全端生效）');
+    } catch {
+      setItems((prev) => prev.map((it) => (it.id === record.id ? { ...it, is_recommended: !checked } : it)));
+      message.error('切换失败');
+    }
+  };
+
+  // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 快速切换"是否胶囊"——列表上点一下立即生效
+  const handleToggleCapsule = async (record: FunctionButton, checked: boolean) => {
+    setItems((prev) => prev.map((it) => (it.id === record.id ? { ...it, is_capsule: checked } : it)));
+    try {
+      await patch(`/api/admin/function-buttons/${record.id}/toggle-capsule`, { value: checked });
+      message.success(checked ? '已开启（5 分钟内全端生效）' : '已关闭（5 分钟内全端生效）');
+    } catch {
+      setItems((prev) => prev.map((it) => (it.id === record.id ? { ...it, is_capsule: !checked } : it)));
+      message.error('切换失败');
+    }
+  };
+
   const columns = [
     {
       title: '排序权重',
@@ -406,17 +442,32 @@ export default function FunctionButtonsPage() {
         return info ? <Tag color={info.color}>{info.label}</Tag> : <Tag>{val}</Tag>;
       },
     },
+    // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 删除"启用状态"列，替换为"是否推荐"+"是否胶囊"两列
     {
-      title: '启用状态',
-      dataIndex: 'is_enabled',
-      key: 'is_enabled',
-      width: 100,
+      title: '是否推荐',
+      dataIndex: 'is_recommended',
+      key: 'is_recommended',
+      width: 110,
       render: (val: boolean, record: FunctionButton) => (
         <Switch
-          checked={val}
-          checkedChildren="启用"
-          unCheckedChildren="禁用"
-          onChange={(checked) => handleToggleEnabled(record, checked)}
+          checked={!!val}
+          checkedChildren="开"
+          unCheckedChildren="关"
+          onChange={(checked) => handleToggleRecommended(record, checked)}
+        />
+      ),
+    },
+    {
+      title: '是否胶囊',
+      dataIndex: 'is_capsule',
+      key: 'is_capsule',
+      width: 110,
+      render: (val: boolean, record: FunctionButton) => (
+        <Switch
+          checked={!!val}
+          checkedChildren="开"
+          unCheckedChildren="关"
+          onChange={(checked) => handleToggleCapsule(record, checked)}
         />
       ),
     },
@@ -699,8 +750,26 @@ export default function FunctionButtonsPage() {
           <Form.Item label="排序权重" name="sort_weight">
             <InputNumber min={0} max={9999} style={{ width: '100%' }} placeholder="数值越大越靠前" />
           </Form.Item>
-          <Form.Item label="启用状态" name="is_enabled" valuePropName="checked">
-            <Switch checkedChildren="启用" unCheckedChildren="禁用" />
+          {/* [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 用两个独立开关替代原"启用状态"字段 */}
+          <Form.Item
+            label="是否推荐"
+            name="is_recommended"
+            valuePropName="checked"
+            extra="开启后，本按钮将出现在 AI 对话首页的功能宫格中"
+          >
+            <Switch checkedChildren="开" unCheckedChildren="关" />
+          </Form.Item>
+          <Form.Item
+            label="是否胶囊"
+            name="is_capsule"
+            valuePropName="checked"
+            extra="开启后，本按钮将出现在 AI 对话输入框上方的胶囊条中"
+          >
+            <Switch checkedChildren="开" unCheckedChildren="关" />
+          </Form.Item>
+          {/* 保留 is_enabled 隐藏字段以兼容旧后端写入（业务侧已停止读取，过渡期不删） */}
+          <Form.Item name="is_enabled" hidden>
+            <Switch />
           </Form.Item>
           <Form.Item label="关联参数" name="params">
             <TextArea rows={4} placeholder='请输入JSON格式参数，例如: {"url": "https://..."}' />

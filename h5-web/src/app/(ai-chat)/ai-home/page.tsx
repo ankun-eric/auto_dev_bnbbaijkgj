@@ -116,6 +116,48 @@ interface FunctionButton {
   prompt_override_text?: string | null;
   sort_weight?: number;
   is_enabled?: boolean;
+  // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 两个独立开关：是否推荐 / 是否胶囊
+  is_recommended?: boolean;
+  is_capsule?: boolean;
+}
+
+// [PRD-AICHAT-HOME-GRID-V1 2026-05-16] AI 对话首页功能宫格专属 5 色循环配色池（去玫红版方案 A）
+// 顺序按 PRD §5.4.1：天蓝青 / 蓝绿青 / 靛蓝 / 紫罗兰 / 青绿
+const AI_GRID_COLORS: Array<{ main: string; bg: string }> = [
+  { main: '#0EA5E9', bg: '#E0F2FE' },
+  { main: '#06B6D4', bg: '#CFFAFE' },
+  { main: '#6366F1', bg: '#E0E7FF' },
+  { main: '#8B5CF6', bg: '#EDE9FE' },
+  { main: '#14B8A6', bg: '#CCFBF1' },
+];
+
+const getAiGridColor = (index: number): { main: string; bg: string } =>
+  AI_GRID_COLORS[((index % AI_GRID_COLORS.length) + AI_GRID_COLORS.length) % AI_GRID_COLORS.length];
+
+// [PRD-AICHAT-HOME-GRID-V1 2026-05-16] button_type → 内置 emoji 兜底（icon_url / icon 都为空时使用）
+const AI_TYPE_ICON_MAP: Record<string, string> = {
+  health_self_check: '🩺',
+  report_interpret: '📋',
+  quick_ask: '💬',
+  photo_recognize_drug: '💊',
+  drug_identify: '💊',
+  photo_upload: '📷',
+  file_upload: '📎',
+  ai_chat_trigger: '✨',
+  ai_dialog_trigger: '✨',
+  external_link: '🔗',
+  digital_human_call: '👤',
+};
+
+// [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 图标三级兜底：icon_url（图片）> icon（emoji）> button_type 自动匹配
+function resolveAiGridIcon(btn: FunctionButton): { type: 'image' | 'emoji'; value: string } {
+  if (btn.icon_url && typeof btn.icon_url === 'string' && btn.icon_url.trim()) {
+    return { type: 'image', value: btn.icon_url };
+  }
+  if (btn.icon && typeof btn.icon === 'string' && btn.icon.trim()) {
+    return { type: 'emoji', value: btn.icon };
+  }
+  return { type: 'emoji', value: AI_TYPE_ICON_MAP[btn.button_type] || '🔘' };
 }
 
 interface FamilyMember {
@@ -561,16 +603,34 @@ export default function AiHomePage() {
       setBanners(Array.isArray(data.items) ? data.items : []);
     }).catch(() => {});
 
-    // [AICHAT-OPTIM-FIX-V1 F-04 2026-05-14] 公开 /api/function-buttons?is_enabled=true
-    // 返回数组（非 wrapped），统一来源 chat_function_buttons，含 8 个新字段
-    api.get('/api/function-buttons?is_enabled=true').then((res: any) => {
+    // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 客户端本地缓存 5 分钟
+    // - 缓存键：aichat_function_buttons
+    // - 命中且未过期：先用缓存数据 setState（秒开），同时后台拉新数据刷新
+    // - 未命中 / 过期 / 接口异常：照常拉接口，失败时静默 setFuncButtons([])
+    const CACHE_KEY_FB = 'aichat_function_buttons';
+    const TTL_FB = 5 * 60 * 1000;
+    try {
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(CACHE_KEY_FB) : null;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.data) && typeof parsed.ts === 'number' && (Date.now() - parsed.ts) < TTL_FB) {
+          setFuncButtons(parsed.data as FunctionButton[]);
+        }
+      }
+    } catch {}
+    api.get('/api/function-buttons').then((res: any) => {
       const data = res.data || res;
       const arr: FunctionButton[] = Array.isArray(data) ? data
         : Array.isArray(data?.items) ? data.items : [];
       setFuncButtons(arr);
+      try {
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(CACHE_KEY_FB, JSON.stringify({ ts: Date.now(), data: arr }));
+        }
+      } catch {}
     }).catch(() => {
       // 接口异常静默：宫格区会显示内置 3 项兜底（FALLBACK_CONFIG.func_grid.items）
-      setFuncButtons([]);
+      // 注意：若本地缓存已注入，此处不要 setFuncButtons([]) 覆盖
     });
 
     // [BUG-FIX 2026-05-16] 接口名拼写错误：today-tasks → today-todos（与后端实际接口、小程序、Flutter 端保持一致）
@@ -2186,21 +2246,33 @@ export default function AiHomePage() {
     return tpl.replace('{name}', name);
   };
 
-  // [AICHAT-OPTIM-FIX-V1 F-04 2026-05-14] 宫格数据源统一切换到 chat_function_buttons
-  // 主数据：funcButtons（来自 /api/function-buttons?is_enabled=true）
-  // 兜底：当后端返回为空时，使用配置中的旧 items 或 FALLBACK 3 项
-  const maxGridCount = (aiHomeConfig.func_grid as any)?.max_count
-    || aiHomeConfig.func_grid?.max_count
-    || 6;
-  const gridCols = (aiHomeConfig.func_grid as any)?.cols
-    || aiHomeConfig.func_grid?.columns
-    || 3;
+  // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 宫格按"是否推荐"过滤，胶囊条按"是否胶囊"过滤
+  // - 列数固定 4，行数不限（向下铺）
+  // - 排序 sort_weight ASC, id ASC
+  // - 两个开关均关闭的按钮在 C 端完全不显示（等同旧 is_enabled=false）
+  // - 兜底：仅当 is_recommended/is_capsule 两个字段都是 undefined（老接口未升级）时，
+  //   退化为按 is_enabled 过滤，避免升级窗口期宫格突然空白
+  const _hasNewSwitchFields = funcButtons.some(
+    (b) => typeof b.is_recommended === 'boolean' || typeof b.is_capsule === 'boolean',
+  );
+  const gridCols = 4;
 
-  // 优先用功能按钮管理（chat_function_buttons）数据，按 sort_weight 升序、取前 max_count
   const fnGridItems = funcButtons
     .slice()
-    .sort((a, b) => (a.sort_weight ?? 0) - (b.sort_weight ?? 0))
-    .slice(0, maxGridCount);
+    .filter((b) => {
+      if (_hasNewSwitchFields) return !!b.is_recommended;
+      return b.is_enabled !== false;
+    })
+    .sort((a, b) => (a.sort_weight ?? 0) - (b.sort_weight ?? 0));
+
+  // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 胶囊条数据：按 is_capsule 过滤
+  const capsuleButtons = funcButtons
+    .slice()
+    .filter((b) => {
+      if (_hasNewSwitchFields) return !!b.is_capsule;
+      return b.is_enabled !== false;
+    })
+    .sort((a, b) => (a.sort_weight ?? 0) - (b.sort_weight ?? 0));
 
   // 兜底：当 fnGridItems 为空且配置中有 items（或 FALLBACK 兜底），使用旧逻辑
   const configuredItems = (aiHomeConfig.func_grid?.items && aiHomeConfig.func_grid.items.length > 0)
@@ -2558,34 +2630,120 @@ export default function AiHomePage() {
 
             {/* [AICHAT-OPTIM-FIX-V1 F-04/F-06 2026-05-14] 功能宫格：数据源统一到 chat_function_buttons */}
             <SectionErrorBoundary name="func_grid">
+              {/* [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 新版功能宫格
+                  - 4 列固定、行数不限（按需向下铺）、按 sort_weight ASC 排序
+                  - 单元格：56×56 图标外层圆角背景框（取 AI 专属 5 色循环配色池），下方 13px 名称
+                  - 图标三级兜底：icon_url（图片）> icon（emoji）> button_type 自动匹配
+                  - 点击：scale(0.96) 按压态 + 复用 handleFunctionButtonClick */}
               {funcGridVisible && fnGridItems.length > 0 && (
                 <div
-                  className={`grid gap-3 mb-4`}
+                  className="grid mb-4"
                   data-testid="ai-home-func-grid"
                   data-grid-cols={gridCols}
-                  data-grid-source="chat_function_buttons"
-                  style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}
+                  data-grid-source="chat_function_buttons_v2"
+                  style={{
+                    gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+                    columnGap: 12,
+                    rowGap: 16,
+                  }}
                   ref={(el) => {
-                    // 首次进入视窗发宫格曝光埋点
                     if (el && !(el as any).__exposed && gridExposureIds.length > 0) {
                       (el as any).__exposed = true;
                       try { aiHomeFnTrack.menuExposure(gridExposureIds); } catch {}
                     }
                   }}
                 >
-                  {fnGridItems.map((btn) => (
-                    <FnCell
-                      key={btn.id}
-                      icon={btn.icon || '📌'}
-                      main={btn.name}
-                      sub={btn.button_sub_desc || ''}
-                      onClick={() => {
-                        try { aiHomeFnTrack.menuClick(btn.id, btn.name, btn.button_type); } catch {}
-                        handleFunctionButtonClick(btn);
-                      }}
-                      testId={`bh-fn-cell-${btn.id}`}
-                    />
-                  ))}
+                  {fnGridItems.map((btn, idx) => {
+                    const color = getAiGridColor(idx);
+                    const ic = resolveAiGridIcon(btn);
+                    return (
+                      <div
+                        key={btn.id}
+                        data-testid={`bh-fn-cell-${btn.id}`}
+                        onClick={() => {
+                          try { aiHomeFnTrack.menuClick(btn.id, btn.name, btn.button_type); } catch {}
+                          handleFunctionButtonClick(btn);
+                        }}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'flex-start',
+                          cursor: 'pointer',
+                          transition: 'transform 200ms ease',
+                          padding: 0,
+                          userSelect: 'none',
+                        }}
+                        onTouchStart={(e) => {
+                          (e.currentTarget as HTMLDivElement).style.transform = 'scale(0.96)';
+                        }}
+                        onTouchEnd={(e) => {
+                          (e.currentTarget as HTMLDivElement).style.transform = 'scale(1)';
+                        }}
+                        onTouchCancel={(e) => {
+                          (e.currentTarget as HTMLDivElement).style.transform = 'scale(1)';
+                        }}
+                        onMouseDown={(e) => {
+                          (e.currentTarget as HTMLDivElement).style.transform = 'scale(0.96)';
+                        }}
+                        onMouseUp={(e) => {
+                          (e.currentTarget as HTMLDivElement).style.transform = 'scale(1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLDivElement).style.transform = 'scale(1)';
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 56,
+                            height: 56,
+                            borderRadius: 16,
+                            background: color.bg,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginBottom: 8,
+                          }}
+                          aria-label={btn.name}
+                        >
+                          {ic.type === 'image' ? (
+                            <img
+                              src={ic.value}
+                              alt={btn.name}
+                              style={{ width: 28, height: 28, objectFit: 'contain' }}
+                            />
+                          ) : (
+                            <span
+                              style={{
+                                fontSize: 24,
+                                lineHeight: 1,
+                                color: color.main,
+                                display: 'inline-block',
+                              }}
+                            >
+                              {ic.value}
+                            </span>
+                          )}
+                        </div>
+                        <span
+                          style={{
+                            fontSize: 13,
+                            lineHeight: '18px',
+                            color: '#1F2937',
+                            textAlign: 'center',
+                            width: '100%',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            paddingLeft: 2,
+                            paddingRight: 2,
+                          }}
+                        >
+                          {btn.name}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               {/* 兜底：fnGridItems 为空时显示静态配置 / FALLBACK 3 项 */}
@@ -3254,7 +3412,8 @@ export default function AiHomePage() {
           - 键盘联动：textarea focus 时 isInputFocused=true → 整体隐藏
           - 点击：以"用户身份"自动发问（quick_ask 行为，复用 handleSend('preset')） */}
       <CapsuleBar
-        buttons={funcButtons.map((b) => ({
+        // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 胶囊条数据源改为按 is_capsule 过滤（capsuleButtons）
+        buttons={capsuleButtons.map((b) => ({
           id: b.id,
           name: b.name,
           icon: b.icon || '📌',
@@ -3262,9 +3421,9 @@ export default function AiHomePage() {
         }))}
         hidden={isInputFocused}
         onCapsuleClick={(cap) => {
-          const full = funcButtons.find((b) => String(b.id) === String(cap.id));
+          const full = capsuleButtons.find((b) => String(b.id) === String(cap.id))
+            || funcButtons.find((b) => String(b.id) === String(cap.id));
           if (!full) return;
-          // [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 4.1] 胶囊点击按 button_type 分发
           handleCapsuleByType(full);
         }}
       />

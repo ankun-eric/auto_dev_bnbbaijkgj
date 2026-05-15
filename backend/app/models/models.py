@@ -2525,6 +2525,8 @@ class ChatFunctionButton(Base):
     button_type = mapped_column(String(50), nullable=False)
     sort_weight = mapped_column(Integer, default=0)
     is_enabled = mapped_column(Boolean, default=True)
+    is_recommended = mapped_column(Boolean, default=False, nullable=True, comment="[PRD-AICHAT-HOME-GRID-V1] 是否在功能宫格显示（替代 is_enabled 在宫格侧的语义）")
+    is_capsule = mapped_column(Boolean, default=False, nullable=True, comment="[PRD-AICHAT-HOME-GRID-V1] 是否在胶囊条显示（替代 is_enabled 在胶囊侧的语义）")
     params = mapped_column(JSON, nullable=True)
     ai_reply_mode = mapped_column(String(50), nullable=True, default="complete_analysis")
     photo_tip_text = mapped_column(String(500), nullable=True, default="请确保药品名称、品牌、规格完整，拍摄清晰")

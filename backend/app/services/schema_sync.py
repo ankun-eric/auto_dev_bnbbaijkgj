@@ -784,6 +784,15 @@ async def _sync_chat_function_button_fields(conn: AsyncConnection) -> None:
         await conn.execute(text(
             "ALTER TABLE chat_function_buttons ADD COLUMN max_photo_count INT NULL DEFAULT 5"
         ))
+    # [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 新增两个独立开关字段：is_recommended / is_capsule
+    if "is_recommended" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE chat_function_buttons ADD COLUMN is_recommended TINYINT(1) NULL DEFAULT 0"
+        ))
+    if "is_capsule" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE chat_function_buttons ADD COLUMN is_capsule TINYINT(1) NULL DEFAULT 0"
+        ))
 
 
 async def _sync_tcm_diagnosis_fields(conn: AsyncConnection) -> None:

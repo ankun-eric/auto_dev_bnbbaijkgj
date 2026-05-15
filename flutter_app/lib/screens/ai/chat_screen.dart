@@ -496,9 +496,14 @@ class _ChatScreenState extends State<ChatScreen> {
       if (response.statusCode == 200 && mounted) {
         final items = response.data['items'] as List? ?? response.data['data'] as List? ?? [];
         setState(() {
-          _functionButtons = items
+          final parsed = items
               .map((e) => FunctionButton.fromJson(Map<String, dynamic>.from(e as Map)))
-              .where((b) => b.isEnabled)
+              .toList();
+          // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 过滤：is_recommended OR is_capsule 任一为 true 即可见；
+          // 兜底：若所有按钮新字段都不存在（老接口），退化为按 isEnabled 过滤
+          final hasNewFields = parsed.any((b) => b.isRecommended || b.isCapsule);
+          _functionButtons = parsed
+              .where((b) => hasNewFields ? (b.isRecommended || b.isCapsule) : b.isEnabled)
               .toList()
             ..sort((a, b) => b.sortWeight.compareTo(a.sortWeight));
           _functionButtonsCachedAt = DateTime.now();

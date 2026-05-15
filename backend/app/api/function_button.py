@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -56,12 +57,27 @@ admin_dep = require_role("admin")
 
 
 @router.get("/function-buttons", response_model=list[ChatFunctionButtonResponse])
-async def get_function_buttons(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(ChatFunctionButton)
-        .where(ChatFunctionButton.is_enabled == True)  # noqa: E712
-        .order_by(ChatFunctionButton.sort_weight.asc())
-    )
+async def get_function_buttons(
+    position: Optional[str] = Query(None, description="[PRD-AICHAT-HOME-GRID-V1] 过滤位置：grid / capsule / 不传"),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import or_
+
+    stmt = select(ChatFunctionButton)
+    pos = (position or "").lower()
+    if pos == "grid":
+        stmt = stmt.where(ChatFunctionButton.is_recommended == True)  # noqa: E712
+    elif pos == "capsule":
+        stmt = stmt.where(ChatFunctionButton.is_capsule == True)  # noqa: E712
+    else:
+        stmt = stmt.where(
+            or_(
+                ChatFunctionButton.is_recommended == True,  # noqa: E712
+                ChatFunctionButton.is_capsule == True,  # noqa: E712
+            )
+        )
+    stmt = stmt.order_by(ChatFunctionButton.sort_weight.asc(), ChatFunctionButton.id.asc())
+    result = await db.execute(stmt)
     return [ChatFunctionButtonResponse.model_validate(b) for b in result.scalars().all()]
 
 
@@ -79,15 +95,34 @@ async def get_function_buttons(db: AsyncSession = Depends(get_db)):
 
 @public_router.get("/function-buttons", response_model=list[ChatFunctionButtonResponse])
 async def get_public_function_buttons(
-    is_enabled: Optional[bool] = Query(True, description="仅返回启用按钮（默认 True；传 false 强行返回禁用按钮无效，按 true 处理）"),
+    is_enabled: Optional[bool] = Query(True, description="（兼容字段，已忽略）仅保留以避免老前端报错"),
+    position: Optional[str] = Query(None, description="[PRD-AICHAT-HOME-GRID-V1] 过滤位置：grid（仅推荐宫格按钮）/ capsule（仅胶囊条按钮）/ 不传则返回 is_recommended OR is_capsule 为 true 的全部按钮"),
     db: AsyncSession = Depends(get_db),
 ):
-    # 安全约束：未启用按钮永不公开返回（即使显式传 is_enabled=false 也强制按 true）
-    stmt = (
-        select(ChatFunctionButton)
-        .where(ChatFunctionButton.is_enabled == True)  # noqa: E712
-        .order_by(ChatFunctionButton.sort_weight.asc(), ChatFunctionButton.id.asc())
-    )
+    """[PRD-AICHAT-HOME-GRID-V1 2026-05-16] 公开接口
+
+    - position=grid    -> 仅 is_recommended=true
+    - position=capsule -> 仅 is_capsule=true
+    - 不传 position    -> is_recommended=true OR is_capsule=true（前端按字段过滤）
+
+    任何位置下都不返回两个开关均关闭的按钮（等同旧的"未启用"）。
+    """
+    from sqlalchemy import or_  # 局部 import 避免顶部循环
+
+    stmt = select(ChatFunctionButton)
+    pos = (position or "").lower()
+    if pos == "grid":
+        stmt = stmt.where(ChatFunctionButton.is_recommended == True)  # noqa: E712
+    elif pos == "capsule":
+        stmt = stmt.where(ChatFunctionButton.is_capsule == True)  # noqa: E712
+    else:
+        stmt = stmt.where(
+            or_(
+                ChatFunctionButton.is_recommended == True,  # noqa: E712
+                ChatFunctionButton.is_capsule == True,  # noqa: E712
+            )
+        )
+    stmt = stmt.order_by(ChatFunctionButton.sort_weight.asc(), ChatFunctionButton.id.asc())
     result = await db.execute(stmt)
     return [ChatFunctionButtonResponse.model_validate(b) for b in result.scalars().all()]
 
@@ -389,6 +424,48 @@ async def admin_delete_button(
     await db.delete(btn)
     await db.flush()
     return {"message": "删除成功"}
+
+
+# ────────────────────────────────────────
+#  [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 快速切换接口
+#  快速切换"是否推荐"/"是否胶囊"，点一下立即生效，无二次确认
+# ────────────────────────────────────────
+
+
+class _ToggleValue(BaseModel):
+    value: bool
+
+
+@admin_router.patch("/function-buttons/{button_id}/toggle-recommended")
+async def admin_toggle_recommended(
+    button_id: int,
+    payload: _ToggleValue,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(ChatFunctionButton).where(ChatFunctionButton.id == button_id))
+    btn = result.scalar_one_or_none()
+    if not btn:
+        raise HTTPException(status_code=404, detail="按钮不存在")
+    btn.is_recommended = bool(payload.value)
+    await db.flush()
+    return {"id": btn.id, "is_recommended": bool(btn.is_recommended)}
+
+
+@admin_router.patch("/function-buttons/{button_id}/toggle-capsule")
+async def admin_toggle_capsule(
+    button_id: int,
+    payload: _ToggleValue,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(ChatFunctionButton).where(ChatFunctionButton.id == button_id))
+    btn = result.scalar_one_or_none()
+    if not btn:
+        raise HTTPException(status_code=404, detail="按钮不存在")
+    btn.is_capsule = bool(payload.value)
+    await db.flush()
+    return {"id": btn.id, "is_capsule": bool(btn.is_capsule)}
 
 
 @admin_router.put("/function-buttons/sort")

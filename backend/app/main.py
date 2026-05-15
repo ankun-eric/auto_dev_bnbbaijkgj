@@ -1967,6 +1967,21 @@ async def _prd_aichat_capsule_v2_migrate() -> None:
         print(f"[migrate] prd_aichat_capsule_v2: 迁移失败 err={e}", flush=True)
 
 
+# [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 启动期：根据 is_enabled 回填 is_recommended / is_capsule
+@app.on_event("startup")
+async def _prd_aichat_home_grid_v1_migrate() -> None:
+    print("[migrate] prd_aichat_home_grid_v1: 启动迁移...", flush=True)
+    try:
+        from app.core.database import async_session as _async_session
+        from app.services.prd_aichat_home_grid_v1_migration import run_migration_with_session
+        stats = await run_migration_with_session(_async_session)
+        print(f"[migrate] prd_aichat_home_grid_v1: 迁移完成 stats={stats}", flush=True)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"[migrate] prd_aichat_home_grid_v1: 迁移失败 err={e}", flush=True)
+
+
 # [Bug 修复] 启动期自检：路由挂载 + 加密密钥环境变量
 @app.on_event("startup")
 async def _payment_config_startup_self_check() -> None:

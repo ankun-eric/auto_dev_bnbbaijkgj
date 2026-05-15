@@ -806,7 +806,13 @@ Page({
     try {
       const res = await get('/api/chat/function-buttons', {}, { showLoading: false, suppressErrorToast: true });
       const buttons = Array.isArray(res) ? res : (res.items || res.data || []);
-      this.setData({ functionButtons: buttons.filter(b => b.is_enabled) });
+      // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 过滤逻辑改为按 is_recommended OR is_capsule（任一开关开启即可见）
+      // 兜底：若后端新字段都没下发（老接口），退化为按 is_enabled 过滤
+      const hasNewFields = buttons.some((b) => typeof b.is_recommended === 'boolean' || typeof b.is_capsule === 'boolean');
+      const filtered = hasNewFields
+        ? buttons.filter((b) => !!b.is_recommended || !!b.is_capsule)
+        : buttons.filter((b) => b.is_enabled);
+      this.setData({ functionButtons: filtered });
       this._btnCacheExpire = now + 5 * 60 * 1000;
     } catch (e) {
       console.log('loadFunctionButtons error', e);

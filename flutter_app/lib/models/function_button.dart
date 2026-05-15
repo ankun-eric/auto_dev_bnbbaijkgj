@@ -7,6 +7,9 @@ class FunctionButton {
   final String buttonType;
   final int sortWeight;
   final bool isEnabled;
+  // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 两个独立开关：是否推荐 / 是否胶囊
+  final bool isRecommended;
+  final bool isCapsule;
   final Map<String, dynamic>? params;
   // [PRD-AICHAT-CAPSULE-V2 2026-05-15] 新增字段，对齐后端 chat_function_buttons 表
   final String? icon; // Emoji
@@ -27,6 +30,8 @@ class FunctionButton {
     required this.buttonType,
     this.sortWeight = 0,
     this.isEnabled = true,
+    this.isRecommended = false,
+    this.isCapsule = false,
     this.params,
     this.icon,
     this.presetPrompt,
@@ -47,6 +52,8 @@ class FunctionButton {
       buttonType: json['button_type'] ?? '',
       sortWeight: json['sort_weight'] ?? 0,
       isEnabled: json['is_enabled'] ?? true,
+      isRecommended: json['is_recommended'] ?? false,
+      isCapsule: json['is_capsule'] ?? false,
       params: json['params'] as Map<String, dynamic>?,
       icon: json['icon'] as String?,
       presetPrompt: json['preset_prompt'] as String?,
