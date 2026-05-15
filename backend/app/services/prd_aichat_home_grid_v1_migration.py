@@ -38,9 +38,10 @@ async def run_migration_with_session(async_session_factory) -> Dict[str, Any]:
     async with async_session_factory() as db:
         try:
             # 1. 确保 app_settings 表存在（schema 同步通常已创建；这里只读，不创建）
+            #    本项目 app_settings 字段为 `key`/`value`（不是 setting_key/setting_value）
             try:
                 res_flag = await db.execute(text(
-                    "SELECT setting_value FROM app_settings WHERE setting_key = :k LIMIT 1"
+                    "SELECT `value` FROM app_settings WHERE `key` = :k LIMIT 1"
                 ), {"k": FLAG_KEY})
                 row = res_flag.first()
                 if row and row[0]:
@@ -68,9 +69,9 @@ async def run_migration_with_session(async_session_factory) -> Dict[str, Any]:
             # 3. 写入完成标志
             try:
                 await db.execute(text(
-                    "INSERT INTO app_settings (setting_key, setting_value, created_at, updated_at) "
-                    "VALUES (:k, '1', NOW(), NOW()) "
-                    "ON DUPLICATE KEY UPDATE setting_value = '1', updated_at = NOW()"
+                    "INSERT INTO app_settings (`key`, `value`, updated_at) "
+                    "VALUES (:k, '1', NOW()) "
+                    "ON DUPLICATE KEY UPDATE `value` = '1', updated_at = NOW()"
                 ), {"k": FLAG_KEY})
             except Exception as e:
                 _logger.warning("[PRD-AICHAT-HOME-GRID-V1] 写入迁移标志失败（不影响主迁移）：%s", e)
