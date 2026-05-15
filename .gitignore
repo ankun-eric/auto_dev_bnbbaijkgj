@@ -127,3 +127,4 @@ deploy_order_enh.log
 # Cursor chat session artifacts and ad-hoc debug helpers
 .chat_output/
 .chat_prompts/
+build_ios_prd_aichat_home_grid_v1.log

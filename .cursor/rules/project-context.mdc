@@ -27,7 +27,47 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: HealthSelfCheck-3Bugs-20260516｜健康自查 3 Bug 一期修复（2026-05-16 00:50）
+## Latest Update: PRD-AICHAT-HOME-GRID-V1｜AI 对话首页功能宫格与胶囊条优化（2026-05-16 01:55）
+
+### 一句话结论
+把后台"是否启用"拆为「是否推荐」+「是否胶囊」两个独立开关，分别控制 AI 对话首页【功能宫格】与【胶囊条】的显隐；同时把 AI 对话首页功能宫格重构为「4 列循环背景色 + 三级图标兜底」的菜单模式同款新样式（AI 专属 5 色配色池），客户端本地缓存 5 分钟。
+
+### 数据模型 & 迁移
+- `chat_function_buttons` 表新增字段：`is_recommended TINYINT(1) DEFAULT 0`、`is_capsule TINYINT(1) DEFAULT 0`；保留 `is_enabled` 字段作过渡期兼容。
+- `backend/app/services/schema_sync.py`：启动时 `ALTER TABLE ADD COLUMN IF NOT EXISTS` 两个新字段。
+- `backend/app/services/prd_aichat_home_grid_v1_migration.py`：一次性回填迁移，幂等控制写在 `app_settings(key='_migration_done.prd_aichat_home_grid_v1', value='1')`；逻辑 `is_enabled=1 → is_recommended=is_capsule=1`，`is_enabled=0 OR NULL → 两者=0`。
+- `backend/app/main.py::lifespan` 调用上述迁移；**重要踩坑**：FastAPI 启用 lifespan 后 `@app.on_event("startup")` 装饰器全部失效，必须把启动迁移搬进 lifespan 函数体。
+
+### 后端接口
+- `GET /api/function-buttons?position=grid|capsule|<空>`：`grid → is_recommended=1`、`capsule → is_capsule=1`、空 → `is_recommended=1 OR is_capsule=1`；含 `is_enabled` 兜底；按 `sort_weight ASC` 排序；响应字段新增 `is_recommended` / `is_capsule`。
+- 管理端：`POST/PUT /api/admin/chat/function-buttons` 支持读写两个字段；新增 `PATCH /toggle-recommended`、`PATCH /toggle-capsule` 用于列表快速切换。
+- `backend/app/schemas/function_button.py` 同步增加字段（Create/Update/Response）。
+
+### 前端
+- **admin-web** `src/app/(admin)/function-buttons/page.tsx`：列表删除"是否启用"列，新增"是否推荐"+"是否胶囊"两列 Switch（乐观更新 + 失败回滚），弹窗双 Switch + 说明小字，新增按钮两 Switch 默认 OFF。
+- **h5-web** `src/app/(ai-chat)/ai-home/page.tsx`：
+  - 宫格新样式：4 列固定、按位置循环 `AI_GRID_COLORS` 5 色（`#0EA5E9 / #06B6D4 / #6366F1 / #8B5CF6 / #14B8A6`），56×56 圆角 16px，按下 `scale(0.96)`。
+  - 图标三级兜底：`icon_url` > `icon` > `AI_TYPE_ICON_MAP[button_type]` > `🔘`。
+  - 数据过滤：宫格按 `is_recommended` 过滤，胶囊按 `is_capsule` 过滤，全部兜底 `is_enabled`。
+  - 本地缓存 `localStorage.aichat_function_buttons` TTL 5 分钟。
+- **miniprogram** `pages/chat/index.js::loadFunctionButtons`：按 `is_recommended OR is_capsule` 过滤，兜底 `is_enabled`。
+- **flutter_app** `lib/models/function_button.dart`：`FunctionButton` 加 `isRecommended` / `isCapsule`；`lib/screens/ai/chat_screen.dart::_loadFunctionButtons` 同步过滤。
+
+### 部署 & 测试
+- 部署脚本：`scripts/deploy_prd_aichat_home_grid_v1.py`（git pull → docker compose build h5-web/admin-web/backend → up -d → 网络重连 → restart backend → HTTP 探活）。
+- 服务器自动化测试：`scripts/test_prd_aichat_home_grid_v1.py` 11/11 PASS（健康检查 / public function-buttons / position=grid|capsule / 字段 schema 校验 / is_recommended OR is_capsule 过滤断言 / admin PATCH 401 / ai-home 与 admin 静态路由 200）。
+
+### 三端打包
+- 微信小程序：`miniprogram_20260516_015309_0cce.zip`（0.41 MB），通过 gateway nginx 暴露下载。
+- 安卓 APK：`app_20260516-015526_608d.apk`（80.88 MB），GH Actions Run `25933051591`，Release `android-v20260516-015526-608d`，构建 528s。
+- iOS：GH Release `ios-v20260516-005440-a4e2`（IPA：`bini_health_ios.ipa`，未签名，需 AltStore/Sideloadly），构建 316s。
+
+### 用户手册
+- `user_docs/AI对话首页功能宫格与胶囊条优化.md`
+
+---
+
+## Previous Update: HealthSelfCheck-3Bugs-20260516｜健康自查 3 Bug 一期修复（2026-05-16 00:50）
 
 ### 一句话结论
 一次性修复"宫格【健康自查】点击无反应（H5）"、"抽屉提交后分析失败（H5/小程序/Flutter 三端）"、"首页 today-tasks 404（H5）"三个表层问题；零数据库变更、零脏数据兜底。
