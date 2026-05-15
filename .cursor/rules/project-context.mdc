@@ -27,6 +27,37 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: HealthSelfCheck-3Bugs-20260516｜健康自查 3 Bug 一期修复（2026-05-16 00:50）
+
+### 一句话结论
+一次性修复"宫格【健康自查】点击无反应（H5）"、"抽屉提交后分析失败（H5/小程序/Flutter 三端）"、"首页 today-tasks 404（H5）"三个表层问题；零数据库变更、零脏数据兜底。
+
+### 根因 & 修复要点
+1. **Bug 1（H5 宫格分发漏分支）**：`h5-web/src/app/(ai-chat)/ai-home/page.tsx::handleFunctionButtonClick` 没有 `health_self_check` 分支 → 落入兜底逻辑被当作"导航卡片"渲染。**修复**：在函数入口处优先判断 `btn.button_type === 'health_self_check'`，命中则复用胶囊那套 `setHscDrawerButton / setHscDrawerOpen` 状态机，与胶囊行为完全一致。
+2. **Bug 2（三端 payload 字段不匹配）**：后端 `HealthSelfCheckStartRequest` schema 要求 `body_part_id: int`，但三端均把展示模型 `body_part: {id, name, icon}` 直接作为 payload 发出，外加无效的 `archive_name / archive_age / archive_gender` → schema 校验 422 → 前端 catch 显示"分析失败，请点击重试"。**修复（三端同步）**：发给后端的 payload 仅保留 `template_id / button_id / archive_id / body_part_id / symptoms / duration / session_id`；用户侧"卡片气泡 metadata" 仍保留 `body_part` 对象，**展示模型与接口请求模型彻底分离**。
+3. **Bug 3（H5 接口名拼写错误）**：`/api/health-plan/today-tasks` 后端实际为 `/api/health-plan/today-todos`。**修复**：H5 改字面量；同步用 `total_count` 字段替代 `has_tasks`，与后端响应模型一致。
+
+### 范围与端
+- `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：宫格分发新增 `health_self_check` 分支；`handleHealthSelfCheckSubmit` 拆分展示模型与请求模型；`today-tasks → today-todos`。
+- `miniprogram/pages/chat/index.js::onHscSubmit`：拆出 `displayPayload`（卡片用）+ `requestBody`（后端用），后者仅含 `body_part_id`。
+- `flutter_app/lib/widgets/health_self_check_drawer.dart::HealthSelfCheckResult.toJson()`：返回 `body_part_id` 整数，去掉 archive_name 等无效字段。
+- `flutter_app/lib/screens/ai/chat_screen.dart::_submitHealthSelfCheck`：手动构造 `requestBody`（含 `body_part_id`）发后端；用户侧消息卡片 metadata 仍用完整 `body_part` 对象。
+
+### 部署 & 验证
+- 部署脚本：`scripts/deploy_hsc_3bugs.py`（paramiko → git pull → docker compose build h5-web backend → up -d）。
+- 网络注意：服务器 backend 容器与 db 容器位于不同 compose project 的 network；recreate 后需 `docker network connect 6b099ed3-..._6b099ed3-...-network` 把 backend / h5 重新连到 db 所在网络（`scripts/fix_network.py`）。
+- 自动化测试（全部 PASS）：
+  - `scripts/run_server_tests.py` 8/8（健康检查 / 字典 / 模板 / today-todos 401 / today-tasks 404 / start 接受 body_part_id / start 反例 / H5 首页 200）
+  - `scripts/e2e_health_self_check.py` 8/8（测试号登录 → 获取按钮 → 拉模板 → today-todos → start 新 payload 拿到 AI 回答 1378 字 → 旧 payload 反例返回 422）
+  - `scripts/stress_health_self_check.py` 5/5（连续 5 种部位+症状+持续时间组合提交，AI 均稳定返回，单次 20~28 秒）
+- 三端打包：
+  - 微信小程序：`miniprogram_20260516_005816_6964.zip`（0.41 MB），通过 nginx `/data/static/miniprogram/` 提供下载
+  - 安卓 APK：`app_20260516-005842_f5c3.apk`（80.87 MB），GH Actions `android-v20260516-005842-f5c3` Run 25930462764，构建 528s
+  - iOS：GH Release `ios-v20260516-005759-de96`（IPA：`bini_health_ios.ipa`，未签名，需 AltStore/Sideloadly），构建 347s
+- 用户手册：`user_docs/健康自查3Bug修复.md`
+
+---
+
 ## Latest Update: Bug-471-20260515｜AI 对话卡片「相册/拍照/本机/微信」点击无响应 修复（2026-05-15 23:50）
 
 ### 一句话结论
