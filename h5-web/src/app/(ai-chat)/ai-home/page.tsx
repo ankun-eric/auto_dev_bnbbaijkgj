@@ -28,6 +28,12 @@ import CapsuleBar from '@/components/ai-chat/CapsuleBar';
 // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查抽屉 + 卡片气泡
 import HealthSelfCheckDrawer, { type HealthSelfCheckSubmitPayload, type HealthCheckTemplateDetail } from '@/components/ai-chat/HealthSelfCheckDrawer';
 import HealthSelfCheckCard from '@/components/ai-chat/HealthSelfCheckCard';
+// [Bug-471 2026-05-15] AI 对话卡片 / 胶囊「相册 / 拍照 / 本机 / 微信」共用的文件选择 + 上传工具
+import {
+  pickFilesViaHiddenInput,
+  uploadImageToServer,
+  uploadFileToServer,
+} from '@/lib/upload-utils';
 
 interface ChatMessage {
   id: string;
@@ -42,10 +48,19 @@ interface ChatMessage {
   /**
    * [PRD-AICHAT-CAPSULE-V2 2026-05-15] 消息种类：
    *  - undefined / 'text' : 普通文本
-   *  - 'image' : 用户上传的图片消息（content = 图片 URL 或 base64）
+   *  - 'image' : 用户上传的图片消息（content = 图片 URL 或 base64；多图见 images 字段）
+   *  - 'file'  : 用户上传的非图片文件消息（content = 文件名占位，files 字段携带文件元数据）
    *  - 'quick_ask_card' : 可编辑的快捷提问卡片消息（quickAskButton 字段携带按钮元数据）
    */
-  kind?: 'text' | 'image' | 'quick_ask_card' | 'health_self_check_card';
+  kind?: 'text' | 'image' | 'file' | 'quick_ask_card' | 'health_self_check_card';
+  /**
+   * [Bug-471 2026-05-15] 用户消息支持 1~5 张图片：图片 URL 数组（服务器返回）。
+   * 当 kind === 'image' 且 images 非空时，气泡渲染为「横向缩略图小图墙」。
+   * 兼容存量数据：若 images 为空但 content 是 URL/base64，则按单图渲染。
+   */
+  images?: string[];
+  /** [Bug-471 2026-05-15] 用户上传的非图片文件元信息（kind === 'file' 时使用） */
+  files?: Array<{ url: string; name: string; size?: number }>;
   /** quick_ask 卡片消息携带的按钮元数据 */
   quickAskButton?: {
     id: number | string;
@@ -1114,47 +1129,185 @@ export default function AiHomePage() {
     setCapsuleUploadSheetOpen(true);
   };
 
-  const handleCapsuleUploadPick = (source: 'album' | 'camera') => {
-    setCapsuleUploadSheetOpen(false);
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    if (source === 'camera') {
-      input.setAttribute('capture', 'environment');
-    }
-    input.style.display = 'none';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      // 转 base64 用于对话区即时缩略图渲染（不上传服务器，仅用于 PRD §4.1 的"图片消息气泡"展示）
-      try {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const url = String(reader.result || '');
+  /**
+   * [Bug-471 2026-05-15] AI 对话卡片 / 胶囊「相册 / 拍照 / 本机 / 微信」共用的核心处理函数。
+   *
+   * 修复点（与 Bug-471 修复方案 §3.2 对齐）：
+   *  - 用 pickFilesViaHiddenInput（input 挂到 DOM，避免 iOS Safari / 微信 GC）
+   *  - 支持多选；超过 maxCount 时截取并 Toast 提示
+   *  - 逐张上传到服务器拿 URL（与 /drug 完全复用）
+   *  - 对话区先插入「用户消息（含 1~5 张缩略图）」气泡，再触发 AI 回复
+   *  - AI 触发文本取值顺序：preset_prompt → auto_user_message → 按钮 name → 按类型兜底文案
+   *
+   * 参数：
+   *  - source：'album' / 'camera'（'wechat' 由调用方做友好提示后退化到 album）
+   *  - kind  ：'image' = 仅图片（拍照识药/普通照片/报告解读）/ 'file' = 含 PDF 等文件
+   *  - prompt 取值参数三选一：preset_prompt / auto_user_message / button_name
+   *  - fallbackPrompt：按 button_type 推导出的兜底文案（药品类 / 报告类 / 普通图片类 / 文件类）
+   */
+  const MAX_UPLOAD_IMAGES = 5;
+
+  const pickAndUploadThenSend = useCallback((opts: {
+    source: 'album' | 'camera';
+    kind: 'image' | 'file';
+    presetPrompt?: string | null;
+    autoUserMessage?: string | null;
+    buttonName?: string | null;
+    fallbackPrompt: string;
+  }) => {
+    const accept = opts.kind === 'image' ? 'image/*' : 'image/*,application/pdf';
+    let loadingToastVisible = false;
+    pickFilesViaHiddenInput({
+      accept,
+      source: opts.source,
+      multiple: opts.kind === 'image',
+      onPicked: async (files) => {
+        if (!files || files.length === 0) return;
+        // 截取前 N 张并 Toast 提示
+        let picked = files;
+        if (opts.kind === 'image' && files.length > MAX_UPLOAD_IMAGES) {
+          picked = files.slice(0, MAX_UPLOAD_IMAGES);
+          try {
+            Toast.show({ content: `最多 ${MAX_UPLOAD_IMAGES} 张` });
+          } catch {}
+        }
+        // 上传 Loading
+        try {
+          Toast.show({ icon: 'loading', content: '正在上传…', duration: 0 });
+          loadingToastVisible = true;
+        } catch {}
+
+        const uploadedImages: string[] = [];
+        const uploadedFiles: Array<{ url: string; name: string; size?: number }> = [];
+        let failedCount = 0;
+
+        for (const f of picked) {
+          try {
+            const isImage =
+              (f.type && f.type.startsWith('image/')) ||
+              /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(f.name || '');
+            if (isImage) {
+              const url = await uploadImageToServer(f);
+              uploadedImages.push(url);
+            } else {
+              const url = await uploadFileToServer(f);
+              uploadedFiles.push({ url, name: f.name || '文件', size: f.size });
+            }
+          } catch {
+            failedCount += 1;
+          }
+        }
+
+        try {
+          if (loadingToastVisible) Toast.clear();
+        } catch {}
+
+        const totalOk = uploadedImages.length + uploadedFiles.length;
+        if (totalOk === 0) {
+          try {
+            Toast.show({ icon: 'fail', content: '图片上传失败，请重试' });
+          } catch {}
+          return;
+        }
+        if (failedCount > 0) {
+          try {
+            Toast.show({ content: `${failedCount} 张上传失败，已自动跳过` });
+          } catch {}
+        }
+
+        // 插入用户消息气泡
+        const now = new Date().toISOString();
+        if (uploadedImages.length > 0) {
           const imgMsg: ChatMessage = {
             id: `img-${Date.now()}`,
             role: 'user',
-            content: url,
-            time: new Date().toISOString(),
+            content: uploadedImages[0],
+            time: now,
             kind: 'image',
+            images: uploadedImages,
           };
           setMessages((prev) => prev.concat(imgMsg));
-          // 触发 AI 回复：用按钮 preset_prompt 或名称作为"用户问题文本"
-          const btn = capsuleUploadBtnRef.current;
-          if (btn) {
-            const prompt = (btn.preset_prompt || btn.auto_user_message || btn.name || '').trim();
-            if (prompt) {
-              lastMsgTimeRef.current = Date.now();
-              setTimeout(() => handleSend(prompt, 'preset'), 50);
-            }
+        }
+        if (uploadedFiles.length > 0) {
+          const fileMsg: ChatMessage = {
+            id: `file-${Date.now()}`,
+            role: 'user',
+            content: uploadedFiles.map((f) => f.name).join('、'),
+            time: now,
+            kind: 'file',
+            files: uploadedFiles,
+          };
+          setMessages((prev) => prev.concat(fileMsg));
+        }
+
+        // 触发 AI 回复
+        const prompt = (
+          (opts.presetPrompt || '').trim() ||
+          (opts.autoUserMessage || '').trim() ||
+          (opts.buttonName || '').trim() ||
+          (opts.fallbackPrompt || '').trim()
+        );
+        if (prompt) {
+          // 把图片 URL 一同注入到发给后端的内容里，AI 才能"看见"这些图片
+          const urlLines: string[] = [];
+          if (uploadedImages.length > 0) {
+            urlLines.push(
+              `[用户上传的图片 ${uploadedImages.length} 张]\n` +
+                uploadedImages.map((u, i) => `${i + 1}. ${u}`).join('\n'),
+            );
           }
-        };
-        reader.readAsDataURL(file);
-      } catch {}
-    };
-    document.body.appendChild(input);
-    input.click();
-    setTimeout(() => document.body.removeChild(input), 1000);
+          if (uploadedFiles.length > 0) {
+            urlLines.push(
+              `[用户上传的文件 ${uploadedFiles.length} 个]\n` +
+                uploadedFiles
+                  .map((f, i) => `${i + 1}. ${f.name} ${f.url}`)
+                  .join('\n'),
+            );
+          }
+          const composed = urlLines.length > 0
+            ? `${urlLines.join('\n\n')}\n\n${prompt}`
+            : prompt;
+          lastMsgTimeRef.current = Date.now();
+          // 因为上面已经插入了用户消息气泡，这里 handleSend 还会再插入一条文本气泡——
+          // 对用户来说："图片气泡 + 文本气泡 + AI 回复"是合理的，文本气泡承载实际问题文案。
+          setTimeout(() => handleSend(composed, 'preset'), 50);
+        }
+      },
+    });
+  }, [handleSend]);
+
+  /**
+   * 根据 button_type 推导上传后的兜底问题文案。
+   *   药品类  → "我上传了一张药品图片，请帮我识别"
+   *   报告类  → "我上传了一份体检报告，请帮我解读"
+   *   普通图片→ "我上传了一张图片，请你帮我看看"
+   *   文件类  → "我上传了一份文件，请你帮我看看"
+   */
+  const resolveUploadFallbackPrompt = (buttonType: string | undefined, kind: 'image' | 'file'): string => {
+    if (kind === 'file') return '我上传了一份文件，请你帮我看看';
+    const t = (buttonType || '').toLowerCase();
+    if (t === 'photo_recognize_drug' || t === 'drug_identify' || t === 'medication_recognize') {
+      return '我上传了一张药品图片，请帮我识别';
+    }
+    if (t === 'report_interpret') {
+      return '我上传了一份体检报告，请帮我解读';
+    }
+    return '我上传了一张图片，请你帮我看看';
+  };
+
+  const handleCapsuleUploadPick = (source: 'album' | 'camera') => {
+    setCapsuleUploadSheetOpen(false);
+    const btn = capsuleUploadBtnRef.current;
+    if (!btn) return;
+    const isFileType = btn.button_type === 'file_upload';
+    pickAndUploadThenSend({
+      source,
+      kind: isFileType ? 'file' : 'image',
+      presetPrompt: btn.preset_prompt,
+      autoUserMessage: btn.auto_user_message,
+      buttonName: btn.name,
+      fallbackPrompt: resolveUploadFallbackPrompt(btn.button_type, isFileType ? 'file' : 'image'),
+    });
   };
 
   /**
@@ -2548,51 +2701,55 @@ export default function AiHomePage() {
                             if (text) { lastMsgTimeRef.current = Date.now(); handleSend(text, 'preset'); }
                             return;
                           }
-                          // [Bug-470 2026-05-15] upload 类型 4 按钮：相册 / 拍照 / 本机 / 微信
-                          // 必须给到真实交互，否则点击"完全没反应"会被用户感知为死按钮。
+                          // [Bug-471 2026-05-15] upload 类型 4 按钮：相册 / 拍照 / 本机 / 微信
+                          // 全部走"留在对话内"的同一套：选图 → 上传到服务器拿 URL → 对话区先冒图片
+                          // 气泡 → 再触发 AI 回复识别 / 解读结果。
+                          // 注意：photo_recognize_drug / drug_identify / medication_recognize / report_interpret
+                          // 也走这里，不再跳 /drug 或 /checkup 独立页（修复 Bug-471 §3.1）。
                           if (chatCardData!.cardType === 'upload') {
-                            const btnType = chatCardData!.button.buttonType;
-                            // 拍照识药/药品识别：跳到 /drug 入口
-                            // 报告解读：跳到 /checkup 入口
-                            // 其它 upload：用通用文件选择器，选中即先把"我上传了一张图片"作为用户消息发出
-                            const handleFile = (accept: string, capture?: 'environment') => {
-                              try {
-                                const input = document.createElement('input');
-                                input.type = 'file';
-                                input.accept = accept;
-                                if (capture) input.setAttribute('capture', capture);
-                                input.onchange = () => {
-                                  const auto = (chatCardData!.button.autoUserMessage || `我上传了一张${btnType === 'report_interpret' ? '体检报告' : '药品'}图片，请帮我识别`).trim();
-                                  lastMsgTimeRef.current = Date.now();
-                                  handleSend(auto, 'preset');
-                                };
-                                input.click();
-                              } catch {
-                                Toast.show({ icon: 'fail', content: '当前环境不支持文件选择' });
-                              }
-                            };
-                            const goRouter = (path: string) => {
-                              try { router.push(path); } catch { window.location.href = path; }
+                            const btnType = String(chatCardData!.button.buttonType || '');
+                            const isFileType = btnType === 'file_upload';
+                            const kindForPick: 'image' | 'file' = isFileType ? 'file' : 'image';
+                            const presetPrompt = (chatCardData!.button as any).presetPrompt || null;
+                            const autoUserMessage = chatCardData!.button.autoUserMessage || null;
+                            const buttonName = chatCardData!.button.title || null;
+                            const fallbackPrompt = resolveUploadFallbackPrompt(btnType, kindForPick);
+                            const triggerPick = (src: 'album' | 'camera') => {
+                              pickAndUploadThenSend({
+                                source: src,
+                                kind: kindForPick,
+                                presetPrompt,
+                                autoUserMessage,
+                                buttonName,
+                                fallbackPrompt,
+                              });
                             };
                             switch (sub) {
                               case 'album':
-                                handleFile('image/*');
+                                triggerPick('album');
                                 return;
                               case 'camera':
-                                handleFile('image/*', 'environment');
+                                triggerPick('camera');
                                 return;
                               case 'local':
-                                // 选择本机文件（图片/文档）
-                                handleFile('image/*,application/pdf');
+                                // 兼容存量「本机」按钮：本机文件 = 相册（含 PDF）
+                                pickAndUploadThenSend({
+                                  source: 'album',
+                                  kind: 'file',
+                                  presetPrompt,
+                                  autoUserMessage,
+                                  buttonName,
+                                  fallbackPrompt: resolveUploadFallbackPrompt(btnType, 'file'),
+                                });
                                 return;
                               case 'wechat':
-                                // H5 没有"微信选图"原生能力，给出友好提示并退化到相册
-                                Toast.show({ content: '请先把图片保存到相册，再从相册中选择' });
-                                handleFile('image/*');
+                                // H5 没有"微信选图"原生能力，给出友好提示后退化到相册
+                                try { Toast.show({ content: '请先把图片保存到相册，再从相册中选择' }); } catch {}
+                                triggerPick('album');
                                 return;
                               default: {
                                 // 未识别子动作：兜底走 autoUserMessage
-                                const auto = (chatCardData!.button.autoUserMessage || '').trim();
+                                const auto = (autoUserMessage || '').trim();
                                 if (auto) { lastMsgTimeRef.current = Date.now(); handleSend(auto, 'preset'); }
                                 return;
                               }
@@ -2608,8 +2765,16 @@ export default function AiHomePage() {
                 );
               }
 
-              // [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 4.1] 用户上传的图片消息（来自 upload 类胶囊）
+              // [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 4.1] 用户上传的图片消息（来自 upload 类胶囊 / 卡片）
+              // [Bug-471 2026-05-15] 支持 1~5 张图：当 msg.images 数组非空时渲染横向小图墙；
+              // 兼容存量数据：msg.images 为空时回退到单图（msg.content）。
               if (isUser && msg.kind === 'image') {
+                const imgs: string[] =
+                  Array.isArray(msg.images) && msg.images.length > 0
+                    ? msg.images
+                    : (msg.content ? [msg.content] : []);
+                if (imgs.length === 0) return null;
+                const isMulti = imgs.length > 1;
                 return (
                   <div key={msg.id} style={{ marginBottom: 24 }} data-testid="ai-home-user-image-message">
                     {showTime && (
@@ -2625,21 +2790,84 @@ export default function AiHomePage() {
                           background: '#E6F0FF',
                           borderRadius: 14,
                           padding: 6,
-                          maxWidth: 'min(60vw, 320px)',
+                          maxWidth: 'min(75vw, 360px)',
                         }}
+                        data-testid="ai-home-user-image-bubble"
+                        data-image-count={imgs.length}
                       >
-                        <img
-                          src={msg.content}
-                          alt="用户上传"
-                          style={{
-                            maxWidth: '100%',
-                            maxHeight: 240,
-                            borderRadius: 10,
-                            display: 'block',
-                            objectFit: 'cover',
-                          }}
-                        />
+                        {isMulti ? (
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: `repeat(${Math.min(imgs.length, 3)}, 1fr)`,
+                              gap: 4,
+                            }}
+                          >
+                            {imgs.map((u, idx) => (
+                              <img
+                                key={idx}
+                                src={u}
+                                alt={`用户上传 ${idx + 1}`}
+                                style={{
+                                  width: '100%',
+                                  height: 86,
+                                  borderRadius: 8,
+                                  display: 'block',
+                                  objectFit: 'cover',
+                                  background: '#F3F4F6',
+                                }}
+                                data-testid="ai-home-user-image-thumb"
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <img
+                            src={imgs[0]}
+                            alt="用户上传"
+                            style={{
+                              maxWidth: '100%',
+                              maxHeight: 240,
+                              borderRadius: 10,
+                              display: 'block',
+                              objectFit: 'cover',
+                            }}
+                            data-testid="ai-home-user-image-thumb"
+                          />
+                        )}
                       </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // [Bug-471 2026-05-15] 用户上传的非图片文件消息（如 PDF 文档）
+              if (isUser && msg.kind === 'file' && Array.isArray(msg.files) && msg.files.length > 0) {
+                return (
+                  <div key={msg.id} style={{ marginBottom: 24 }} data-testid="ai-home-user-file-message">
+                    {showTime && (
+                      <div className="text-center" style={{ padding: '8px 0' }} data-testid="ai-home-time-divider">
+                        <span style={{ fontSize: 12, color: '#9CA3AF' }}>
+                          {formatWeChatTime(msg.time)}
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginRight: 16, flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                      {msg.files.map((f, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            background: '#E6F0FF',
+                            color: '#1F2937',
+                            borderRadius: 14,
+                            padding: '10px 14px',
+                            maxWidth: 'min(75vw, 360px)',
+                            fontSize: 14,
+                            wordBreak: 'break-all',
+                          }}
+                        >
+                          📎 {f.name}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 );
