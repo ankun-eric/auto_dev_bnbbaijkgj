@@ -2278,9 +2278,9 @@ export default function AiHomePage() {
   const configuredItems = (aiHomeConfig.func_grid?.items && aiHomeConfig.func_grid.items.length > 0)
     ? aiHomeConfig.func_grid.items
     : FALLBACK_CONFIG.func_grid.items;
+  // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 宫格不再限制行数，全部铺开（fallback 也保持一致）
   const fallbackGridItems = (configuredItems || [])
-    .filter((g) => g && g.enabled)
-    .slice(0, maxGridCount);
+    .filter((g) => g && g.enabled);
 
   const gridItems = fnGridItems.length > 0 ? null : fallbackGridItems;
   // 标记：宫格曝光埋点的按钮 id 列表
