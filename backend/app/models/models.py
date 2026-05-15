@@ -2538,6 +2538,51 @@ class ChatFunctionButton(Base):
     card_subtitle = mapped_column(String(100), nullable=True, comment="卡片头部副标题")
     card_cover_image = mapped_column(String(500), nullable=True, comment="卡片封面图 URL")
     button_sub_desc = mapped_column(String(100), nullable=True, comment="按钮副说明文字")
+    # ───── [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查功能 4 个字段 ─────
+    # 当 button_type='health_self_check' 时使用，其他类型按钮这些字段为空
+    health_check_template_id = mapped_column(Integer, nullable=True, comment="关联健康自查问卷模板 ID")
+    archive_missing_strategy = mapped_column(
+        String(32), nullable=True, default="use_default",
+        comment="未选档案策略：use_default / prompt_on_submit / force_toast"
+    )
+    prompt_override_enabled = mapped_column(Boolean, nullable=True, default=False, comment="是否启用按钮级 Prompt 自定义")
+    prompt_override_text = mapped_column(Text, nullable=True, comment="按钮级自定义 Prompt 全文")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ════════════════════════════════════════════════════════════
+# [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查功能配置表
+# ════════════════════════════════════════════════════════════
+
+
+class BodyPartDict(Base):
+    """部位症状字典表：单表 + JSON 数组存储症状列表。"""
+
+    __tablename__ = "body_part_dict"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(20), nullable=False, unique=True, comment="部位名称（唯一）")
+    icon = mapped_column(String(255), nullable=False, comment="部位图标 URL 或资源 key")
+    symptoms = mapped_column(JSON, nullable=False, default=list, comment="症状字符串数组，如 ['头痛','头晕']")
+    sort_order = mapped_column(Integer, default=100, comment="排序值，越小越靠前")
+    enabled = mapped_column(Boolean, default=True, comment="1=启用 / 0=停用")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class HealthCheckTemplate(Base):
+    """健康自查问卷模板表：勾选字典中的部位子集 + 持续时间档位 + 默认 Prompt。"""
+
+    __tablename__ = "health_check_template"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(30), nullable=False, comment="模板名称")
+    description = mapped_column(String(200), nullable=True, comment="模板描述")
+    body_parts = mapped_column(JSON, nullable=False, default=list, comment="勾选的部位顺序数组，如 [{'id':1,'sort':1}]")
+    duration_options = mapped_column(JSON, nullable=False, default=list, comment="持续时间档位数组")
+    default_prompt = mapped_column(Text, nullable=False, comment="默认 Prompt 模板（含占位符）")
+    enabled = mapped_column(Boolean, default=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

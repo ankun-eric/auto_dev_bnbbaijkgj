@@ -52,7 +52,12 @@ ALLOWED_BUTTON_TYPES = {
     "photo_recognize_drug",
     "quick_ask",
     "report_interpret",
+    # [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 第 9 种：健康自查
+    "health_self_check",
 }
+
+# [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 未选档案策略枚举
+ALLOWED_ARCHIVE_MISSING_STRATEGIES = {"use_default", "prompt_on_submit", "force_toast"}
 
 
 class ChatFunctionButtonCreate(BaseModel):
@@ -76,6 +81,11 @@ class ChatFunctionButtonCreate(BaseModel):
     card_subtitle: Optional[str] = None
     card_cover_image: Optional[str] = None
     button_sub_desc: Optional[str] = None
+    # [PRD-HEALTH-SELF-CHECK-V1] 4 个新字段（health_self_check 按钮专用）
+    health_check_template_id: Optional[int] = None
+    archive_missing_strategy: Optional[str] = "use_default"
+    prompt_override_enabled: Optional[bool] = False
+    prompt_override_text: Optional[str] = None
 
 
 class ChatFunctionButtonUpdate(BaseModel):
@@ -99,6 +109,11 @@ class ChatFunctionButtonUpdate(BaseModel):
     card_subtitle: Optional[str] = None
     card_cover_image: Optional[str] = None
     button_sub_desc: Optional[str] = None
+    # [PRD-HEALTH-SELF-CHECK-V1] 4 个新字段
+    health_check_template_id: Optional[int] = None
+    archive_missing_strategy: Optional[str] = None
+    prompt_override_enabled: Optional[bool] = None
+    prompt_override_text: Optional[str] = None
 
 
 class ChatFunctionButtonResponse(BaseModel):
@@ -123,6 +138,11 @@ class ChatFunctionButtonResponse(BaseModel):
     card_subtitle: Optional[str] = None
     card_cover_image: Optional[str] = None
     button_sub_desc: Optional[str] = None
+    # [PRD-HEALTH-SELF-CHECK-V1] 4 个新字段
+    health_check_template_id: Optional[int] = None
+    archive_missing_strategy: Optional[str] = None
+    prompt_override_enabled: Optional[bool] = None
+    prompt_override_text: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

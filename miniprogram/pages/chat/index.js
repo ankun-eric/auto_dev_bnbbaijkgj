@@ -50,6 +50,21 @@ Page({
     currentConsultantId: 0,
     functionButtons: [],
     isSymptomLocked: false,
+    // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查抽屉状态
+    hscDrawerShow: false,
+    hscTemplate: null,
+    hscButton: null,
+    hscBodyParts: [],
+    hscDurations: [],
+    hscSelectedPartId: null,
+    hscSelectedPartIcon: '',
+    hscSelectedPartName: '',
+    hscCurrentSymptoms: [],
+    hscSelectedSymptoms: [],
+    hscSelectedDuration: '',
+    hscLoading: false,
+    hscErrorMsg: '',
+    hscHighlightMissing: false,
     uploadPercent: -1,
     showUploadProgress: false,
 
@@ -903,9 +918,149 @@ Page({
         }
         break;
 
+      // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查
+      case 'health_self_check':
+        this.openHealthSelfCheckDrawer(btn);
+        break;
+
       default:
         wx.showToast({ title: '暂不支持该功能', icon: 'none' });
     }
+  },
+
+  // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 打开健康自查抽屉，加载模板
+  openHealthSelfCheckDrawer(btn) {
+    const tplId = btn.health_check_template_id;
+    if (!tplId) {
+      wx.showToast({ title: '该功能暂不可用，请联系管理员', icon: 'none' });
+      return;
+    }
+    this.setData({
+      hscDrawerShow: true,
+      hscButton: btn,
+      hscLoading: true,
+      hscErrorMsg: '',
+      hscTemplate: null,
+      hscBodyParts: [],
+      hscDurations: [],
+      hscSelectedPartId: null,
+      hscSelectedPartIcon: '',
+      hscSelectedPartName: '',
+      hscCurrentSymptoms: [],
+      hscSelectedSymptoms: [],
+      hscSelectedDuration: '',
+      hscHighlightMissing: false,
+    });
+    get(`/api/health-self-check/template/${tplId}`).then((res) => {
+      const data = (res && res.data) ? res.data : res;
+      if (!data || !data.enabled) {
+        this.setData({ hscLoading: false, hscErrorMsg: '该功能暂不可用，请联系管理员' });
+        return;
+      }
+      this.setData({
+        hscLoading: false,
+        hscTemplate: data,
+        hscBodyParts: data.body_parts_detail || [],
+        hscDurations: data.duration_options || [],
+      });
+    }).catch(() => {
+      this.setData({ hscLoading: false, hscErrorMsg: '模板加载失败，请稍后重试' });
+    });
+  },
+
+  onHscClose() {
+    this.setData({ hscDrawerShow: false });
+  },
+
+  onHscPickPart(e) {
+    const id = e.currentTarget.dataset.id;
+    const part = (this.data.hscBodyParts || []).find((p) => p.id === id);
+    if (!part) return;
+    this.setData({
+      hscSelectedPartId: id,
+      hscSelectedPartName: part.name,
+      hscSelectedPartIcon: part.icon || '',
+      hscCurrentSymptoms: part.symptoms || [],
+      hscSelectedSymptoms: [],
+    });
+  },
+
+  onHscToggleSymptom(e) {
+    const sym = e.currentTarget.dataset.sym;
+    const arr = (this.data.hscSelectedSymptoms || []).slice();
+    const idx = arr.indexOf(sym);
+    if (idx >= 0) arr.splice(idx, 1); else arr.push(sym);
+    this.setData({ hscSelectedSymptoms: arr });
+  },
+
+  onHscPickDuration(e) {
+    this.setData({ hscSelectedDuration: e.currentTarget.dataset.d });
+  },
+
+  onHscSubmit() {
+    const { hscSelectedPartId, hscSelectedSymptoms, hscSelectedDuration,
+      hscBodyParts, hscButton, hscTemplate } = this.data;
+    if (!hscSelectedPartId || !hscSelectedSymptoms.length || !hscSelectedDuration) {
+      this.setData({ hscHighlightMissing: true });
+      wx.showToast({ title: '请完成全部三项后再开始分析', icon: 'none' });
+      return;
+    }
+    const part = (hscBodyParts || []).find((p) => p.id === hscSelectedPartId);
+    if (!part || !hscButton || !hscTemplate) return;
+    const payload = {
+      template_id: hscTemplate.id,
+      button_id: hscButton.id,
+      archive_id: null,
+      archive_name: this.data.consultTarget && this.data.consultTarget.name ? this.data.consultTarget.name : '本人',
+      archive_age: null,
+      archive_gender: null,
+      body_part: { id: part.id, name: part.name, icon: part.icon || '' },
+      symptoms: hscSelectedSymptoms,
+      duration: hscSelectedDuration,
+    };
+    this.setData({ hscDrawerShow: false });
+    // 插入用户卡片消息
+    const ts = Date.now();
+    const cardMsg = {
+      id: `hsc-${ts}`,
+      role: 'user',
+      type: 'health_self_check_card',
+      content: '',
+      hscPayload: {
+        archive_name: payload.archive_name,
+        archive_age: payload.archive_age,
+        archive_gender: payload.archive_gender,
+        body_part: payload.body_part,
+        symptoms: payload.symptoms,
+        duration: payload.duration,
+        button_id: payload.button_id,
+        template_id: payload.template_id,
+      },
+      created_at: new Date().toISOString(),
+    };
+    const aiPlaceholder = {
+      id: `a-hsc-${ts}`,
+      role: 'assistant',
+      type: 'text',
+      content: '正在分析中…',
+      isLoading: true,
+      created_at: new Date().toISOString(),
+    };
+    const messages = (this.data.messages || []).concat([cardMsg, aiPlaceholder]);
+    this.setData({ messages, scrollToId: aiPlaceholder.id });
+    post('/api/health-self-check/start', payload).then((res) => {
+      const data = (res && res.data) ? res.data : res;
+      const aiText = (data && data.ai_content) || '分析失败，请稍后重试';
+      const msgs = (this.data.messages || []).map((m) =>
+        m.id === aiPlaceholder.id ? { ...m, content: aiText, isLoading: false } : m,
+      );
+      this.setData({ messages: msgs });
+    }).catch(() => {
+      const msgs = (this.data.messages || []).map((m) =>
+        m.id === aiPlaceholder.id ? { ...m, content: '分析失败，请点击重试', isLoading: false } : m,
+      );
+      this.setData({ messages: msgs });
+    });
   },
 
   _handleDrugIdentifyButton(btn) {

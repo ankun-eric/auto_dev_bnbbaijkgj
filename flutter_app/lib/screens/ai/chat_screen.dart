@@ -21,6 +21,8 @@ import '../../widgets/chat_history_drawer.dart';
 import '../../widgets/knowledge_card.dart';
 import '../../widgets/function_buttons_bar.dart';
 import '../../widgets/ai_profile_card.dart';
+import '../../widgets/health_self_check_drawer.dart';
+import '../../widgets/health_self_check_card.dart';
 import '../../services/api_service.dart';
 import '../../services/sse_service.dart';
 import '../../services/tts_service.dart';
@@ -550,7 +552,126 @@ class _ChatScreenState extends State<ChatScreen> {
           _sendMessageWithSSE(preset);
         }
         break;
+      // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查：唤起抽屉
+      case 'health_self_check':
+        _openHealthSelfCheckDrawer(btn);
+        break;
     }
+  }
+
+  Future<void> _openHealthSelfCheckDrawer(FunctionButton btn,
+      {HealthSelfCheckResult? prefill}) async {
+    if (btn.healthCheckTemplateId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('该功能暂不可用，请联系管理员')),
+      );
+      return;
+    }
+    final result = await showModalBottomSheet<HealthSelfCheckResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => HealthSelfCheckDrawer(
+        templateId: btn.healthCheckTemplateId!,
+        buttonId: btn.id,
+        archiveName: '本人',
+        archiveIsDefault: true,
+        prefill: prefill,
+      ),
+    );
+    if (result == null) return;
+    await _submitHealthSelfCheck(result);
+  }
+
+  Future<void> _submitHealthSelfCheck(HealthSelfCheckResult result) async {
+    final provider = Provider.of<ChatProvider>(context, listen: false);
+    var session = provider.currentSession;
+    // 若无会话，先创建一个
+    if (session == null) {
+      await provider.createSession('symptom_check');
+      session = provider.currentSession;
+    }
+    final sessionId = session?.id ?? '';
+    final cardMsg = ChatMessage(
+      id: 'hsc-${DateTime.now().millisecondsSinceEpoch}',
+      sessionId: sessionId,
+      role: 'user',
+      content: '',
+      type: 'health_self_check_card',
+      createdAt: DateTime.now().toIso8601String(),
+      healthSelfCheckPayload: {
+        'archive_id': result.archiveId,
+        'archive_name': result.archiveName,
+        'archive_age': result.archiveAge,
+        'archive_gender': result.archiveGender,
+        'body_part': result.bodyPart,
+        'symptoms': result.symptoms,
+        'duration': result.duration,
+        'template_id': result.templateId,
+        'button_id': result.buttonId,
+      },
+    );
+    provider.addMessageExternally(cardMsg);
+    final aiPlaceholderId = 'a-hsc-${DateTime.now().millisecondsSinceEpoch}';
+    final placeholder = ChatMessage(
+      id: aiPlaceholderId,
+      sessionId: sessionId,
+      role: 'assistant',
+      content: '正在分析中…',
+      isLoading: true,
+    );
+    provider.addMessageExternally(placeholder);
+    try {
+      final resp = await _apiService.post('/api/health-self-check/start',
+          data: result.toJson());
+      final data = resp.data is Map ? Map<String, dynamic>.from(resp.data as Map) : <String, dynamic>{};
+      final aiText = (data['ai_content']?.toString() ?? '分析失败，请稍后重试');
+      provider.replaceMessageById(
+        aiPlaceholderId,
+        ChatMessage(
+          id: aiPlaceholderId,
+          sessionId: sessionId,
+          role: 'assistant',
+          content: aiText,
+        ),
+      );
+    } catch (_) {
+      provider.replaceMessageById(
+        aiPlaceholderId,
+        ChatMessage(
+          id: aiPlaceholderId,
+          sessionId: sessionId,
+          role: 'assistant',
+          content: '分析失败，请点击重试',
+        ),
+      );
+    }
+  }
+
+  void _reopenHealthSelfCheck(Map<String, dynamic> payload) {
+    final btnId = payload['button_id'];
+    FunctionButton? btn;
+    for (final b in _functionButtons) {
+      if (b.id == btnId) {
+        btn = b;
+        break;
+      }
+    }
+    if (btn == null) return;
+    final bp = payload['body_part'] is Map
+        ? Map<String, dynamic>.from(payload['body_part'] as Map)
+        : <String, dynamic>{};
+    final symptoms = (payload['symptoms'] as List?)?.map((e) => e.toString()).toList() ?? [];
+    _openHealthSelfCheckDrawer(
+      btn,
+      prefill: HealthSelfCheckResult(
+        templateId: payload['template_id'] as int? ?? 0,
+        buttonId: btn.id,
+        bodyPart: bp,
+        symptoms: symptoms,
+        duration: payload['duration']?.toString() ?? '',
+      ),
+    );
   }
 
   bool _isDrugIdentifying = false;
@@ -1871,6 +1992,20 @@ class _ChatScreenState extends State<ChatScreen> {
     final screenWidth = MediaQuery.of(context).size.width;
     final maxW = (screenWidth * _ChatTokens.userBubbleMaxWidthRatio)
         .clamp(0.0, _ChatTokens.userBubbleMaxWidth);
+    // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查卡片气泡
+    if (message.type == 'health_self_check_card' &&
+        message.healthSelfCheckPayload != null) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: HealthSelfCheckCard(
+            payload: message.healthSelfCheckPayload!,
+            onReopen: () => _reopenHealthSelfCheck(message.healthSelfCheckPayload!),
+          ),
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
       child: Align(

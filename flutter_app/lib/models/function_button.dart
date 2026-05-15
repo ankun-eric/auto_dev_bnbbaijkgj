@@ -14,6 +14,11 @@ class FunctionButton {
   final String? autoUserMessage; // 自动用户消息
   final String? externalUrl;
   final int? promptTemplateId;
+  // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查 4 字段
+  final int? healthCheckTemplateId;
+  final String? archiveMissingStrategy;
+  final bool? promptOverrideEnabled;
+  final String? promptOverrideText;
 
   FunctionButton({
     required this.id,
@@ -28,6 +33,10 @@ class FunctionButton {
     this.autoUserMessage,
     this.externalUrl,
     this.promptTemplateId,
+    this.healthCheckTemplateId,
+    this.archiveMissingStrategy,
+    this.promptOverrideEnabled,
+    this.promptOverrideText,
   });
 
   factory FunctionButton.fromJson(Map<String, dynamic> json) {
@@ -44,6 +53,10 @@ class FunctionButton {
       autoUserMessage: json['auto_user_message'] as String?,
       externalUrl: json['external_url'] as String?,
       promptTemplateId: json['prompt_template_id'] as int?,
+      healthCheckTemplateId: json['health_check_template_id'] as int?,
+      archiveMissingStrategy: json['archive_missing_strategy'] as String?,
+      promptOverrideEnabled: json['prompt_override_enabled'] as bool?,
+      promptOverrideText: json['prompt_override_text'] as String?,
     );
   }
 

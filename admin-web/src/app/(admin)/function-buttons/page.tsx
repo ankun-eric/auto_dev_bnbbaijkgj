@@ -24,6 +24,15 @@ const BUTTON_TYPE_OPTIONS = [
   { value: 'ai_chat_trigger', label: '💬 AI对话触发' },
   { value: 'quick_ask', label: '⚡ 快捷提问' },
   { value: 'external_link', label: '🔗 外部链接' },
+  // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 第 9 种类型：健康自查
+  { value: 'health_self_check', label: '🏥 健康自查（抽屉问卷）' },
+];
+
+// [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 未选档案策略
+const ARCHIVE_MISSING_STRATEGY_OPTIONS = [
+  { value: 'use_default', label: '使用默认档案（推荐）' },
+  { value: 'prompt_on_submit', label: '提交时再提示选择' },
+  { value: 'force_toast', label: '强制 toast 先选档案' },
 ];
 
 const BUTTON_TYPE_MAP: Record<string, { label: string; color: string }> = {
@@ -35,6 +44,7 @@ const BUTTON_TYPE_MAP: Record<string, { label: string; color: string }> = {
   external_link: { label: '外部链接', color: 'default' },
   photo_recognize_drug: { label: '拍照识药', color: 'cyan' },
   quick_ask: { label: '快捷提问', color: 'magenta' },
+  health_self_check: { label: '健康自查', color: 'gold' },
   // 兼容旧值
   ai_dialog_trigger: { label: 'AI对话触发(旧)', color: 'purple' },
   drug_identify: { label: '拍照识药(旧)', color: 'cyan' },
@@ -68,8 +78,20 @@ interface FunctionButton {
   card_subtitle?: string | null;
   card_cover_image?: string | null;
   button_sub_desc?: string | null;
+  // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 4 个健康自查专用字段
+  health_check_template_id?: number | null;
+  archive_missing_strategy?: string | null;
+  prompt_override_enabled?: boolean | null;
+  prompt_override_text?: string | null;
   created_at?: string;
   updated_at?: string;
+}
+
+interface HealthCheckTemplateOption {
+  id: number;
+  name: string;
+  default_prompt: string;
+  enabled: boolean;
 }
 
 interface PromptTemplateOption {
@@ -95,6 +117,10 @@ export default function FunctionButtonsPage() {
   const watchedName = Form.useWatch('name', form);
   const watchedIcon = Form.useWatch('icon', form);
   const [promptOptions, setPromptOptions] = useState<PromptTemplateOption[]>([]);
+  // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查问卷模板下拉数据
+  const [healthCheckTemplates, setHealthCheckTemplates] = useState<HealthCheckTemplateOption[]>([]);
+  const watchedHealthTplId = Form.useWatch('health_check_template_id', form);
+  const watchedPromptOverride = Form.useWatch('prompt_override_enabled', form);
   // [AICHAT-OPTIM-FIX-V1 F-01] Emoji 选择器弹窗状态
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
@@ -134,9 +160,30 @@ export default function FunctionButtonsPage() {
     );
   }, [promptOptions, watchedButtonType]);
 
+  // [PRD-HEALTH-SELF-CHECK-V1] 拉取健康自查问卷模板下拉
+  const fetchHealthCheckTemplates = useCallback(async () => {
+    try {
+      const res = await get<any>('/api/admin/health-check-templates', { page: 1, page_size: 200 });
+      const items = Array.isArray(res) ? res : (res?.items || []);
+      setHealthCheckTemplates(
+        items
+          .filter((t: any) => t && t.id)
+          .map((t: any) => ({
+            id: t.id,
+            name: t.name,
+            default_prompt: t.default_prompt || '',
+            enabled: t.enabled !== false,
+          })),
+      );
+    } catch {
+      setHealthCheckTemplates([]);
+    }
+  }, []);
+
   useEffect(() => {
     fetchPromptTemplates();
-  }, [fetchPromptTemplates]);
+    fetchHealthCheckTemplates();
+  }, [fetchPromptTemplates, fetchHealthCheckTemplates]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -188,6 +235,11 @@ export default function FunctionButtonsPage() {
         card_subtitle: record.card_subtitle || '',
         card_cover_image: record.card_cover_image || '',
         button_sub_desc: record.button_sub_desc || '',
+        // [PRD-HEALTH-SELF-CHECK-V1] 健康自查 4 字段回填
+        health_check_template_id: record.health_check_template_id || undefined,
+        archive_missing_strategy: record.archive_missing_strategy || 'use_default',
+        prompt_override_enabled: !!record.prompt_override_enabled,
+        prompt_override_text: record.prompt_override_text || '',
       };
 
       // [PRD-AICHAT-CAPSULE-V2 2026-05-15] 移除 ai_reply_mode 字段回填（统一由「关联 Prompt 模板」承载）；
@@ -207,6 +259,9 @@ export default function FunctionButtonsPage() {
         auto_user_message: '',
         card_title: '',
         icon: '📌',
+        // [PRD-HEALTH-SELF-CHECK-V1] 默认值
+        archive_missing_strategy: 'use_default',
+        prompt_override_enabled: false,
       });
     }
     setModalOpen(true);
@@ -258,6 +313,15 @@ export default function FunctionButtonsPage() {
         // [PRD-AICHAT-CAPSULE-V2 2026-05-15] 不再编辑「卡片封面图 URL」，前端永远传 null（后端兼容接收）
         card_cover_image: null,
         button_sub_desc: values.button_sub_desc || null,
+        // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查 4 字段（仅 health_self_check 类型生效）
+        health_check_template_id: values.button_type === 'health_self_check'
+          ? (values.health_check_template_id || null) : null,
+        archive_missing_strategy: values.button_type === 'health_self_check'
+          ? (values.archive_missing_strategy || 'use_default') : null,
+        prompt_override_enabled: values.button_type === 'health_self_check'
+          ? !!values.prompt_override_enabled : null,
+        prompt_override_text: values.button_type === 'health_self_check' && values.prompt_override_enabled
+          ? (values.prompt_override_text || null) : null,
       };
 
       if (editingItem) {
@@ -527,21 +591,103 @@ export default function FunctionButtonsPage() {
               <TextArea rows={3} placeholder="例：我想了解高血压日常注意事项有哪些？" maxLength={500} showCount />
             </Form.Item>
           )}
+          {/* [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查类型专属 3 项配置 */}
+          {watchedButtonType === 'health_self_check' && (
+            <>
+              <Form.Item
+                label="关联问卷模板"
+                name="health_check_template_id"
+                rules={[{ required: true, message: '请选择关联问卷模板' }]}
+                extra="数据源：AI 咨询配置 → 健康自查问卷模板"
+              >
+                <Select
+                  placeholder="请选择问卷模板"
+                  options={healthCheckTemplates
+                    .filter((t) => t.enabled)
+                    .map((t) => ({ value: t.id, label: t.name }))}
+                  showSearch
+                  allowClear
+                  filterOption={(input, option) =>
+                    String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
+                  notFoundContent={
+                    <div style={{ padding: 12, textAlign: 'center' }}>
+                      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无可用问卷模板" />
+                      <Button type="link" size="small" onClick={() => router.push('/health-check-templates')}>
+                        去问卷模板配置 →
+                      </Button>
+                    </div>
+                  }
+                />
+              </Form.Item>
+              <Form.Item
+                label="未选档案时的行为"
+                name="archive_missing_strategy"
+                rules={[{ required: true, message: '请选择未选档案策略' }]}
+              >
+                <Select options={ARCHIVE_MISSING_STRATEGY_OPTIONS} />
+              </Form.Item>
+              <Form.Item
+                label="Prompt 配置"
+                name="prompt_override_enabled"
+                valuePropName="checked"
+                extra="开启后将使用按钮自定义 Prompt 覆盖模板默认值"
+              >
+                <Switch checkedChildren="自定义" unCheckedChildren="继承默认" />
+              </Form.Item>
+              {watchedPromptOverride && (
+                <Form.Item
+                  label="自定义 Prompt 全文"
+                  name="prompt_override_text"
+                  rules={[{ required: true, message: '请输入自定义 Prompt' }]}
+                  extra={
+                    <span style={{ fontSize: 12, color: '#888' }}>
+                      支持占位符：{'{档案信息} {部位} {症状列表} {持续时间} {档案年龄} {档案性别} {档案既往病史} {档案过敏史}'}
+                      <Button
+                        type="link"
+                        size="small"
+                        style={{ padding: '0 4px' }}
+                        onClick={() => {
+                          const tpl = healthCheckTemplates.find((t) => t.id === watchedHealthTplId);
+                          if (tpl?.default_prompt) {
+                            form.setFieldsValue({ prompt_override_text: tpl.default_prompt });
+                            message.success('已填入模板默认 Prompt 内容');
+                          } else {
+                            message.warning('请先选择关联问卷模板');
+                          }
+                        }}
+                      >
+                        填入模板默认 Prompt
+                      </Button>
+                    </span>
+                  }
+                >
+                  <TextArea rows={8} placeholder="请输入自定义 Prompt 全文" />
+                </Form.Item>
+              )}
+            </>
+          )}
           {/* 通用 8 字段：所有类型可填 */}
           <Form.Item
             label="自动用户消息"
             name="auto_user_message"
-            rules={[{ required: true, message: '请输入点击后插入对话流的用户消息' }]}
-            extra="点击按钮后插入对话流的用户气泡文案，例：我想做体质测评"
+            rules={[{
+              required: watchedButtonType !== 'health_self_check',
+              message: '请输入点击后插入对话流的用户消息',
+            }]}
+            extra="点击按钮后插入对话流的用户气泡文案，例：我想做体质测评（健康自查类型可留空）"
           >
             <Input placeholder="例：我想做体质测评" maxLength={200} />
           </Form.Item>
           <Form.Item
             label="卡片标题"
             name="card_title"
-            rules={[{ required: true, message: '请输入卡片标题' }]}
+            rules={[{
+              required: watchedButtonType !== 'health_self_check',
+              message: '请输入卡片标题',
+            }]}
           >
-            <Input placeholder="卡片头部主标题" maxLength={50} />
+            <Input placeholder="卡片头部主标题（健康自查类型可留空）" maxLength={50} />
           </Form.Item>
           <Form.Item label="卡片副标题" name="card_subtitle">
             <Input placeholder="卡片头部副标题（可选）" maxLength={100} />

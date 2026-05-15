@@ -49,6 +49,7 @@ from app.api import (
     feedback,
     font_setting,
     function_button,
+    health_self_check,
     h5_checkout,
     health_plan_v2,
     health_profile,
@@ -1525,6 +1526,141 @@ async def _migrate_health_opt_v1_ai_call():
         print(f"[migrate] health_opt_v1_ai_call: 异常 {e}", flush=True)
 
 
+async def _migrate_health_self_check_v1():
+    """[PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查功能数据库迁移。
+
+    幂等操作：
+      1. chat_function_buttons 添加 4 列：health_check_template_id / archive_missing_strategy /
+         prompt_override_enabled / prompt_override_text
+      2. 创建 body_part_dict / health_check_template 表（依赖 metadata.create_all 已建表）
+      3. 初始化 10 个默认部位 + 1 个通用问卷模板 + 1 个默认按钮（仅在表为空时）
+    """
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text
+
+            # 1. chat_function_buttons 加 4 列
+            async def _add_col(table: str, column: str, ddl: str):
+                try:
+                    chk = await db.execute(text(
+                        "SELECT COUNT(*) FROM information_schema.columns "
+                        "WHERE table_schema = DATABASE() AND table_name = :t AND column_name = :c"
+                    ), {"t": table, "c": column})
+                    if (chk.scalar() or 0) == 0:
+                        await db.execute(text(f"ALTER TABLE {table} ADD COLUMN {ddl}"))
+                        print(f"[migrate] health_self_check_v1: {table}.{column} 列已添加", flush=True)
+                except Exception as e:  # noqa: BLE001
+                    _logger.debug("加列 %s.%s 跳过: %s", table, column, e)
+
+            await _add_col("chat_function_buttons", "health_check_template_id", "health_check_template_id INT NULL")
+            await _add_col("chat_function_buttons", "archive_missing_strategy", "archive_missing_strategy VARCHAR(32) NULL DEFAULT 'use_default'")
+            await _add_col("chat_function_buttons", "prompt_override_enabled", "prompt_override_enabled TINYINT(1) NULL DEFAULT 0")
+            await _add_col("chat_function_buttons", "prompt_override_text", "prompt_override_text TEXT NULL")
+            await db.commit()
+
+            # 2. 初始化默认数据（仅当 body_part_dict 为空）
+            try:
+                chk = await db.execute(text("SELECT COUNT(*) FROM body_part_dict"))
+                cnt = chk.scalar() or 0
+            except Exception as e:  # noqa: BLE001
+                _logger.debug("body_part_dict 表不存在或查询失败: %s", e)
+                return
+
+            if cnt == 0:
+                import json as _json
+                seed_parts = [
+                    ("头部", "🧠", ["头痛", "头晕", "偏头痛", "头胀", "记忆力下降"], 10),
+                    ("眼部", "👁️", ["眼干", "眼痒", "视力模糊", "畏光", "眼疲劳"], 20),
+                    ("耳鼻喉", "👂", ["耳鸣", "鼻塞", "咽痛", "咳嗽", "扁桃体肿大"], 30),
+                    ("胸部", "🫁", ["胸闷", "胸痛", "心悸", "气短", "心跳加快"], 40),
+                    ("腹部", "🤰", ["腹痛", "腹胀", "恶心", "呕吐", "腹泻", "便秘"], 50),
+                    ("背部", "🦴", ["腰痛", "背痛", "肩颈僵硬", "脊柱酸痛"], 60),
+                    ("四肢", "🦵", ["四肢酸痛", "关节痛", "麻木", "肿胀", "无力"], 70),
+                    ("皮肤", "🧴", ["瘙痒", "皮疹", "红斑", "干燥", "脱屑"], 80),
+                    ("泌尿生殖", "💧", ["尿频", "尿急", "尿痛", "夜尿增多"], 90),
+                    ("全身症状", "🌡️", ["发热", "乏力", "盗汗", "体重下降", "失眠"], 100),
+                ]
+                for name, icon, syms, so in seed_parts:
+                    try:
+                        await db.execute(text(
+                            "INSERT INTO body_part_dict (name, icon, symptoms, sort_order, enabled) "
+                            "VALUES (:n, :i, :s, :so, 1)"
+                        ), {"n": name, "i": icon, "s": _json.dumps(syms, ensure_ascii=False), "so": so})
+                    except Exception as ie:  # noqa: BLE001
+                        _logger.debug("插入部位 %s 失败: %s", name, ie)
+                await db.commit()
+                print(f"[migrate] health_self_check_v1: 已初始化 {len(seed_parts)} 个默认部位", flush=True)
+
+            # 3. 初始化默认问卷模板
+            try:
+                chk = await db.execute(text("SELECT COUNT(*) FROM health_check_template"))
+                tpl_cnt = chk.scalar() or 0
+            except Exception:
+                tpl_cnt = -1
+
+            tpl_id_to_bind = None  # int | None
+            if tpl_cnt == 0:
+                import json as _json
+                # 取所有部位 id
+                part_rows = (await db.execute(text("SELECT id FROM body_part_dict ORDER BY sort_order ASC, id ASC"))).all()
+                body_parts_json = _json.dumps(
+                    [{"id": int(r[0]), "sort": idx + 1} for idx, r in enumerate(part_rows)],
+                    ensure_ascii=False,
+                )
+                duration_json = _json.dumps(["<1天", "1-3天", "3-7天", ">1周", ">1月"], ensure_ascii=False)
+                default_prompt = (
+                    "你是一名专业的全科医生助手。以下是用户的健康自查信息，请基于这些信息给出专业、温和、易懂的初步分析与建议。\n\n"
+                    "【咨询人档案】\n"
+                    "姓名信息：{档案信息}\n年龄：{档案年龄}\n性别：{档案性别}\n既往病史：{档案既往病史}\n过敏史：{档案过敏史}\n\n"
+                    "【自查信息】\n身体部位：{部位}\n出现症状：{症状列表}\n持续时间：{持续时间}\n\n"
+                    "请从以下角度作答：\n"
+                    "1. 可能的常见原因（按可能性从高到低列出 2~4 个）；\n"
+                    "2. 建议进一步关注的伴随症状；\n"
+                    "3. 居家可采取的缓解或观察建议；\n"
+                    "4. 何种情况下应当尽快就医（明确预警信号）。\n\n"
+                    "回答需通俗、克制，避免给出确定性诊断；末尾自动追加医疗免责声明。"
+                )
+                try:
+                    res = await db.execute(text(
+                        "INSERT INTO health_check_template "
+                        "(name, description, body_parts, duration_options, default_prompt, enabled) "
+                        "VALUES (:n, :d, :bp, :du, :pp, 1)"
+                    ), {
+                        "n": "通用健康自查",
+                        "d": "默认通用自查模板（含 10 个常见部位）",
+                        "bp": body_parts_json, "du": duration_json, "pp": default_prompt,
+                    })
+                    await db.commit()
+                    tpl_id_to_bind = res.lastrowid
+                    print(f"[migrate] health_self_check_v1: 已初始化通用问卷模板 id={tpl_id_to_bind}", flush=True)
+                except Exception as e:  # noqa: BLE001
+                    _logger.error("插入通用问卷模板失败: %s", e)
+
+            # 4. 添加一个默认 health_self_check 按钮（仅当无 health_self_check 类型按钮且模板可用）
+            if tpl_id_to_bind:
+                try:
+                    chk = await db.execute(text(
+                        "SELECT COUNT(*) FROM chat_function_buttons WHERE button_type = 'health_self_check'"
+                    ))
+                    if (chk.scalar() or 0) == 0:
+                        await db.execute(text(
+                            "INSERT INTO chat_function_buttons "
+                            "(name, icon, button_type, sort_weight, is_enabled, auto_user_message, card_title, "
+                            " health_check_template_id, archive_missing_strategy, prompt_override_enabled) "
+                            "VALUES ('健康自查', '🩺', 'health_self_check', 5, 1, '', '健康自查', :tid, 'use_default', 0)"
+                        ), {"tid": tpl_id_to_bind})
+                        await db.commit()
+                        print("[migrate] health_self_check_v1: 已初始化默认健康自查按钮", flush=True)
+                except Exception as e:  # noqa: BLE001
+                    _logger.debug("插入默认按钮跳过: %s", e)
+    except Exception as e:  # noqa: BLE001
+        _logger.error("[health_self_check_v1] 迁移异常（不影响启动）: %s", e)
+        print(f"[migrate] health_self_check_v1: 异常 {e}", flush=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
@@ -1582,6 +1718,10 @@ async def lifespan(app: FastAPI):
     print("[migrate] bug470_cleanup_placeholder: 启动迁移...", flush=True)
     await _migrate_bug470_cleanup_placeholder()
     print("[migrate] bug470_cleanup_placeholder: 迁移完成", flush=True)
+    # [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查功能：新增 2 张表 + chat_function_buttons 加 4 列 + 初始化默认数据
+    print("[migrate] health_self_check_v1: 启动迁移...", flush=True)
+    await _migrate_health_self_check_v1()
+    print("[migrate] health_self_check_v1: 迁移完成", flush=True)
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities
@@ -1699,6 +1839,9 @@ app.include_router(function_button.router)
 app.include_router(function_button.admin_router)
 # [AICHAT-OPTIM-FIX-V1 F-04 2026-05-14] 公开顶层 /api/function-buttons
 app.include_router(function_button.public_router)
+# [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查（health_self_check）
+app.include_router(health_self_check.public_router)
+app.include_router(health_self_check.admin_router)
 app.include_router(messages.router)
 app.include_router(admin_messages.router)
 app.include_router(referral.router)

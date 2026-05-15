@@ -1443,3 +1443,46 @@
   white-space: pre-wrap;
   word-break: break-all;
 }
+
+/* [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查抽屉与卡片气泡 */
+.hsc-mask { position: fixed; left: 0; right: 0; top: 0; bottom: 0; background: rgba(0,0,0,0.45); z-index: 1500; display: flex; flex-direction: column; justify-content: flex-end; }
+.hsc-drawer { background: #fff; border-top-left-radius: 24rpx; border-top-right-radius: 24rpx; height: 85vh; display: flex; flex-direction: column; overflow: hidden; }
+.hsc-header { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 32rpx; border-bottom: 1rpx solid #f0f0f0; }
+.hsc-title { font-size: 32rpx; font-weight: 600; }
+.hsc-close { font-size: 28rpx; color: #999; padding: 8rpx 16rpx; }
+.hsc-archive { padding: 20rpx 32rpx; background: #f7f8fa; font-size: 26rpx; color: #555; }
+.hsc-archive-name { color: #222; font-weight: 500; }
+.hsc-archive-tip { display: block; margin-top: 8rpx; font-size: 22rpx; color: #999; }
+.hsc-body { flex: 1; padding: 24rpx 32rpx; }
+.hsc-loading, .hsc-error, .hsc-hint { text-align: center; color: #999; padding: 60rpx 0; font-size: 26rpx; }
+.hsc-error { color: #ff4d4f; }
+.hsc-step-title { font-size: 28rpx; font-weight: 600; color: #222; margin: 24rpx 0 16rpx; }
+.hsc-missing { color: #ff4d4f; }
+.hsc-parts { display: flex; flex-wrap: wrap; }
+.hsc-part { width: 22%; margin: 0 4% 16rpx 0; padding: 20rpx 0; border: 1rpx solid #e8e8e8; border-radius: 12rpx; background: #fafafa; text-align: center; box-sizing: border-box; }
+.hsc-part:nth-child(4n) { margin-right: 0; }
+.hsc-part-active { background: #e6f4ff; border: 2rpx solid #1677ff; }
+.hsc-part-icon { display: block; font-size: 40rpx; line-height: 1.2; }
+.hsc-part-name { font-size: 24rpx; color: #333; }
+.hsc-part-active .hsc-part-name { color: #1677ff; }
+.hsc-symptoms { display: flex; flex-wrap: wrap; }
+.hsc-sym { padding: 12rpx 24rpx; margin: 0 12rpx 12rpx 0; border: 1rpx solid #e8e8e8; border-radius: 30rpx; font-size: 26rpx; color: #333; background: #fff; }
+.hsc-sym-active { background: #1677ff; color: #fff; border-color: #1677ff; }
+.hsc-durations { display: flex; flex-wrap: wrap; }
+.hsc-dur { padding: 12rpx 28rpx; margin: 0 12rpx 12rpx 0; border: 1rpx solid #e8e8e8; border-radius: 30rpx; font-size: 26rpx; color: #333; background: #fff; }
+.hsc-dur-active { background: #e6f4ff; color: #1677ff; border-color: #1677ff; }
+.hsc-footer { padding: 24rpx 32rpx; border-top: 1rpx solid #f0f0f0; }
+.hsc-submit { background: #1677ff; color: #fff; border-radius: 12rpx; font-size: 30rpx; font-weight: 600; padding: 20rpx 0; }
+.hsc-submit[disabled] { background: #bfbfbf; color: #fff; }
+
+.hsc-card { background: #e6f4ff; border: 1rpx solid #91caff; border-radius: 16rpx; padding: 20rpx 24rpx; max-width: 600rpx; }
+.hsc-card-head { display: flex; align-items: center; justify-content: space-between; }
+.hsc-card-title { color: #1677ff; font-weight: 600; font-size: 28rpx; }
+.hsc-card-archive { color: #666; font-size: 24rpx; margin-top: 8rpx; }
+.hsc-card-divider { height: 1rpx; background: #91caff; margin: 12rpx 0; }
+.hsc-card-row { display: flex; align-items: center; margin-bottom: 8rpx; font-size: 26rpx; }
+.hsc-card-label { color: #888; }
+.hsc-card-icon { margin: 0 4rpx 0 0; }
+.hsc-card-value { color: #333; }
+.hsc-card-tags { display: flex; flex-wrap: wrap; flex: 1; }
+.hsc-card-tag { background: #fff; border: 1rpx solid #91caff; color: #1677ff; border-radius: 20rpx; padding: 4rpx 16rpx; margin: 4rpx 8rpx 4rpx 0; font-size: 24rpx; }

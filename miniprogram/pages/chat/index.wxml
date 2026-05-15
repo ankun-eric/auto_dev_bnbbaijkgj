@@ -189,7 +189,32 @@
 
       <!-- [PRD-433 F-01] 用户消息：右侧浅蓝气泡，无头像 -->
       <view class="user-msg-wrap" wx:elif="{{item.role === 'user'}}">
-        <view class="user-bubble">
+        <!-- [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查卡片气泡 -->
+        <view class="hsc-card" wx:if="{{item.type === 'health_self_check_card' && item.hscPayload}}">
+          <view class="hsc-card-head">
+            <text class="hsc-card-title">🩺 健康自查</text>
+          </view>
+          <view class="hsc-card-archive" wx:if="{{item.hscPayload.archive_name}}">
+            咨询人：{{item.hscPayload.archive_name}}
+          </view>
+          <view class="hsc-card-divider"></view>
+          <view class="hsc-card-row">
+            <text class="hsc-card-label">部位：</text>
+            <text class="hsc-card-icon">{{item.hscPayload.body_part.icon || '🧩'}}</text>
+            <text class="hsc-card-value">{{item.hscPayload.body_part.name}}</text>
+          </view>
+          <view class="hsc-card-row">
+            <text class="hsc-card-label">症状：</text>
+            <view class="hsc-card-tags">
+              <text class="hsc-card-tag" wx:for="{{item.hscPayload.symptoms}}" wx:key="*this">{{item}}</text>
+            </view>
+          </view>
+          <view class="hsc-card-row">
+            <text class="hsc-card-label">持续：</text>
+            <text class="hsc-card-value">{{item.hscPayload.duration}}</text>
+          </view>
+        </view>
+        <view class="user-bubble" wx:else>
           <image class="msg-image" src="{{item.image}}" mode="widthFix" wx:if="{{item.image}}" bindtap="previewImage" data-url="{{item.image}}" />
           <text class="user-bubble-text" wx:else style="font-size:{{msgFontSize}};">{{item.content}}</text>
         </view>
@@ -476,4 +501,55 @@
 
   <!-- Module 9: Share canvas (hidden) -->
   <canvas type="2d" id="share-canvas" style="position: fixed; left: -9999px; top: -9999px; width: 600px; height: 800px;"></canvas>
+
+  <!-- [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查抽屉 -->
+  <view class="hsc-mask" wx:if="{{hscDrawerShow}}" bindtap="onHscClose" catchtouchmove="preventTouchMove">
+    <view class="hsc-drawer" catchtap="">
+      <view class="hsc-header">
+        <text class="hsc-title">🩺 健康自查</text>
+        <text class="hsc-close" bindtap="onHscClose">× 关闭</text>
+      </view>
+      <view class="hsc-archive">
+        <view>咨询档案：<text class="hsc-archive-name">{{consultTarget.name || '本人'}}</text></view>
+        <text class="hsc-archive-tip">如需切换档案，请关闭后在顶部切换</text>
+      </view>
+      <scroll-view scroll-y class="hsc-body">
+        <view class="hsc-loading" wx:if="{{hscLoading}}">加载中…</view>
+        <view class="hsc-error" wx:elif="{{hscErrorMsg}}">{{hscErrorMsg}}</view>
+        <block wx:else>
+          <view class="hsc-step-title {{hscHighlightMissing && !hscSelectedPartId ? 'hsc-missing' : ''}}">步骤 1：选择部位</view>
+          <view class="hsc-parts">
+            <view
+              class="hsc-part {{hscSelectedPartId === item.id ? 'hsc-part-active' : ''}}"
+              wx:for="{{hscBodyParts}}" wx:key="id"
+              bindtap="onHscPickPart" data-id="{{item.id}}"
+            >
+              <text class="hsc-part-icon">{{item.icon || '🧩'}}</text>
+              <text class="hsc-part-name">{{item.name}}</text>
+            </view>
+          </view>
+          <view class="hsc-step-title {{hscHighlightMissing && !hscSelectedSymptoms.length ? 'hsc-missing' : ''}}">步骤 2：选择症状（多选）</view>
+          <view wx:if="{{!hscSelectedPartId}}" class="hsc-hint">请先选择上方的部位</view>
+          <view class="hsc-symptoms" wx:else>
+            <view
+              class="hsc-sym {{hscSelectedSymptoms.indexOf(item) >= 0 ? 'hsc-sym-active' : ''}}"
+              wx:for="{{hscCurrentSymptoms}}" wx:key="*this"
+              bindtap="onHscToggleSymptom" data-sym="{{item}}"
+            >{{item}}</view>
+          </view>
+          <view class="hsc-step-title {{hscHighlightMissing && !hscSelectedDuration ? 'hsc-missing' : ''}}">步骤 3：选择持续时间</view>
+          <view class="hsc-durations">
+            <view
+              class="hsc-dur {{hscSelectedDuration === item ? 'hsc-dur-active' : ''}}"
+              wx:for="{{hscDurations}}" wx:key="*this"
+              bindtap="onHscPickDuration" data-d="{{item}}"
+            >{{item}}</view>
+          </view>
+        </block>
+      </scroll-view>
+      <view class="hsc-footer">
+        <button class="hsc-submit" bindtap="onHscSubmit" disabled="{{hscLoading || hscErrorMsg}}">开始 AI 分析</button>
+      </view>
+    </view>
+  </view>
 </view>

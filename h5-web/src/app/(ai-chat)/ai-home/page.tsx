@@ -25,6 +25,9 @@ import { FnCell } from '@/components/design-system';
 import { resolveCardType, backendButtonToCardButton, ChatCard, type ChatCardType } from '@/components/ai-chat/ChatCards';
 // [PRD-AICHAT-CAPSULE-V1 2026-05-15] 输入框上方胶囊条（与菜单模式共用 chat_function_buttons 数据）
 import CapsuleBar from '@/components/ai-chat/CapsuleBar';
+// [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查抽屉 + 卡片气泡
+import HealthSelfCheckDrawer, { type HealthSelfCheckSubmitPayload, type HealthCheckTemplateDetail } from '@/components/ai-chat/HealthSelfCheckDrawer';
+import HealthSelfCheckCard from '@/components/ai-chat/HealthSelfCheckCard';
 
 interface ChatMessage {
   id: string;
@@ -42,7 +45,7 @@ interface ChatMessage {
    *  - 'image' : 用户上传的图片消息（content = 图片 URL 或 base64）
    *  - 'quick_ask_card' : 可编辑的快捷提问卡片消息（quickAskButton 字段携带按钮元数据）
    */
-  kind?: 'text' | 'image' | 'quick_ask_card';
+  kind?: 'text' | 'image' | 'quick_ask_card' | 'health_self_check_card';
   /** quick_ask 卡片消息携带的按钮元数据 */
   quickAskButton?: {
     id: number | string;
@@ -53,6 +56,18 @@ interface ChatMessage {
   };
   /** quick_ask 卡片消息当前状态：pending（可编辑）/ sent（已发送，置灰）/ cancelled（已取消，置灰） */
   quickAskState?: 'pending' | 'sent' | 'cancelled';
+  /** [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 自查卡片气泡 payload */
+  healthSelfCheck?: {
+    archiveId?: number | null;
+    archiveName?: string;
+    archiveAge?: number | null;
+    archiveGender?: string | null;
+    bodyPart?: { id: number; name: string; icon: string };
+    symptoms?: string[];
+    duration?: string;
+    templateId?: number;
+    buttonId?: number;
+  };
 }
 
 interface Banner {
@@ -79,6 +94,11 @@ interface FunctionButton {
   card_subtitle?: string | null;
   card_cover_image?: string | null;
   button_sub_desc?: string | null;
+  // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查 4 字段
+  health_check_template_id?: number | null;
+  archive_missing_strategy?: string | null;
+  prompt_override_enabled?: boolean | null;
+  prompt_override_text?: string | null;
   sort_weight?: number;
   is_enabled?: boolean;
 }
@@ -461,6 +481,10 @@ export default function AiHomePage() {
   }, []);
   const [hasHealthTask, setHasHealthTask] = useState(false);
   const [selectedConsultant, setSelectedConsultant] = useState<FamilyMember | null>(null);
+  // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查抽屉状态
+  const [hscDrawerOpen, setHscDrawerOpen] = useState(false);
+  const [hscDrawerButton, setHscDrawerButton] = useState<FunctionButton | null>(null);
+  const [hscDrawerPrefill, setHscDrawerPrefill] = useState<Partial<HealthSelfCheckSubmitPayload> | null>(null);
   const [idleTimeout, setIdleTimeout] = useState<number>(30 * 60 * 1000);
   // [Bug-433] lastMsgTime 改为 useRef：避免 React state 异步更新导致 handleSend
   // 在闭包中读到的旧值，从而错误命中"空闲超时清空消息"分支，造成会话首句丢失。
@@ -969,6 +993,18 @@ export default function AiHomePage() {
    */
   const handleCapsuleByType = useCallback((btn: FunctionButton) => {
     const type = btn.button_type;
+    // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查类型：唤起抽屉
+    if (type === 'health_self_check') {
+      const strategy = btn.archive_missing_strategy || 'use_default';
+      if (!selectedConsultant && strategy === 'force_toast') {
+        Toast.show({ content: '请先在顶部选择咨询档案' });
+        return;
+      }
+      setHscDrawerButton(btn);
+      setHscDrawerPrefill(null);
+      setHscDrawerOpen(true);
+      return;
+    }
     // upload 类：统一弹 ActionSheet（H5 实现复用现有 file input 选择）
     if (
       type === 'photo_upload' ||
@@ -1141,6 +1177,58 @@ export default function AiHomePage() {
       prev.map((m) => (m.id === cardMsgId ? { ...m, quickAskState: 'cancelled' as const } : m)),
     );
   }, []);
+
+  // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查抽屉提交：插入卡片气泡 → 调用后端 start → 插入 AI 回答
+  const handleHealthSelfCheckSubmit = useCallback(
+    async (payload: HealthSelfCheckSubmitPayload, _template: HealthCheckTemplateDetail) => {
+      setHscDrawerOpen(false);
+      const cardMsg: ChatMessage = {
+        id: `hsc-${Date.now()}`,
+        role: 'user',
+        content: '',
+        time: new Date().toISOString(),
+        kind: 'health_self_check_card',
+        healthSelfCheck: {
+          archiveId: payload.archive_id ?? null,
+          archiveName: payload.archive_name,
+          archiveAge: payload.archive_age ?? null,
+          archiveGender: payload.archive_gender ?? null,
+          bodyPart: payload.body_part,
+          symptoms: payload.symptoms,
+          duration: payload.duration,
+          templateId: payload.template_id,
+          buttonId: payload.button_id,
+        },
+      };
+      const aiPlaceholder: ChatMessage = {
+        id: `a-hsc-${Date.now()}`,
+        role: 'assistant',
+        content: '正在分析中…',
+        time: new Date().toISOString(),
+        isStreaming: true,
+      };
+      setMessages((prev) => prev.concat(cardMsg, aiPlaceholder));
+      try {
+        const res = await api.post<any>('/api/health-self-check/start', payload);
+        const data = res?.data ?? res;
+        const aiText = data?.ai_content || '分析失败，请稍后重试';
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === aiPlaceholder.id ? { ...m, content: aiText, isStreaming: false } : m,
+          ),
+        );
+      } catch {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === aiPlaceholder.id
+              ? { ...m, content: '分析失败，请点击重试', isStreaming: false }
+              : m,
+          ),
+        );
+      }
+    },
+    [],
+  );
 
   const handleFuncButton = (btn: FunctionButton) => {
     const key = btn.button_type || String(btn.id);
@@ -2557,6 +2645,48 @@ export default function AiHomePage() {
                 );
               }
 
+              // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查卡片气泡（用户侧）
+              if (isUser && msg.kind === 'health_self_check_card' && msg.healthSelfCheck) {
+                const payload = msg.healthSelfCheck;
+                return (
+                  <div key={msg.id} style={{ marginBottom: 24 }} data-testid="ai-home-hsc-card-message">
+                    {showTime && (
+                      <div className="text-center" style={{ padding: '8px 0' }} data-testid="ai-home-time-divider">
+                        <span style={{ fontSize: 12, color: '#9CA3AF' }}>
+                          {formatWeChatTime(msg.time)}
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginRight: 16 }}>
+                      <HealthSelfCheckCard
+                        payload={{
+                          archiveName: payload.archiveName,
+                          archiveAge: payload.archiveAge,
+                          archiveGender: payload.archiveGender,
+                          bodyPart: payload.bodyPart,
+                          symptoms: payload.symptoms,
+                          duration: payload.duration,
+                        }}
+                        onReopen={() => {
+                          const btn = funcButtons.find(
+                            (b) => Number(b.id) === Number(payload.buttonId),
+                          );
+                          if (btn) {
+                            setHscDrawerButton(btn);
+                            setHscDrawerPrefill({
+                              body_part: payload.bodyPart,
+                              symptoms: payload.symptoms,
+                              duration: payload.duration,
+                            });
+                            setHscDrawerOpen(true);
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              }
+
               // [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 4.2] QuickAskCard 卡片消息（用户编辑后才发送）
               if (isUser && msg.kind === 'quick_ask_card') {
                 const qbtn = msg.quickAskButton!;
@@ -2882,6 +3012,37 @@ export default function AiHomePage() {
           // [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 4.1] 胶囊点击按 button_type 分发
           handleCapsuleByType(full);
         }}
+      />
+
+      {/* [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查抽屉 */}
+      <HealthSelfCheckDrawer
+        open={hscDrawerOpen}
+        onClose={() => setHscDrawerOpen(false)}
+        button={
+          hscDrawerButton
+            ? {
+                id: Number(hscDrawerButton.id),
+                name: hscDrawerButton.name,
+                health_check_template_id: hscDrawerButton.health_check_template_id,
+                archive_missing_strategy: hscDrawerButton.archive_missing_strategy,
+                prompt_override_enabled: hscDrawerButton.prompt_override_enabled,
+                prompt_override_text: hscDrawerButton.prompt_override_text,
+              }
+            : null
+        }
+        archive={
+          selectedConsultant
+            ? {
+                id: selectedConsultant.id,
+                name: selectedConsultant.nickname,
+                age: null,
+                gender: null,
+                isDefault: false,
+              }
+            : { id: null, name: '本人', isDefault: true }
+        }
+        prefill={hscDrawerPrefill}
+        onSubmit={handleHealthSelfCheckSubmit}
       />
 
       {/* [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 4.1] upload 胶囊触发的 ActionSheet（相册/拍照二选一） */}

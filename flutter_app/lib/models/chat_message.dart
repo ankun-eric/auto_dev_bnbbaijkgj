@@ -12,6 +12,8 @@ class ChatMessage {
   final List<KnowledgeHit>? knowledgeHits;
   // [PRD-433 F-14] 可选的参考资料列表（每项任意结构 Map），仅当非空时由 UI 渲染。
   final List<Map<String, dynamic>>? references;
+  // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查卡片 payload（type=='health_self_check_card' 时使用）
+  final Map<String, dynamic>? healthSelfCheckPayload;
 
   ChatMessage({
     required this.id,
@@ -24,6 +26,7 @@ class ChatMessage {
     this.createdAt,
     this.knowledgeHits,
     this.references,
+    this.healthSelfCheckPayload,
   });
 
   bool get isUser => role == 'user';

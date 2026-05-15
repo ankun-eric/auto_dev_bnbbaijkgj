@@ -92,6 +92,9 @@ const menuItems: MenuItem[] = [
     label: 'AI咨询配置',
     children: [
       { key: '/function-buttons', label: '功能按钮管理' },
+      // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查功能 2 个配置入口
+      { key: '/body-part-dict', label: '部位症状字典' },
+      { key: '/health-check-templates', label: '健康自查问卷模板' },
       { key: '/ai-call-config', label: 'AI 外呼配置' },
       { key: '/digital-humans', label: '数字人形象管理' },
       { key: '/voice-service', label: '语音服务配置' },
@@ -257,7 +260,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/ai-config/video-consult') || pathname.startsWith('/ai-config/chat-timeout')) return ['ai-consult-config'];
   if (pathname.startsWith('/ai-config') || pathname.startsWith('/chat-records') || pathname.startsWith('/knowledge') || pathname.startsWith('/search-config') || pathname.startsWith('/fallback-config') || pathname.startsWith('/ocr-config') || pathname.startsWith('/ocr-global-config') || pathname.startsWith('/checkup-details') || pathname.startsWith('/drug-details')) return ['ai'];
   if (pathname.startsWith('/ai-center') || pathname.startsWith('/prompt-templates') || pathname.startsWith('/tcm-config')) return ['ai-center'];
-  if (pathname.startsWith('/function-buttons') || pathname.startsWith('/digital-humans') || pathname.startsWith('/voice-service') || pathname.startsWith('/tts-config') || pathname.startsWith('/share-config')) return ['ai-consult-config'];
+  if (pathname.startsWith('/function-buttons') || pathname.startsWith('/digital-humans') || pathname.startsWith('/voice-service') || pathname.startsWith('/tts-config') || pathname.startsWith('/share-config') || pathname.startsWith('/body-part-dict') || pathname.startsWith('/health-check-templates')) return ['ai-consult-config'];
   if (pathname.startsWith('/home-settings') || pathname.startsWith('/home-menus') || pathname.startsWith('/home-banners') || pathname.startsWith('/notices') || pathname.startsWith('/bottom-nav') || pathname.startsWith('/home-settings/ai-home-config')) return ['home-config'];
   if (pathname.startsWith('/search')) return ['search-manage'];
   if (pathname.startsWith('/system-messages')) return ['messages'];

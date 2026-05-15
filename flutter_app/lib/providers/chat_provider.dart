@@ -128,6 +128,15 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 按 id 替换消息内容（用于 AI 异步返回后替换占位消息）
+  void replaceMessageById(String id, ChatMessage newMessage) {
+    final idx = _messages.indexWhere((m) => m.id == id);
+    if (idx >= 0) {
+      _messages[idx] = newMessage;
+      notifyListeners();
+    }
+  }
+
   void refreshUI() {
     notifyListeners();
   }
