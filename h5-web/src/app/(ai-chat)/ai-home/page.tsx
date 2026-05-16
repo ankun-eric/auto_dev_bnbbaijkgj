@@ -99,6 +99,16 @@ interface ChatMessage {
     consistency_score?: number;
     reason?: string;
     candidates?: any[];
+    // [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517]
+    member_name?: string;
+    personalized_risk?: {
+      level: 'safe' | 'caution' | 'danger';
+      label: string;
+      conclusion: string;
+      reasons?: string[];
+    };
+    /** [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517 · Bug-3] 已加入用药计划标记 */
+    added_to_plan?: boolean;
     [k: string]: any;
   } | null;
   /** [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 自查卡片气泡 payload */
@@ -375,7 +385,7 @@ const FALLBACK_CONFIG: AIHomeConfig = {
     },
   },
   session: {
-    idle_timeout_minutes: 30,
+    idle_timeout_minutes: 60,
     auto_new_session: true,
     empty_session_welcome: { enabled: false, messages: [] },
     strategy: {
@@ -574,7 +584,8 @@ export default function AiHomePage() {
   const [hscDrawerOpen, setHscDrawerOpen] = useState(false);
   const [hscDrawerButton, setHscDrawerButton] = useState<FunctionButton | null>(null);
   const [hscDrawerPrefill, setHscDrawerPrefill] = useState<Partial<HealthSelfCheckSubmitPayload> | null>(null);
-  const [idleTimeout, setIdleTimeout] = useState<number>(30 * 60 * 1000);
+  // [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517] 会话空闲超时由 30 → 60 分钟
+  const [idleTimeout, setIdleTimeout] = useState<number>(60 * 60 * 1000);
   // [Bug-433] lastMsgTime 改为 useRef：避免 React state 异步更新导致 handleSend
   // 在闭包中读到的旧值，从而错误命中"空闲超时清空消息"分支，造成会话首句丢失。
   // 任何写入 setLastMsgTime() 的位置都同步更新此 ref，保证语音/预设按钮等异步入口
@@ -839,12 +850,20 @@ export default function AiHomePage() {
       const data = res.data || res;
       const list = Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : []);
       if (list.length > 0) {
-        const mapped: ChatMessage[] = list.map((m: any) => ({
-          id: String(m.id),
-          role: m.role === 'user' ? 'user' as const : 'assistant' as const,
-          content: m.content || '',
-          time: m.created_at || new Date().toISOString(),
-        }));
+        const mapped: ChatMessage[] = list.map((m: any) => {
+          // [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517 · Bug-3]
+          // 从 message_metadata 还原 drugMeta，让识药卡片在跨刷新 / 跨设备时完整保留，
+          // 并保留 added_to_plan 状态（"已加入用药计划"按钮置灰）
+          const meta = m.message_metadata || null;
+          const isDrug = meta && (meta.message_type === 'drug_identify_card' || meta.message_type === 'drug_identify_retake');
+          return {
+            id: String(m.id),
+            role: m.role === 'user' ? 'user' as const : 'assistant' as const,
+            content: m.content || '',
+            time: m.created_at || new Date().toISOString(),
+            drugMeta: isDrug ? meta : null,
+          };
+        });
         setMessages(mapped);
       }
     } catch {}
@@ -984,8 +1003,14 @@ export default function AiHomePage() {
                 if (currentEvent === 'done') {
                   const meta = parsed?.meta || null;
                   const fullText = parsed?.full_content || accumulated;
+                  // [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517 · Bug-3]
+                  // 用后端持久化的真实 message_id 替换乐观 id，
+                  // 这样后续点击"加入用药计划"才能调 /api/chat/messages/{id}/mark-added-to-plan
+                  const persistedId = parsed?.message_id;
                   setMessages(prev => prev.map(m => (
-                    m.id === aiMsgId ? { ...m, content: fullText, drugMeta: meta } : m
+                    m.id === aiMsgId
+                      ? { ...m, id: persistedId ? String(persistedId) : m.id, content: fullText, drugMeta: meta }
+                      : m
                   )));
                   continue;
                 }
@@ -3483,28 +3508,78 @@ export default function AiHomePage() {
                        *   - 其他 / null → 退化为普通 Markdown
                        */}
                       {msg.drugMeta && msg.drugMeta.message_type === 'drug_identify_card' && Array.isArray(msg.drugMeta.medicines) && msg.drugMeta.medicines.length > 0 ? (
+                        /* [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517 · Bug-1/2]
+                         *   - 先渲染流式两段播报文本气泡（msg.content）
+                         *   - 在气泡下方追加结构化识药卡片（4 模块 + 按钮固底）
+                         *   - "已加入用药计划"状态写在 drugMeta.added_to_plan，跨刷新可恢复
+                         */
                         <div data-testid="ai-home-drug-identify-card">
+                          {msg.content && (
+                            <div style={{ marginBottom: 8, fontSize: 15, color: '#333', lineHeight: 1.7 }}>
+                              <span dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+                            </div>
+                          )}
                           <DrugIdentifyCard
                             card={{
                               drug_name: msg.drugMeta.medicines[0]?.name || msg.drugMeta.medicines[0]?.brand || '已识别药品',
                               generic_name: msg.drugMeta.medicines[0]?.name || null,
+                              brand_name: msg.drugMeta.medicines[0]?.brand || null,
                               spec: msg.drugMeta.medicines[0]?.spec || null,
+                              dosage_form: (msg.drugMeta.medicines[0] as any)?.dosage_form || null,
                               manufacturer: msg.drugMeta.medicines[0]?.manufacturer || null,
+                              approval_no: (msg.drugMeta.medicines[0] as any)?.approval_no || null,
                               category: msg.drugMeta.medicines[0]?.category || null,
                               indications: msg.drugMeta.medicines[0]?.indications || null,
                               usage: msg.drugMeta.medicines[0]?.usage || null,
+                              usage_adult: (msg.drugMeta.medicines[0] as any)?.usage_adult || msg.drugMeta.medicines[0]?.usage || null,
+                              usage_children: (msg.drugMeta.medicines[0] as any)?.usage_children || null,
+                              timing: (msg.drugMeta.medicines[0] as any)?.timing || null,
                               contraindications: msg.drugMeta.medicines[0]?.contraindications || null,
+                              adverse_reactions: (msg.drugMeta.medicines[0] as any)?.adverse_reactions || null,
+                              interactions: (msg.drugMeta.medicines[0] as any)?.interactions || null,
+                              special_population: (msg.drugMeta.medicines[0] as any)?.special_population || null,
                             }}
-                            libraryMatched={false}
+                            libraryMatched={Boolean(
+                              msg.drugMeta.medicines[0]?.usage ||
+                              msg.drugMeta.medicines[0]?.contraindications
+                            )}
                             conflicts={[]}
-                            onAddPlan={() => router.push('/ai-home/medication-plans/new')}
+                            personalizedRisk={msg.drugMeta.personalized_risk || null}
+                            memberName={msg.drugMeta.member_name || null}
+                            added={Boolean(msg.drugMeta.added_to_plan)}
+                            onAddPlan={() => {
+                              const drugName =
+                                msg.drugMeta?.medicines?.[0]?.name ||
+                                msg.drugMeta?.medicines?.[0]?.brand ||
+                                '';
+                              // [Bug-3] 1) 本地立即标记 added_to_plan=true（乐观更新）
+                              setMessages(prev => prev.map(m =>
+                                m.id === msg.id
+                                  ? { ...m, drugMeta: { ...(m.drugMeta || {}), added_to_plan: true } as any }
+                                  : m
+                              ));
+                              // [Bug-3] 2) 写入云端，跨设备 / 刷新后均保持"已加入用药计划"
+                              // 仅当消息 id 是数字（来自后端持久化）时才写云端；本地乐观 id（a-xxx）跳过
+                              const mid = Number(msg.id);
+                              if (Number.isFinite(mid) && mid > 0) {
+                                api.post(`/api/chat/messages/${mid}/mark-added-to-plan`).catch(() => {});
+                              }
+                              router.push(`/ai-home/medication-plans/new?drug_name=${encodeURIComponent(drugName)}`);
+                            }}
+                            onViewDetail={() => {
+                              const drugName =
+                                msg.drugMeta?.medicines?.[0]?.name ||
+                                msg.drugMeta?.medicines?.[0]?.brand ||
+                                '';
+                              router.push(`/ai-home/medication-plans?keyword=${encodeURIComponent(drugName)}`);
+                            }}
+                            onRetake={() => {
+                              try {
+                                Toast.show({ content: '请通过下方拍照按钮重新拍摄药盒', position: 'bottom' });
+                              } catch {}
+                            }}
                             onViewAllPlans={() => router.push('/ai-home/medication-plans')}
                           />
-                          {msg.content && (
-                            <div style={{ marginTop: 8, fontSize: 14, color: '#666', lineHeight: 1.6 }}>
-                              <span dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
-                            </div>
-                          )}
                         </div>
                       ) : msg.drugMeta && msg.drugMeta.message_type === 'drug_identify_retake' ? (
                         <div data-testid="ai-home-drug-identify-retake" style={{ padding: '8px 12px', background: '#FFF7E6', borderRadius: 8, border: '1px solid #FFD591' }}>

@@ -1,7 +1,21 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_serializer
+
+
+def _to_utc_iso(dt: Optional[datetime]) -> Optional[str]:
+    """[BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517]
+    把数据库里 naive UTC 的 datetime 序列化为带 UTC 时区标识的 ISO 字符串，
+    避免前端按本地时区误解析（"刚发生"显示为"8 小时前"）。
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+    return dt.isoformat()
 
 
 class ChatSessionCreate(BaseModel):
@@ -27,6 +41,11 @@ class ChatSessionResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    # [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517] 时区规范
+    @field_serializer("created_at", "updated_at")
+    def _ser_dt(self, v: Optional[datetime], _info):
+        return _to_utc_iso(v)
 
 
 class ChatMessageCreate(BaseModel):
@@ -55,8 +74,16 @@ class ChatMessageResponse(BaseModel):
     message_type: str
     file_url: Optional[str] = None
     created_at: datetime
+    # [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517 · Bug-3]
+    # 把识药卡片元数据回吐给前端，刷新 / 跨设备 时能还原"已加入用药计划"等状态。
+    message_metadata: Optional[dict] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    # [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517] 时区规范
+    @field_serializer("created_at")
+    def _ser_dt(self, v: Optional[datetime], _info):
+        return _to_utc_iso(v)
 
 
 class AIQueryRequest(BaseModel):

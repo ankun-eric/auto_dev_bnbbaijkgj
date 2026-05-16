@@ -147,7 +147,9 @@ class EmptySessionWelcome(BaseModel):
 
 
 class SessionConfig(BaseModel):
-    idle_timeout_minutes: int = 30
+    # [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517] 会话超时由 30 → 60 分钟，
+    # 对齐晓医/阿福；"到点不清，再次发消息时才清"的行为规则保持不变。
+    idle_timeout_minutes: int = 60
     auto_new_session: bool = True
     empty_session_welcome: EmptySessionWelcome = Field(default_factory=EmptySessionWelcome)
     # v1.0 新增：会话策略

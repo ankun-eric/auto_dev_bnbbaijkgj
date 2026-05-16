@@ -34,6 +34,7 @@ from app.services.ai_service import (
     symptom_analysis,
 )
 from app.services.knowledge_search import search_knowledge
+from app.utils.datetime_utils import iso_utc
 # [2026-04-23 v1.2] 用药对话 drug_query 注入 {member_info} + {drug_list}
 from app.api.drug_chat import inject_drug_context_to_prompt
 # [BUG_FIX_拍照识药三联_20260516] 聊天内嵌识药引擎（方案 E）
@@ -1210,8 +1211,10 @@ async def get_session_detail(
         "type": stype,
         "family_member_id": sess.family_member_id,
         "message_count": sess.message_count or 0,
-        "created_at": sess.created_at.isoformat() if sess.created_at else None,
-        "updated_at": sess.updated_at.isoformat() if sess.updated_at else None,
+        # [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517] 时区规范：输出 UTC 带 +00:00 标识
+        # 旧 isoformat() 不带时区会被前端按本地时区误解析（导致"刚发生显示 8 小时前"）
+        "created_at": iso_utc(sess.created_at),
+        "updated_at": iso_utc(sess.updated_at),
         "report_id": report_id_val,
         "report_ids": report_ids_val,
         "compare_report_ids": report_ids_val,
@@ -1294,3 +1297,55 @@ async def sessions_messages_stream(
         current_user=current_user,
         db=db,
     )
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517 · Bug-3] 识药卡片状态持久化
+# ──────────────────────────────────────────────────────────────────────────
+
+
+@router.post("/messages/{message_id}/mark-added-to-plan")
+async def mark_message_added_to_plan(
+    message_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517 · Bug-3]
+    把识药卡片消息标记为「已加入用药计划」，写入 ChatMessage.message_metadata.added_to_plan = True
+    用于解决：点击"加入用药计划"跳转后返回 ai-home，按钮不再变回可点击的状态。
+
+    - 必须是 assistant 消息
+    - 必须归属于当前用户的会话
+    - 必须已经是 drug_identify_card 消息（meta.message_type == drug_identify_card）
+    """
+    msg_result = await db.execute(
+        select(ChatMessage).where(ChatMessage.id == message_id)
+    )
+    msg = msg_result.scalar_one_or_none()
+    if not msg:
+        raise HTTPException(status_code=404, detail="消息不存在")
+
+    sess_result = await db.execute(
+        select(ChatSession).where(
+            ChatSession.id == msg.session_id,
+            ChatSession.user_id == current_user.id,
+        )
+    )
+    sess = sess_result.scalar_one_or_none()
+    if not sess:
+        raise HTTPException(status_code=403, detail="无权操作该消息")
+
+    meta = dict(msg.message_metadata or {})
+    if meta.get("message_type") != "drug_identify_card":
+        # 非识药卡消息，也允许（前端可能复用作通用标记），但不强制 400
+        pass
+    meta["added_to_plan"] = True
+    msg.message_metadata = meta
+    # SQLAlchemy JSON 字段对 in-place 修改不一定脏检测，显式标记
+    try:
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(msg, "message_metadata")
+    except Exception:
+        pass
+    await db.commit()
+    return {"ok": True, "message_id": message_id, "added_to_plan": True}
