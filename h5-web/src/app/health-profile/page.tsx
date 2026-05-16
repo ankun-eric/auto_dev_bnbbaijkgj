@@ -1,5 +1,8 @@
 'use client';
 
+// [PRD-MED-PLAN-ENTRY-V1 2026-05-17] 引入 useSearchParams 后必须强制动态渲染，否则 Next.js 静态预渲染会因缺少 Suspense 而失败。
+export const dynamic = 'force-dynamic';
+
 /**
  * [PRD-健康档案路径统一 2026-05-16] 健康档案 v2 设计搬迁回主路径 /health-profile
  *

@@ -13,7 +13,7 @@
  * 数据源：GET /api/health-plan/medications/list?tab=in_progress|not_started|finished
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Toast } from 'antd-mobile';
 import api from '@/lib/api';
@@ -48,7 +48,7 @@ const GREEN = '#22c55e';
 const TEXT = '#111827';
 const SUB = '#6B7280';
 
-export default function MedicationPlansListPage() {
+function MedicationPlansListPageInner() {
   const router = useRouter();
   const sp = useSearchParams();
   const initialTab = (sp?.get('tab') as TabKey) || 'in_progress';
@@ -268,5 +268,13 @@ export default function MedicationPlansListPage() {
         +
       </div>
     </div>
+  );
+}
+
+export default function MedicationPlansListPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 24, textAlign: 'center', color: '#6B7280' }}>加载中…</div>}>
+      <MedicationPlansListPageInner />
+    </Suspense>
   );
 }
