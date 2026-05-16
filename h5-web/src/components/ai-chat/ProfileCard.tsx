@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import MedicationDrawer from './MedicationDrawer';
 import AdvisorCapsule from './AdvisorCapsule';
+import { formatGender } from '@/utils/format';
 
 export interface ProfileCardProps {
   consultantId: number;
@@ -339,7 +340,7 @@ export default function ProfileCard({
           </div>
         )}
       </div>
-      <Row label="性别" value={renderField(f.gender, 'string')} />
+      <Row label="性别" value={renderGenderField(f.gender)} />
       <Row label="年龄" value={f.age.filled ? `${f.age.value} 岁` : <Empty />} />
       <Row label="身高" value={renderField(f.height, 'string')} />
       <Row label="体重" value={renderField(f.weight, 'string')} />
@@ -510,7 +511,7 @@ export default function ProfileCard({
             )}
           </div>
 
-          <Row label="性别" value={renderField(f.gender, 'string')} />
+          <Row label="性别" value={renderGenderField(f.gender)} />
           <Row label="年龄" value={f.age.filled ? `${f.age.value} 岁` : <Empty />} />
           <Row label="身高" value={renderField(f.height, 'string')} />
           <Row label="体重" value={renderField(f.weight, 'string')} />
@@ -607,6 +608,11 @@ function Empty() {
 function renderField(field: ProfileField<string>, _t: 'string'): React.ReactNode {
   if (!field.filled || !field.value) return <Empty />;
   return field.value;
+}
+
+function renderGenderField(field: ProfileField<string>): React.ReactNode {
+  if (!field.filled || !field.value) return <Empty />;
+  return formatGender(field.value);
 }
 
 function renderListField(field: ProfileField<string[]>): React.ReactNode {

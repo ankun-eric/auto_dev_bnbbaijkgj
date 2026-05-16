@@ -1,11 +1,18 @@
 'use client';
 
 /**
- * [PRD-439 F-07] 用药提醒管理页
+ * [PRD-439 F-07 / BUG-HEALTH-ARCHIVE-V2 2026-05-16] 用药提醒管理页
  *
  * 路由: /medication-plans
  * - 顶部返回 + 标题"用药提醒管理"
  * - 新增/编辑/删除/启停 用药计划
+ *
+ * [BUG-HEALTH-ARCHIVE-V2] 统一数据源到 MedicationReminder（health-plan-v2）：
+ * - 列表 GET：/api/health-plan/medications/list
+ * - 新增 POST：/api/health-plan/medications
+ * - 编辑 PUT：/api/health-plan/medications/{id}
+ * - 删除 DELETE：/api/health-plan/medications/{id}
+ * - 双 Tab：今日用药 / 全部在用药品
  */
 
 import { useEffect, useState, useCallback } from 'react';
@@ -15,10 +22,16 @@ import api from '@/lib/api';
 interface Plan {
   id: number;
   drug_name: string;
+  medicine_name?: string;
   dosage: string;
   schedule: string[];
   note?: string | null;
+  notes?: string | null;
   enabled: boolean;
+  status?: string;
+  long_term?: boolean;
+  start_date?: string | null;
+  end_date?: string | null;
   patient_id?: number | null;
 }
 
@@ -29,6 +42,8 @@ interface FormState {
   schedule: string;
   note: string;
   enabled: boolean;
+  long_term: boolean;
+  end_date: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -37,7 +52,11 @@ const EMPTY_FORM: FormState = {
   schedule: '08:00',
   note: '',
   enabled: true,
+  long_term: true,
+  end_date: '',
 };
+
+type Segment = 'today' | 'all';
 
 export default function MedicationPlansPage() {
   const router = useRouter();
@@ -47,6 +66,7 @@ export default function MedicationPlansPage() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [segment, setSegment] = useState<Segment>('all');
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -56,8 +76,9 @@ export default function MedicationPlansPage() {
   const fetchPlans = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get<any>('/api/medication-reminder/plans');
-      const arr = Array.isArray(res) ? res : (res as any)?.data ?? [];
+      const res: any = await api.get('/api/health-plan/medications/list');
+      const data = res?.data || res;
+      const arr = Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : []);
       setPlans(arr as Plan[]);
     } catch {
       showToast('加载失败');
@@ -78,11 +99,13 @@ export default function MedicationPlansPage() {
   const openEdit = (p: Plan) => {
     setForm({
       id: p.id,
-      drug_name: p.drug_name,
+      drug_name: p.drug_name || p.medicine_name || '',
       dosage: p.dosage,
       schedule: (p.schedule || []).join(','),
-      note: p.note || '',
+      note: p.note || p.notes || '',
       enabled: p.enabled,
+      long_term: !!p.long_term,
+      end_date: p.end_date || '',
     });
     setModalOpen(true);
   };
@@ -113,18 +136,26 @@ export default function MedicationPlansPage() {
     setSaving(true);
     try {
       const body = {
-        drug_name: form.drug_name.trim(),
+        medicine_name: form.drug_name.trim(),
         dosage: form.dosage.trim(),
-        schedule,
-        note: form.note.trim() || null,
-        enabled: form.enabled,
+        notes: form.note.trim() || null,
+        time_period: 'custom',
+        remind_time: schedule[0] || '08:00',
+        frequency_per_day: schedule.length,
+        custom_times: schedule,
+        long_term: form.long_term,
+        end_date: form.long_term ? null : (form.end_date || null),
+        reminder_enabled: form.enabled,
       };
       if (form.id) {
-        await api.put(`/api/medication-reminder/plans/${form.id}`, body);
+        await api.put(`/api/health-plan/medications/${form.id}`, body);
       } else {
-        await api.post('/api/medication-reminder/plans', body);
+        await api.post('/api/health-plan/medications', body);
       }
       setModalOpen(false);
+      try {
+        sessionStorage.setItem('medication_changed', String(Date.now()));
+      } catch {}
       await fetchPlans();
       showToast('保存成功');
     } catch (e: any) {
@@ -137,7 +168,9 @@ export default function MedicationPlansPage() {
 
   const handleToggleEnabled = async (p: Plan) => {
     try {
-      await api.put(`/api/medication-reminder/plans/${p.id}`, { enabled: !p.enabled });
+      await api.put(`/api/health-plan/medications/${p.id}`, {
+        reminder_enabled: !p.enabled,
+      });
       await fetchPlans();
     } catch {
       showToast('切换失败');
@@ -145,15 +178,25 @@ export default function MedicationPlansPage() {
   };
 
   const handleDelete = async (p: Plan) => {
-    if (typeof window !== 'undefined' && !window.confirm(`删除「${p.drug_name}」？`)) return;
+    const name = p.drug_name || p.medicine_name || '';
+    if (typeof window !== 'undefined' && !window.confirm(`删除「${name}」？`)) return;
     try {
-      await api.delete(`/api/medication-reminder/plans/${p.id}`);
+      await api.delete(`/api/health-plan/medications/${p.id}`);
+      try {
+        sessionStorage.setItem('medication_changed', String(Date.now()));
+      } catch {}
       await fetchPlans();
       showToast('已删除');
     } catch {
       showToast('删除失败');
     }
   };
+
+  // 双 Tab 过滤：今日用药 = 在用药品 ∩ 今天命中服药时间点
+  // 由于「在用药品」每日均需服用（无每周/隔日重复字段），所以今日 Tab = 所有在用药品中 schedule 非空者
+  const todayList = plans.filter((p) => Array.isArray(p.schedule) && p.schedule.length > 0);
+  const allList = plans;
+  const visibleList: Plan[] = segment === 'today' ? todayList : allList;
 
   return (
     <div
@@ -210,10 +253,51 @@ export default function MedicationPlansPage() {
         </button>
       </div>
 
+      {/* 双 Tab：今日用药 / 全部用药计划 */}
+      <div
+        data-testid="prd439-medication-plans-seg"
+        style={{
+          display: 'flex',
+          background: '#fff',
+          margin: '12px 16px 0',
+          borderRadius: 20,
+          padding: 4,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+        }}
+      >
+        {[
+          { id: 'today' as Segment, label: '今日用药', count: todayList.length },
+          { id: 'all' as Segment, label: '全部用药计划', count: allList.length },
+        ].map((s) => {
+          const active = segment === s.id;
+          return (
+            <button
+              key={s.id}
+              data-testid={`prd439-medication-plans-seg-${s.id}`}
+              onClick={() => setSegment(s.id)}
+              style={{
+                flex: 1,
+                padding: '8px 0',
+                borderRadius: 16,
+                background: active ? 'linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)' : 'transparent',
+                color: active ? '#fff' : '#6b7280',
+                border: 'none',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              {s.label}（{s.count}）
+            </button>
+          );
+        })}
+      </div>
+
       <div style={{ padding: '12px 16px' }}>
         {loading ? (
           <div style={{ color: '#9CA3AF', textAlign: 'center', padding: 32 }}>加载中…</div>
-        ) : plans.length === 0 ? (
+        ) : visibleList.length === 0 ? (
           <div
             data-testid="prd439-medication-plans-empty"
             style={{
@@ -224,77 +308,97 @@ export default function MedicationPlansPage() {
               color: '#9CA3AF',
             }}
           >
-            还没有用药计划，点击右上角添加一条
+            {segment === 'today' ? '今日暂无用药计划' : '还没有用药计划，点击右上角添加一条'}
           </div>
         ) : (
-          plans.map((p) => (
-            <div
-              key={p.id}
-              data-testid="prd439-medication-plan-card"
-              style={{
-                background: '#fff',
-                borderRadius: 8,
-                padding: 14,
-                marginBottom: 10,
-                opacity: p.enabled ? 1 : 0.6,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
-                <div style={{ flex: 1, fontSize: 15, fontWeight: 600, color: '#111827' }}>
-                  {p.drug_name}
+          visibleList.map((p) => {
+            const displayName = p.drug_name || p.medicine_name || '';
+            return (
+              <div
+                key={p.id}
+                data-testid="prd439-medication-plan-card"
+                style={{
+                  background: '#fff',
+                  borderRadius: 8,
+                  padding: 14,
+                  marginBottom: 10,
+                  opacity: p.enabled ? 1 : 0.6,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
+                  <div style={{ flex: 1, fontSize: 15, fontWeight: 600, color: '#111827' }}>
+                    {displayName}
+                    {p.long_term && (
+                      <span
+                        style={{
+                          marginLeft: 8,
+                          fontSize: 11,
+                          padding: '2px 6px',
+                          background: '#dcfce7',
+                          color: '#16a34a',
+                          borderRadius: 6,
+                        }}
+                      >
+                        长期
+                      </span>
+                    )}
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#6B7280', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={p.enabled}
+                      onChange={() => handleToggleEnabled(p)}
+                    />
+                    {p.enabled ? '启用' : '已停'}
+                  </label>
                 </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#6B7280', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={p.enabled}
-                    onChange={() => handleToggleEnabled(p)}
-                  />
-                  {p.enabled ? '启用' : '已停'}
-                </label>
+                <div style={{ fontSize: 13, color: '#374151', marginBottom: 4 }}>
+                  剂量：{p.dosage || '-'}
+                </div>
+                <div style={{ fontSize: 13, color: '#374151', marginBottom: 4 }}>
+                  时间：{(p.schedule || []).join('、') || '-'}
+                </div>
+                {(p.note || p.notes) && (
+                  <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 8 }}>备注：{p.note || p.notes}</div>
+                )}
+                {!p.long_term && p.end_date && (
+                  <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 8 }}>截止日期：{p.end_date}</div>
+                )}
+                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                  <button
+                    onClick={() => openEdit(p)}
+                    style={{
+                      flex: 1,
+                      background: '#F3F4F6',
+                      border: '1px solid #E5E7EB',
+                      color: '#374151',
+                      padding: '6px 10px',
+                      borderRadius: 6,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    编辑
+                  </button>
+                  <button
+                    onClick={() => handleDelete(p)}
+                    style={{
+                      flex: 1,
+                      background: '#FEF2F2',
+                      border: '1px solid #FEE2E2',
+                      color: '#DC2626',
+                      padding: '6px 10px',
+                      borderRadius: 6,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    删除
+                  </button>
+                </div>
               </div>
-              <div style={{ fontSize: 13, color: '#374151', marginBottom: 4 }}>
-                剂量：{p.dosage}
-              </div>
-              <div style={{ fontSize: 13, color: '#374151', marginBottom: 4 }}>
-                时间：{(p.schedule || []).join('、')}
-              </div>
-              {p.note && (
-                <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 8 }}>备注：{p.note}</div>
-              )}
-              <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-                <button
-                  onClick={() => openEdit(p)}
-                  style={{
-                    flex: 1,
-                    background: '#F3F4F6',
-                    border: '1px solid #E5E7EB',
-                    color: '#374151',
-                    padding: '6px 10px',
-                    borderRadius: 6,
-                    fontSize: 13,
-                    cursor: 'pointer',
-                  }}
-                >
-                  编辑
-                </button>
-                <button
-                  onClick={() => handleDelete(p)}
-                  style={{
-                    flex: 1,
-                    background: '#FEF2F2',
-                    border: '1px solid #FEE2E2',
-                    color: '#DC2626',
-                    padding: '6px 10px',
-                    borderRadius: 6,
-                    fontSize: 13,
-                    cursor: 'pointer',
-                  }}
-                >
-                  删除
-                </button>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -363,10 +467,30 @@ export default function MedicationPlansPage() {
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#374151' }}>
                 <input
                   type="checkbox"
+                  checked={form.long_term}
+                  onChange={(e) => setForm({ ...form, long_term: e.target.checked })}
+                />
+                长期服用
+              </label>
+            </div>
+            {!form.long_term && (
+              <Field label="截止日期">
+                <input
+                  type="date"
+                  value={form.end_date}
+                  onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+                  style={inputStyle}
+                />
+              </Field>
+            )}
+            <div style={{ marginTop: 8 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#374151' }}>
+                <input
+                  type="checkbox"
                   checked={form.enabled}
                   onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
                 />
-                启用
+                启用提醒
               </label>
             </div>
             <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>

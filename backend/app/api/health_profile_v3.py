@@ -29,8 +29,10 @@ from app.core.security import get_current_user
 from app.models.health_v3 import DeviceBinding, HealthMetricRecord
 from app.models.models import (
     HealthProfile,
+    MedicationCheckIn,
     MedicationLog,
     MedicationPlan,
+    MedicationReminder,
     User,
 )
 from app.schemas.health_v3 import (
@@ -138,6 +140,51 @@ def _principal_value(metric_type: str, value: Dict[str, Any]) -> Optional[float]
     return None
 
 
+def _schedule_of(reminder: "MedicationReminder") -> List[str]:
+    """统一从 MedicationReminder 抽取每日服药时间点列表。
+
+    [BUG-HEALTH-ARCHIVE-V2 2026-05-16] 用药数据源统一到 MedicationReminder。
+    优先使用 custom_times（JSON 数组），否则用 remind_time（单时间点），最后用 "08:00" 兜底。
+    """
+    if reminder.custom_times and isinstance(reminder.custom_times, list):
+        out: List[str] = []
+        for t in reminder.custom_times:
+            if isinstance(t, str) and len(t) >= 4:
+                out.append(t)
+        if out:
+            return out
+    if reminder.remind_time:
+        return [reminder.remind_time]
+    return ["08:00"]
+
+
+async def _list_active_reminders(
+    db: AsyncSession, user_id: int, today: date
+) -> List["MedicationReminder"]:
+    """[BUG-HEALTH-ARCHIVE-V2 2026-05-16] 「在用药品」统一口径
+
+    在用药品 = MedicationReminder WHERE
+        user_id = current_user
+        AND status = 'active'
+        AND (long_term = True OR end_date IS NULL OR end_date >= TODAY)
+
+    不再校验 start_date，允许预排未来开始的药也计入"在管理"。
+    """
+    from sqlalchemy import or_
+
+    stmt = select(MedicationReminder).where(
+        MedicationReminder.user_id == user_id,
+        MedicationReminder.status == "active",
+        or_(
+            MedicationReminder.long_term == True,  # noqa: E712
+            MedicationReminder.end_date.is_(None),
+            MedicationReminder.end_date >= today,
+        ),
+    ).order_by(MedicationReminder.remind_time.asc())
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
+
+
 async def _get_latest_metric(
     db: AsyncSession, profile_id: int, metric_type: str
 ) -> Optional[HealthMetricRecord]:
@@ -177,32 +224,31 @@ async def get_today_metrics(
         else:
             snapshots[metric_type] = MetricSnapshot(metric_type=metric_type)
 
-    # 用药打卡进度
+    # 用药打卡进度（统一数据源到 MedicationReminder —— BUG-HEALTH-ARCHIVE-V2 2026-05-16）
     today = date.today()
-    plan_stmt = select(MedicationPlan).where(
-        MedicationPlan.user_id == current_user.id,
-        MedicationPlan.enabled == True,  # noqa: E712
-    )
-    plans = (await db.execute(plan_stmt)).scalars().all()
-    total_slots = sum(len(p.schedule or []) for p in plans)
+    reminders = await _list_active_reminders(db, current_user.id, today)
+    total_slots = sum(len(_schedule_of(r)) for r in reminders)
     checked_count = 0
     has_overdue = False
     now = datetime.utcnow()
-    if plans:
-        plan_ids = [p.id for p in plans]
-        log_stmt = select(MedicationLog).where(
-            MedicationLog.plan_id.in_(plan_ids),
-            MedicationLog.log_date == today,
-            MedicationLog.revoked == False,  # noqa: E712
+    if reminders:
+        reminder_ids = [r.id for r in reminders]
+        checkin_stmt = select(MedicationCheckIn).where(
+            MedicationCheckIn.reminder_id.in_(reminder_ids),
+            MedicationCheckIn.check_in_date == today,
         )
-        logs = (await db.execute(log_stmt)).scalars().all()
-        checked_set = {(l.plan_id, l.scheduled_time) for l in logs}
-        checked_count = len(checked_set)
-        # 检测是否有逾期（计划时间 + 15min 已过且未打卡）
-        for p in plans:
-            for t in (p.schedule or []):
-                if (p.id, t) in checked_set:
-                    continue
+        checkins = (await db.execute(checkin_stmt)).scalars().all()
+        # MedicationCheckIn 不区分时间点（只记日打卡），全部时间点视为已打卡或未打卡
+        checked_reminder_ids = {c.reminder_id for c in checkins}
+        for r in reminders:
+            schedule = _schedule_of(r)
+            if r.id in checked_reminder_ids:
+                checked_count += len(schedule)
+        # 检测是否有逾期：reminder 当前任一时间点 + 15min 已过且未打卡
+        for r in reminders:
+            if r.id in checked_reminder_ids:
+                continue
+            for t in _schedule_of(r):
                 try:
                     h, m = int(t[:2]), int(t[3:])
                     sched_dt = datetime.combine(today, datetime.min.time()).replace(hour=h, minute=m)
@@ -469,51 +515,58 @@ async def get_medication_plan(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    [BUG-HEALTH-ARCHIVE-V2 2026-05-16] 健康档案用药计划 Tab 数据源
+    统一切到 MedicationReminder（health-plan-v2），废弃 MedicationPlan 读取。
+
+    口径：「在用药品」 = status='active' AND (long_term=True OR end_date IS NULL OR end_date >= TODAY)
+    """
     await _verify_profile_access(db, profile_id, current_user)
 
     today = date.today()
     week_start = today - timedelta(days=today.weekday())  # 周一
-    plan_stmt = select(MedicationPlan).where(
-        MedicationPlan.user_id == current_user.id,
-        MedicationPlan.enabled == True,  # noqa: E712
-    )
-    plans = (await db.execute(plan_stmt)).scalars().all()
+    reminders = await _list_active_reminders(db, current_user.id, today)
 
     items: List[MedicationPlanCard] = []
-    for p in plans:
-        # 今日打卡状态
-        today_logs = (await db.execute(
-            select(MedicationLog).where(
-                MedicationLog.plan_id == p.id,
-                MedicationLog.log_date == today,
-                MedicationLog.revoked == False,  # noqa: E712
-            )
-        )).scalars().all()
-        checked_today = {l.scheduled_time for l in today_logs}
-        chips = [
-            MedicationTimeChip(scheduled_time=t, checked=(t in checked_today))
-            for t in (p.schedule or [])
-        ]
-
-        # 本周完成率
-        weekly_logs_q = await db.execute(
-            select(func.count(MedicationLog.id)).where(
-                MedicationLog.plan_id == p.id,
-                MedicationLog.log_date >= week_start,
-                MedicationLog.log_date <= today,
-                MedicationLog.revoked == False,  # noqa: E712
+    for r in reminders:
+        schedule = _schedule_of(r)
+        # 今日打卡状态：MedicationCheckIn 不区分时间点，按日打卡
+        checkin_q = await db.execute(
+            select(MedicationCheckIn).where(
+                MedicationCheckIn.reminder_id == r.id,
+                MedicationCheckIn.check_in_date == today,
             )
         )
-        weekly_completed = int(weekly_logs_q.scalar() or 0)
+        checked_today_all = checkin_q.scalar_one_or_none() is not None
+        chips = [
+            MedicationTimeChip(scheduled_time=t, checked=checked_today_all)
+            for t in schedule
+        ]
+
+        # 本周完成率：本周内 reminder 的打卡天数 × 每日时间点数 / (本周已过天数 × 每日时间点数)
+        weekly_q = await db.execute(
+            select(func.count(MedicationCheckIn.id)).where(
+                MedicationCheckIn.reminder_id == r.id,
+                MedicationCheckIn.check_in_date >= week_start,
+                MedicationCheckIn.check_in_date <= today,
+            )
+        )
+        weekly_days_checked = int(weekly_q.scalar() or 0)
+        slots_per_day = max(len(schedule), 1)
+        weekly_completed = weekly_days_checked * slots_per_day
         days_so_far = (today - week_start).days + 1
-        weekly_total = len(p.schedule or []) * days_so_far
+        weekly_total = slots_per_day * days_so_far
         rate = round(weekly_completed / weekly_total * 100, 1) if weekly_total else 0.0
+        # 防止溢出 100%
+        if rate > 100.0:
+            rate = 100.0
+            weekly_completed = weekly_total
 
         items.append(MedicationPlanCard(
-            plan_id=p.id,
-            drug_name=p.drug_name,
-            dosage=p.dosage,
-            schedule=list(p.schedule or []),
+            plan_id=r.id,
+            drug_name=r.medicine_name,
+            dosage=r.dosage or "",
+            schedule=schedule,
             time_chips=chips,
             weekly_completed=weekly_completed,
             weekly_total=weekly_total,

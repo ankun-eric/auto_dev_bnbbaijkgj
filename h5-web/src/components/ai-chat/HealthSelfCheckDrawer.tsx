@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '@/lib/api';
+import { formatGender } from '@/utils/format';
 
 export interface BodyPartItem {
   id: number;
@@ -239,7 +240,7 @@ export default function HealthSelfCheckDrawer({
             <span style={{ color: '#222', fontWeight: 500 }}>
               {archive.name}
               {archive.age != null ? `（${archive.age}岁` : ''}
-              {archive.gender ? `·${archive.gender}` : ''}
+              {archive.gender ? `·${formatGender(archive.gender)}` : ''}
               {archive.age != null ? '）' : ''}
             </span>
           ) : (

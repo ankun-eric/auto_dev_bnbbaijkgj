@@ -399,7 +399,8 @@ async def test_hero_summary_metrics(client: AsyncClient, auth_headers, user_prof
     assert labels.get("既往病史", 0) >= 2
     assert labels.get("过敏史", 0) >= 2
     assert labels.get("家族遗传", 0) >= 1
-    assert labels.get("长期用药", 0) >= 1
+    # [BUG-HEALTH-ARCHIVE-V2 2026-05-16] 第 4 格 label 改为「在用药品」
+    assert labels.get("在用药品", 0) >= 1
 
 
 # ─────────────────── [PRD-469 v2 P0 M8] 病历卡 + OCR ─────────────────

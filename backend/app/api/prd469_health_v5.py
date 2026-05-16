@@ -42,6 +42,32 @@ router = APIRouter(prefix="/api/prd469", tags=["PRD-469 健康档案 v2 优化"]
 
 
 # ──────────────────────────────────────────────────────────
+# [BUG-HEALTH-ARCHIVE-V2 2026-05-16] 「在用药品」统一口径
+# ──────────────────────────────────────────────────────────
+
+async def _count_active_medications(db: AsyncSession, user_id: int) -> int:
+    """统一「在用药品」计数口径。
+
+    在用药品 = MedicationReminder WHERE
+        user_id = current_user
+        AND status = 'active'
+        AND (long_term = True OR end_date IS NULL OR end_date >= TODAY)
+    """
+    today = date.today()
+    stmt = select(MedicationReminder).where(
+        MedicationReminder.user_id == user_id,
+        MedicationReminder.status == "active",
+        or_(
+            MedicationReminder.long_term == True,  # noqa: E712
+            MedicationReminder.end_date.is_(None),
+            MedicationReminder.end_date >= today,
+        ),
+    )
+    res = await db.execute(stmt)
+    return len(res.scalars().all())
+
+
+# ──────────────────────────────────────────────────────────
 # 关系选项 + 头像（M3）
 # ──────────────────────────────────────────────────────────
 
@@ -847,19 +873,15 @@ async def get_summary_stats(
     )
     family_history_count = len(info.family_history or [])
 
-    med_count_q = await db.execute(
-        select(MedicationReminder).where(
-            MedicationReminder.user_id == current_user.id,
-            MedicationReminder.status == "active",
-        )
-    )
-    long_term_med_count = len(med_count_q.scalars().all())
+    # [BUG-HEALTH-ARCHIVE-V2 2026-05-16] 「在用药品」统一口径
+    long_term_med_count = await _count_active_medications(db, current_user.id)
 
     return {
         "chronic_count": chronic_count,
         "allergy_count": allergy_count,
         "family_history_count": family_history_count,
         "long_term_med_count": long_term_med_count,
+        "active_med_count": long_term_med_count,
     }
 
 
@@ -1231,20 +1253,14 @@ async def get_v5_summary(
     )
     family_count = len(info.family_history or [])
 
-    # 长期用药数量
-    med_count_q = await db.execute(
-        select(MedicationReminder).where(
-            MedicationReminder.user_id == current_user.id,
-            MedicationReminder.status == "active",
-        )
-    )
-    med_count = len(med_count_q.scalars().all())
+    # 在用药品数量（[BUG-HEALTH-ARCHIVE-V2 2026-05-16] 统一口径）
+    med_count = await _count_active_medications(db, current_user.id)
 
     hero_metrics = [
         {"label": "既往病史", "count": chronic_count, "unit": "项"},
         {"label": "过敏史", "count": allergy_count, "unit": "项"},
         {"label": "家族遗传", "count": family_count, "unit": "项"},
-        {"label": "长期用药", "count": med_count, "unit": "种"},
+        {"label": "在用药品", "count": med_count, "unit": "种"},
     ]
 
     return {

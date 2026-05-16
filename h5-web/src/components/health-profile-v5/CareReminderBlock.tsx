@@ -33,11 +33,15 @@ interface Props {
   profileId?: number;
   token: any;
   isLinked: boolean;
+  /** [BUG-HEALTH-ARCHIVE-V2 2026-05-16] 当前选中成员的 member_id（用于「邀请共管」跳转参数） */
+  memberId?: number;
+  /** [BUG-HEALTH-ARCHIVE-V2 2026-05-16] 当前选中是否为本人 —— 本人不展示「邀请共管」按钮 */
+  isSelf?: boolean;
 }
 
 const THRESHOLD_OPTIONS = [1, 2, 3, 5, 7];
 
-export default function CareReminderBlock({ token: T, isLinked, profileId }: Props) {
+export default function CareReminderBlock({ token: T, isLinked, profileId, memberId, isSelf }: Props) {
   const router = useRouter();
   const [setting, setSetting] = useState<ReminderSetting | null>(null);
   const [partners, setPartners] = useState<CarePartner[]>([]);
@@ -114,14 +118,26 @@ export default function CareReminderBlock({ token: T, isLinked, profileId }: Pro
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: T.brand700 }}>👥 共管家人</span>
-          <span
-            onClick={() => router.push('/family-invite')}
-            style={{ fontSize: 13, color: T.brand600, cursor: 'pointer' }}
-          >+ 邀请共管 ›</span>
+          {/* [BUG-HEALTH-ARCHIVE-V2 2026-05-16] B4：本人卡片不显示「邀请共管」按钮；B5：跳转携带 member_id */}
+          {!isSelf && (
+            <span
+              data-testid="prd469-invite-co-management"
+              onClick={() => {
+                if (memberId) {
+                  router.push(`/family-invite?member_id=${memberId}`);
+                } else {
+                  router.push('/family-invite');
+                }
+              }}
+              style={{ fontSize: 13, color: T.brand600, cursor: 'pointer' }}
+            >+ 邀请共管 ›</span>
+          )}
         </div>
         {partners.length === 0 ? (
           <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: 13, padding: '12px 0' }}>
-            暂无共管家人，点击「邀请共管」添加
+            {isSelf
+              ? '本人无需邀请共管，可在家庭成员卡片中邀请其他成员'
+              : '暂无共管家人，点击「邀请共管」添加'}
           </div>
         ) : (
           partners.map((p) => (

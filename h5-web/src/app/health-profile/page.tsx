@@ -23,6 +23,7 @@ import { Toast } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMemberModal';
+import { formatGender } from '@/utils/format';
 // [PRD-HEALTH-OPT-V1 2026-05-14 R2] 中部「我的设备」卡片已移除，由顶部右上角设备图标替代
 // import DeviceListBlock from '@/components/health-profile-v5/DeviceListBlock';
 import HealthInfoBlock from '@/components/health-profile-v5/HealthInfoBlock';
@@ -384,7 +385,7 @@ export default function HealthProfileV2Page() {
     const age = profile.birthday ? calcAge(profile.birthday) : null;
     // 5 行基础信息收纳到副标题，主体改为 4 格健康摘要指标
     const baseLine = [
-      profile.gender || '',
+      profile.gender ? formatGender(profile.gender) : '',
       age != null ? `${age} 岁` : '',
       profile.height ? `${profile.height} cm` : '',
       profile.weight ? `${profile.weight} kg` : '',
@@ -395,7 +396,7 @@ export default function HealthProfileV2Page() {
       { label: '既往病史', count: 0, unit: '项' },
       { label: '过敏史', count: 0, unit: '项' },
       { label: '家族遗传', count: 0, unit: '项' },
-      { label: '长期用药', count: 0, unit: '种' },
+      { label: '在用药品', count: 0, unit: '种' },
     ];
 
     return (
@@ -456,19 +457,25 @@ export default function HealthProfileV2Page() {
             data-testid="prd469-hero-metrics"
             style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 16 }}
           >
-            {metrics.map((m) => (
-              <div
-                key={m.label}
-                data-testid={`prd469-hero-metric-${m.label}`}
-                style={{
-                  textAlign: 'center', padding: '10px 4px',
-                  background: 'rgba(255,255,255,0.18)', borderRadius: 10,
-                }}
-              >
-                <div style={{ fontSize: 20, fontWeight: 700 }}>{m.count}</div>
-                <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>{m.label}</div>
-              </div>
-            ))}
+            {metrics.map((m) => {
+              // [BUG-HEALTH-ARCHIVE-V2 2026-05-16] 第 4 格「在用药品」点击跳转至用药计划列表
+              const isMed = m.label === '在用药品' || m.label === '长期用药';
+              return (
+                <div
+                  key={m.label}
+                  data-testid={`prd469-hero-metric-${m.label}`}
+                  onClick={isMed ? () => router.push('/medication-plans') : undefined}
+                  style={{
+                    textAlign: 'center', padding: '10px 4px',
+                    background: 'rgba(255,255,255,0.18)', borderRadius: 10,
+                    cursor: isMed ? 'pointer' : 'default',
+                  }}
+                >
+                  <div style={{ fontSize: 20, fontWeight: 700 }}>{m.count}</div>
+                  <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>{m.label}</div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -828,7 +835,13 @@ export default function HealthProfileV2Page() {
       {renderTodayMetrics()}
       <HealthInfoBlock profileId={profile?.id} token={T} />
       {renderMedicationPlan()}
-      <CareReminderBlock profileId={profile?.id} token={T} isLinked={isLinked} />
+      <CareReminderBlock
+        profileId={profile?.id}
+        token={T}
+        isLinked={isLinked}
+        memberId={selectedMember?.id}
+        isSelf={!!selectedMember?.is_self}
+      />
       <HealthEventsBlock profileId={profile?.id} token={T} />
 
       {showAddMember && (

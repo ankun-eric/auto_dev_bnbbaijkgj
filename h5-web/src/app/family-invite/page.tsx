@@ -32,7 +32,8 @@ function FamilyInviteContent() {
 
   useEffect(() => {
     if (!memberId) {
-      setError('缺少成员参数');
+      // [BUG-HEALTH-ARCHIVE-V2 2026-05-16] B5：缺参数时友好提示 + 引导用户从健康档案重新进入
+      setError('未找到要邀请的成员，请从健康档案的成员卡片重新进入。');
       setLoading(false);
       return;
     }
@@ -105,15 +106,25 @@ function FamilyInviteContent() {
         {loading ? (
           <div className="text-center py-20 text-gray-400 text-sm">正在生成邀请...</div>
         ) : error ? (
-          <div className="text-center py-20">
-            <div className="text-gray-400 text-sm mb-4">{error}</div>
-            <Button
-              size="small"
-              style={{ '--border-color': '#0EA5E9', '--text-color': '#0EA5E9', borderRadius: 20 }}
-              onClick={() => router.back()}
-            >
-              返回
-            </Button>
+          <div className="text-center py-20" data-testid="family-invite-error">
+            <div className="text-gray-500 text-sm mb-4 px-6 leading-relaxed">{error}</div>
+            <div className="flex justify-center gap-3">
+              <Button
+                size="small"
+                style={{ '--border-color': '#0EA5E9', '--text-color': '#0EA5E9', borderRadius: 20 }}
+                onClick={() => router.back()}
+              >
+                返回
+              </Button>
+              <Button
+                size="small"
+                color="primary"
+                style={{ borderRadius: 20 }}
+                onClick={() => router.replace('/health-profile')}
+              >
+                返回健康档案
+              </Button>
+            </div>
           </div>
         ) : invitation ? (
           <>

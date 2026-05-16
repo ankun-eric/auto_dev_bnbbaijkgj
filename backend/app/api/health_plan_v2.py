@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -105,6 +105,120 @@ async def list_medications(
         groups.setdefault(period, []).append(resp)
 
     return {"groups": groups, "total": len(reminders)}
+
+
+# ──────────────── [BUG-HEALTH-ARCHIVE-V2 2026-05-16] 统一用药数据源 ────────────────
+
+
+def _active_med_filter(user_id: int, today: date):
+    """构造「在用药品」过滤条件：
+
+    在用药品 = MedicationReminder WHERE
+        user_id = current_user
+        AND status = 'active'
+        AND (long_term = True OR end_date IS NULL OR end_date >= TODAY)
+    """
+    return [
+        MedicationReminder.user_id == user_id,
+        MedicationReminder.status == "active",
+        or_(
+            MedicationReminder.long_term == True,  # noqa: E712
+            MedicationReminder.end_date.is_(None),
+            MedicationReminder.end_date >= today,
+        ),
+    ]
+
+
+def _schedule_from_reminder(r: MedicationReminder) -> list[str]:
+    """从 MedicationReminder 抽取每日服药时间点列表（兼容 MedicationPlan.schedule[]）。"""
+    if r.custom_times and isinstance(r.custom_times, list):
+        out: list[str] = []
+        for t in r.custom_times:
+            if isinstance(t, str) and len(t) >= 4:
+                out.append(t)
+        if out:
+            return out
+    if r.remind_time:
+        return [r.remind_time]
+    return ["08:00"]
+
+
+@router.get("/medications/list")
+async def list_medications_flat(
+    segment: Optional[str] = Query(None, description="筛选: today=今日用药 / all=全部在用药品 / 空=全部在用药品"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[BUG-HEALTH-ARCHIVE-V2 2026-05-16] 用药计划列表 —— 统一数据源到 MedicationReminder。
+
+    返回结构与原 MedicationPlan 接口兼容：
+    {
+      "items": [
+        {
+          "id", "drug_name"(=medicine_name), "dosage", "frequency"(=每日次数文本),
+          "schedule": [..时间点..], "long_term", "start_date", "end_date",
+          "status", "enabled"(=status=='active'), "note"(=notes), "patient_id"
+        }
+      ],
+      "total": N
+    }
+    """
+    today = date.today()
+    stmt = select(MedicationReminder).where(*_active_med_filter(current_user.id, today)).order_by(
+        MedicationReminder.remind_time.asc()
+    )
+    reminders = (await db.execute(stmt)).scalars().all()
+
+    items: list[dict] = []
+    for r in reminders:
+        schedule = _schedule_from_reminder(r)
+        # 今日用药判定：所有「在用药品」每天都应服用，因此 today 始终命中（schedule 非空时）。
+        is_today = bool(schedule)
+        if segment == "today" and not is_today:
+            continue
+        freq_per_day = r.frequency_per_day or len(schedule) or 1
+        items.append({
+            "id": r.id,
+            "drug_name": r.medicine_name,
+            "medicine_name": r.medicine_name,
+            "dosage": r.dosage or "",
+            "frequency": f"每日 {freq_per_day} 次",
+            "frequency_per_day": freq_per_day,
+            "schedule": schedule,
+            "remind_time": r.remind_time,
+            "time_period": r.time_period,
+            "custom_times": r.custom_times,
+            "long_term": bool(r.long_term),
+            "start_date": r.start_date.isoformat() if r.start_date else None,
+            "end_date": r.end_date.isoformat() if r.end_date else None,
+            "status": r.status,
+            "enabled": (r.status == "active") and bool(r.reminder_enabled if r.reminder_enabled is not None else True),
+            "note": r.notes,
+            "notes": r.notes,
+            "disease_tags": r.disease_tags or [],
+            "reminder_enabled": bool(r.reminder_enabled if r.reminder_enabled is not None else True),
+            "patient_id": None,
+        })
+
+    return {"items": items, "total": len(items)}
+
+
+@router.get("/medications/summary")
+async def get_medication_summary(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[BUG-HEALTH-ARCHIVE-V2 2026-05-16] 「在用药品」摘要计数 —— 供 Hero 第 4 格使用。"""
+    today = date.today()
+    stmt = select(func.count(MedicationReminder.id)).where(
+        *_active_med_filter(current_user.id, today)
+    )
+    count = int((await db.execute(stmt)).scalar() or 0)
+    return {
+        "active_count": count,
+        "label": "在用药品",
+        "unit": "种",
+    }
 
 
 @router.get("/medications/{reminder_id}", response_model=MedicationReminderResponse)
