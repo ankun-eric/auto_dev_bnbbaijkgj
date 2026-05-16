@@ -27,7 +27,30 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-AICHAT-HOME-GRID-V1｜AI 对话首页功能宫格与胶囊条优化（2026-05-16 01:55）
+## Latest Update: PRD｜健康档案路径统一与四端对齐改造（2026-05-16 10:55）
+
+### 一句话结论
+把 H5 端 `/health-profile-v2` 内容迁回 `/health-profile`（旧 404 占位作 `.bak-2026-05-16` 备份，v2 目录整目录删除走 Next.js 默认 404），同时把小程序与 Flutter 端健康档案页**完整重写**对齐 H5 v2 设计（成员栏 + Hero 卡 + 5 大粘性 Tab：今日数据/健康信息/用药计划/关怀与提醒/健康事件），后端 v3 / prd469_v5 接口零改动只做回归。
+
+### 改造文件清单
+- **H5**：`h5-web/src/app/health-profile/page.tsx`（v2 全量覆盖；原 404 → `page.tsx.bak-2026-05-16`）；删除整目录 `h5-web/src/app/health-profile-v2/`；批量替换 `devices/points/family/family-auth` 四页中的 `/health-profile-v2` → `/health-profile`。
+- **小程序**：`miniprogram/pages/health-profile/{index.wxml,index.wxss,index.js,helpers.wxs}` 全部重写；原文件保留 `*.bak-2026-05-16`。API：`/api/family/members`、`/api/health/profile/member/{id}`、`/api/health-profile-v3/*`、`/api/prd469/summary/{id}`、`/api/family/management`。
+- **Flutter**：`flutter_app/lib/screens/health/health_profile_screen.dart` 全量重写（原文件 → `.bak-2026-05-16`）；`flutter_app/lib/widgets/health_profile_editor.dart` 因被 drug/symptom/checkup 多页共用，**保留不动**，只移除其 `.bak` 文件。
+- **后端**：零改动，仅回归 `backend/app/api/health_profile_v3.py`、`backend/app/api/prd469_health_v5.py`。
+
+### 部署 & 自动化测试（16/16 PASS）
+- 部署脚本：`deploy/_deploy_health_unify_20260516.py`（git fetch/reset/clean → BUILD_INFO 更新 → 停删 h5-web 容器 → docker compose build --no-cache → up -d → 等就绪 → `docker network connect` → `nginx -s reload`）。**踩坑**：服务名是 `h5-web` 不是 `frontend`；gateway 容器名是 `gateway` 不是 `gateway-nginx`。
+- 测试脚本：`deploy/_test_health_unify_20260516.py`（FC-01 新路径含 v2 内容 / FC-02 v2 路径 404 / FC-03 入口页可访问 / 后端 v3+v5 端点连通）。**踩坑**：`http_get` 初版只读 2000 字节，导致 Next.js SSR 后续动态注入的 `prd469-` 关键字判定漏检；改为读 60000 字节后通过。
+
+### 静态资源服务器结构（侧记，本次复用）
+gateway 容器静态目录挂载：`/home/ubuntu/{DEPLOY_ID}/static -> /data/static`；路由：`/autodev/{DEPLOY_ID}/miniprogram|apk|ipa|downloads/` → `/data/static/{name}/`。本次小程序包上传到 `/home/ubuntu/{DEPLOY_ID}/static/miniprogram/miniprogram_20260516_105346_85d2.zip`，可直接通过基础 URL `/miniprogram/<file>` 下载。
+
+### 用户手册
+`user_docs/健康档案.md` — 含三端入口链接、5 大 Tab 操作步骤、客服话术、FAQ。
+
+---
+
+## Previous Update: PRD-AICHAT-HOME-GRID-V1｜AI 对话首页功能宫格与胶囊条优化（2026-05-16 01:55）
 
 ### 一句话结论
 把后台"是否启用"拆为「是否推荐」+「是否胶囊」两个独立开关，分别控制 AI 对话首页【功能宫格】与【胶囊条】的显隐；同时把 AI 对话首页功能宫格重构为「4 列循环背景色 + 三级图标兜底」的菜单模式同款新样式（AI 专属 5 色配色池），客户端本地缓存 5 分钟。
