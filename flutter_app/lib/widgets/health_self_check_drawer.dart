@@ -12,6 +12,8 @@ class HealthSelfCheckResult {
   final Map<String, dynamic> bodyPart; // {id, name, icon}
   final List<String> symptoms;
   final String duration;
+  // [PRD-HEALTH-SELF-CHECK-V2 2026-05-16] 用户补充的症状描述（最长 50 字）
+  final String? symptomDescription;
 
   HealthSelfCheckResult({
     required this.templateId,
@@ -23,6 +25,7 @@ class HealthSelfCheckResult {
     required this.bodyPart,
     required this.symptoms,
     required this.duration,
+    this.symptomDescription,
   });
 
   /// [BUG-FIX 2026-05-16] 后端 HealthSelfCheckStartRequest schema 要求：
@@ -43,6 +46,10 @@ class HealthSelfCheckResult {
       'body_part_id': bodyPartId,
       'symptoms': symptoms,
       'duration': duration,
+      // [PRD-HEALTH-SELF-CHECK-V2 2026-05-16]
+      // 后端 HealthSelfCheckStartRequest 新增可选字段 symptom_description（≤50）。
+      // 此处统一传字符串（可能为空字符串），后端能识别。
+      'symptom_description': symptomDescription ?? '',
     };
   }
 }
@@ -84,11 +91,22 @@ class _HealthSelfCheckDrawerState extends State<HealthSelfCheckDrawer> {
   final Set<String> _selectedSymptoms = <String>{};
   String _selectedDuration = '';
   bool _highlightMissing = false;
+  // [PRD-HEALTH-SELF-CHECK-V2 2026-05-16] 症状描述输入控制器（最长 50 字）
+  final TextEditingController _symptomDesc = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _symptomDesc.addListener(() {
+      if (mounted) setState(() {});
+    });
     _loadTemplate();
+  }
+
+  @override
+  void dispose() {
+    _symptomDesc.dispose();
+    super.dispose();
   }
 
   Future<void> _loadTemplate() async {
@@ -117,6 +135,10 @@ class _HealthSelfCheckDrawerState extends State<HealthSelfCheckDrawer> {
           _selectedPartId = widget.prefill!.bodyPart['id'] as int?;
           _selectedSymptoms.addAll(widget.prefill!.symptoms);
           _selectedDuration = widget.prefill!.duration;
+          final pf = widget.prefill!.symptomDescription;
+          if (pf != null && pf.isNotEmpty) {
+            _symptomDesc.text = pf;
+          }
         }
       });
     } catch (e) {
@@ -160,6 +182,7 @@ class _HealthSelfCheckDrawerState extends State<HealthSelfCheckDrawer> {
       },
       symptoms: _selectedSymptoms.toList(),
       duration: _selectedDuration,
+      symptomDescription: _symptomDesc.text.trim().isEmpty ? null : _symptomDesc.text.trim(),
     );
     Navigator.of(context).pop(result);
   }
@@ -251,6 +274,35 @@ class _HealthSelfCheckDrawerState extends State<HealthSelfCheckDrawer> {
                                     _highlightMissing && _selectedSymptoms.isEmpty),
                             const SizedBox(height: 8),
                             _buildSymptoms(),
+                            const SizedBox(height: 18),
+                            // [PRD-HEALTH-SELF-CHECK-V2 2026-05-16] 症状描述（选填，≤50 字）
+                            _buildStepTitle('补充描述（选填）'),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: _symptomDesc,
+                              maxLength: 50,
+                              maxLines: 1,
+                              style: const TextStyle(fontSize: 13),
+                              decoration: InputDecoration(
+                                hintText: '请详细描述您的症状...',
+                                hintStyle: const TextStyle(fontSize: 13, color: Color(0xFFBBBBBB)),
+                                counterText: '${_symptomDesc.text.length}/50',
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: Color(0xFF1677FF)),
+                                ),
+                              ),
+                            ),
                             const SizedBox(height: 18),
                             _buildStepTitle('步骤 3：选择持续时间',
                                 missing:

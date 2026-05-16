@@ -18,6 +18,8 @@ class HealthSelfCheckCard extends StatelessWidget {
     final symptoms =
         (payload['symptoms'] as List?)?.map((e) => e.toString()).toList() ?? [];
     final duration = payload['duration']?.toString() ?? '';
+    // [PRD-HEALTH-SELF-CHECK-V2 2026-05-16] 症状描述（≤50 字，可选）
+    final symptomDesc = payload['symptom_description']?.toString() ?? '';
 
     return Container(
       constraints: const BoxConstraints(maxWidth: 320),
@@ -109,6 +111,20 @@ class HealthSelfCheckCard extends StatelessWidget {
               Text(duration, style: const TextStyle(fontSize: 13)),
             ],
           ),
+          if (symptomDesc.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('描述：', style: TextStyle(color: Color(0xFF888888), fontSize: 13)),
+                  Expanded(
+                    child: Text(symptomDesc,
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF333333))),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

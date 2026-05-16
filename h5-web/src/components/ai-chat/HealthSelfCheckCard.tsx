@@ -13,6 +13,8 @@ interface Props {
     bodyPart?: { id: number; name: string; icon: string };
     symptoms?: string[];
     duration?: string;
+    // [PRD-HSC-SSE 2026-05-16] 补充症状描述（选填，空串/undefined 时整行不渲染）
+    symptomDescription?: string;
   };
   onReopen?: () => void;
 }
@@ -97,6 +99,12 @@ export default function HealthSelfCheckCard({ payload, onReopen }: Props) {
           </span>
         ))}
       </div>
+      {payload.symptomDescription && payload.symptomDescription.trim() && (
+        <div style={{ marginBottom: 6 }}>
+          <span style={{ color: '#888' }}>症状描述：</span>
+          <span style={{ wordBreak: 'break-all' }}>{payload.symptomDescription}</span>
+        </div>
+      )}
       <div>
         <span style={{ color: '#888' }}>持续：</span>
         <span>{payload.duration}</span>

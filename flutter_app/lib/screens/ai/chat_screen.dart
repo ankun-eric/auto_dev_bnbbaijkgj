@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -597,6 +598,7 @@ class _ChatScreenState extends State<ChatScreen> {
       session = provider.currentSession;
     }
     final sessionId = session?.id ?? '';
+    // [PRD-HEALTH-SELF-CHECK-V2 2026-05-16] 卡片气泡 payload 增加 symptom_description
     final cardMsg = ChatMessage(
       id: 'hsc-${DateTime.now().millisecondsSinceEpoch}',
       sessionId: sessionId,
@@ -612,6 +614,7 @@ class _ChatScreenState extends State<ChatScreen> {
         'body_part': result.bodyPart,
         'symptoms': result.symptoms,
         'duration': result.duration,
+        'symptom_description': result.symptomDescription ?? '',
         'template_id': result.templateId,
         'button_id': result.buttonId,
       },
@@ -642,20 +645,99 @@ class _ChatScreenState extends State<ChatScreen> {
         'body_part_id': bodyPartId,
         'symptoms': result.symptoms,
         'duration': result.duration,
+        // [PRD-HEALTH-SELF-CHECK-V2 2026-05-16] 用户补充的症状描述（≤50 字，可为空）
+        'symptom_description': result.symptomDescription ?? '',
       };
-      final resp = await _apiService.post('/api/health-self-check/start',
-          data: requestBody);
-      final data = resp.data is Map ? Map<String, dynamic>.from(resp.data as Map) : <String, dynamic>{};
-      final aiText = (data['ai_content']?.toString() ?? '分析失败，请稍后重试');
-      provider.replaceMessageById(
-        aiPlaceholderId,
-        ChatMessage(
-          id: aiPlaceholderId,
-          sessionId: sessionId,
-          role: 'assistant',
-          content: aiText,
+
+      // [PRD-HEALTH-SELF-CHECK-V2 2026-05-16] 改造为 SSE 流式接口 /start-stream
+      // 协议（每个 event 块以 \n\n 结尾）：
+      //   event: meta\ndata: {"session_id":..., "user_message_id":..., "card_payload":{...}}
+      //   event: delta\ndata: {"content":"增量文本"}    （多条）
+      //   event: done\ndata: {"message_id":..., "full_content":"完整文本"}
+      final response = await _apiService.dio.post(
+        '/api/health-self-check/start-stream',
+        data: requestBody,
+        options: Options(
+          responseType: ResponseType.stream,
+          headers: {'Accept': 'text/event-stream'},
         ),
       );
+      final stream = response.data.stream as Stream<List<int>>;
+      String buffer = '';
+      String aiAccum = '';
+      bool gotDone = false;
+
+      await for (final chunk in stream) {
+        buffer += utf8.decode(chunk, allowMalformed: true);
+        // 按 \n\n 拆 event 块
+        while (true) {
+          final idx = buffer.indexOf('\n\n');
+          if (idx < 0) break;
+          final block = buffer.substring(0, idx);
+          buffer = buffer.substring(idx + 2);
+          String evt = 'message';
+          String data = '';
+          for (final raw in block.split('\n')) {
+            final line = raw.trimRight();
+            if (line.startsWith('event:')) {
+              evt = line.substring(6).trim();
+            } else if (line.startsWith('data:')) {
+              final piece = line.substring(5).trim();
+              data = data.isEmpty ? piece : '$data\n$piece';
+            }
+          }
+          if (data.isEmpty) continue;
+          Map<String, dynamic> payload;
+          try {
+            payload = json.decode(data) as Map<String, dynamic>;
+          } catch (_) {
+            continue;
+          }
+          if (evt == 'meta') {
+            // 当前实现暂不需要更新 session/user_message_id 至 UI；保留扩展点
+          } else if (evt == 'delta') {
+            final piece = payload['content']?.toString() ?? '';
+            if (piece.isEmpty) continue;
+            aiAccum += piece;
+            provider.replaceMessageById(
+              aiPlaceholderId,
+              ChatMessage(
+                id: aiPlaceholderId,
+                sessionId: sessionId,
+                role: 'assistant',
+                content: aiAccum,
+                isLoading: true,
+              ),
+            );
+          } else if (evt == 'done') {
+            gotDone = true;
+            final full = payload['full_content']?.toString();
+            final finalText = (full != null && full.isNotEmpty) ? full : aiAccum;
+            provider.replaceMessageById(
+              aiPlaceholderId,
+              ChatMessage(
+                id: aiPlaceholderId,
+                sessionId: sessionId,
+                role: 'assistant',
+                content: finalText.isEmpty ? '分析失败，请稍候重试' : finalText,
+              ),
+            );
+          }
+        }
+      }
+
+      if (!gotDone) {
+        // 流意外结束：用已累积内容定型，若无累积则提示失败
+        provider.replaceMessageById(
+          aiPlaceholderId,
+          ChatMessage(
+            id: aiPlaceholderId,
+            sessionId: sessionId,
+            role: 'assistant',
+            content: aiAccum.isEmpty ? '分析失败，请稍候重试' : aiAccum,
+          ),
+        );
+      }
     } catch (_) {
       provider.replaceMessageById(
         aiPlaceholderId,
@@ -663,7 +745,7 @@ class _ChatScreenState extends State<ChatScreen> {
           id: aiPlaceholderId,
           sessionId: sessionId,
           role: 'assistant',
-          content: '分析失败，请点击重试',
+          content: '分析失败，请稍候重试',
         ),
       );
     }
@@ -691,6 +773,8 @@ class _ChatScreenState extends State<ChatScreen> {
         bodyPart: bp,
         symptoms: symptoms,
         duration: payload['duration']?.toString() ?? '',
+        // [PRD-HEALTH-SELF-CHECK-V2 2026-05-16] 重新自查时回填症状描述
+        symptomDescription: payload['symptom_description']?.toString(),
       ),
     );
   }

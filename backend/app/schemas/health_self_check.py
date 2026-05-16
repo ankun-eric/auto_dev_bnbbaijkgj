@@ -103,6 +103,11 @@ class HealthSelfCheckStartRequest(BaseModel):
     body_part_id: int = Field(..., description="选定的部位 ID")
     symptoms: list[str] = Field(..., min_length=1, description="选定的症状列表")
     duration: str = Field(..., description="选定的持续时间档位")
+    # [PRD-HSC-SSE-V1 2026-05-16] 用户补充的「症状描述」（自然语言），最长 50 字，非必填
+    symptom_description: Optional[str] = Field(
+        default=None, max_length=50,
+        description="用户自然语言补充的症状描述，可选，≤ 50 字",
+    )
     session_id: Optional[int] = Field(default=None, description="所属 ChatSession ID（如不传由后端创建/复用）")
 
 
@@ -116,6 +121,8 @@ class HealthSelfCheckCardPayload(BaseModel):
     body_part: dict[str, Any] = Field(default_factory=dict)
     symptoms: list[str] = Field(default_factory=list)
     duration: str = ""
+    # [PRD-HSC-SSE-V1 2026-05-16] 卡片气泡中同步展示用户填写的症状描述（为空则前端不渲染该行）
+    symptom_description: Optional[str] = None
     template_id: int = 0
     button_id: int = 0
 

@@ -19,15 +19,18 @@
 """
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 from datetime import datetime
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.database import async_session as AsyncSessionLocal, get_db
 from app.core.security import get_current_user, require_role
 from app.models.models import (
     BodyPartDict,
@@ -52,7 +55,7 @@ from app.schemas.health_self_check import (
     HealthSelfCheckStartRequest,
     HealthSelfCheckStartResponse,
 )
-from app.services.ai_service import call_ai_model
+from app.services.ai_service import call_ai_model, call_ai_model_stream
 
 logger = logging.getLogger(__name__)
 
@@ -202,15 +205,17 @@ async def get_template_detail(tpl_id: int, db: AsyncSession = Depends(get_db)):
     return detail
 
 
-@public_router.post("/start", response_model=HealthSelfCheckStartResponse)
-async def start_health_self_check(
+async def _prepare_health_self_check(
     body: HealthSelfCheckStartRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """用户端提交问卷 → 后端拼装 Prompt → 调用 AI → 同步返回 AI 回答。
+    current_user: User,
+    db: AsyncSession,
+) -> tuple[ChatSession, ChatMessage, HealthSelfCheckCardPayload, str, str]:
+    """[PRD-HSC-SSE-V1 2026-05-16] 健康自查准备阶段——共用于同步接口与 SSE 流式接口。
 
-    后端会同时把「用户侧自查卡片消息」和「AI 回答消息」写入 chat_messages，使用现有 ChatSession 或新建。
+    完成：校验 → 档案上下文 → Prompt 拼装（含「症状描述」占位符）→ 获取/新建 session →
+    写入用户侧卡片消息 → 返回 (session, user_msg, card_payload, system_prompt, final_prompt)。
+
+    调用方负责后续 AI 调用 + AI 消息持久化 + commit。
     """
     # 1. 校验按钮 + 模板
     btn = await db.get(ChatFunctionButton, body.button_id)
@@ -223,12 +228,10 @@ async def start_health_self_check(
     if not tpl or not tpl.enabled:
         raise HTTPException(status_code=400, detail="关联的问卷模板不存在或已停用，请联系管理员")
 
-    # 校验持续时间合法性（在模板配置内）
     duration_opts = list(tpl.duration_options or [])
     if duration_opts and body.duration not in duration_opts:
         raise HTTPException(status_code=400, detail=f"持续时间 {body.duration} 不在模板档位 {duration_opts} 内")
 
-    # 校验部位合法性
     part = await db.get(BodyPartDict, body.body_part_id)
     if not part or not part.enabled:
         raise HTTPException(status_code=400, detail="选定的部位不存在或已停用")
@@ -236,23 +239,28 @@ async def start_health_self_check(
     if template_part_ids and part.id not in template_part_ids:
         raise HTTPException(status_code=400, detail=f"部位 {part.name} 不在模板允许范围内")
 
-    # 校验症状
     if not body.symptoms:
         raise HTTPException(status_code=400, detail="至少选择 1 个症状")
     avail = set(list(part.symptoms or []))
     extra = [s for s in body.symptoms if s not in avail]
-    # 兼容：避免脏数据导致 422；只做 warning，不强校验
     if extra:
         logger.warning("[health_self_check] 用户 %s 提交的症状 %s 不在部位 %s 字典内", current_user.id, extra, part.name)
 
-    # 2. 构建档案上下文
     archive_ctx = await _build_archive_context(db, current_user, body.archive_id)
 
-    # 3. 拼装 Prompt（按钮自定义优先；否则用模板默认）
     if btn.prompt_override_enabled and (btn.prompt_override_text or "").strip():
         prompt_template = btn.prompt_override_text or ""
     else:
         prompt_template = tpl.default_prompt or ""
+
+    # [PRD-HSC-SSE-V1 2026-05-16] 「症状描述」占位符处理：
+    # - 未填写时替换为空字符串；
+    # - 若模板里压根没有 {症状描述} 占位符，且用户填写了非空内容，则在末尾追加一行
+    #   「症状描述：{症状描述}」，避免模板未覆盖时该信息丢失。
+    desc_raw = (body.symptom_description or "").strip()
+    if desc_raw and "{症状描述}" not in prompt_template:
+        sep = "\n" if prompt_template and not prompt_template.endswith("\n") else ""
+        prompt_template = f"{prompt_template}{sep}症状描述：{{症状描述}}"
 
     vars_map = {
         "档案信息": archive_ctx["summary"],
@@ -263,10 +271,10 @@ async def start_health_self_check(
         "部位": part.name,
         "症状列表": "、".join(body.symptoms),
         "持续时间": body.duration,
+        "症状描述": desc_raw,  # 未填写为 ""
     }
     final_prompt = _format_prompt(prompt_template, vars_map)
 
-    # 4. 获取或新建 ChatSession
     session: Optional[ChatSession] = None
     if body.session_id:
         session = await db.get(ChatSession, body.session_id)
@@ -283,7 +291,6 @@ async def start_health_self_check(
         db.add(session)
         await db.flush()
 
-    # 5. 卡片 payload
     card_payload = HealthSelfCheckCardPayload(
         archive_id=body.archive_id,
         archive_name=archive_ctx["name"],
@@ -292,11 +299,11 @@ async def start_health_self_check(
         body_part={"id": part.id, "name": part.name, "icon": part.icon},
         symptoms=list(body.symptoms),
         duration=body.duration,
+        symptom_description=desc_raw or None,
         template_id=tpl.id,
         button_id=btn.id,
     )
 
-    # 6. 写入用户侧"自查卡片"消息
     user_msg = ChatMessage(
         session_id=session.id,
         role=MessageRole.user,
@@ -312,10 +319,25 @@ async def start_health_self_check(
     db.add(user_msg)
     await db.flush()
 
-    # 7. 调用 AI
     system_prompt = (
         "你是一名专业的全科医生助手。回答需通俗、克制，避免给出确定性诊断。"
         "最后请追加一句：「本回答仅供健康参考，不构成诊疗依据，如不适请及时就医。」"
+    )
+    return session, user_msg, card_payload, system_prompt, final_prompt
+
+
+@public_router.post("/start", response_model=HealthSelfCheckStartResponse)
+async def start_health_self_check(
+    body: HealthSelfCheckStartRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """用户端提交问卷 → 后端拼装 Prompt → 调用 AI → 同步返回 AI 回答。
+
+    向后兼容的非流式接口，前端应优先使用 `/start-stream`（SSE 流式输出）。
+    """
+    session, user_msg, card_payload, system_prompt, final_prompt = await _prepare_health_self_check(
+        body, current_user, db,
     )
     try:
         ai_text = await call_ai_model(
@@ -347,6 +369,177 @@ async def start_health_self_check(
         ai_message_id=ai_msg.id,
         ai_content=ai_text or "",
         card_payload=card_payload,
+    )
+
+
+@public_router.post("/start-stream")
+async def start_health_self_check_stream(
+    body: HealthSelfCheckStartRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD-HSC-SSE-V1 2026-05-16] SSE 流式版健康自查提交。
+
+    协议（与 `/api/chat/sessions/{id}/stream` 完全对齐，便于前端复用）：
+      - 首条 `event: meta`：返回 session_id、user_message_id、card_payload；前端立即插入卡片气泡 + 空 AI 气泡
+      - 中间多条 `event: delta`：每条 `data: {"content": "增量文本"}`，前端逐段追加到 AI 气泡
+      - 最后一条 `event: done`：`data: {"message_id": ai_msg_id, "full_content": "完整 AI 回复"}`，AI 消息已写库
+
+    关键设计：
+      - 前端断开连接（关闭抽屉/切换页面）后，**后端继续消费 LLM 流到结束**并把完整结果写入 chat_messages，
+        通过 `asyncio.create_task` + 独立 DB session 解耦 HTTP 生命周期。
+      - 流式过程出错时仍写库（兜底文本），保证历史气泡里有可读内容。
+    """
+    session, user_msg, card_payload, _system_prompt, final_prompt = await _prepare_health_self_check(
+        body, current_user, db,
+    )
+    # 提前提交 user_msg + session，避免后续 LLM 调用阻塞期间用户气泡丢失
+    await db.commit()
+
+    captured_session_id = session.id
+    captured_user_msg_id = user_msg.id
+    captured_card_payload_dump = card_payload.model_dump()
+
+    # 准备一份独立的 system_prompt + prompt，供后台任务在 HTTP 连接断开后继续使用
+    system_prompt = (
+        "你是一名专业的全科医生助手。回答需通俗、克制，避免给出确定性诊断。"
+        "最后请追加一句：「本回答仅供健康参考，不构成诊疗依据，如不适请及时就医。」"
+    )
+
+    # [PRD-HSC-SSE-V1 2026-05-16] 解耦"前端连接生命周期"与"AI 调用生命周期"的关键：
+    # 用 asyncio.Queue 在两个协程间传递增量 chunk：
+    #   - producer：在独立 task 中调用 LLM 流，把每个 delta 放入 queue，结束时写库 + commit
+    #   - consumer：HTTP 生成器逐条从 queue 拿，yield SSE event；如果前端断开（GeneratorExit），
+    #     producer 仍继续跑到结束（不取消任务），保证 AI 消息写库。
+
+    queue: asyncio.Queue[dict] = asyncio.Queue(maxsize=512)
+
+    async def producer():
+        """独立后台任务：跑 LLM 流，写库，不依赖 HTTP 连接是否还活着。"""
+        full_content = ""
+        producer_db = AsyncSessionLocal()
+        try:
+            try:
+                async for chunk in call_ai_model_stream(
+                    messages=[{"role": "user", "content": final_prompt}],
+                    system_prompt=system_prompt,
+                    db=producer_db,
+                ):
+                    ctype = chunk.get("type")
+                    if ctype == "delta":
+                        piece = chunk.get("content") or ""
+                        if piece:
+                            full_content += piece
+                            try:
+                                await queue.put({"type": "delta", "content": piece})
+                            except Exception:
+                                pass
+                    elif ctype == "done":
+                        # 优先以 producer 内累计的 full_content 为准（更稳）；否则用 chunk 提供的
+                        if not full_content:
+                            full_content = chunk.get("content") or ""
+                        break
+            except Exception as exc:  # noqa: BLE001
+                logger.error("[health_self_check_stream] LLM 流式调用失败: %s", exc)
+                if not full_content:
+                    fallback = (
+                        "很抱歉，AI 分析服务暂时不可用，请稍后重试。\n"
+                        "本回答仅供健康参考，不构成诊疗依据，如不适请及时就医。"
+                    )
+                    full_content = fallback
+                    try:
+                        await queue.put({"type": "delta", "content": fallback})
+                    except Exception:
+                        pass
+
+            # 写入 AI 消息 + 更新 session.message_count
+            ai_msg_id: Optional[int] = None
+            try:
+                ai_msg = ChatMessage(
+                    session_id=captured_session_id,
+                    role=MessageRole.assistant,
+                    content=full_content or "",
+                    parent_id=captured_user_msg_id,
+                )
+                producer_db.add(ai_msg)
+                # 同步更新 session 计数（user + ai 共 2 条；user 已在前面提交，这里再 +2）
+                sess = await producer_db.get(ChatSession, captured_session_id)
+                if sess:
+                    sess.message_count = (sess.message_count or 0) + 2
+                await producer_db.commit()
+                await producer_db.refresh(ai_msg)
+                ai_msg_id = ai_msg.id
+            except Exception as exc:  # noqa: BLE001
+                logger.error("[health_self_check_stream] 写入 AI 消息失败: %s", exc)
+                try:
+                    await producer_db.rollback()
+                except Exception:
+                    pass
+
+            try:
+                await queue.put({
+                    "type": "done",
+                    "message_id": ai_msg_id,
+                    "full_content": full_content or "",
+                })
+            except Exception:
+                pass
+        finally:
+            try:
+                await producer_db.close()
+            except Exception:
+                pass
+            # 哨兵：表示 producer 已完全退出
+            try:
+                await queue.put({"type": "_end"})
+            except Exception:
+                pass
+
+    task = asyncio.create_task(producer())
+
+    async def event_generator():
+        # 1. 首条 meta：让前端立即拿到 session_id / user_message_id / card_payload，插入卡片气泡
+        meta_data = json.dumps({
+            "session_id": captured_session_id,
+            "user_message_id": captured_user_msg_id,
+            "card_payload": captured_card_payload_dump,
+        }, ensure_ascii=False)
+        yield f"event: meta\ndata: {meta_data}\n\n"
+
+        # 2. 持续从 queue 取并下发，直到收到 done / _end
+        try:
+            while True:
+                item = await queue.get()
+                itype = item.get("type")
+                if itype == "delta":
+                    sse_data = json.dumps({"content": item.get("content", "")}, ensure_ascii=False)
+                    yield f"event: delta\ndata: {sse_data}\n\n"
+                elif itype == "done":
+                    done_data = json.dumps({
+                        "message_id": item.get("message_id"),
+                        "full_content": item.get("full_content", ""),
+                    }, ensure_ascii=False)
+                    yield f"event: done\ndata: {done_data}\n\n"
+                    # done 之后不再下发，但让 producer 自然结束
+                    break
+                elif itype == "_end":
+                    break
+        except GeneratorExit:
+            # 前端断开连接——不取消 producer，让其继续把 AI 回复写入 chat_messages
+            logger.info(
+                "[health_self_check_stream] 前端断开，后端继续完成 AI 流并写库 (session_id=%s)",
+                captured_session_id,
+            )
+            raise
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 

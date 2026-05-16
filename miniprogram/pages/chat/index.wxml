@@ -209,6 +209,11 @@
               <text class="hsc-card-tag" wx:for="{{item.hscPayload.symptoms}}" wx:key="*this">{{item}}</text>
             </view>
           </view>
+          <!-- [PRD-HSC-SYMPTOM-DESC 2026-05-16] 症状描述（如有） -->
+          <view class="hsc-card-row" wx:if="{{item.hscPayload.symptomDescription}}">
+            <text class="hsc-card-label">症状描述：</text>
+            <text class="hsc-card-value">{{item.hscPayload.symptomDescription}}</text>
+          </view>
           <view class="hsc-card-row">
             <text class="hsc-card-label">持续：</text>
             <text class="hsc-card-value">{{item.hscPayload.duration}}</text>
@@ -536,6 +541,18 @@
               wx:for="{{hscCurrentSymptoms}}" wx:key="*this"
               bindtap="onHscToggleSymptom" data-sym="{{item}}"
             >{{item}}</view>
+          </view>
+          <!-- [PRD-HSC-SYMPTOM-DESC 2026-05-16] 症状描述（选填） -->
+          <view class="hsc-step-title">步骤 2.5：补充症状描述（选填）</view>
+          <view class="hsc-desc-wrap">
+            <input
+              class="hsc-desc-input"
+              placeholder="请详细描述您的症状..."
+              maxlength="50"
+              value="{{symptomDescription}}"
+              bindinput="onHscSymptomDescInput"
+            />
+            <text class="hsc-desc-counter">{{symptomDescription.length}}/50</text>
           </view>
           <view class="hsc-step-title {{hscHighlightMissing && !hscSelectedDuration ? 'hsc-missing' : ''}}">步骤 3：选择持续时间</view>
           <view class="hsc-durations">

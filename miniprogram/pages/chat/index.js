@@ -65,6 +65,8 @@ Page({
     hscLoading: false,
     hscErrorMsg: '',
     hscHighlightMissing: false,
+    // [PRD-HSC-SYMPTOM-DESC 2026-05-16] 症状描述（选填，最多 50 字）
+    symptomDescription: '',
     uploadPercent: -1,
     showUploadProgress: false,
 
@@ -956,6 +958,7 @@ Page({
       hscSelectedSymptoms: [],
       hscSelectedDuration: '',
       hscHighlightMissing: false,
+      symptomDescription: '',
     });
     get(`/api/health-self-check/template/${tplId}`).then((res) => {
       const data = (res && res.data) ? res.data : res;
@@ -975,7 +978,14 @@ Page({
   },
 
   onHscClose() {
-    this.setData({ hscDrawerShow: false });
+    this.setData({ hscDrawerShow: false, symptomDescription: '' });
+  },
+
+  // [PRD-HSC-SYMPTOM-DESC 2026-05-16] 症状描述输入回调（input 原生 maxlength=50 兜底）
+  onHscSymptomDescInput(e) {
+    let v = (e && e.detail && typeof e.detail.value === 'string') ? e.detail.value : '';
+    if (v.length > 50) v = v.slice(0, 50);
+    this.setData({ symptomDescription: v });
   },
 
   onHscPickPart(e) {
@@ -1017,6 +1027,8 @@ Page({
     // - displayPayload：用于卡片气泡展示（保留 body_part 对象、archive_name 等）
     // - requestBody：用于发给后端（仅 body_part_id 整数，符合 HealthSelfCheckStartRequest schema）
     const archiveName = this.data.consultTarget && this.data.consultTarget.name ? this.data.consultTarget.name : '本人';
+    // [PRD-HSC-SYMPTOM-DESC 2026-05-16] 症状描述（选填）一并带上
+    const symptomDescription = (this.data.symptomDescription || '').trim();
     const displayPayload = {
       template_id: hscTemplate.id,
       button_id: hscButton.id,
@@ -1027,6 +1039,7 @@ Page({
       body_part: { id: part.id, name: part.name, icon: part.icon || '' },
       symptoms: hscSelectedSymptoms,
       duration: hscSelectedDuration,
+      symptomDescription: symptomDescription,
     };
     const requestBody = {
       template_id: hscTemplate.id,
@@ -1035,9 +1048,9 @@ Page({
       body_part_id: part.id,
       symptoms: hscSelectedSymptoms,
       duration: hscSelectedDuration,
+      symptom_description: symptomDescription || null,
     };
-    this.setData({ hscDrawerShow: false });
-    // 插入用户卡片消息
+    this.setData({ hscDrawerShow: false, symptomDescription: '' });
     const ts = Date.now();
     const cardMsg = {
       id: `hsc-${ts}`,
@@ -1051,6 +1064,7 @@ Page({
         body_part: displayPayload.body_part,
         symptoms: displayPayload.symptoms,
         duration: displayPayload.duration,
+        symptomDescription: displayPayload.symptomDescription,
         button_id: displayPayload.button_id,
         template_id: displayPayload.template_id,
       },
@@ -1060,25 +1074,238 @@ Page({
       id: `a-hsc-${ts}`,
       role: 'assistant',
       type: 'text',
-      content: '正在分析中…',
+      content: '',
       isLoading: true,
       created_at: new Date().toISOString(),
     };
     const messages = (this.data.messages || []).concat([cardMsg, aiPlaceholder]);
     this.setData({ messages, scrollToId: aiPlaceholder.id });
-    post('/api/health-self-check/start', requestBody).then((res) => {
-      const data = (res && res.data) ? res.data : res;
-      const aiText = (data && data.ai_content) || '分析失败，请稍后重试';
-      const msgs = (this.data.messages || []).map((m) =>
-        m.id === aiPlaceholder.id ? { ...m, content: aiText, isLoading: false } : m,
+    this._startHscStream(requestBody, aiPlaceholder.id);
+  },
+
+  // [PRD-HSC-SSE 2026-05-16] SSE 流式分析（带兜底）
+  _startHscStream(requestBody, aiMsgId) {
+    const app = getApp();
+    const baseUrl = (app && app.globalData && app.globalData.baseUrl) || '';
+    const token = (app && app.globalData && app.globalData.token) || '';
+    const header = {
+      'Content-Type': 'application/json',
+      'Accept': 'text/event-stream',
+      'Client-Type': 'miniprogram-user',
+      'X-Client-Type': 'miniprogram-user',
+      'X-Client-Source': 'miniprogram-customer',
+    };
+    if (token) header['Authorization'] = `Bearer ${token}`;
+
+    // 字节缓冲（多 chunk 拼接，避免中文 UTF-8 边界截断）+ 已 decode 文本缓冲（按 \n\n 分包）
+    let byteBuf = new Uint8Array(0);
+    let textBuf = '';
+    let accumulated = '';
+    let streamStarted = false;
+    let finished = false;
+
+    const that = this;
+
+    const concatU8 = (a, b) => {
+      const out = new Uint8Array(a.length + b.length);
+      out.set(a, 0);
+      out.set(b, a.length);
+      return out;
+    };
+
+    // UTF-8 解码（小程序无 TextDecoder；用兼容实现）
+    const u8ToString = (u8) => {
+      try {
+        if (typeof TextDecoder !== 'undefined') {
+          return new TextDecoder('utf-8').decode(u8);
+        }
+      } catch (_) { /* ignore */ }
+      // 退路 1：wx.arrayBufferToBase64 + decodeURIComponent(escape(atob(...)))
+      try {
+        const ab = u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength);
+        const b64 = wx.arrayBufferToBase64(ab);
+        // base64 -> binary string
+        const bin = (function (s) {
+          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+          let str = '';
+          s = s.replace(/=+$/, '');
+          for (let i = 0, bc = 0, bs = 0; i < s.length; i++) {
+            const c = chars.indexOf(s.charAt(i));
+            if (c < 0) continue;
+            bs = bc % 4 ? bs * 64 + c : c;
+            if (bc++ % 4) str += String.fromCharCode(255 & (bs >> ((-2 * bc) & 6)));
+          }
+          return str;
+        })(b64);
+        return decodeURIComponent(escape(bin));
+      } catch (_) {
+        let s = '';
+        for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]);
+        return s;
+      }
+    };
+
+    // 找到尾部不完整 UTF-8 序列的起始位置，确保 decode 不截断多字节
+    const findSafeEnd = (u8) => {
+      let i = u8.length;
+      const max = Math.min(4, u8.length);
+      for (let k = 1; k <= max; k++) {
+        const b = u8[u8.length - k];
+        if ((b & 0x80) === 0) { return i; } // ASCII，安全
+        if ((b & 0xC0) === 0xC0) {
+          // 多字节序列首字节
+          let expected = 0;
+          if ((b & 0xE0) === 0xC0) expected = 2;
+          else if ((b & 0xF0) === 0xE0) expected = 3;
+          else if ((b & 0xF8) === 0xF0) expected = 4;
+          if (k < expected) return u8.length - k; // 尾部不完整
+          return i;
+        }
+      }
+      return i;
+    };
+
+    const parseEvent = (raw) => {
+      // raw 形如 "event: delta\ndata: {...}"
+      let type = 'message';
+      const dataLines = [];
+      const lines = raw.split('\n');
+      for (const line of lines) {
+        if (!line) continue;
+        if (line.startsWith('event:')) {
+          type = line.slice(6).trim();
+        } else if (line.startsWith('data:')) {
+          dataLines.push(line.slice(5).trim());
+        }
+      }
+      const dataStr = dataLines.join('\n');
+      let data = null;
+      if (dataStr) {
+        try { data = JSON.parse(dataStr); } catch (_) { data = dataStr; }
+      }
+      return { type, data };
+    };
+
+    const updateAiContent = (text, loading) => {
+      const msgs = (that.data.messages || []).map((m) =>
+        m.id === aiMsgId ? { ...m, content: text, isLoading: !!loading } : m,
       );
-      this.setData({ messages: msgs });
-    }).catch(() => {
-      const msgs = (this.data.messages || []).map((m) =>
-        m.id === aiPlaceholder.id ? { ...m, content: '分析失败，请点击重试', isLoading: false } : m,
-      );
-      this.setData({ messages: msgs });
-    });
+      that.setData({ messages: msgs });
+    };
+
+    const handleEvent = (evt) => {
+      if (!evt || !evt.type) return;
+      if (evt.type === 'meta') {
+        streamStarted = true;
+        // meta 不强制处理
+      } else if (evt.type === 'delta') {
+        streamStarted = true;
+        const c = (evt.data && typeof evt.data.content === 'string') ? evt.data.content : '';
+        if (c) {
+          accumulated += c;
+          updateAiContent(accumulated, true);
+        }
+      } else if (evt.type === 'done') {
+        finished = true;
+        const full = (evt.data && typeof evt.data.full_content === 'string')
+          ? evt.data.full_content
+          : accumulated;
+        accumulated = full;
+        updateAiContent(full || '分析失败，请稍后重试', false);
+      }
+    };
+
+    const fallbackToSync = () => {
+      if (finished) return;
+      // 走原同步接口 + 伪流式 reveal，UX 不退化
+      post('/api/health-self-check/start', requestBody, { showLoading: false, suppressErrorToast: true }).then((res) => {
+        const data = (res && res.data) ? res.data : res;
+        const fullText = (data && data.ai_content) || '';
+        if (!fullText) {
+          updateAiContent('分析失败，请稍后重试', false);
+          finished = true;
+          return;
+        }
+        // 伪流式：每 ~40ms 追加若干字符
+        let idx = 0;
+        const step = Math.max(2, Math.ceil(fullText.length / 60));
+        const timer = setInterval(() => {
+          idx = Math.min(fullText.length, idx + step);
+          updateAiContent(fullText.slice(0, idx), idx < fullText.length);
+          if (idx >= fullText.length) {
+            clearInterval(timer);
+            finished = true;
+          }
+        }, 40);
+      }).catch(() => {
+        updateAiContent('分析失败，请点击重试', false);
+        finished = true;
+      });
+    };
+
+    let task = null;
+    try {
+      task = wx.request({
+        url: baseUrl + '/api/health-self-check/start-stream',
+        method: 'POST',
+        data: requestBody,
+        header,
+        enableChunked: true,
+        responseType: 'arraybuffer',
+        success(res) {
+          // 流式场景下 success 里 data 通常无用；判断状态码即可
+          if (res && res.statusCode && res.statusCode !== 200) {
+            if (!streamStarted) fallbackToSync();
+            else if (!finished) updateAiContent(accumulated || '分析失败，请稍后重试', false);
+          } else if (!finished) {
+            // 走到这里说明连接结束但没收到 done：用已累计的内容收尾
+            if (accumulated) updateAiContent(accumulated, false);
+            else if (!streamStarted) fallbackToSync();
+            else updateAiContent('分析失败，请稍后重试', false);
+            finished = true;
+          }
+        },
+        fail() {
+          if (!streamStarted && !finished) fallbackToSync();
+          else if (!finished) {
+            updateAiContent(accumulated || '分析失败，请稍后重试', false);
+            finished = true;
+          }
+        },
+      });
+      if (task && typeof task.onChunkReceived === 'function') {
+        task.onChunkReceived((resp) => {
+          try {
+            const ab = resp && resp.data;
+            if (!ab) return;
+            const u8 = new Uint8Array(ab);
+            byteBuf = concatU8(byteBuf, u8);
+            // 仅 decode 到安全边界，避免 UTF-8 截断
+            const safe = findSafeEnd(byteBuf);
+            if (safe > 0) {
+              const chunkText = u8ToString(byteBuf.slice(0, safe));
+              byteBuf = byteBuf.slice(safe);
+              textBuf += chunkText;
+            }
+            // 按 \n\n 拆 event
+            let sepIdx;
+            while ((sepIdx = textBuf.indexOf('\n\n')) !== -1) {
+              const rawEvent = textBuf.slice(0, sepIdx);
+              textBuf = textBuf.slice(sepIdx + 2);
+              if (rawEvent.trim()) {
+                handleEvent(parseEvent(rawEvent));
+              }
+            }
+          } catch (_) { /* ignore chunk parse error */ }
+        });
+      } else {
+        // 基础库不支持 onChunkReceived → 直接兜底
+        try { task && task.abort && task.abort(); } catch (_) { /* ignore */ }
+        fallbackToSync();
+      }
+    } catch (_) {
+      fallbackToSync();
+    }
   },
 
   _handleDrugIdentifyButton(btn) {

@@ -39,6 +39,8 @@ export interface HealthSelfCheckSubmitPayload {
   body_part: { id: number; name: string; icon: string };
   symptoms: string[];
   duration: string;
+  // [PRD-HSC-SSE 2026-05-16] 步骤 2.5 补充症状描述（选填，硬上限 50 字）
+  symptom_description?: string;
 }
 
 interface Props {
@@ -81,6 +83,8 @@ export default function HealthSelfCheckDrawer({
   const [selectedPartId, setSelectedPartId] = useState<number | null>(null);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [selectedDuration, setSelectedDuration] = useState<string>('');
+  // [PRD-HSC-SSE 2026-05-16] 步骤 2.5：补充症状描述（选填，硬上限 50 字）
+  const [symptomDescription, setSymptomDescription] = useState<string>('');
   const [highlightMissing, setHighlightMissing] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -124,12 +128,18 @@ export default function HealthSelfCheckDrawer({
       setSelectedPartId(null);
       setSelectedSymptoms([]);
       setSelectedDuration('');
+      setSymptomDescription('');
       setHighlightMissing(false);
       return;
     }
     if (prefill?.body_part?.id) setSelectedPartId(prefill.body_part.id);
     if (prefill?.symptoms) setSelectedSymptoms(prefill.symptoms);
     if (prefill?.duration) setSelectedDuration(prefill.duration);
+    if (prefill?.symptom_description) {
+      setSymptomDescription(String(prefill.symptom_description).slice(0, 50));
+    } else {
+      setSymptomDescription('');
+    }
   }, [open, prefill]);
 
   const selectedPart: BodyPartItem | null = useMemo(() => {
@@ -168,10 +178,11 @@ export default function HealthSelfCheckDrawer({
         body_part: { id: part.id, name: part.name, icon: part.icon },
         symptoms: selectedSymptoms,
         duration: selectedDuration,
+        symptom_description: symptomDescription,
       },
       template,
     );
-  }, [template, button, archive, selectedPartId, selectedSymptoms, selectedDuration, onSubmit]);
+  }, [template, button, archive, selectedPartId, selectedSymptoms, selectedDuration, symptomDescription, onSubmit]);
 
   if (!open) return null;
 
@@ -350,6 +361,52 @@ export default function HealthSelfCheckDrawer({
                     })}
                   </div>
                 )}
+              </div>
+
+              {/* 步骤 2.5：补充症状描述（选填，硬上限 50 字） */}
+              <div style={{ marginBottom: 18 }}>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    marginBottom: 8,
+                    color: '#222',
+                  }}
+                >
+                  步骤 2.5：补充症状描述（选填）
+                </div>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    value={symptomDescription}
+                    maxLength={50}
+                    onChange={(e) => setSymptomDescription(e.target.value.slice(0, 50))}
+                    placeholder="请详细描述您的症状..."
+                    style={{
+                      width: '100%',
+                      padding: '10px 56px 10px 12px',
+                      fontSize: 13,
+                      border: '1px solid #e8e8e8',
+                      borderRadius: 8,
+                      background: '#fff',
+                      color: '#333',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      right: 10,
+                      bottom: 6,
+                      fontSize: 11,
+                      color: '#bbb',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    {symptomDescription.length}/50
+                  </div>
+                </div>
               </div>
 
               {/* 步骤 3：持续时间 */}

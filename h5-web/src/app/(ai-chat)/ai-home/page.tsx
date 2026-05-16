@@ -82,6 +82,8 @@ interface ChatMessage {
     duration?: string;
     templateId?: number;
     buttonId?: number;
+    // [PRD-HSC-SSE 2026-05-16] 补充症状描述（选填）
+    symptomDescription?: string;
   };
 }
 
@@ -1394,6 +1396,8 @@ export default function AiHomePage() {
   }, []);
 
   // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查抽屉提交：插入卡片气泡 → 调用后端 start → 插入 AI 回答
+  // [PRD-HSC-SSE 2026-05-16] 改造为 SSE 流式：调用 /api/health-self-check/start-stream，
+  //   按 event(meta|delta|done) 增量更新 AI 气泡内容；同时把 symptom_description 透传给后端 + 卡片展示。
   const handleHealthSelfCheckSubmit = useCallback(
     async (payload: HealthSelfCheckSubmitPayload, _template: HealthCheckTemplateDetail) => {
       setHscDrawerOpen(false);
@@ -1413,6 +1417,7 @@ export default function AiHomePage() {
           duration: payload.duration,
           templateId: payload.template_id,
           buttonId: payload.button_id,
+          symptomDescription: payload.symptom_description,
         },
       };
       const aiPlaceholder: ChatMessage = {
@@ -1423,34 +1428,150 @@ export default function AiHomePage() {
         isStreaming: true,
       };
       setMessages((prev) => prev.concat(cardMsg, aiPlaceholder));
+
+      // [BUG-FIX 2026-05-16] 后端 schema 要求 body_part_id（整数），
+      // 不接受 archive_name/archive_age/archive_gender/body_part 对象。
+      // 展示模型（卡片气泡）仍保留完整 body_part 对象，但发给后端的 payload 只传 body_part_id。
+      const requestBody = {
+        template_id: payload.template_id,
+        button_id: payload.button_id,
+        archive_id: payload.archive_id ?? null,
+        body_part_id: payload.body_part?.id,
+        symptoms: payload.symptoms,
+        duration: payload.duration,
+        symptom_description: payload.symptom_description ?? null,
+      };
+
+      // 组装 SSE 流式请求所需的 URL + Header。
+      // base URL 与 axios 实例保持一致（next.config 的 basePath，例如线上 /autodev/<uuid>）。
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      const sseUrl = `${basePath}/api/health-self-check/start-stream`;
+      // token 与 api.ts 拦截器保持一致：C 端顾客域使用 'token'
+      let token: string | null = null;
       try {
-        // [BUG-FIX 2026-05-16] 后端 schema 要求 body_part_id（整数），
-        // 不接受 archive_name/archive_age/archive_gender/body_part 对象。
-        // 展示模型（卡片气泡）仍保留完整 body_part 对象，但发给后端的 payload 只传 body_part_id。
-        const requestBody = {
-          template_id: payload.template_id,
-          button_id: payload.button_id,
-          archive_id: payload.archive_id ?? null,
-          body_part_id: payload.body_part?.id,
-          symptoms: payload.symptoms,
-          duration: payload.duration,
-        };
-        const res = await api.post<any>('/api/health-self-check/start', requestBody);
-        const data = res?.data ?? res;
-        const aiText = data?.ai_content || '分析失败，请稍后重试';
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === aiPlaceholder.id ? { ...m, content: aiText, isStreaming: false } : m,
-          ),
-        );
+        token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       } catch {
+        token = null;
+      }
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        // 与 api.ts 一致：C 端顾客域客户端类型
+        'Client-Type': 'h5-user',
+        'X-Client-Type': 'h5-user',
+        'X-Client-Source': 'h5-customer',
+      };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      // SSE 事件流解析：按 \n\n 拆 event，每个 event 内部 `event: <type>\ndata: <json>`
+      let buffer = '';
+      let accumulated = '';
+      let finalized = false;
+      const applyDelta = (chunkText: string) => {
+        accumulated += chunkText;
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === aiPlaceholder.id
-              ? { ...m, content: '分析失败，请点击重试', isStreaming: false }
-              : m,
+            m.id === aiPlaceholder.id ? { ...m, content: accumulated, isStreaming: true } : m,
           ),
         );
+      };
+      const finalize = (fullText: string) => {
+        finalized = true;
+        const text = (fullText || accumulated || '').trim() || '分析完成';
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === aiPlaceholder.id ? { ...m, content: text, isStreaming: false } : m,
+          ),
+        );
+      };
+      const handleEventBlock = (block: string) => {
+        // 每个 event block 可能形如:
+        // event: meta\ndata: {...}
+        // event: delta\ndata: {...}
+        // event: done\ndata: {...}
+        const lines = block.split('\n');
+        let eventType = '';
+        const dataLines: string[] = [];
+        for (const ln of lines) {
+          if (ln.startsWith('event:')) {
+            eventType = ln.slice(6).trim();
+          } else if (ln.startsWith('data:')) {
+            dataLines.push(ln.slice(5).replace(/^\s/, ''));
+          }
+        }
+        const dataStr = dataLines.join('\n');
+        if (!eventType || !dataStr) return;
+        let dataObj: any = null;
+        try {
+          dataObj = JSON.parse(dataStr);
+        } catch {
+          return;
+        }
+        if (eventType === 'meta') {
+          // 可记录 session_id / user_message_id / card_payload，前端卡片已渲染无需强制使用
+          return;
+        }
+        if (eventType === 'delta') {
+          const c = typeof dataObj?.content === 'string' ? dataObj.content : '';
+          if (c) applyDelta(c);
+          return;
+        }
+        if (eventType === 'done') {
+          const full = typeof dataObj?.full_content === 'string' ? dataObj.full_content : '';
+          finalize(full);
+          return;
+        }
+      };
+
+      try {
+        const resp = await fetch(sseUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(requestBody),
+        });
+        if (!resp.ok || !resp.body) {
+          throw new Error(`SSE HTTP ${resp.status}`);
+        }
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        // 首条 delta 之前先把占位文案清空
+        accumulated = '';
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === aiPlaceholder.id ? { ...m, content: '', isStreaming: true } : m,
+          ),
+        );
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          // SSE event 之间以两个换行分隔
+          let sepIdx = buffer.indexOf('\n\n');
+          while (sepIdx !== -1) {
+            const rawBlock = buffer.slice(0, sepIdx);
+            buffer = buffer.slice(sepIdx + 2);
+            if (rawBlock.trim()) handleEventBlock(rawBlock);
+            sepIdx = buffer.indexOf('\n\n');
+          }
+        }
+        // flush 剩余 buffer
+        if (buffer.trim()) {
+          handleEventBlock(buffer);
+          buffer = '';
+        }
+        if (!finalized) {
+          // 没有收到 done 事件兜底：直接以累计内容定型
+          finalize(accumulated);
+        }
+      } catch {
+        if (!finalized) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === aiPlaceholder.id
+                ? { ...m, content: '分析失败，请点击重试', isStreaming: false }
+                : m,
+            ),
+          );
+        }
       }
     },
     [],
@@ -3079,6 +3200,7 @@ export default function AiHomePage() {
                           bodyPart: payload.bodyPart,
                           symptoms: payload.symptoms,
                           duration: payload.duration,
+                          symptomDescription: payload.symptomDescription,
                         }}
                         onReopen={() => {
                           const btn = funcButtons.find(
@@ -3090,6 +3212,7 @@ export default function AiHomePage() {
                               body_part: payload.bodyPart,
                               symptoms: payload.symptoms,
                               duration: payload.duration,
+                              symptom_description: payload.symptomDescription,
                             });
                             setHscDrawerOpen(true);
                           }

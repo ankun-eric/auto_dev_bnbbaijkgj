@@ -1468,6 +1468,10 @@
 .hsc-symptoms { display: flex; flex-wrap: wrap; }
 .hsc-sym { padding: 12rpx 24rpx; margin: 0 12rpx 12rpx 0; border: 1rpx solid #e8e8e8; border-radius: 30rpx; font-size: 26rpx; color: #333; background: #fff; }
 .hsc-sym-active { background: #1677ff; color: #fff; border-color: #1677ff; }
+/* [PRD-HSC-SYMPTOM-DESC 2026-05-16] 症状描述输入框 */
+.hsc-desc-wrap { position: relative; background: #fafafa; border: 1rpx solid #e8e8e8; border-radius: 12rpx; padding: 16rpx 20rpx; }
+.hsc-desc-input { width: 100%; font-size: 26rpx; color: #333; padding-right: 90rpx; min-height: 40rpx; }
+.hsc-desc-counter { position: absolute; right: 16rpx; bottom: 10rpx; font-size: 22rpx; color: #bfbfbf; }
 .hsc-durations { display: flex; flex-wrap: wrap; }
 .hsc-dur { padding: 12rpx 28rpx; margin: 0 12rpx 12rpx 0; border: 1rpx solid #e8e8e8; border-radius: 30rpx; font-size: 26rpx; color: #333; background: #fff; }
 .hsc-dur-active { background: #e6f4ff; color: #1677ff; border-color: #1677ff; }
