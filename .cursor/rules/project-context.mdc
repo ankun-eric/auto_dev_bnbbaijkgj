@@ -27,7 +27,75 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-MED-PLAN-ENTRY-V1-20260517｜用药计划入口改造（Hero 主入口 + 摘要卡降级 + 提醒打卡页 + 三 Tab 列表 + 旧路由彻底删除）（2026-05-17 00:30）
+## Latest Update: BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517｜ai-home 用药识别功能优化（流式两段播报 + 4 模块卡片 + 历史保留 + 时区规范 + 60 分钟超时）（2026-05-17 01:55）
+
+### 一句话结论
+针对 ai-home「拍照识药」体验问题，落地 4 项优化：① 流式输出改为「极简播报 + 个性化承接（含成员姓名）」两段，0.5s 出占位气泡，逐字吐出；② 卡片重构为 4 模块（基础信息 / 用法用量 / 安全提示 / 个性化风险）+ 按钮固底；③ 新增 `POST /api/chat/messages/{id}/mark-added-to-plan` 把"已加入用药计划"状态写入 `message_metadata` 云端持久化，列表接口回吐 `message_metadata` 让前端 `loadSessionMessages` 还原 `drugMeta`；④ `ChatSessionResponse` / `ChatMessageResponse` 新增 `field_serializer` 把 naive UTC datetime 序列化为 `+00:00` 后缀，前端按本地时区解析"刚刚发生"不再误显示"8 小时前"；⑤ `SessionConfig.idle_timeout_minutes` 默认值 30→60，前端 `idleTimeout` 兜底同步。
+
+### 后端核心改动
+- 新增 `backend/app/utils/datetime_utils.py`：统一时区工具 `iso_utc(dt)` 给 naive UTC 加 `+00:00` 后缀，供未来全局排查复用
+- 修改 `backend/app/schemas/chat.py`：`ChatSessionResponse` / `ChatMessageResponse` 新增 `@field_serializer("created_at", "updated_at")`，`ChatMessageResponse` 新增 `message_metadata` 字段
+- 修改 `backend/app/api/chat.py`：
+  - `get_session_detail` 的 isoformat 改用 `iso_utc`
+  - 新增 `POST /api/chat/messages/{message_id}/mark-added-to-plan`（权限：仅本人会话；写入 `message_metadata.added_to_plan=True`）
+- 修改 `backend/app/services/drug_identify_engine.py`：
+  - 新增 `_resolve_member_display_name(db, user_id, fmid)` 把 family_member.nickname 当作"承接称呼"
+  - 新增 `_stream_text_typewriter(text, chunk_size=6, delay=0.04)` 把文案切片成多个 delta 事件
+  - 新增 `_build_personalized_risk(medicine, profile)` 返回 `{level, label, conclusion, reasons}` 三档（safe/caution/danger）
+  - `run_drug_identify_stream`：进入即推 `progress:received`，然后流式吐两段播报；vision 完成后只下发 `done + meta`（不再额外推 summary），meta 增加 `member_name` 和 `personalized_risk`
+- 修改 `backend/app/schemas/ai_home_config.py`：`SessionConfig.idle_timeout_minutes` 默认 30 → 60
+
+### 前端核心改动（h5-web）
+- 重构 `src/app/(ai-chat)/ai-home/components/DrugIdentifyCard.tsx` 为 V4：
+  - 4 模块结构（基础信息 / 用法用量 / 安全提示 / 个性化风险）按字段动态渲染
+  - 卡片整体 maxHeight=70vh + 内容区 `overflowY:auto` + 按钮区 `flex-shrink:0` 实现按钮固底
+  - 新增 props `personalizedRisk` / `memberName` / `added` / `onRetake` / `onViewDetail`
+  - `added=true` 时主按钮显示「已加入用药计划」灰色不可点
+- 修改 `src/app/(ai-chat)/ai-home/page.tsx`：
+  - `drugMeta` 类型扩展 `member_name` / `personalized_risk` / `added_to_plan`
+  - SSE `done` 事件用后端返回的 `message_id` 替换乐观 id（保证后续 mark-added-to-plan 调用有效）
+  - `loadSessionMessages` 解析每条消息的 `message_metadata`，是 drug_identify_card/retake 则还原到 `drugMeta`，保留 added_to_plan
+  - `DrugIdentifyCard` 调用：传入 `personalizedRisk` / `memberName` / `added` / `onRetake`；`onAddPlan` 内乐观更新 + 调 `/api/chat/messages/{id}/mark-added-to-plan`
+  - 流式两段播报渲染：先渲染文字气泡（msg.content），再在下方追加结构化卡片
+  - `idleTimeout` 默认值 30min → 60min，配置面板 fallback 同步
+
+### 测试与验证
+- 新增 `backend/tests/test_ai_home_drug_identify_optim_20260517.py`（9 用例）：
+  1. /sessions 列表 created_at/updated_at 带 +00:00
+  2. /sessions/{id} 详情同样带时区
+  3. 创建后与 UTC now 差 < 60s（防止"8 小时偏移"回归）
+  4. mark-added-to-plan 写入 message_metadata
+  5. mark-added-to-plan 跨用户 403
+  6. /sessions/{sid}/messages 列表返回 message_metadata
+  7. drug_identify_engine 流式包含两段播报 + meta.personalized_risk
+  8. _build_personalized_risk 三档（danger/caution/safe）
+  9. SessionConfig 默认 60 分钟
+- 本地 pytest：本次 9/9 PASS；回归 `test_med_plan_entry_v1_20260517.py` + `test_med_plan_v1_20260516.py` 28/28 PASS
+- 服务器部署 + 公网 smoke：
+  - `/ai-home` / `/health-profile` HTTP 200，`/api/chat/sessions` 401（已挂载、鉴权生效）
+  - 注册 → 登录 → 创建会话 → 立即读取，`created_at=2026-05-16T17:53:48+00:00`，与 UTC now 差 1.9s（"刚刚"修复确认生效）
+
+### 部署
+- 部署脚本：`deploy/_deploy_ai_home_drug_identify_optim_20260517.py`（基于 med-plan-entry 部署脚本模板，含 git fetch 重试 + 容器内 pytest）
+- 容器：`6b099ed3-7175-4a78-91f4-44570c84ed27-backend` Up、`-h5` Up、`-db` Healthy；gateway nginx reload 成功
+
+### 用户体验手册
+- `user_docs/AI对话首页用药识别功能优化_20260517.md`
+
+### 受影响端
+- ✅ backend（FastAPI）
+- ✅ h5-web（Next.js · ai-home / 通用 chat schemas）
+- ❌ admin-web / flutter_app / miniprogram / verify-miniprogram 本次未改动 → **无需重新打包**
+
+### 遗留风险
+1. 容器内未安装 `pytest`，公网回归只能跑非测试性 smoke；本地 9/9 + 28/28 已覆盖
+2. 时区修复采用「Pydantic field_serializer + 工具函数」组合策略，未做全局 grep-isoformat 大改造；后续如再发现别的接口同问题，可用 `iso_utc()` 单点替换
+3. "已加入用药计划"乐观更新依赖 done 事件返回 `message_id`；本地乐观 id（`a-xxx`）跳过云端调用，刷新后会从云端拉取真实状态
+4. `_stream_text_typewriter` 默认 40ms 间隔/6 字符一片，整两段文案约 1.5-2s 内吐完，符合 PRD 节奏要求
+
+---
+
+## Previous Update: PRD-MED-PLAN-ENTRY-V1-20260517｜用药计划入口改造（Hero 主入口 + 摘要卡降级 + 提醒打卡页 + 三 Tab 列表 + 旧路由彻底删除）（2026-05-17 00:30）
 
 ### 一句话结论
 按 PRD v1.0 终稿系统改造「用药计划」入口职责：①健康档案 Hero 第 4 格"在用药品"升级为主入口（文案"还有 X 次用药 / 今日用药已完成 / 今日用药 0"），点击直达 `/ai-home/medication-reminder` 打卡页；②健康档案摘要卡降级为次入口（顶部右上角并排"全部/+新增"双按钮、仅服药中、单条不可点、滚动 480px/60vh、空态大按钮）；③新增用药提醒打卡页（顶部 Banner + 即将服用橙色高亮 + 时间线 + 5 分钟撤销）；④`/ai-home/medication-plans` 列表页三 Tab（服药中/未开始/已结束）+ 计数徽章；⑤新增表单允许过去日期补录；⑥彻底删除旧路由 `/medication-plans`、`/health-plan/medications`、`/health-plan/medications/add`，全部 404。
