@@ -1,12 +1,39 @@
-function isPresetSelected(items, name) {
-  if (!items || !items.length) return false;
-  var i;
-  for (i = 0; i < items.length; i++) {
-    if (typeof items[i] === 'string' && items[i] === name) return true;
+/**
+ * [PRD-健康档案路径统一 2026-05-16] 小程序端 v2 对齐版 WXS 工具函数
+ * 原文件备份为 helpers.wxs.bak-2026-05-16
+ */
+var EMOJI = {
+  '本人': '🙂',
+  '爸爸': '👨', '父亲': '👨', '老公': '👨', '丈夫': '👨',
+  '妈妈': '👩', '母亲': '👩', '老婆': '👩', '妻子': '👩',
+  '儿子': '👦', '女儿': '👧',
+  '爷爷': '👴', '外公': '👴',
+  '奶奶': '👵', '外婆': '👵'
+};
+
+function relationEmoji(m) {
+  if (!m) return '🙂';
+  if (m.is_self) return '🙂';
+  var name = m.relation_type_name || m.relationship_type || m.nickname || '';
+  return EMOJI[name] || '🙂';
+}
+
+function inList(list, name) {
+  if (!list || list.length === 0) return false;
+  for (var i = 0; i < list.length; i++) {
+    var it = list[i];
+    if (typeof it === 'string' && it === name) return true;
+    if (typeof it === 'object' && it && it.value === name) return true;
   }
   return false;
 }
 
+function isPresetSelected(list, name) {
+  return inList(list, name);
+}
+
 module.exports = {
+  relationEmoji: relationEmoji,
+  inList: inList,
   isPresetSelected: isPresetSelected
 };

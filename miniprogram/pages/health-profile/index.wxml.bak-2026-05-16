@@ -1,0 +1,185 @@
+<wxs src="./helpers.wxs" module="h" />
+
+<view class="health-profile-page">
+  <!-- 被管理提示条 -->
+  <view class="managed-notice" wx:if="{{isManagedByOthers}}" bindtap="goBindList">
+    <text class="managed-notice-icon">🔗</text>
+    <text class="managed-notice-text">您的健康档案正在被{{managedByList.length}}位家人共管</text>
+    <text class="managed-notice-arrow">查看 ›</text>
+  </view>
+
+  <!-- 家庭成员 Tab -->
+  <view class="family-tabs-wrapper">
+    <scroll-view class="family-tabs" scroll-x>
+      <view class="family-tab-item" wx:for="{{familyTabs}}" wx:key="id"
+            bindtap="onTabSelect" data-index="{{index}}">
+        <view class="family-tab {{activeTabIndex === index ? 'family-tab-active' : ''}}"
+              style="background: {{activeTabIndex === index ? item.color : '#f0f0f0'}};">
+          <text class="family-tab-text" style="color: {{activeTabIndex === index ? '#fff' : '#666'}};">{{item.name}}</text>
+          <view class="link-dot link-dot-green" wx:if="{{item.linked && !item.is_self}}"></view>
+        </view>
+        <text class="tab-link-label tab-link-linked" wx:if="{{item.linked && !item.is_self}}">已关联</text>
+        <text class="tab-link-label tab-link-pending" wx:elif="{{!item.is_self}}">待邀请</text>
+      </view>
+      <view class="family-tab family-tab-add" bindtap="onAddMemberTap">
+        <text class="family-tab-text" style="color: #999;">+</text>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 基础信息 -->
+  <view class="card">
+    <text class="section-title">基础信息</text>
+    <view class="form-item">
+      <text class="form-label">姓名</text>
+      <input class="form-input" placeholder="请输入姓名" value="{{profile.name}}" bindinput="onInput" data-field="name" />
+    </view>
+    <view class="form-item">
+      <text class="form-label">性别</text>
+      <view class="gender-group">
+        <view class="gender-btn {{profile.gender === '男' ? 'gender-active' : ''}}" bindtap="setGender" data-gender="男">男</view>
+        <view class="gender-btn {{profile.gender === '女' ? 'gender-active' : ''}}" bindtap="setGender" data-gender="女">女</view>
+      </view>
+    </view>
+    <view class="form-item">
+      <text class="form-label">出生日期</text>
+      <picker mode="date" value="{{profile.birthday}}" bindchange="onDateChange">
+        <text class="form-value {{profile.birthday ? '' : 'placeholder'}}">{{profile.birthday || '请选择'}}</text>
+      </picker>
+    </view>
+    <view class="form-item">
+      <text class="form-label">身高(cm)</text>
+      <input class="form-input" type="digit" placeholder="请输入" value="{{profile.height}}" bindinput="onInput" data-field="height" />
+    </view>
+    <view class="form-item">
+      <text class="form-label">体重(kg)</text>
+      <input class="form-input" type="digit" placeholder="请输入" value="{{profile.weight}}" bindinput="onInput" data-field="weight" />
+    </view>
+    <view class="form-item">
+      <text class="form-label">血型</text>
+      <picker range="{{bloodTypes}}" value="{{bloodTypeIndex}}" bindchange="onBloodTypeChange">
+        <text class="form-value {{profile.bloodType ? '' : 'placeholder'}}">{{profile.bloodType || '请选择'}}</text>
+      </picker>
+    </view>
+  </view>
+
+  <!-- 慢性病史 -->
+  <view class="card">
+    <view class="section-title">🏥 慢性病史</view>
+    <view class="tags-wrap">
+      <view wx:for="{{chronicPresets}}" wx:key="id"
+        class="preset-tag {{h.isPresetSelected(profile.chronic_diseases, item.name) ? 'preset-tag-selected' : ''}}"
+        bindtap="toggleChronicPreset" data-name="{{item.name}}">
+        {{item.name}}
+      </view>
+      <view class="preset-tag preset-tag-other {{showChronicOther ? 'preset-tag-selected' : ''}}"
+        bindtap="toggleChronicOther">
+        其它 ✚
+      </view>
+    </view>
+    <view wx:if="{{showChronicOther}}" class="custom-input-wrap">
+      <input class="custom-input" placeholder="请输入其它慢性病…"
+        value="{{chronicOtherInput}}" bindinput="onChronicOtherInput" maxlength="100"/>
+      <button class="confirm-btn" bindtap="confirmChronicOther">确认</button>
+    </view>
+    <view class="custom-tags" wx:if="{{chronicCustomItems.length > 0}}">
+      <view wx:for="{{chronicCustomItems}}" wx:key="value" class="custom-tag">
+        {{item.value}} <text class="delete-btn" bindtap="removeChronicCustom" data-value="{{item.value}}">✕</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 过敏史 -->
+  <view class="card">
+    <view class="section-title">⚠️ 过敏史</view>
+    <view class="tags-wrap">
+      <view wx:for="{{allergyPresets}}" wx:key="id"
+        class="preset-tag {{h.isPresetSelected(profile.allergies, item.name) ? 'preset-tag-selected' : ''}}"
+        bindtap="toggleAllergyPreset" data-name="{{item.name}}">
+        {{item.name}}
+      </view>
+      <view class="preset-tag preset-tag-other {{showAllergyOther ? 'preset-tag-selected' : ''}}"
+        bindtap="toggleAllergyOther">
+        其它 ✚
+      </view>
+    </view>
+    <view wx:if="{{showAllergyOther}}" class="custom-input-wrap">
+      <input class="custom-input" placeholder="请输入其它过敏源…"
+        value="{{allergyOtherInput}}" bindinput="onAllergyOtherInput" maxlength="100"/>
+      <button class="confirm-btn" bindtap="confirmAllergyOther">确认</button>
+    </view>
+    <view class="custom-tags" wx:if="{{allergyCustomItems.length > 0}}">
+      <view wx:for="{{allergyCustomItems}}" wx:key="value" class="custom-tag">
+        {{item.value}} <text class="delete-btn" bindtap="removeAllergyCustom" data-value="{{item.value}}">✕</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 家族遗传病史 -->
+  <view class="card">
+    <view class="section-title">🧬 家族遗传病史</view>
+    <view class="tags-wrap">
+      <view wx:for="{{geneticPresets}}" wx:key="id"
+        class="preset-tag {{h.isPresetSelected(profile.genetic_diseases, item.name) ? 'preset-tag-selected' : ''}}"
+        bindtap="toggleGeneticPreset" data-name="{{item.name}}">
+        {{item.name}}
+      </view>
+      <view class="preset-tag preset-tag-other {{showGeneticOther ? 'preset-tag-selected' : ''}}"
+        bindtap="toggleGeneticOther">
+        其它 ✚
+      </view>
+    </view>
+    <view wx:if="{{showGeneticOther}}" class="custom-input-wrap">
+      <input class="custom-input" placeholder="请输入其它遗传病…"
+        value="{{geneticOtherInput}}" bindinput="onGeneticOtherInput" maxlength="100"/>
+      <button class="confirm-btn" bindtap="confirmGeneticOther">确认</button>
+    </view>
+    <view class="custom-tags" wx:if="{{geneticCustomItems.length > 0}}">
+      <view wx:for="{{geneticCustomItems}}" wx:key="value" class="custom-tag">
+        {{item.value}} <text class="delete-btn" bindtap="removeGeneticCustom" data-value="{{item.value}}">✕</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 用药记录 -->
+  <view class="card">
+    <view class="section-header-row">
+      <text class="section-title">💊 当前用药</text>
+      <text class="add-btn" bindtap="addMedication">+ 添加</text>
+    </view>
+    <view class="med-list" wx:if="{{profile.medications.length > 0}}">
+      <view class="med-item" wx:for="{{profile.medications}}" wx:key="name">
+        <view class="med-info">
+          <text class="med-name">{{item.name}}</text>
+          <text class="med-dosage">{{item.dosage}}</text>
+        </view>
+        <text class="tag-remove" bindtap="removeMedication" data-index="{{index}}">×</text>
+      </view>
+    </view>
+    <text class="empty-hint" wx:else>暂无用药信息</text>
+  </view>
+
+  <!-- 家庭关联操作 -->
+  <view class="card family-link-card" wx:if="{{familyTabs[activeTabIndex] && !familyTabs[activeTabIndex].is_self}}">
+    <view class="section-title">🔗 家庭关联</view>
+    <view wx:if="{{!currentMemberLinked}}" class="link-action-wrap">
+      <text class="link-hint">邀请本人关联后，对方可同步查看和管理此健康档案</text>
+      <button class="btn-primary invite-btn" bindtap="onInviteLink">邀请本人关联</button>
+    </view>
+    <view wx:else class="link-action-wrap">
+      <view class="linked-status-row">
+        <view class="linked-badge">
+          <text class="linked-badge-dot"></text>
+          <text class="linked-badge-text">已关联</text>
+        </view>
+        <text class="unlink-btn" bindtap="onUnlink">解除关联</text>
+      </view>
+      <text class="link-hint">对方已授权，可同步查看和管理健康档案</text>
+    </view>
+  </view>
+
+  <!-- 保存按钮 -->
+  <view class="save-section safe-bottom">
+    <button class="btn-primary save-btn" bindtap="saveProfile">保存档案</button>
+  </view>
+</view>

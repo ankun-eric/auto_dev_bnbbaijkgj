@@ -1,41 +1,88 @@
-const { get, put, del } = require('../../utils/request');
+/**
+ * [PRD-健康档案路径统一 2026-05-16] 小程序端 v2 对齐版逻辑
+ * 原文件备份为 index.js.bak-2026-05-16
+ *
+ * 对齐 H5 v2 信息架构：成员条 → Hero卡 → 5 Tab（今日数据/健康信息/用药计划/共管与提醒/健康事件）
+ * 接口对齐：/api/family/members、/api/health/profile/member/{id}、
+ *           /api/health-profile-v3/{id}/today-metrics、
+ *           /api/health-profile-v3/{id}/medication-plan、
+ *           /api/prd469/summary/{id}、/api/family/management、/api/disease-presets
+ */
+const { get, put, post, del } = require('../../utils/request');
 
-const RELATION_COLORS = {
-  '本人': '#52c41a',
-  '爸爸': '#1890ff', '妈妈': '#1890ff',
-  '儿子': '#eb2f96', '女儿': '#eb2f96',
-  '爷爷': '#fa8c16', '奶奶': '#fa8c16',
-  '外公': '#fa8c16', '外婆': '#fa8c16'
-};
-function getRelationColor(name) {
-  return RELATION_COLORS[name] || '#8c8c8c';
+const TAB_LIST = [
+  { id: 'today-data',     label: '今日数据' },
+  { id: 'health-info',    label: '健康信息' },
+  { id: 'medication-plan',label: '用药计划' },
+  { id: 'care-reminder',  label: '共管与提醒' },
+  { id: 'health-events',  label: '健康事件' },
+];
+
+const BLOOD_TYPES = ['A', 'B', 'AB', 'O', '未知'];
+
+function calcAge(birthday) {
+  if (!birthday) return null;
+  try {
+    const b = new Date(birthday);
+    const now = new Date();
+    let age = now.getFullYear() - b.getFullYear();
+    const m = now.getMonth() - b.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age--;
+    return age >= 0 ? age : null;
+  } catch (_) { return null; }
 }
 
-function isPresetSelected(items, name) {
-  return (items || []).some(i => typeof i === 'string' && i === name);
+function buildBaseLine(p) {
+  if (!p) return '';
+  const age = calcAge(p.birthday);
+  const parts = [
+    p.gender || '',
+    age != null ? age + ' 岁' : '',
+    p.height ? p.height + ' cm' : '',
+    p.weight ? p.weight + ' kg' : '',
+    p.blood_type ? p.blood_type + '型' : '',
+  ].filter(Boolean);
+  return parts.join(' · ');
 }
-function getCustomItems(items) {
-  return (items || []).filter(i => typeof i === 'object' && i.type === 'custom');
+
+function splitPresetAndCustom(list) {
+  const presets = [];
+  const customs = [];
+  (list || []).forEach((it) => {
+    if (typeof it === 'string') presets.push({ value: it });
+    else if (it && it.type === 'custom') customs.push(it);
+    else if (it && it.value) presets.push({ value: it.value });
+  });
+  return { presets, customs };
 }
 
 Page({
   data: {
-    familyTabs: [],
-    activeTabIndex: 0,
-    profile: {
-      name: '',
-      gender: '',
-      birthday: '',
-      height: '',
-      weight: '',
-      bloodType: '',
-      chronic_diseases: [],
-      allergies: [],
-      genetic_diseases: [],
-      medications: []
-    },
-    bloodTypes: ['A型', 'B型', 'AB型', 'O型', '未知'],
-    bloodTypeIndex: -1,
+    members: [],
+    selectedMemberId: null,
+    selectedMember: null,
+    profile: null,
+    isLinked: false,
+    isManagedByOthers: false,
+    managedByList: [],
+
+    tabList: TAB_LIST,
+    activeTab: 'today-data',
+
+    todayMetrics: null,
+    todayCells: [],
+    medCell: { checked: 0, total: 0, has_overdue: false, percent: 0 },
+
+    medications: [],
+    events: [],
+
+    heroMetrics: [
+      { label: '既往病史', count: 0, unit: '项' },
+      { label: '过敏史', count: 0, unit: '项' },
+      { label: '家族遗传', count: 0, unit: '项' },
+      { label: '长期用药', count: 0, unit: '种' },
+    ],
+    baseLine: '',
 
     chronicPresets: [],
     allergyPresets: [],
@@ -53,434 +100,458 @@ Page({
     allergyOtherInput: '',
     geneticOtherInput: '',
 
-    managementList: [],
-    isManagedByOthers: false,
-    managedByList: [],
-    currentMemberLinked: false,
-    currentMemberManagementId: null
+    smokingOptions: ['从不', '偶尔', '经常'],
+    drinkingOptions: ['从不', '偶尔', '经常'],
+
+    bloodTypes: BLOOD_TYPES,
+    bloodTypeIndex: -1,
+
+    saving: false,
+    heroSaving: false,
+    showHeroEdit: false,
+    heroEditDraft: null,
   },
 
   onLoad() {
-    this.loadFamilyTabs();
     this.loadPresets();
+    this.loadMembers();
     this.loadManagedByInfo();
   },
 
   onShow() {
-    this.loadProfile();
-  },
-
-  async loadPresets() {
-    try {
-      const [chronicRes, allergyRes, geneticRes] = await Promise.all([
-        get('/api/disease-presets', { category: 'chronic' }, { showLoading: false, suppressErrorToast: true }),
-        get('/api/disease-presets', { category: 'allergy' }, { showLoading: false, suppressErrorToast: true }),
-        get('/api/disease-presets', { category: 'genetic' }, { showLoading: false, suppressErrorToast: true })
-      ]);
-      this.setData({
-        chronicPresets: (chronicRes && chronicRes.items) || [],
-        allergyPresets: (allergyRes && allergyRes.items) || [],
-        geneticPresets: (geneticRes && geneticRes.items) || []
-      });
-    } catch (e) {
-      console.log('loadPresets error', e);
+    if (this.data.selectedMemberId && this.data.profile && this.data.profile.id) {
+      this.loadMedicationPlan(this.data.profile.id);
     }
   },
 
-  async loadFamilyTabs() {
+  /* ============ 数据加载 ============ */
+  async loadPresets() {
     try {
-      const [membersRes, mgmtRes] = await Promise.all([
-        get('/api/family/members', {}, { showLoading: false, suppressErrorToast: true }),
-        get('/api/family/management', {}, { showLoading: false, suppressErrorToast: true }).catch(() => ({ items: [] }))
+      const opt = { showLoading: false, suppressErrorToast: true };
+      const [chronic, allergy, genetic] = await Promise.all([
+        get('/api/disease-presets', { category: 'chronic' }, opt),
+        get('/api/disease-presets', { category: 'allergy' }, opt),
+        get('/api/disease-presets', { category: 'genetic' }, opt),
       ]);
-      const items = membersRes && membersRes.items ? membersRes.items : [];
-      const mgmtItems = mgmtRes && mgmtRes.items ? mgmtRes.items : [];
-      const mgmtMap = {};
-      mgmtItems.forEach(m => { mgmtMap[m.managed_member_id] = m; });
+      const pick = (res) => {
+        const items = (res && (res.items || res.data || res)) || [];
+        if (Array.isArray(items)) return items.map((x) => x.name || x);
+        return [];
+      };
+      this.setData({
+        chronicPresets: pick(chronic),
+        allergyPresets: pick(allergy),
+        geneticPresets: pick(genetic),
+      });
+    } catch (_) {}
+  },
 
-      const tabs = items.map(m => ({
-        id: m.id,
-        name: m.relation_type_name || m.nickname || '本人',
-        color: getRelationColor(m.relation_type_name || ''),
-        is_self: m.is_self,
-        linked: !!mgmtMap[m.id],
-        managementId: mgmtMap[m.id] ? mgmtMap[m.id].id : null
-      }));
-      if (!tabs.some(t => t.is_self)) {
-        tabs.unshift({ id: 0, name: '本人', color: '#52c41a', is_self: true, linked: false, managementId: null });
+  async loadMembers() {
+    try {
+      const res = await get('/api/family/members', {}, { showLoading: false, suppressErrorToast: true });
+      const items = (res && (res.items || (res.data && res.data.items))) || [];
+      if (items.length === 0) {
+        this.setData({ members: [] });
+        return;
       }
-      this.setData({
-        familyTabs: tabs,
-        activeTabIndex: 0,
-        managementList: mgmtItems
-      });
-      this.updateCurrentMemberLinkStatus(0);
-      this.loadProfile();
-    } catch (e) {
-      this.setData({
-        familyTabs: [{ id: 0, name: '本人', color: '#52c41a', is_self: true, linked: false, managementId: null }],
-        activeTabIndex: 0
-      });
-      this.loadProfile();
+      const self = items.find((m) => m.is_self) || items[0];
+      this.setData({ members: items, selectedMemberId: self.id });
+      this.onSelectMember({ currentTarget: { dataset: { id: self.id } } });
+    } catch (_) {
+      this.setData({ members: [] });
     }
   },
 
   async loadManagedByInfo() {
     try {
       const res = await get('/api/family/managed-by', {}, { showLoading: false, suppressErrorToast: true });
-      const items = res && res.items ? res.items : [];
+      const list = (res && (res.items || res.data || [])) || [];
       this.setData({
-        isManagedByOthers: items.length > 0,
-        managedByList: items
+        managedByList: Array.isArray(list) ? list : [],
+        isManagedByOthers: Array.isArray(list) && list.length > 0,
       });
-    } catch (e) {
-      this.setData({ isManagedByOthers: false, managedByList: [] });
-    }
+    } catch (_) {}
   },
 
-  updateCurrentMemberLinkStatus(index) {
-    const tab = this.data.familyTabs[index];
-    if (!tab) return;
-    this.setData({
-      currentMemberLinked: !!tab.linked,
-      currentMemberManagementId: tab.managementId || null
-    });
+  onSelectMember(e) {
+    const id = Number(e.currentTarget.dataset.id);
+    const m = (this.data.members || []).find((x) => x.id === id);
+    this.setData({ selectedMemberId: id, selectedMember: m || null });
+    this.loadProfile(id);
+    this.loadLinkStatus(id);
   },
 
-  onTabSelect(e) {
-    const index = e.currentTarget.dataset.index;
-    this.setData({ activeTabIndex: index });
-    this.updateCurrentMemberLinkStatus(index);
-    this.loadProfile();
-  },
-
-  onAddMemberTap() {
-    wx.navigateTo({ url: '/pages/family/index' });
-  },
-
-  async loadProfile() {
-    const tab = this.data.familyTabs[this.data.activeTabIndex];
-    if (!tab) return;
+  async loadProfile(memberId) {
     try {
-      let profile;
-      if (tab.is_self) {
-        profile = await get('/api/health/profile', {}, { showLoading: false, suppressErrorToast: true });
-      } else {
-        profile = await get(`/api/health/profile/member/${tab.id}`, {}, { showLoading: false, suppressErrorToast: true });
-      }
-      if (profile) {
-        const p = {
-          name: profile.name || '',
-          gender: profile.gender || '',
-          birthday: profile.birthday || '',
-          height: profile.height || '',
-          weight: profile.weight || '',
-          bloodType: profile.blood_type || '',
-          chronic_diseases: profile.chronic_diseases || [],
-          allergies: profile.allergies || [],
-          genetic_diseases: profile.genetic_diseases || [],
-          medications: []
-        };
-        const idx = this.data.bloodTypes.indexOf(p.bloodType);
-        this.setData({
-          profile: p,
-          bloodTypeIndex: idx >= 0 ? idx : -1,
-          chronicCustomItems: getCustomItems(p.chronic_diseases),
-          allergyCustomItems: getCustomItems(p.allergies),
-          geneticCustomItems: getCustomItems(p.genetic_diseases)
-        });
-      }
-    } catch (e) {
+      const res = await get(`/api/health/profile/member/${memberId}`, {}, { showLoading: false, suppressErrorToast: true });
+      const p = (res && (res.data || res)) || {};
+      const chronic = splitPresetAndCustom(p.chronic_diseases);
+      const allergy = splitPresetAndCustom(p.allergies);
+      const genetic = splitPresetAndCustom(p.genetic_diseases);
       this.setData({
-        profile: {
-          name: '', gender: '', birthday: '', height: '', weight: '', bloodType: '',
-          chronic_diseases: [], allergies: [], genetic_diseases: [], medications: []
-        },
-        bloodTypeIndex: -1,
-        chronicCustomItems: [],
-        allergyCustomItems: [],
-        geneticCustomItems: []
+        profile: p,
+        baseLine: buildBaseLine(p),
+        chronicCustomItems: chronic.customs,
+        allergyCustomItems: allergy.customs,
+        geneticCustomItems: genetic.customs,
+      });
+      if (p && p.id) {
+        this.loadTodayMetrics(p.id);
+        this.loadMedicationPlan(p.id);
+        this.loadHeroSummary(p.id);
+        this.loadHealthEvents(p.id);
+      }
+    } catch (_) {
+      this.setData({ profile: null });
+    }
+  },
+
+  async loadTodayMetrics(profileId) {
+    try {
+      const res = await get(`/api/health-profile-v3/${profileId}/today-metrics`, {}, { showLoading: false, suppressErrorToast: true });
+      const tm = (res && (res.data || res)) || null;
+      this.setData({ todayMetrics: tm });
+      this.rebuildTodayCells(tm);
+    } catch (_) {
+      this.setData({ todayMetrics: null });
+      this.rebuildTodayCells(null);
+    }
+  },
+
+  rebuildTodayCells(tm) {
+    const v = (obj, key, sub) => {
+      if (!obj) return '—';
+      const x = obj.value;
+      if (!x) return '—';
+      if (sub) return x[sub] != null ? x[sub] : '—';
+      return x[key] != null ? x[key] : '—';
+    };
+    const bp = tm && tm.blood_pressure;
+    const cells = [
+      {
+        id: 'blood_pressure', label: '血压', unit: 'mmHg', icon: '💓',
+        value: (bp && bp.value)
+          ? `${bp.value.systolic || '-'}/${bp.value.diastolic || '-'}`
+          : '—',
+        abnormal: !!(bp && bp.is_abnormal),
+      },
+      {
+        id: 'blood_glucose', label: '血糖', unit: 'mmol/L', icon: '🩸',
+        value: v(tm && tm.blood_glucose, 'value'),
+        abnormal: !!(tm && tm.blood_glucose && tm.blood_glucose.is_abnormal),
+      },
+      {
+        id: 'heart_rate', label: '心率', unit: 'bpm', icon: '❤️',
+        value: v(tm && tm.heart_rate, 'value'),
+        abnormal: !!(tm && tm.heart_rate && tm.heart_rate.is_abnormal),
+      },
+      {
+        id: 'sleep', label: '睡眠', unit: 'h', icon: '🌙',
+        value: v(tm && tm.sleep, 'duration_h'),
+        abnormal: !!(tm && tm.sleep && tm.sleep.is_abnormal),
+      },
+      {
+        id: 'spo2', label: '血氧', unit: '%', icon: '🫁',
+        value: v(tm && tm.spo2, 'value'),
+        abnormal: !!(tm && tm.spo2 && tm.spo2.is_abnormal),
+      },
+    ];
+    const med = (tm && tm.medication) || { checked: 0, total: 0, has_overdue: false };
+    const percent = med.total > 0 ? Math.round((med.checked / med.total) * 100) : 0;
+    this.setData({
+      todayCells: cells,
+      medCell: { checked: med.checked || 0, total: med.total || 0, has_overdue: !!med.has_overdue, percent },
+    });
+  },
+
+  async loadMedicationPlan(profileId) {
+    try {
+      const res = await get(`/api/health-profile-v3/${profileId}/medication-plan`, {}, { showLoading: false, suppressErrorToast: true });
+      const data = (res && (res.data || res)) || {};
+      const items = Array.isArray(data.items) ? data.items : [];
+      this.setData({ medications: items });
+    } catch (_) {
+      this.setData({ medications: [] });
+    }
+  },
+
+  async loadHeroSummary(profileId) {
+    try {
+      const res = await get(`/api/prd469/summary/${profileId}`, {}, { showLoading: false, suppressErrorToast: true });
+      const data = (res && (res.data || res)) || {};
+      const list = Array.isArray(data.hero_metrics) ? data.hero_metrics : [];
+      if (list.length > 0) this.setData({ heroMetrics: list });
+    } catch (_) {}
+  },
+
+  async loadHealthEvents(profileId) {
+    try {
+      const res = await get(`/api/health-profile-v3/${profileId}/events`, {}, { showLoading: false, suppressErrorToast: true });
+      const data = (res && (res.data || res)) || {};
+      const items = Array.isArray(data.items) ? data.items : [];
+      this.setData({ events: items });
+    } catch (_) {
+      this.setData({ events: [] });
+    }
+  },
+
+  async loadLinkStatus(memberId) {
+    try {
+      const res = await get('/api/family/management', {}, { showLoading: false, suppressErrorToast: true });
+      const data = (res && (res.data || res)) || {};
+      const items = Array.isArray(data.items) ? data.items : [];
+      const linked = items.some((it) => it.managed_member_id === memberId && it.status === 'active');
+      this.setData({ isLinked: linked });
+    } catch (_) {
+      this.setData({ isLinked: false });
+    }
+  },
+
+  /* ============ Tab 切换 ============ */
+  onTabClick(e) {
+    const id = e.currentTarget.dataset.id;
+    if (id && id !== this.data.activeTab) {
+      this.setData({ activeTab: id });
+    }
+  },
+
+  /* ============ 今日数据点击 ============ */
+  onMetricCardTap(e) {
+    const id = e.currentTarget.dataset.id;
+    const pid = this.data.profile && this.data.profile.id;
+    if (id && pid) {
+      wx.navigateTo({
+        url: `/pages/health-metric/index?type=${id}&profileId=${pid}`,
+        fail() { wx.showToast({ title: '功能开发中', icon: 'none' }); },
       });
     }
   },
 
-  onInput(e) {
-    const field = e.currentTarget.dataset.field;
-    this.setData({ [`profile.${field}`]: e.detail.value });
-  },
-
-  setGender(e) {
-    this.setData({ 'profile.gender': e.currentTarget.dataset.gender });
-  },
-
-  onDateChange(e) {
-    this.setData({ 'profile.birthday': e.detail.value });
-  },
-
-  onBloodTypeChange(e) {
-    const index = e.detail.value;
-    this.setData({
-      bloodTypeIndex: index,
-      'profile.bloodType': this.data.bloodTypes[index]
-    });
-  },
-
-  // ── Chronic disease tag handlers ──
-  toggleChronicPreset(e) {
-    const name = e.currentTarget.dataset.name;
-    let items = [...(this.data.profile.chronic_diseases || [])];
-    const idx = items.findIndex(i => typeof i === 'string' && i === name);
-    if (idx >= 0) {
-      items.splice(idx, 1);
-    } else {
-      items.push(name);
-    }
-    this.setData({ 'profile.chronic_diseases': items });
-  },
-
-  toggleChronicOther() {
-    this.setData({ showChronicOther: !this.data.showChronicOther });
-  },
-
-  onChronicOtherInput(e) {
-    this.setData({ chronicOtherInput: e.detail.value });
-  },
-
-  confirmChronicOther() {
-    const val = (this.data.chronicOtherInput || '').trim();
-    if (!val) return;
-    if (val.length > 100) {
-      wx.showToast({ title: '最多100个字符', icon: 'none' });
-      return;
-    }
-    const presetNames = this.data.chronicPresets.map(p => p.name);
-    if (presetNames.includes(val)) {
-      wx.showToast({ title: '与预设标签重复，请直接选择', icon: 'none' });
-      return;
-    }
-    const items = [...(this.data.profile.chronic_diseases || [])];
-    const exists = items.some(i => typeof i === 'object' && i.type === 'custom' && i.value === val);
-    if (exists) {
-      wx.showToast({ title: '已添加该项', icon: 'none' });
-      return;
-    }
-    items.push({ type: 'custom', value: val });
-    this.setData({
-      'profile.chronic_diseases': items,
-      chronicCustomItems: getCustomItems(items),
-      chronicOtherInput: ''
-    });
-  },
-
-  removeChronicCustom(e) {
-    const val = e.currentTarget.dataset.value;
-    const items = (this.data.profile.chronic_diseases || []).filter(
-      i => !(typeof i === 'object' && i.type === 'custom' && i.value === val)
+  /* ============ 健康信息：标签 ============ */
+  togglePreset(e) {
+    const { field, name } = e.currentTarget.dataset;
+    const profile = this.data.profile || {};
+    const list = (profile[field] || []).slice();
+    const idx = list.findIndex((it) =>
+      (typeof it === 'string' && it === name) || (it && it.value === name)
     );
+    if (idx >= 0) list.splice(idx, 1); else list.push(name);
+    profile[field] = list;
+    this.setData({ profile });
+  },
+
+  toggleOther(e) {
+    const key = e.currentTarget.dataset.key;
+    const map = { chronic: 'showChronicOther', allergy: 'showAllergyOther', genetic: 'showGeneticOther' };
+    const f = map[key];
+    if (f) this.setData({ [f]: !this.data[f] });
+  },
+
+  onOtherInput(e) {
+    const key = e.currentTarget.dataset.key;
+    const map = { chronic: 'chronicOtherInput', allergy: 'allergyOtherInput', genetic: 'geneticOtherInput' };
+    const f = map[key];
+    if (f) this.setData({ [f]: e.detail.value });
+  },
+
+  confirmOther(e) {
+    const key = e.currentTarget.dataset.key;
+    const inputMap = { chronic: 'chronicOtherInput', allergy: 'allergyOtherInput', genetic: 'geneticOtherInput' };
+    const listMap  = { chronic: 'chronicCustomItems', allergy: 'allergyCustomItems', genetic: 'geneticCustomItems' };
+    const fieldMap = { chronic: 'chronic_diseases', allergy: 'allergies', genetic: 'genetic_diseases' };
+    const showMap  = { chronic: 'showChronicOther', allergy: 'showAllergyOther', genetic: 'showGeneticOther' };
+    const value = (this.data[inputMap[key]] || '').trim();
+    if (!value) { wx.showToast({ title: '请输入内容', icon: 'none' }); return; }
+    const customs = (this.data[listMap[key]] || []).slice();
+    if (customs.some((x) => x.value === value)) {
+      wx.showToast({ title: '已存在', icon: 'none' }); return;
+    }
+    const item = { type: 'custom', value };
+    customs.push(item);
+    const profile = this.data.profile || {};
+    const arr = (profile[fieldMap[key]] || []).slice();
+    arr.push(item);
+    profile[fieldMap[key]] = arr;
     this.setData({
-      'profile.chronic_diseases': items,
-      chronicCustomItems: getCustomItems(items)
+      [listMap[key]]: customs,
+      profile,
+      [inputMap[key]]: '',
+      [showMap[key]]: false,
     });
   },
 
-  // ── Allergy tag handlers ──
-  toggleAllergyPreset(e) {
-    const name = e.currentTarget.dataset.name;
-    let items = [...(this.data.profile.allergies || [])];
-    const idx = items.findIndex(i => typeof i === 'string' && i === name);
-    if (idx >= 0) {
-      items.splice(idx, 1);
-    } else {
-      items.push(name);
-    }
-    this.setData({ 'profile.allergies': items });
-  },
-
-  toggleAllergyOther() {
-    this.setData({ showAllergyOther: !this.data.showAllergyOther });
-  },
-
-  onAllergyOtherInput(e) {
-    this.setData({ allergyOtherInput: e.detail.value });
-  },
-
-  confirmAllergyOther() {
-    const val = (this.data.allergyOtherInput || '').trim();
-    if (!val) return;
-    if (val.length > 100) {
-      wx.showToast({ title: '最多100个字符', icon: 'none' });
-      return;
-    }
-    const presetNames = this.data.allergyPresets.map(p => p.name);
-    if (presetNames.includes(val)) {
-      wx.showToast({ title: '与预设标签重复，请直接选择', icon: 'none' });
-      return;
-    }
-    const items = [...(this.data.profile.allergies || [])];
-    const exists = items.some(i => typeof i === 'object' && i.type === 'custom' && i.value === val);
-    if (exists) {
-      wx.showToast({ title: '已添加该项', icon: 'none' });
-      return;
-    }
-    items.push({ type: 'custom', value: val });
-    this.setData({
-      'profile.allergies': items,
-      allergyCustomItems: getCustomItems(items),
-      allergyOtherInput: ''
-    });
-  },
-
-  removeAllergyCustom(e) {
-    const val = e.currentTarget.dataset.value;
-    const items = (this.data.profile.allergies || []).filter(
-      i => !(typeof i === 'object' && i.type === 'custom' && i.value === val)
+  removeCustom(e) {
+    const { key, value } = e.currentTarget.dataset;
+    const listMap = { chronic: 'chronicCustomItems', allergy: 'allergyCustomItems', genetic: 'geneticCustomItems' };
+    const fieldMap = { chronic: 'chronic_diseases', allergy: 'allergies', genetic: 'genetic_diseases' };
+    const customs = (this.data[listMap[key]] || []).filter((x) => x.value !== value);
+    const profile = this.data.profile || {};
+    profile[fieldMap[key]] = (profile[fieldMap[key]] || []).filter((it) =>
+      !(it && it.value === value && it.type === 'custom')
     );
-    this.setData({
-      'profile.allergies': items,
-      allergyCustomItems: getCustomItems(items)
-    });
+    this.setData({ [listMap[key]]: customs, profile });
   },
 
-  // ── Genetic disease tag handlers ──
-  toggleGeneticPreset(e) {
-    const name = e.currentTarget.dataset.name;
-    let items = [...(this.data.profile.genetic_diseases || [])];
-    const idx = items.findIndex(i => typeof i === 'string' && i === name);
-    if (idx >= 0) {
-      items.splice(idx, 1);
-    } else {
-      items.push(name);
+  setHabit(e) {
+    const { field, value } = e.currentTarget.dataset;
+    const profile = this.data.profile || {};
+    profile[field] = value;
+    this.setData({ profile });
+  },
+
+  async saveProfile() {
+    const p = this.data.profile;
+    if (!p) return;
+    this.setData({ saving: true });
+    try {
+      await put(`/api/health/profile/member/${this.data.selectedMemberId}`, {
+        name: p.name,
+        gender: p.gender,
+        birthday: p.birthday,
+        height: p.height ? Number(p.height) : null,
+        weight: p.weight ? Number(p.weight) : null,
+        blood_type: p.blood_type,
+        chronic_diseases: p.chronic_diseases || [],
+        allergies: p.allergies || [],
+        genetic_diseases: p.genetic_diseases || [],
+        smoking: p.smoking || null,
+        drinking: p.drinking || null,
+      });
+      wx.showToast({ title: '已保存', icon: 'success' });
+      this.loadProfile(this.data.selectedMemberId);
+    } catch (_) {
+      wx.showToast({ title: '保存失败', icon: 'none' });
+    } finally {
+      this.setData({ saving: false });
     }
-    this.setData({ 'profile.genetic_diseases': items });
   },
 
-  toggleGeneticOther() {
-    this.setData({ showGeneticOther: !this.data.showGeneticOther });
-  },
-
-  onGeneticOtherInput(e) {
-    this.setData({ geneticOtherInput: e.detail.value });
-  },
-
-  confirmGeneticOther() {
-    const val = (this.data.geneticOtherInput || '').trim();
-    if (!val) return;
-    if (val.length > 100) {
-      wx.showToast({ title: '最多100个字符', icon: 'none' });
-      return;
-    }
-    const presetNames = this.data.geneticPresets.map(p => p.name);
-    if (presetNames.includes(val)) {
-      wx.showToast({ title: '与预设标签重复，请直接选择', icon: 'none' });
-      return;
-    }
-    const items = [...(this.data.profile.genetic_diseases || [])];
-    const exists = items.some(i => typeof i === 'object' && i.type === 'custom' && i.value === val);
-    if (exists) {
-      wx.showToast({ title: '已添加该项', icon: 'none' });
-      return;
-    }
-    items.push({ type: 'custom', value: val });
-    this.setData({
-      'profile.genetic_diseases': items,
-      geneticCustomItems: getCustomItems(items),
-      geneticOtherInput: ''
-    });
-  },
-
-  removeGeneticCustom(e) {
-    const val = e.currentTarget.dataset.value;
-    const items = (this.data.profile.genetic_diseases || []).filter(
-      i => !(typeof i === 'object' && i.type === 'custom' && i.value === val)
-    );
-    this.setData({
-      'profile.genetic_diseases': items,
-      geneticCustomItems: getCustomItems(items)
-    });
-  },
-
-  // ── Medication handlers (kept as-is) ──
+  /* ============ 用药计划 ============ */
   addMedication() {
-    wx.showModal({
-      title: '添加用药记录',
-      editable: true,
-      placeholderText: '药品名称，如：降压药',
-      success: (res) => {
-        if (res.confirm && res.content) {
-          const medications = [...this.data.profile.medications, { name: res.content.trim(), dosage: '遵医嘱' }];
-          this.setData({ 'profile.medications': medications });
-        }
-      }
+    wx.navigateTo({
+      url: '/pages/medication-add/index?profileId=' + (this.data.profile && this.data.profile.id || ''),
+      fail() { wx.showToast({ title: '请前往 APP/H5 添加', icon: 'none' }); },
     });
   },
 
-  removeMedication(e) {
-    const index = e.currentTarget.dataset.index;
-    const medications = this.data.profile.medications.filter((_, i) => i !== index);
-    this.setData({ 'profile.medications': medications });
+  /* ============ 成员添加 ============ */
+  onAddMemberTap() {
+    wx.navigateTo({
+      url: '/pages/family-member-add/index',
+      fail() { wx.showToast({ title: '请前往 H5 添加', icon: 'none' }); },
+    });
   },
 
-  // ── WXS helper proxies (called from WXML via event data) ──
-  _isPresetSelected(items, name) {
-    return isPresetSelected(items, name);
+  /* ============ 共管 ============ */
+  async onInviteLink() {
+    const id = this.data.selectedMemberId;
+    if (!id) return;
+    try {
+      const res = await post('/api/family/invite-link', { member_id: id }, { showLoading: true });
+      const code = (res && (res.data && res.data.code || res.code)) || '';
+      wx.setClipboardData({
+        data: code ? `健康档案共管邀请码：${code}` : '邀请已发送',
+        success: () => wx.showToast({ title: '邀请码已复制', icon: 'success' }),
+      });
+    } catch (_) {
+      wx.showToast({ title: '邀请失败', icon: 'none' });
+    }
   },
 
-  onInviteLink() {
-    const tab = this.data.familyTabs[this.data.activeTabIndex];
-    if (!tab || tab.is_self) return;
-    wx.navigateTo({ url: `/pages/family-invite/index?member_id=${tab.id}` });
-  },
-
-  onUnlink() {
-    const tab = this.data.familyTabs[this.data.activeTabIndex];
-    if (!tab || !tab.managementId) return;
+  async onUnlink() {
+    const id = this.data.selectedMemberId;
+    if (!id) return;
+    const that = this;
     wx.showModal({
       title: '解除关联',
-      content: `确定要解除与「${tab.name}」的关联吗？解除后将无法查看对方健康档案。`,
-      confirmColor: '#ff4d4f',
-      success: async (res) => {
-        if (!res.confirm) return;
+      content: '解除后对方将无法继续查看此档案，是否继续？',
+      async success(r) {
+        if (!r.confirm) return;
         try {
-          await del(`/api/family/management/${tab.managementId}`);
-          wx.showToast({ title: '已解除关联', icon: 'success' });
-          this.loadFamilyTabs();
-        } catch (e) {
+          await del('/api/family/management/' + id);
+          wx.showToast({ title: '已解除', icon: 'success' });
+          that.setData({ isLinked: false });
+        } catch (_) {
           wx.showToast({ title: '操作失败', icon: 'none' });
         }
-      }
+      },
     });
   },
 
   goBindList() {
-    wx.navigateTo({ url: '/pages/family-bindlist/index' });
+    wx.navigateTo({ url: '/pages/family-bindlist/index', fail() {} });
   },
 
-  async saveProfile() {
-    const tab = this.data.familyTabs[this.data.activeTabIndex];
-    if (!tab) return;
-
-    const p = this.data.profile;
-    const payload = {
-      name: p.name || undefined,
-      gender: p.gender || undefined,
-      birthday: p.birthday || undefined,
-      height: p.height ? parseFloat(p.height) : undefined,
-      weight: p.weight ? parseFloat(p.weight) : undefined,
-      blood_type: p.bloodType || undefined,
-      chronic_diseases: p.chronic_diseases,
-      allergies: p.allergies,
-      genetic_diseases: p.genetic_diseases
+  /* ============ Hero 编辑 ============ */
+  onEditHero() {
+    const p = this.data.profile || {};
+    const draft = {
+      name: p.name || '',
+      gender: p.gender || '',
+      birthday: p.birthday || '',
+      height: p.height || '',
+      weight: p.weight || '',
+      blood_type: p.blood_type || '',
     };
+    const idx = BLOOD_TYPES.indexOf(draft.blood_type);
+    this.setData({
+      showHeroEdit: true,
+      heroEditDraft: draft,
+      bloodTypeIndex: idx >= 0 ? idx : -1,
+    });
+  },
 
+  closeHeroEdit() {
+    this.setData({ showHeroEdit: false, heroEditDraft: null });
+  },
+
+  onHeroInput(e) {
+    const f = e.currentTarget.dataset.field;
+    const d = this.data.heroEditDraft || {};
+    d[f] = e.detail.value;
+    this.setData({ heroEditDraft: d });
+  },
+
+  onHeroPick(e) {
+    const { field, value } = e.currentTarget.dataset;
+    const d = this.data.heroEditDraft || {};
+    d[field] = value;
+    this.setData({ heroEditDraft: d });
+  },
+
+  onHeroDate(e) {
+    const d = this.data.heroEditDraft || {};
+    d.birthday = e.detail.value;
+    this.setData({ heroEditDraft: d });
+  },
+
+  onHeroBloodType(e) {
+    const idx = Number(e.detail.value);
+    const d = this.data.heroEditDraft || {};
+    d.blood_type = BLOOD_TYPES[idx] || '';
+    this.setData({ heroEditDraft: d, bloodTypeIndex: idx });
+  },
+
+  async saveHero() {
+    const d = this.data.heroEditDraft;
+    if (!d) return;
+    this.setData({ heroSaving: true });
     try {
-      if (tab.is_self) {
-        await put('/api/health/profile', payload);
-      } else {
-        await put(`/api/health/profile/member/${tab.id}`, payload);
-      }
-      wx.showToast({ title: '保存成功', icon: 'success' });
-    } catch (e) {
+      await put(`/api/health/profile/member/${this.data.selectedMemberId}`, {
+        name: d.name,
+        gender: d.gender,
+        birthday: d.birthday,
+        height: d.height ? Number(d.height) : null,
+        weight: d.weight ? Number(d.weight) : null,
+        blood_type: d.blood_type,
+      });
+      wx.showToast({ title: '已保存', icon: 'success' });
+      this.closeHeroEdit();
+      this.loadProfile(this.data.selectedMemberId);
+    } catch (_) {
       wx.showToast({ title: '保存失败', icon: 'none' });
+    } finally {
+      this.setData({ heroSaving: false });
     }
-  }
+  },
 });

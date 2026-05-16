@@ -100,7 +100,7 @@ export default function DevicesPage() {
             <div style={{ fontSize: 56, marginBottom: 12 }}>⌚</div>
             <div style={{ fontSize: 15, marginBottom: 16 }}>暂无已绑定设备</div>
             <button
-              onClick={() => router.push('/health-profile-v2')}
+              onClick={() => router.push('/health-profile')}
               style={{
                 padding: '10px 24px',
                 borderRadius: 22,

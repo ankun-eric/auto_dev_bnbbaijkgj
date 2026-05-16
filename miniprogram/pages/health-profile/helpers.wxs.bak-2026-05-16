@@ -1,0 +1,12 @@
+function isPresetSelected(items, name) {
+  if (!items || !items.length) return false;
+  var i;
+  for (i = 0; i < items.length; i++) {
+    if (typeof items[i] === 'string' && items[i] === name) return true;
+  }
+  return false;
+}
+
+module.exports = {
+  isPresetSelected: isPresetSelected
+};

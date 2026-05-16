@@ -281,7 +281,7 @@ function FamilyAuthContent() {
                   </Button>
                   <div
                     className="text-center text-sm text-gray-400 py-2 cursor-pointer"
-                    onClick={() => router.replace('/health-profile-v2')}
+                    onClick={() => router.replace('/health-profile')}
                   >
                     稍后再说
                   </div>
