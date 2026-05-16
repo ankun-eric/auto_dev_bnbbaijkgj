@@ -27,7 +27,70 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: BUG_FIX_用药识别千图一答_20260516｜AI 对话首页"拍照识药"千图一答 P0 修复（2026-05-16 15:55）
+## Latest Update: PRD-HSC-SSE-V1-20260516｜AI 对话「健康自查」新增症状描述 + 改为 SSE 流式输出（2026-05-16 16:35）
+
+### 一句话结论
+彻底解决 ai-home「健康自查」抽屉 P0 体验问题：①问卷新增「症状描述」单行输入框（≤ 50 字，选填）；②`/api/health-self-check/start` 原同步接口保留（向后兼容），**新增 `/api/health-self-check/start-stream` 走 SSE 流式**（meta/delta/done 协议），打字机效果与 AI 对话普通模式一致；③用 `asyncio.create_task + AsyncSessionLocal` 解耦"前端连接生命周期"与"AI 调用生命周期"——前端关抽屉/切页面后，后端仍把完整 AI 回复写入 chat_messages。
+
+### Schema & 后端核心改动
+- `backend/app/schemas/health_self_check.py`：
+  - `HealthSelfCheckStartRequest` 新增可选字段 `symptom_description: Optional[str] = Field(default=None, max_length=50)`
+  - `HealthSelfCheckCardPayload` 新增同名字段，用于卡片气泡展示
+- `backend/app/api/health_self_check.py`：
+  - 抽取 `_prepare_health_self_check()` 共用前置逻辑（校验 → 档案上下文 → Prompt 拼装 → 写 user_msg）
+  - Prompt 占位符 `{症状描述}`：未填写时替换为空串；模板内未含占位符且用户填写非空时**自动追加** `症状描述：{症状描述}` 行（避免"症状描述："后空着）
+  - 新增 `POST /start-stream` SSE 端点：
+    - 首条 `event: meta data: {session_id, user_message_id, card_payload}`
+    - 多条 `event: delta data: {content}`
+    - 末条 `event: done data: {message_id, full_content}`
+  - **关键**：用 `asyncio.Queue + asyncio.create_task` 在两个协程间传递增量 chunk。HTTP 生成器 `GeneratorExit` 时**不**取消 producer task，producer 用独立 `AsyncSessionLocal()` 完成 AI 流消费 + AI 消息写库 + commit
+  - `app/core/database.py` 的 `async_session` 别名为 `AsyncSessionLocal` 在 import 处使用（不修改 database.py 文件本身）
+
+### 前端三端改动
+- **H5** (`h5-web/src/components/ai-chat/HealthSelfCheckDrawer.tsx` + `HealthSelfCheckCard.tsx` + `app/(ai-chat)/ai-home/page.tsx`)：
+  - 抽屉步骤 2.5 新增症状描述单行 input，`maxLength=50` + onChange slice 双保险，右下角 `X/50` 计数；prefill 透传
+  - `handleHealthSelfCheckSubmit` 改用 `fetch + ReadableStream + TextDecoder` 按 `\n\n` 拆 event 接 SSE；URL 用 `process.env.NEXT_PUBLIC_BASE_PATH` 拼接保证线上 `/autodev/<uuid>` 前缀正确；token 从 `localStorage` 取与 axios 拦截器一致
+  - 卡片新增"症状描述：xxx"渲染行（空/undefined 时整行不渲染）
+- **小程序** (`miniprogram/pages/chat/index.{js,wxml,wxss}`)：
+  - 抽屉新增"症状描述"input + 50 字 maxlength + 字符计数；卡片新增描述行
+  - `_startHscStream()`：用 `wx.request({ enableChunked: true, responseType: 'arraybuffer' })` + `onChunkReceived` 字节级缓冲 + UTF-8 多字节边界检测（`findSafeEnd`）避免中文跨 chunk 截断
+  - 兜底 `fallbackToSync()`：旧基础库 / `enableChunked` 不可用时降级走旧 `/start` 同步接口 + `setInterval` 伪流式 reveal（40ms/帧）
+- **Flutter** (`flutter_app/lib/widgets/health_self_check_drawer.dart` + `health_self_check_card.dart` + `screens/ai/chat_screen.dart`)：
+  - `HealthSelfCheckResult` 新增 `symptomDescription`；`toJson()` 输出 `symptom_description`
+  - 抽屉新增 `TextField` + `maxLength: 50` + `counterText: ${len}/50`
+  - `_submitHealthSelfCheck` 改用 `dio.post(... ResponseType.stream)` 拿字节流，按 `\n\n` 拆 event，逐 delta 累加 AI 气泡；done 用 `full_content` 兜底定型；异常显示"分析失败，请稍候重试"
+
+### 测试
+- **本地 pytest**：`backend/tests/test_health_self_check_sse_20260516.py` **8/8 PASS**：
+  - `symptom_description` 长度边界（50 字通过 / 51 字 422）
+  - 卡片 payload 透传 + Prompt 拼接（含"未含占位符自动追加"分支）
+  - SSE 协议正确性（content-type=text/event-stream + meta+delta+done 三种 event 必齐）
+  - done.message_id 大于 0（证明 AI 消息已落库）
+- 原 `test_health_self_check_v1.py` **12/12 PASS**（无回归）
+- **服务器端到端测试**：`scripts/test_hsc_sse_server_20260516.py` **12/12 PASS**：
+  - T1 健康检查、T2 公开字典、T3/T4 未鉴权 401、T5 登录、T6 同步接口 200 + 卡片含描述、T7 51 字 422、T8 SSE 协议正确性、T9 done.message_id > 0、T10 ai-home 可达、T11 不同描述提交两次 AI 回答**不一字不差**（证明描述确实进了 prompt）、T12 meta 中 card_payload.symptom_description 与请求一致
+
+### 部署
+- 部署脚本：`scripts/deploy_hsc_sse_20260516.py`（paramiko → git pull → docker compose build backend h5-web → up -d → 网络重连 → HTTP 探活 + 接口存在性验证）
+- 部署结果：`/api/health-self-check/start` 与 `/start-stream` 均返回 401（非 404），证明新接口已上线
+
+### 三端打包
+- 微信小程序：`miniprogram_20260516_162950_0538.zip`（0.41 MB），上传至 gateway nginx 路径 `/data/static/miniprogram/`
+- 安卓 APK：`app_20260516-163002_9432.apk`（81.15 MB），GH Actions Run 25957353870，Release `android-v20260516-163002-9432`，构建 587s
+- iOS：GH Release `ios-v20260516-163003-4495`（IPA `bini_health_ios.ipa`，32.6 MB，未签名 → AltStore/Sideloadly 侧载），构建 376s
+
+### 用户手册
+- `user_docs/AI对话健康自查_症状描述与流式输出.md` — 含 ai-home 入口、三端体验链接、问卷新步骤说明、中途关闭抽屉的"AI 仍写库"特殊说明、兼容性兜底说明
+
+### 关键决策
+1. **新增独立接口 `/start-stream`** 而非直接改造 `/start` 为 SSE：保留同步接口向后兼容，便于灰度 + 旧版本客户端继续工作
+2. **producer 与 HTTP 生成器解耦**：`asyncio.Queue + create_task` 模式，HTTP `GeneratorExit` 时不 cancel producer，保证 AI 写库不依赖前端连接
+3. **小程序兼容性兜底**：`enableChunked` 不可用时降级伪流式动画，UX 不退化
+4. **占位符兜底**：模板未含 `{症状描述}` 且用户填写非空时**仅在末尾追加** `症状描述：{症状描述}`，未填则不追加（避免空行）
+
+---
+
+## Previous Update: BUG_FIX_用药识别千图一答_20260516｜AI 对话首页"拍照识药"千图一答 P0 修复（2026-05-16 15:55）
 
 ### 一句话结论
 彻底废弃旧"图片URL当字符串拼到prompt 给纯文本模型"伪识别链路，把 `/api/drugs/identify` + 新增的 `/api/drugs/identify-v2` 改造为"**视觉模型多模态消息 + 真 OCR + 严格结构化 JSON 输出**"三重链路；并在 `call_ai_model` / `call_ai_model_stream` 层自动把任意 chat user 消息里的裸图片 URL 升级为 OpenAI 多模态 content 数组——所以**三端（H5/小程序/Flutter）零修改也立刻受益**。
