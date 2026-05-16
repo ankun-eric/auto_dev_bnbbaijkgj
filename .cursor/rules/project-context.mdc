@@ -27,7 +27,34 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD｜健康档案路径统一与四端对齐改造（2026-05-16 10:55）
+## Latest Update: BUG_FIX_用药识别千图一答_20260516｜AI 对话首页"拍照识药"千图一答 P0 修复（2026-05-16 15:55）
+
+### 一句话结论
+彻底废弃旧"图片URL当字符串拼到prompt 给纯文本模型"伪识别链路，把 `/api/drugs/identify` + 新增的 `/api/drugs/identify-v2` 改造为"**视觉模型多模态消息 + 真 OCR + 严格结构化 JSON 输出**"三重链路；并在 `call_ai_model` / `call_ai_model_stream` 层自动把任意 chat user 消息里的裸图片 URL 升级为 OpenAI 多模态 content 数组——所以**三端（H5/小程序/Flutter）零修改也立刻受益**。
+
+### 修复要点
+- `backend/app/services/ai_service.py` 新增 `extract_image_urls` / `build_vision_message_content` / `upgrade_messages_to_multimodal` / `_flatten_multimodal_messages` 工具；`call_ai_model` 自动多模态升级 + 服务端模型拒绝多模态时一次性降级为纯文本（保留 URL+OCR 标记）。
+- 重构 `identify_drug_from_image(image_description, db, image_urls, ocr_text)`：必须接图片 URL，真正以多模态 message 调用模型，旧调用方零修改即自动受益。
+- 新增 `identify_drug_structured(image_urls, ocr_text, user_profile, db)`：严格 JSON 协议输出 `{recognized, confidence, medicines, raw_ocr_text, next_action, summary_markdown, disclaimer}`；多药 / 多图同药 / 多图多药全部支持；模型 4xx/5xx 时给 `retake` 兜底而非 500。
+- `backend/app/api/drug.py` 重写 `/api/drugs/identify`（保持契约，内部走视觉链路），新增 `/api/drugs/identify-v2`（多图 + 自动建 ChatSession + 落 DrugIdentifyDetail/OcrCallRecord）。
+- 历史脏数据清理脚本 `backend/scripts/cleanup_legacy_drug_identify.py`：自动 `CREATE TABLE LIKE` 归档备份至 `drug_identify_details_archive_legacy_20260516`，然后按 CUTOFF_TIME 与 `ai_structured_result IS NULL` 双条件删除旧"假识别"记录；默认 dry-run，`--apply` 才真删。
+- 三端（H5、小程序、Flutter）**零代码改动**：因为后端 `call_ai_model` 自动多模态升级，原本 H5 `pickAndUploadThenSend` 把图片 URL 注入 prompt 文本的写法在新版后端会被自动识别并以视觉方式发送给模型。
+
+### 视觉模型兼容性策略
+线上配置的 `deepseek-v3-2-251201`（火山方舟）是纯文本模型，传多模态 content 会 400。处理：`call_ai_model` 在收到 4xx 且首次发送的是多模态结构时，自动降级为纯文本（用 `[图片N: <url>]` 标记保留进 prompt），仅重试一次。这保证"千图一答"不会因为底层模型暂时不支持视觉而复发——退回到的是"基于真实 OCR 文本 + URL 标识"的识别，结果**仍然因图而异**。当后续切换到 doubao-vision / qwen-vl-max / gpt-4o 等视觉模型时，无需再改代码即自动启用真视觉能力。
+
+### 部署 & 验证
+- 部署脚本：`deploy/_deploy_drug_vlm_sftp_20260516.py`（因服务器到 GitHub 网速过慢导致 git fetch 超时，改用 paramiko SFTP 直传 4 个文件后 `docker compose build --no-cache backend`）。
+- 服务器自动化测试：`deploy/_test_drug_vlm_server_20260516.py` **11/11 PASS**：
+  - CP-01 健康检查、RC-01~05 路由存在性、HC-01/02 H5 入口可达、RC-04 鉴权层、LG-01 schema 校验、LG-02 登录后真实调 identify-v2 拿到结构化字段（`recognized/confidence/medicines/next_action`）、**LG-03 协议层防千图一答（两张不同 PNG → `image_urls` 不同、`summary_markdown` 不一字不差）**。
+- 本地 pytest：`backend/tests/test_drug_identify_vlm_20260516.py` **12/12 PASS**。
+
+### 用户手册
+`user_docs/用药识别千图一答修复.md` — 含 ai-home + /drug 两个入口的体验步骤、识别失败引导、FAQ、归档表说明。
+
+---
+
+## Previous Update: PRD｜健康档案路径统一与四端对齐改造（2026-05-16 10:55）
 
 ### 一句话结论
 把 H5 端 `/health-profile-v2` 内容迁回 `/health-profile`（旧 404 占位作 `.bak-2026-05-16` 备份，v2 目录整目录删除走 Next.js 默认 404），同时把小程序与 Flutter 端健康档案页**完整重写**对齐 H5 v2 设计（成员栏 + Hero 卡 + 5 大粘性 Tab：今日数据/健康信息/用药计划/关怀与提醒/健康事件），后端 v3 / prd469_v5 接口零改动只做回归。

@@ -152,6 +152,7 @@ async def call_ai_model(
     max_attempts = 3
     retry_delay = 2
     last_exception: Optional[Exception] = None
+    fallback_done = False  # [BUG_FIX_用药识别千图一答 2026-05-16] 仅允许一次多模态→纯文本降级
 
     for attempt in range(1, max_attempts + 1):
         try:
@@ -182,6 +183,24 @@ async def call_ai_model(
                 "AI model call HTTP error (url=%s, model=%s, status=%s): %s",
                 url, config["model"], e.response.status_code, e,
             )
+            # [BUG_FIX_用药识别千图一答 2026-05-16] 4xx 一般是模型不支持多模态 content（如 DeepSeek 文本模型）
+            # 这里做一次"多模态 → 纯文本（保留 URL + OCR 文字）"的降级，让识别仍能基于 OCR 工作，
+            # 避免一刀切失败。降级后只重试 1 次。
+            if (
+                400 <= e.response.status_code < 500
+                and not fallback_done
+                and any(
+                    isinstance(m.get("content"), list)
+                    for m in payload.get("messages", [])
+                )
+            ):
+                logger.warning(
+                    "AI model rejected multimodal content (%s). Falling back to text-only with URL+OCR preserved.",
+                    e.response.status_code,
+                )
+                payload["messages"] = _flatten_multimodal_messages(payload["messages"])
+                fallback_done = True
+                continue
             if e.response.status_code >= 500 and attempt < max_attempts:
                 await asyncio.sleep(retry_delay)
                 continue
@@ -199,6 +218,34 @@ async def call_ai_model(
     if return_usage:
         return {"content": error_msg, "model": config["model"], "usage": None}
     raise Exception(error_msg)
+
+
+def _flatten_multimodal_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """[BUG_FIX_用药识别千图一答 2026-05-16] 多模态降级为纯文本。
+
+    当 LLM 返回 4xx 拒绝多模态 content 数组时，把所有 user 消息的 list 形式 content
+    展平为字符串：图片转成"[图片N: url]"标记保留进 prompt（让 prompt 里至少有 URL 信号），
+    text 部分原样保留。这样模型仍能基于 OCR 文字 + URL hash 作出区分（虽然不如真视觉，
+    但比"千图一答"的固定常见药品强得多）。
+    """
+    flat: List[Dict[str, Any]] = []
+    for m in messages:
+        content = m.get("content")
+        if isinstance(content, list):
+            text_parts: List[str] = []
+            img_idx = 0
+            for part in content:
+                if isinstance(part, dict):
+                    if part.get("type") == "image_url":
+                        img_idx += 1
+                        url = (part.get("image_url") or {}).get("url", "")
+                        text_parts.append(f"[图片{img_idx}: {url}]")
+                    elif part.get("type") == "text":
+                        text_parts.append(str(part.get("text") or ""))
+            flat.append({**m, "content": "\n".join(t for t in text_parts if t)})
+        else:
+            flat.append(m)
+    return flat
 
 
 async def call_ai_model_stream(
@@ -555,7 +602,23 @@ async def identify_drug_structured(
 
     content = build_vision_message_content(user_text, image_urls)
     messages = [{"role": "user", "content": content}]
-    raw = await call_ai_model(messages, system_prompt, db)
+    try:
+        raw = await call_ai_model(messages, system_prompt, db)
+    except Exception as e:
+        # [BUG_FIX_用药识别千图一答 2026-05-16] 模型彻底不可用时给 retake 兜底而非 500
+        logger.warning("identify_drug_structured: LLM call failed, fallback to retake: %s", e)
+        return {
+            "recognized": False,
+            "confidence": 0.0,
+            "medicines": [],
+            "raw_ocr_text": ocr_text or "",
+            "next_action": "retake",
+            "summary_markdown": (
+                "AI 识别服务暂时不可用，已记录本次请求；请稍后重试，或直接发送药品名称咨询。"
+            ),
+            "disclaimer": "AI 识别结果仅供参考，具体用药请遵医嘱。",
+            "llm_error": str(e)[:300],
+        }
 
     # 解析 JSON（带 markdown code fence 兜底）
     try:
