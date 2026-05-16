@@ -27,6 +27,69 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: BUG-HEALTH-ARCHIVE-V2-20260516｜健康档案 5 Bug 一期修复（用药数据源统一 / 性别中文 / 邀请共管入口）（2026-05-16 19:00）
+
+### 一句话结论
+H5 健康档案页 5 个 Bug 的统一修复：核心是把后端两套用药表 `MedicationReminder` vs `MedicationPlan` 的读取入口收敛到 `MedicationReminder`（health-plan-v2），Hero 第 4 格、用药计划列表、新增表单数据三处一致；同时修正「在用药品」文案口径、性别中文映射、邀请共管按钮露出与跳转参数。
+
+### 后端核心改动
+- `backend/app/api/health_plan_v2.py`
+  - 新增 `GET /api/health-plan/medications/list`：按「在用药品」口径返回 `MedicationReminder` 列表，与旧 `MedicationPlan` schema 做兼容映射（`drug_name`、`schedule[]` 等）；支持 `segment=today|all`、`status`、`long_term` 过滤；`enabled = status == 'active' AND reminder_enabled != False`。
+  - 新增 `GET /api/health-plan/medications/summary`：返回当前用户/选定成员的「在用药品」数量。
+  - 新增内部辅助 `_active_med_filter()` / `_schedule_from_reminder()`。
+- `backend/app/api/health_profile_v3.py`
+  - `/api/health-profile-v3/{pid}/medication-plan` 从 `MedicationPlan` 切到 `MedicationReminder`，返回结构沿用前端 `MedicationPlanCard` schema。
+  - `/api/health-profile-v3/{pid}/today-metrics` 用药打卡进度切换为 `MedicationReminder` + `MedicationCheckIn`。
+  - 新增 `_list_active_reminders()` / `_schedule_of()` 共用工具函数。
+- `backend/app/api/prd469_health_v5.py`
+  - `/api/prd469/summary/{pid}` 的 `hero_metrics` 第 4 格 label 由「长期用药」改为「在用药品」；count 走统一口径 `_count_active_medications()`。
+  - `/api/prd469/summary-stats/{pid}` 同步刷新 `long_term_med_count`，并新增 `active_med_count` 字段。
+- **「在用药品」口径**：`status='active' AND (long_term=True OR end_date IS NULL OR end_date >= TODAY)`，**不**校验 `start_date <= today`（允许预排未来开始的药计入"在管理"）。
+- `MedicationPlan` 表与 `/api/medication-reminder/plans` 保留只读不下线（防止历史前端版本崩）。
+
+### 前端核心改动（h5-web）
+- `src/app/health-profile/page.tsx`
+  - Hero 第 4 格默认 label 改为「在用药品」，点击跳 `/medication-plans`。
+  - Hero 副标题性别走 `formatGender(profile.gender)`。
+  - 给 `CareReminderBlock` 传 `memberId` 与 `isSelf`，控制「邀请共管」按钮露出与跳转参数。
+- `src/app/(ai-chat)/medication-plans/page.tsx`
+  - GET 改 `/api/health-plan/medications/list`，POST/PUT/DELETE 改 `/api/health-plan/medications`（统一到 `MedicationReminder`）。
+  - FormState 与编辑回填增加 `long_term` / `end_date`。
+  - 双 Tab「今日用药 / 全部用药计划」：今日 Tab 通过 `segment=today` 过滤。
+  - 保存/删除后写 `sessionStorage.medication_changed = '1'`，回退健康档案 Hero 自动重拉 summary。
+- `src/components/health-profile-v5/CareReminderBlock.tsx`
+  - 「+ 邀请共管」按钮仅在 `!isSelf` 时渲染；点击跳转携带 `?member_id={memberId}`。
+  - 空态文案区分本人/家庭成员。
+- `src/app/family-invite/page.tsx`
+  - 缺参数兜底文案改为「未找到要邀请的成员，请从健康档案的成员卡片重新进入。」+「返回健康档案」按钮（`router.replace('/health-profile')`）。
+- `src/utils/format.ts`（新增）
+  - `GENDER_MAP` + `formatGender(g)`：male→男 / female→女 / unknown / null→未设置（统一中文映射）。
+- `src/components/ai-chat/HealthSelfCheckDrawer.tsx` 与 `src/components/ai-chat/ProfileCard.tsx`
+  - 性别展示位统一走 `formatGender`，新增专属 `renderGenderField` 渲染器避免直出 raw 值。
+
+### 测试与验证
+- 新增 `backend/tests/test_health_archive_bug_v2_20260516.py`（10 用例）：
+  - `/api/health-plan/medications/list` 字段完整 + 兼容映射。
+  - `/medications/summary` 与列表 count 一致。
+  - 在用药品口径：过期非长期排除、未来 end_date 计入、长期标志覆盖过期、`segment=today` 过滤。
+  - `/api/health-profile-v3/{pid}/medication-plan` 走 `MedicationReminder` 数据源。
+  - `/api/prd469/summary/{pid}` label = 「在用药品」+ count 正确。
+  - `/api/prd469/summary-stats/{pid}` 新增 `active_med_count`。
+  - 401 未授权拦截。
+- `backend/tests/test_prd469_health_v5.py::test_hero_summary_metrics` 同步把断言由「长期用药」改为「在用药品」。
+- 本地 pytest：新增测试 10/10 通过；`test_prd469_health_v5.py` 22/22 通过；其他 health_profile 历史失败为预存在问题（与本次改动无关，stash 验证过）。
+
+### 部署
+- 部署脚本：`deploy/_deploy_health_archive_bug_v2_20260516.py`。
+- 已部署到测试服务器并验证：
+  - 容器：`6b099ed3-7175-4a78-91f4-44570c84ed27-backend` / `6b099ed3-7175-4a78-91f4-44570c84ed27-h5` Up。
+  - 端点 HTTP 探活：`/api/health-plan/medications/list` = 401（鉴权拦截，证明已上线）、`/api/health-plan/medications/summary` = 401、`/health-profile` = 200、`/medication-plans` = 200、`/family-invite` = 200。
+
+### 用户手册
+- `user_docs/健康档案_用药数据一致性与邀请共管修复_20260516.md`
+
+---
+
 ## Latest Update: PRD-DRUG-CARD-V3-20260516｜AI 对话拍照识药体验升级 + 权威药品库（2026-05-16 18:05）
 
 - 修复 Bug #1：H5 ai-home 上传图片不再有「[用户上传的图片N张] + URL」冗余文本气泡；`pickAndUploadThenSend` 改走 `handleSend(suppressUserBubble=true, backendText=…)`，URL 仅注入后端上下文不渲染。
