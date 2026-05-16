@@ -915,11 +915,23 @@ export default function AiHomePage() {
     return sid;
   };
 
+  // [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517]
+  // 报告解读 / 识药等场景需要把按钮意图与图片 URL 列表显式透传给后端，
+  // 避免后端只能从 content 文本里抽 URL、且无法区分"普通图片消息"与"报告解读"。
+  type SsePayloadExtras = {
+    intent?: string | null;
+    imageUrls?: string[] | null;
+    buttonType?: string | null;
+    buttonId?: number | null;
+    reportMeta?: { report_title?: string | null; report_date?: string | null } | null;
+  };
+
   const sendSSE = async (
     sid: string,
     message: string,
     retries = 3,
     source: 'text' | 'voice' | 'preset' = 'text',
+    extras?: SsePayloadExtras,
   ): Promise<boolean> => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
     const aiMsgId = `a-${Date.now()}`;
@@ -952,6 +964,18 @@ export default function AiHomePage() {
             message_type: 'text',
             source,
             family_member_id: fmId,
+            // [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517]
+            // 透传通用 intent 协议字段，后端按显式优先级分发到对应引擎：
+            // - intent='report_interpret' + image_urls → ReportInterpretEngine
+            // - intent='drug_identify'    + image_urls → DrugIdentifyEngine
+            // 未指定时后端行为完全不变（向后兼容）。
+            intent: extras?.intent || undefined,
+            image_urls: extras?.imageUrls && extras.imageUrls.length > 0
+              ? extras.imageUrls
+              : undefined,
+            button_type: extras?.buttonType || undefined,
+            button_id: extras?.buttonId || undefined,
+            report_meta: extras?.reportMeta || undefined,
           }),
           signal: controller.signal,
         });
@@ -1087,7 +1111,13 @@ export default function AiHomePage() {
   const handleSend = useCallback(async (
     text?: string,
     source: 'text' | 'voice' | 'preset' = 'text',
-    opts?: { suppressUserBubble?: boolean; backendText?: string },
+    opts?: {
+      suppressUserBubble?: boolean;
+      backendText?: string;
+      // [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517]
+      // 透传通用 SSE intent 协议字段：报告解读 / 显式识药等
+      sseExtras?: SsePayloadExtras;
+    },
   ) => {
     const msg = text || inputValue.trim();
     if (!msg || sending) return;
@@ -1148,7 +1178,7 @@ export default function AiHomePage() {
         setMessages(prev => (prev.some(m => m.id === userMsg.id) ? prev : [...prev, userMsg]));
       }
 
-      const sseOk = await sendSSE(sid, backendPayload, 3, source);
+      const sseOk = await sendSSE(sid, backendPayload, 3, source, opts?.sseExtras);
       if (!sseOk) {
         await sendFallback(sid, backendPayload, source);
       }
@@ -1325,6 +1355,12 @@ export default function AiHomePage() {
     autoUserMessage?: string | null;
     buttonName?: string | null;
     fallbackPrompt: string;
+    // [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517]
+    // 按钮类型透传：用于 SSE intent 协议
+    //   - 'report_interpret' → intent='report_interpret'，后端走 ReportInterpretEngine
+    //   - 'photo_recognize_drug' / 'drug_identify' / 'medication_recognize' → intent='drug_identify'
+    buttonType?: string | null;
+    buttonId?: number | null;
   }) => {
     const accept = opts.kind === 'image' ? 'image/*' : 'image/*,application/pdf';
     let loadingToastVisible = false;
@@ -1444,11 +1480,33 @@ export default function AiHomePage() {
             : prompt;
           const hasUploaded = uploadedImages.length > 0 || uploadedFiles.length > 0;
           lastMsgTimeRef.current = Date.now();
+          // [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517]
+          // 计算 SSE 通用 intent extras：按钮类型 → 显式 intent + 图片 URL 数组
+          const btnTypeLower = (opts.buttonType || '').toLowerCase();
+          let sseIntent: string | null = null;
+          if (btnTypeLower === 'report_interpret') {
+            sseIntent = 'report_interpret';
+          } else if (
+            btnTypeLower === 'photo_recognize_drug' ||
+            btnTypeLower === 'drug_identify' ||
+            btnTypeLower === 'medication_recognize'
+          ) {
+            sseIntent = 'drug_identify';
+          }
+          const sseExtras = sseIntent || uploadedImages.length > 0
+            ? {
+                intent: sseIntent,
+                imageUrls: uploadedImages.length > 0 ? uploadedImages : null,
+                buttonType: opts.buttonType || null,
+                buttonId: opts.buttonId || null,
+              }
+            : undefined;
           setTimeout(() => {
             if (hasUploaded) {
               handleSend(prompt, 'preset', {
                 suppressUserBubble: true,
                 backendText: backendComposed,
+                sseExtras,
               });
             } else {
               handleSend(prompt, 'preset');
@@ -1490,6 +1548,9 @@ export default function AiHomePage() {
       autoUserMessage: btn.auto_user_message,
       buttonName: btn.name,
       fallbackPrompt: resolveUploadFallbackPrompt(btn.button_type, isFileType ? 'file' : 'image'),
+      // [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517] 透传按钮类型 → SSE intent
+      buttonType: btn.button_type,
+      buttonId: btn.id as any,
     });
   };
 
@@ -3147,6 +3208,9 @@ export default function AiHomePage() {
                                 autoUserMessage,
                                 buttonName,
                                 fallbackPrompt,
+                                // [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517]
+                                buttonType: btnType,
+                                buttonId: (chatCardData!.button as any).id || null,
                               });
                             };
                             switch (sub) {
@@ -3165,6 +3229,9 @@ export default function AiHomePage() {
                                   autoUserMessage,
                                   buttonName,
                                   fallbackPrompt: resolveUploadFallbackPrompt(btnType, 'file'),
+                                  // [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517]
+                                  buttonType: btnType,
+                                  buttonId: (chatCardData!.button as any).id || null,
                                 });
                                 return;
                               case 'wechat':

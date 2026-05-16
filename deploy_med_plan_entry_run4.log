@@ -1,0 +1,94 @@
+﻿Connecting to ubuntu@newbb.test.bangbangvip.com:22...
+Connected.
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && timeout 180 git fetch origin master --depth 5 --no-tags 2>&1 | tail -10
+fatal: unable to access 'https://github.com/ankun-eric/auto_dev_bnbbaijkgj.git/': Failed to connect to github.com port 443 after 134357 ms: Couldn't connect to server
+
+git fetch ok (attempt 1)
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git reset --hard origin/master 2>&1 | tail -5
+HEAD is now at c973696 feat(med-plan-entry-v1): 鐢ㄨ嵂璁″垝鍏ュ彛鏀归€?[PRD-MED-PLAN-ENTRY-V1 2026-05-17]
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git log -1 --oneline
+c973696 feat(med-plan-entry-v1): 鐢ㄨ嵂璁″垝鍏ュ彛鏀归€?[PRD-MED-PLAN-ENTRY-V1 2026-05-17]
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml stop backend 2>&1 | tail -3
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Stopping 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Stopped 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml rm -f backend 2>&1 | tail -3
+Going to remove 6b099ed3-7175-4a78-91f4-44570c84ed27-backend
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Removing 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Removed 
+
+Building backend (may take 2-4 min)...
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build backend 2>&1 | tail -40
+#4 [internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.0s
+
+#5 [1/6] FROM docker.io/library/python:3.11-slim@sha256:9a7765b36773a37061455b332f18e265e7f58f6fea9c419a550d2a8b0e9db834
+#5 resolve docker.io/library/python:3.11-slim@sha256:9a7765b36773a37061455b332f18e265e7f58f6fea9c419a550d2a8b0e9db834 0.0s done
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 53.52kB 0.0s done
+#6 DONE 0.1s
+
+#7 [3/6] COPY requirements.txt .
+#7 CACHED
+
+#8 [4/6] RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.cloud.tencent.com/pypi/simple --trusted-host mirrors.cloud.tencent.com --timeout 120
+#8 CACHED
+
+#9 [5/6] COPY . .
+#9 CACHED
+
+#10 [2/6] WORKDIR /app
+#10 CACHED
+
+#11 [6/6] RUN mkdir -p uploads
+#11 CACHED
+
+#12 exporting to image
+#12 exporting layers done
+#12 exporting manifest sha256:b1a3b600e6d061cc8580c456bbb001180833a5953e6d8c7926b229ea4ce90f62 done
+#12 exporting config sha256:6225164167e9e4d2030e6e67f682632b88506ecb4af7e4be266067c55653d205 done
+#12 exporting attestation manifest sha256:02c97e397ce929075d7b4af799ca67d5bb26b18bef72b165522c2a357c09c661 0.0s done
+#12 exporting manifest list sha256:51eb712635a1a51cb0ac1c275467bd7eae0b81148630279e86a2d0f0e77ea9ff 0.0s done
+#12 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest done
+#12 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest 0.0s done
+#12 DONE 0.1s
+
+#13 resolving provenance for metadata file
+#13 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Built 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d backend 2>&1 | tail -10
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Creating 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Created 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml stop h5-web 2>&1 | tail -3
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Stopping 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Stopped 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml rm -f h5-web 2>&1 | tail -3
+Going to remove 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Removing 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Removed 
+
+Building h5-web (may take 3-6 min)...
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build h5-web 2>&1 | tail -80

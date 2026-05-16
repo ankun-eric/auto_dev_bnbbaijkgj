@@ -1,7 +1,19 @@
 from datetime import datetime, timezone
-from typing import Optional
+from enum import Enum
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, field_serializer
+
+
+# [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517] 通用聊天 intent 枚举：
+# - report_interpret：报告解读（OCR + 报告专属 prompt）
+# - drug_identify   ：拍照识药（保留兼容）
+# - health_qa       ：通用健康咨询（占位）
+# 其他客户端不传 intent 时行为与历史完全一致。
+class ChatIntent(str, Enum):
+    REPORT_INTERPRET = "report_interpret"
+    DRUG_IDENTIFY = "drug_identify"
+    HEALTH_QA = "health_qa"
 
 
 def _to_utc_iso(dt: Optional[datetime]) -> Optional[str]:
@@ -64,6 +76,15 @@ class ChatMessageCreate(BaseModel):
     #   决定档案上下文（剂量/禁忌/相互作用）来源，避免给儿童按成人剂量。
     button_type: Optional[str] = None
     family_member_id: Optional[int] = None
+    # [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517] 通用意图协议（向后兼容）：
+    # - intent      : 显式声明本次消息意图，最高优先级；支持值见 ChatIntent
+    # - image_urls  : 图片 URL 数组（与历史 content 内嵌 URL 兼容；优先此字段）
+    # - button_id   : 功能按钮 ID（来自 chat_function_buttons 表），用于路由命中
+    # - report_meta : 报告解读专属可选结构化上下文（标题/日期）
+    intent: Optional[str] = None
+    image_urls: Optional[List[str]] = None
+    button_id: Optional[int] = None
+    report_meta: Optional[dict] = None
 
 
 class ChatMessageResponse(BaseModel):

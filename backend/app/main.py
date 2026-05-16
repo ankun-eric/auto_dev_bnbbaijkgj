@@ -1684,6 +1684,14 @@ async def lifespan(app: FastAPI):
     except Exception as _e:
         import logging as _l
         _l.getLogger(__name__).error("report_interpret migration 异常（不影响启动）: %s", _e)
+    # [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517 · Bug #2 修 B]
+    # is_self FamilyMember 一次性回填：确保"本人"统一为 FamilyMember 路径
+    try:
+        from app.services.family_self_backfill_migration import migrate_family_self
+        await migrate_family_self()
+    except Exception as _e:
+        import logging as _l
+        _l.getLogger(__name__).error("family_self_backfill 异常（不影响启动）: %s", _e)
     await migrate_bottom_nav_order_path()
     await migrate_points_mall_v31()
     await migrate_points_mall_v11()

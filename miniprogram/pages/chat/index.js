@@ -503,7 +503,10 @@ Page({
   // ========================
   // Module 6: SSE Streaming
   // ========================
-  _startSseStream(sessionId, content) {
+  // [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517]
+  // 第三参数 extras：透传 intent / image_urls / button_id / button_type / report_meta
+  // 给后端通用 SSE 分发器，使报告解读/识药按钮在同一会话内由对应引擎处理。
+  _startSseStream(sessionId, content, extras) {
     const app = getApp();
     const url = `${app.globalData.baseUrl}/api/chat/sessions/${sessionId}/stream`;
     const token = app.globalData.token;
@@ -537,10 +540,20 @@ Page({
 
     let fullText = '';
 
+    // [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517]
+    // 合并 SSE 通用 intent 协议字段（向后兼容：不传时行为不变）
+    const _body = Object.assign(
+      { content, session_type: this.data.chatType },
+      extras && extras.intent ? { intent: extras.intent } : {},
+      extras && extras.image_urls ? { image_urls: extras.image_urls } : {},
+      extras && extras.button_id ? { button_id: extras.button_id } : {},
+      extras && extras.button_type ? { button_type: extras.button_type } : {},
+      extras && extras.report_meta ? { report_meta: extras.report_meta } : {},
+    );
     this._sseRequestTask = wx.request({
       url,
       method: 'POST',
-      data: { content, session_type: this.data.chatType },
+      data: _body,
       header: {
         'Content-Type': 'application/json',
         'Accept': 'text/event-stream',
@@ -1661,8 +1674,10 @@ Page({
     }
   },
 
-  // [PRD-PROMPT-CONFIG-V1 2026-05-14] 报告解读按钮：先上传图片到服务器，
-  // 然后调用 /api/report-interpret/start 创建会话并跳转
+  // [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517]
+  // 报告解读按钮改造：不再新建独立 report_interpret 会话 + 跳转，
+  // 改为在当前会话内通过 SSE intent='report_interpret' 把图片提交给后端引擎。
+  // 与 H5 / Flutter 三端协议保持一致。
   async _uploadAndStartReportInterpret(filePath, buttonId) {
     try {
       filePath = await compressImage(filePath);
@@ -1676,18 +1691,43 @@ Page({
         wx.showToast({ title: '图片上传失败', icon: 'none' });
         return;
       }
-      const { request: apiReq } = require('../../utils/request.js');
-      const res = await apiReq({
-        url: '/api/report-interpret/start',
-        method: 'POST',
-        data: { button_id: buttonId, image_urls: [imageUrl] },
-      });
       wx.hideLoading();
-      if (res && res.session_id) {
-        wx.navigateTo({ url: `/pages/chat/index?id=${res.session_id}&type=report_interpret` });
-      } else {
-        wx.showToast({ title: '创建会话失败', icon: 'none' });
+      // 在当前会话内插入用户图片气泡 + 触发 SSE 报告解读
+      const id = generateId();
+      const now = new Date();
+      const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      this.setData({
+        messages: [...this.data.messages, {
+          id, role: 'user', content: '', image: imageUrl, time, _ts: now.getTime(), references: [],
+        }],
+        scrollToId: `msg-${id}`,
+      });
+      // 确保会话存在
+      let sid = this.data.chatId;
+      if (!sid) {
+        try {
+          const { request: apiReq } = require('../../utils/request.js');
+          const sess = await apiReq({
+            url: '/api/chat/sessions',
+            method: 'POST',
+            data: { session_type: 'health_qa' },
+          });
+          sid = sess && (sess.id || sess.session_id);
+          if (sid) {
+            this.setData({ chatId: sid });
+          }
+        } catch (_) { /* ignore */ }
       }
+      if (!sid) {
+        wx.showToast({ title: '创建会话失败', icon: 'none' });
+        return;
+      }
+      this._startSseStream(sid, '我上传了一份体检报告，请帮我解读', {
+        intent: 'report_interpret',
+        image_urls: [imageUrl],
+        button_id: buttonId,
+        button_type: 'report_interpret',
+      });
     } catch (e) {
       wx.hideLoading();
       wx.showToast({ title: '报告解读启动失败', icon: 'none' });

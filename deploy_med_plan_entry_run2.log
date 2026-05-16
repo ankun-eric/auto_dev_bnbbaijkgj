@@ -1,0 +1,224 @@
+﻿Connecting to ubuntu@newbb.test.bangbangvip.com:22...
+Connected.
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && timeout 60 git fetch origin --depth 1 --no-tags 2>&1 | tail -10
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git reset --hard origin/master 2>&1 | tail -5
+HEAD is now at c973696 feat(med-plan-entry-v1): 鐢ㄨ嵂璁″垝鍏ュ彛鏀归€?[PRD-MED-PLAN-ENTRY-V1 2026-05-17]
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git log -1 --oneline
+c973696 feat(med-plan-entry-v1): 鐢ㄨ嵂璁″垝鍏ュ彛鏀归€?[PRD-MED-PLAN-ENTRY-V1 2026-05-17]
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml stop backend 2>&1 | tail -3
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Stopping 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Stopped 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml rm -f backend 2>&1 | tail -3
+Going to remove 6b099ed3-7175-4a78-91f4-44570c84ed27-backend
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Removing 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Removed 
+
+Building backend (may take 2-4 min)...
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build backend 2>&1 | tail -40
+#4 [internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.0s
+
+#5 [1/6] FROM docker.io/library/python:3.11-slim@sha256:9a7765b36773a37061455b332f18e265e7f58f6fea9c419a550d2a8b0e9db834
+#5 resolve docker.io/library/python:3.11-slim@sha256:9a7765b36773a37061455b332f18e265e7f58f6fea9c419a550d2a8b0e9db834 0.0s done
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 53.52kB 0.0s done
+#6 DONE 0.1s
+
+#7 [3/6] COPY requirements.txt .
+#7 CACHED
+
+#8 [4/6] RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.cloud.tencent.com/pypi/simple --trusted-host mirrors.cloud.tencent.com --timeout 120
+#8 CACHED
+
+#9 [5/6] COPY . .
+#9 CACHED
+
+#10 [2/6] WORKDIR /app
+#10 CACHED
+
+#11 [6/6] RUN mkdir -p uploads
+#11 CACHED
+
+#12 exporting to image
+#12 exporting layers done
+#12 exporting manifest sha256:b1a3b600e6d061cc8580c456bbb001180833a5953e6d8c7926b229ea4ce90f62 done
+#12 exporting config sha256:6225164167e9e4d2030e6e67f682632b88506ecb4af7e4be266067c55653d205 done
+#12 exporting attestation manifest sha256:dd7f4ecac7f20978361cf03b058fddad71555a09271e85b00798420cea5885e1 0.0s done
+#12 exporting manifest list sha256:d9609d2783e05a9f188d13cd7098050aec0bfbc0815d3bcd5db1a6eebc6558af 0.0s done
+#12 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest done
+#12 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest 0.0s done
+#12 DONE 0.1s
+
+#13 resolving provenance for metadata file
+#13 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Built 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d backend 2>&1 | tail -10
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Creating 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Created 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml stop h5-web 2>&1 | tail -3
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Stopping 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Stopped 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml rm -f h5-web 2>&1 | tail -3
+Going to remove 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Removing 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Removed 
+
+Building h5-web (may take 3-6 min)...
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build h5-web 2>&1 | tail -60
+/next/dist/compiled/next-server/app-page.runtime.prod.js:12:61546)
+#12 75.30     at nN (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64546)
+#12 75.30 
+#12 75.30 Error occurred prerendering page "/ai-home/medication-plans". Read more: https://nextjs.org/docs/messages/prerender-error
+#12 75.30 
+#12 76.27    Generating static pages (28/114) 
+
+#12 77.66    Generating static pages (56/114) 
+
+#12 78.65    Generating static pages (85/114) 
+
+#12 79.51  猕?useSearchParams() should be wrapped in a suspense boundary at page "/health-profile". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout
+#12 79.51     at o (/app/.next/server/chunks/7138.js:1:10613)
+#12 79.51     at s (/app/.next/server/chunks/7138.js:1:21595)
+#12 79.51     at T (/app/.next/server/app/health-profile/page.js:1:42682)
+#12 79.51     at nj (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:46251)
+#12 79.51     at nM (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:47571)
+#12 79.51     at nN (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64546)
+#12 79.51     at nI (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:47010)
+#12 79.51     at nM (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:47717)
+#12 79.51     at nM (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:61546)
+#12 79.51     at nN (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64546)
+#12 79.51 
+#12 79.51 Error occurred prerendering page "/health-profile". Read more: https://nextjs.org/docs/messages/prerender-error
+#12 79.51 
+#12 79.51  鉁?Generating static pages (114/114)
+#12 79.56 
+#12 79.56 > Export encountered errors on following paths:
+#12 79.56 	/(ai-chat)/ai-home/medication-plans/page: /ai-home/medication-plans
+#12 79.56 	/health-profile/page: /health-profile
+#12 ERROR: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
+------
+ > [builder 7/7] RUN npm run build:
+79.51     at nM (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:61546)
+79.51     at nN (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64546)
+79.51 
+79.51 Error occurred prerendering page "/health-profile". Read more: https://nextjs.org/docs/messages/prerender-error
+79.51 
+79.51  鉁?Generating static pages (114/114)
+79.56 
+79.56 > Export encountered errors on following paths:
+79.56 	/(ai-chat)/ai-home/medication-plans/page: /ai-home/medication-plans
+79.56 	/health-profile/page: /health-profile
+------
+Dockerfile:11
+
+--------------------
+
+   9 |     ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
+
+  10 |     RUN mkdir -p public
+
+  11 | >>> RUN npm run build
+
+  12 |     
+
+  13 |     FROM node:18-alpine AS runner
+
+--------------------
+
+failed to solve: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
+
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d h5-web 2>&1 | tail -10
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Creating 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Created 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+
+
+--- Waiting for backend container ---
+  [5s] backend: running|
+  backend ready.
+
+$ docker network connect 6b099ed3-7175-4a78-91f4-44570c84ed27-network gateway 2>&1
+Error response from daemon: endpoint with name gateway already exists in network 6b099ed3-7175-4a78-91f4-44570c84ed27-network
+
+
+$ docker exec gateway nginx -t 2>&1
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+
+
+$ docker exec gateway nginx -s reload 2>&1
+2026/05/16 17:14:14 [notice] 3731#3731: signal process started
+
+
+$ docker ps --filter name=6b099ed3-7175-4a78-91f4-44570c84ed27 --format 'table {{.Names}}\t{{.Status}}'
+NAMES                                          STATUS
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5        Up 3 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend   Up About a minute
+6b099ed3-7175-4a78-91f4-44570c84ed27-db        Up 14 hours (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin     Up 23 hours
+
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend sh -c 'curl -sf http://localhost:8000/api/health || curl -sf http://localhost:8000/health' 2>&1 | head -c 500
+sh: 1: curl: not found
+sh: 1: curl: not found
+
+
+--- Running pytest inside backend container ---
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend sh -c 'cd /app && python -m pytest tests/test_med_plan_entry_v1_20260517.py -v --tb=short 2>&1 | tail -80'
+/usr/local/bin/python: No module named pytest
+
+
+--- Regression: med-plan v1 (last week) ---
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend sh -c 'cd /app && python -m pytest tests/test_med_plan_v1_20260516.py -q --tb=short 2>&1 | tail -30'
+/usr/local/bin/python: No module named pytest
+
+
+--- Probe public URLs via gateway ---
+
+$ curl -s -o /dev/null -w '%{http_code}  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/\n' 'http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/' ; curl -s -o /dev/null -w '%{http_code}  http://localhost/autodev/6b09...
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home/medication-reminder
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home/medication-plans
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home/medication-plans/new
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/medication-plans/hero-count
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/medication-plans/today
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/medication-plans/summary
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/medication-stats/monthly-compliance
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-plan/medications/list?tab=in_progress
+
+
+[DEPLOY DONE]

@@ -1,0 +1,242 @@
+﻿Connecting to ubuntu@newbb.test.bangbangvip.com:22...
+Connected.
+
+--- Uploading 14 files via SFTP ---
+  鉁?backend/app/api/medication_plans_v1.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/medication_plans_v1.py
+  鉁?backend/app/services/medication_status_scheduler.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/services/medication_status_scheduler.py
+  鉁?backend/tests/test_med_plan_entry_v1_20260517.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_med_plan_entry_v1_20260517.py
+  鉁?backend/app/api/health_plan_v2.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/health_plan_v2.py
+  鉁?backend/app/main.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/main.py
+  鉁?h5-web/src/app/(ai-chat)/ai-home/medication-reminder/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/medication-reminder/page.tsx
+  鉁?h5-web/src/app/(ai-chat)/ai-home/medication-plans/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/medication-plans/page.tsx
+  鉁?h5-web/src/app/(ai-chat)/ai-home/medication-plans/new/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/medication-plans/new/page.tsx
+  鉁?h5-web/src/app/(ai-chat)/ai-home/medication-plans/[id]/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/medication-plans/[id]/page.tsx
+  鉁?h5-web/src/components/medication/MedicationFormPanel.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/components/medication/MedicationFormPanel.tsx
+  鉁?h5-web/src/app/(ai-chat)/ai-home/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/page.tsx
+  鉁?h5-web/src/app/(ai-chat)/ai-home/components/AddMedicationDrawer.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/components/AddMedicationDrawer.tsx
+  鉁?h5-web/src/app/chat/[sessionId]/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/chat/[sessionId]/page.tsx
+  鉁?h5-web/src/app/health-profile/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-profile/page.tsx
+
+--- Deleting 3 legacy paths ---
+  鉁?/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/medication-plans/page.tsx
+  鉁?/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-plan/medications/add/page.tsx
+  鉁?/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-plan/medications/page.tsx
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml stop backend 2>&1 | tail -3
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Stopping 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Stopped 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml rm -f backend 2>&1 | tail -3
+Going to remove 6b099ed3-7175-4a78-91f4-44570c84ed27-backend
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Removing 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Removed 
+
+Building backend...
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build backend 2>&1 | tail -30
+#6 DONE 0.1s
+
+#7 [2/6] WORKDIR /app
+#7 CACHED
+
+#8 [3/6] COPY requirements.txt .
+#8 CACHED
+
+#9 [4/6] RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.cloud.tencent.com/pypi/simple --trusted-host mirrors.cloud.tencent.com --timeout 120
+#9 CACHED
+
+#10 [5/6] COPY . .
+#10 CACHED
+
+#11 [6/6] RUN mkdir -p uploads
+#11 CACHED
+
+#12 exporting to image
+#12 exporting layers done
+#12 exporting manifest sha256:b1a3b600e6d061cc8580c456bbb001180833a5953e6d8c7926b229ea4ce90f62 done
+#12 exporting config sha256:6225164167e9e4d2030e6e67f682632b88506ecb4af7e4be266067c55653d205 done
+#12 exporting attestation manifest sha256:fbf0ed6514e5f678a88013fad89d479bfcd84dd722fba986b13ac1a5cb6f7801 0.0s done
+#12 exporting manifest list sha256:2a59701d08c2c1e16f7870c86dbe644a08d7409d1213515f8574c731f432b2c4 0.0s done
+#12 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest done
+#12 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest 0.0s done
+#12 DONE 0.1s
+
+#13 resolving provenance for metadata file
+#13 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Built 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d backend 2>&1 | tail -10
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Creating 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Created 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml stop h5-web 2>&1 | tail -3
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Stopping 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Stopped 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml rm -f h5-web 2>&1 | tail -3
+Going to remove 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Removing 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Removed 
+
+Building h5-web (may take 3-6 min)...
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build h5-web 2>&1 | tail -80
+235 kB
+#12 88.31 鈹?茠 /shared/drug/[token]                       2.52 kB         235 kB
+#12 88.31 鈹?茠 /shared/report/[token]                     2.72 kB         235 kB
+#12 88.31 鈹?鈼?/symptom                                   9.96 kB         248 kB
+#12 88.31 鈹?鈼?/tcm                                       12.1 kB         245 kB
+#12 88.31 鈹?鈼?/tcm/archive                               510 B           211 kB
+#12 88.31 鈹?茠 /tcm/diagnosis/[id]                        549 B           211 kB
+#12 88.31 鈹?鈼?/tcm/loading                               960 B           211 kB
+#12 88.31 鈹?茠 /tcm/result/[id]                           9.06 kB         242 kB
+#12 88.31 鈹?茠 /unified-order/[id]                        9.98 kB         248 kB
+#12 88.31 鈹?鈼?/unified-orders                            4.06 kB         242 kB
+#12 88.31 + First Load JS shared by all                  87.6 kB
+#12 88.31   鈹?chunks/2117-3615d1923728c5e4.js            31.9 kB
+#12 88.31   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js        53.6 kB
+#12 88.31   鈹?other shared chunks (total)                2.1 kB
+#12 88.31 
+#12 88.31 
+#12 88.31 鈼? (Static)   prerendered as static content
+#12 88.31 茠  (Dynamic)  server-rendered on demand
+#12 88.31 
+#12 DONE 88.5s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.5s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.2s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 3.7s done
+#16 exporting manifest sha256:1156a604004e625970acd6bb6f654ee36ee6e6c14f0bfdc1aff611d0e45dca7b
+#16 exporting manifest sha256:1156a604004e625970acd6bb6f654ee36ee6e6c14f0bfdc1aff611d0e45dca7b 0.0s done
+#16 exporting config sha256:aa667a828d09c82190c3ba608b9ab6c96b8d2580496617a4f990e8c38ae443ff 0.0s done
+#16 exporting attestation manifest sha256:d521a136c87091fa7e69f6b10e8f357605ae3ef1ff2ba4a5a42f7c9f19bc9eca 0.0s done
+#16 exporting manifest list sha256:10fb0a02b311e401b96df1e55a123b19c4c0473d1c80f3c84280b2f279464d23 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 1.0s done
+#16 DONE 4.8s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d h5-web 2>&1 | tail -10
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Creating 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Created 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+
+
+--- Waiting for backend container ---
+  [5s] backend: running|
+  backend ready.
+
+$ docker network connect 6b099ed3-7175-4a78-91f4-44570c84ed27-network gateway 2>&1
+Error response from daemon: endpoint with name gateway already exists in network 6b099ed3-7175-4a78-91f4-44570c84ed27-network
+
+
+$ docker exec gateway nginx -t 2>&1
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+
+
+$ docker exec gateway nginx -s reload 2>&1
+2026/05/16 17:28:18 [notice] 3763#3763: signal process started
+
+
+$ docker ps --filter name=6b099ed3-7175-4a78-91f4-44570c84ed27 --format 'table {{.Names}}\t{{.Status}}'
+NAMES                                          STATUS
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5        Up 3 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend   Up About a minute
+6b099ed3-7175-4a78-91f4-44570c84ed27-db        Up 15 hours (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin     Up 24 hours
+
+
+--- Running pytest inside backend container ---
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend sh -c 'cd /app && python -m pip install pytest pytest-asyncio httpx -q 2>&1 | tail -3'
+
+[notice] A new release of pip is available: 24.0 -> 26.1.1
+[notice] To update, run: pip install --upgrade pip
+
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend sh -c 'cd /app && python -m pytest tests/test_med_plan_entry_v1_20260517.py -v --tb=short 2>&1 | tail -60'
+ImportError while loading conftest '/app/tests/conftest.py'.
+tests/conftest.py:15: in <module>
+    test_engine = create_async_engine(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/engine.py:120: in create_async_engine
+    sync_engine = _create_engine(url, **kw)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/sqlalchemy/util/deprecations.py:281: in warned
+    return fn(*args, **kwargs)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/create.py:599: in create_engine
+    dbapi = dbapi_meth(**dbapi_args)
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/sqlite/aiosqlite.py:374: in import_dbapi
+    __import__("aiosqlite"), __import__("sqlite3")
+    ^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'aiosqlite'
+
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend sh -c 'cd /app && python -m pytest tests/test_med_plan_v1_20260516.py -q --tb=short 2>&1 | tail -20'
+ImportError while loading conftest '/app/tests/conftest.py'.
+tests/conftest.py:15: in <module>
+    test_engine = create_async_engine(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/engine.py:120: in create_async_engine
+    sync_engine = _create_engine(url, **kw)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/sqlalchemy/util/deprecations.py:281: in warned
+    return fn(*args, **kwargs)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/create.py:599: in create_engine
+    dbapi = dbapi_meth(**dbapi_args)
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/sqlite/aiosqlite.py:374: in import_dbapi
+    __import__("aiosqlite"), __import__("sqlite3")
+    ^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'aiosqlite'
+
+
+--- Probe public URLs via gateway ---
+
+$ curl -sL -o /dev/null -w '%{http_code}  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/\n' 'http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/' ; curl -sL -o /dev/null -w '%{http_code}  http://localhost/autodev/6b...
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home/medication-reminder
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home/medication-plans
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home/medication-plans/new
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/medication-plans/hero-count
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/medication-plans/today
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/medication-plans/summary
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/medication-stats/monthly-compliance
+301  http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-plan/medications/list?tab=in_progress
+
+
+[DEPLOY DONE]

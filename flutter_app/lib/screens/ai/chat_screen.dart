@@ -526,9 +526,12 @@ class _ChatScreenState extends State<ChatScreen> {
       case 'file_upload':
         _handleFileUpload();
         break;
-      // [PRD-PROMPT-CONFIG-V1 2026-05-14] 报告解读专属按钮：复用拍照上传交互
+      // [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517]
+      // 报告解读按钮：上传图片到服务器拿 URL → 在当前会话内 SSE 触发
+      // intent='report_interpret'，由后端 ReportInterpretEngine 处理；
+      // 不再走"image 路径作为消息"导致后端拿不到真实图片的旧逻辑。
       case 'report_interpret':
-        _handlePhotoUpload();
+        _handleReportInterpretButton(btn);
         break;
       case 'ai_dialog_trigger':
         final triggerMsg = btn.params?['trigger_message']?.toString() ?? btn.name;
@@ -887,6 +890,108 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  // [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517]
+  // 报告解读按钮入口：拍照/相册 → 上传到服务器拿 URL → 同会话 SSE intent
+  Future<void> _handleReportInterpretButton(FunctionButton btn) async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: Color(0xFF52C41A)),
+                title: const Text('拍照'),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: Color(0xFF52C41A)),
+                title: const Text('从相册选择'),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (source == null) return;
+    final image = await _picker.pickImage(source: source);
+    if (image == null) return;
+
+    if (mounted) {
+      setState(() {
+        _isStreaming = true;
+        _streamingContent = '正在上传图片…';
+      });
+      _startCursorBlink();
+    }
+
+    String? imageUrl;
+    try {
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(image.path),
+      });
+      final resp = await _apiService.dio.post('/api/upload/image', data: formData);
+      if (resp.data is Map) {
+        final m = resp.data as Map;
+        imageUrl = (m['url'] ?? m['image_url'])?.toString();
+      }
+    } catch (_) {}
+
+    if (imageUrl == null || imageUrl.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _isStreaming = false;
+          _streamingContent = '';
+        });
+        _stopCursorBlink();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('图片上传失败，请重试')),
+        );
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isStreaming = false;
+        _streamingContent = '';
+      });
+      _stopCursorBlink();
+    }
+
+    // 用户气泡：展示已上传图片 URL
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    final sessionId = chatProvider.currentSession?.id;
+    if (sessionId == null) return;
+    chatProvider.addMessageExternally(ChatMessage(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      sessionId: sessionId,
+      role: 'user',
+      content: imageUrl,
+      type: 'image',
+      createdAt: DateTime.now().toIso8601String(),
+    ));
+
+    int? btnIdInt;
+    try {
+      btnIdInt = int.tryParse(btn.id?.toString() ?? '');
+    } catch (_) {}
+
+    _sendMessageWithSSE(
+      '我上传了一份体检报告，请帮我解读',
+      intent: 'report_interpret',
+      imageUrls: [imageUrl],
+      buttonType: 'report_interpret',
+      buttonId: btnIdInt,
+    );
+  }
+
   Future<void> _handlePhotoUpload() async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
@@ -1110,7 +1215,18 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   // Module 6: SSE streaming with typewriter effect
-  void _sendMessageWithSSE(String content, {String type = 'text'}) {
+  // [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517]
+  // 新增可选 extras：用于报告解读 / 显式识药等场景，把 intent + image_urls + button_type
+  // 透传给后端通用 SSE 分发器（与 H5、小程序协议保持一致）。
+  void _sendMessageWithSSE(
+    String content, {
+    String type = 'text',
+    String? intent,
+    List<String>? imageUrls,
+    String? buttonType,
+    int? buttonId,
+    Map<String, dynamic>? reportMeta,
+  }) {
     if (_isStreaming) return;
 
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
@@ -1134,7 +1250,16 @@ class _ChatScreenState extends State<ChatScreen> {
     _startCursorBlink();
     _scrollToBottom();
 
-    _sseSubscription = _sseService.streamChat(sessionId, content, type: type).listen(
+    _sseSubscription = _sseService.streamChat(
+      sessionId,
+      content,
+      type: type,
+      intent: intent,
+      imageUrls: imageUrls,
+      buttonType: buttonType,
+      buttonId: buttonId,
+      reportMeta: reportMeta,
+    ).listen(
       (sseMsg) {
         if (!mounted) return;
         if (sseMsg.event == 'error') {

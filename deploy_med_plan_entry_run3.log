@@ -1,0 +1,4 @@
+﻿Connecting to ubuntu@newbb.test.bangbangvip.com:22...
+Connected.
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && timeout 180 git fetch origin master --depth 5 --no-tags 2>&1 | tail -10

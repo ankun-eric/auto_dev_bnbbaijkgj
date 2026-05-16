@@ -43,6 +43,12 @@ from app.services.drug_identify_engine import (
     is_drug_identify_intent,
     run_drug_identify_stream,
 )
+# [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517] 聊天内嵌报告解读引擎
+from app.services.report_interpret_engine import (
+    REPORT_INTERPRET_INTENT,
+    is_report_interpret_intent,
+    run_report_interpret_stream,
+)
 
 router = APIRouter(prefix="/api/chat", tags=["AI对话"])
 
@@ -329,6 +335,55 @@ def _normalize_session_type(raw: Optional[str]) -> str:
     except Exception:
         pass
     return "health_qa"
+
+
+async def _ensure_self_family_member(user: User, db: AsyncSession) -> FamilyMember:
+    """[BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517 · Bug #2 修 B]
+    保证登录用户存在 ``is_self=True`` 的 FamilyMember 行；若不存在则懒创建一条，
+    使得"本人"与"其他咨询人"在 prompt 装配 / 档案查询上路径完全一致，
+    彻底消除"档案串味"。
+    """
+    try:
+        q = await db.execute(
+            select(FamilyMember).where(
+                FamilyMember.user_id == user.id,
+                FamilyMember.is_self.is_(True),
+            ).limit(1)
+        )
+        row = q.scalar_one_or_none()
+        if row:
+            return row
+    except Exception:
+        pass
+
+    member = FamilyMember(
+        user_id=user.id,
+        relationship_type="self",
+        nickname=(user.nickname or "本人"),
+        is_self=True,
+        status="active",
+    )
+    db.add(member)
+    try:
+        await db.flush()
+        await db.refresh(member)
+    except Exception:
+        # 罕见：并发同时创建。回滚后再 select 一次。
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+        q2 = await db.execute(
+            select(FamilyMember).where(
+                FamilyMember.user_id == user.id,
+                FamilyMember.is_self.is_(True),
+            ).limit(1)
+        )
+        existed = q2.scalar_one_or_none()
+        if existed:
+            return existed
+        raise
+    return member
 
 
 async def _pick_default_family_member_id(
@@ -721,6 +776,108 @@ async def _stream_drug_identify(
     )
 
 
+async def _stream_report_interpret(
+    *,
+    session: ChatSession,
+    session_id: int,
+    user: User,
+    user_msg_id: int,
+    user_source: str,
+    image_urls: list,
+    family_member_id: Optional[int],
+    report_meta: Optional[dict],
+    db: AsyncSession,
+) -> StreamingResponse:
+    """[BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517]
+    SSE 入口：把 ``run_report_interpret_stream`` 的事件流转成 SSE 事件，
+    并在 done 时把 AI 消息 + meta 持久化到 chat_messages。
+
+    与 _stream_drug_identify 共享 SSE 协议：
+      event: progress|delta|done
+    """
+    start_time = time.time()
+    captured_session = session
+
+    async def event_generator():
+        full_text = ""
+        final_meta: dict = {}
+        try:
+            async for ev in run_report_interpret_stream(
+                image_urls=image_urls,
+                user=user,
+                family_member_id=family_member_id,
+                report_title=(report_meta or {}).get("report_title") if isinstance(report_meta, dict) else None,
+                report_date=(report_meta or {}).get("report_date") if isinstance(report_meta, dict) else None,
+                db=db,
+            ):
+                etype = ev.get("type")
+                if etype == "progress":
+                    sse_data = json.dumps(
+                        {"stage": ev.get("stage"), "text": ev.get("text", "")},
+                        ensure_ascii=False,
+                    )
+                    yield f"event: progress\ndata: {sse_data}\n\n"
+                elif etype == "delta":
+                    full_text += ev.get("content", "") or ""
+                    sse_data = json.dumps({"content": ev.get("content", "")}, ensure_ascii=False)
+                    yield f"event: delta\ndata: {sse_data}\n\n"
+                elif etype == "done":
+                    full_text = ev.get("content") or full_text
+                    final_meta = ev.get("meta") or {}
+                    elapsed_ms = int((time.time() - start_time) * 1000)
+
+                    ai_msg = ChatMessage(
+                        session_id=session_id,
+                        role=MessageRole.assistant,
+                        content=full_text or "解读完成",
+                        message_type=MessageType.text,
+                        response_time_ms=elapsed_ms,
+                        source=user_source,
+                        parent_id=user_msg_id,
+                        message_metadata=final_meta,
+                    )
+                    db.add(ai_msg)
+                    captured_session.message_count = (captured_session.message_count or 0) + 1
+                    if captured_session.title == "新对话":
+                        captured_session.title = "报告解读"
+                    try:
+                        await db.flush()
+                        await db.refresh(ai_msg)
+                        await db.commit()
+                    except Exception:
+                        try:
+                            await db.rollback()
+                        except Exception:
+                            pass
+
+                    done_data = json.dumps(
+                        {
+                            "message_id": getattr(ai_msg, "id", None),
+                            "full_content": full_text or "",
+                            "meta": final_meta,
+                        },
+                        ensure_ascii=False,
+                    )
+                    yield f"event: done\ndata: {done_data}\n\n"
+        except Exception as e:
+            err_data = json.dumps(
+                {"content": f"报告解读服务异常：{str(e)[:160]}"},
+                ensure_ascii=False,
+            )
+            yield f"event: delta\ndata: {err_data}\n\n"
+            yield f"event: done\ndata: {err_data}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @router.post("/sessions/{session_id}/stream")
 async def stream_message(
     session_id: int,
@@ -769,10 +926,53 @@ async def stream_message(
     await db.commit()
     await db.refresh(user_msg)
 
+    # [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517]
+    # 统一图片 URL 来源：优先 payload.image_urls（结构化），否则从 content 文本中抽
+    payload_image_urls = list(getattr(data, "image_urls", None) or [])
+    text_image_urls = extract_image_urls(data.content or "")
+    merged_image_urls = payload_image_urls or text_image_urls
+
+    payload_intent = (getattr(data, "intent", None) or "").strip().lower() or None
+    payload_button_id = getattr(data, "button_id", None)
+    payload_report_meta = getattr(data, "report_meta", None)
+
+    # [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517] 分发优先级 1：报告解读 intent
+    # 显式 intent == 'report_interpret' 或 button_type 命中报告解读按钮 → 走 ReportInterpretEngine
+    if is_report_interpret_intent(
+        intent=payload_intent,
+        button_type=getattr(data, "button_type", None),
+        button_id=payload_button_id,
+        image_urls=merged_image_urls,
+    ):
+        return await _stream_report_interpret(
+            session=session,
+            session_id=session_id,
+            user=current_user,
+            user_msg_id=user_msg.id,
+            user_source=user_source,
+            image_urls=merged_image_urls,
+            family_member_id=session.family_member_id or incoming_family_member_id,
+            report_meta=payload_report_meta if isinstance(payload_report_meta, dict) else None,
+            db=db,
+        )
+
     # [BUG_FIX_拍照识药三联_20260516] 方案 E：聊天内嵌识药引擎路由
     # 当 button_type ∈ {photo_recognize_drug, drug_identify, medication_recognize}
     # 或消息文本含识药关键词，且消息含图片 URL → 走 DrugIdentifyEngine
-    drug_image_urls = extract_image_urls(data.content or "")
+    # [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517] 同时支持显式 intent='drug_identify'
+    drug_image_urls = merged_image_urls
+    if payload_intent == "drug_identify" and drug_image_urls:
+        return await _stream_drug_identify(
+            session=session,
+            session_id=session_id,
+            user_id=current_user.id,
+            user_msg_id=user_msg.id,
+            user_source=user_source,
+            content=data.content,
+            image_urls=drug_image_urls,
+            family_member_id=session.family_member_id or incoming_family_member_id,
+            db=db,
+        )
     if is_drug_identify_intent(
         button_type=getattr(data, "button_type", None),
         content=data.content or "",
@@ -814,9 +1014,18 @@ async def stream_message(
     if health_context:
         system_prompt += health_context
 
-    user_hp_context = await _build_user_health_profile_context(current_user.id, db)
-    if user_hp_context:
-        system_prompt += user_hp_context
+    # [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517 · Bug #2 修 A]
+    # 关键修复：去掉"无条件叠加登录用户档案"——这会把"本人档案"和"咨询人档案"
+    # 同时拼进 prompt，导致 AI 在选了某个咨询人后还引用其他成员的健康档案信息（串味）。
+    # 新规则：
+    #   - session.family_member_id 已绑定咨询人（含"本人=is_self FamilyMember"）→ health_context
+    #     已完整覆盖，不再叠加 UserHealthProfile；
+    #   - 未绑定任何 family_member_id（极少数老会话）→ 兜底拼一份 UserHealthProfile，
+    #     避免完全没有用户档案上下文。
+    if not session.family_member_id:
+        user_hp_context = await _build_user_health_profile_context(current_user.id, db)
+        if user_hp_context:
+            system_prompt += user_hp_context
 
     # [2026-04-23 v1.2] drug_query 场景：注入 {member_info} + {drug_list}
     if session_type_val == "drug_query":
@@ -1001,11 +1210,46 @@ async def switch_session_member(
         session.family_member_id = family_member_id
         message = f"已切换咨询对象为{rel}·{nickname}"
     else:
-        switch_summary = "用户已将咨询对象切换回自己"
-        session.family_member_id = None
+        # [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517 · Bug #2 修 B]
+        # 切回"本人"：统一为 is_self=True 的 FamilyMember（不再置 None），
+        # 避免与"其他咨询人=family_member_id"形成双标，从根上消除档案串味。
+        # 若该用户尚未回填 is_self 行，则懒创建一条。
+        self_member = await _ensure_self_family_member(current_user, db)
+        switch_summary = (
+            f"用户已将咨询对象切换回自己（{self_member.nickname or '本人'}）"
+        )
+        session.family_member_id = self_member.id
+        family_member_id = self_member.id
         message = "已切换咨询对象为自己"
 
+    # [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517 · Bug #2 修 C]
+    # switch-member 时写入一条系统级的 switch_summary 消息，便于 AI 在续问时
+    # 明确"咨询人已变更"，同时供前端/审计回放使用。
+    try:
+        sys_msg = ChatMessage(
+            session_id=session.id,
+            role=MessageRole.system,
+            content=switch_summary,
+            message_type=MessageType.text,
+            source="switch_member",
+            message_metadata={
+                "kind": "switch_summary",
+                "family_member_id": family_member_id,
+            },
+        )
+        db.add(sys_msg)
+    except Exception:
+        # 切换主流程不应因写系统消息失败而失败；忽略即可，下游靠 family_member_id 兜底
+        pass
+
     await db.flush()
+    try:
+        await db.commit()
+    except Exception:
+        try:
+            await db.rollback()
+        except Exception:
+            pass
     return {"message": message, "family_member_id": family_member_id, "switch_summary": switch_summary}
 
 

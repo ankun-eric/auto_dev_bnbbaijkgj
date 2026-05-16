@@ -16,12 +16,35 @@ class SseService {
 
   final ApiService _api = ApiService();
 
-  Stream<SseMessage> streamChat(String sessionId, String content, {String type = 'text'}) async* {
+  // [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517]
+  // 新增可选 extras：透传 intent / image_urls / button_id / button_type / report_meta
+  // 给后端通用 SSE 分发器（与 H5、小程序协议保持一致），用于报告解读 / 识药等场景。
+  Stream<SseMessage> streamChat(
+    String sessionId,
+    String content, {
+    String type = 'text',
+    String? intent,
+    List<String>? imageUrls,
+    String? buttonType,
+    int? buttonId,
+    Map<String, dynamic>? reportMeta,
+    int? familyMemberId,
+  }) async* {
     final dio = _api.dio;
     try {
+      final Map<String, dynamic> body = {
+        'content': content,
+        'message_type': type,
+      };
+      if (intent != null && intent.isNotEmpty) body['intent'] = intent;
+      if (imageUrls != null && imageUrls.isNotEmpty) body['image_urls'] = imageUrls;
+      if (buttonType != null && buttonType.isNotEmpty) body['button_type'] = buttonType;
+      if (buttonId != null) body['button_id'] = buttonId;
+      if (reportMeta != null && reportMeta.isNotEmpty) body['report_meta'] = reportMeta;
+      if (familyMemberId != null) body['family_member_id'] = familyMemberId;
       final response = await dio.post(
         '/api/chat/sessions/$sessionId/stream',
-        data: {'content': content, 'message_type': type},
+        data: body,
         options: Options(
           responseType: ResponseType.stream,
           headers: {'Accept': 'text/event-stream'},

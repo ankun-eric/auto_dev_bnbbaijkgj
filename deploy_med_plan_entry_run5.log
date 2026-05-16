@@ -1,0 +1,180 @@
+﻿Connecting to ubuntu@newbb.test.bangbangvip.com:22...
+Connected.
+
+--- Uploading 14 files via SFTP ---
+  鉁?backend/app/api/medication_plans_v1.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/medication_plans_v1.py
+  鉁?backend/app/services/medication_status_scheduler.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/services/medication_status_scheduler.py
+  鉁?backend/tests/test_med_plan_entry_v1_20260517.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_med_plan_entry_v1_20260517.py
+  鉁?backend/app/api/health_plan_v2.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/health_plan_v2.py
+  鉁?backend/app/main.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/main.py
+  鉁?h5-web/src/app/(ai-chat)/ai-home/medication-reminder/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/medication-reminder/page.tsx
+  鉁?h5-web/src/app/(ai-chat)/ai-home/medication-plans/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/medication-plans/page.tsx
+  鉁?h5-web/src/app/(ai-chat)/ai-home/medication-plans/new/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/medication-plans/new/page.tsx
+  鉁?h5-web/src/app/(ai-chat)/ai-home/medication-plans/[id]/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/medication-plans/[id]/page.tsx
+  鉁?h5-web/src/components/medication/MedicationFormPanel.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/components/medication/MedicationFormPanel.tsx
+  鉁?h5-web/src/app/(ai-chat)/ai-home/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/page.tsx
+  鉁?h5-web/src/app/(ai-chat)/ai-home/components/AddMedicationDrawer.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/components/AddMedicationDrawer.tsx
+  鉁?h5-web/src/app/chat/[sessionId]/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/chat/[sessionId]/page.tsx
+  鉁?h5-web/src/app/health-profile/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-profile/page.tsx
+
+--- Deleting 3 legacy paths ---
+  鉁?/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/medication-plans/page.tsx
+  鉁?/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-plan/medications/add/page.tsx
+  鉁?/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-plan/medications/page.tsx
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml stop backend 2>&1 | tail -3
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Stopping 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Stopped 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml rm -f backend 2>&1 | tail -3
+Going to remove 6b099ed3-7175-4a78-91f4-44570c84ed27-backend
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Removing 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Removed 
+
+Building backend...
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build backend 2>&1 | tail -30
+#5 DONE 0.1s
+
+#7 [5/6] COPY . .
+#7 CACHED
+
+#8 [2/6] WORKDIR /app
+#8 CACHED
+
+#9 [3/6] COPY requirements.txt .
+#9 CACHED
+
+#10 [4/6] RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.cloud.tencent.com/pypi/simple --trusted-host mirrors.cloud.tencent.com --timeout 120
+#10 CACHED
+
+#11 [6/6] RUN mkdir -p uploads
+#11 CACHED
+
+#12 exporting to image
+#12 exporting layers done
+#12 exporting manifest sha256:b1a3b600e6d061cc8580c456bbb001180833a5953e6d8c7926b229ea4ce90f62 done
+#12 exporting config sha256:6225164167e9e4d2030e6e67f682632b88506ecb4af7e4be266067c55653d205 done
+#12 exporting attestation manifest sha256:14c06647e5fce62e5c501f5cb3b0cbe7f5eb7a588365d088994ebc5ff74c4d91 0.0s done
+#12 exporting manifest list sha256:56043bafea348d2f24ee26b3023bc02d6ce1d756814dcabe524ff8474135e4de 0.0s done
+#12 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest done
+#12 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest 0.0s done
+#12 DONE 0.1s
+
+#13 resolving provenance for metadata file
+#13 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Built 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d backend 2>&1 | tail -10
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Creating 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Created 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml stop h5-web 2>&1 | tail -3
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml rm -f h5-web 2>&1 | tail -3
+No stopped containers
+
+Building h5-web (may take 3-6 min)...
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build h5-web 2>&1 | tail -80
+tatic pages (85/114) 
+
+#12 77.68  猕?useSearchParams() should be wrapped in a suspense boundary at page "/health-profile". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout
+#12 77.68     at o (/app/.next/server/chunks/7138.js:1:10613)
+#12 77.68     at s (/app/.next/server/chunks/7138.js:1:21595)
+#12 77.68     at A (/app/.next/server/app/health-profile/page.js:1:42714)
+#12 77.68     at nj (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:46251)
+#12 77.68     at nM (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:47571)
+#12 77.68     at nN (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64546)
+#12 77.68     at nI (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:47010)
+#12 77.68     at nM (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:47717)
+#12 77.68     at nM (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:61546)
+#12 77.68     at nN (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64546)
+#12 77.68 
+#12 77.68 Error occurred prerendering page "/health-profile". Read more: https://nextjs.org/docs/messages/prerender-error
+#12 77.68 
+#12 77.68  鉁?Generating static pages (114/114)
+#12 77.70 
+#12 77.70 > Export encountered errors on following paths:
+#12 77.70 	/health-profile/page: /health-profile
+#12 ERROR: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
+------
+ > [builder 7/7] RUN npm run build:
+77.68     at nM (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:47717)
+77.68     at nM (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:61546)
+77.68     at nN (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64546)
+77.68 
+77.68 Error occurred prerendering page "/health-profile". Read more: https://nextjs.org/docs/messages/prerender-error
+77.68 
+77.68  鉁?Generating static pages (114/114)
+77.70 
+77.70 > Export encountered errors on following paths:
+77.70 	/health-profile/page: /health-profile
+------
+Dockerfile:11
+
+--------------------
+
+   9 |     ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
+
+  10 |     RUN mkdir -p public
+
+  11 | >>> RUN npm run build
+
+  12 |     
+
+  13 |     FROM node:18-alpine AS runner
+
+--------------------
+
+failed to solve: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
+
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d h5-web 2>&1 | tail -10
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Creating 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Created 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+
+
+--- Waiting for backend container ---
+  [5s] backend: running|
+  backend ready.
+
+$ docker network connect 6b099ed3-7175-4a78-91f4-44570c84ed27-network gateway 2>&1
+Error response from daemon: endpoint with name gateway already exists in network 6b099ed3-7175-4a78-91f4-44570c84ed27-network
+
+
+$ docker exec gateway nginx -t 2>&1
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+
+
+$ docker exec gateway nginx -s reload 2>&1
+2026/05/16 17:22:52 [notice] 3747#3747: signal process started
+
+
+$ docker ps --filter name=6b099ed3-7175-4a78-91f4-44570c84ed27 --format 'table {{.Names}}\t{{.Status}}'
+NAMES                                          STATUS
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5        Up 3 seconds
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend   Up About a minute
+6b099ed3-7175-4a78-91f4-44570c84ed27-db        Up 15 hours (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin     Up 24 hours
+
+
+--- Running pytest inside backend container ---
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend sh -c 'cd /app && python -m pip install pytest pytest-asyncio httpx -q 2>&1 | tail -3'
