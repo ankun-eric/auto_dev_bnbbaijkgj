@@ -27,7 +27,42 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-MED-PLAN-V1-20260516｜档案管理·用药计划模块优化（2026-05-16 22:00）
+## Latest Update: BUG-FIX-DRUG-IDENTIFY-V3-20260516｜ai-home 拍照识药三联 Bug 修复 + 方案 E 聊天内嵌识药引擎（2026-05-16 23:00）
+
+### 一句话结论
+一次性全量修复 ai-home 拍照识药 3 个 Bug：识别错乱（OCR 优先 + 一致性校验）、格式啰嗦（行数/段落硬约束 + 6 维健康档案）、免责声明重复（全局 sanitize 兜底）。**核心根因补丁：方案 E 聊天内嵌识药引擎**——在 `chat/stream` 接口中按 `button_type` 与图片 URL 检测识药意图，调用 `DrugIdentifyEngine` 走 OCR + 视觉并行 + 一致性校验 + SSE 流式 + meta 持久化，实现 ai-home 入口零跳转、同会话可继续追问、`family_member_id` 透传保证多咨询人安全。
+
+### 后端核心改动
+- 新增 `backend/app/utils/ai_output_sanitizer.py`：`sanitize_ai_output()` 全局清洗（连续空行压缩 / 段落 hash 去重 / 免责声明去重 / 行数硬截断），`verify_drug_name_against_ocr()` 编辑距离一致性校验
+- 新增 `backend/app/services/drug_identify_engine.py`：聊天内嵌识药引擎，`is_drug_identify_intent()` / `run_drug_identify_stream()` / `build_implicit_drug_context()`，OCR + 视觉 asyncio.gather 并行 + SSE progress/delta/done 三段事件 + 内存软缓存
+- 修改 `backend/app/services/health_profile_service.py`：新增 `build_user_profile_for_drug_identify(user_id, family_member_id)`，输出 6 维档案（age_group/gender/chronic_diseases/allergies含severity/current_medications含dose+freq/tcm_constitution）
+- 修改 `backend/app/services/ai_service.py`：`call_ai_model` / `call_ai_model_stream` 接入 sanitize；`identify_drug_structured` / `identify_drug_from_image` Prompt 锁死 OCR 优先 + 「」中文引号防 SyntaxError + 整合 `verify_drug_name_against_ocr`，相似度 < 70% 自动降级为 `pick_candidate` / `retake`
+- 修改 `backend/app/schemas/chat.py`：`ChatMessageCreate` 新增 `button_type` 与 `family_member_id` 字段
+- 修改 `backend/app/api/chat.py`：`stream_message` 入口检测识药意图 → 路由到 `_stream_drug_identify` 走 `drug_identify_engine`；`family_member_id` 全链路透传；最近 3 条 assistant 消息 `message_metadata` 含 `drug_identify_card` 时通过 `build_implicit_drug_context` 注入隐式 system context；`_append_disclaimer` 改由 `sanitize_ai_output` 统一兜底，移除遗留 `---disclaimer---` 标签拼接
+
+### 前端核心改动（h5-web · ai-home）
+- `src/app/(ai-chat)/ai-home/page.tsx`：
+  - SSE 解析支持 `event: progress` / `event: delta` / `event: done`，从 `done.meta` 取出结构化药品 JSON 挂到 `ChatMessage.drugMeta`
+  - 渲染分支：`drugMeta.message_type === drug_identify_card` → 渲染 `DrugIdentifyCard`（含「加入用药计划」按钮）；`drug_identify_retake` → 重新拍照气泡；其余 → 普通 Markdown
+  - 发送 payload 增加 `family_member_id`（取当前选中咨询人；未选则取登录用户 ID）
+
+### 部署与测试
+- 测试服务器：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/`
+- 部署脚本：`deploy/_deploy_drug_identify_v3_bug_20260516.py`（paramiko SSH → git fetch + reset --hard origin/master → docker compose down/build/up → 健康探活 → gateway 路由 reload → 后端 pytest + chat/stream 探活）
+- 后端单测：`backend/tests/test_drug_identify_bug_v3_20260516.py`（sanitize 行为 / 一致性校验 / 识药意图判断 / 隐式上下文 / schema 校验 / 无图兜底）已在容器内 `pytest -k drug_identify_bug_v3` 通过
+- 前端 / 后端 / Gateway 公网路由均已返回 HTTP 200
+
+### 用户体验手册
+- `user_docs/拍照识药三联Bug修复_20260516.md`
+
+### 受影响端
+- ✅ backend（FastAPI）
+- ✅ h5-web（Next.js · ai-home）
+- ❌ admin-web / flutter_app / miniprogram / verify-miniprogram 本次未改动
+
+---
+
+## Previous Update: PRD-MED-PLAN-V1-20260516｜档案管理·用药计划模块优化（2026-05-16 22:00）
 
 ### 一句话结论
 按 PRD 对「健康档案 → 用药计划」做系统性精简：表单结构化（剂量数值+单位下拉、动态时间选择器、用药指导单选、服用周期=开始+天数）、移除拍照识药/单条提醒/单条 AI 外呼/关联疾病等用户侧入口；AI 外呼提醒升级为**全局开关**（`reminder_settings.medication_ai_call_enabled`），同时挂载在「健康提醒」与「共管」两处，数据互通；新增同名药「进行中」去重（409 + 错误码）和服用周期到期自动归档。
