@@ -38,6 +38,13 @@ class ChatMessageCreate(BaseModel):
     # 默认 text，便于在 chat_messages 表中区分会话首句的实际来源（文字/语音/预设按钮），
     # 用于排查"语音/预设按钮首句丢失"类回归与运营分析。非法值在路由层归一化为 'text'。
     source: Optional[str] = "text"
+    # [BUG_FIX_拍照识药三联_20260516] 方案 E 新增字段：
+    # - button_type：拍照识药 / 健康自查 / 报告解读等按钮入口类型；
+    #   后端据此把消息路由到聊天内嵌识药引擎或其他专用流程。
+    # - family_member_id：当前咨询人 ID（妈妈给孩子拍药时务必传入孩子的 ID）；
+    #   决定档案上下文（剂量/禁忌/相互作用）来源，避免给儿童按成人剂量。
+    button_type: Optional[str] = None
+    family_member_id: Optional[int] = None
 
 
 class ChatMessageResponse(BaseModel):

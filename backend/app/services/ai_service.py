@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.models import AIModelConfig
+from app.utils.ai_output_sanitizer import sanitize_ai_output
 
 logger = logging.getLogger(__name__)
 
@@ -162,6 +163,8 @@ async def call_ai_model(
                 resp.raise_for_status()
                 data = resp.json()
                 content = data["choices"][0]["message"]["content"]
+                # [BUG_FIX_拍照识药三联_20260516] 全局兜底清洗：去掉重复免责声明 / 连续空行 / 重复段落
+                content = sanitize_ai_output(content)
                 if return_usage:
                     usage = data.get("usage")
                     return {
@@ -307,13 +310,15 @@ async def call_ai_model_stream(
                             yield {"type": "delta", "content": content_piece}
                     except (json.JSONDecodeError, IndexError, KeyError):
                         continue
+        # [BUG_FIX_拍照识药三联_20260516] flush 后对累计文本做兜底清洗
+        full_content = sanitize_ai_output(full_content)
         yield {"type": "done", "content": full_content}
     except Exception as e:
         logger.error("AI stream call failed: %s", e)
         error_msg = f"AI服务调用失败: {str(e)}"
         if not full_content:
             yield {"type": "delta", "content": error_msg}
-        yield {"type": "done", "content": full_content or error_msg}
+        yield {"type": "done", "content": sanitize_ai_output(full_content) or error_msg}
 
 
 async def analyze_checkup_report(ocr_text: str, user_profile: Optional[Dict] = None, db: Optional[AsyncSession] = None) -> str:
@@ -466,17 +471,21 @@ async def identify_drug_from_image(
         "你是一位资深的药品识别 AI 助手。用户上传了药盒/药品包装的真实图片，"
         "请基于图片中的视觉内容（包装外观、配色、Logo）和 OCR 文字（药名、规格、厂商、批号等），"
         "尽你所能识别出药品，并给出结构化、客观、谨慎的回答。\n\n"
+        "## ⚠️ 最高优先级硬约束\n"
+        "1. **药品名称的唯一可信来源 = OCR 文字**。视觉与 OCR 冲突时优先 OCR；"
+        "OCR 提取到的药名片段必须在输出的「药品名称」字段中显式出现。\n"
+        "2. OCR 未提取到清晰药名时，必须直接回复「无法识别，请重拍/换角度」，"
+        "**严禁基于视觉相似性猜测感冒药、阿莫西林、布洛芬等常见药**。\n"
+        "3. 整体输出 ≤ 15 行；每段 ≤ 2 行；段落之间最多 1 个空行；严禁重复段落；"
+        "免责声明只在结尾出现一次。\n\n"
         "## 必须遵守的输出规则\n"
         "1. 必须**真正基于图片中可见的内容**作答；如果图片不清晰、不是药品或无法识别，必须直接说明"
         "「无法识别，请重拍/换角度」，**严禁凭印象虚构常见药品**。\n"
         "2. 不同图片应给出不同的识别结果，不允许对所有图片返回完全相同的固定话术。\n"
-        "3. 涉及处方药、特殊管制药品时必须额外提示"
-        "「该药为处方药，请遵医嘱使用」。\n"
-        "4. 结尾统一附加："
-        "「AI 识别结果仅供参考，具体用药请遵医嘱」。\n\n"
-        "## 推荐输出结构（Markdown）\n"
-        "- 药品名称：通用名 / 商品名\n"
-        "- 药品分类：处方药 / 非处方药 / 保健食品\n"
+        "3. 涉及处方药、特殊管制药品时必须额外提示「该药为处方药，请遵医嘱使用」。\n"
+        "4. 结尾仅附加一次：「AI 识别结果仅供参考，具体用药请遵医嘱」。\n\n"
+        "## 推荐输出结构（Markdown，严格按此 5 块）\n"
+        "- 药品名称：通用名 / 商品名（必须包含 OCR 中的药名片段）\n"
         "- 主要成分 / 规格\n"
         "- 适应症\n"
         "- 用法用量\n"
@@ -554,6 +563,18 @@ async def identify_drug_structured(
         "用户上传了一张或多张药盒/药品包装的真实图片，"
         "请基于图片中的视觉内容（包装外观、配色、Logo、盒型）和 OCR 文字"
         "（药名、规格、厂商、批号）联合识别图中的所有药品。\n\n"
+        "## ⚠️ 最高优先级硬约束（违反任意一条都视为严重错误）\n"
+        "1. **药品名称的唯一可信来源 = OCR 文字**。视觉判断与 OCR 冲突时，"
+        "**必须优先采信 OCR**；OCR 提取到的药名片段必须在最终输出的 name 字段中显式出现。\n"
+        "2. **OCR 没有捕获到清晰药名时，必须返回 next_action='retake' 或 'pick_candidate'**，"
+        "严禁基于「看起来像感冒药盒」等视觉相似性凭空猜测常见药品（如阿莫西林、布洛芬、感冒灵）。\n"
+        "3. summary_markdown 整体 ≤ 15 行；每段 ≤ 2 行；段落之间最多 1 个空行；"
+        "严禁出现重复段落；严禁包含多余的免责声明（disclaimer 字段独立返回，不要重复在 summary 里）。\n"
+        "4. summary_markdown 必须严格采用 5 块结构（成分/适应症/用法/注意/禁忌）；"
+        "仅在 user_profile 中存在相关风险点（过敏成分命中 / 慢病冲突 / 在服药相互作用 / 特殊年龄段）"
+        "时增补第 6 块「结合您的健康档案」，否则**不强行增加**该块（避免空话）。\n"
+        "5. 「结合您的健康档案」素材来源**严格限定于** user_profile JSON 中真实存在的字段，"
+        "user_profile 没有提及的内容严禁推测。\n\n"
         "## 严格的输出协议\n"
         "你必须**只输出合法的 JSON**（不要 markdown 代码块标记，不要任何前后缀文字）。\n"
         "JSON 结构如下：\n"
@@ -662,6 +683,30 @@ async def identify_drug_structured(
         "disclaimer",
         "AI 识别结果仅供参考，具体用药请遵医嘱。",
     )
+    # [BUG_FIX_拍照识药三联_20260516] 一致性二次校验：模型药名 vs OCR 文字
+    try:
+        from app.utils.ai_output_sanitizer import (
+            sanitize_for_drug_card,
+            verify_drug_name_against_ocr,
+        )
+        meds = parsed.get("medicines") or []
+        primary_name = ""
+        if meds and isinstance(meds[0], dict):
+            primary_name = meds[0].get("name") or meds[0].get("brand") or ""
+        if primary_name and ocr_text:
+            sim = verify_drug_name_against_ocr(primary_name, ocr_text)
+            parsed["consistency_score"] = sim
+            if sim < 0.4:
+                parsed["next_action"] = "retake"
+                parsed["recognized"] = False
+            elif sim < 0.7 and parsed.get("next_action") == "show_card":
+                parsed["next_action"] = "pick_candidate"
+        # 输出文本统一兜底：≤ 15 行 / ≤ 2 行段 / 1 段免责声明
+        if isinstance(parsed.get("summary_markdown"), str) and parsed["summary_markdown"]:
+            parsed["summary_markdown"] = sanitize_for_drug_card(parsed["summary_markdown"])
+    except Exception as _e:
+        logger.warning("identify_drug_structured: post-process failed: %s", _e)
+
     if not parsed.get("summary_markdown"):
         if parsed.get("recognized") and parsed.get("medicines"):
             lines = ["### 识别结果"]

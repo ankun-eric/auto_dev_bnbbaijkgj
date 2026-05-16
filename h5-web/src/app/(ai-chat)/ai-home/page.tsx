@@ -28,6 +28,8 @@ import CapsuleBar from '@/components/ai-chat/CapsuleBar';
 // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查抽屉 + 卡片气泡
 import HealthSelfCheckDrawer, { type HealthSelfCheckSubmitPayload, type HealthCheckTemplateDetail } from '@/components/ai-chat/HealthSelfCheckDrawer';
 import HealthSelfCheckCard from '@/components/ai-chat/HealthSelfCheckCard';
+// [BUG_FIX_拍照识药三联_20260516] 聊天内嵌识药引擎：识药结果卡片
+import DrugIdentifyCard from './components/DrugIdentifyCard';
 // [Bug-471 2026-05-15] AI 对话卡片 / 胶囊「相册 / 拍照 / 本机 / 微信」共用的文件选择 + 上传工具
 import {
   pickFilesViaHiddenInput,
@@ -71,6 +73,34 @@ interface ChatMessage {
   };
   /** quick_ask 卡片消息当前状态：pending（可编辑）/ sent（已发送，置灰）/ cancelled（已取消，置灰） */
   quickAskState?: 'pending' | 'sent' | 'cancelled';
+  /**
+   * [BUG_FIX_拍照识药三联_20260516] 聊天内嵌识药引擎返回的结构化 meta：
+   *   - message_type: 'drug_identify_card' → 渲染识药卡（含药品名/成分/适应症等）
+   *   - message_type: 'drug_identify_retake' → 渲染「重新拍照」气泡
+   *   - 其他 / null → 普通文本气泡
+   * 字段来自后端 SSE done 事件的 meta，通过 sendSSE 写入到对应 assistant 消息上。
+   */
+  drugMeta?: {
+    message_type?: 'drug_identify_card' | 'drug_identify_retake' | string;
+    medicines?: Array<{
+      name?: string;
+      brand?: string;
+      spec?: string;
+      manufacturer?: string;
+      category?: string;
+      ingredients?: string;
+      usage?: string;
+      indications?: string;
+      precautions?: string;
+      contraindications?: string;
+    }>;
+    family_member_id?: number | null;
+    confidence?: number;
+    consistency_score?: number;
+    reason?: string;
+    candidates?: any[];
+    [k: string]: any;
+  } | null;
   /** [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 自查卡片气泡 payload */
   healthSelfCheck?: {
     archiveId?: number | null;
@@ -888,13 +918,22 @@ export default function AiHomePage() {
         const controller = new AbortController();
         abortRef.current = controller;
 
+        // [BUG_FIX_拍照识药三联_20260516] 透传 family_member_id（咨询人 ID）：
+        // 妈妈给孩子拍药时，剂量/禁忌/相互作用必须基于「咨询人」档案而非登录用户档案，
+        // 否则可能给儿童按成人剂量。未选咨询人时该字段为 null，后端会兜底为登录用户档案。
+        const fmId = selectedConsultant ? selectedConsultant.id : null;
         const response = await fetch(`${basePath}/api/chat/sessions/${sid}/stream`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
           },
-          body: JSON.stringify({ content: message, message_type: 'text', source }),
+          body: JSON.stringify({
+            content: message,
+            message_type: 'text',
+            source,
+            family_member_id: fmId,
+          }),
           signal: controller.signal,
         });
 
@@ -906,6 +945,11 @@ export default function AiHomePage() {
         const decoder = new TextDecoder();
         let accumulated = '';
         let buffer = '';
+        // [BUG_FIX_拍照识药三联_20260516] 跟踪 SSE 事件类型：
+        //   - event: progress 仅作为占位提示（用 isStreaming 状态展示）
+        //   - event: delta   累积内容
+        //   - event: done    解析 meta，识别为 drug_identify_card/retake 时附加到消息
+        let currentEvent: 'delta' | 'progress' | 'done' = 'delta';
 
         while (true) {
           const { done, value } = await reader.read();
@@ -916,11 +960,35 @@ export default function AiHomePage() {
           buffer = lines.pop() || '';
 
           for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              const ev = line.substring(7).trim();
+              if (ev === 'delta' || ev === 'progress' || ev === 'done') {
+                currentEvent = ev as any;
+              }
+              continue;
+            }
             if (line.startsWith('data: ')) {
               const payload = line.substring(6);
               if (payload === '[DONE]') break;
               try {
                 const parsed = JSON.parse(payload);
+                if (currentEvent === 'progress') {
+                  // progress 阶段不污染正文，仅在尚未有 delta 时给一行占位
+                  if (!accumulated && parsed.text) {
+                    setMessages(prev => prev.map(m =>
+                      m.id === aiMsgId ? { ...m, content: parsed.text + '…' } : m
+                    ));
+                  }
+                  continue;
+                }
+                if (currentEvent === 'done') {
+                  const meta = parsed?.meta || null;
+                  const fullText = parsed?.full_content || accumulated;
+                  setMessages(prev => prev.map(m => (
+                    m.id === aiMsgId ? { ...m, content: fullText, drugMeta: meta } : m
+                  )));
+                  continue;
+                }
                 if (parsed.content) {
                   accumulated += parsed.content;
                   setMessages(prev => prev.map(m =>
@@ -3408,7 +3476,60 @@ export default function AiHomePage() {
                         overflowWrap: 'break-word',
                       }}
                     >
-                      <span dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+                      {/*
+                       * [BUG_FIX_拍照识药三联_20260516] 聊天内嵌识药引擎结果分支：
+                       *   - drug_identify_card → 复用 DrugIdentifyCard 组件（卡片样式 + 加入用药计划按钮预留）
+                       *   - drug_identify_retake → 提示重新拍照气泡 + 「重新拍照」按钮（点击同 capsule 拍照入口）
+                       *   - 其他 / null → 退化为普通 Markdown
+                       */}
+                      {msg.drugMeta && msg.drugMeta.message_type === 'drug_identify_card' && Array.isArray(msg.drugMeta.medicines) && msg.drugMeta.medicines.length > 0 ? (
+                        <div data-testid="ai-home-drug-identify-card">
+                          <DrugIdentifyCard
+                            card={{
+                              drug_name: msg.drugMeta.medicines[0]?.name || msg.drugMeta.medicines[0]?.brand || '已识别药品',
+                              generic_name: msg.drugMeta.medicines[0]?.name || null,
+                              spec: msg.drugMeta.medicines[0]?.spec || null,
+                              manufacturer: msg.drugMeta.medicines[0]?.manufacturer || null,
+                              category: msg.drugMeta.medicines[0]?.category || null,
+                              indications: msg.drugMeta.medicines[0]?.indications || null,
+                              usage: msg.drugMeta.medicines[0]?.usage || null,
+                              contraindications: msg.drugMeta.medicines[0]?.contraindications || null,
+                            }}
+                            libraryMatched={false}
+                            conflicts={[]}
+                            onAddPlan={() => router.push('/health-plan/medications/add')}
+                            onViewAllPlans={() => router.push('/health-plan/medications')}
+                          />
+                          {msg.content && (
+                            <div style={{ marginTop: 8, fontSize: 14, color: '#666', lineHeight: 1.6 }}>
+                              <span dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+                            </div>
+                          )}
+                        </div>
+                      ) : msg.drugMeta && msg.drugMeta.message_type === 'drug_identify_retake' ? (
+                        <div data-testid="ai-home-drug-identify-retake" style={{ padding: '8px 12px', background: '#FFF7E6', borderRadius: 8, border: '1px solid #FFD591' }}>
+                          <div style={{ marginBottom: 8 }}>
+                            <span dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content || '识别结果不一致，请重新拍摄药盒清晰图。') }} />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // 触发拍照识药重拍：直接打开下方胶囊条/菜单的拍照入口
+                              try {
+                                Toast.show({ content: '请通过下方拍照按钮重新拍摄药盒', position: 'bottom' });
+                              } catch {}
+                            }}
+                            style={{
+                              minHeight: 36, padding: '4px 16px', background: '#FA8C16', color: '#fff',
+                              border: 'none', borderRadius: 6, fontSize: 14, cursor: 'pointer',
+                            }}
+                          >
+                            重新拍照
+                          </button>
+                        </div>
+                      ) : (
+                        <span dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+                      )}
                       {/* [PRD-433 F-10] 流式输出已去除光标闪烁 span */}
                     </div>
 

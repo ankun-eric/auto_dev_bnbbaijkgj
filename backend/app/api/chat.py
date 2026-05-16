@@ -27,10 +27,21 @@ from app.models.models import (
     UserHealthProfile,
 )
 from app.schemas.chat import ChatMessageCreate, ChatMessageResponse, ChatSessionCreate, ChatSessionResponse
-from app.services.ai_service import call_ai_model, call_ai_model_stream, symptom_analysis
+from app.services.ai_service import (
+    call_ai_model,
+    call_ai_model_stream,
+    extract_image_urls,
+    symptom_analysis,
+)
 from app.services.knowledge_search import search_knowledge
 # [2026-04-23 v1.2] 用药对话 drug_query 注入 {member_info} + {drug_list}
 from app.api.drug_chat import inject_drug_context_to_prompt
+# [BUG_FIX_拍照识药三联_20260516] 聊天内嵌识药引擎（方案 E）
+from app.services.drug_identify_engine import (
+    build_implicit_drug_context,
+    is_drug_identify_intent,
+    run_drug_identify_stream,
+)
 
 router = APIRouter(prefix="/api/chat", tags=["AI对话"])
 
@@ -66,13 +77,26 @@ async def _filter_sensitive_words(content: str, db: AsyncSession) -> str:
 
 
 async def _append_disclaimer(content: str, session_type: str, db: AsyncSession) -> str:
+    """[BUG_FIX_拍照识药三联_20260516] 免责声明只追加一次，且不再使用 ---disclaimer--- 标签。
+
+    根因：旧实现给每条 AI 消息追加 ``---disclaimer---`` 标签 + 文案；模型自身又会输出
+    一段免责声明，前端再渲染一次 → 卡片底部连续两段重复。修复策略：
+    1. 取消 ``---disclaimer---`` 标签（前端不再依赖该标记，统一靠后端干净文本）；
+    2. 仅当 content 中**完全未出现**配置的 disclaimer_text 时才追加；
+    3. 最终再统一交给 sanitize_ai_output 兜底。
+    """
+    from app.utils.ai_output_sanitizer import sanitize_ai_output
+
     result = await db.execute(
         select(AiDisclaimerConfig).where(AiDisclaimerConfig.chat_type == session_type)
     )
     config = result.scalar_one_or_none()
     if config and config.is_enabled and config.disclaimer_text:
-        content += "\n\n---disclaimer---\n" + config.disclaimer_text
-    return content
+        text = (config.disclaimer_text or "").strip()
+        if text and text not in (content or ""):
+            content = (content or "") + "\n\n" + text
+    # 兜底清洗：去重免责段落 + 压缩空行 + 段落 hash 去重
+    return sanitize_ai_output(content)
 
 
 def _calc_age(birthday: date) -> int:
@@ -597,6 +621,105 @@ async def send_message(
     return resp
 
 
+async def _stream_drug_identify(
+    *,
+    session: ChatSession,
+    session_id: int,
+    user_id: int,
+    user_msg_id: int,
+    user_source: str,
+    content: str,
+    image_urls: list,
+    family_member_id: Optional[int],
+    db: AsyncSession,
+) -> StreamingResponse:
+    """[BUG_FIX_拍照识药三联_20260516] 方案 E：聊天内嵌识药引擎 SSE 入口。
+
+    - 与 ``stream_message`` 共享 SSE 协议：``event: delta`` / ``event: done`` /
+      新增 ``event: progress``（识别中/OCR完成/视觉完成 提示文案，避免白屏）
+    - AI 消息持久化时，把识药结构化结果写入 ``message_metadata``，
+      字段含 ``message_type``（drug_identify_card / drug_identify_retake）、
+      ``medicines``、``family_member_id`` 等，供前端渲染卡片
+    """
+    start_time = time.time()
+    captured_session = session
+
+    async def event_generator():
+        full_text = ""
+        final_meta: dict = {}
+        try:
+            async for ev in run_drug_identify_stream(
+                image_urls=image_urls,
+                ocr_text_hint=None,
+                user_id=user_id,
+                family_member_id=family_member_id,
+                db=db,
+            ):
+                etype = ev.get("type")
+                if etype == "progress":
+                    sse_data = json.dumps(
+                        {"stage": ev.get("stage"), "text": ev.get("text", "")},
+                        ensure_ascii=False,
+                    )
+                    yield f"event: progress\ndata: {sse_data}\n\n"
+                elif etype == "delta":
+                    full_text = ev.get("content", "") or full_text
+                    sse_data = json.dumps({"content": ev.get("content", "")}, ensure_ascii=False)
+                    yield f"event: delta\ndata: {sse_data}\n\n"
+                elif etype == "done":
+                    full_text = ev.get("content") or full_text
+                    final_meta = ev.get("meta") or {}
+                    elapsed_ms = int((time.time() - start_time) * 1000)
+
+                    ai_msg = ChatMessage(
+                        session_id=session_id,
+                        role=MessageRole.assistant,
+                        content=full_text or "识别完成",
+                        message_type=MessageType.text,
+                        response_time_ms=elapsed_ms,
+                        source=user_source,
+                        parent_id=user_msg_id,
+                        message_metadata=final_meta,
+                    )
+                    db.add(ai_msg)
+                    captured_session.message_count = (captured_session.message_count or 0) + 1
+                    if captured_session.title == "新对话":
+                        captured_session.title = "拍照识药"
+                    try:
+                        await db.flush()
+                        await db.refresh(ai_msg)
+                        await db.commit()
+                    except Exception:
+                        try:
+                            await db.rollback()
+                        except Exception:
+                            pass
+
+                    done_data = json.dumps(
+                        {
+                            "message_id": getattr(ai_msg, "id", None),
+                            "full_content": full_text or "",
+                            "meta": final_meta,
+                        },
+                        ensure_ascii=False,
+                    )
+                    yield f"event: done\ndata: {done_data}\n\n"
+        except Exception as e:
+            err_data = json.dumps({"content": f"识药服务异常：{str(e)[:160]}"}, ensure_ascii=False)
+            yield f"event: delta\ndata: {err_data}\n\n"
+            yield f"event: done\ndata: {err_data}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @router.post("/sessions/{session_id}/stream")
 async def stream_message(
     session_id: int,
@@ -620,6 +743,15 @@ async def stream_message(
     raw_source = (getattr(data, "source", None) or "text").strip().lower()
     user_source = raw_source if raw_source in ("text", "voice", "preset", "voice_repair") else "text"
 
+    # [BUG_FIX_拍照识药三联_20260516] family_member_id 透传：客户端传则覆盖会话级，
+    # 不传保留原会话绑定的咨询人；用于识药剂量/禁忌按"咨询人"档案而非登录用户档案输出。
+    incoming_family_member_id = getattr(data, "family_member_id", None)
+    if incoming_family_member_id is not None:
+        try:
+            session.family_member_id = incoming_family_member_id
+        except Exception:
+            pass
+
     user_msg = ChatMessage(
         session_id=session_id,
         role=MessageRole.user,
@@ -635,6 +767,27 @@ async def stream_message(
     # 保证刷新/重进会话后用户气泡不会丢失。
     await db.commit()
     await db.refresh(user_msg)
+
+    # [BUG_FIX_拍照识药三联_20260516] 方案 E：聊天内嵌识药引擎路由
+    # 当 button_type ∈ {photo_recognize_drug, drug_identify, medication_recognize}
+    # 或消息文本含识药关键词，且消息含图片 URL → 走 DrugIdentifyEngine
+    drug_image_urls = extract_image_urls(data.content or "")
+    if is_drug_identify_intent(
+        button_type=getattr(data, "button_type", None),
+        content=data.content or "",
+        image_urls=drug_image_urls,
+    ):
+        return await _stream_drug_identify(
+            session=session,
+            session_id=session_id,
+            user_id=current_user.id,
+            user_msg_id=user_msg.id,
+            user_source=user_source,
+            content=data.content,
+            image_urls=drug_image_urls,
+            family_member_id=session.family_member_id or incoming_family_member_id,
+            db=db,
+        )
 
     if not session.device_info:
         session.device_info = request.headers.get("User-Agent", "")[:500]
@@ -672,6 +825,27 @@ async def stream_message(
             )
         except Exception:
             pass
+
+    # [BUG_FIX_拍照识药三联_20260516] 隐式药品上下文注入：
+    # 检测最近 3 条 assistant 消息是否含 drug_identify_card meta，
+    # 若有则把该药品 JSON 拼成 system context，让用户在同一会话中追问
+    # "能和布洛芬同服吗"等问题时 AI 能基于上文药品作答（豆包/阿福对标）。
+    try:
+        count = 0
+        for hm in reversed(history_msgs):
+            role_val = hm.role.value if hasattr(hm.role, "value") else hm.role
+            if role_val != "assistant":
+                continue
+            count += 1
+            meta = getattr(hm, "message_metadata", None) or {}
+            ctx = build_implicit_drug_context(meta)
+            if ctx:
+                system_prompt += ctx
+                break
+            if count >= 3:
+                break
+    except Exception:
+        pass
 
     try:
         kb_result = await search_knowledge(
