@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 对话模式 · 拍照识药 适老化视觉规格预览</title>
+<style>
+  :root {
+    --primary: #1677FF;
+    --primary-dark: #0958d9;
+    --danger-bg: #D4380D;
+    --danger-text: #FFFFFF;
+    --danger-soft: #FFF1F0;
+    --danger-border: #FFA39E;
+    --success: #52C41A;
+    --warning-bg: #FFFBE6;
+    --warning-border: #FFE58F;
+    --text: #1F1F1F;
+    --text-secondary: #595959;
+    --text-tertiary: #8C8C8C;
+    --bg: #F5F7FA;
+    --card-bg: #FFFFFF;
+    --border: #E5E7EB;
+    --disabled: #D9D9D9;
+    --disabled-text: #8C8C8C;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px 16px 60px;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 16px;
+    line-height: 1.7;
+  }
+  h1 {
+    font-size: 26px;
+    margin: 0 0 8px;
+    text-align: center;
+  }
+  .subtitle {
+    text-align: center;
+    color: var(--text-tertiary);
+    margin-bottom: 32px;
+    font-size: 14px;
+  }
+  .scene {
+    max-width: 420px;
+    margin: 0 auto 48px;
+  }
+  .scene-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    padding: 12px 16px;
+    background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+    color: #fff;
+    border-radius: 10px 10px 0 0;
+    margin: 0;
+  }
+  .scene-body {
+    background: #ECEFF3;
+    padding: 16px;
+    border-radius: 0 0 10px 10px;
+    border: 1px solid var(--border);
+    border-top: none;
+  }
+  /* 用户气泡（图片） */
+  .bubble-user {
+    background: #C5E8F8;
+    border-radius: 12px;
+    padding: 8px;
+    margin-bottom: 12px;
+    margin-left: 40px;
+    display: inline-block;
+    float: right;
+    clear: both;
+  }
+  .bubble-user img {
+    width: 120px;
+    height: 120px;
+    border-radius: 8px;
+    object-fit: cover;
+    display: block;
+    background: #ddd;
+    background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);
+    background-size: 20px 20px;
+  }
+  .clearfix::after { content: ''; display: block; clear: both; }
+
+  /* AI 回复气泡 */
+  .bubble-ai {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    margin-right: 40px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .bubble-ai.no-pad { padding: 0; overflow: hidden; }
+
+  /* 识药卡片 */
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .badge-success {
+    display: inline-block;
+    background: var(--success);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 12px;
+  }
+  .badge-warn-soft {
+    display: inline-block;
+    background: #FFF7E6;
+    color: #D46B08;
+    font-size: 13px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    border: 1px solid #FFD591;
+  }
+  .conflict-banner {
+    background: var(--danger-bg);
+    color: var(--danger-text);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .drug-name {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 4px 0 6px;
+  }
+  .drug-meta {
+    font-size: 16px;
+    color: var(--text-secondary);
+    margin: 2px 0;
+  }
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 14px 0;
+  }
+  .section-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .section-title .reminder-badge {
+    background: var(--danger-bg);
+    color: #fff;
+    font-size: 13px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  .reminder-text {
+    color: var(--danger-bg);
+    font-weight: 600;
+    font-size: 16px;
+  }
+  .normal-text {
+    font-size: 16px;
+    color: var(--text);
+    line-height: 1.8;
+  }
+  /* 按钮 */
+  .btn-row {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .btn {
+    height: 48px;
+    border-radius: 8px;
+    font-size: 17px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .btn-primary {
+    background: var(--primary);
+    color: #fff;
+  }
+  .btn-secondary {
+    background: #fff;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+  }
+  .btn-disabled {
+    background: var(--disabled);
+    color: var(--disabled-text);
+    cursor: not-allowed;
+  }
+  .btn-danger {
+    background: var(--danger-bg);
+    color: #fff;
+  }
+
+  /* AI 解读文本 */
+  .ai-explain {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    margin-right: 40px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    font-size: 16px;
+    line-height: 1.8;
+    color: var(--text);
+  }
+  .ai-explain .danger-bold {
+    color: var(--danger-bg);
+    font-weight: 700;
+  }
+  .ai-explain .typing::after {
+    content: '▍';
+    animation: blink 1s infinite;
+    color: var(--primary);
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* 独立冲突卡 */
+  .conflict-card {
+    background: #FFF1F0;
+    border: 2px solid var(--danger-border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    margin-right: 40px;
+  }
+  .conflict-card .ctitle {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--danger-bg);
+    margin: 0 0 10px;
+  }
+  .conflict-card .crow {
+    font-size: 15px;
+    color: var(--text);
+    margin: 4px 0;
+  }
+  .conflict-card .crow strong { color: var(--danger-bg); }
+
+  /* 失败兜底 */
+  .fail-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 12px;
+    margin-right: 40px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .fail-icon {
+    font-size: 40px;
+    text-align: center;
+    margin: 8px 0;
+  }
+  .fail-title {
+    font-size: 20px;
+    font-weight: 700;
+    text-align: center;
+    margin: 6px 0 16px;
+    color: var(--text);
+  }
+  .fail-tip {
+    font-size: 16px;
+    color: var(--text-secondary);
+    line-height: 1.9;
+    background: var(--warning-bg);
+    border: 1px solid var(--warning-border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+  }
+
+  /* 抽屉 */
+  .drawer {
+    background: #fff;
+    border-radius: 16px 16px 0 0;
+    padding: 20px 16px;
+    max-height: 720px;
+    overflow-y: auto;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.1);
+  }
+  .drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .drawer-title {
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .drawer-close {
+    background: none;
+    border: none;
+    font-size: 22px;
+    color: var(--text-tertiary);
+    cursor: pointer;
+  }
+  .form-section {
+    margin-bottom: 18px;
+  }
+  .form-label {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .form-input, .form-select {
+    width: 100%;
+    height: 44px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0 12px;
+    font-size: 16px;
+    background: #FAFBFC;
+  }
+  .pill-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill {
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    font-size: 15px;
+    background: #fff;
+    cursor: pointer;
+  }
+  .pill.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+  }
+  .existing-list {
+    background: #F5F7FA;
+    border-radius: 10px;
+    padding: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 6px;
+  }
+  .existing-item {
+    background: #fff;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    display: flex;
+    flex-direction: column;
+  }
+  .existing-item.dup {
+    border: 2px solid var(--danger-border);
+    background: var(--danger-soft);
+  }
+  .existing-item.ended {
+    opacity: 0.5;
+  }
+  .existing-item .ename {
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .existing-item .emeta {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+  }
+  .dup-badge {
+    background: var(--danger-bg);
+    color: #fff;
+    font-size: 12px;
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  .drawer-footer {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .drawer-footer .btn { flex: 1; }
+  .view-all-link {
+    text-align: center;
+    margin-top: 14px;
+    color: var(--primary);
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  /* 浮层 */
+  .popup-overlay {
+    background: rgba(0,0,0,0.3);
+    border-radius: 10px;
+    padding: 30px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .popup {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    width: 100%;
+    max-width: 320px;
+    position: relative;
+    text-align: center;
+  }
+  .popup .pclose {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: var(--text-tertiary);
+  }
+  .popup .ptitle {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0 0 12px;
+  }
+  .popup .photline {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--primary);
+    margin: 12px 0 6px;
+    letter-spacing: 1px;
+  }
+  .popup .phours {
+    color: var(--text-tertiary);
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+
+  /* 系统提示气泡 */
+  .system-tip {
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 13px;
+    margin: 8px 0;
+    padding: 4px 10px;
+    background: rgba(0,0,0,0.05);
+    border-radius: 12px;
+    display: inline-block;
+    margin-left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .legend {
+    background: #fff;
+    border-left: 4px solid var(--primary);
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+
+  .toc {
+    max-width: 420px;
+    margin: 0 auto 32px;
+    background: #fff;
+    border-radius: 10px;
+    padding: 16px 20px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+  .toc h3 { margin: 0 0 10px; font-size: 16px; }
+  .toc a {
+    display: block;
+    padding: 6px 0;
+    color: var(--primary);
+    text-decoration: none;
+    font-size: 14px;
+    border-bottom: 1px dashed #eee;
+  }
+  .toc a:hover { background: #f5f7fa; padding-left: 4px; }
+</style>
+</head>
+<body>
+
+<h1>AI 对话模式 · 拍照识药</h1>
+<p class="subtitle">适老化视觉规格预览（40-60 岁用户友好）· 2026-05-16</p>
+
+<div class="toc">
+  <h3>场景目录</h3>
+  <a href="#scene1">场景 1：正常识药（命中药品库）</a>
+  <a href="#scene2">场景 2：药品库未命中（卡片简洁版）</a>
+  <a href="#scene3">场景 3：档案冲突（4 级防护）</a>
+  <a href="#scene4">场景 4：加入用药计划抽屉</a>
+  <a href="#scene5">场景 5：识别失败兜底</a>
+  <a href="#scene6">场景 6：联系医生咨询浮层</a>
+</div>
+
+<!-- ========== 场景 1 ========== -->
+<section class="scene" id="scene1">
+  <h2 class="scene-title">场景 1：正常识药（命中药品库）</h2>
+  <div class="scene-body">
+    <div class="legend">UI 中**只有** 图片小图墙气泡 + AI 回复气泡。<br>原 Bug：曾会多出一条 <code>[用户上传的图片1张] + URL</code> 文本气泡，现已删除。</div>
+    <div class="clearfix">
+      <div class="bubble-user"><img src="" alt="药盒图"></div>
+    </div>
+    <div class="bubble-ai no-pad">
+      <div style="padding: 16px;">
+        <div class="card-header">
+          <span class="badge-success">✓ 识别成功</span>
+        </div>
+        <div class="drug-name">阿莫西林胶囊</div>
+        <div class="drug-meta">通用名：阿莫西林</div>
+        <div class="drug-meta">规格：0.25g × 24 粒</div>
+        <div class="drug-meta">厂家：××制药有限公司</div>
+        <div class="drug-meta">分类：青霉素类抗生素 · OTC</div>
+        <div class="divider"></div>
+        <div class="section-title">💊 用法用量</div>
+        <div class="normal-text">口服。成人一次 0.5g，每 6-8 小时 1 次，饭后服用。</div>
+        <div class="divider"></div>
+        <div class="section-title">
+          <span class="reminder-badge">⚠️ 用药提醒</span>
+        </div>
+        <div class="reminder-text">青霉素过敏者禁用。肝肾功能不全者慎用。</div>
+        <div class="btn-row">
+          <button class="btn btn-primary">+ 加入用药计划</button>
+          <button class="btn btn-secondary">📋 查看全部用药计划</button>
+        </div>
+      </div>
+    </div>
+    <div class="ai-explain">
+      <strong>小白 AI：</strong>这款阿莫西林胶囊是常用的青霉素类抗生素，主要用于敏感菌引起的呼吸道、泌尿道感染。建议您<strong>饭后服用</strong>以减少胃肠刺激。如服用 3 天症状无改善，请及时就医。<span class="typing"></span>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 场景 2 ========== -->
+<section class="scene" id="scene2">
+  <h2 class="scene-title">场景 2：药品库未命中（卡片简洁版）</h2>
+  <div class="scene-body">
+    <div class="legend">
+      VLM 识别出但药品库未命中：<strong>不阻断用户</strong>，按钮仍可点；后台待审核池自动静默记录（用户不可见）。<br>
+      卡片<strong>不出现任何"未收录""仅供参考"等内部技术词</strong>，相关谨慎提示由 AI 回复末尾统一的"以上信息仅供参考"承担。<br>
+      用法用量等说明书字段不由系统硬编造，<strong>交由下方 SSE 流式解读生成</strong>，且不生成"禁忌"内容（合规优先）。
+    </div>
+    <div class="clearfix">
+      <div class="bubble-user"><img src=""></div>
+    </div>
+    <div class="bubble-ai no-pad">
+      <div style="padding: 16px;">
+        <div class="card-header">
+          <span class="badge-success">✓ 识别成功</span>
+        </div>
+        <div class="drug-name">某地方厂家草本含片</div>
+        <div class="drug-meta">规格：未识别</div>
+        <div class="btn-row">
+          <button class="btn btn-primary">+ 加入用药计划</button>
+          <button class="btn btn-secondary">📋 查看全部用药计划</button>
+        </div>
+      </div>
+    </div>
+    <div class="ai-explain">
+      <strong>小白 AI：</strong>这款「某地方厂家草本含片」属于含片类制剂，一般用于缓解咽喉部不适。建议含服时不要咀嚼，让药物充分接触咽喉部位以发挥作用。具体的成分剂量、适用人群与服用频次，请以您手中药盒/说明书上印刷的信息为准。<span class="typing"></span>
+      <div style="margin-top:14px;color:#6c757d;font-size:14px;">以上信息仅供参考，正式服用请遵循药品说明书或咨询药师。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 场景 3 ========== -->
+<section class="scene" id="scene3">
+  <h2 class="scene-title">场景 3：档案冲突（4 级防护）</h2>
+  <div class="scene-body">
+    <div class="legend">咨询人档案：青霉素过敏 → ① 红底横幅 ② 加粗红字 ③ 按钮置灰 ④ 独立警示卡 + 联系医生</div>
+    <div class="clearfix">
+      <div class="bubble-user"><img src=""></div>
+    </div>
+    <div class="bubble-ai no-pad">
+      <div style="padding: 16px;">
+        <div class="conflict-banner">⚠️ 本药与您档案中【青霉素过敏】冲突</div>
+        <div class="card-header">
+          <span class="badge-success">✓ 识别成功</span>
+        </div>
+        <div class="drug-name">阿莫西林胶囊</div>
+        <div class="drug-meta">规格：0.25g × 24 粒</div>
+        <div class="drug-meta">分类：青霉素类抗生素</div>
+        <div class="divider"></div>
+        <div class="section-title">
+          <span class="reminder-badge">⚠️ 用药提醒</span>
+        </div>
+        <div class="reminder-text">青霉素过敏者禁用！可能引发严重过敏反应！</div>
+        <div class="btn-row">
+          <button class="btn btn-disabled">存在用药风险，无法加入</button>
+          <button class="btn btn-secondary">📋 查看全部用药计划</button>
+        </div>
+      </div>
+    </div>
+    <div class="ai-explain">
+      <strong>小白 AI：</strong>考虑到您本人档案中记录了【青霉素过敏（2024-03 录入）】，而阿莫西林属于青霉素类抗生素，<span class="danger-bold">强烈建议您不要服用本药</span>，请立即更换其他类型抗生素，并联系医生进一步咨询。<span class="typing"></span>
+    </div>
+    <div class="conflict-card">
+      <div class="ctitle">⚠️ 用药冲突警示</div>
+      <div class="crow"><strong>冲突项：</strong>青霉素过敏（档案 2024-03 录入）</div>
+      <div class="crow"><strong>风险等级：</strong>高（可能引发过敏性休克）</div>
+      <div class="crow"><strong>建议：</strong>立即停止考虑本药，联系医生</div>
+      <div class="btn-row" style="margin-top: 14px;">
+        <button class="btn btn-danger">📞 联系医生咨询</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 场景 4 ========== -->
+<section class="scene" id="scene4">
+  <h2 class="scene-title">场景 4：加入用药计划抽屉</h2>
+  <div class="scene-body">
+    <div class="legend">字段 1:1 复用 <code>/health-plan/medications/add</code>；当前咨询人已有用药全部列出可滚动；同药重复触发红色徽章 + 按钮变「查看已有计划」</div>
+    <div class="drawer">
+      <div class="drawer-header">
+        <div class="drawer-title">加入用药计划</div>
+        <button class="drawer-close">✕</button>
+      </div>
+
+      <div class="form-section">
+        <div class="form-label">为谁加入</div>
+        <select class="form-select">
+          <option>本人（默认当前咨询人）</option>
+          <option>家人 A · 父亲</option>
+          <option>家人 B · 母亲</option>
+        </select>
+      </div>
+
+      <div class="form-section">
+        <div class="form-label">当前咨询人已有用药（全部，可滚动）</div>
+        <div class="existing-list">
+          <div class="existing-item dup">
+            <div class="ename">阿莫西林胶囊 <span class="dup-badge">⚠️ 与本次相同</span></div>
+            <div class="emeta">每日 3 次 · 已开始 · 长期</div>
+          </div>
+          <div class="existing-item">
+            <div class="ename">二甲双胍片</div>
+            <div class="emeta">每日 2 次 · 已开始 · 长期</div>
+          </div>
+          <div class="existing-item">
+            <div class="ename">硝苯地平缓释片</div>
+            <div class="emeta">每日 1 次 · 已开始 · 长期</div>
+          </div>
+          <div class="existing-item ended">
+            <div class="ename">头孢克肟（已结束）</div>
+            <div class="emeta">每日 2 次 · 2025-12 结束</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-label">药品名</div>
+        <input class="form-input" value="阿莫西林胶囊" />
+      </div>
+
+      <div class="form-section">
+        <div class="form-label">剂量</div>
+        <input class="form-input" placeholder="如：0.5g" />
+      </div>
+
+      <div class="form-section">
+        <div class="form-label">每日次数</div>
+        <div class="pill-group">
+          <span class="pill">1 次</span>
+          <span class="pill">2 次</span>
+          <span class="pill active">3 次</span>
+          <span class="pill">4 次</span>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-label">服药时段</div>
+        <div class="pill-group">
+          <span class="pill active">08:00</span>
+          <span class="pill active">14:00</span>
+          <span class="pill active">20:00</span>
+          <span class="pill">+ 添加</span>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-label">起始日期</div>
+        <input class="form-input" type="date" value="2026-05-16" />
+      </div>
+
+      <div class="form-section">
+        <div class="form-label">关联疾病标签</div>
+        <div class="pill-group">
+          <span class="pill active">呼吸道感染</span>
+          <span class="pill">+ 添加</span>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-label">提醒开关 · AI 外呼 · 备注（点击展开）</div>
+      </div>
+
+      <div class="drawer-footer">
+        <button class="btn btn-secondary">取消</button>
+        <button class="btn btn-primary">查看已有计划</button>
+      </div>
+
+      <div class="view-all-link">查看全部用药计划 →</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 场景 5 ========== -->
+<section class="scene" id="scene5">
+  <h2 class="scene-title">场景 5：识别失败兜底</h2>
+  <div class="scene-body">
+    <div class="legend">OCR 与 VLM 均未识别出药品时的友好引导，44px 大按钮一键重拍。</div>
+    <div class="clearfix">
+      <div class="bubble-user"><img src=""></div>
+    </div>
+    <div class="fail-card">
+      <div class="fail-icon">❌</div>
+      <div class="fail-title">未能识别到药品</div>
+      <div class="fail-tip">
+        <strong>建议您：</strong><br>
+        ① 平放药盒，拍正面（有药品名一面）<br>
+        ② 光线充足，避免反光<br>
+        ③ 距离 20-30cm，对焦清晰
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary">📷 重新拍一张</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 场景 6 ========== -->
+<section class="scene" id="scene6">
+  <h2 class="scene-title">场景 6：联系医生咨询浮层</h2>
+  <div class="scene-body">
+    <div class="legend">点击冲突警示卡「📞 联系医生咨询」后弹出；热线由后台动态配置，不写死代码。</div>
+    <div class="popup-overlay">
+      <div class="popup">
+        <button class="pclose">✕</button>
+        <div class="ptitle">📞 用药咨询专线</div>
+        <div class="photline">400-XXX-XXXX</div>
+        <div class="phours">服务时间：7×24h</div>
+        <button class="btn btn-secondary">前往专家咨询 →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<p style="text-align:center;color:#999;font-size:13px;margin-top:40px;">
+  本预览页同步于 BUG_FIX_拍照识药_20260516_170547.md 主文档<br>
+  © 2026 bini-health · 小白 AI 生成
+</p>
+
+</body>
+</html>

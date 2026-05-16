@@ -3874,6 +3874,32 @@ class MedicationLibrary(Base):
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class MedicationLibraryPending(Base):
+    """[PRD-DRUG-CARD-V3 2026-05-16] 未命中权威库的药品识别待审核池。
+
+    每次识药结果未命中 medication_library 主表时，静默写入本表（用户完全不可见）。
+    运营在后台手动定期 review，命中后采纳入主库。
+    """
+
+    __tablename__ = "medication_library_pending"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    drug_name = mapped_column(String(255), nullable=False, index=True, comment="VLM 识别名")
+    generic_name = mapped_column(String(255), nullable=True)
+    spec = mapped_column(String(255), nullable=True)
+    manufacturer = mapped_column(String(255), nullable=True)
+    vlm_raw = mapped_column(JSON, nullable=True, comment="VLM 原始返回结构")
+    ocr_text = mapped_column(Text, nullable=True)
+    sample_image_url = mapped_column(String(500), nullable=True, comment="一张样本图片")
+    hit_count = mapped_column(Integer, default=1, comment="被识别次数")
+    last_hit_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    status = mapped_column(Integer, default=0, comment="0=待审 1=已采纳 2=驳回")
+    operator_id = mapped_column(Integer, nullable=True)
+    operated_at = mapped_column(DateTime, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class HealthInfoExtra(Base):
     """[PRD-469 M6] 健康信息模块扩展数据：既往病史 / 过敏 / 家族病史 / 个人习惯。
 

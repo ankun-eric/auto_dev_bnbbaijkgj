@@ -114,12 +114,14 @@ async def call_ai_model(
     system_prompt: str = "",
     db: Optional[AsyncSession] = None,
     return_usage: bool = False,
+    enable_vision: bool = False,
 ) -> Any:
     """Call the AI model.
 
-    When *return_usage* is True the function returns a dict:
-        {"content": str, "model": str, "usage": {"prompt_tokens": int, "completion_tokens": int} | None}
-    Otherwise it returns a plain string (backward compatible).
+    [BUG_FIX_拍照识药_v3 2026-05-16] 多模态升级改为显式开关 enable_vision，默认 False。
+    旧版默认对所有 user 消息扫描裸图片 URL 自动升级为多模态结构，但当前线上模型
+    `deepseek-v3-2-251201` 是纯文本模型，遇到多模态 content 数组直接返回 400 Bad Request。
+    现在仅当显式传 enable_vision=True 时才升级，识药/拍照等场景由调用方按需打开。
     """
     config = await _get_active_model_config(db)
     if not config["base_url"] or not config["model"]:
@@ -133,9 +135,8 @@ async def call_ai_model(
         all_messages.append({"role": "system", "content": system_prompt})
     all_messages.extend(messages)
 
-    # [BUG_FIX_用药识别千图一答 2026-05-16] 自动把 user 消息里裸图片 URL 升级为多模态结构，
-    # 让模型真正"看见"图片，而不是只读到一段网址字符串然后凭空编一个常见药。
-    all_messages = upgrade_messages_to_multimodal(all_messages)
+    if enable_vision:
+        all_messages = upgrade_messages_to_multimodal(all_messages)
 
     url = config["base_url"].rstrip("/") + "/chat/completions"
     headers = {"Content-Type": "application/json"}
@@ -252,8 +253,13 @@ async def call_ai_model_stream(
     messages: List[Dict[str, str]],
     system_prompt: str = "",
     db: Optional[AsyncSession] = None,
+    enable_vision: bool = False,
 ):
-    """Yield SSE-compatible delta chunks from the AI model via streaming."""
+    """Yield SSE-compatible delta chunks from the AI model via streaming.
+
+    [BUG_FIX_拍照识药_v3 2026-05-16] 多模态升级改为显式 enable_vision 开关，默认 False。
+    避免对纯文本模型（如 deepseek-v3-2-251201）发送多模态 content 数组导致 400 错误。
+    """
     config = await _get_active_model_config(db)
     if not config["base_url"] or not config["model"]:
         yield {"type": "delta", "content": "AI服务未配置，请联系管理员配置AI模型。"}
@@ -265,8 +271,8 @@ async def call_ai_model_stream(
         all_messages.append({"role": "system", "content": system_prompt})
     all_messages.extend(messages)
 
-    # [BUG_FIX_用药识别千图一答 2026-05-16] 流式接口同样要做多模态升级
-    all_messages = upgrade_messages_to_multimodal(all_messages)
+    if enable_vision:
+        all_messages = upgrade_messages_to_multimodal(all_messages)
 
     url = config["base_url"].rstrip("/") + "/chat/completions"
     headers = {"Content-Type": "application/json"}
@@ -603,7 +609,8 @@ async def identify_drug_structured(
     content = build_vision_message_content(user_text, image_urls)
     messages = [{"role": "user", "content": content}]
     try:
-        raw = await call_ai_model(messages, system_prompt, db)
+        # [BUG_FIX_拍照识药_v3 2026-05-16] 显式 enable_vision=True 才允许走多模态升级路径
+        raw = await call_ai_model(messages, system_prompt, db, enable_vision=True)
     except Exception as e:
         # [BUG_FIX_用药识别千图一答 2026-05-16] 模型彻底不可用时给 retake 兜底而非 500
         logger.warning("identify_drug_structured: LLM call failed, fallback to retake: %s", e)

@@ -994,6 +994,7 @@ export default function AiHomePage() {
   const handleSend = useCallback(async (
     text?: string,
     source: 'text' | 'voice' | 'preset' = 'text',
+    opts?: { suppressUserBubble?: boolean; backendText?: string },
   ) => {
     const msg = text || inputValue.trim();
     if (!msg || sending) return;
@@ -1017,6 +1018,12 @@ export default function AiHomePage() {
       content_length: msg.length,
     });
 
+    // [BUG_FIX_拍照识药_v3 2026-05-16] suppressUserBubble=true 时不在对话流追加用户文本气泡
+    // （由调用方负责图片气泡的展示），仅把消息体 msg 发给后端用于 AI 上下文。
+    const suppressBubble = !!opts?.suppressUserBubble;
+    // backendText 优先于 msg 作为发给后端的内容；UI 仍展示 msg（如未抑制气泡）
+    const backendPayload = (opts?.backendText && opts.backendText.trim()) || msg;
+
     const userMsg: ChatMessage = {
       id: `u-${Date.now()}`,
       role: 'user',
@@ -1027,9 +1034,11 @@ export default function AiHomePage() {
     try {
       // [Bug-433] 先决定 sid（idle 命中时清空消息），命中时通过 preserveOnClear
       // 把 userMsg 回填到清空后的列表，避免首句被一并抹掉。
-      const sid = await checkIdleAndMaybeNewSession(() => [userMsg]);
+      const sid = await checkIdleAndMaybeNewSession(() => (suppressBubble ? [] : [userMsg]));
       if (!sid) {
-        setMessages(prev => (prev.some(m => m.id === userMsg.id) ? prev : [...prev, userMsg]));
+        if (!suppressBubble) {
+          setMessages(prev => (prev.some(m => m.id === userMsg.id) ? prev : [...prev, userMsg]));
+        }
         setMessages(prev => [...prev, {
           id: `e-${Date.now()}`,
           role: 'assistant',
@@ -1041,14 +1050,19 @@ export default function AiHomePage() {
       }
       // 若 idle 未命中（preserveOnClear 未被调用），将 userMsg 追加到列表末尾；
       // 若 idle 命中已通过 preserveOnClear 回填，避免重复插入。
-      setMessages(prev => (prev.some(m => m.id === userMsg.id) ? prev : [...prev, userMsg]));
+      // [BUG_FIX_拍照识药_v3 2026-05-16] suppressUserBubble=true 时跳过用户文本气泡渲染
+      if (!suppressBubble) {
+        setMessages(prev => (prev.some(m => m.id === userMsg.id) ? prev : [...prev, userMsg]));
+      }
 
-      const sseOk = await sendSSE(sid, msg, 3, source);
+      const sseOk = await sendSSE(sid, backendPayload, 3, source);
       if (!sseOk) {
-        await sendFallback(sid, msg, source);
+        await sendFallback(sid, backendPayload, source);
       }
     } catch {
-      setMessages(prev => (prev.some(m => m.id === userMsg.id) ? prev : [...prev, userMsg]));
+      if (!suppressBubble) {
+        setMessages(prev => (prev.some(m => m.id === userMsg.id) ? prev : [...prev, userMsg]));
+      }
       setMessages(prev => [...prev, {
         id: `e-${Date.now()}`,
         role: 'assistant',
@@ -1312,7 +1326,11 @@ export default function AiHomePage() {
           (opts.fallbackPrompt || '').trim()
         );
         if (prompt) {
-          // 把图片 URL 一同注入到发给后端的内容里，AI 才能"看见"这些图片
+          // [BUG_FIX_拍照识药_v3 2026-05-16] 重写图片/文件 URL 注入策略：
+          // 1) UI 上不再多渲染一条「[用户上传的图片N张]+ URL 列表」的冗余文本气泡（Bug #1）。
+          // 2) 仍把 URL 信息注入给后端 AI 上下文（backendText），让 AI 能"知道"图片地址。
+          // 3) 通过 handleSend 的 suppressUserBubble=true 关闭对话流中文本气泡渲染，
+          //    用户视觉只看到「图片小图墙气泡 + AI 回复」两条，符合 PRD 5.1 验收。
           const urlLines: string[] = [];
           if (uploadedImages.length > 0) {
             urlLines.push(
@@ -1328,13 +1346,21 @@ export default function AiHomePage() {
                   .join('\n'),
             );
           }
-          const composed = urlLines.length > 0
+          const backendComposed = urlLines.length > 0
             ? `${urlLines.join('\n\n')}\n\n${prompt}`
             : prompt;
+          const hasUploaded = uploadedImages.length > 0 || uploadedFiles.length > 0;
           lastMsgTimeRef.current = Date.now();
-          // 因为上面已经插入了用户消息气泡，这里 handleSend 还会再插入一条文本气泡——
-          // 对用户来说："图片气泡 + 文本气泡 + AI 回复"是合理的，文本气泡承载实际问题文案。
-          setTimeout(() => handleSend(composed, 'preset'), 50);
+          setTimeout(() => {
+            if (hasUploaded) {
+              handleSend(prompt, 'preset', {
+                suppressUserBubble: true,
+                backendText: backendComposed,
+              });
+            } else {
+              handleSend(prompt, 'preset');
+            }
+          }, 50);
         }
       },
     });

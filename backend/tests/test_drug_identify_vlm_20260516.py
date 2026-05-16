@@ -111,7 +111,7 @@ async def test_identify_structured_bad_json_falls_back_to_retake(monkeypatch):
     """T-DRG-VLM-05：LLM 返回完全无法解析的脏内容时，应该给出 retake 兜底，不允许抛异常。"""
     captured_args: Dict[str, Any] = {}
 
-    async def fake_call(messages, system_prompt, db):
+    async def fake_call(messages, system_prompt, db, **kwargs):
         captured_args["messages"] = messages
         captured_args["system_prompt"] = system_prompt
         return "这根本不是 JSON，模型胡说八道"
@@ -162,7 +162,7 @@ async def test_identify_structured_happy_path(monkeypatch):
         "disclaimer": "AI 识别结果仅供参考",
     }
 
-    async def fake_call(messages, system_prompt, db):
+    async def fake_call(messages, system_prompt, db, **kwargs):
         return json.dumps(good_json, ensure_ascii=False)
 
     monkeypatch.setattr(ai_service, "call_ai_model", fake_call)
@@ -191,7 +191,7 @@ async def test_identify_structured_unwraps_code_fence(monkeypatch):
     }
     fenced = "```json\n" + json.dumps(payload, ensure_ascii=False) + "\n```"
 
-    async def fake_call(messages, system_prompt, db):
+    async def fake_call(messages, system_prompt, db, **kwargs):
         return fenced
 
     monkeypatch.setattr(ai_service, "call_ai_model", fake_call)
@@ -213,7 +213,7 @@ async def test_identify_from_image_passes_multimodal_content(monkeypatch):
     """
     captured: Dict[str, Any] = {}
 
-    async def fake_call(messages, system_prompt, db):
+    async def fake_call(messages, system_prompt, db, **kwargs):
         captured["messages"] = messages
         captured["system_prompt"] = system_prompt
         return "（模拟模型返回的识别结果）"
@@ -254,7 +254,7 @@ async def test_different_images_produce_different_prompts(monkeypatch):
     """
     seen_contents: List[Any] = []
 
-    async def fake_call(messages, system_prompt, db):
+    async def fake_call(messages, system_prompt, db, **kwargs):
         seen_contents.append(messages[0]["content"])
         # 返回一个最低限度合法的结构化结果，避免兜底路径
         return json.dumps({
@@ -286,8 +286,9 @@ async def test_different_images_produce_different_prompts(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_call_ai_model_upgrades_chat_messages_with_urls(monkeypatch):
-    """T-DRG-VLM-10：call_ai_model 在收到普通 chat messages（user content 含图片 URL）时，
-    必须自动升级为多模态结构再发给 LLM——这是让 ai-home 拍照识药修复"零前端改动"也能生效的关键。
+    """T-DRG-VLM-10：[PRD-DRUG-CARD-V3 2026-05-16 修订]
+    call_ai_model 仅在显式 enable_vision=True 时才升级多模态。
+    默认 (enable_vision=False) 保留纯文本结构，避免对纯文本模型返回 400 Bad Request。
     """
     captured: Dict[str, Any] = {}
 
@@ -341,6 +342,7 @@ async def test_call_ai_model_upgrades_chat_messages_with_urls(monkeypatch):
         messages=[{"role": "user", "content": text}],
         system_prompt="你是药品识别助手",
         db=None,
+        enable_vision=True,
     )
 
     payload_messages = captured["payload"]["messages"]
