@@ -1,7 +1,8 @@
 import asyncio
 import json
 import logging
-from typing import Any, Dict, List, Optional
+import re
+from typing import Any, Dict, List, Optional, Union
 
 import httpx
 from sqlalchemy import select
@@ -11,6 +12,80 @@ from app.core.config import settings
 from app.models.models import AIModelConfig
 
 logger = logging.getLogger(__name__)
+
+# [BUG_FIX_用药识别千图一答 2026-05-16] 多模态视觉支持
+# 该正则用于从纯文本 content 中扫描图片 URL，并自动升级为 OpenAI 多模态 content 数组，
+# 让"纯文本"接口（如 chat 流）也能在用户上传图片时让模型真正"看见"图片，
+# 而非把图片 URL 当成普通字符串发给文本模型——后者正是"千图一答"Bug 的根因。
+_IMAGE_URL_RE = re.compile(
+    r"(https?://[^\s\u4e00-\u9fff\)\]\}><\"'，。、；：！？]+?\.(?:png|jpe?g|gif|webp|bmp|heic|heif|tiff))",
+    re.IGNORECASE,
+)
+
+
+def extract_image_urls(text: str) -> List[str]:
+    """从一段文本中按顺序提取图片 URL（去重，保持出现顺序）。
+
+    判断标准：以 http/https 开头且以常见图片后缀结尾。这是对前端
+    `pickAndUploadThenSend` 把 OSS/COS 图片 URL 拼进 content 的兜底解析。
+    """
+    if not text or not isinstance(text, str):
+        return []
+    seen = set()
+    urls: List[str] = []
+    for m in _IMAGE_URL_RE.finditer(text):
+        u = m.group(1)
+        if u not in seen:
+            seen.add(u)
+            urls.append(u)
+    return urls
+
+
+def build_vision_message_content(text: str, image_urls: List[str]) -> Union[str, List[Dict[str, Any]]]:
+    """把「文本 + 图片 URL 列表」组装为 OpenAI 兼容的多模态 content 数组。
+
+    - 无图片：返回原文本（保持纯文本协议向后兼容）
+    - 有图片：返回 [{type:"image_url",image_url:{url}}*, {type:"text",text}]
+              图片放在前面，文本放最后，遵循主流视觉模型最佳实践
+    """
+    if not image_urls:
+        return text or ""
+    parts: List[Dict[str, Any]] = []
+    for url in image_urls:
+        parts.append({"type": "image_url", "image_url": {"url": url}})
+    if text:
+        parts.append({"type": "text", "text": text})
+    return parts
+
+
+def upgrade_messages_to_multimodal(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """遍历 messages，将所有 user 消息的 content 中"裸图片 URL"自动升级为多模态结构。
+
+    输入示例（旧）：
+        {"role":"user","content":"[用户上传的图片 1 张]\n1. https://x/a.jpg\n\n请帮我识别"}
+    升级后：
+        {"role":"user","content":[
+            {"type":"image_url","image_url":{"url":"https://x/a.jpg"}},
+            {"type":"text","text":"...原始文本..."}
+        ]}
+
+    若 content 已经是 list（调用方已经主动构造好多模态结构），原样保留。
+    """
+    upgraded: List[Dict[str, Any]] = []
+    for m in messages or []:
+        role = m.get("role")
+        content = m.get("content")
+        # 仅对 user 消息做扫描升级；system / assistant 消息照原样
+        if role != "user" or not isinstance(content, str):
+            upgraded.append(m)
+            continue
+        urls = extract_image_urls(content)
+        if not urls:
+            upgraded.append(m)
+            continue
+        new_content = build_vision_message_content(content, urls)
+        upgraded.append({**m, "content": new_content})
+    return upgraded
 
 
 async def _get_active_model_config(db: Optional[AsyncSession] = None) -> Dict[str, Any]:
@@ -58,6 +133,10 @@ async def call_ai_model(
         all_messages.append({"role": "system", "content": system_prompt})
     all_messages.extend(messages)
 
+    # [BUG_FIX_用药识别千图一答 2026-05-16] 自动把 user 消息里裸图片 URL 升级为多模态结构，
+    # 让模型真正"看见"图片，而不是只读到一段网址字符串然后凭空编一个常见药。
+    all_messages = upgrade_messages_to_multimodal(all_messages)
+
     url = config["base_url"].rstrip("/") + "/chat/completions"
     headers = {"Content-Type": "application/json"}
     if config["api_key"]:
@@ -76,7 +155,7 @@ async def call_ai_model(
 
     for attempt in range(1, max_attempts + 1):
         try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
+            async with httpx.AsyncClient(timeout=180.0) as client:
                 resp = await client.post(url, json=payload, headers=headers)
                 resp.raise_for_status()
                 data = resp.json()
@@ -138,6 +217,9 @@ async def call_ai_model_stream(
     if system_prompt:
         all_messages.append({"role": "system", "content": system_prompt})
     all_messages.extend(messages)
+
+    # [BUG_FIX_用药识别千图一答 2026-05-16] 流式接口同样要做多模态升级
+    all_messages = upgrade_messages_to_multimodal(all_messages)
 
     url = config["base_url"].rstrip("/") + "/chat/completions"
     headers = {"Content-Type": "application/json"}
@@ -307,13 +389,240 @@ async def drug_interaction_check(drugs: List[str], db: Optional[AsyncSession] = 
     return await call_ai_model(messages, system_prompt, db)
 
 
-async def identify_drug_from_image(image_description: str, db: Optional[AsyncSession] = None) -> str:
+async def identify_drug_from_image(
+    image_description: str,
+    db: Optional[AsyncSession] = None,
+    image_urls: Optional[List[str]] = None,
+    ocr_text: Optional[str] = None,
+) -> str:
+    """[BUG_FIX_用药识别千图一答 2026-05-16] 真正的"看图识药"接口。
+
+    重构要点：
+    1. 必须接受 ``image_urls`` 参数，把真正的图片 URL 通过 OpenAI 多模态 content
+       数组发给模型，让模型能"看到"图片，而不是只看到一段文字描述。
+    2. 同时允许传入 ``ocr_text``：先用 OCR 把药盒文字提取出来作为强信号，
+       视觉特征 + 文字 双输入，识别准确率远高于"凭印象瞎猜"。
+    3. 兼容性：若调用方没传 image_urls，则按旧版语义仅基于文本描述工作，
+       但会从 image_description 里尝试再扫一遍 URL（兜底）。
+    """
+    # 兜底：如果调用方没明确传 image_urls，但 image_description 里能扫出 URL，自动捡起来
+    auto_urls = extract_image_urls(image_description or "")
+    final_urls = list(image_urls or []) + [u for u in auto_urls if u not in (image_urls or [])]
+
     system_prompt = (
-        "你是一位专业的药学AI顾问。用户提供了药品的图片描述信息，"
-        "请尝试识别该药品，并提供相关信息。"
+        "你是一位资深的药品识别 AI 助手。用户上传了药盒/药品包装的真实图片，"
+        "请基于图片中的视觉内容（包装外观、配色、Logo）和 OCR 文字（药名、规格、厂商、批号等），"
+        "尽你所能识别出药品，并给出结构化、客观、谨慎的回答。\n\n"
+        "## 必须遵守的输出规则\n"
+        "1. 必须**真正基于图片中可见的内容**作答；如果图片不清晰、不是药品或无法识别，必须直接说明"
+        "「无法识别，请重拍/换角度」，**严禁凭印象虚构常见药品**。\n"
+        "2. 不同图片应给出不同的识别结果，不允许对所有图片返回完全相同的固定话术。\n"
+        "3. 涉及处方药、特殊管制药品时必须额外提示"
+        "「该药为处方药，请遵医嘱使用」。\n"
+        "4. 结尾统一附加："
+        "「AI 识别结果仅供参考，具体用药请遵医嘱」。\n\n"
+        "## 推荐输出结构（Markdown）\n"
+        "- 药品名称：通用名 / 商品名\n"
+        "- 药品分类：处方药 / 非处方药 / 保健食品\n"
+        "- 主要成分 / 规格\n"
+        "- 适应症\n"
+        "- 用法用量\n"
+        "- 注意事项 / 禁忌\n"
     )
-    messages = [{"role": "user", "content": f"药品图片描述: {image_description}"}]
+
+    # 组装用户消息：先把 OCR 文字 + 描述一并附上，再把图片以多模态形式塞进去
+    user_text_parts: List[str] = []
+    if ocr_text:
+        user_text_parts.append(f"[OCR 识别到的药盒文字]\n{ocr_text}")
+    if image_description and image_description.strip() and image_description not in user_text_parts:
+        user_text_parts.append(image_description.strip())
+    user_text_parts.append("请基于以上图片真实视觉内容和 OCR 文字识别此药品。如果不是药品图或看不清，请直接说明无法识别。")
+    user_text = "\n\n".join(user_text_parts)
+
+    if final_urls:
+        # 直接构造多模态 content，确保不依赖 upgrade 兜底
+        content: Union[str, List[Dict[str, Any]]] = build_vision_message_content(user_text, final_urls)
+    else:
+        content = user_text
+
+    messages = [{"role": "user", "content": content}]
     return await call_ai_model(messages, system_prompt, db)
+
+
+async def identify_drug_structured(
+    image_urls: List[str],
+    ocr_text: Optional[str] = None,
+    user_profile: Optional[Dict[str, Any]] = None,
+    db: Optional[AsyncSession] = None,
+) -> Dict[str, Any]:
+    """[BUG_FIX_用药识别千图一答 2026-05-16] 结构化多药识别接口。
+
+    返回 dict 结构（参考修复方案 §4.2.④ MedicineRecognitionResult）：
+
+    .. code-block:: json
+
+        {
+          "recognized": true,
+          "confidence": 0.85,
+          "medicines": [{
+            "name": "...",
+            "brand": "...",
+            "spec": "...",
+            "manufacturer": "...",
+            "category": "...",
+            "ingredients": "...",
+            "usage": "...",
+            "indications": "...",
+            "precautions": "...",
+            "contraindications": "..."
+          }],
+          "raw_ocr_text": "...",
+          "next_action": "show_card" | "pick_candidate" | "retake",
+          "summary_markdown": "...",
+          "disclaimer": "..."
+        }
+
+    如果传入多张图，会综合所有图的视觉特征 + OCR 文字做联合识别，
+    可识别同图多药或多图同药。
+    """
+    if not image_urls:
+        return {
+            "recognized": False,
+            "confidence": 0.0,
+            "medicines": [],
+            "raw_ocr_text": ocr_text or "",
+            "next_action": "retake",
+            "summary_markdown": "未收到任何图片，请重新上传药盒图。",
+            "disclaimer": "AI 识别结果仅供参考，具体用药请遵医嘱。",
+        }
+
+    system_prompt = (
+        "你是一位资深的药品识别 AI 助手，具备视觉理解能力。"
+        "用户上传了一张或多张药盒/药品包装的真实图片，"
+        "请基于图片中的视觉内容（包装外观、配色、Logo、盒型）和 OCR 文字"
+        "（药名、规格、厂商、批号）联合识别图中的所有药品。\n\n"
+        "## 严格的输出协议\n"
+        "你必须**只输出合法的 JSON**（不要 markdown 代码块标记，不要任何前后缀文字）。\n"
+        "JSON 结构如下：\n"
+        "{\n"
+        '  "recognized": true | false,\n'
+        '  "confidence": 0.0~1.0,\n'
+        '  "medicines": [\n'
+        "    {\n"
+        '      "name": "药品通用名",\n'
+        '      "brand": "商品名（如有）",\n'
+        '      "spec": "规格，如 0.5g x 24 粒",\n'
+        '      "manufacturer": "生产厂商",\n'
+        '      "category": "处方药/非处方药/保健食品/其他",\n'
+        '      "ingredients": "主要成分",\n'
+        '      "usage": "用法用量",\n'
+        '      "indications": "适应症",\n'
+        '      "precautions": "注意事项",\n'
+        '      "contraindications": "禁忌"\n'
+        "    }\n"
+        "  ],\n"
+        '  "raw_ocr_text": "原始 OCR 文字（如有）",\n'
+        '  "next_action": "show_card" | "pick_candidate" | "retake",\n'
+        '  "summary_markdown": "面向用户的 Markdown 总结，供 AI 对话直接展示",\n'
+        '  "disclaimer": "AI 识别结果仅供参考，具体用药请遵医嘱"\n'
+        "}\n\n"
+        "## 关键判断规则\n"
+        "- 如果图片不清晰、不是药品、或视觉与 OCR 都无法支撑识别 → "
+        "  `recognized=false`、`confidence<0.4`、`medicines=[]`、`next_action='retake'`、"
+        "  `summary_markdown` 用一句话友好提示用户重拍/换角度。\n"
+        "- 如果识别置信度不够高 → `next_action='pick_candidate'`，"
+        "  在 medicines 数组里给出 2~3 个最像的候选，让用户确认。\n"
+        "- 严禁在缺失视觉信息时虚构常见药品（如阿莫西林、布洛芬等）。\n"
+        "- 不同输入图片应得出不同结果，绝不允许"
+        "  对所有图片返回相同药品。\n"
+        "- 若同一图含多个药品，medicines 应分别列出；多图同一药品则合并为一项。\n"
+    )
+
+    user_text_parts: List[str] = []
+    if ocr_text:
+        user_text_parts.append(f"[OCR 识别到的药盒文字]\n{ocr_text}")
+    if user_profile:
+        try:
+            user_text_parts.append(
+                f"[用户健康档案参考]\n{json.dumps(user_profile, ensure_ascii=False)}"
+            )
+        except Exception:
+            pass
+    user_text_parts.append(
+        f"请识别以下 {len(image_urls)} 张图片中的药品，按系统要求的 JSON 协议返回。"
+    )
+    user_text = "\n\n".join(user_text_parts)
+
+    content = build_vision_message_content(user_text, image_urls)
+    messages = [{"role": "user", "content": content}]
+    raw = await call_ai_model(messages, system_prompt, db)
+
+    # 解析 JSON（带 markdown code fence 兜底）
+    try:
+        text = (raw or "").strip()
+        if text.startswith("```"):
+            lines = text.split("\n")
+            lines = lines[1:] if lines else lines
+            if lines and lines[-1].strip().startswith("```"):
+                lines = lines[:-1]
+            text = "\n".join(lines).strip()
+        parsed = json.loads(text)
+        if not isinstance(parsed, dict):
+            raise ValueError("not a dict")
+    except Exception:
+        # 兜底：解析失败时降级为 retake，给出可见的错误说明
+        parsed = {
+            "recognized": False,
+            "confidence": 0.0,
+            "medicines": [],
+            "raw_ocr_text": ocr_text or "",
+            "next_action": "retake",
+            "summary_markdown": "AI 识别失败，请重新拍摄药盒清晰图后再试。",
+            "disclaimer": "AI 识别结果仅供参考，具体用药请遵医嘱。",
+            "raw_text": raw,
+        }
+
+    # 字段兜底
+    parsed.setdefault("recognized", False)
+    parsed.setdefault("confidence", 0.0)
+    parsed.setdefault("medicines", [])
+    parsed.setdefault("raw_ocr_text", ocr_text or "")
+    parsed.setdefault("next_action", "retake")
+    parsed.setdefault(
+        "disclaimer",
+        "AI 识别结果仅供参考，具体用药请遵医嘱。",
+    )
+    if not parsed.get("summary_markdown"):
+        if parsed.get("recognized") and parsed.get("medicines"):
+            lines = ["### 识别结果"]
+            for i, m in enumerate(parsed["medicines"], 1):
+                if not isinstance(m, dict):
+                    continue
+                lines.append(
+                    f"**{i}. {m.get('name') or '未知药品'}**"
+                    + (f"（{m['brand']}）" if m.get("brand") else "")
+                )
+                if m.get("spec"):
+                    lines.append(f"- 规格：{m['spec']}")
+                if m.get("category"):
+                    lines.append(f"- 分类：{m['category']}")
+                if m.get("indications"):
+                    lines.append(f"- 适应症：{m['indications']}")
+                if m.get("usage"):
+                    lines.append(f"- 用法用量：{m['usage']}")
+                if m.get("precautions"):
+                    lines.append(f"- 注意事项：{m['precautions']}")
+                if m.get("contraindications"):
+                    lines.append(f"- 禁忌：{m['contraindications']}")
+                lines.append("")
+            lines.append(f"\n> {parsed['disclaimer']}")
+            parsed["summary_markdown"] = "\n".join(lines)
+        else:
+            parsed["summary_markdown"] = (
+                "未能识别出药品，请重新拍摄一张清晰的药盒正面图（光线明亮、避免反光、文字可读）后再试。"
+            )
+
+    return parsed
 
 
 _ENHANCED_REPORT_PROMPT = (
