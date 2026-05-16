@@ -27,6 +27,20 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-DRUG-CARD-V3-20260516｜AI 对话拍照识药体验升级 + 权威药品库（2026-05-16 18:05）
+
+- 修复 Bug #1：H5 ai-home 上传图片不再有「[用户上传的图片N张] + URL」冗余文本气泡；`pickAndUploadThenSend` 改走 `handleSend(suppressUserBubble=true, backendText=…)`，URL 仅注入后端上下文不渲染。
+- 修复 Bug #2：`backend/app/services/ai_service.py::call_ai_model(_stream)` 不再默认自动多模态升级；新增 `enable_vision` 显式开关，默认 False；`identify_drug_from_image` 显式 `enable_vision=True`。彻底杜绝纯文本模型 deepseek-v3-2-251201 因多模态结构返回 400 Bad Request。
+- 新增 ORM `MedicationLibraryPending`（表 `medication_library_pending`），用户不可见的待审池。
+- 新增 `backend/app/api/medication_library_v3.py`：
+  - `POST /api/v5/medication-library/match`：精确+模糊匹配权威库；做过敏/慢病/重复用药三类冲突判定；未命中库时 fallback 从严判定，字面含过敏关键词也触发 high 冲突。
+  - `GET /api/v5/system-config/doctor-consult`：公开读取医疗咨询热线。
+  - `/api/admin/medication-library-pending` 列表 / 采纳 / 驳回。
+- H5 新增组件：`DrugIdentifyCard.tsx` / `ConflictWarningCard.tsx` / `AddMedicationDrawer.tsx`，全面适老化（22px 药品名 / 48px 按钮）。
+- 测试：`backend/tests/test_drug_card_v3_20260516.py`（9 条），+ `test_drug_identify_vlm_20260516.py` 更新（默认无多模态、enable_vision=True 升级）。共 21/21 通过。
+- 部署脚本：`deploy/_deploy_drug_card_v3_20260516.py`；已部署到测试环境，新接口 200，H5 主页 200。
+- 用户手册：`user_docs/AI拍照识药体验升级_20260516_drugcardv3.md`。
+
 ## Latest Update: PRD-HSC-SSE-V1-20260516｜AI 对话「健康自查」新增症状描述 + 改为 SSE 流式输出（2026-05-16 16:35）
 
 ### 一句话结论
