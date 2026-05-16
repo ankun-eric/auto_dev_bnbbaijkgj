@@ -16,6 +16,8 @@ interface ReminderSetting {
   silent_start?: string | null;
   silent_end?: string | null;
   notify_caregivers: boolean;
+  // [PRD-MED-PLAN-V1 2026-05-16] 用药 AI 外呼提醒全局开关
+  medication_ai_call_enabled?: boolean;
 }
 
 interface CarePartner {
@@ -106,6 +108,29 @@ export default function CareReminderBlock({ token: T, isLinked, profileId, membe
   return (
     <div id="care-reminder" data-testid="prd469-care-reminder" style={{ padding: '12px 16px' }}>
       <h3 style={{ fontSize: 18, fontWeight: 600, color: T.brand700, margin: '8px 0 12px' }}>共管与提醒</h3>
+
+      {/* [PRD-MED-PLAN-V1 2026-05-16] 用药 AI 外呼提醒 全局开关
+          在「健康提醒」与「共管」两个区域共用同一份数据 */}
+      <div
+        data-testid="med-plan-v1-aicall-switch-block"
+        id="medication-ai-call-switch"
+        style={{
+          background: '#fff', borderRadius: 12, padding: 16, marginBottom: 12,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          borderLeft: '3px solid #0284C7',
+        }}
+      >
+        <div style={{ fontSize: 14, fontWeight: 600, color: T.brand700, marginBottom: 6 }}>📞 用药 AI 外呼提醒</div>
+        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
+          开启后，将按用药计划中的服药时间，自动 AI 电话提醒按时吃药。共管家人也可代为开启。
+        </div>
+        <ToggleRow
+          label="开启用药 AI 外呼提醒"
+          checked={!!setting?.medication_ai_call_enabled}
+          onChange={(v) => update({ medication_ai_call_enabled: v })}
+          T={T}
+        />
+      </div>
 
       {/* 共管家人列表 —— Tab内直接展示 [PRD-469 v2 P1] */}
       <div

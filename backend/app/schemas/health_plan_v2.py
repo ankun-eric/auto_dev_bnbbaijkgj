@@ -21,6 +21,11 @@ class MedicationReminderCreate(BaseModel):
     long_term: Optional[bool] = None
     reminder_enabled: Optional[bool] = None
     disease_tags: Optional[List[str]] = None
+    # [PRD-MED-PLAN-V1 2026-05-16] 结构化剂量 + 服用周期 + 用药指导
+    dosage_value: Optional[str] = None  # 1/4, 1/2, 1, 2, ...
+    dosage_unit: Optional[str] = None   # 片/粒/袋/支/瓶/贴/g/mL/mg/μg
+    duration_days: Optional[int] = None  # 服用天数
+    guidance: Optional[str] = None       # 餐前/餐后/空腹/随餐服用/睡前
 
 
 class MedicationReminderUpdate(BaseModel):
@@ -37,6 +42,11 @@ class MedicationReminderUpdate(BaseModel):
     long_term: Optional[bool] = None
     reminder_enabled: Optional[bool] = None
     disease_tags: Optional[List[str]] = None
+    # [PRD-MED-PLAN-V1 2026-05-16] 结构化剂量 + 服用周期 + 用药指导
+    dosage_value: Optional[str] = None
+    dosage_unit: Optional[str] = None
+    duration_days: Optional[int] = None
+    guidance: Optional[str] = None
 
 
 class MedicationReminderResponse(BaseModel):
@@ -59,6 +69,11 @@ class MedicationReminderResponse(BaseModel):
     long_term: Optional[bool] = None
     reminder_enabled: Optional[bool] = None
     disease_tags: Optional[List[str]] = None
+    # [PRD-MED-PLAN-V1 2026-05-16] 新字段
+    dosage_value: Optional[str] = None
+    dosage_unit: Optional[str] = None
+    duration_days: Optional[int] = None
+    guidance: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

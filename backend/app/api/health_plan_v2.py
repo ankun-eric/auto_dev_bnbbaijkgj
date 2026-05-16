@@ -18,6 +18,7 @@ from app.models.models import (
     PlanTemplateCategory,
     RecommendedPlan,
     RecommendedPlanTask,
+    ReminderSetting,
     User,
     UserPlan,
     UserPlanTask,
@@ -57,6 +58,41 @@ router = APIRouter(prefix="/api/health-plan", tags=["健康计划V2"])
 # ──────────────── 用药提醒 ────────────────
 
 
+def _norm_drug_name(name: Optional[str]) -> str:
+    """[PRD-MED-PLAN-V1] 同名药品判定：去前后空白 + 大小写不敏感（中文不受影响）。"""
+    return (name or "").strip().lower()
+
+
+async def _find_active_same_name(
+    db: AsyncSession, user_id: int, drug_name: str, exclude_id: Optional[int] = None
+) -> Optional[MedicationReminder]:
+    """查询当前用户是否已有同名「进行中」用药计划。"""
+    today = date.today()
+    target = _norm_drug_name(drug_name)
+    if not target:
+        return None
+    stmt = select(MedicationReminder).where(
+        MedicationReminder.user_id == user_id,
+        MedicationReminder.status == "active",
+    )
+    res = await db.execute(stmt)
+    for r in res.scalars().all():
+        if exclude_id and r.id == exclude_id:
+            continue
+        # 仅判定「进行中」：未结束（长期 OR end_date IS NULL OR end_date >= today）
+        is_ongoing = bool(r.long_term) or r.end_date is None or (r.end_date and r.end_date >= today)
+        if is_ongoing and _norm_drug_name(r.medicine_name) == target:
+            return r
+    return None
+
+
+def _compute_end_date(start_date: Optional[date], duration_days: Optional[int]) -> Optional[date]:
+    """[PRD-MED-PLAN-V1] 服用周期 = 开始日期 + 服用天数 - 1。"""
+    if start_date is None or duration_days is None or duration_days <= 0:
+        return None
+    return start_date + timedelta(days=duration_days - 1)
+
+
 @router.post("/medications", response_model=MedicationReminderResponse)
 async def create_medication(
     data: MedicationReminderCreate,
@@ -64,6 +100,34 @@ async def create_medication(
     db: AsyncSession = Depends(get_db),
 ):
     payload = data.model_dump(exclude_unset=True)
+    drug_name = payload.get("medicine_name") or ""
+
+    # [PRD-MED-PLAN-V1] 同名药品去重：不允许同时存在两条「进行中」
+    existing = await _find_active_same_name(db, current_user.id, drug_name)
+    if existing is not None:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "MEDICATION_DUPLICATE_ACTIVE",
+                "message": f"您已有一条进行中的【{existing.medicine_name}】用药计划",
+                "existing_id": existing.id,
+                "existing_name": existing.medicine_name,
+            },
+        )
+
+    # [PRD-MED-PLAN-V1] 服用周期自动计算 end_date
+    start_d = payload.get("start_date")
+    duration = payload.get("duration_days")
+    if start_d and duration and not payload.get("long_term") and not payload.get("end_date"):
+        payload["end_date"] = _compute_end_date(start_d, duration)
+    # 默认开始日期 = 今天，默认天数 = 5
+    if not payload.get("long_term"):
+        if start_d is None:
+            payload["start_date"] = date.today()
+        if duration is None and not payload.get("end_date"):
+            payload["duration_days"] = 5
+            payload["end_date"] = _compute_end_date(payload["start_date"], 5)
+
     reminder = MedicationReminder(
         user_id=current_user.id,
         **{k: v for k, v in payload.items() if k != "user_id"},
@@ -143,40 +207,81 @@ def _schedule_from_reminder(r: MedicationReminder) -> list[str]:
     return ["08:00"]
 
 
+async def _auto_archive_expired(db: AsyncSession, user_id: int) -> int:
+    """[PRD-MED-PLAN-V1] 服用周期到期自动归档：status=active 且 end_date < today 且 非长期 → status=archived"""
+    today = date.today()
+    stmt = select(MedicationReminder).where(
+        MedicationReminder.user_id == user_id,
+        MedicationReminder.status == "active",
+        MedicationReminder.long_term != True,  # noqa: E712
+        MedicationReminder.end_date.is_not(None),
+        MedicationReminder.end_date < today,
+    )
+    expired = (await db.execute(stmt)).scalars().all()
+    for r in expired:
+        r.status = "archived"
+    if expired:
+        await db.flush()
+    return len(expired)
+
+
+async def _read_med_ai_call_enabled(db: AsyncSession, user_id: int) -> bool:
+    """读取「用药 AI 外呼提醒」全局开关；不存在则视为关闭。"""
+    res = await db.execute(
+        select(ReminderSetting).where(ReminderSetting.user_id == user_id)
+    )
+    s = res.scalar_one_or_none()
+    if s is None:
+        return False
+    return bool(getattr(s, "medication_ai_call_enabled", False) or False)
+
+
 @router.get("/medications/list")
 async def list_medications_flat(
-    segment: Optional[str] = Query(None, description="筛选: today=今日用药 / all=全部在用药品 / 空=全部在用药品"),
+    segment: Optional[str] = Query(None, description="筛选: today=今日用药 / all=全部在用药品 / archived=历史用药 / 空=全部在用药品"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """[BUG-HEALTH-ARCHIVE-V2 2026-05-16] 用药计划列表 —— 统一数据源到 MedicationReminder。
+    """[BUG-HEALTH-ARCHIVE-V2 2026-05-16 / PRD-MED-PLAN-V1 2026-05-16] 用药计划列表。
 
-    返回结构与原 MedicationPlan 接口兼容：
-    {
-      "items": [
-        {
-          "id", "drug_name"(=medicine_name), "dosage", "frequency"(=每日次数文本),
-          "schedule": [..时间点..], "long_term", "start_date", "end_date",
-          "status", "enabled"(=status=='active'), "note"(=notes), "patient_id"
-        }
-      ],
-      "total": N
-    }
+    - 进入接口时自动归档已过期的「进行中」计划。
+    - 透出全局开关 ai_call_enabled，前端用于控制电话图标 + 引导横幅。
     """
     today = date.today()
-    stmt = select(MedicationReminder).where(*_active_med_filter(current_user.id, today)).order_by(
-        MedicationReminder.remind_time.asc()
-    )
+
+    # [PRD-MED-PLAN-V1] 自动归档（每次列表请求执行一次，幂等）
+    await _auto_archive_expired(db, current_user.id)
+
+    ai_call_enabled = await _read_med_ai_call_enabled(db, current_user.id)
+
+    if segment == "archived":
+        stmt = select(MedicationReminder).where(
+            MedicationReminder.user_id == current_user.id,
+            MedicationReminder.status.in_(["archived", "deleted"]),
+        ).order_by(MedicationReminder.end_date.desc().nullslast(), MedicationReminder.id.desc())
+    else:
+        stmt = select(MedicationReminder).where(*_active_med_filter(current_user.id, today)).order_by(
+            MedicationReminder.remind_time.asc()
+        )
     reminders = (await db.execute(stmt)).scalars().all()
 
     items: list[dict] = []
     for r in reminders:
         schedule = _schedule_from_reminder(r)
-        # 今日用药判定：所有「在用药品」每天都应服用，因此 today 始终命中（schedule 非空时）。
         is_today = bool(schedule)
         if segment == "today" and not is_today:
             continue
         freq_per_day = r.frequency_per_day or len(schedule) or 1
+        is_ongoing = (
+            r.status == "active"
+            and (
+                bool(r.long_term)
+                or r.end_date is None
+                or (r.end_date and r.end_date >= today)
+            )
+        )
+        # AI 外呼开 + 进行中 → 列表卡片显示电话图标
+        ai_call_badge = bool(ai_call_enabled and is_ongoing)
         items.append({
             "id": r.id,
             "drug_name": r.medicine_name,
@@ -191,6 +296,7 @@ async def list_medications_flat(
             "long_term": bool(r.long_term),
             "start_date": r.start_date.isoformat() if r.start_date else None,
             "end_date": r.end_date.isoformat() if r.end_date else None,
+            "duration_days": r.duration_days,
             "status": r.status,
             "enabled": (r.status == "active") and bool(r.reminder_enabled if r.reminder_enabled is not None else True),
             "note": r.notes,
@@ -198,9 +304,21 @@ async def list_medications_flat(
             "disease_tags": r.disease_tags or [],
             "reminder_enabled": bool(r.reminder_enabled if r.reminder_enabled is not None else True),
             "patient_id": None,
+            # [PRD-MED-PLAN-V1] 新结构化字段
+            "dosage_value": r.dosage_value,
+            "dosage_unit": r.dosage_unit,
+            "guidance": r.guidance,
+            # [PRD-MED-PLAN-V1] 标记：列表卡片是否显示电话图标
+            "ai_call_badge": ai_call_badge,
+            "is_ongoing": is_ongoing,
         })
 
-    return {"items": items, "total": len(items)}
+    return {
+        "items": items,
+        "total": len(items),
+        # [PRD-MED-PLAN-V1] 全局开关，前端用于引导横幅 / 电话图标
+        "ai_call_enabled": ai_call_enabled,
+    }
 
 
 @router.get("/medications/summary")
@@ -266,8 +384,33 @@ async def update_medication(
     if not reminder:
         raise HTTPException(status_code=404, detail="用药提醒不存在")
 
-    for field, value in data.model_dump(exclude_unset=True).items():
+    payload = data.model_dump(exclude_unset=True)
+    # [PRD-MED-PLAN-V1] 改名时要做同名「进行中」去重（排除自身）
+    if "medicine_name" in payload and payload["medicine_name"]:
+        existing = await _find_active_same_name(
+            db, current_user.id, payload["medicine_name"], exclude_id=reminder.id
+        )
+        if existing is not None:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "MEDICATION_DUPLICATE_ACTIVE",
+                    "message": f"您已有一条进行中的【{existing.medicine_name}】用药计划",
+                    "existing_id": existing.id,
+                    "existing_name": existing.medicine_name,
+                },
+            )
+
+    for field, value in payload.items():
         setattr(reminder, field, value)
+
+    # [PRD-MED-PLAN-V1] 周期重算
+    if not reminder.long_term:
+        sd = reminder.start_date
+        dd = reminder.duration_days
+        if sd and dd and ("duration_days" in payload or "start_date" in payload):
+            reminder.end_date = _compute_end_date(sd, dd)
+
     await db.flush()
     await db.refresh(reminder)
     return MedicationReminderResponse.model_validate(reminder)

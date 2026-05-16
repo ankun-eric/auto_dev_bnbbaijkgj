@@ -665,6 +665,8 @@ class ReminderSettingBody(BaseModel):
     silent_start: Optional[str] = None
     silent_end: Optional[str] = None
     notify_caregivers: Optional[bool] = None
+    # [PRD-MED-PLAN-V1 2026-05-16] 用药 AI 外呼提醒全局开关
+    medication_ai_call_enabled: Optional[bool] = None
 
 
 async def _get_or_create_reminder(db: AsyncSession, user_id: int) -> ReminderSetting:
@@ -692,6 +694,8 @@ async def get_reminder_setting(
         "silent_start": s.silent_start,
         "silent_end": s.silent_end,
         "notify_caregivers": s.notify_caregivers,
+        # [PRD-MED-PLAN-V1 2026-05-16] 用药 AI 外呼提醒全局开关
+        "medication_ai_call_enabled": bool(getattr(s, "medication_ai_call_enabled", False) or False),
     }
 
 
@@ -707,6 +711,68 @@ async def update_reminder_setting(
         setattr(s, k, v)
     await db.flush()
     return {"message": "已保存"}
+
+
+# ──────────────────────────────────────────────────────────
+# [PRD-MED-PLAN-V1 2026-05-16] 用药 AI 外呼提醒全局开关
+# 在「健康提醒」与「共管」两个模块共用同一份数据：
+# - GET  /api/prd469/medication-ai-call          → 读取
+# - PUT  /api/prd469/medication-ai-call          → 写入
+# - GET  /api/prd469/care/medication-ai-call     → 共管模块读取（同上）
+# - PUT  /api/prd469/care/medication-ai-call     → 共管模块写入（同上）
+# ──────────────────────────────────────────────────────────
+
+
+class MedicationAiCallBody(BaseModel):
+    enabled: bool
+
+
+async def _read_med_ai_call(db: AsyncSession, user_id: int) -> dict:
+    s = await _get_or_create_reminder(db, user_id)
+    return {"enabled": bool(getattr(s, "medication_ai_call_enabled", False) or False)}
+
+
+async def _write_med_ai_call(db: AsyncSession, user_id: int, enabled: bool) -> dict:
+    s = await _get_or_create_reminder(db, user_id)
+    s.medication_ai_call_enabled = bool(enabled)
+    await db.flush()
+    return {"enabled": bool(s.medication_ai_call_enabled)}
+
+
+@router.get("/medication-ai-call")
+async def get_medication_ai_call(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await _read_med_ai_call(db, current_user.id)
+
+
+@router.put("/medication-ai-call")
+async def update_medication_ai_call(
+    body: MedicationAiCallBody,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await _write_med_ai_call(db, current_user.id, body.enabled)
+
+
+@router.get("/care/medication-ai-call")
+async def get_medication_ai_call_care(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """共管模块入口（与健康提醒入口共用同一份数据）。"""
+    return await _read_med_ai_call(db, current_user.id)
+
+
+@router.put("/care/medication-ai-call")
+async def update_medication_ai_call_care(
+    body: MedicationAiCallBody,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """共管模块入口（与健康提醒入口共用同一份数据）。"""
+    return await _write_med_ai_call(db, current_user.id, body.enabled)
 
 
 # ──────────────────────────────────────────────────────────

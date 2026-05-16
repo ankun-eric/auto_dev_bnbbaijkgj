@@ -2299,6 +2299,11 @@ class MedicationReminder(Base):
     long_term = mapped_column(Boolean, default=False)
     reminder_enabled = mapped_column(Boolean, default=True)
     disease_tags = mapped_column(JSON, nullable=True)  # ["高血压", "糖尿病"]
+    # [PRD-MED-PLAN-V1 2026-05-16] 用药计划模块优化：结构化剂量、服用周期、用药指导
+    dosage_value = mapped_column(String(16), nullable=True)  # 数值预设挡位（"1/4","1/2","1"...）
+    dosage_unit = mapped_column(String(16), nullable=True)   # 单位（片/粒/袋/支/瓶/贴/g/mL/mg/μg）
+    duration_days = mapped_column(Integer, nullable=True)    # 服用天数
+    guidance = mapped_column(String(16), nullable=True)      # 用药指导：餐前/餐后/空腹/随餐服用/睡前
 
     user = relationship("User")
     check_ins = relationship("MedicationCheckIn", back_populates="reminder")
@@ -3973,6 +3978,9 @@ class ReminderSetting(Base):
     silent_start = mapped_column(String(8), nullable=True)
     silent_end = mapped_column(String(8), nullable=True)
     notify_caregivers = mapped_column(Boolean, default=True)
+    # [PRD-MED-PLAN-V1 2026-05-16] 用药 AI 外呼提醒全局开关
+    # 在「健康提醒」与「共管」两个模块共用，任一处更新即实时同步
+    medication_ai_call_enabled = mapped_column(Boolean, default=False, nullable=False)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

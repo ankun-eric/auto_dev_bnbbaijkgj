@@ -2351,6 +2351,48 @@ async def _sync_medication_reminders_prd469_v2(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE medication_reminders ADD COLUMN disease_tags JSON NULL"))
         except Exception as e:
             print(f"[schema_sync] medication_reminders.disease_tags add warn: {e}")
+    # [PRD-MED-PLAN-V1 2026-05-16] 结构化剂量 + 服用周期 + 用药指导
+    if "dosage_value" not in cols:
+        try:
+            await conn.execute(text("ALTER TABLE medication_reminders ADD COLUMN dosage_value VARCHAR(16) NULL"))
+        except Exception as e:
+            print(f"[schema_sync] medication_reminders.dosage_value add warn: {e}")
+    if "dosage_unit" not in cols:
+        try:
+            await conn.execute(text("ALTER TABLE medication_reminders ADD COLUMN dosage_unit VARCHAR(16) NULL"))
+        except Exception as e:
+            print(f"[schema_sync] medication_reminders.dosage_unit add warn: {e}")
+    if "duration_days" not in cols:
+        try:
+            await conn.execute(text("ALTER TABLE medication_reminders ADD COLUMN duration_days INT NULL"))
+        except Exception as e:
+            print(f"[schema_sync] medication_reminders.duration_days add warn: {e}")
+    if "guidance" not in cols:
+        try:
+            await conn.execute(text("ALTER TABLE medication_reminders ADD COLUMN guidance VARCHAR(16) NULL"))
+        except Exception as e:
+            print(f"[schema_sync] medication_reminders.guidance add warn: {e}")
+
+
+async def _sync_reminder_settings_med_v1(conn: AsyncConnection) -> None:
+    """[PRD-MED-PLAN-V1 2026-05-16] 为 reminder_settings 增加 medication_ai_call_enabled 字段。"""
+
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        if "reminder_settings" not in set(inspector.get_table_names()):
+            return None
+        return {col["name"] for col in inspector.get_columns("reminder_settings")}
+
+    cols = await conn.run_sync(_load)
+    if cols is None:
+        return
+    if "medication_ai_call_enabled" not in cols:
+        try:
+            await conn.execute(text(
+                "ALTER TABLE reminder_settings ADD COLUMN medication_ai_call_enabled TINYINT(1) NOT NULL DEFAULT 0"
+            ))
+        except Exception as e:
+            print(f"[schema_sync] reminder_settings.medication_ai_call_enabled add warn: {e}")
 
 
 async def sync_register_schema(conn: AsyncConnection) -> None:
@@ -2411,6 +2453,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_reschedule_columns(conn)
     # [PRD-469 v2 P0] medication_reminders 新增字段
     await _sync_medication_reminders_prd469_v2(conn)
+    # [PRD-MED-PLAN-V1 2026-05-16] reminder_settings 增加 medication_ai_call_enabled
+    await _sync_reminder_settings_med_v1(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)
