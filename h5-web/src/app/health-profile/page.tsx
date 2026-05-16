@@ -1,7 +1,8 @@
 'use client';
 
-// [PRD-MED-PLAN-ENTRY-V1 2026-05-17] 引入 useSearchParams 后必须强制动态渲染，否则 Next.js 静态预渲染会因缺少 Suspense 而失败。
+// [PRD-MED-PLAN-ENTRY-V1 2026-05-17] 标记为强制动态渲染，跳过静态预渲染；并在 default export 外层补 Suspense 兜底，配合内部 useSearchParams。
 export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
 
 /**
  * [PRD-健康档案路径统一 2026-05-16] 健康档案 v2 设计搬迁回主路径 /health-profile
@@ -20,7 +21,7 @@ export const dynamic = 'force-dynamic';
  * 视觉规范：v5 健康绿主色 + 圆角 12/16px + 病历卡左侧 3px 竖线
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Toast } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
@@ -158,7 +159,7 @@ export function V5Card({
 
 export const HP_V5_TOKEN = T;
 
-export default function HealthProfileV2Page() {
+function HealthProfileV2PageInner() {
   const router = useRouter();
 
   const [members, setMembers] = useState<FamilyMember[]>([]);
@@ -938,4 +939,13 @@ function calcAge(birthday: string): number | null {
   } catch {
     return null;
   }
+}
+
+// [PRD-MED-PLAN-ENTRY-V1 2026-05-17] 外层 Suspense 包裹，配合内部 useSearchParams 通过 Next.js 静态预渲染检查
+export default function HealthProfileV2Page() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#6B7280' }}>加载中…</div>}>
+      <HealthProfileV2PageInner />
+    </Suspense>
+  );
 }

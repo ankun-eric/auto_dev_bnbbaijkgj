@@ -27,7 +27,81 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: BUG-FIX-DRUG-IDENTIFY-V3-20260516｜ai-home 拍照识药三联 Bug 修复 + 方案 E 聊天内嵌识药引擎（2026-05-16 23:00）
+## Latest Update: PRD-MED-PLAN-ENTRY-V1-20260517｜用药计划入口改造（Hero 主入口 + 摘要卡降级 + 提醒打卡页 + 三 Tab 列表 + 旧路由彻底删除）（2026-05-17 00:30）
+
+### 一句话结论
+按 PRD v1.0 终稿系统改造「用药计划」入口职责：①健康档案 Hero 第 4 格"在用药品"升级为主入口（文案"还有 X 次用药 / 今日用药已完成 / 今日用药 0"），点击直达 `/ai-home/medication-reminder` 打卡页；②健康档案摘要卡降级为次入口（顶部右上角并排"全部/+新增"双按钮、仅服药中、单条不可点、滚动 480px/60vh、空态大按钮）；③新增用药提醒打卡页（顶部 Banner + 即将服用橙色高亮 + 时间线 + 5 分钟撤销）；④`/ai-home/medication-plans` 列表页三 Tab（服药中/未开始/已结束）+ 计数徽章；⑤新增表单允许过去日期补录；⑥彻底删除旧路由 `/medication-plans`、`/health-plan/medications`、`/health-plan/medications/add`，全部 404。
+
+### 后端核心改动
+- 新增 `backend/app/api/medication_plans_v1.py`：6 个新接口
+  - `GET /api/medication-plans/hero-count`：Hero 第 4 格 `{total_today, done_today, remaining_today, status, display_text}`，文案随状态切换
+  - `GET /api/medication-plans/today`：用药提醒页 banner + upcoming + timeline（**注**：原 PRD 提到的 `/api/medication-reminder/today` 路径已被 PRD-439 占用，改用 `/api/medication-plans/today`，避免冲突）
+  - `GET /api/medication-plans/summary`：健康档案摘要卡数据，仅 status=active 服药中，按 created_at desc
+  - `POST /api/medication-check-in`：时间点级打卡（body `{plan_id, scheduled_time?}`），复用 MedicationCheckIn 表 `check_in_time` 字段（**不改表结构**）
+  - `POST /api/medication-check-in/{id}/revoke`：5 分钟内撤销，超时 400 + `code=REVOKE_TIMEOUT`
+  - `GET /api/medication-stats/monthly-compliance`：本月依从率 `{month, expected, done, rate_percent}`（**不追溯历史空白**，从录入当天起计）
+- 新增 `backend/app/services/medication_status_scheduler.py`：`auto_flow_medication_status(db, user_id=None)` —— active↔archived 自动流转，幂等；在 hero-count / today 接口内**懒触发**（避免完全依赖定时任务）
+- 修改 `backend/app/api/health_plan_v2.py`：`GET /api/health-plan/medications/list` 新增 `tab=in_progress|not_started|finished` query 过滤参数；保留 segment 向后兼容；无 tab/segment 时维持旧行为
+- 修改 `backend/app/main.py`：注册 `medication_plans_v1.router`
+
+### 前端核心改动（h5-web）
+- **新增 4 个路由**（全部放在 `(ai-chat)/ai-home/` 组下，复用现有 ai-chat layout）：
+  - `src/app/(ai-chat)/ai-home/medication-reminder/page.tsx`：用药提醒页（Banner / 即将服用橙色高亮 / 时间线 / 打卡 + 撤销 / 右下浮动 + / ← 返回）
+  - `src/app/(ai-chat)/ai-home/medication-plans/page.tsx`：三 Tab 列表页（服药中 / 未开始 / 已结束）；用 Suspense 包裹 inner 子组件以通过 Next.js 静态预渲染
+  - `src/app/(ai-chat)/ai-home/medication-plans/new/page.tsx`：新增表单页（支持过去日期补录）
+  - `src/app/(ai-chat)/ai-home/medication-plans/[id]/page.tsx`：用药详情/编辑页（RESTful 动态路由）
+- 新增 `src/components/medication/MedicationFormPanel.tsx`：通用新增/编辑表单组件，被 new/[id] 两页复用
+- 修改 `src/app/health-profile/page.tsx`：
+  - Hero 第 4 格使用 `/api/medication-plans/hero-count` 文案 + 跳转 `/ai-home/medication-reminder`
+  - 用药摘要卡改造：双按钮（全部 / + 新增）顶部右上角、仅服药中、按 created_at desc、单条不可点、可滚动（480px / 60vh）、空态大按钮
+  - 支持 `?focus=medication` URL 参数自动滚动定位到用药计划区
+  - 加 `export const dynamic = 'force-dynamic'` + 外层 Suspense 包裹 Inner 组件，配合内部 useSearchParams 通过预渲染
+- 修改 `src/app/(ai-chat)/ai-home/page.tsx`：3 处旧路由跳转改为新路由
+- 修改 `src/app/(ai-chat)/ai-home/components/AddMedicationDrawer.tsx`：跳转路径改为 `/ai-home/medication-plans/new`
+- 修改 `src/app/chat/[sessionId]/page.tsx`：`onGoMedicationManage` 跳转改为新路由
+- **删除旧路由**（彻底物理删除）：
+  - `src/app/(ai-chat)/medication-plans/page.tsx`
+  - `src/app/health-plan/medications/page.tsx`
+  - `src/app/health-plan/medications/add/page.tsx`
+
+### 测试与验证
+- 新增 `backend/tests/test_med_plan_entry_v1_20260517.py`（16 用例）：覆盖 PRD 全部 AC 验收点
+  1. hero-count 三种文案（有剩 / 全完 / 无）
+  2. today banner 字段完整 + upcoming + timeline 排序与状态
+  3. 打卡 + 5 分钟内撤销成功 + 5 分钟后撤销返回 400 `REVOKE_TIMEOUT`
+  4. summary 仅返回 active 且按 created_at desc
+  5. list 三 Tab 过滤 + 默认 in_progress
+  6. 创建时允许过去开始日期 + 状态根据日期自动判定
+  7. auto_flow_medication_status 自动流转
+  8. monthly_compliance 不追溯空白，从录入当天起计
+- 本地 pytest：本次 16/16 PASS；回归 `test_med_plan_v1_20260516.py` 12/12 PASS
+- 服务器部署 + 公网 smoke 测试：
+  - 5 个前端页面（root / health-profile / 3 个 medication-* 新路由）全部 200
+  - 7 个 API 端点（4 个新 + 3 个 list tab 过滤）全部 401（已挂载且鉴权生效）
+  - 3 个旧路由（`/medication-plans` / `/health-plan/medications` / `/health-plan/medications/add`）全部 404
+
+### 部署
+- 部署脚本：`deploy/_deploy_med_plan_entry_v1_20260517.py`（git fetch 增加重试 + 超时延长）
+- 因服务器到 GitHub 网络不稳定（多次 fatal: unable to access github.com:443），降级用 `sync_fix_to_server.py` 直接 SFTP 同步关键文件并 docker build
+- 容器：`6b099ed3-7175-4a78-91f4-44570c84ed27-backend` Up、`-h5` Up、`-db` Healthy；gateway nginx reload 成功
+
+### 用户体验手册
+- `user_docs/用药计划入口改造_20260517.md`
+
+### 受影响端
+- ✅ backend（FastAPI）
+- ✅ h5-web（Next.js · ai-home）
+- ❌ admin-web / flutter_app / miniprogram / verify-miniprogram 本次未改动 → **无需重新打包**
+
+### 遗留风险
+1. 接口路径偏离 PRD 字面值：`/api/medication-reminder/today` → `/api/medication-plans/today`（避免与 PRD-439 已有 `medication_reminder.router` 冲突）；前端调用已对齐
+2. 服务器 pytest 缺 `aiosqlite` 模块导致容器内测试失败 —— 这是测试环境问题，**不影响生产代码运行**；本地 pytest 已 16/16 PASS，公网 smoke 12/12 PASS
+3. 状态自动复活策略保守：`archived → active` 仅在 `reminder_enabled is False` 时触发，避免误复活用户手动归档的计划
+4. monthly_compliance 时区漂移：`created_at` 使用 `datetime.utcnow()`，`today` 使用 `date.today()`，在 UTC+8 偶尔会有 ±1 天偏差，测试用 `expected in (...)` 容忍
+
+---
+
+## Previous Update: BUG-FIX-DRUG-IDENTIFY-V3-20260516｜ai-home 拍照识药三联 Bug 修复 + 方案 E 聊天内嵌识药引擎（2026-05-16 23:00）
 
 ### 一句话结论
 一次性全量修复 ai-home 拍照识药 3 个 Bug：识别错乱（OCR 优先 + 一致性校验）、格式啰嗦（行数/段落硬约束 + 6 维健康档案）、免责声明重复（全局 sanitize 兜底）。**核心根因补丁：方案 E 聊天内嵌识药引擎**——在 `chat/stream` 接口中按 `button_type` 与图片 URL 检测识药意图，调用 `DrugIdentifyEngine` 走 OCR + 视觉并行 + 一致性校验 + SSE 流式 + meta 持久化，实现 ai-home 入口零跳转、同会话可继续追问、`family_member_id` 透传保证多咨询人安全。
