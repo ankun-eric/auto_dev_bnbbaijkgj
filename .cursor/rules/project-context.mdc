@@ -27,6 +27,53 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-MED-PLAN-V1-20260516｜档案管理·用药计划模块优化（2026-05-16 22:00）
+
+### 一句话结论
+按 PRD 对「健康档案 → 用药计划」做系统性精简：表单结构化（剂量数值+单位下拉、动态时间选择器、用药指导单选、服用周期=开始+天数）、移除拍照识药/单条提醒/单条 AI 外呼/关联疾病等用户侧入口；AI 外呼提醒升级为**全局开关**（`reminder_settings.medication_ai_call_enabled`），同时挂载在「健康提醒」与「共管」两处，数据互通；新增同名药「进行中」去重（409 + 错误码）和服用周期到期自动归档。
+
+### 后端核心改动
+- `backend/app/models/models.py`
+  - `MedicationReminder` 新增 4 列：`dosage_value`(VARCHAR16) / `dosage_unit`(VARCHAR16) / `duration_days`(INT) / `guidance`(VARCHAR16)
+  - `ReminderSetting` 新增 `medication_ai_call_enabled`(TINYINT default 0)
+- `backend/app/services/schema_sync.py`：`_sync_medication_reminders_prd469_v2` 追加 4 个 ALTER；新增 `_sync_reminder_settings_med_v1`
+- `backend/app/api/prd469_health_v5.py`
+  - `ReminderSettingBody` 增加 `medication_ai_call_enabled` 字段；`GET /api/prd469/reminder-setting` 透出该字段
+  - 新增 `GET/PUT /api/prd469/medication-ai-call`：用药 AI 外呼提醒全局开关
+  - 新增 `GET/PUT /api/prd469/care/medication-ai-call`：共管模块入口（与上方共用同一份 `ReminderSetting` 数据，任一处更新即时同步）
+- `backend/app/api/health_plan_v2.py`
+  - 新增 `_norm_drug_name()` / `_find_active_same_name()` / `_compute_end_date()` / `_auto_archive_expired()` / `_read_med_ai_call_enabled()`
+  - `POST /api/health-plan/medications`：同名「进行中」去重 → 409 `MEDICATION_DUPLICATE_ACTIVE`；服用周期 = `start_date + duration_days - 1` 自动算 `end_date`，未传时默认今天 + 5 天
+  - `PUT /api/health-plan/medications/{id}`：改名时同样做去重；`duration_days` / `start_date` 变化时重算 `end_date`
+  - `GET /api/health-plan/medications/list`：每次进入时自动归档过期计划；返回新增 `ai_call_enabled`(全局)、每条 `ai_call_badge`(进行中且开关开)、`is_ongoing`、`dosage_value/dosage_unit/guidance/duration_days`；`segment=archived` 返回历史（含 archived/deleted）
+- `backend/app/schemas/health_plan_v2.py`：`MedicationReminderCreate/Update/Response` 增加 `dosage_value/dosage_unit/duration_days/guidance` 字段
+
+### 前端核心改动（h5-web）
+- `src/app/(ai-chat)/medication-plans/page.tsx` 完整重写：
+  - 顶部温馨提示 `⚠️ 用药请遵循医嘱`（橙黄色固定行）
+  - 表单字段：药品名称 / 每日次数（下拉 1~4 默认 3）/ 用药时间（按次数动态生成 + 经验值预填）/ 剂量数值+单位（严格预设下拉）/ 服用周期（开始日期 + 服用天数，下方实时显示结束日期）/ 用药指导（5 选 1 横向标签）/ 备注（30 字计数）
+  - 移除：拍照识药入口、单条用药提醒开关、单条 AI 外呼开关、关联疾病选择
+  - 列表卡片：进行中 + 全局开关开 → 每个时间点前显示 📞；卡片底部展示「服用周期」与「用药指导」
+  - 全局开关关 → 列表顶部展示引导横幅「📞 开启 AI 外呼提醒…」，点击跳 `/health-profile?tab=care-reminder`；可关闭，关闭后 7 天内不再显示（localStorage `med_plan_aicall_banner_dismiss_at`）
+  - 同名药 409 弹窗：「您已有一条进行中的【XX】用药计划，是否要去查看/修改？」
+  - 双 Tab：进行中 / 历史用药（archived）
+- `src/components/health-profile-v5/CareReminderBlock.tsx`
+  - 顶部新增「📞 用药 AI 外呼提醒」开关块（独立卡片 + Toggle），写 `medication_ai_call_enabled` 到 `reminder-setting`，与共管模块同源
+
+### 测试与部署
+- 新增 `backend/tests/test_med_plan_v1_20260516.py`（12 用例）：覆盖全局开关默认/写读/共管同源、reminder-setting 字段透出、结构化字段持久化、列表 ai_call_enabled 透出、同名去重（含大小写/空白）、归档同名可创建、PUT 撞名 409、自动归档、默认 5 天 + end_date 计算
+- 本地 pytest：本次新增 12/12 PASS；回归 `test_health_archive_bug_v2_20260516.py`（10）+ `test_prd439_medication_reminder.py`（23）+ `test_prd469_health_v5.py`（22）共 55/55 全部 PASS
+- 部署脚本：`deploy/_deploy_med_plan_v1_20260516.py`；线上 smoke `_smoke_med_plan_v1_20260516.py` 5/5 PASS（4 个新接口 401 + `/medication-plans` 200）
+- 服务器：`6b099ed3-7175-4a78-91f4-44570c84ed27-backend` / `-h5` Up；`schema_sync` 自动迁移完成 5 列
+
+### 用户手册
+- `user_docs/档案管理_用药计划模块优化.md`
+
+### Git
+- 提交：`0756fd2 feat(med-plan-v1): 用药计划模块优化 [PRD-MED-PLAN-V1 2026-05-16]`，已 push 到 origin/master
+
+---
+
 ## Latest Update: BUG-HEALTH-ARCHIVE-V2-20260516｜健康档案 5 Bug 一期修复（用药数据源统一 / 性别中文 / 邀请共管入口）（2026-05-16 19:00）
 
 ### 一句话结论
