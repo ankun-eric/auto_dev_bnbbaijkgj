@@ -2,7 +2,7 @@
 /**
  * [PRD-DRUG-CARD-V3 2026-05-16] 加入用药计划抽屉（最小可用版）
  *
- * 字段 1:1 复用 /health-plan/medications/add 页面。
+ * 字段 1:1 复用 /ai-home/medication-plans/new 页面。
  * 完整字段在该页已实现，本抽屉提供快捷预填后跳转。
  */
 import React from 'react';
@@ -25,7 +25,7 @@ export default function AddMedicationDrawer({ open, card, onClose }: AddMedicati
     if (card.disease_tags && card.disease_tags.length) {
       params.set('disease_tags', card.disease_tags.join(','));
     }
-    window.location.href = `/health-plan/medications/add?${params.toString()}`;
+    window.location.href = `/ai-home/medication-plans/new?${params.toString()}`;
   };
   return (
     <div

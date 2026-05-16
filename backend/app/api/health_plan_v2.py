@@ -239,6 +239,7 @@ async def _read_med_ai_call_enabled(db: AsyncSession, user_id: int) -> bool:
 @router.get("/medications/list")
 async def list_medications_flat(
     segment: Optional[str] = Query(None, description="筛选: today=今日用药 / all=全部在用药品 / archived=历史用药 / 空=全部在用药品"),
+    tab: Optional[str] = Query(None, description="[PRD-MED-PLAN-ENTRY-V1] Tab 过滤: in_progress/not_started/finished；空=in_progress（与 segment 二选一，segment 优先）"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -259,7 +260,40 @@ async def list_medications_flat(
             MedicationReminder.user_id == current_user.id,
             MedicationReminder.status.in_(["archived", "deleted"]),
         ).order_by(MedicationReminder.end_date.desc().nullslast(), MedicationReminder.id.desc())
+    elif tab == "not_started":
+        # [PRD-MED-PLAN-ENTRY-V1] 未开始：start_date > today 且 status != deleted
+        stmt = select(MedicationReminder).where(
+            MedicationReminder.user_id == current_user.id,
+            MedicationReminder.status != "deleted",
+            MedicationReminder.start_date.is_not(None),
+            MedicationReminder.start_date > today,
+        ).order_by(MedicationReminder.created_at.desc())
+    elif tab == "finished":
+        # [PRD-MED-PLAN-ENTRY-V1] 已结束：(status=archived) 或 (end_date < today 且非 long_term)
+        stmt = select(MedicationReminder).where(
+            MedicationReminder.user_id == current_user.id,
+            MedicationReminder.status != "deleted",
+            or_(
+                MedicationReminder.status == "archived",
+                and_(
+                    MedicationReminder.end_date.is_not(None),
+                    MedicationReminder.end_date < today,
+                    MedicationReminder.long_term != True,  # noqa: E712
+                ),
+            ),
+        ).order_by(MedicationReminder.end_date.desc().nullslast(), MedicationReminder.created_at.desc())
+    elif tab == "in_progress":
+        # [PRD-MED-PLAN-ENTRY-V1] 服药中：active + 已开始 + 未结束
+        stmt = select(MedicationReminder).where(
+            *_active_med_filter(current_user.id, today),
+            or_(
+                MedicationReminder.long_term == True,  # noqa: E712
+                MedicationReminder.start_date.is_(None),
+                MedicationReminder.start_date <= today,
+            ),
+        ).order_by(MedicationReminder.created_at.desc())
     else:
+        # 兼容旧行为：未传 tab/segment 时返回全部「在用药品」（含未到 start_date 的）
         stmt = select(MedicationReminder).where(*_active_med_filter(current_user.id, today)).order_by(
             MedicationReminder.remind_time.asc()
         )

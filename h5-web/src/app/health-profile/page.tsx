@@ -18,7 +18,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Toast } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
@@ -172,6 +172,10 @@ export default function HealthProfileV2Page() {
   const [medSegment, setMedSegment] = useState<'today' | 'all'>('today');
   const [showHeroEdit, setShowHeroEdit] = useState(false);
   const [heroEditDraft, setHeroEditDraft] = useState<HealthProfileBasic | null>(null);
+  // [PRD-MED-PLAN-ENTRY-V1 2026-05-17] 用药入口 Hero 文案 + 摘要卡数据
+  const [medHero, setMedHero] = useState<{ display_text: string; status: string; remaining_today: number } | null>(null);
+  const [medSummary, setMedSummary] = useState<Array<{ id: number; name: string; dosage: string; frequency_text: string; timing_text: string; status_text: string }>>([]);
+  const searchParams = useSearchParams();
 
   const fetchMembers = useCallback(async () => {
     try {
@@ -220,6 +224,28 @@ export default function HealthProfileV2Page() {
     }
   }, []);
 
+  // [PRD-MED-PLAN-ENTRY-V1] Hero 第 4 格文案
+  const fetchMedHero = useCallback(async () => {
+    try {
+      const res: any = await api.get('/api/medication-plans/hero-count');
+      const data = res.data || res;
+      setMedHero({ display_text: data.display_text, status: data.status, remaining_today: data.remaining_today });
+    } catch {
+      setMedHero(null);
+    }
+  }, []);
+
+  // [PRD-MED-PLAN-ENTRY-V1] 摘要卡：仅服药中
+  const fetchMedSummary = useCallback(async () => {
+    try {
+      const res: any = await api.get('/api/medication-plans/summary');
+      const data = res.data || res;
+      setMedSummary(Array.isArray(data.items) ? data.items : []);
+    } catch {
+      setMedSummary([]);
+    }
+  }, []);
+
   const fetchHeroSummary = useCallback(async (profileId: number) => {
     try {
       const res: any = await api.get(`/api/prd469/summary/${profileId}`);
@@ -243,6 +269,17 @@ export default function HealthProfileV2Page() {
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
+  // [PRD-MED-PLAN-ENTRY-V1] ?focus=medication 自动滚动定位
+  useEffect(() => {
+    const f = searchParams?.get('focus');
+    if (f === 'medication') {
+      setTimeout(() => {
+        const el = document.getElementById('medication-plan');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
+    }
+  }, [searchParams, medSummary.length]);
+
   useEffect(() => {
     if (selectedMemberId == null) return;
     (async () => {
@@ -253,6 +290,8 @@ export default function HealthProfileV2Page() {
           fetchMedication(profileId),
           fetchLinkStatus(selectedMemberId),
           fetchHeroSummary(profileId),
+          fetchMedHero(),
+          fetchMedSummary(),
         ]);
       }
     })();
@@ -458,21 +497,31 @@ export default function HealthProfileV2Page() {
             style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 16 }}
           >
             {metrics.map((m) => {
-              // [BUG-HEALTH-ARCHIVE-V2 2026-05-16] 第 4 格「在用药品」点击跳转至用药计划列表
+              // [PRD-MED-PLAN-ENTRY-V1 2026-05-17] 第 4 格「在用药品」升级为主入口：使用新文案规则 + 跳用药提醒页
               const isMed = m.label === '在用药品' || m.label === '长期用药';
+              const medText = medHero?.display_text || '今日用药 0';
               return (
                 <div
                   key={m.label}
                   data-testid={`prd469-hero-metric-${m.label}`}
-                  onClick={isMed ? () => router.push('/medication-plans') : undefined}
+                  onClick={isMed ? () => router.push('/ai-home/medication-reminder') : undefined}
                   style={{
                     textAlign: 'center', padding: '10px 4px',
                     background: 'rgba(255,255,255,0.18)', borderRadius: 10,
                     cursor: isMed ? 'pointer' : 'default',
                   }}
                 >
-                  <div style={{ fontSize: 20, fontWeight: 700 }}>{m.count}</div>
-                  <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>{m.label}</div>
+                  {isMed ? (
+                    <>
+                      <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2 }}>{medText}</div>
+                      <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>{m.label}</div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 20, fontWeight: 700 }}>{m.count}</div>
+                      <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>{m.label}</div>
+                    </>
+                  )}
                 </div>
               );
             })}
@@ -717,110 +766,68 @@ export default function HealthProfileV2Page() {
     );
   };
 
-  // ─── Tab 3：用药计划（双分段：今日用药 / 全部用药计划）──────────────
+  // ─── Tab 3：用药计划（[PRD-MED-PLAN-ENTRY-V1] 摘要卡职责）─────────
   const renderMedicationPlan = () => {
-    // 今日用药 = 今天有计划时间点的用药
-    const todayList = medications.filter((m) => m.schedule && m.schedule.length > 0);
-    const allList = medications;
-    const visibleList = medSegment === 'today' ? todayList : allList;
-
+    const list = medSummary;
     return (
-    <div id="medication-plan" data-testid="prd469-medication-plan" style={{ padding: '12px 16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '8px 0 12px' }}>
-        <h3 style={{ fontSize: 18, fontWeight: 600, color: T.brand700, margin: 0 }}>用药计划</h3>
-        <button
-          onClick={() => router.push('/health-plan/medications/add')}
-          data-testid="prd469-add-medication-btn"
-          style={{
-            padding: '6px 14px', background: T.brand500, color: '#fff',
-            border: 'none', borderRadius: 16, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-          }}
-        >+ 添加用药</button>
-      </div>
-
-      {/* [PRD-469 v2 P0 M4] 双分段切换：今日用药 / 全部用药计划 */}
-      <div
-        data-testid="prd469-med-segment"
-        style={{
-          display: 'flex', background: '#fff', borderRadius: 20, padding: 4,
-          marginBottom: 12, boxShadow: T.shadow,
-        }}
-      >
-        {[
-          { id: 'today', label: '今日用药', count: todayList.length },
-          { id: 'all', label: '全部用药计划', count: allList.length },
-        ].map((s) => {
-          const active = medSegment === s.id;
-          return (
-            <button
-              key={s.id}
-              data-testid={`prd469-med-seg-${s.id}`}
-              onClick={() => setMedSegment(s.id as 'today' | 'all')}
-              style={{
-                flex: 1, padding: '8px 0', borderRadius: 16,
-                background: active ? T.brand500 : 'transparent',
-                color: active ? '#fff' : T.textSecondary,
-                border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                transition: 'all 0.2s',
-              }}
-            >
-              {s.label}（{s.count}）
-            </button>
-          );
-        })}
-      </div>
-
-      {visibleList.length === 0 ? (
-        <V5Card>
-          <div style={{ textAlign: 'center', color: T.textSecondary, padding: '24px 0', fontSize: 14 }}>
-            暂无用药计划
-            <div
-              onClick={() => router.push('/health-plan/medications/add')}
-              style={{
-                marginTop: 12, padding: '10px 20px', background: T.brand500, color: '#fff',
-                borderRadius: 22, display: 'inline-block', cursor: 'pointer', fontSize: 14,
-              }}
-            >+ 添加用药</div>
-          </div>
-        </V5Card>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {visibleList.map((m) => (
-            <V5Card key={m.plan_id} testid={`prd469-med-${m.plan_id}`}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 17, fontWeight: 600, color: T.textPrimary }}>
-                  💊 {m.drug_name} {m.dosage}
-                </span>
-                <span style={{ fontSize: 13, color: T.textSecondary }}>{`每日 ${m.schedule.length} 次`}</span>
-              </div>
-              <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
-                {m.time_chips.map((c) => (
-                  <div
-                    key={c.scheduled_time}
-                    style={{
-                      padding: '8px 12px', borderRadius: 8,
-                      background: c.checked ? T.brand100 : '#fee2e2',
-                      color: c.checked ? T.brand700 : '#991b1b',
-                      fontSize: 14, fontWeight: 600,
-                    }}
-                  >
-                    {c.checked ? '✓ ' : '⏰ '}{c.scheduled_time}
-                  </div>
-                ))}
-              </div>
-              <div style={{ marginTop: 12 }}>
-                <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 4 }}>
-                  本周完成率 {m.weekly_rate}%（{m.weekly_completed}/{m.weekly_total}）
-                </div>
-                <div style={{ height: 6, background: T.brand100, borderRadius: 3 }}>
-                  <div style={{ width: `${m.weekly_rate}%`, height: '100%', background: T.brand500, borderRadius: 3 }} />
-                </div>
-              </div>
-            </V5Card>
-          ))}
+      <div id="medication-plan" data-testid="prd469-medication-plan" style={{ padding: '12px 16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '8px 0 12px' }}>
+          <h3 style={{ fontSize: 18, fontWeight: 600, color: T.brand700, margin: 0 }}>用药计划</h3>
+          {list.length > 0 && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                data-testid="med-summary-all-btn"
+                onClick={() => router.push('/ai-home/medication-plans')}
+                style={{
+                  padding: '6px 14px', background: '#fff', color: T.brand600,
+                  border: `1px solid ${T.brand500}`, borderRadius: 16, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                }}
+              >全部</button>
+              <button
+                data-testid="med-summary-add-btn"
+                onClick={() => router.push('/ai-home/medication-plans/new')}
+                style={{
+                  padding: '6px 14px', background: T.brand500, color: '#fff',
+                  border: 'none', borderRadius: 16, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                }}
+              >+ 新增</button>
+            </div>
+          )}
         </div>
-      )}
-    </div>
+        {list.length === 0 ? (
+          <V5Card>
+            <div style={{ textAlign: 'center', padding: '24px 0' }}>
+              <button
+                data-testid="med-summary-empty-btn"
+                onClick={() => router.push('/ai-home/medication-plans/new')}
+                style={{
+                  padding: '12px 24px', background: T.brand500, color: '#fff',
+                  border: 'none', borderRadius: 24, fontSize: 15, fontWeight: 600, cursor: 'pointer',
+                }}
+              >+ 添加第一条用药计划</button>
+            </div>
+          </V5Card>
+        ) : (
+          <div
+            data-testid="med-summary-list"
+            style={{ maxHeight: 'min(480px, 60vh)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}
+          >
+            {list.map((m) => (
+              <V5Card key={m.id} testid={`med-summary-item-${m.id}`} style={{ cursor: 'default' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 16, fontWeight: 700, color: T.textPrimary }}>💊 {m.name}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', background: T.brand500, padding: '2px 8px', borderRadius: 10 }}>{m.status_text}</span>
+                </div>
+                <div style={{ fontSize: 13, color: T.textSecondary, marginTop: 6 }}>
+                  {m.dosage && <span>{m.dosage} · </span>}
+                  <span>{m.frequency_text}</span>
+                  {m.timing_text && <span> · {m.timing_text}</span>}
+                </div>
+              </V5Card>
+            ))}
+          </div>
+        )}
+      </div>
     );
   };
 

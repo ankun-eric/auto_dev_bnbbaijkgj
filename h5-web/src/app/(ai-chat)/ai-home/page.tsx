@@ -3460,7 +3460,7 @@ export default function AiHomePage() {
                         }
                         onGoComplete={(cid) => router.push(`/health-archive?target=${cid || 'self'}&from=ai-chat`)}
                         onGoMedicationManage={(cid, autoCreate) =>
-                          router.push(`/health-plan/medications?target=${cid || 'self'}${autoCreate ? '&action=create' : ''}`)
+                          router.push(`/ai-home/medication-plans${autoCreate ? '/new' : ''}?target=${cid || 'self'}`)
                         }
                       />
                     </div>
@@ -3497,8 +3497,8 @@ export default function AiHomePage() {
                             }}
                             libraryMatched={false}
                             conflicts={[]}
-                            onAddPlan={() => router.push('/health-plan/medications/add')}
-                            onViewAllPlans={() => router.push('/health-plan/medications')}
+                            onAddPlan={() => router.push('/ai-home/medication-plans/new')}
+                            onViewAllPlans={() => router.push('/ai-home/medication-plans')}
                           />
                           {msg.content && (
                             <div style={{ marginTop: 8, fontSize: 14, color: '#666', lineHeight: 1.6 }}>
@@ -3648,7 +3648,7 @@ export default function AiHomePage() {
           onChangeBadge={refreshReminderBadge}
           onGoMedicationManage={() => {
             setReminderOpen(false);
-            router.push('/medication-plans');
+            router.push('/ai-home/medication-plans');
           }}
           onGoOrderList={() => {
             setReminderOpen(false);

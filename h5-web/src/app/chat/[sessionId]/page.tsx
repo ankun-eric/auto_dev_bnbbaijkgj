@@ -2388,7 +2388,7 @@ function ChatPageInner() {
                       variant="capsule"
                       onGoComplete={(cid) => router.push(`/health-archive?target=${cid}&from=ai-chat`)}
                       onGoMedicationManage={(cid, autoCreate) =>
-                        router.push(`/health-plan/medications?target=${cid}${autoCreate ? '&action=create' : ''}`)
+                        router.push(`/ai-home/medication-plans${autoCreate ? '/new' : ''}?target=${cid}`)
                       }
                     />
                   </div>

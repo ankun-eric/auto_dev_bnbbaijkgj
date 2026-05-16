@@ -103,6 +103,7 @@ from app.api import (
     prd469_health_v5,
     ai_call,
     medication_library_v3,
+    medication_plans_v1,
 )
 from app.core.database import Base, engine
 from app.core.price_formatter import PriceFormattedJSONResponse
@@ -1937,6 +1938,8 @@ app.include_router(prd469_health_v5.router)  # [PRD-469] 健康档案 v2 优化�
 # [PRD-DRUG-CARD-V3 2026-05-16] AI 对话拍照识药 v3：权威库匹配 + 待审池 + 医疗咨询热线
 app.include_router(medication_library_v3.router)
 app.include_router(medication_library_v3.admin_router)
+# [PRD-MED-PLAN-ENTRY-V1 2026-05-17] ç¨è¯è®¡åå¥å£æ¹é 
+app.include_router(medication_plans_v1.router)
 # [PRD-468 2026-05-12] 健康档案改版 v3
 app.include_router(health_profile_v3.router)
 
