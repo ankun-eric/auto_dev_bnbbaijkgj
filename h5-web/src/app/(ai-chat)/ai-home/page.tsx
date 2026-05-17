@@ -843,6 +843,34 @@ export default function AiHomePage() {
         setSidAndRef(sid);
         setLastMsgTime(parseServerTime(session.updated_at || session.created_at)?.getTime() ?? 0);
         await loadSessionMessages(sid);
+
+        // [BUG_FIX_AI_HOME_3BUGS_20260517 · Bug B/C]
+        // 自动回到上次会话时也要从权威源回填咨询人（family_member_id）
+        try {
+          const detailRes: any = await api.get(`/api/chat/sessions/${sid}`);
+          const detail = detailRes?.data ?? detailRes;
+          const fmBrief = detail?.family_member;
+          const fmId: number | null | undefined = detail?.family_member_id;
+          if (!fmBrief || !fmId) {
+            setSelectedConsultant(null);
+          } else {
+            const isSelf = !!(fmBrief.is_self || fmBrief.relationship === '本人');
+            if (isSelf) {
+              setSelectedConsultant(null);
+            } else {
+              setSelectedConsultant({
+                id: fmBrief.id,
+                nickname: fmBrief.nickname || '家庭成员',
+                relationship_type: fmBrief.relationship,
+                relation_type_name: fmBrief.relationship,
+                avatar: fmBrief.avatar,
+                is_self: false,
+              });
+            }
+          }
+        } catch {
+          // 详情拉取失败不阻塞
+        }
       }
     } catch {}
   };
@@ -2147,6 +2175,11 @@ export default function AiHomePage() {
     currentSidRef.current = null;
     setSessionId(null);
     setLastMsgTime(0);
+    // [BUG_FIX_AI_HOME_3BUGS_20260517 · Bug C]
+    // 新建会话时强制把咨询人重置为「本人」，避免上一轮 X 的状态被带过来：
+    // 旧实现：胶囊已显示"本人"但 selectedConsultant 仍是 X，AI 回答按 X 档案给建议。
+    // 修复：胶囊 / 发送参数 / 档案引用 全部从同一个 state 读取，保证三处一致。
+    setSelectedConsultant(null);
     abortRef.current?.abort();
     // [BUG-466] 主动开新会话也通知抽屉刷新，让原会话立刻"沉"到历史列表里
     try {
@@ -2508,11 +2541,53 @@ export default function AiHomePage() {
   // [PRD-467 FR-04] 字号仅作用于消息流气泡正文字号
   const chatFontSize = FONT_SIZE_MAP[fontSizeLevel];
 
+  // [BUG_FIX_AI_HOME_3BUGS_20260517 · Bug B/C]
+  // 进入历史会话时必须从 session 详情中回填 selectedConsultant，
+  // 否则胶囊会粘着上次 APP 最后选的那个人（Bug B 现场），
+  // 同时新发的消息会按"上次选的人"档案给建议（Bug C 现场）。
+  // 权威字段：chat_session.family_member_id（后端 GET /api/chat/sessions/{id}
+  // 已返回该字段及 family_member 简要档案）。
   const handleSelectSession = useCallback(async (sid: string) => {
     setMessages([]);
     currentSidRef.current = sid;
     setSessionId(sid);
     setSidebarOpen(false);
+
+    // 并行：拉详情回填咨询人 + 拉历史消息
+    void (async () => {
+      try {
+        const detailRes: any = await api.get(`/api/chat/sessions/${sid}`);
+        const detail = detailRes?.data ?? detailRes;
+        const fmBrief = detail?.family_member;
+        const fmId: number | null | undefined = detail?.family_member_id;
+
+        // 三态：
+        //   - family_member 是 is_self 的 FamilyMember（后端 _ensure_self_family_member 写入）→ 视为本人态，胶囊回到「本人」
+        //   - family_member 是其他成员 → 强制覆盖 selectedConsultant
+        //   - family_member 缺失 / null → 视为本人态
+        if (!fmBrief || !fmId) {
+          setSelectedConsultant(null);
+          return;
+        }
+        const isSelf = !!(fmBrief.is_self || fmBrief.relationship === '本人');
+        if (isSelf) {
+          setSelectedConsultant(null);
+        } else {
+          // 强制覆盖：会话维度的唯一权威源
+          setSelectedConsultant({
+            id: fmBrief.id,
+            nickname: fmBrief.nickname || '家庭成员',
+            relationship_type: fmBrief.relationship,
+            relation_type_name: fmBrief.relationship,
+            avatar: fmBrief.avatar,
+            is_self: false,
+          });
+        }
+      } catch {
+        // 详情拉取失败不阻塞，保持当前胶囊状态（保守）
+      }
+    })();
+
     await loadSessionMessages(sid);
   }, []);
 

@@ -1,13 +1,26 @@
-"""[BUG_FIX_拍照识药三联_20260516] AI 输出统一清洗工具。
+"""[BUG_FIX_AI_HOME_3BUGS_20260517] AI 输出统一清洗工具（v2 收敛版）。
 
 本模块为所有 AI 接口（拍照识药、AI 对话、健康自查、报告解读等）提供统一的
-"输出兜底清洗"函数，承担方案文档第 3.3 节的全局责任：
+"输出兜底清洗"函数。本次根据《AI 对话三 Bug 修复方案 v1.0》对 sanitizer 做
+精细化改造：
 
-1. 压缩连续空行（\\n{3,} → \\n\\n），消除"段落之间动辄 2~3 个空行"现象
-2. 段落 hash 去重，去掉完全重复段落（识药卡里"注意事项"被重复一遍）
-3. 免责声明去重，**无论以何种形式出现**只保留最后 1 段
-4. 行数 / 每段行数硬截断，与 Prompt 双保险
-5. 移除 ``---disclaimer---`` / ``</disclaimer>`` 等多余标签
+核心变更（Bug A 修复要点）：
+
+1. **关键词收敛为整句级**：仅命中"完整、规范"的免责声明整句（如
+   "AI 识别结果仅供参考"、"本回答仅供参考，不构成医疗诊断"），
+   不再使用"请遵医嘱"、"仅供参考，不能替代"等模糊高误伤词，
+   避免把模型在正文末段附带的零星短语连带正文一起吃掉。
+2. **清洗粒度从段落级改为行级**：命中只去掉**该行**（含前后换行），
+   保留同段其他内容；正文末段不再被整段抛弃。
+3. **不再做末尾追加**：法务话术统一靠前端 `AiActionBar` 那行小灰字
+   "AI 生成内容仅供参考，不作为诊断依据"覆盖。
+
+历史遗留功能（保持不变）：
+
+1. 压缩连续空行（``\\n{3,}`` → ``\\n\\n``）
+2. 段落 hash 去重，去掉完全重复段落
+3. 行数 / 每段行数硬截断（识药卡片专用 enforce_line_limit=True 时启用）
+4. 移除 ``---disclaimer---`` / ``</disclaimer>`` 等多余标签
 
 设计原则：
 - 纯字符串处理，不依赖任何外部状态，可在 sync / async / SSE 三种语境复用
@@ -20,16 +33,36 @@ import hashlib
 import re
 from typing import List
 
-# 识别多种格式的免责声明片段，统一收敛为最后一段
-_DISCLAIMER_KEYWORDS = (
-    "本回答仅供参考",
-    "AI 识别结果仅供参考",
-    "AI识别结果仅供参考",
-    "具体用药请遵医嘱",
-    "不构成医疗诊断",
-    "请遵医嘱",
-    "仅供参考，不能替代",
-    "Disclaimer",
+# [BUG_FIX_AI_HOME_3BUGS_20260517]
+# 整句级免责声明匹配：必须命中"完整免责整句"才会被剥离。
+# 设计原则：宁愿漏过几条模型自定义的免责短句，也不能误伤正文。
+# 每条规则使用「锚点子句 + 任意补语 + 终止符」三段式正则，确保命中的
+# 只是"独立成段/独立成行的免责声明"，而非夹在正文中的零星词。
+_DISCLAIMER_LINE_PATTERNS: tuple[re.Pattern[str], ...] = (
+    # "AI 识别结果仅供参考" / "AI识别结果仅供参考"
+    re.compile(r"^\s*AI\s*识别结果仅供参考[，。、!\s]*.*?$", re.IGNORECASE),
+    # "本回答仅供参考，不构成医疗诊断" / "本回答仅供参考"
+    re.compile(r"^\s*本回答仅供参考(?:[，,].*?)?[。!]?\s*$"),
+    # "以上内容由 AI 生成，仅供参考，不构成医疗诊断，请遵医嘱。"
+    re.compile(r"^\s*以上.*?AI.*?生成.*?仅供参考.*?$"),
+    # "AI 生成内容仅供参考，不作为诊断依据"
+    re.compile(r"^\s*AI\s*生成内容仅供参考.*?$", re.IGNORECASE),
+    # "本内容仅供参考，不构成医疗诊断"
+    re.compile(r"^\s*本内容仅供参考.*?不构成.*?诊断.*?$"),
+    # 纯免责整段：以"免责声明"开头的独立行
+    re.compile(r"^\s*免责声明[:：].*?$"),
+    # 仅由"仅供参考，不构成医疗诊断"独立成段（必须含"不构成…诊断"才匹配）
+    re.compile(r"^\s*仅供参考[，,]\s*不构成.*?诊断.*?$"),
+    # Disclaimer 英文整段
+    re.compile(r"^\s*Disclaimer[:：].*?$", re.IGNORECASE),
+)
+
+# 整段免责（命中后整段去除，但不再扩散关键词）
+# 仅当**整段全部文本**都被识别为免责声明时才剥离整段
+_FULL_PARAGRAPH_DISCLAIMER_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"^\s*(?:AI\s*识别结果|本回答|本内容|以上内容).{0,40}仅供参考.*?$", re.DOTALL | re.IGNORECASE),
+    re.compile(r"^\s*免责声明[:：].*?$", re.DOTALL),
+    re.compile(r"^\s*Disclaimer[:：].*?$", re.DOTALL | re.IGNORECASE),
 )
 
 _DISCLAIMER_TAG_RE = re.compile(
@@ -38,15 +71,48 @@ _DISCLAIMER_TAG_RE = re.compile(
 )
 
 
-def _is_disclaimer_paragraph(p: str) -> bool:
-    p_norm = p.strip()
-    if not p_norm:
+def _is_disclaimer_line(line: str) -> bool:
+    """[BUG_FIX_AI_HOME_3BUGS_20260517] 行级免责声明判定。
+
+    只对**整行**进行匹配，且必须命中完整规范的免责整句。
+    "请遵医嘱"、"仅供参考，不能替代"等模糊短语**不再单独**触发。
+    """
+    if not line or not line.strip():
         return False
-    return any(kw in p_norm for kw in _DISCLAIMER_KEYWORDS)
+    s = line.strip()
+    return any(p.match(s) for p in _DISCLAIMER_LINE_PATTERNS)
+
+
+def _is_full_paragraph_disclaimer(p: str) -> bool:
+    """整段免责声明判定：仅当整段=独立的免责整句时才返回 True。"""
+    if not p or not p.strip():
+        return False
+    s = p.strip()
+    # 段落只有 1 行时才允许整段移除（避免误伤正文末段携带短句）
+    lines = [ln for ln in s.splitlines() if ln.strip()]
+    if len(lines) > 1:
+        return False
+    return any(p_re.match(s) for p_re in _FULL_PARAGRAPH_DISCLAIMER_PATTERNS) or _is_disclaimer_line(s)
 
 
 def _hash_paragraph(p: str) -> str:
     return hashlib.md5(p.strip().encode("utf-8", errors="ignore")).hexdigest()
+
+
+def _strip_disclaimer_lines(paragraph: str) -> str:
+    """[BUG_FIX_AI_HOME_3BUGS_20260517] 行级清洗：去掉段落内的免责声明行。
+
+    保留段落内非免责声明的其他行；命中只去掉该行（含前后空白），
+    确保正文末段携带的零星免责短语不会把整段正文一起带走。
+    """
+    if not paragraph:
+        return paragraph
+    out_lines: List[str] = []
+    for ln in paragraph.splitlines():
+        if _is_disclaimer_line(ln):
+            continue
+        out_lines.append(ln)
+    return "\n".join(out_lines).rstrip()
 
 
 def sanitize_ai_output(
@@ -59,14 +125,19 @@ def sanitize_ai_output(
 ) -> str:
     """对 AI 模型返回的文本做兜底清洗。
 
+    [BUG_FIX_AI_HOME_3BUGS_20260517] 收敛策略：
+        - 不再追加任何兜底免责声明（前端 AiActionBar 小灰字已统一覆盖法务话术）
+        - 关键词收敛为整句级，移除"请遵医嘱"、"仅供参考，不能替代"等模糊词
+        - 清洗粒度从段落级改为行级：命中只去掉该行，保留同段其他正文
+
     参数：
         text: 原始 AI 输出
         max_lines: 整体行数上限（仅在 enforce_line_limit=True 时硬截断）
         max_paragraph_lines: 每段最多行数（仅在 enforce_line_limit=True 时生效）
-        dedup_disclaimer: 是否去重免责声明（默认 True）
+        dedup_disclaimer: 是否去除免责声明行（默认 True；仍保留参数名以兼容历史调用）
         enforce_line_limit: 是否强制截断行数。
             - 拍照识药卡片这种"格式硬约束"场景：传 True
-            - 普通 AI 对话 / 健康自查正文：传 False（仅做空行压缩 + 段落去重 + 免责去重）
+            - 普通 AI 对话 / 健康自查正文：传 False（仅做空行压缩 + 段落去重 + 行级免责清洗）
 
     返回：
         清洗后的文本。任何异常都会回退到原文本。
@@ -85,18 +156,26 @@ def sanitize_ai_output(
 
         # 3) 段落级处理（按空行切段）
         paragraphs = re.split(r"\n\s*\n", cleaned)
-        seen_hashes = set()
+        seen_hashes: set[str] = set()
         deduped: List[str] = []
-        disclaimer_paragraphs: List[str] = []
 
         for p in paragraphs:
             p_stripped = p.rstrip()
             if not p_stripped.strip():
                 continue
-            # 免责声明先抽取出来，后面统一只保留最后一段
-            if dedup_disclaimer and _is_disclaimer_paragraph(p_stripped):
-                disclaimer_paragraphs.append(p_stripped.strip())
+
+            # [BUG_FIX_AI_HOME_3BUGS_20260517] 整段免责处理：
+            # 仅当**整段就是一条免责整句**时整段剥离；否则进入行级清洗。
+            if dedup_disclaimer and _is_full_paragraph_disclaimer(p_stripped):
                 continue
+
+            # [BUG_FIX_AI_HOME_3BUGS_20260517] 行级免责清洗：
+            # 段落里如果夹杂免责整句，只去掉那一行，保留其余正文。
+            if dedup_disclaimer:
+                p_stripped = _strip_disclaimer_lines(p_stripped)
+                if not p_stripped.strip():
+                    continue
+
             h = _hash_paragraph(p_stripped)
             if h in seen_hashes:
                 continue
@@ -110,13 +189,11 @@ def sanitize_ai_output(
 
             deduped.append(p_stripped)
 
-        # 4) 拼回最终免责声明（取最后一段，作为统一兜底）
-        if dedup_disclaimer and disclaimer_paragraphs:
-            deduped.append(disclaimer_paragraphs[-1])
+        # 4) 不再追加任何兜底免责声明（已下沉到前端统一渲染）
 
         result = "\n\n".join(deduped).strip()
 
-        # 5) 行数硬截断
+        # 5) 行数硬截断（仅识药卡片）
         if enforce_line_limit and max_lines > 0:
             all_lines = result.splitlines()
             if len(all_lines) > max_lines:

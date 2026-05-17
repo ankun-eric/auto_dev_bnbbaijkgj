@@ -40,6 +40,9 @@ def test_sanitize_collapses_blank_lines():
 
 
 def test_sanitize_dedups_disclaimer_paragraphs():
+    """[BUG_FIX_AI_HOME_3BUGS_20260517] 改造后语义：
+    所有独立成段的免责整句**全部移除**（不再"保留最后一段"），
+    法务话术由前端 AiActionBar 小灰字统一覆盖。"""
     raw = (
         "正文内容\n\n"
         "AI 识别结果仅供参考，具体用药请遵医嘱。\n\n"
@@ -47,9 +50,11 @@ def test_sanitize_dedups_disclaimer_paragraphs():
         "本回答仅供参考，不构成医疗诊断。"
     )
     out = sanitize_ai_output(raw)
-    # 多段免责声明只保留最后一段
-    assert out.count("具体用药请遵医嘱") <= 1
-    assert "本回答仅供参考" in out
+    # 正文必须保留
+    assert "正文内容" in out
+    # 整段免责声明全部被移除（新策略）
+    assert "AI 识别结果仅供参考" not in out
+    assert "本回答仅供参考" not in out
 
 
 def test_sanitize_removes_disclaimer_tags():

@@ -84,26 +84,26 @@ async def _filter_sensitive_words(content: str, db: AsyncSession) -> str:
 
 
 async def _append_disclaimer(content: str, session_type: str, db: AsyncSession) -> str:
-    """[BUG_FIX_拍照识药三联_20260516] 免责声明只追加一次，且不再使用 ---disclaimer--- 标签。
+    """[BUG_FIX_AI_HOME_3BUGS_20260517 · Bug A] 取消末尾追加免责声明。
 
-    根因：旧实现给每条 AI 消息追加 ``---disclaimer---`` 标签 + 文案；模型自身又会输出
-    一段免责声明，前端再渲染一次 → 卡片底部连续两段重复。修复策略：
-    1. 取消 ``---disclaimer---`` 标签（前端不再依赖该标记，统一靠后端干净文本）；
-    2. 仅当 content 中**完全未出现**配置的 disclaimer_text 时才追加；
-    3. 最终再统一交给 sanitize_ai_output 兜底。
+    根据《AI 对话三 Bug 修复方案 v1.0》Bug A 修复策略：
+    1. **取消末尾追加**：后端不再追加任何兜底免责声明，法务话术统一靠
+       前端 ``AiActionBar`` 那行小灰字"AI 生成内容仅供参考，不作为诊断依据"
+       覆盖。这样既避免了"模型自带免责声明 + 后端追加 + 前端再渲染"三重叠加
+       导致的 sanitizer 误吞正文末段问题（Bug A 现场），也确保法务声明
+       永远显示给用户。
+    2. ``AiDisclaimerConfig`` 的 ``disclaimer_text`` 仅作为后台配置保留，
+       不再注入到 AI 文本中（参数 ``session_type`` / ``db`` 保留以兼容上游签名）。
+    3. 最终交给改造后的 ``sanitize_ai_output`` 兜底清洗：
+       - 整句级免责关键词（不再误伤"请遵医嘱"等高频短语）
+       - 行级清洗（命中只去那一行，保留同段其他正文）
+       - 不再做末尾追加
     """
     from app.utils.ai_output_sanitizer import sanitize_ai_output
 
-    result = await db.execute(
-        select(AiDisclaimerConfig).where(AiDisclaimerConfig.chat_type == session_type)
-    )
-    config = result.scalar_one_or_none()
-    if config and config.is_enabled and config.disclaimer_text:
-        text = (config.disclaimer_text or "").strip()
-        if text and text not in (content or ""):
-            content = (content or "") + "\n\n" + text
-    # 兜底清洗：去重免责段落 + 压缩空行 + 段落 hash 去重
-    return sanitize_ai_output(content)
+    # [BUG_FIX_AI_HOME_3BUGS_20260517] 不再读取/追加 AiDisclaimerConfig 的免责文案。
+    # 仅做兜底清洗，确保模型自带的多余免责短句（仅命中整句级模式时）被剥离。
+    return sanitize_ai_output(content or "")
 
 
 def _calc_age(birthday: date) -> int:
