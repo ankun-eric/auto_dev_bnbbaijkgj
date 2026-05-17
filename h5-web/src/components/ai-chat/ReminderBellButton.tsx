@@ -2,56 +2,69 @@
 
 /**
  * [PRD-439 F-02] AI 对话首页 - 提醒铃铛悬浮按钮
+ * [PRD-AIHOME-OPTIM-V1 2026-05-17 R1] 视觉调整：
+ * - 完全去掉底色 / 背景框 / 渐变背景，仅保留 🔔 图标本身（图标不透明）
+ * - 不再使用顶部数字角标（原 PRD-439 的红色数字徽标移除，改为由汉堡图标承担红点提示）
+ * - 初始垂直位置改为顶部 banner 区域的垂直正中（由父组件通过 initialTop 传入）
+ * - 拖动后的位置 **不持久化**：用户离开 ai-home 再回来时铃铛回到初始位置
  *
- * 替代原健康打卡 DraggablePunchCard：
- * - 圆形 🔔 图标 + 红色未处理数字徽标（>0 显示，上限 9+）
- * - 点击后弹出 ReminderDrawer
- * - 复用 DraggablePunchCard 的可拖拽布局思路（仅垂直拖拽）
+ * 仍然保留：
+ * - 可拖动（长按 200ms 后进入拖拽态，仅垂直拖动）
+ * - 点击触发 onClick（与拖拽互斥）
+ * - 右侧贴边定位
  */
 
 import { CSSProperties, useState, useRef, useEffect, useCallback } from 'react';
 
 interface Props {
-  badgeCount: number;
+  /**
+   * 已废弃保留：原本用于显示数字角标，本次优化后不再显示数字（红点提示移到汉堡图标）。
+   * 保留 prop 以兼容外部调用方，传入任意值都不会影响铃铛视觉。
+   */
+  badgeCount?: number;
   onClick: () => void;
-  defaultBottom?: number;
+  /**
+   * 初始 top 值（相对视口顶部，单位 px）。
+   * 由父组件在挂载时根据 banner 区域的位置计算"垂直正中"传入。
+   * 未传入时回退到默认值（约 96px，落在 topbar 之下）。
+   */
+  initialTop?: number;
   position?: 'left' | 'right';
 }
 
 const LONG_PRESS_MS = 200;
-const STORAGE_KEY = '__h5_reminder_bell_y__';
 
 export default function ReminderBellButton({
-  badgeCount,
   onClick,
-  defaultBottom = 120,
+  initialTop,
   position = 'right',
 }: Props) {
-  const [bottom, setBottom] = useState(defaultBottom);
+  const fallbackTop = 96;
+  const [top, setTop] = useState<number>(initialTop ?? fallbackTop);
   const [dragging, setDragging] = useState(false);
   const startYRef = useRef(0);
-  const startBottomRef = useRef(0);
+  const startTopRef = useRef(0);
   const draggingRef = useRef(false);
   const movedRef = useRef(false);
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialAppliedRef = useRef(false);
 
+  // 接收 initialTop 异步到位后的复位：只在首次有效值到来时应用一次
+  // [PRD-AIHOME-OPTIM-V1 R1] 不读取 sessionStorage，确保每次进入页面都从默认初始位置开始
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const saved = sessionStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const v = parseInt(saved, 10);
-        if (!Number.isNaN(v) && v >= 0) setBottom(v);
-      }
-    } catch {}
-  }, []);
+    if (initialAppliedRef.current) return;
+    if (typeof initialTop === 'number' && initialTop > 0) {
+      setTop(initialTop);
+      initialAppliedRef.current = true;
+    }
+  }, [initialTop]);
 
-  const clamp = useCallback((b: number) => {
-    if (typeof window === 'undefined') return b;
+  const clamp = useCallback((t: number) => {
+    if (typeof window === 'undefined') return t;
     const winH = window.innerHeight;
-    const minB = 80;
-    const maxB = winH - 56 - 56;
-    return Math.max(minB, Math.min(maxB, b));
+    const minT = 56;
+    const maxT = winH - 56 - 48;
+    return Math.max(minT, Math.min(maxT, t));
   }, []);
 
   const cancelLong = () => {
@@ -68,11 +81,7 @@ export default function ReminderBellButton({
 
   const onEnd = () => {
     cancelLong();
-    if (draggingRef.current) {
-      try {
-        sessionStorage.setItem(STORAGE_KEY, String(bottom));
-      } catch {}
-    }
+    // [PRD-AIHOME-OPTIM-V1 R1] 不持久化位置，离开页面后重进自然复位
     draggingRef.current = false;
     setDragging(false);
   };
@@ -80,7 +89,7 @@ export default function ReminderBellButton({
   const handleTouchStart = (e: React.TouchEvent) => {
     const t = e.touches[0];
     startYRef.current = t.clientY;
-    startBottomRef.current = bottom;
+    startTopRef.current = top;
     movedRef.current = false;
     cancelLong();
     longPressRef.current = setTimeout(enterDrag, LONG_PRESS_MS);
@@ -94,8 +103,8 @@ export default function ReminderBellButton({
     }
     e.preventDefault();
     movedRef.current = true;
-    const dy = startYRef.current - t.clientY;
-    setBottom(clamp(startBottomRef.current + dy));
+    const dy = t.clientY - startYRef.current;
+    setTop(clamp(startTopRef.current + dy));
   };
 
   const handleTouchEnd = () => {
@@ -106,7 +115,7 @@ export default function ReminderBellButton({
 
   const handleMouseDown = (e: React.MouseEvent) => {
     startYRef.current = e.clientY;
-    startBottomRef.current = bottom;
+    startTopRef.current = top;
     movedRef.current = false;
     cancelLong();
     longPressRef.current = setTimeout(enterDrag, LONG_PRESS_MS);
@@ -116,8 +125,8 @@ export default function ReminderBellButton({
         return;
       }
       movedRef.current = true;
-      const dy = startYRef.current - ev.clientY;
-      setBottom(clamp(startBottomRef.current + dy));
+      const dy = ev.clientY - startYRef.current;
+      setTop(clamp(startTopRef.current + dy));
     };
     const up = () => {
       window.removeEventListener('mousemove', move);
@@ -132,31 +141,27 @@ export default function ReminderBellButton({
 
   const sideStyle: CSSProperties = position === 'left' ? { left: 16 } : { right: 16 };
   const scale = dragging ? 1.05 : 1.0;
-  const shadow = dragging
-    ? '0 8px 24px rgba(0,0,0,0.25)'
-    : '0 2px 12px rgba(0,0,0,0.18)';
-
-  const showBadge = badgeCount > 0;
-  const badgeText = badgeCount > 9 ? '9+' : String(badgeCount);
 
   return (
     <div
       data-testid="prd439-reminder-bell"
-      data-badge={badgeCount}
       className="fixed z-30 select-none"
       style={{
         ...sideStyle,
-        bottom,
+        top,
         transform: `scale(${scale})`,
-        transformOrigin: position === 'left' ? 'bottom left' : 'bottom right',
-        boxShadow: shadow,
-        borderRadius: 9999,
+        transformOrigin: position === 'left' ? 'top left' : 'top right',
         transition: dragging
-          ? 'transform 0.12s ease-out, box-shadow 0.12s ease-out'
-          : 'transform 0.18s ease-out, box-shadow 0.18s ease-out',
+          ? 'transform 0.12s ease-out'
+          : 'transform 0.18s ease-out',
         touchAction: dragging ? 'none' : 'auto',
         cursor: dragging ? 'grabbing' : 'pointer',
-        willChange: 'transform, bottom',
+        willChange: 'transform, top',
+        // [PRD-AIHOME-OPTIM-V1 R1] 彻底去除底色、背景框与阴影，仅保留 emoji 图标本身
+        background: 'transparent',
+        border: 'none',
+        boxShadow: 'none',
+        padding: 0,
       }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -165,42 +170,21 @@ export default function ReminderBellButton({
     >
       <div
         style={{
-          position: 'relative',
-          width: 48,
-          height: 48,
-          borderRadius: 9999,
-          background: 'linear-gradient(135deg, #4FACFE 0%, #00C6FB 100%)',
-          color: '#fff',
+          width: 36,
+          height: 36,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 22,
+          fontSize: 30,
+          // 图标本身完全不透明（仅外层底色去除）
+          opacity: 1,
+          lineHeight: 1,
+          // 给 emoji 一个轻微的投影，避免在浅色背景上看不清楚；不构成"底色/背景框"
+          filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.18))',
         }}
+        aria-label="提醒铃铛"
       >
         🔔
-        {showBadge && (
-          <span
-            data-testid="prd439-reminder-bell-badge"
-            style={{
-              position: 'absolute',
-              top: -4,
-              right: -4,
-              minWidth: 18,
-              height: 18,
-              padding: '0 5px',
-              background: '#FF3B30',
-              color: '#fff',
-              borderRadius: 9999,
-              fontSize: 11,
-              fontWeight: 600,
-              lineHeight: '18px',
-              textAlign: 'center',
-              boxShadow: '0 0 0 2px #fff',
-            }}
-          >
-            {badgeText}
-          </span>
-        )}
       </div>
     </div>
   );

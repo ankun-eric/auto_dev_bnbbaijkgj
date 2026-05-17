@@ -548,6 +548,9 @@ export default function AiHomePage() {
 
   // [PRD-439 F-02/F-04] 提醒抽屉 + 徽标
   const [reminderOpen, setReminderOpen] = useState(false);
+  // [PRD-AIHOME-OPTIM-V1 2026-05-17 R1] 本次优化后铃铛不再显示数字徽标（红点提示移到汉堡图标）。
+  // 但 ReminderDrawer 内部仍依赖 refreshReminderBadge 在抽屉打开/关闭时同步徽标状态，故保留 state 与 setter。
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [reminderBadge, setReminderBadge] = useState(0);
 
   const refreshReminderBadge = useCallback(async () => {
@@ -621,6 +624,12 @@ export default function AiHomePage() {
 
   // [PRD-425] 通知中心未读总数（进入页面拉一次；接口异常 → null 表示不显示徽标）
   const [unreadCount, setUnreadCount] = useState<number | null>(null);
+  // [PRD-AIHOME-OPTIM-V1 2026-05-17 R3] 汉堡图标右上角红点：未读系统消息数 > 0 OR 待使用订单数 > 0
+  // 进入页面时一次性判定，页面停留期间不轮询、不推送；离开页面再回来时重新判定
+  const [pendingUseOrderCount, setPendingUseOrderCount] = useState<number>(0);
+  // [PRD-AIHOME-OPTIM-V1 2026-05-17 R1] 铃铛初始 top：根据 banner 区域（健康贴士轮播）的位置计算"垂直正中"
+  const [bellInitialTop, setBellInitialTop] = useState<number | undefined>(undefined);
+  const bannerAnchorRef = useRef<HTMLDivElement>(null);
   // 同一会话期内固定的随机选择
   const [pickedGreeting, setPickedGreeting] = useState<string>('');
   const [pickedSubtitle, setPickedSubtitle] = useState<string>('');
@@ -818,6 +827,33 @@ export default function AiHomePage() {
         }
       } catch {
         // 接口异常静默：徽标不显示
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // [PRD-AIHOME-OPTIM-V1 2026-05-17 R3] 进入 /ai-home 时一次性拉取「待使用订单数」
+  // 用于与未读系统消息数联合判定汉堡图标右上角红点显示。失败静默（0 → 不影响判定）
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+        if (!token) return;
+        const res: any = await api.get('/api/orders/unified/counts');
+        const data = res?.data ?? res;
+        // v2_pending_use 包含 pending_appointment / appointed / pending_use / partial_used
+        // 即用户视角"待使用"全部状态；该字段为后端 V2 标准聚合维度
+        const cnt = typeof data?.v2_pending_use === 'number'
+          ? data.v2_pending_use
+          : (typeof data?.pending_use === 'number' ? data.pending_use : 0);
+        if (!cancelled && typeof cnt === 'number' && cnt >= 0) {
+          setPendingUseOrderCount(cnt);
+        }
+      } catch {
+        // 接口异常静默：待使用订单数视为 0
       }
     })();
     return () => {
@@ -2737,6 +2773,55 @@ export default function AiHomePage() {
     return s.length > 8 ? s.slice(0, 8) + '…' : s;
   })();
 
+  // [PRD-AIHOME-OPTIM-V1 2026-05-17 R3] 汉堡图标右上角红点：
+  //   未读系统消息数 > 0 OR 待使用订单数 > 0 → 显示；两者都为 0 才隐藏
+  //   unreadCount 为 null（未登录/接口异常）时按 0 处理，避免误显示
+  const hamburgerDotVisible = (
+    (typeof unreadCount === 'number' && unreadCount > 0) ||
+    pendingUseOrderCount > 0
+  );
+
+  // [PRD-AIHOME-OPTIM-V1 2026-05-17 R2] 汉堡图标尺寸：
+  // 高度 = "小康"字号 17px，宽度按原图标 22:18≈1.222 等比缩放
+  // 三条横线：粗细 = 高度 * 2/18，间距 = 高度 * 4/18（与原 18px 高时的 2px/4px 等比）
+  const TITLE_FONT_SIZE = 17;
+  const HAMBURGER_HEIGHT = TITLE_FONT_SIZE;
+  const HAMBURGER_WIDTH = Math.round((HAMBURGER_HEIGHT * 22) / 18); // ≈ 21
+  const BAR_HEIGHT = Math.max(1, Math.round((HAMBURGER_HEIGHT * 2) / 18)); // ≈ 2
+  const GAP = Math.max(1, Math.round((HAMBURGER_HEIGHT * 4) / 18)); // ≈ 4
+
+  // [PRD-AIHOME-OPTIM-V1 2026-05-17 R1] 计算铃铛在 banner 区域垂直正中的初始 top
+  // 以 banner 区域（健康贴士轮播卡 ≈130px 高）的 DOM 位置为锚，初始 top = banner.top + banner.height/2 - 铃铛高度/2
+  // banner 不存在（接口为空）时回退到欢迎区下方默认位置
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    // 用 rAF 等待 banner DOM 完成布局
+    let cancelled = false;
+    let raf = 0;
+    const computeOnce = () => {
+      if (cancelled) return;
+      const el = bannerAnchorRef.current;
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        if (rect && rect.height > 0) {
+          const bellHeight = 36;
+          const next = Math.max(56, Math.round(rect.top + rect.height / 2 - bellHeight / 2));
+          setBellInitialTop(next);
+          return;
+        }
+      }
+      // 容错：banner 未渲染时使用 topbar(48) + 欢迎区(72) 之下的位置兜底
+      setBellInitialTop(120);
+    };
+    raf = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(computeOnce);
+    });
+    return () => {
+      cancelled = true;
+      if (raf) window.cancelAnimationFrame(raf);
+    };
+  }, [banners.length]);
+
   // [PRD-425] 徽标展示形态：null=不显示；0=小红点；1~99=数字；>=100="99+"
   const renderUnreadBadge = () => {
     if (unreadCount === null) return null;
@@ -2816,29 +2901,101 @@ export default function AiHomePage() {
         >
           {/* 内层 48px 工作区，使用绝对定位钉死三个子元素位置 */}
           <div style={{ position: 'relative', height: 48, width: '100%' }}>
-            {/* 左：☰ 汉堡菜单（绝对定位 left:8） */}
+            {/* [PRD-AIHOME-OPTIM-V1 2026-05-17 R2/R3] 左：汉堡菜单按钮
+                - 图标改为 SVG 三横线：第1、2条全长，第3条 50% 长度左对齐
+                - 整体高度 = "小康"字号 17px，宽度按 22:18 等比缩放 ≈ 21px
+                - 三条横线等粗，间距与原版等比缩放
+                - 与"小康"文字顶端对齐（按钮 hit-zone 仍保持 32x32 以维持点击热区）
+                - 右上角外侧添加 8px 红色实心圆（未读系统消息数>0 OR 待使用订单数>0 时显示） */}
             {topbarShowSidebar ? (
               <button
                 className="flex items-center justify-center"
                 style={{
                   position: 'absolute',
                   left: 8,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
+                  // 与"小康"标题顶端对齐：标题 lineHeight: 24px，居中在 48px 工作区内 → 文字顶端约 top:12
+                  top: 12,
                   width: 32,
                   height: 32,
-                  fontSize: 22,
                   color: THEME.textPrimary,
                   background: 'transparent',
                   border: 'none',
                   padding: 0,
                   margin: 0,
                   lineHeight: 1,
+                  cursor: 'pointer',
+                  // 让内层 SVG 顶端对齐到按钮顶端（即与"小康"字顶端对齐）
+                  display: 'inline-flex',
+                  alignItems: 'flex-start',
+                  justifyContent: 'flex-start',
                 }}
                 onClick={() => setSidebarOpen(true)}
                 aria-label="历史会话"
+                data-testid="ai-home-hamburger-btn"
               >
-                ☰
+                <span
+                  style={{
+                    position: 'relative',
+                    display: 'inline-block',
+                    width: HAMBURGER_WIDTH,
+                    height: HAMBURGER_HEIGHT,
+                  }}
+                >
+                  <svg
+                    width={HAMBURGER_WIDTH}
+                    height={HAMBURGER_HEIGHT}
+                    viewBox={`0 0 ${HAMBURGER_WIDTH} ${HAMBURGER_HEIGHT}`}
+                    aria-hidden="true"
+                    data-testid="ai-home-hamburger-icon"
+                  >
+                    {/* 第 1 条：全长 */}
+                    <rect
+                      x={0}
+                      y={0}
+                      width={HAMBURGER_WIDTH}
+                      height={BAR_HEIGHT}
+                      rx={BAR_HEIGHT / 2}
+                      fill="currentColor"
+                    />
+                    {/* 第 2 条：全长 */}
+                    <rect
+                      x={0}
+                      y={BAR_HEIGHT + GAP}
+                      width={HAMBURGER_WIDTH}
+                      height={BAR_HEIGHT}
+                      rx={BAR_HEIGHT / 2}
+                      fill="currentColor"
+                    />
+                    {/* 第 3 条：50% 长度，左对齐 */}
+                    <rect
+                      x={0}
+                      y={(BAR_HEIGHT + GAP) * 2}
+                      width={HAMBURGER_WIDTH / 2}
+                      height={BAR_HEIGHT}
+                      rx={BAR_HEIGHT / 2}
+                      fill="currentColor"
+                    />
+                  </svg>
+                  {hamburgerDotVisible && (
+                    <span
+                      data-testid="ai-home-hamburger-reddot"
+                      aria-label="有新消息或待使用订单"
+                      style={{
+                        position: 'absolute',
+                        // 红点左下角紧贴图标右上角顶点 → 左下角 (left:WIDTH, top:-8)
+                        left: HAMBURGER_WIDTH,
+                        top: -8,
+                        width: 8,
+                        height: 8,
+                        borderRadius: 9999,
+                        background: '#FF3B30',
+                        border: 'none',
+                        boxShadow: 'none',
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  )}
+                </span>
               </button>
             ) : null}
 
@@ -3038,9 +3195,11 @@ export default function AiHomePage() {
             <SectionErrorBoundary name="health_tips">
               {healthTipsVisible && banners.length > 0 && (
                 <div
+                  ref={bannerAnchorRef}
                   className="rounded-2xl overflow-hidden mb-4 shadow-lg"
                   style={{ background: 'var(--gradient-primary)' }}
                   data-prd447="health-tips-card"
+                  data-testid="ai-home-banner-anchor"
                 >
                   <Swiper
                     autoplay
@@ -3907,13 +4066,16 @@ export default function AiHomePage() {
       </div>
 
       {/* [PRD-439 F-02/F-08] 健康打卡入口下线，原位替换为 🔔 提醒铃铛
-          - 复用悬浮位置（默认 bottom 120）+ 数字徽标
-          - 点击弹出"今日待办"抽屉（用药提醒 + 预约提醒） */}
+          [PRD-AIHOME-OPTIM-V1 2026-05-17 R1] 视觉优化：
+            - 完全去掉底色和背景框，仅保留 🔔 图标本身
+            - 初始垂直位置 = 顶部 banner 区域的垂直正中（由 bellInitialTop 测量得出）
+            - 水平位置保持贴右（与原版一致）
+            - 拖动后不持久化位置，离开页面再回来自动复位
+          点击弹出"今日待办"抽屉（用药提醒 + 预约提醒） */}
       <SectionErrorBoundary name="floating_button">
         {floatingButtonVisible && (
           <ReminderBellButton
-            badgeCount={reminderBadge}
-            defaultBottom={120}
+            initialTop={bellInitialTop}
             position={aiHomeConfig.floating_button?.position === 'left_bottom' ? 'left' : 'right'}
             onClick={() => setReminderOpen(true)}
           />
