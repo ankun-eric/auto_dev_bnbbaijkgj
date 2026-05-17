@@ -27,6 +27,51 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-AICHAT-FUNCBTN-OPTIM-V1｜AI 咨询配置·功能按钮管理优化（2026-05-17 16:00）
+
+### 一句话结论
+
+按 PRD v1.0 把 ai-home 「AI 咨询配置-功能按钮管理」做四件事：①宫格 / 胶囊**独立排序**（拆出 `grid_sort` / `capsule_sort` 两个新字段），后台用「置顶 / 上移 / 下移」三按钮一键操作，不再手填数字；②按钮类型**合并 9→2 大类**（`page_navigate` + `ai_function`），AI 功能再选 7 个子类型；③AI 功能按钮**统一交互链路**：点击 → AI 开场白（可选）→ 弹卡片 → 点卡片按钮 → 执行动作；④页面跳转类**支持「先弹卡片再跳转」开关**；⑤卡片视觉**统一为天空蓝 `#0EA5E9`**（与 ai-home 主页一致）；⑥**老数据自动迁移**（启动迁移：复制 sort_weight、回填 ai_function_type，14 条排序补齐 + 3 条类型回填 + 0 条兜底）。
+
+### 后端核心改动
+
+- `backend/app/models/models.py`：`ChatFunctionButton` 新增 5 字段 `grid_sort` / `capsule_sort` / `ai_function_type` / `ai_opening` / `pre_card_for_navigate`
+- `backend/app/schemas/function_button.py`：枚举扩展 `page_navigate` / `ai_function`；新增 `ALLOWED_AI_FUNCTION_TYPES`；新增 `ButtonSortActionRequest`
+- `backend/app/api/function_button.py`：
+  - `GET /api/function-buttons`、`/api/chat/function-buttons`：新参 `position=grid|capsule`，按各自 sort 排序
+  - `GET /api/admin/function-buttons`：新参 `view_type=grid|capsule|all`
+  - **新增** `POST /api/admin/function-buttons/sort-action`（`top|up|down`），事务内重排，重新编号 1,2,3...
+  - `POST/PUT` 校验 `ai_function_type`（仅 `ai_function` 主类型时）+ `external_url` 前缀（`http(s)://` / `/` / `pages/`）
+  - **MySQL 兼容修复**：用 `func.coalesce(sort, 999999)` 替代 PostgreSQL 专属 `nulls_last()`
+- `backend/app/services/schema_sync.py`：补齐 5 个新字段 `ALTER TABLE`
+- `backend/app/services/prd_aichat_funcbtn_optim_v1_migration.py`（新）：启动期一次性迁移；老 `button_type` 保留兼容老客户端，新增 `ai_function_type` 子类型回填；`app_settings` 标志位防重复
+- `backend/app/main.py`：startup 接入新迁移脚本
+
+### 前端核心改动
+
+- **admin-web** `src/app/(admin)/function-buttons/page.tsx`：
+  - 顶部 Tabs 切换 `宫格视图 / 胶囊视图 / 全部按钮`
+  - 表格新列「排序值」（按当前 Tab 显示 `grid_sort` 或 `capsule_sort`）；按钮类型显示主类 + 子类副 Tag
+  - 操作列新增 ⏫置顶 🔼上移 🔽下移（边界自动禁用）
+  - 编辑弹窗：主类型单选 → 联动展示 `ai_function_type` / 跳转地址 / `pre_card_for_navigate` 开关 / `ai_opening` 文本框
+- **h5-web**：
+  - `src/components/ai-chat/ChatCards.tsx`：色板全量改天空蓝（`#0EA5E9` / `#BAE6FD` / `#0284C7` / `#0F172A` / `#475569`），新增 `boxShadow`；`resolveCardType` 兼容新枚举；`backendButtonToCardButton` 适配新字段
+  - `src/app/(ai-chat)/ai-home/page.tsx`：宫格 `grid_sort`、胶囊 `capsule_sort` 升序；`page_navigate` 直接跳 vs `pre_card_for_navigate=true` 弹卡片二次确认；`ai_function` 类先注入 `ai_opening` 文本气泡再弹卡片；`health_self_check` 同步触发抽屉
+
+### 测试与验证
+
+- `backend/tests/test_prd_aichat_funcbtn_optim_v1.py`（9 用例）：新字段持久化、view_type 过滤、grid/capsule 排序操作、ai_function_type 校验、external_url 校验、`pre_card_for_navigate` 默认值、公开 API 排序
+- 公网冒烟（`deploy/smoke_test_funcbtn_v1.py`）：6/6 PASS（admin/function-buttons、admin/login、ai-home、首页、公开按钮 grid/capsule，公开接口含全部 5 字段）
+- 服务器迁移日志：`stats={'sort_filled': 14, 'type_remapped': 3, 'fallback_count': 0, 'skipped': False}`
+
+### 部署
+
+- 部署脚本：`deploy/deploy_funcbtn_optim_v1.py` + `deploy/rebuild_admin_h5_funcbtn_v1.py` + `deploy/redeploy_backend_funcbtn_v1.py` + `deploy/fix_remote_url_and_pull.py`
+- 容器：`6b099ed3-7175-4a78-91f4-44570c84ed27-{backend,admin,h5,db}` 全部 Up
+- 用户手册：`user_docs/AI咨询配置-功能按钮管理优化v1_20260517.md`
+
+---
+
 ## Latest Update: PRD-MED-PLAN-OPTIM-V1-20260517｜用药计划页面优化（H5 + 小程序，终版）（2026-05-17 14:45）
 
 ### 一句话结论
