@@ -39,6 +39,14 @@
               <text class="info-label">提醒时间</text>
               <text class="info-value">{{med.remind_times}}</text>
             </view>
+            <view class="med-info-row" wx:if="{{med.cycle_text}}">
+              <text class="info-label">服用周期</text>
+              <text class="info-value">{{med.cycle_text}}</text>
+            </view>
+            <view class="med-info-row" wx:if="{{med.guidance_text}}">
+              <text class="info-label">服用时机</text>
+              <text class="info-value">{{med.guidance_text}}</text>
+            </view>
             <view class="med-info-row" wx:if="{{med.notes}}">
               <text class="info-label">备注</text>
               <text class="info-value">{{med.notes}}</text>
@@ -88,6 +96,14 @@
           <view class="med-info-row" wx:if="{{item.remind_times}}">
             <text class="info-label">提醒时间</text>
             <text class="info-value">{{item.remind_times}}</text>
+          </view>
+          <view class="med-info-row" wx:if="{{item.cycle_text}}">
+            <text class="info-label">服用周期</text>
+            <text class="info-value">{{item.cycle_text}}</text>
+          </view>
+          <view class="med-info-row" wx:if="{{item.guidance_text}}">
+            <text class="info-label">服用时机</text>
+            <text class="info-value">{{item.guidance_text}}</text>
           </view>
           <view class="med-info-row" wx:if="{{item.notes}}">
             <text class="info-label">备注</text>

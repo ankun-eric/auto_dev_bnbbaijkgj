@@ -242,8 +242,13 @@ def upload_to_server(apk_path: Path) -> tuple[str, str]:
     remote_name = f"app_{ts}_{rand}.apk"
 
     remote_tmp = f"/tmp/{remote_name}"
-    persist_dir = f"/home/ubuntu/{PROJECT_ID}/h5-web/public"
+    # gateway nginx 把宿主机 /home/ubuntu/<PID>/static/ 挂为 /data/static/，
+    # /autodev/<PID>/apk/ -> /data/static/apk/。所以 APK 必须放到此目录。
+    persist_dir = f"/home/ubuntu/{PROJECT_ID}/static/apk"
     persist_path = f"{persist_dir}/{remote_name}"
+    # 备份目录（与微信小程序 zip 同位置，便于宿主机查看历史产物）
+    backup_dir = f"/home/ubuntu/{PROJECT_ID}/h5-web/public"
+    backup_path = f"{backup_dir}/{remote_name}"
 
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -271,29 +276,19 @@ def upload_to_server(apk_path: Path) -> tuple[str, str]:
         if rc != 0:
             raise RuntimeError("upload verify failed")
 
-        # 2. persistent copy + docker cp into h5-web container
+        # 2. 复制到 nginx alias 实际指向的目录 /home/ubuntu/<PID>/static/apk/
+        #    同时复制一份到 h5-web/public 作为产物历史归档
         remote_cmd = (
             f"set -e; "
-            f"echo '[mkdir persist]'; sudo -n mkdir -p {persist_dir} 2>&1 || mkdir -p {persist_dir}; "
-            f"echo '[cp persist]'; sudo -n cp {remote_tmp} {persist_path} 2>&1 || cp {remote_tmp} {persist_path}; "
-            f"sudo -n chmod 644 {persist_path} 2>/dev/null || chmod 644 {persist_path}; "
-            f"echo '[find h5-web container]'; "
-            f"CID=$(sudo -n docker ps --format '{{{{.ID}}}} {{{{.Names}}}}' 2>/dev/null "
-            f" | grep -E '{PROJECT_ID}.*h5-web|h5-web.*{PROJECT_ID}' | head -1 | awk '{{print $1}}'); "
-            f"if [ -z \"$CID\" ]; then "
-            f"  CID=$(sudo -n docker ps --format '{{{{.ID}}}} {{{{.Names}}}}' 2>/dev/null | grep -i h5-web | head -1 | awk '{{print $1}}'); "
-            f"fi; "
-            f"echo \"H5_CID=$CID\"; "
-            f"if [ -n \"$CID\" ]; then "
-            f"  CNAME=$(sudo -n docker inspect --format '{{{{.Name}}}}' $CID 2>/dev/null | sed 's|^/||'); "
-            f"  echo \"CONTAINER_NAME=$CNAME\"; "
-            f"  sudo -n docker cp {remote_tmp} $CID:/app/public/{remote_name} 2>&1 && echo '[cp /app/public OK]' || true; "
-            f"  sudo -n docker cp {remote_tmp} $CID:/usr/share/nginx/html/{remote_name} 2>&1 && echo '[cp nginx html OK]' || true; "
-            f"  sudo -n docker exec $CID ls -la /app/public/{remote_name} 2>/dev/null && echo '[verify /app/public OK]' || true; "
-            f"  sudo -n docker exec $CID ls -la /usr/share/nginx/html/{remote_name} 2>/dev/null && echo '[verify nginx html OK]' || true; "
-            f"fi; "
+            f"echo '[mkdir static/apk]'; sudo -n mkdir -p {persist_dir}; "
+            f"echo '[cp -> nginx alias dir]'; sudo -n cp {remote_tmp} {persist_path}; "
+            f"sudo -n chmod 644 {persist_path}; "
+            f"echo '[mkdir backup dir]'; sudo -n mkdir -p {backup_dir}; "
+            f"echo '[cp -> backup dir]'; sudo -n cp {remote_tmp} {backup_path}; "
+            f"sudo -n chmod 644 {backup_path}; "
             f"rm -f {remote_tmp}; "
-            f"ls -la {persist_path}"
+            f"echo '[nginx alias listing]'; ls -la {persist_path}; "
+            f"echo '[backup listing]'; ls -la {backup_path}"
         )
         rc, out, err = _ssh_exec(client, remote_cmd, timeout=300)
         if rc != 0:
@@ -301,7 +296,7 @@ def upload_to_server(apk_path: Path) -> tuple[str, str]:
     finally:
         client.close()
 
-    download_url = f"{BASE_URL}/{remote_name}"
+    download_url = f"{BASE_URL}/apk/{remote_name}"
     log(f"APK should be downloadable at: {download_url}")
     return remote_name, download_url
 

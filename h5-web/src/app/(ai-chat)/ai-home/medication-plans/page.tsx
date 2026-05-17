@@ -43,7 +43,7 @@ const TABS: { id: TabKey; label: string }[] = [
   { id: 'finished', label: '已结束' },
 ];
 
-const BLUE = '#4A9EE0';
+const BLUE = '#0EA5E9';
 const GREEN = '#22c55e';
 const TEXT = '#111827';
 const SUB = '#6B7280';
@@ -121,10 +121,23 @@ function MedicationPlansListPageInner() {
     const dosage = it.dosage_value && it.dosage_unit ? `${it.dosage_value} ${it.dosage_unit}` : it.dosage || '';
     const freq = it.frequency || `每日 ${it.frequency_per_day || (it.schedule?.length ?? 1)} 次`;
     const timing = it.guidance || '';
-    const range =
-      it.long_term
-        ? '长期服用'
-        : `${it.start_date || '—'} ~ ${it.end_date || '—'}`;
+    const range = (() => {
+      const s = it.start_date || '—';
+      if (it.long_term) return `${s} 至 长期`;
+      const e = it.end_date || '—';
+      let days = '';
+      try {
+        const sd = new Date(s);
+        const ed = new Date(e);
+        if (!isNaN(sd.getTime()) && !isNaN(ed.getTime())) {
+          const d = Math.round((ed.getTime() - sd.getTime()) / 86400000) + 1;
+          if (d > 0) days = ` · 共 ${d} 天`;
+        }
+      } catch {
+        /* ignore */
+      }
+      return `${s} 至 ${e}${days}`;
+    })();
     const statusBadge =
       tab === 'in_progress' ? { text: '服用中', color: GREEN } :
       tab === 'not_started' ? { text: '未开始', color: BLUE } :
@@ -141,7 +154,7 @@ function MedicationPlansListPageInner() {
           padding: 14,
           borderRadius: 12,
           boxShadow: isHighlighted
-            ? '0 0 0 2px rgba(74,158,224,0.6)'
+            ? '0 0 0 2px rgba(14,165,233,0.6)'
             : '0 1px 2px rgba(0,0,0,0.04)',
           cursor: 'pointer',
         }}
@@ -261,7 +274,7 @@ function MedicationPlansListPageInner() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 4px 12px rgba(74,158,224,0.4)',
+          boxShadow: '0 4px 12px rgba(14,165,233,0.4)',
           cursor: 'pointer',
         }}
       >

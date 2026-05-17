@@ -1,22 +1,366 @@
-.form-page { padding: 24rpx; min-height: 100vh; background: #f5f5f5; }
-.form-card { margin-bottom: 24rpx; }
-.form-item { padding: 20rpx 0; border-bottom: 1rpx solid #f5f5f5; }
-.form-item:last-child { border-bottom: none; }
-.form-label { display: block; font-size: 26rpx; color: #999; margin-bottom: 12rpx; }
-.form-input { font-size: 28rpx; color: #333; padding: 8rpx 0; }
-.form-picker { display: flex; align-items: center; justify-content: space-between; padding: 8rpx 0; }
-.picker-text { font-size: 28rpx; color: #333; }
-.picker-arrow { font-size: 32rpx; color: #ccc; }
-.form-textarea { font-size: 28rpx; color: #333; width: 100%; min-height: 120rpx; padding: 8rpx 0; }
+/* [PRD-MED-PLAN-OPTIM-V1 2026-05-17] 用药计划表单样式
+   主色 #0EA5E9，列表行式排版 */
 
-.form-submit { padding: 24rpx 0; }
+.page {
+  min-height: 100vh;
+  background: #F4F6F9;
+  padding-bottom: 40rpx;
+}
+
+/* ────── F-01 医嘱提示条 ────── */
+.advice-tip {
+  margin: 24rpx 28rpx 16rpx;
+  padding: 20rpx 24rpx;
+  background: #FFFBEB;
+  border: 1rpx solid #FDE68A;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+}
+.advice-icon {
+  width: 36rpx;
+  height: 36rpx;
+  line-height: 36rpx;
+  text-align: center;
+  border-radius: 50%;
+  background: #F59E0B;
+  color: #fff;
+  font-weight: 700;
+  font-size: 26rpx;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+.advice-text {
+  color: #92400E;
+  font-size: 26rpx;
+  font-weight: 500;
+}
+
+/* ────── 列表行卡片 ────── */
+.form-card {
+  margin: 0 28rpx;
+  background: #fff;
+  border-radius: 24rpx;
+  overflow: hidden;
+  box-shadow: 0 1rpx 2rpx rgba(0,0,0,0.03);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 28rpx;
+  min-height: 96rpx;
+  border-bottom: 1rpx solid #E5E7EB;
+  position: relative;
+}
+.row.last { border-bottom: none; }
+.row-tall { min-height: 112rpx; }
+.row-timing { align-items: center; }
+
+.row-title {
+  flex-shrink: 0;
+  font-size: 28rpx;
+  color: #1F2937;
+  font-weight: 500;
+  min-width: 160rpx;
+}
+.required {
+  color: #EF4444;
+  margin-left: 4rpx;
+}
+.row-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+.row-value {
+  font-size: 28rpx;
+  color: #1F2937;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 380rpx;
+  text-align: right;
+}
+.row-value.placeholder { color: #9CA3AF; }
+.row-arrow {
+  margin-left: 12rpx;
+  color: #9CA3AF;
+  font-size: 32rpx;
+}
+
+/* 服用周期双行 */
+.cycle-col {
+  flex-direction: column;
+  align-items: flex-end;
+  display: flex;
+}
+.cycle-main {
+  font-size: 28rpx;
+  color: #1F2937;
+  line-height: 1.3;
+}
+.cycle-sub {
+  font-size: 24rpx;
+  color: #6B7280;
+  line-height: 1.3;
+  margin-top: 4rpx;
+}
+.cycle-sub-long {
+  color: #0EA5E9;
+  font-weight: 500;
+}
+
+/* 服用时机 Tag-B 标签 */
+.timing-wrap {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  justify-content: flex-end;
+}
+.timing-tag {
+  padding: 12rpx 28rpx;
+  border-radius: 32rpx;
+  background: #E0F2FE;
+  color: #0EA5E9;
+  font-size: 26rpx;
+  font-weight: 500;
+}
+.timing-tag.active {
+  background: #0EA5E9;
+  color: #fff;
+}
+
+/* ────── 保存按钮 ────── */
+.form-submit { padding: 32rpx 28rpx; }
 .submit-btn {
   width: 100%;
-  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  background: #0EA5E9;
   color: #fff;
   font-size: 30rpx;
-  border-radius: 44rpx;
+  font-weight: 600;
+  border-radius: 48rpx;
   padding: 24rpx 0;
   border: none;
 }
-.btn-disabled { opacity: 0.6; }
+.submit-btn::after { border: none; }
+.submit-btn.disabled { opacity: 0.6; }
+
+/* ────── 抽屉通用 ────── */
+.drawer-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 9999;
+  display: flex;
+  align-items: flex-end;
+}
+.drawer {
+  width: 100%;
+  background: #fff;
+  border-top-left-radius: 32rpx;
+  border-top-right-radius: 32rpx;
+  padding: 32rpx 28rpx 40rpx;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.drawer-title {
+  text-align: center;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1F2937;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid #E5E7EB;
+  margin-bottom: 24rpx;
+}
+.drawer-footer {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 32rpx;
+}
+.btn-cancel, .btn-ok {
+  flex: 1;
+  height: 80rpx;
+  line-height: 80rpx;
+  text-align: center;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+}
+.btn-cancel {
+  background: #fff;
+  border: 1rpx solid #E5E7EB;
+  color: #6B7280;
+}
+.btn-ok {
+  background: #0EA5E9;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* 文本输入 */
+.text-input {
+  width: 100%;
+  padding: 20rpx 24rpx;
+  background: #F9FAFB;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  color: #1F2937;
+  box-sizing: border-box;
+}
+
+/* 联想下拉 */
+.suggest-list {
+  margin-top: 16rpx;
+  border: 1rpx solid #E5E7EB;
+  border-radius: 16rpx;
+  max-height: 480rpx;
+  overflow-y: auto;
+}
+.suggest-item {
+  padding: 20rpx 24rpx;
+  border-bottom: 1rpx solid #F3F4F6;
+}
+.suggest-item:last-child { border-bottom: none; }
+.suggest-name { font-size: 28rpx; color: #111827; font-weight: 500; }
+.suggest-sub { font-size: 24rpx; color: #6B7280; margin-top: 6rpx; }
+
+/* 用药时间抽屉 */
+.block-title {
+  font-size: 26rpx;
+  color: #374151;
+  font-weight: 600;
+  margin: 8rpx 0 16rpx;
+}
+.freq-cards {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+.freq-card {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx 0;
+  border-radius: 32rpx;
+  background: #E0F2FE;
+  color: #0EA5E9;
+  font-size: 28rpx;
+  font-weight: 500;
+}
+.freq-card.active {
+  background: #0EA5E9;
+  color: #fff;
+}
+.time-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+.time-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx 28rpx;
+  background: #F9FAFB;
+  border: 1rpx solid #E5E7EB;
+  border-radius: 20rpx;
+}
+.time-row-label {
+  color: #6B7280;
+  font-size: 26rpx;
+}
+.time-row-val {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1F2937;
+}
+
+/* 剂量滚轮 */
+.wheel-wrap {
+  background: #F9FAFB;
+  border-radius: 16rpx;
+  padding: 16rpx;
+}
+.wheel {
+  width: 100%;
+  height: 400rpx;
+}
+.wheel-item {
+  text-align: center;
+  line-height: 80rpx;
+  font-size: 30rpx;
+  color: #1F2937;
+}
+.wheel-indicator {
+  background: rgba(14,165,233,0.08);
+  border-top: 1rpx solid #E5E7EB;
+  border-bottom: 1rpx solid #E5E7EB;
+}
+.dosage-preview {
+  text-align: center;
+  margin-top: 16rpx;
+  color: #6B7280;
+  font-size: 26rpx;
+}
+
+/* 服用周期抽屉 */
+.cycle-dates {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+}
+.date-col { flex: 1; }
+.date-label {
+  display: block;
+  font-size: 24rpx;
+  color: #6B7280;
+  margin-bottom: 12rpx;
+}
+.date-input {
+  padding: 20rpx 24rpx;
+  border: 1rpx solid #D1D5DB;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  color: #1F2937;
+  background: #fff;
+}
+.date-input.locked {
+  background: #F3F4F6;
+  color: #9CA3AF;
+}
+.longterm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 24rpx;
+  background: #F9FAFB;
+  border-radius: 20rpx;
+  font-size: 28rpx;
+  color: #1F2937;
+}
+.cycle-tip {
+  margin-top: 16rpx;
+  font-size: 24rpx;
+  color: #6B7280;
+}
+.cycle-tip-long {
+  color: #0EA5E9;
+  font-weight: 500;
+}
+
+/* 备注 */
+.notes-wrap {
+  position: relative;
+}
+.notes-count {
+  position: absolute;
+  right: 24rpx;
+  bottom: 12rpx;
+  font-size: 22rpx;
+  color: #6B7280;
+}
+
+/* noop */
+.row[bindtap]:active { background: #FAFAFA; }

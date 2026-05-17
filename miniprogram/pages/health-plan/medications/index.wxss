@@ -3,7 +3,7 @@
 .empty-icon { font-size: 80rpx; margin-bottom: 20rpx; }
 .empty-text { font-size: 30rpx; color: #333; font-weight: 600; margin-bottom: 12rpx; }
 .empty-desc { font-size: 26rpx; color: #999; margin-bottom: 32rpx; }
-.empty-btn { padding: 16rpx 48rpx; background: #52c41a; color: #fff; border-radius: 36rpx; font-size: 28rpx; }
+.empty-btn { padding: 16rpx 48rpx; background: #0EA5E9; color: #fff; border-radius: 36rpx; font-size: 28rpx; }
 .text-hint { font-size: 26rpx; color: #999; }
 
 .med-group { margin-bottom: 8rpx; }
@@ -16,7 +16,7 @@
 .med-icon { font-size: 32rpx; margin-right: 12rpx; }
 .med-name { font-size: 30rpx; font-weight: 600; color: #333; flex: 1; }
 .med-status { font-size: 22rpx; padding: 4rpx 16rpx; border-radius: 16rpx; }
-.status-active { background: rgba(82,196,26,0.12); color: #52c41a; }
+.status-active { background: rgba(14,165,233,0.12); color: #0EA5E9; }
 .status-paused { background: rgba(250,173,20,0.12); color: #faad14; }
 
 .med-body { margin-bottom: 16rpx; }
@@ -26,10 +26,10 @@
 
 .med-actions { display: flex; border-top: 1rpx solid #f0f0f0; padding-top: 16rpx; }
 .action-btn { flex: 1; text-align: center; font-size: 24rpx; padding: 10rpx 0; }
-.action-checkin { color: #52c41a; font-weight: 600; }
-.action-done { color: #52c41a; }
+.action-checkin { color: #0EA5E9; font-weight: 600; }
+.action-done { color: #0EA5E9; }
 .action-pause { color: #faad14; }
-.action-edit { color: #1890ff; }
+.action-edit { color: #0EA5E9; }
 .action-delete { color: #ff4d4f; }
 
 .fab-btn {
@@ -39,10 +39,10 @@
   width: 96rpx;
   height: 96rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #52c41a, #13c2c2);
+  background: #0EA5E9;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8rpx 24rpx rgba(82,196,26,0.4);
+  box-shadow: 0 8rpx 24rpx rgba(14,165,233,0.4);
 }
 .fab-icon { font-size: 48rpx; color: #fff; font-weight: 300; }

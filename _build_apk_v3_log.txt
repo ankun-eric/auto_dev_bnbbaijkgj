@@ -1,0 +1,141 @@
+[2026-05-17 12:38:38] === Flutter Android APK build automation (timezone v3) START ===
+[2026-05-17 12:38:38] Repo: C:\auto_output\bnbbaijkgj
+[2026-05-17 12:38:38] Project URL: https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27
+[2026-05-17 12:38:38] === STEP 1/2: commit + push flutter changes ===
+[2026-05-17 12:38:38] $ git status --porcelain flutter_app/ .android_tag.txt
+[2026-05-17 12:38:38] No flutter changes to commit. Skipping commit step.
+[2026-05-17 12:38:38] Generated version tag: android-v20260517-123838-dc67
+[2026-05-17 12:38:38] $ git status --porcelain .android_tag.txt
+[2026-05-17 12:38:38] stdout: M .android_tag.txt
+[2026-05-17 12:38:38] $ git add .android_tag.txt
+[2026-05-17 12:38:38] $ git commit -m chore(flutter): android tag android-v20260517-123838-dc67
+[2026-05-17 12:38:38] stdout: [master 5f1b17a] chore(flutter): android tag android-v20260517-123838-dc67
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+[2026-05-17 12:38:38] $ git push origin HEAD:master
+[2026-05-17 12:38:40] stderr: To https://github.com/ankun-eric/auto_dev_bnbbaijkgj.git
+   1af23ee..5f1b17a  HEAD -> master
+[2026-05-17 12:38:40] === STEP 3: trigger workflow with version=android-v20260517-123838-dc67 ===
+[2026-05-17 12:38:40] $ gh workflow run android-build.yml -f version=android-v20260517-123838-dc67
+[2026-05-17 12:38:52] $ gh run list --workflow=android-build.yml --limit 1 --json databaseId,status,conclusion,headBranch,event,createdAt
+[2026-05-17 12:38:52] stdout: [{"conclusion":"","createdAt":"2026-05-17T04:38:41Z","databaseId":25981495757,"event":"workflow_dispatch","headBranch":"master","status":"in_progress"}]
+[2026-05-17 12:38:52] Latest run id = 25981495757
+[2026-05-17 12:38:52] === STEP 5: polling run 25981495757 ===
+[2026-05-17 12:38:52] $ gh run view 25981495757 --json status,conclusion
+[2026-05-17 12:38:53] stdout: {"conclusion":"","status":"in_progress"}
+[2026-05-17 12:38:53] status=in_progress conclusion=
+[2026-05-17 12:39:23] $ gh run view 25981495757 --json status,conclusion
+[2026-05-17 12:39:23] stdout: {"conclusion":"","status":"in_progress"}
+[2026-05-17 12:39:53] $ gh run view 25981495757 --json status,conclusion
+[2026-05-17 12:39:54] stdout: {"conclusion":"","status":"in_progress"}
+[2026-05-17 12:40:24] $ gh run view 25981495757 --json status,conclusion
+[2026-05-17 12:40:24] stdout: {"conclusion":"","status":"in_progress"}
+[2026-05-17 12:40:54] $ gh run view 25981495757 --json status,conclusion
+[2026-05-17 12:40:55] stdout: {"conclusion":"","status":"in_progress"}
+[2026-05-17 12:41:25] $ gh run view 25981495757 --json status,conclusion
+[2026-05-17 12:41:26] stdout: {"conclusion":"","status":"in_progress"}
+[2026-05-17 12:41:56] $ gh run view 25981495757 --json status,conclusion
+[2026-05-17 12:41:56] stdout: {"conclusion":"","status":"in_progress"}
+[2026-05-17 12:42:26] $ gh run view 25981495757 --json status,conclusion
+[2026-05-17 12:42:27] stdout: {"conclusion":"","status":"in_progress"}
+[2026-05-17 12:42:57] $ gh run view 25981495757 --json status,conclusion
+[2026-05-17 12:42:57] stdout: {"conclusion":"","status":"in_progress"}
+[2026-05-17 12:43:27] $ gh run view 25981495757 --json status,conclusion
+[2026-05-17 12:43:28] stdout: {"conclusion":"","status":"in_progress"}
+[2026-05-17 12:43:58] $ gh run view 25981495757 --json status,conclusion
+[2026-05-17 12:43:58] stdout: {"conclusion":"","status":"in_progress"}
+[2026-05-17 12:44:28] $ gh run view 25981495757 --json status,conclusion
+[2026-05-17 12:44:29] stdout: {"conclusion":"","status":"in_progress"}
+[2026-05-17 12:44:59] $ gh run view 25981495757 --json status,conclusion
+[2026-05-17 12:44:59] stdout: {"conclusion":"","status":"in_progress"}
+[2026-05-17 12:45:29] $ gh run view 25981495757 --json status,conclusion
+[2026-05-17 12:45:30] stdout: {"conclusion":"","status":"in_progress"}
+[2026-05-17 12:46:00] $ gh run view 25981495757 --json status,conclusion
+[2026-05-17 12:46:01] stdout: {"conclusion":"","status":"in_progress"}
+[2026-05-17 12:46:31] $ gh run view 25981495757 --json status,conclusion
+[2026-05-17 12:46:31] stdout: {"conclusion":"","status":"in_progress"}
+[2026-05-17 12:47:01] $ gh run view 25981495757 --json status,conclusion
+[2026-05-17 12:47:02] stdout: {"conclusion":"","status":"in_progress"}
+[2026-05-17 12:47:32] $ gh run view 25981495757 --json status,conclusion
+[2026-05-17 12:47:32] stdout: {"conclusion":"success","status":"completed"}
+[2026-05-17 12:47:32] status=completed conclusion=success
+[2026-05-17 12:47:32] Run 25981495757 concluded: success
+[2026-05-17 12:47:32] === STEP 6: download APK for release android-v20260517-123838-dc67 ===
+[2026-05-17 12:47:32] $ gh release download android-v20260517-123838-dc67 --pattern *.apk --dir C:\auto_output\bnbbaijkgj\_apk_downloads
+[2026-05-17 12:47:39] Downloaded APK: C:\auto_output\bnbbaijkgj\_apk_downloads\bini_health_android-v20260517-123838-dc67.apk (85,091,799 bytes)
+[2026-05-17 12:47:39] === STEP 7: upload APK to server (via paramiko) ===
+[2026-05-17 12:47:41] sftp upload C:\auto_output\bnbbaijkgj\_apk_downloads\bini_health_android-v20260517-123838-dc67.apk -> /tmp/app_20260517124739_44d650.apk (85,091,799 bytes)
+[2026-05-17 12:49:42] ssh$ ls -la /tmp/app_20260517124739_44d650.apk
+[2026-05-17 12:49:42] stdout: -rw-rw-r-- 1 ubuntu ubuntu 85091799 May 17 12:49 /tmp/app_20260517124739_44d650.apk
+[2026-05-17 12:49:42] rc=0
+[2026-05-17 12:49:42] ssh$ set -e; echo '[mkdir persist]'; sudo -n mkdir -p /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/public; echo '[cp persist]'; sudo -n cp /tmp/app_20260517124739_44d650.apk /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/public/app_20260517124739_44d650.apk; sudo -n chmod 644 /home/
+[2026-05-17 12:49:43] stdout: [mkdir persist]
+[cp persist]
+[docker cp into 6b099ed3-7175-4a78-91f4-44570c84ed27-h5]
+[cp /app/public OK]
+Error response from daemon: Could not find the file /usr/share/nginx/html in container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+-rw-rw-r--    1 node     1001      85091799 May 17 04:49 /app/public/app_20260517124739_44d650.apk
+[verify /app/public OK]
+[final persist listing]
+-rw-r--r-- 1 root root 85091799 May 17 12:49 /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/public/app_20260517124739_44d650.apk
+[2026-05-17 12:49:43] rc=0
+[2026-05-17 12:49:43] APK should be downloadable at: https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/app_20260517124739_44d650.apk
+[2026-05-17 12:49:43] === STEP 8: verify https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/app_20260517124739_44d650.apk ===
+[2026-05-17 12:49:43] $ curl -sIL --max-time 30 https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/app_20260517124739_44d650.apk
+[2026-05-17 12:49:44] stdout: HTTP/1.1 404 Not Found
+Server: nginx/1.29.8
+Date: Sun, 17 May 2026 04:49:44 GMT
+Content-Type: text/html
+Content-Length: 153
+Connection: keep-alive
+Cache-Control: public, max-age=86400
+[2026-05-17 12:49:44] attempt 1: HTTP 404 content-length=153
+[2026-05-17 12:49:49] $ curl -sIL --max-time 30 https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/app_20260517124739_44d650.apk
+[2026-05-17 12:49:49] stdout: HTTP/1.1 404 Not Found
+Server: nginx/1.29.8
+Date: Sun, 17 May 2026 04:49:49 GMT
+Content-Type: text/html
+Content-Length: 153
+Connection: keep-alive
+Cache-Control: public, max-age=86400
+[2026-05-17 12:49:49] attempt 2: HTTP 404 content-length=153
+[2026-05-17 12:49:59] $ curl -sIL --max-time 30 https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/app_20260517124739_44d650.apk
+[2026-05-17 12:50:00] stdout: HTTP/1.1 404 Not Found
+Server: nginx/1.29.8
+Date: Sun, 17 May 2026 04:50:00 GMT
+Content-Type: text/html
+Content-Length: 153
+Connection: keep-alive
+Cache-Control: public, max-age=86400
+[2026-05-17 12:50:00] attempt 3: HTTP 404 content-length=153
+[2026-05-17 12:50:15] $ curl -sIL --max-time 30 https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/app_20260517124739_44d650.apk
+[2026-05-17 12:50:16] stdout: HTTP/1.1 404 Not Found
+Server: nginx/1.29.8
+Date: Sun, 17 May 2026 04:50:16 GMT
+Content-Type: text/html
+Content-Length: 153
+Connection: keep-alive
+Cache-Control: public, max-age=86400
+[2026-05-17 12:50:16] attempt 4: HTTP 404 content-length=153
+[2026-05-17 12:50:36] $ curl -sIL --max-time 30 https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/app_20260517124739_44d650.apk
+[2026-05-17 12:50:36] stdout: HTTP/1.1 404 Not Found
+Server: nginx/1.29.8
+Date: Sun, 17 May 2026 04:50:36 GMT
+Content-Type: text/html
+Content-Length: 153
+Connection: keep-alive
+Cache-Control: public, max-age=86400
+[2026-05-17 12:50:36] attempt 5: HTTP 404 content-length=153
+[2026-05-17 12:51:01] === SUMMARY ===
+[2026-05-17 12:51:01] {
+  "tag": "android-v20260517-123838-dc67",
+  "apk_local": "C:\\auto_output\\bnbbaijkgj\\_apk_downloads\\bini_health_android-v20260517-123838-dc67.apk",
+  "apk_size": 85091799,
+  "server_filename": "app_20260517124739_44d650.apk",
+  "download_url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/app_20260517124739_44d650.apk",
+  "github_release_url": "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/android-v20260517-123838-dc67",
+  "http_status": 404,
+  "content_length": "153",
+  "content_type": "text/html",
+  "elapsed_sec": 743.4,
+  "build_success": true
+}

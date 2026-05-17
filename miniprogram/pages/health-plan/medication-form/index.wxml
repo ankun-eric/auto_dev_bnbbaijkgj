@@ -1,44 +1,235 @@
-<view class="form-page">
-  <view class="form-card card">
-    <view class="form-item">
-      <text class="form-label">药品名称 *</text>
-      <input class="form-input" placeholder="请输入药品名称" value="{{name}}" bindinput="onInput" data-field="name" />
+<!--
+  [PRD-MED-PLAN-OPTIM-V1 2026-05-17] 用药计划表单（终版）
+  顶部医嘱提示条 + 整页列表行式 + 长期开关 + Tag-B 服用时机 + 30 字备注
+-->
+<view class="page">
+  <!-- F-01 医嘱提示条 -->
+  <view class="advice-tip">
+    <view class="advice-icon">!</view>
+    <text class="advice-text">用药请遵循医嘱</text>
+  </view>
+
+  <!-- 表单卡片 -->
+  <view class="form-card">
+    <!-- 药品名称 -->
+    <view class="row" bindtap="onTapName">
+      <text class="row-title">药品名称<text class="required">*</text></text>
+      <view class="row-right">
+        <text class="row-value {{!name ? 'placeholder' : ''}}">{{name || '请输入药品名称'}}</text>
+        <text class="row-arrow">›</text>
+      </view>
     </view>
 
-    <view class="form-item">
-      <text class="form-label">剂量</text>
-      <input class="form-input" placeholder="如：一次2片" value="{{dosage}}" bindinput="onInput" data-field="dosage" />
+    <!-- 用药时间 -->
+    <view class="row" bindtap="openTimeDrawer">
+      <text class="row-title">用药时间<text class="required">*</text></text>
+      <view class="row-right">
+        <text class="row-value">每日 {{frequencyPerDay}} 次 · {{timesText}}</text>
+        <text class="row-arrow">›</text>
+      </view>
     </view>
 
-    <view class="form-item">
-      <text class="form-label">用药时段 *</text>
-      <picker mode="selector" range="{{periodLabels}}" value="{{timePeriodIndex}}" bindchange="onTimePeriodChange">
-        <view class="form-picker">
-          <text class="picker-text">{{periodLabels[timePeriodIndex]}}</text>
-          <text class="picker-arrow">›</text>
-        </view>
-      </picker>
+    <!-- 每次剂量 -->
+    <view class="row" bindtap="openDosageDrawer">
+      <text class="row-title">每次剂量<text class="required">*</text></text>
+      <view class="row-right">
+        <text class="row-value">{{dosageValue}} {{dosageUnit}}</text>
+        <text class="row-arrow">›</text>
+      </view>
     </view>
 
-    <view class="form-item">
-      <text class="form-label">提醒时间</text>
-      <picker mode="time" value="{{remindTime || '08:00'}}" bindchange="onRemindTimeChange">
-        <view class="form-picker">
-          <text class="picker-text">{{remindTime || '请选择提醒时间'}}</text>
-          <text class="picker-arrow">›</text>
-        </view>
-      </picker>
+    <!-- 服用周期（双行） -->
+    <view class="row row-tall" bindtap="openCycleDrawer">
+      <text class="row-title">服用周期<text class="required">*</text></text>
+      <view class="row-right cycle-col">
+        <text class="cycle-main">{{cycleMain}}</text>
+        <text class="cycle-sub {{isLongTerm ? 'cycle-sub-long' : ''}}">{{cycleSub}}</text>
+      </view>
+      <text class="row-arrow">›</text>
     </view>
 
-    <view class="form-item">
-      <text class="form-label">备注</text>
-      <textarea class="form-textarea" placeholder="如：饭后服用" value="{{notes}}" bindinput="onInput" data-field="notes" />
+    <!-- 服用时机 Tag-B 单选 -->
+    <view class="row row-tall row-timing">
+      <text class="row-title">服用时机<text class="required">*</text></text>
+      <view class="timing-wrap">
+        <view
+          wx:for="{{timingOptions}}"
+          wx:key="*this"
+          class="timing-tag {{guidance === item ? 'active' : ''}}"
+          data-val="{{item}}"
+          catchtap="onTapTiming"
+        >{{item}}</view>
+      </view>
+    </view>
+
+    <!-- 备注 -->
+    <view class="row last" bindtap="openNotesDrawer">
+      <text class="row-title">备注</text>
+      <view class="row-right">
+        <text class="row-value {{!notes ? 'placeholder' : ''}}">{{notes || '如:饭后服用,避免空腹刺激胃部'}}</text>
+        <text class="row-arrow">›</text>
+      </view>
     </view>
   </view>
 
+  <!-- 提交按钮 -->
   <view class="form-submit">
-    <button class="submit-btn {{submitting ? 'btn-disabled' : ''}}" bindtap="onSubmit" disabled="{{submitting}}">
-      {{submitting ? '保存中...' : '保存'}}
+    <button class="submit-btn {{submitting ? 'disabled' : ''}}" bindtap="onSubmit" disabled="{{submitting}}">
+      {{submitting ? '保存中...' : (isEdit ? '保存修改' : '保存')}}
     </button>
+  </view>
+
+  <!-- ───── 药品名输入抽屉 ───── -->
+  <view class="drawer-mask" wx:if="{{nameDrawerOpen}}" catchtap="closeNameDrawer">
+    <view class="drawer" catchtap="noop">
+      <view class="drawer-title">药品名称</view>
+      <input
+        class="text-input"
+        placeholder="请输入药品名称"
+        value="{{nameDraft}}"
+        bindinput="onNameInput"
+        focus="{{nameDrawerOpen}}"
+        confirm-type="done"
+      />
+      <view wx:if="{{nameSuggests.length > 0}}" class="suggest-list">
+        <view
+          wx:for="{{nameSuggests}}"
+          wx:key="id"
+          class="suggest-item"
+          data-name="{{item.name}}"
+          catchtap="onPickSuggest"
+        >
+          <view class="suggest-name">{{item.name}}</view>
+          <view wx:if="{{item.generic_name || item.spec}}" class="suggest-sub">
+            {{item.generic_name}} {{item.spec ? '· ' + item.spec : ''}}
+          </view>
+        </view>
+      </view>
+      <view class="drawer-footer">
+        <view class="btn-cancel" catchtap="closeNameDrawer">取消</view>
+        <view class="btn-ok" catchtap="confirmName">确定</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- ───── 用药时间抽屉 ───── -->
+  <view class="drawer-mask" wx:if="{{timeDrawerOpen}}" catchtap="closeTimeDrawer">
+    <view class="drawer" catchtap="noop">
+      <view class="drawer-title">用药时间</view>
+      <view class="block-title">每日服药次数</view>
+      <view class="freq-cards">
+        <view
+          wx:for="{{[1,2,3,4]}}"
+          wx:key="*this"
+          class="freq-card {{frequencyPerDay === item ? 'active' : ''}}"
+          data-n="{{item}}"
+          catchtap="onChangeFreq"
+        >{{item}} 次</view>
+      </view>
+      <view class="block-title">具体时间点</view>
+      <view class="time-list">
+        <view
+          wx:for="{{customTimes}}"
+          wx:key="index"
+          class="time-row"
+        >
+          <text class="time-row-label">第 {{index + 1}} 次</text>
+          <picker mode="time" value="{{item}}" data-idx="{{index}}" bindchange="onPickTime">
+            <view class="time-row-val">{{item}}</view>
+          </picker>
+        </view>
+      </view>
+      <view class="drawer-footer">
+        <view class="btn-cancel" catchtap="closeTimeDrawer">取消</view>
+        <view class="btn-ok" catchtap="closeTimeDrawer">确定</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- ───── 剂量抽屉 ───── -->
+  <view class="drawer-mask" wx:if="{{dosageDrawerOpen}}" catchtap="closeDosageDrawer">
+    <view class="drawer" catchtap="noop">
+      <view class="drawer-title">每次剂量</view>
+      <view class="wheel-wrap">
+        <picker-view
+          class="wheel"
+          indicator-class="wheel-indicator"
+          value="{{[dosageValueIndex, dosageUnitIndex]}}"
+          bindchange="onChangeDosage"
+        >
+          <picker-view-column>
+            <view wx:for="{{dosageValues}}" wx:key="*this" class="wheel-item">{{item}}</view>
+          </picker-view-column>
+          <picker-view-column>
+            <view wx:for="{{dosageUnits}}" wx:key="*this" class="wheel-item">{{item}}</view>
+          </picker-view-column>
+        </picker-view>
+      </view>
+      <view class="dosage-preview">每次 {{dosageValue}} {{dosageUnit}}</view>
+      <view class="drawer-footer">
+        <view class="btn-cancel" catchtap="closeDosageDrawer">取消</view>
+        <view class="btn-ok" catchtap="closeDosageDrawer">确定</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- ───── 服用周期抽屉 ───── -->
+  <view class="drawer-mask" wx:if="{{cycleDrawerOpen}}" catchtap="closeCycleDrawer">
+    <view class="drawer" catchtap="noop">
+      <view class="drawer-title">服用周期</view>
+      <view class="cycle-dates">
+        <view class="date-col">
+          <text class="date-label">开始日期</text>
+          <picker mode="date" value="{{cycleDraftStart}}" start="{{minStartDate}}" bindchange="onStartDateChange">
+            <view class="date-input">{{cycleDraftStart}}</view>
+          </picker>
+        </view>
+        <view class="date-col">
+          <text class="date-label">结束日期</text>
+          <view wx:if="{{cycleDraftLong}}" class="date-input locked">长期</view>
+          <picker
+            wx:else
+            mode="date"
+            value="{{cycleDraftEnd}}"
+            start="{{cycleDraftStart}}"
+            end="{{maxEndDate}}"
+            bindchange="onEndDateChange"
+          >
+            <view class="date-input">{{cycleDraftEnd || '请选择'}}</view>
+          </picker>
+        </view>
+      </view>
+      <view class="longterm-row">
+        <text>长期服用</text>
+        <switch checked="{{cycleDraftLong}}" color="#0EA5E9" bindchange="onLongTermChange"></switch>
+      </view>
+      <view class="cycle-tip {{cycleDraftLong ? 'cycle-tip-long' : ''}}">{{cycleDraftTip}}</view>
+      <view class="drawer-footer">
+        <view class="btn-cancel" catchtap="closeCycleDrawer">取消</view>
+        <view class="btn-ok" catchtap="confirmCycle">确定</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- ───── 备注抽屉 ───── -->
+  <view class="drawer-mask" wx:if="{{notesDrawerOpen}}" catchtap="closeNotesDrawer">
+    <view class="drawer" catchtap="noop">
+      <view class="drawer-title">备注</view>
+      <view class="notes-wrap">
+        <input
+          class="text-input"
+          placeholder="如:饭后服用,避免空腹刺激胃部"
+          value="{{notesDraft}}"
+          maxlength="30"
+          focus="{{notesDrawerOpen}}"
+          bindinput="onNotesInput"
+        />
+        <text class="notes-count">{{notesDraft.length}}/30</text>
+      </view>
+      <view class="drawer-footer">
+        <view class="btn-cancel" catchtap="closeNotesDrawer">取消</view>
+        <view class="btn-ok" catchtap="confirmNotes">确定</view>
+      </view>
+    </view>
   </view>
 </view>

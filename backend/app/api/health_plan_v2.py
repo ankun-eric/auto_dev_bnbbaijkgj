@@ -93,6 +93,31 @@ def _compute_end_date(start_date: Optional[date], duration_days: Optional[int]) 
     return start_date + timedelta(days=duration_days - 1)
 
 
+# [PRD-MED-PLAN-OPTIM-V1 2026-05-17 R-09] 服用时机老枚举 → 新枚举映射兜底
+_TIMING_LEGACY_MAP = {
+    "早上": "饭前",
+    "中午": "饭后",
+    "下午": "饭后",
+    "晚上": "饭后",
+    "睡前": "睡前",
+    "morning": "饭前",
+    "noon": "饭后",
+    "afternoon": "饭后",
+    "evening": "饭后",
+    "bedtime": "睡前",
+}
+_TIMING_VALID = {"饭前", "饭后", "空腹", "随餐", "睡前"}
+
+
+def _migrate_timing(raw: Optional[str]) -> Optional[str]:
+    """读时兜底：将服用时机老枚举映射到新枚举（饭前/饭后/空腹/随餐/睡前）。"""
+    if not raw:
+        return raw
+    if raw in _TIMING_VALID:
+        return raw
+    return _TIMING_LEGACY_MAP.get(raw, raw)
+
+
 @router.post("/medications", response_model=MedicationReminderResponse)
 async def create_medication(
     data: MedicationReminderCreate,
@@ -101,6 +126,10 @@ async def create_medication(
 ):
     payload = data.model_dump(exclude_unset=True)
     drug_name = payload.get("medicine_name") or ""
+
+    # [PRD-MED-PLAN-OPTIM-V1 R-09] 服用时机老枚举入参兜底迁移
+    if "guidance" in payload:
+        payload["guidance"] = _migrate_timing(payload.get("guidance"))
 
     # [PRD-MED-PLAN-V1] 同名药品去重：不允许同时存在两条「进行中」
     existing = await _find_active_same_name(db, current_user.id, drug_name)
@@ -118,10 +147,13 @@ async def create_medication(
     # [PRD-MED-PLAN-V1] 服用周期自动计算 end_date
     start_d = payload.get("start_date")
     duration = payload.get("duration_days")
-    if start_d and duration and not payload.get("long_term") and not payload.get("end_date"):
-        payload["end_date"] = _compute_end_date(start_d, duration)
-    # 默认开始日期 = 今天，默认天数 = 5
-    if not payload.get("long_term"):
+    if payload.get("long_term"):
+        # [PRD-MED-PLAN-OPTIM-V1 R-03] 长期服用时 end_date 必须为 null
+        payload["end_date"] = None
+    else:
+        if start_d and duration and not payload.get("end_date"):
+            payload["end_date"] = _compute_end_date(start_d, duration)
+        # 默认开始日期 = 今天，默认天数 = 5
         if start_d is None:
             payload["start_date"] = date.today()
         if duration is None and not payload.get("end_date"):
@@ -341,7 +373,8 @@ async def list_medications_flat(
             # [PRD-MED-PLAN-V1] 新结构化字段
             "dosage_value": r.dosage_value,
             "dosage_unit": r.dosage_unit,
-            "guidance": r.guidance,
+            # [PRD-MED-PLAN-OPTIM-V1 R-09] 服用时机读时兜底
+            "guidance": _migrate_timing(r.guidance),
             # [PRD-MED-PLAN-V1] 标记：列表卡片是否显示电话图标
             "ai_call_badge": ai_call_badge,
             "is_ongoing": is_ongoing,
@@ -388,7 +421,9 @@ async def get_medication_detail(
     reminder = result.scalar_one_or_none()
     if not reminder:
         raise HTTPException(status_code=404, detail="用药提醒不存在")
+    # [PRD-MED-PLAN-OPTIM-V1 R-09] 服用时机读时兜底
     resp = MedicationReminderResponse.model_validate(reminder)
+    resp.guidance = _migrate_timing(resp.guidance)
     today = date.today()
     checkin_result = await db.execute(
         select(MedicationCheckIn).where(
@@ -419,6 +454,9 @@ async def update_medication(
         raise HTTPException(status_code=404, detail="用药提醒不存在")
 
     payload = data.model_dump(exclude_unset=True)
+    # [PRD-MED-PLAN-OPTIM-V1 R-09] 服用时机老枚举入参兜底迁移
+    if "guidance" in payload:
+        payload["guidance"] = _migrate_timing(payload.get("guidance"))
     # [PRD-MED-PLAN-V1] 改名时要做同名「进行中」去重（排除自身）
     if "medicine_name" in payload and payload["medicine_name"]:
         existing = await _find_active_same_name(
@@ -438,8 +476,11 @@ async def update_medication(
     for field, value in payload.items():
         setattr(reminder, field, value)
 
-    # [PRD-MED-PLAN-V1] 周期重算
-    if not reminder.long_term:
+    # [PRD-MED-PLAN-OPTIM-V1 R-03] long_term=True 时强制清空 end_date
+    if reminder.long_term:
+        reminder.end_date = None
+    else:
+        # [PRD-MED-PLAN-V1] 周期重算
         sd = reminder.start_date
         dd = reminder.duration_days
         if sd and dd and ("duration_days" in payload or "start_date" in payload):
@@ -447,7 +488,9 @@ async def update_medication(
 
     await db.flush()
     await db.refresh(reminder)
-    return MedicationReminderResponse.model_validate(reminder)
+    resp = MedicationReminderResponse.model_validate(reminder)
+    resp.guidance = _migrate_timing(resp.guidance)
+    return resp
 
 
 @router.delete("/medications/{reminder_id}")
