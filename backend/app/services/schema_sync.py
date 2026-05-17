@@ -793,6 +793,27 @@ async def _sync_chat_function_button_fields(conn: AsyncConnection) -> None:
         await conn.execute(text(
             "ALTER TABLE chat_function_buttons ADD COLUMN is_capsule TINYINT(1) NULL DEFAULT 0"
         ))
+    # [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 5 个新字段（幂等）
+    if "grid_sort" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE chat_function_buttons ADD COLUMN grid_sort INT NULL DEFAULT 0"
+        ))
+    if "capsule_sort" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE chat_function_buttons ADD COLUMN capsule_sort INT NULL DEFAULT 0"
+        ))
+    if "ai_function_type" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE chat_function_buttons ADD COLUMN ai_function_type VARCHAR(40) NULL"
+        ))
+    if "ai_opening" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE chat_function_buttons ADD COLUMN ai_opening TEXT NULL"
+        ))
+    if "pre_card_for_navigate" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE chat_function_buttons ADD COLUMN pre_card_for_navigate TINYINT(1) NULL DEFAULT 0"
+        ))
 
 
 async def _sync_tcm_diagnosis_fields(conn: AsyncConnection) -> None:

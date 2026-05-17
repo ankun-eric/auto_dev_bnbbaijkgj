@@ -4,9 +4,12 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Table, Button, Space, Tag, Switch, Modal, Form, Input, Select,
-  InputNumber, Typography, message, Empty,
+  InputNumber, Typography, message, Empty, Tabs,
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SmileOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined, EditOutlined, DeleteOutlined, SmileOutlined,
+  VerticalAlignTopOutlined, ArrowUpOutlined, ArrowDownOutlined,
+} from '@ant-design/icons';
 import { get, post, put, del, patch } from '@/lib/api';
 // [AICHAT-OPTIM-FIX-V1 F-01 2026-05-14] 接入公共 EmojiPicker（与首页菜单管理同一套组件）
 import { EmojiPickerModal } from '@/components/EmojiPicker';
@@ -14,18 +17,36 @@ import { EmojiPickerModal } from '@/components/EmojiPicker';
 const { Title } = Typography;
 const { TextArea } = Input;
 
-// [PRD-PROMPT-CONFIG-V1 2026-05-14] 按钮类型枚举（8 种，新增 report_interpret 报告解读专属类型）
-const BUTTON_TYPE_OPTIONS = [
-  { value: 'digital_human_call', label: '📞 数字人通话' },
-  { value: 'photo_upload', label: '📷 拍照上传（通用素材）' },
-  { value: 'file_upload', label: '📄 文件上传（通用素材）' },
-  { value: 'report_interpret', label: '🩺 报告解读（体检报告专属）' },
-  { value: 'photo_recognize_drug', label: '🔍 拍照识药' },
-  { value: 'ai_chat_trigger', label: '💬 AI对话触发' },
+// [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 主类型简化为两大类：页面跳转 / AI 功能
+const MAIN_TYPE_OPTIONS = [
+  { value: 'page_navigate', label: '🔗 页面跳转（外部链接 / 内部页面）' },
+  { value: 'ai_function', label: '🤖 AI 功能' },
+];
+
+// AI 功能 7 个子类型
+const AI_FUNCTION_TYPE_OPTIONS = [
+  { value: 'photo_upload', label: '📷 拍照上传' },
+  { value: 'file_upload', label: '📄 文件上传' },
+  { value: 'report_interpret', label: '🩺 报告解读' },
+  { value: 'medicine_recognize', label: '🔍 拍照识药' },
+  { value: 'ai_dialog_trigger', label: '💬 AI 对话触发' },
   { value: 'quick_ask', label: '⚡ 快捷提问' },
-  { value: 'external_link', label: '🔗 外部链接' },
-  // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 第 9 种类型：健康自查
-  { value: 'health_self_check', label: '🏥 健康自查（抽屉问卷）' },
+  { value: 'health_self_check', label: '🏥 健康自查 / 体质测评' },
+];
+
+// [PRD-PROMPT-CONFIG-V1 2026-05-14] 老 9 种枚举（保留下拉以兼容编辑老数据；
+// 新建/迁移后的按钮统一从 MAIN_TYPE_OPTIONS 选择）
+const BUTTON_TYPE_OPTIONS = [
+  ...MAIN_TYPE_OPTIONS,
+  { value: 'digital_human_call', label: '（兼容）📞 数字人通话' },
+  { value: 'photo_upload', label: '（兼容）📷 拍照上传' },
+  { value: 'file_upload', label: '（兼容）📄 文件上传' },
+  { value: 'report_interpret', label: '（兼容）🩺 报告解读' },
+  { value: 'photo_recognize_drug', label: '（兼容）🔍 拍照识药' },
+  { value: 'ai_chat_trigger', label: '（兼容）💬 AI对话触发' },
+  { value: 'quick_ask', label: '（兼容）⚡ 快捷提问' },
+  { value: 'external_link', label: '（兼容）🔗 外部链接' },
+  { value: 'health_self_check', label: '（兼容）🏥 健康自查（抽屉问卷）' },
 ];
 
 // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 未选档案策略
@@ -36,6 +57,10 @@ const ARCHIVE_MISSING_STRATEGY_OPTIONS = [
 ];
 
 const BUTTON_TYPE_MAP: Record<string, { label: string; color: string }> = {
+  // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 新两大类
+  page_navigate: { label: '页面跳转', color: 'geekblue' },
+  ai_function: { label: 'AI 功能', color: 'cyan' },
+  // ─── 老枚举（迁移期内仍然可能短暂出现，自动映射后会被覆盖） ───
   digital_human_call: { label: '数字人通话', color: 'blue' },
   photo_upload: { label: '拍照上传', color: 'green' },
   file_upload: { label: '文件上传', color: 'orange' },
@@ -48,6 +73,16 @@ const BUTTON_TYPE_MAP: Record<string, { label: string; color: string }> = {
   // 兼容旧值
   ai_dialog_trigger: { label: 'AI对话触发(旧)', color: 'purple' },
   drug_identify: { label: '拍照识药(旧)', color: 'cyan' },
+};
+
+const AI_FUNCTION_TYPE_LABEL: Record<string, string> = {
+  photo_upload: '拍照上传',
+  file_upload: '文件上传',
+  report_interpret: '报告解读',
+  medicine_recognize: '拍照识药',
+  ai_dialog_trigger: 'AI 对话触发',
+  quick_ask: '快捷提问',
+  health_self_check: '健康自查',
 };
 
 // 需要关联 Prompt 模板的按钮类型（PRD §3.2 + PRD-PROMPT-CONFIG-V1）
@@ -71,6 +106,12 @@ interface FunctionButton {
   // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 两个独立开关：是否推荐 / 是否胶囊
   is_recommended?: boolean;
   is_capsule?: boolean;
+  // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 5 个新字段
+  grid_sort?: number;
+  capsule_sort?: number;
+  ai_function_type?: string | null;
+  ai_opening?: string | null;
+  pre_card_for_navigate?: boolean | null;
   params: any;
   // [AI对话模式优化 PRD v1.0] 8 个新字段
   prompt_template_id?: number | null;
@@ -115,10 +156,15 @@ export default function FunctionButtonsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
+  // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 视图类型：grid / capsule / all
+  const [viewType, setViewType] = useState<'grid' | 'capsule' | 'all'>('grid');
   const [form] = Form.useForm();
   const watchedButtonType = Form.useWatch('button_type', form);
   const watchedName = Form.useWatch('name', form);
   const watchedIcon = Form.useWatch('icon', form);
+  // [PRD-AICHAT-FUNCBTN-OPTIM-V1] 新增：监听 ai_function_type 与 pre_card_for_navigate 用于条件渲染
+  const watchedAiFunctionType = Form.useWatch('ai_function_type', form);
+  const watchedPreCardForNavigate = Form.useWatch('pre_card_for_navigate', form);
   const [promptOptions, setPromptOptions] = useState<PromptTemplateOption[]>([]);
   // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查问卷模板下拉数据
   const [healthCheckTemplates, setHealthCheckTemplates] = useState<HealthCheckTemplateOption[]>([]);
@@ -191,7 +237,12 @@ export default function FunctionButtonsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await get<any>('/api/admin/function-buttons', { page, page_size: pageSize });
+      // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] view_type 参数：grid / capsule / all
+      const params: Record<string, any> = { page, page_size: pageSize };
+      if (viewType !== 'all') {
+        params.view_type = viewType;
+      }
+      const res = await get<any>('/api/admin/function-buttons', params);
       if (Array.isArray(res)) {
         setItems(res);
         setTotal(res.length);
@@ -204,7 +255,7 @@ export default function FunctionButtonsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize]);
+  }, [page, pageSize, viewType]);
 
   useEffect(() => {
     fetchData();
@@ -229,6 +280,10 @@ export default function FunctionButtonsPage() {
         // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 两个独立开关回填（无值时按 false）
         is_recommended: !!record.is_recommended,
         is_capsule: !!record.is_capsule,
+        // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 新字段回填
+        ai_function_type: record.ai_function_type || undefined,
+        ai_opening: record.ai_opening || '',
+        pre_card_for_navigate: !!record.pre_card_for_navigate,
         params: record.params
           ? (typeof record.params === 'string' ? record.params : JSON.stringify(record.params, null, 2))
           : '',
@@ -311,6 +366,10 @@ export default function FunctionButtonsPage() {
         // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 两个独立开关
         is_recommended: !!values.is_recommended,
         is_capsule: !!values.is_capsule,
+        // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 5 个新字段
+        ai_function_type: values.button_type === 'ai_function' ? (values.ai_function_type || null) : null,
+        ai_opening: (values.ai_opening || '').trim() || null,
+        pre_card_for_navigate: values.button_type === 'page_navigate' ? !!values.pre_card_for_navigate : false,
         params: finalParams,
         // [AI对话模式优化 PRD v1.0] 8 个新字段（按类型条件传）
         prompt_template_id: PROMPT_TEMPLATE_REQUIRED_TYPES.has(values.button_type)
@@ -406,20 +465,44 @@ export default function FunctionButtonsPage() {
     }
   };
 
+  // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 单按钮原子排序操作：置顶 / 上移 / 下移
+  const handleSortAction = async (record: FunctionButton, action: 'top' | 'up' | 'down') => {
+    if (viewType === 'all') {
+      message.warning('请先切换到"宫格视图"或"胶囊视图"再调整排序');
+      return;
+    }
+    try {
+      await post('/api/admin/function-buttons/sort-action', {
+        id: record.id,
+        view_type: viewType,
+        action,
+      });
+      message.success(action === 'top' ? '已置顶' : action === 'up' ? '已上移' : '已下移');
+      fetchData();
+    } catch (e: any) {
+      message.error(e?.response?.data?.detail || '排序失败');
+    }
+  };
+
   const columns = [
+    // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 排序值列：根据当前 viewType 显示对应排序值
     {
-      title: '排序权重',
-      dataIndex: 'sort_weight',
-      key: 'sort_weight',
-      width: 100,
-      sorter: (a: FunctionButton, b: FunctionButton) => a.sort_weight - b.sort_weight,
+      title: viewType === 'capsule' ? '胶囊排序' : viewType === 'grid' ? '宫格排序' : '排序权重',
+      dataIndex: viewType === 'capsule' ? 'capsule_sort' : viewType === 'grid' ? 'grid_sort' : 'sort_weight',
+      key: 'sort_value',
+      width: 90,
+      render: (val: any, record: FunctionButton) => {
+        if (viewType === 'capsule') return record.capsule_sort ?? '-';
+        if (viewType === 'grid') return record.grid_sort ?? '-';
+        return record.sort_weight ?? '-';
+      },
     },
     {
       title: '图标',
       // [AICHAT-OPTIM-FIX-V1 F-01] 图标列改为显示 Emoji 字符（24px 字号）
       dataIndex: 'icon',
       key: 'icon',
-      width: 80,
+      width: 70,
       render: (val: string, record: FunctionButton) => {
         // 优先 icon 字段；为空时兜底使用 📌
         const emoji = val || record.icon || '📌';
@@ -430,16 +513,27 @@ export default function FunctionButtonsPage() {
       title: '按钮名称',
       dataIndex: 'name',
       key: 'name',
-      width: 140,
+      width: 130,
     },
     {
       title: '按钮类型',
       dataIndex: 'button_type',
       key: 'button_type',
       width: 130,
-      render: (val: string) => {
+      render: (val: string, record: FunctionButton) => {
         const info = BUTTON_TYPE_MAP[val];
-        return info ? <Tag color={info.color}>{info.label}</Tag> : <Tag>{val}</Tag>;
+        const main = info ? <Tag color={info.color}>{info.label}</Tag> : <Tag>{val}</Tag>;
+        // ai_function 显示子类型小标签
+        if (val === 'ai_function' && record.ai_function_type) {
+          const sub = AI_FUNCTION_TYPE_LABEL[record.ai_function_type] || record.ai_function_type;
+          return (
+            <Space size={4} wrap>
+              {main}
+              <Tag color="blue">{sub}</Tag>
+            </Space>
+          );
+        }
+        return main;
       },
     },
     // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 删除"启用状态"列，替换为"是否推荐"+"是否胶囊"两列
@@ -474,9 +568,39 @@ export default function FunctionButtonsPage() {
     {
       title: '操作',
       key: 'action',
-      width: 140,
-      render: (_: any, record: FunctionButton) => (
-        <Space>
+      width: 280,
+      render: (_: any, record: FunctionButton, index: number) => (
+        <Space size={4} wrap>
+          {/* [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 排序按钮：仅在 grid/capsule 视图显示 */}
+          {viewType !== 'all' && (
+            <>
+              <Button
+                type="link"
+                size="small"
+                icon={<VerticalAlignTopOutlined />}
+                onClick={() => handleSortAction(record, 'top')}
+                title="置顶"
+              >
+                置顶
+              </Button>
+              <Button
+                type="link"
+                size="small"
+                icon={<ArrowUpOutlined />}
+                disabled={index === 0}
+                onClick={() => handleSortAction(record, 'up')}
+                title="上移"
+              />
+              <Button
+                type="link"
+                size="small"
+                icon={<ArrowDownOutlined />}
+                disabled={index === items.length - 1}
+                onClick={() => handleSortAction(record, 'down')}
+                title="下移"
+              />
+            </>
+          )}
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleOpenModal(record)}>
             编辑
           </Button>
@@ -490,7 +614,20 @@ export default function FunctionButtonsPage() {
 
   return (
     <div>
-      <Title level={4} style={{ marginBottom: 24 }}>功能按钮管理</Title>
+      <Title level={4} style={{ marginBottom: 16 }}>功能按钮管理</Title>
+      {/* [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] Tab 视图切换：宫格 / 胶囊 / 全部 */}
+      <Tabs
+        activeKey={viewType}
+        onChange={(k) => {
+          setViewType(k as 'grid' | 'capsule' | 'all');
+          setPage(1);
+        }}
+        items={[
+          { key: 'grid', label: '宫格视图（按 grid_sort 升序）' },
+          { key: 'capsule', label: '胶囊视图（按 capsule_sort 升序）' },
+          { key: 'all', label: '全部按钮' },
+        ]}
+      />
       <div style={{ marginBottom: 16 }}>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenModal()}>
           新增按钮
@@ -573,9 +710,55 @@ export default function FunctionButtonsPage() {
             label="按钮类型"
             name="button_type"
             rules={[{ required: true, message: '请选择按钮类型' }]}
+            extra="新建按钮请优先选「页面跳转」或「AI 功能」两大类；下方括号「兼容」标记的为老类型，仅供回看老数据。"
           >
             <Select placeholder="请选择按钮类型" options={BUTTON_TYPE_OPTIONS} />
           </Form.Item>
+
+          {/* [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] AI 功能子类型 */}
+          {watchedButtonType === 'ai_function' && (
+            <Form.Item
+              label="AI 功能子类型"
+              name="ai_function_type"
+              rules={[{ required: true, message: '请选择 AI 功能子类型' }]}
+            >
+              <Select placeholder="请选择 AI 功能子类型" options={AI_FUNCTION_TYPE_OPTIONS} />
+            </Form.Item>
+          )}
+
+          {/* [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 页面跳转：地址 + 先弹卡片再跳转开关 */}
+          {watchedButtonType === 'page_navigate' && (
+            <>
+              <Form.Item
+                label="跳转地址"
+                name="external_url"
+                rules={[
+                  { required: true, message: '请输入跳转地址' },
+                  {
+                    validator: (_, v) => {
+                      if (!v) return Promise.resolve();
+                      const s = String(v).trim();
+                      if (s.startsWith('http://') || s.startsWith('https://') || s.startsWith('/') || s.startsWith('pages/')) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error('地址必须以 http(s):// 或 / 或 pages/ 开头'));
+                    },
+                  },
+                ]}
+                extra="http(s):// 开头视为外部链接；/ 或 pages/ 开头视为内部页面"
+              >
+                <Input placeholder="例：https://example.com  或  /services  或  pages/index/index" />
+              </Form.Item>
+              <Form.Item
+                label="先弹卡片再跳转"
+                name="pre_card_for_navigate"
+                valuePropName="checked"
+                extra="开启后，点击按钮先在对话区弹出引导卡片，用户点卡片按钮再跳转。常用于风险提示 / 二次确认。"
+              >
+                <Switch checkedChildren="开" unCheckedChildren="关" />
+              </Form.Item>
+            </>
+          )}
           {/* [PRD-AICHAT-CAPSULE-V2 2026-05-15] 拍照识药保留拍照参数，但不再有「AI 回复模式」字段；
               AI 行为统一由下方「关联 Prompt 模板」承载（系统内置 3 个识药模板可选） */}
           {(watchedButtonType === 'photo_recognize_drug' || watchedButtonType === 'drug_identify') && (
@@ -740,6 +923,17 @@ export default function FunctionButtonsPage() {
           >
             <Input placeholder="卡片头部主标题（健康自查类型可留空）" maxLength={50} />
           </Form.Item>
+          {/* [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] AI 开场白：可留空 */}
+          {(watchedButtonType === 'ai_function' ||
+            (watchedButtonType === 'page_navigate' && watchedPreCardForNavigate)) && (
+            <Form.Item
+              label="AI 开场白"
+              name="ai_opening"
+              extra="可留空。非空时点击按钮后 AI 先冒一句话，再弹出操作卡片。例：好的，我们一起来识别一下您手上的药品~"
+            >
+              <TextArea rows={2} placeholder="留空则跳过开场白直接弹卡片" maxLength={300} showCount />
+            </Form.Item>
+          )}
           <Form.Item label="卡片副标题" name="card_subtitle">
             <Input placeholder="卡片头部副标题（可选）" maxLength={100} />
           </Form.Item>

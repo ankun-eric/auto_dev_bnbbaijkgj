@@ -24,6 +24,8 @@ from app.models.models import (
 )
 from app.schemas.function_button import (
     ALLOWED_BUTTON_TYPES,
+    ALLOWED_AI_FUNCTION_TYPES,
+    ButtonSortActionRequest,
     ButtonSortRequest,
     ChatFunctionButtonCreate,
     ChatFunctionButtonResponse,
@@ -65,10 +67,21 @@ async def get_function_buttons(
 
     stmt = select(ChatFunctionButton)
     pos = (position or "").lower()
+    # [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 按 view_type 选择独立排序字段（grid_sort / capsule_sort）
     if pos == "grid":
         stmt = stmt.where(ChatFunctionButton.is_recommended == True)  # noqa: E712
+        stmt = stmt.order_by(
+            ChatFunctionButton.grid_sort.asc().nulls_last(),
+            ChatFunctionButton.sort_weight.asc(),
+            ChatFunctionButton.id.asc(),
+        )
     elif pos == "capsule":
         stmt = stmt.where(ChatFunctionButton.is_capsule == True)  # noqa: E712
+        stmt = stmt.order_by(
+            ChatFunctionButton.capsule_sort.asc().nulls_last(),
+            ChatFunctionButton.sort_weight.asc(),
+            ChatFunctionButton.id.asc(),
+        )
     else:
         stmt = stmt.where(
             or_(
@@ -76,7 +89,7 @@ async def get_function_buttons(
                 ChatFunctionButton.is_capsule == True,  # noqa: E712
             )
         )
-    stmt = stmt.order_by(ChatFunctionButton.sort_weight.asc(), ChatFunctionButton.id.asc())
+        stmt = stmt.order_by(ChatFunctionButton.sort_weight.asc(), ChatFunctionButton.id.asc())
     result = await db.execute(stmt)
     return [ChatFunctionButtonResponse.model_validate(b) for b in result.scalars().all()]
 
@@ -101,8 +114,8 @@ async def get_public_function_buttons(
 ):
     """[PRD-AICHAT-HOME-GRID-V1 2026-05-16] 公开接口
 
-    - position=grid    -> 仅 is_recommended=true
-    - position=capsule -> 仅 is_capsule=true
+    - position=grid    -> 仅 is_recommended=true（按 grid_sort 升序）
+    - position=capsule -> 仅 is_capsule=true（按 capsule_sort 升序）
     - 不传 position    -> is_recommended=true OR is_capsule=true（前端按字段过滤）
 
     任何位置下都不返回两个开关均关闭的按钮（等同旧的"未启用"）。
@@ -113,8 +126,18 @@ async def get_public_function_buttons(
     pos = (position or "").lower()
     if pos == "grid":
         stmt = stmt.where(ChatFunctionButton.is_recommended == True)  # noqa: E712
+        stmt = stmt.order_by(
+            ChatFunctionButton.grid_sort.asc().nulls_last(),
+            ChatFunctionButton.sort_weight.asc(),
+            ChatFunctionButton.id.asc(),
+        )
     elif pos == "capsule":
         stmt = stmt.where(ChatFunctionButton.is_capsule == True)  # noqa: E712
+        stmt = stmt.order_by(
+            ChatFunctionButton.capsule_sort.asc().nulls_last(),
+            ChatFunctionButton.sort_weight.asc(),
+            ChatFunctionButton.id.asc(),
+        )
     else:
         stmt = stmt.where(
             or_(
@@ -122,7 +145,7 @@ async def get_public_function_buttons(
                 ChatFunctionButton.is_capsule == True,  # noqa: E712
             )
         )
-    stmt = stmt.order_by(ChatFunctionButton.sort_weight.asc(), ChatFunctionButton.id.asc())
+        stmt = stmt.order_by(ChatFunctionButton.sort_weight.asc(), ChatFunctionButton.id.asc())
     result = await db.execute(stmt)
     return [ChatFunctionButtonResponse.model_validate(b) for b in result.scalars().all()]
 
@@ -307,28 +330,95 @@ async def get_vad_config(db: AsyncSession = Depends(get_db)):
 async def admin_list_buttons(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    view_type: Optional[str] = Query(
+        None,
+        description="[PRD-AICHAT-FUNCBTN-OPTIM-V1] 视图类型：grid（仅 is_recommended=true，按 grid_sort 升序）/ capsule（仅 is_capsule=true，按 capsule_sort 升序）/ 不传：返回全部按 sort_weight 升序",
+    ),
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
-    count_result = await db.execute(select(func.count(ChatFunctionButton.id)))
+    """[PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 后台列表接口扩展
+
+    - view_type=grid    : 仅 is_recommended=true 的按钮，按 grid_sort 升序
+    - view_type=capsule : 仅 is_capsule=true 的按钮，按 capsule_sort 升序
+    - 不传              : 全量按钮，按 sort_weight 升序（旧行为）
+    """
+    vt = (view_type or "").lower()
+    base_stmt = select(ChatFunctionButton)
+    count_stmt = select(func.count(ChatFunctionButton.id))
+
+    if vt == "grid":
+        base_stmt = base_stmt.where(ChatFunctionButton.is_recommended == True)  # noqa: E712
+        count_stmt = count_stmt.where(ChatFunctionButton.is_recommended == True)  # noqa: E712
+        base_stmt = base_stmt.order_by(
+            ChatFunctionButton.grid_sort.asc().nulls_last(),
+            ChatFunctionButton.id.asc(),
+        )
+    elif vt == "capsule":
+        base_stmt = base_stmt.where(ChatFunctionButton.is_capsule == True)  # noqa: E712
+        count_stmt = count_stmt.where(ChatFunctionButton.is_capsule == True)  # noqa: E712
+        base_stmt = base_stmt.order_by(
+            ChatFunctionButton.capsule_sort.asc().nulls_last(),
+            ChatFunctionButton.id.asc(),
+        )
+    else:
+        base_stmt = base_stmt.order_by(ChatFunctionButton.sort_weight.asc())
+
+    count_result = await db.execute(count_stmt)
     total = count_result.scalar() or 0
 
     result = await db.execute(
-        select(ChatFunctionButton)
-        .order_by(ChatFunctionButton.sort_weight.asc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
+        base_stmt.offset((page - 1) * page_size).limit(page_size)
     )
     items = [ChatFunctionButtonResponse.model_validate(b) for b in result.scalars().all()]
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
 def _validate_button_type(btn_type: Optional[str]) -> None:
-    """[AI对话模式优化 PRD v1.0] 校验按钮类型属于 8 种枚举之一。"""
+    """[AI对话模式优化 PRD v1.0] 校验按钮类型属于允许集合。
+
+    [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 加入 page_navigate / ai_function 两大类。
+    """
     if btn_type is not None and btn_type not in ALLOWED_BUTTON_TYPES:
         raise HTTPException(
             status_code=400,
             detail=f"按钮类型 button_type 取值不合法：{btn_type}，允许值：{sorted(ALLOWED_BUTTON_TYPES)}",
+        )
+
+
+def _validate_ai_function_type(btn_type: Optional[str], ai_func_type: Optional[str]) -> None:
+    """[PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 校验 AI 功能子类型。
+
+    - 当 button_type=ai_function 时，ai_function_type 必须是允许子类型集合之一
+    - 其它主类型则忽略 ai_function_type
+    """
+    if btn_type == "ai_function":
+        if not ai_func_type:
+            raise HTTPException(
+                status_code=400,
+                detail="按钮类型为 ai_function 时必须指定 ai_function_type",
+            )
+        if ai_func_type not in ALLOWED_AI_FUNCTION_TYPES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"ai_function_type 取值不合法：{ai_func_type}，允许值：{sorted(ALLOWED_AI_FUNCTION_TYPES)}",
+            )
+
+
+def _validate_navigate_url(btn_type: Optional[str], external_url: Optional[str]) -> None:
+    """[PRD-AICHAT-FUNCBTN-OPTIM-V1] 页面跳转地址校验：必须 http(s):// 或 / 开头。
+
+    仅当 button_type=page_navigate 且 external_url 非空时才校验，避免对老类型误伤。
+    """
+    if btn_type != "page_navigate":
+        return
+    if not external_url:
+        return
+    s = (external_url or "").strip()
+    if not (s.startswith("http://") or s.startswith("https://") or s.startswith("/") or s.startswith("pages/")):
+        raise HTTPException(
+            status_code=400,
+            detail="页面跳转地址必须以 http(s):// 或 / 或 pages/ 开头",
         )
 
 
@@ -374,6 +464,8 @@ async def admin_create_button(
     db: AsyncSession = Depends(get_db),
 ):
     _validate_button_type(data.button_type)
+    _validate_ai_function_type(data.button_type, data.ai_function_type)
+    _validate_navigate_url(data.button_type, data.external_url)
     await _validate_button_prompt_binding(db, data.button_type, data.prompt_template_id)
     btn = ChatFunctionButton(**data.model_dump())
     db.add(btn)
@@ -401,6 +493,10 @@ async def admin_update_button(
     updates = data.model_dump(exclude_unset=True)
     effective_btn_type = updates.get("button_type", btn.button_type)
     effective_pt_id = updates.get("prompt_template_id", btn.prompt_template_id)
+    effective_ai_fn_type = updates.get("ai_function_type", btn.ai_function_type)
+    effective_external_url = updates.get("external_url", btn.external_url)
+    _validate_ai_function_type(effective_btn_type, effective_ai_fn_type)
+    _validate_navigate_url(effective_btn_type, effective_external_url)
     await _validate_button_prompt_binding(db, effective_btn_type, effective_pt_id)
     for field, value in updates.items():
         setattr(btn, field, value)
@@ -483,6 +579,74 @@ async def admin_sort_buttons(
             btn.sort_weight = item.sort_weight
     await db.flush()
     return {"message": "排序更新成功"}
+
+
+# [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 单按钮原子排序操作（置顶/上移/下移）
+@admin_router.post("/function-buttons/sort-action")
+async def admin_sort_button_action(
+    data: ButtonSortActionRequest,
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """对单个按钮在指定视图（grid/capsule）执行 top/up/down 排序操作。
+
+    实现策略：
+      - 先按 view_type 过滤出所属视图的全部按钮列表（按对应 *_sort 升序）
+      - 在内存里调整目标按钮的位置（置顶 / 上移 / 下移）
+      - 然后把整个视图重排为 1,2,3,... 写回数据库（避免 NULL / 同值问题）
+    """
+    vt = (data.view_type or "").lower()
+    if vt not in ("grid", "capsule"):
+        raise HTTPException(status_code=400, detail="view_type 只能是 grid 或 capsule")
+    if data.action not in ("top", "up", "down"):
+        raise HTTPException(status_code=400, detail="action 只能是 top / up / down")
+
+    if vt == "grid":
+        flag_col = ChatFunctionButton.is_recommended
+        sort_col = ChatFunctionButton.grid_sort
+    else:
+        flag_col = ChatFunctionButton.is_capsule
+        sort_col = ChatFunctionButton.capsule_sort
+
+    res = await db.execute(
+        select(ChatFunctionButton)
+        .where(flag_col == True)  # noqa: E712
+        .order_by(sort_col.asc().nulls_last(), ChatFunctionButton.id.asc())
+    )
+    rows = list(res.scalars().all())
+    ids = [r.id for r in rows]
+    try:
+        idx = ids.index(data.id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="该按钮不在当前视图（请先在编辑里开启对应开关）")
+
+    if data.action == "top":
+        if idx > 0:
+            target = rows.pop(idx)
+            rows.insert(0, target)
+    elif data.action == "up":
+        if idx > 0:
+            rows[idx - 1], rows[idx] = rows[idx], rows[idx - 1]
+        else:
+            raise HTTPException(status_code=400, detail="已经是第一行，无法上移")
+    elif data.action == "down":
+        if idx < len(rows) - 1:
+            rows[idx], rows[idx + 1] = rows[idx + 1], rows[idx]
+        else:
+            raise HTTPException(status_code=400, detail="已经是最后一行，无法下移")
+
+    # 重排序号 1..N 写回
+    for i, btn in enumerate(rows, start=1):
+        if vt == "grid":
+            btn.grid_sort = i
+        else:
+            btn.capsule_sort = i
+    await db.flush()
+    return {
+        "message": "排序更新成功",
+        "view_type": vt,
+        "ordered_ids": [b.id for b in rows],
+    }
 
 
 @admin_router.get("/digital-humans")

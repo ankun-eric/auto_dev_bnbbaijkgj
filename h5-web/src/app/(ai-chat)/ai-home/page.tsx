@@ -162,6 +162,12 @@ interface FunctionButton {
   // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 两个独立开关：是否推荐 / 是否胶囊
   is_recommended?: boolean;
   is_capsule?: boolean;
+  // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 5 个新字段
+  grid_sort?: number;
+  capsule_sort?: number;
+  ai_function_type?: string | null;
+  ai_opening?: string | null;
+  pre_card_for_navigate?: boolean | null;
 }
 
 // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] AI 对话首页功能宫格专属 5 色循环配色池（去玫红版方案 A）
@@ -1240,6 +1246,13 @@ export default function AiHomePage() {
    */
   const handleCapsuleByType = useCallback((btn: FunctionButton) => {
     const type = btn.button_type;
+    // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 新两大类与宫格保持完全一致行为
+    //   - page_navigate：按 pre_card_for_navigate 决定直接跳还是先弹卡片
+    //   - ai_function ：先 ai_opening（如有）→ 弹卡片
+    if (type === 'page_navigate' || type === 'ai_function') {
+      handleFunctionButtonClick(btn);
+      return;
+    }
     // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查类型：唤起抽屉
     if (type === 'health_self_check') {
       const strategy = btn.archive_missing_strategy || 'use_default';
@@ -1817,7 +1830,10 @@ export default function AiHomePage() {
     try {
       // [BUG-FIX 2026-05-16] health_self_check 类型：与胶囊行为完全一致，直接弹出健康自查抽屉
       // 修复前：宫格分发漏掉本分支，落入兜底逻辑被当成"导航卡片"渲染，导致点击无反应
-      if (btn.button_type === 'health_self_check') {
+      // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 兼容新主类型 ai_function + ai_function_type=health_self_check
+      const isHealthSelfCheck = btn.button_type === 'health_self_check' ||
+        (btn.button_type === 'ai_function' && btn.ai_function_type === 'health_self_check');
+      if (isHealthSelfCheck) {
         const strategy = btn.archive_missing_strategy || 'use_default';
         if (!selectedConsultant && strategy === 'force_toast') {
           Toast.show({ content: '请先在顶部选择咨询档案' });
@@ -1829,7 +1845,22 @@ export default function AiHomePage() {
         return;
       }
 
-      const cardType: ChatCardType = resolveCardType(btn.button_type);
+      // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] page_navigate 主类型：按 pre_card_for_navigate 决定行为
+      //   - 开关关闭（默认）：直接跳转 external_url（保持原行为）
+      //   - 开关开启：先弹卡片，让用户点卡片按钮再跳转（详见下方 navigate 卡片渲染）
+      if (btn.button_type === 'page_navigate' && !btn.pre_card_for_navigate) {
+        const url = (btn.external_url || '').trim();
+        if (url.startsWith('http')) {
+          window.location.href = url;
+          return;
+        } else if (url.startsWith('/') || url.startsWith('pages/')) {
+          router.push(url.startsWith('/') ? url : `/${url}`);
+          return;
+        }
+        // 没有合法 url 时退化为弹卡片
+      }
+
+      const cardType: ChatCardType = resolveCardType(btn.button_type, btn.ai_function_type);
 
       // quick_ask 类型：直接以 preset_prompt（或 auto_user_message）作为用户消息发送
       if (cardType === 'quick_ask') {
@@ -1841,8 +1872,9 @@ export default function AiHomePage() {
         return;
       }
 
-      // navigate 类型 + external_url 存在：直接跳转
-      if (cardType === 'navigate' && btn.external_url) {
+      // 老 navigate 类型 + external_url 存在：直接跳转（兼容老枚举）
+      if (cardType === 'navigate' && btn.button_type !== 'page_navigate' &&
+          btn.button_type !== 'ai_function' && btn.external_url) {
         const url = btn.external_url.trim();
         if (url.startsWith('http')) {
           window.location.href = url;
@@ -1853,7 +1885,20 @@ export default function AiHomePage() {
         }
       }
 
-      // 其余情况（upload / sdk_call / navigate 无 url）→ 在对话流插入卡片消息
+      // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] AI 开场白：如果按钮配置了 ai_opening，
+      // 在弹卡片之前先在对话区插入一条 AI 文本气泡（assistant 角色）
+      const aiOpening = (btn.ai_opening || '').trim();
+      if (aiOpening) {
+        const openingMsg: ChatMessage = {
+          id: `opening-${Date.now()}-${btn.id}`,
+          role: 'assistant',
+          content: aiOpening,
+          time: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, openingMsg]);
+      }
+
+      // 其余情况（upload / sdk_call / navigate 无 url 或 page_navigate+开关开）→ 在对话流插入卡片消息
       const cardContent = JSON.stringify({
         kind: 'ai-chat-card',
         cardType,
@@ -1871,6 +1916,10 @@ export default function AiHomePage() {
           card_subtitle: btn.card_subtitle,
           card_cover_image: btn.card_cover_image,
           button_sub_desc: btn.button_sub_desc,
+          // [PRD-AICHAT-FUNCBTN-OPTIM-V1] 新字段透传
+          ai_function_type: btn.ai_function_type,
+          ai_opening: btn.ai_opening,
+          pre_card_for_navigate: btn.pre_card_for_navigate,
         }),
       });
       const cardMsg: ChatMessage = {
@@ -2636,13 +2685,19 @@ export default function AiHomePage() {
   );
   const gridCols = 4;
 
+  // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 宫格按 grid_sort 升序，胶囊按 capsule_sort 升序
+  // 字段缺失时兜底到老 sort_weight，保证升级窗口期不乱序。
   const fnGridItems = funcButtons
     .slice()
     .filter((b) => {
       if (_hasNewSwitchFields) return !!b.is_recommended;
       return b.is_enabled !== false;
     })
-    .sort((a, b) => (a.sort_weight ?? 0) - (b.sort_weight ?? 0));
+    .sort((a, b) => {
+      const av = (a.grid_sort ?? a.sort_weight ?? 0);
+      const bv = (b.grid_sort ?? b.sort_weight ?? 0);
+      return av - bv;
+    });
 
   // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 胶囊条数据：按 is_capsule 过滤
   const capsuleButtons = funcButtons
@@ -2651,7 +2706,11 @@ export default function AiHomePage() {
       if (_hasNewSwitchFields) return !!b.is_capsule;
       return b.is_enabled !== false;
     })
-    .sort((a, b) => (a.sort_weight ?? 0) - (b.sort_weight ?? 0));
+    .sort((a, b) => {
+      const av = (a.capsule_sort ?? a.sort_weight ?? 0);
+      const bv = (b.capsule_sort ?? b.sort_weight ?? 0);
+      return av - bv;
+    });
 
   // 兜底：当 fnGridItems 为空且配置中有 items（或 FALLBACK 兜底），使用旧逻辑
   const configuredItems = (aiHomeConfig.func_grid?.items && aiHomeConfig.func_grid.items.length > 0)

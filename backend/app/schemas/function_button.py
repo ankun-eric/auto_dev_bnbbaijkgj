@@ -43,6 +43,8 @@ def _sanitize_text(v: Any) -> Any:
 
 # [AI对话模式优化 PRD v1.0] 7 种按钮类型枚举（应用层校验）
 # [PRD-PROMPT-CONFIG-V1 2026-05-14] 新增第 8 种：report_interpret（报告解读专属）
+# [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 新增 2 个新两大类：page_navigate / ai_function；
+# 老的 9 种枚举继续被允许（兼容存量数据，启动期由迁移脚本回填新主类型 + 子类型）
 ALLOWED_BUTTON_TYPES = {
     "digital_human_call",
     "photo_upload",
@@ -53,6 +55,20 @@ ALLOWED_BUTTON_TYPES = {
     "quick_ask",
     "report_interpret",
     # [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 第 9 种：健康自查
+    "health_self_check",
+    # [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 两大类合并主类型
+    "page_navigate",
+    "ai_function",
+}
+
+# [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] AI 功能子类型枚举
+ALLOWED_AI_FUNCTION_TYPES = {
+    "photo_upload",
+    "file_upload",
+    "report_interpret",
+    "medicine_recognize",
+    "ai_dialog_trigger",
+    "quick_ask",
     "health_self_check",
 }
 
@@ -71,6 +87,13 @@ class ChatFunctionButtonCreate(BaseModel):
     # [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 两个独立开关（新增按钮默认两个都 OFF）
     is_recommended: bool = False
     is_capsule: bool = False
+    # [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 宫格/胶囊独立排序值
+    grid_sort: Optional[int] = None
+    capsule_sort: Optional[int] = None
+    # [PRD-AICHAT-FUNCBTN-OPTIM-V1] AI 功能子类型 + AI 开场白 + 页面跳转先弹卡片开关
+    ai_function_type: Optional[str] = None
+    ai_opening: Optional[str] = None
+    pre_card_for_navigate: Optional[bool] = False
     params: Optional[dict] = None
     ai_reply_mode: Optional[str] = None
     photo_tip_text: Optional[str] = None
@@ -102,6 +125,12 @@ class ChatFunctionButtonUpdate(BaseModel):
     # [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 两个独立开关
     is_recommended: Optional[bool] = None
     is_capsule: Optional[bool] = None
+    # [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 宫格/胶囊独立排序值 + 子类型 + 开场白 + 跳转开关
+    grid_sort: Optional[int] = None
+    capsule_sort: Optional[int] = None
+    ai_function_type: Optional[str] = None
+    ai_opening: Optional[str] = None
+    pre_card_for_navigate: Optional[bool] = None
     params: Optional[dict] = None
     ai_reply_mode: Optional[str] = None
     photo_tip_text: Optional[str] = None
@@ -134,6 +163,12 @@ class ChatFunctionButtonResponse(BaseModel):
     # [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 两个独立开关
     is_recommended: bool = False
     is_capsule: bool = False
+    # [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 宫格/胶囊独立排序值 + 子类型 + 开场白 + 跳转开关
+    grid_sort: Optional[int] = 0
+    capsule_sort: Optional[int] = 0
+    ai_function_type: Optional[str] = None
+    ai_opening: Optional[str] = None
+    pre_card_for_navigate: Optional[bool] = False
     params: Optional[dict] = None
     ai_reply_mode: Optional[str] = None
     photo_tip_text: Optional[str] = None
@@ -273,6 +308,19 @@ class ButtonSortItem(BaseModel):
 
 class ButtonSortRequest(BaseModel):
     items: list[ButtonSortItem]
+
+
+# [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 单按钮原子排序操作
+class ButtonSortActionRequest(BaseModel):
+    """运营点击「置顶 / 上移 / 下移」时的请求体。
+
+    - id        : 被操作按钮 ID
+    - view_type : grid / capsule
+    - action    : top / up / down
+    """
+    id: int
+    view_type: str  # grid | capsule
+    action: str  # top | up | down
 
 
 # ──────────────── 图片识别请求 ────────────────

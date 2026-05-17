@@ -42,6 +42,13 @@ export interface ChatCardButton {
   presetPrompt?: string;
   /** 自动用户消息（点击后插入对话流的用户气泡文案） */
   autoUserMessage?: string;
+  // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 新字段透传：AI 开场白 / 子类型 / 跳转先弹卡片开关
+  /** AI 开场白：可留空。非空时，点击按钮后 AI 先冒一句话再弹卡片 */
+  aiOpening?: string;
+  /** AI 功能子类型（仅 button_type=ai_function 时生效） */
+  aiFunctionType?: string;
+  /** 页面跳转：是否先弹卡片再跳转（仅 button_type=page_navigate 时生效） */
+  preCardForNavigate?: boolean;
 }
 
 export interface ChatCardProps {
@@ -59,14 +66,19 @@ export interface ChatCardProps {
   onAction?: (subAction: string, payload?: any) => void;
 }
 
+// [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 卡片视觉规范（方案 A · 极简扁平 · 天空蓝）
+// 与 ai-home 主页同色系 #0EA5E9（替代旧靛紫色 #6366F1），实现视觉统一。
 const COLORS = {
-  bg: 'linear-gradient(135deg, #EEF2FF 0%, #F5F3FF 100%)',
-  border: '#E0E7FF',
-  primary: '#6366F1',
-  primaryDark: '#4F46E5',
-  textPrimary: '#1F2937',
-  textSecondary: '#6B7280',
+  bg: '#FFFFFF',                                  // 卡片背景：纯白
+  border: '#BAE6FD',                              // 1px 浅蓝描边
+  primary: '#0EA5E9',                             // 主色：天空蓝
+  primaryDark: '#0284C7',                         // hover/press
+  textPrimary: '#0F172A',                         // 标题字色
+  textSecondary: '#475569',                       // 说明字色
   disabled: '#D1D5DB',
+  // [PRD §3.5.1] 卡片阴影 + Emoji 头像底色
+  shadow: '0 2px 8px rgba(14, 165, 233, 0.08)',
+  emojiAvatarBg: 'rgba(14, 165, 233, 0.10)',
 };
 
 function CardShell({
@@ -84,6 +96,7 @@ function CardShell({
         borderRadius: 16,
         padding: 16,
         margin: '8px 0',
+        boxShadow: disabled ? 'none' : COLORS.shadow,
         opacity: disabled ? 0.6 : 1,
         pointerEvents: disabled ? 'none' : 'auto',
       }}
@@ -140,8 +153,8 @@ function CardHeader({ button }: { button: ChatCardButton }) {
             width: 40,
             height: 40,
             borderRadius: 8,
-            // 主题色 10% 透明度（#6366F1 → rgba(99,102,241,0.10)）
-            background: 'rgba(99, 102, 241, 0.10)',
+            // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 主题色 10% 透明度（天空蓝）
+            background: COLORS.emojiAvatarBg,
             color: COLORS.primaryDark,
             display: 'flex',
             alignItems: 'center',
@@ -428,21 +441,39 @@ export function ChatCard(props: ChatCardProps) {
  *   - quick_ask / prompt_template → quick_ask
  *   - ai_chat_trigger / ai_dialog_trigger → navigate（带卡片样式跳转）
  */
-export function resolveCardType(buttonType: string): ChatCardType {
+export function resolveCardType(buttonType: string, aiFunctionType?: string | null): ChatCardType {
+  // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 新两大类映射：
+  //   - page_navigate            -> navigate 卡片
+  //   - ai_function + 子类型      -> 按子类型派发（同老映射）
+  if (buttonType === 'page_navigate') return 'navigate';
+  if (buttonType === 'ai_function') {
+    switch (aiFunctionType || '') {
+      case 'photo_upload':
+      case 'file_upload':
+      case 'medicine_recognize':
+      case 'report_interpret':
+        return 'upload';
+      case 'quick_ask':
+        return 'quick_ask';
+      case 'ai_dialog_trigger':
+      case 'health_self_check':
+      default:
+        return 'navigate';
+    }
+  }
+  // ─── 老枚举 ───
   switch (buttonType) {
     case 'file_upload':
     case 'photo_upload':
     case 'photo_recognize_drug':
     case 'medication_recognize':
     case 'drug_identify':
-    // [PRD-PROMPT-CONFIG-V1 2026-05-14] 报告解读复用 upload 卡片（拍照/选相册/选文件三选一）
     case 'report_interpret':
       return 'upload';
     case 'external_link':
       return 'navigate';
     case 'ai_chat_trigger':
     case 'ai_dialog_trigger':
-      // PRD: ai_dialog_trigger 旧值兜底，作为带卡片的 navigate 渲染
       return 'navigate';
     case 'digital_human_call':
     case 'video_consult':
@@ -476,6 +507,12 @@ export interface BackendFunctionButton {
   card_subtitle?: string | null;
   card_cover_image?: string | null;
   button_sub_desc?: string | null;
+  // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 新字段
+  ai_function_type?: string | null;
+  ai_opening?: string | null;
+  pre_card_for_navigate?: boolean | null;
+  grid_sort?: number | null;
+  capsule_sort?: number | null;
 }
 
 export function backendButtonToCardButton(b: BackendFunctionButton): ChatCardButton {
@@ -484,8 +521,6 @@ export function backendButtonToCardButton(b: BackendFunctionButton): ChatCardBut
     buttonType: b.button_type,
     title: b.card_title || b.name || '',
     subtitle: b.card_subtitle || undefined,
-    // [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 2] 卡片头像不再使用 cover_url；
-    // 统一改用 Emoji（chat_function_buttons.icon）。coverImage 仅作为旧数据回退渲染（CardHeader 内部判断）。
     coverImage: b.card_cover_image || undefined,
     iconEmoji: (b as any).icon || undefined,
     buttonSubDesc: b.button_sub_desc || undefined,
@@ -493,6 +528,10 @@ export function backendButtonToCardButton(b: BackendFunctionButton): ChatCardBut
     externalUrl: b.external_url || undefined,
     presetPrompt: b.preset_prompt || undefined,
     autoUserMessage: b.auto_user_message || undefined,
+    // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 新字段透传
+    aiOpening: (b.ai_opening || '').trim() || undefined,
+    aiFunctionType: b.ai_function_type || undefined,
+    preCardForNavigate: !!b.pre_card_for_navigate,
   };
 }
 

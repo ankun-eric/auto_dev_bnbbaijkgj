@@ -2532,6 +2532,15 @@ class ChatFunctionButton(Base):
     is_enabled = mapped_column(Boolean, default=True)
     is_recommended = mapped_column(Boolean, default=False, nullable=True, comment="[PRD-AICHAT-HOME-GRID-V1] 是否在功能宫格显示（替代 is_enabled 在宫格侧的语义）")
     is_capsule = mapped_column(Boolean, default=False, nullable=True, comment="[PRD-AICHAT-HOME-GRID-V1] 是否在胶囊条显示（替代 is_enabled 在胶囊侧的语义）")
+    # [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 宫格 / 胶囊各自独立的排序值（升序，越小越靠前）
+    grid_sort = mapped_column(Integer, nullable=True, default=0, comment="宫格视图排序值（升序）")
+    capsule_sort = mapped_column(Integer, nullable=True, default=0, comment="胶囊视图排序值（升序）")
+    # [PRD-AICHAT-FUNCBTN-OPTIM-V1] AI 功能子类型（仅当 button_type=ai_function 时使用）
+    ai_function_type = mapped_column(String(40), nullable=True, comment="AI 功能子类型枚举：photo_upload/file_upload/report_interpret/medicine_recognize/ai_dialog_trigger/quick_ask/health_self_check")
+    # [PRD-AICHAT-FUNCBTN-OPTIM-V1] AI 开场白：可留空；非空时点击按钮先冒一句话再弹卡片
+    ai_opening = mapped_column(Text, nullable=True, comment="AI 开场白（留空则跳过开场白直接弹卡片）")
+    # [PRD-AICHAT-FUNCBTN-OPTIM-V1] 页面跳转类是否先弹卡片再跳转（默认 false 直接跳转）
+    pre_card_for_navigate = mapped_column(Boolean, nullable=True, default=False, comment="页面跳转类是否先弹卡片再跳转")
     params = mapped_column(JSON, nullable=True)
     ai_reply_mode = mapped_column(String(50), nullable=True, default="complete_analysis")
     photo_tip_text = mapped_column(String(500), nullable=True, default="请确保药品名称、品牌、规格完整，拍摄清晰")
