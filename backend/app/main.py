@@ -104,6 +104,7 @@ from app.api import (
     ai_call,
     medication_library_v3,
     medication_plans_v1,
+    medication_add_optim_v1,
 )
 from app.core.database import Base, engine
 from app.core.price_formatter import PriceFormattedJSONResponse
@@ -1948,6 +1949,8 @@ app.include_router(medication_library_v3.router)
 app.include_router(medication_library_v3.admin_router)
 # [PRD-MED-PLAN-ENTRY-V1 2026-05-17] ç¨è¯è®¡åå¥å£æ¹é 
 app.include_router(medication_plans_v1.router)
+# [PRD-MED-PLAN-ADD-OPTIM-V1 2026-05-17] 添加用药计划页面优化 - 药品名称联想 API
+app.include_router(medication_add_optim_v1.router)
 # [PRD-468 2026-05-12] 健康档案改版 v3
 app.include_router(health_profile_v3.router)
 
