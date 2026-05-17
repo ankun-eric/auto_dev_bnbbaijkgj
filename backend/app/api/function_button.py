@@ -70,15 +70,16 @@ async def get_function_buttons(
     # [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 按 view_type 选择独立排序字段（grid_sort / capsule_sort）
     if pos == "grid":
         stmt = stmt.where(ChatFunctionButton.is_recommended == True)  # noqa: E712
+        # [PRD-AICHAT-FUNCBTN-OPTIM-V1] 用 COALESCE 兼容 MySQL（不支持 NULLS LAST）
         stmt = stmt.order_by(
-            ChatFunctionButton.grid_sort.asc().nulls_last(),
+            func.coalesce(ChatFunctionButton.grid_sort, 999999).asc(),
             ChatFunctionButton.sort_weight.asc(),
             ChatFunctionButton.id.asc(),
         )
     elif pos == "capsule":
         stmt = stmt.where(ChatFunctionButton.is_capsule == True)  # noqa: E712
         stmt = stmt.order_by(
-            ChatFunctionButton.capsule_sort.asc().nulls_last(),
+            func.coalesce(ChatFunctionButton.capsule_sort, 999999).asc(),
             ChatFunctionButton.sort_weight.asc(),
             ChatFunctionButton.id.asc(),
         )
@@ -127,14 +128,14 @@ async def get_public_function_buttons(
     if pos == "grid":
         stmt = stmt.where(ChatFunctionButton.is_recommended == True)  # noqa: E712
         stmt = stmt.order_by(
-            ChatFunctionButton.grid_sort.asc().nulls_last(),
+            func.coalesce(ChatFunctionButton.grid_sort, 999999).asc(),
             ChatFunctionButton.sort_weight.asc(),
             ChatFunctionButton.id.asc(),
         )
     elif pos == "capsule":
         stmt = stmt.where(ChatFunctionButton.is_capsule == True)  # noqa: E712
         stmt = stmt.order_by(
-            ChatFunctionButton.capsule_sort.asc().nulls_last(),
+            func.coalesce(ChatFunctionButton.capsule_sort, 999999).asc(),
             ChatFunctionButton.sort_weight.asc(),
             ChatFunctionButton.id.asc(),
         )
@@ -351,14 +352,14 @@ async def admin_list_buttons(
         base_stmt = base_stmt.where(ChatFunctionButton.is_recommended == True)  # noqa: E712
         count_stmt = count_stmt.where(ChatFunctionButton.is_recommended == True)  # noqa: E712
         base_stmt = base_stmt.order_by(
-            ChatFunctionButton.grid_sort.asc().nulls_last(),
+            func.coalesce(ChatFunctionButton.grid_sort, 999999).asc(),
             ChatFunctionButton.id.asc(),
         )
     elif vt == "capsule":
         base_stmt = base_stmt.where(ChatFunctionButton.is_capsule == True)  # noqa: E712
         count_stmt = count_stmt.where(ChatFunctionButton.is_capsule == True)  # noqa: E712
         base_stmt = base_stmt.order_by(
-            ChatFunctionButton.capsule_sort.asc().nulls_last(),
+            func.coalesce(ChatFunctionButton.capsule_sort, 999999).asc(),
             ChatFunctionButton.id.asc(),
         )
     else:
@@ -611,7 +612,7 @@ async def admin_sort_button_action(
     res = await db.execute(
         select(ChatFunctionButton)
         .where(flag_col == True)  # noqa: E712
-        .order_by(sort_col.asc().nulls_last(), ChatFunctionButton.id.asc())
+        .order_by(func.coalesce(sort_col, 999999).asc(), ChatFunctionButton.id.asc())
     )
     rows = list(res.scalars().all())
     ids = [r.id for r in rows]
