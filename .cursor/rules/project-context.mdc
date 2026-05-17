@@ -133,6 +133,60 @@ alwaysApply: false
 
 ---
 
+## 最近一次变更: BUG_FIX_AI_HOME_ACTIONBAR_AND_ATTACHMENT_FILTER_20260517｜ai-home ActionBar 流式结束显示 + AI 回复内部协议提示语过滤 + 图片缩略图渲染（2026-05-17 18:10）
+
+### 一句话结论
+
+ai-home 两个高频 Bug 一次性修复：① **Bug 1**：流式 `done` 事件里把 `m.id` 替换成 `persistedId` 后，下方"流读完后兜底置回 `isStreaming=false`"的 `m.id === aiMsgId` 永远匹配不上 → 修改为 done 事件**原子写入** `isStreaming: false` + `__origAiMsgId` 标记，下方兜底改"原 id 或新 id"双重匹配。② **Bug 2**：AI 回复正文偶尔出现"图片裸链接 + 内部协议提示语 `请参考下面相关附件：[附件 xxx 已保存到工作目录: .chat_attachments/xxx]`"，方案②（后端入库前 sanitize + 前端兜底 + 缩略图渲染）：后端 `sanitize_attachment_hint` 在所有 AI / 用户消息落库前剥离提示语整段；前端 `sanitizeAiContent` 兜底覆盖历史脏数据；图片 URL 抽离为 80×80 横向小缩略图，点击调 `ImageViewer.Multi.show` 全屏预览。
+
+### 改动清单
+
+- **后端**：
+  - `backend/app/utils/ai_output_sanitizer.py` 新增 `sanitize_attachment_hint` + 正则 `_ATTACHMENT_HINT_RE`（三段同时满足：「请参考下面相关附件」+「[附件 文件名」+「.chat_attachments/路径]」），避免误伤"请..."类自然语言
+  - `backend/app/api/chat.py` 新增 `_sanitize_attachment_hint_safe`；在 4 个落库点调用：`stream_message` 的 user_msg + ai_msg / `send_message` 的 user_msg + ai_msg / `_stream_drug_identify` 的 ai_msg / `_stream_report_interpret` 的 ai_msg
+- **H5（Next.js）**：`h5-web/src/app/(ai-chat)/ai-home/page.tsx`
+  - `ChatMessage` 接口新增 `__origAiMsgId?: string`
+  - `sendSSE` done 分支原子写入 `isStreaming: false` + `__origAiMsgId`；流读完 / AbortError 兜底改为"双 id 匹配"
+  - 文件顶部新增工具：`ATTACHMENT_HINT_RE` / `sanitizeAiContent` / `extractImagesFromContent` / `openAiHomeImageViewer`
+  - AI 普通文本渲染分支：先 sanitize → 抽离图片 URL → 文本+缩略图分开渲染（80×80 圆角，gap 8，超屏宽横滚），onClick 命令式调 `ImageViewer.Multi.show`
+  - `AiActionBar` 的 `onCopy` / `onTts` 也走 `sanitizeAiContent(msg.content)`，避免脏字符串带进剪贴板和 TTS
+- **测试**：
+  - 新增 `backend/tests/test_ai_home_actionbar_and_attachment_filter_20260517.py`（7 个用例）：基础整段清洗、图片 URL 保留、不误伤自然语言、多段共存、空/None 安全、幂等性、中文冒号变体
+  - 已部署到服务器容器内 pytest 7/7 通过
+- **部署 + 测试**：
+  - 通过 `_force_fetch_redeploy.py` 强制 `git fetch origin/master` + `--no-cache` 重建 backend + h5-web 容器
+  - 容器内 pytest 7/7、外部 HTTPS smoke：`/ai-home` 200、`/api/health` 200、`/login` 200
+  - 全量链接扫描：548 个端点，可达 516（94.2%），剩余 32 个均为预存数据缺失（id=1 不存在）或扫描器伪报警，与本次改动无关
+  - SSL 证书 (CN=newbb.test.bangbangvip.com, expire Jul 13 2026 GMT) 全程未被触碰
+
+### 验收路径
+
+- 用例 1：[ai-home](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home) 任意发问 → 流式回答结束后**立即看到底部 ActionBar**（免责声明 + 复制/转发/语音三图标），无需退出重进
+- 用例 2：AI 回复含 1 张图片 URL → 正文无 URL 文本 + 下方 80×80 缩略图 + 点击全屏预览
+- 用例 3：AI 回复含「请参考下面相关附件…[附件 xxx 已保存到工作目录…]」→ 整段被过滤
+- 用例 4：多张图片（≥3）AI 回复 → 多张并排横向展示，可横滑，全屏预览支持左右切换
+- 用例 5：进入历史会话 → 同样不外露脏数据 + 图片仍可见
+- 用例 6：用户主动中断（流式中点停止）→ ActionBar 显示 + 内容截断处正常
+
+### 影响面
+
+| 模块 | 影响 |
+|---|---|
+| `ai-home/page.tsx` | Bug 1 done 事件原子写入 + Bug 2 前端兜底 + 缩略图渲染 + 复制/TTS 内容净化 |
+| 后端 AI 聊天 service | 入库前 sanitize（AI + 用户消息双向） |
+| antd-mobile ImageViewer.Multi | 直接复用，无新依赖 |
+| 老消息 | DB 不动；前端兜底正则保证渲染干净 |
+| 健康自查、拍照识药、报告解读 | 受益于公共 sendSSE 分支修复 + 后端 sanitize |
+
+### 风险与回滚
+
+- 后端正则误伤：极低（三段同时匹配）
+- 前端正则误伤：极低（仅匹配 `.chat_attachments/` 内部路径特征）
+- 前端可独立回滚（移除 sanitize/缩略图调用即可）
+- 后端 `_sanitize_attachment_hint_safe` 可单独注释关闭
+
+---
+
 ## 最近一次变更: BUG_FIX_AI_HOME_3BUGS_20260517｜AI 对话三 Bug 修复（H5+后端，sanitizer 收敛 + 咨询人会话维度收口）（2026-05-17 15:08）
 
 ### 一句话结论

@@ -1,0 +1,4943 @@
+{
+  "total": 548,
+  "reachable": 194,
+  "unreachable": 354,
+  "backend_ok": 53,
+  "backend_bad": 354,
+  "frontend_ok": 141,
+  "frontend_bad": 0,
+  "results": [
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/map-config/copy-domain",
+      "src": "backend\\app\\api\\maps.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/themes",
+      "src": "backend\\app\\api\\themes.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/themes/1",
+      "src": "backend\\app\\api\\themes.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/ai-home-config",
+      "src": "backend\\app\\api\\ai_home_config.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/app-settings/chat-idle-timeout",
+      "src": "backend\\app\\api\\app_settings.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/app-settings/page-style",
+      "src": "backend\\app\\api\\app_settings.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/auth/register-settings",
+      "src": "backend\\app\\api\\auth.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/captcha/image",
+      "src": "backend\\app\\api\\account_security.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/cards/by-product/1",
+      "src": "backend\\app\\api\\cards.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/chat/function-buttons",
+      "src": "backend\\app\\api\\function_button.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/chat/voice-service/vad-config",
+      "src": "backend\\app\\api\\function_button.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/cities/hot",
+      "src": "backend\\app\\api\\city.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/cities/list",
+      "src": "backend\\app\\api\\city.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/common/time-slots",
+      "src": "backend\\app\\api\\common.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/config/login_ui_version",
+      "src": "backend\\app\\api\\login_ui_config.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/content/article-categories",
+      "src": "backend\\app\\api\\content.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/content/articles",
+      "src": "backend\\app\\api\\content.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/content/articles/1",
+      "src": "backend\\app\\api\\content.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/content/news",
+      "src": "backend\\app\\api\\content.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/content/news/latest",
+      "src": "backend\\app\\api\\content.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/cos/upload-limits",
+      "src": "backend\\app\\api\\cos.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/coupons/available",
+      "src": "backend\\app\\api\\coupons.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/disease-presets",
+      "src": "backend\\app\\api\\family.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/h5/active-theme",
+      "src": "backend\\app\\api\\themes.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/h5/bottom-nav",
+      "src": "backend\\app\\api\\bottom_nav.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health",
+      "src": "backend\\app\\main.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/home-banners",
+      "src": "backend\\app\\api\\home_config.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/home-config",
+      "src": "backend\\app\\api\\home_config.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/home-menus",
+      "src": "backend\\app\\api\\home_config.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/landing",
+      "src": "backend\\app\\api\\referral.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/maps/geo-config",
+      "src": "backend\\app\\api\\maps.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/dashboard/time-slots",
+      "src": "backend\\app\\api\\merchant_dashboard.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/notices/active",
+      "src": "backend\\app\\api\\notice.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/points/level",
+      "src": "backend\\app\\api\\points.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/prd469/family-member/relation-options",
+      "src": "backend\\app\\api\\prd469_health_v5.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/prd469/medication-library/1",
+      "src": "backend\\app\\api\\prd469_health_v5.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/prd469/medication-library/search",
+      "src": "backend\\app\\api\\prd469_health_v5.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/prd469/medication-library/stats",
+      "src": "backend\\app\\api\\prd469_health_v5.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/products/1",
+      "src": "backend\\app\\api\\products.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/products/1/available-stores",
+      "src": "backend\\app\\api\\products.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/products/categories",
+      "src": "backend\\app\\api\\products.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/products/hot-recommendations",
+      "src": "backend\\app\\api\\products.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/relation-types",
+      "src": "backend\\app\\api\\family.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/search/drug-keywords",
+      "src": "backend\\app\\api\\search.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/search/hot",
+      "src": "backend\\app\\api\\search.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/services/categories",
+      "src": "backend\\app\\api\\service.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/services/items",
+      "src": "backend\\app\\api\\service.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/stores/1/contact",
+      "src": "backend\\app\\api\\stores_public.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/system/server-time",
+      "src": "backend\\app\\api\\system.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/tcm/questions",
+      "src": "backend\\app\\api\\tcm.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/v2/app/version-check",
+      "src": "backend\\app\\api\\addresses_v2.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/v2/regions",
+      "src": "backend\\app\\api\\addresses_v2.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/v5/system-config/doctor-consult",
+      "src": "backend\\app\\api\\medication_library_v3.py",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/ai-center/disclaimers",
+      "src": "backend\\app\\api\\ai_center.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/ai-center/disclaimers/1",
+      "src": "backend\\app\\api\\ai_center.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/ai-center/prompts",
+      "src": "backend\\app\\api\\ai_center.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/ai-center/prompts/1",
+      "src": "backend\\app\\api\\ai_center.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/ai-center/sensitive-words",
+      "src": "backend\\app\\api\\ai_center.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/ai-config",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/ai-config/active",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/ai-config/sync-check",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/ai-home-config",
+      "src": "backend\\app\\api\\ai_home_config.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/ai-home-config/logs",
+      "src": "backend\\app\\api\\ai_home_config.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/ai-home-config/logs/1",
+      "src": "backend\\app\\api\\ai_home_config.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/ai-model-templates",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/ai-model-templates/icons",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/api/auth/merchant-status",
+      "src": "backend\\app\\api\\merchant_v1.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/api/merchant-categories",
+      "src": "backend\\app\\api\\merchant_v1.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/api/merchant/v1/dashboard/metrics",
+      "src": "backend\\app\\api\\merchant_v1.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/api/merchant/v1/exports",
+      "src": "backend\\app\\api\\merchant_v1.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/api/merchant/v1/exports/placeholder/1",
+      "src": "backend\\app\\api\\merchant_v1.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/api/merchant/v1/invoice-profile",
+      "src": "backend\\app\\api\\merchant_v1.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/api/merchant/v1/orders",
+      "src": "backend\\app\\api\\merchant_v1.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/api/merchant/v1/orders/1/attachments",
+      "src": "backend\\app\\api\\merchant_v1.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/api/merchant/v1/reports",
+      "src": "backend\\app\\api\\merchant_v1.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/api/merchant/v1/role-templates",
+      "src": "backend\\app\\api\\merchant_v1.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/api/merchant/v1/settlements",
+      "src": "backend\\app\\api\\merchant_v1.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/api/merchant/v1/settlements/1",
+      "src": "backend\\app\\api\\merchant_v1.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/api/merchant/v1/staff",
+      "src": "backend\\app\\api\\merchant_v1.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/api/merchant/v1/verifications",
+      "src": "backend\\app\\api\\merchant_v1.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/api/orders/1/attachments",
+      "src": "backend\\app\\api\\merchant_v1.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/api/settings/tts-config",
+      "src": "backend\\app\\api\\tts.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/app-settings/chat-idle-timeout",
+      "src": "backend\\app\\api\\app_settings.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/appointment-forms/1/fields",
+      "src": "backend\\app\\api\\appointment_form_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/article-categories",
+      "src": "backend\\app\\api\\admin_news.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/cards/1",
+      "src": "backend\\app\\api\\cards_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/cards/1/usage-logs",
+      "src": "backend\\app\\api\\cards_admin_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/cards/_lookup/merchants",
+      "src": "backend\\app\\api\\cards_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/cards/dashboard/summary",
+      "src": "backend\\app\\api\\cards_admin_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/cards/dashboard/trend",
+      "src": "backend\\app\\api\\cards_admin_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/chat-sessions",
+      "src": "backend\\app\\api\\chat_history.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/chat-sessions/1",
+      "src": "backend\\app\\api\\chat_history.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/chat-sessions/1/export",
+      "src": "backend\\app\\api\\chat_history.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/checkin-records",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/checkup-details",
+      "src": "backend\\app\\api\\ocr_details.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/checkup-details/1",
+      "src": "backend\\app\\api\\ocr_details.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/checkup-details/statistics",
+      "src": "backend\\app\\api\\ocr_details.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/content/articles",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/cos/config",
+      "src": "backend\\app\\api\\cos.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/cos/files",
+      "src": "backend\\app\\api\\cos.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/cos/migration/progress",
+      "src": "backend\\app\\api\\cos.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/cos/upload-limits",
+      "src": "backend\\app\\api\\cos.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/cos/usage",
+      "src": "backend\\app\\api\\cos.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/1/grants",
+      "src": "backend\\app\\api\\coupons_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/1/grants/export",
+      "src": "backend\\app\\api\\coupons_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/active-product-count",
+      "src": "backend\\app\\api\\coupons_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/categories-by-ids",
+      "src": "backend\\app\\api\\coupons_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/category-product-count",
+      "src": "backend\\app\\api\\coupons_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/category-tree",
+      "src": "backend\\app\\api\\coupons_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/offline-reason-options",
+      "src": "backend\\app\\api\\coupons_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/product-picker",
+      "src": "backend\\app\\api\\coupons_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/redeem-code-batches",
+      "src": "backend\\app\\api\\coupons_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/redeem-code-batches/1/codes",
+      "src": "backend\\app\\api\\coupons_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/redeem-code-batches/1/codes/export",
+      "src": "backend\\app\\api\\coupons_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/scope-limits",
+      "src": "backend\\app\\api\\coupons_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/type-descriptions",
+      "src": "backend\\app\\api\\coupons_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/coupons/validity-options",
+      "src": "backend\\app\\api\\coupons_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/dashboard",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/dashboard/stats",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/disease-presets",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/drug-details",
+      "src": "backend\\app\\api\\ocr_details.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/drug-details/1",
+      "src": "backend\\app\\api\\ocr_details.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/drug-details/1/conversation",
+      "src": "backend\\app\\api\\ocr_details.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/drug-details/statistics",
+      "src": "backend\\app\\api\\ocr_details.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/email-notify/config",
+      "src": "backend\\app\\api\\email_notify.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/email-notify/logs",
+      "src": "backend\\app\\api\\email_notify.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/experts",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/feedback",
+      "src": "backend\\app\\api\\feedback.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/health-plan/checkin-statistics",
+      "src": "backend\\app\\api\\admin_health_plan.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/health-plan/default-tasks",
+      "src": "backend\\app\\api\\admin_health_plan.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/health-plan/recommended-plans",
+      "src": "backend\\app\\api\\admin_health_plan.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/health-plan/recommended-plans/1/tasks",
+      "src": "backend\\app\\api\\admin_health_plan.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/health-plan/template-categories",
+      "src": "backend\\app\\api\\admin_health_plan.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/health-plan/user-checkin-details",
+      "src": "backend\\app\\api\\admin_health_plan.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/health-plan/user-daily-summary",
+      "src": "backend\\app\\api\\admin_health_plan.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/health/sdk",
+      "src": "backend\\app\\api\\admin_sdk_health.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/health/users",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/health/users/1/members",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/knowledge-bases",
+      "src": "backend\\app\\api\\knowledge.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/knowledge-bases/1/entries",
+      "src": "backend\\app\\api\\knowledge.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/knowledge-bases/fallback-config",
+      "src": "backend\\app\\api\\knowledge.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/knowledge-bases/import/1",
+      "src": "backend\\app\\api\\knowledge.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/knowledge-bases/scene-bindings",
+      "src": "backend\\app\\api\\knowledge.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/knowledge-bases/search-config",
+      "src": "backend\\app\\api\\knowledge.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/knowledge-bases/stats/distribution",
+      "src": "backend\\app\\api\\knowledge.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/knowledge-bases/stats/missed-questions",
+      "src": "backend\\app\\api\\knowledge.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/knowledge-bases/stats/overview",
+      "src": "backend\\app\\api\\knowledge.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/knowledge-bases/stats/top-hits",
+      "src": "backend\\app\\api\\knowledge.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/knowledge-bases/stats/trend",
+      "src": "backend\\app\\api\\knowledge.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/map-config",
+      "src": "backend\\app\\api\\maps.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/map-config/test-logs",
+      "src": "backend\\app\\api\\maps.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/maps/poi-search",
+      "src": "backend\\app\\api\\maps.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/merchant/accounts",
+      "src": "backend\\app\\api\\admin_merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/merchant/accounts/1/staff",
+      "src": "backend\\app\\api\\admin_merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/merchant/stores",
+      "src": "backend\\app\\api\\admin_merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/merchant/stores/1",
+      "src": "backend\\app\\api\\admin_merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/messages",
+      "src": "backend\\app\\api\\admin_messages.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/messages/1",
+      "src": "backend\\app\\api\\admin_messages.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/messages/stats",
+      "src": "backend\\app\\api\\admin_messages.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/news",
+      "src": "backend\\app\\api\\admin_news.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/news/1",
+      "src": "backend\\app\\api\\admin_news.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/news/tags/suggest",
+      "src": "backend\\app\\api\\admin_news.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/orders",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/orders/distribution",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/orders/statistics",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/orders/trends",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/orders/unified",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/orders/unified/1/refund-detail",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/orders/v2/enums",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/orders/v2/stats",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/payment-channels/1",
+      "src": "backend\\app\\api\\payment_config.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/payment-channels/1/default-notify-url",
+      "src": "backend\\app\\api\\payment_config.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/points/coupons/1/stock-info",
+      "src": "backend\\app\\api\\points_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/points/exchange-records",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/points/levels",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/points/mall",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/points/mall/1/change-logs",
+      "src": "backend\\app\\api\\points_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/points/rules",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/products",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/products/1/detail",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/products/1/form-fields",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/products/1/skus",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/products/1/stores",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/products/categories",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/products/services",
+      "src": "backend\\app\\api\\points_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/profile",
+      "src": "backend\\app\\api\\account_security.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/prompt-templates/1",
+      "src": "backend\\app\\api\\prompt_templates.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/prompt-templates/all/flat",
+      "src": "backend\\app\\api\\prompt_templates.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/prompt-templates/by-id/1",
+      "src": "backend\\app\\api\\prompt_templates.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/prompt-type-config/1",
+      "src": "backend\\app\\api\\prompt_type_config.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/referral/stats",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/relation-types",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/search/asr-config",
+      "src": "backend\\app\\api\\admin_search.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/search/block-words",
+      "src": "backend\\app\\api\\admin_search.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/search/recommend-words",
+      "src": "backend\\app\\api\\admin_search.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/search/statistics",
+      "src": "backend\\app\\api\\admin_search.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/services/categories",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/services/items",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/settings/register",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/settings/reminder-advance",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/settings/timeout-policy",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/skus/1/used",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/sms/config",
+      "src": "backend\\app\\api\\sms.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/sms/logs",
+      "src": "backend\\app\\api\\sms.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/sms/templates",
+      "src": "backend\\app\\api\\sms.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/statistics/refund-reasons",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/statistics/sales",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/statistics/trends",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/store-bindding/products",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/store-bindding/products/1/bound-count",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/store-bindding/products/1/stores",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/store-bindding/stores",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/store-bindding/stores/1/products",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/stores/recommend",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/symptom-tags",
+      "src": "backend\\app\\api\\product_admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/system/configs",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/users",
+      "src": "backend\\app\\api\\admin.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/wechat-push/config",
+      "src": "backend\\app\\api\\wechat_push.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/ai-call/quota",
+      "src": "backend\\app\\api\\ai_call.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/auth/me",
+      "src": "backend\\app\\api\\auth.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/auth/merchant-profile",
+      "src": "backend\\app\\api\\auth.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/auth/session-context",
+      "src": "backend\\app\\api\\auth.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/cards/1",
+      "src": "backend\\app\\api\\cards.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/cards/me/1",
+      "src": "backend\\app\\api\\cards.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/cards/me/1/redemption-code/current",
+      "src": "backend\\app\\api\\cards_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/cards/me/1/usage-logs",
+      "src": "backend\\app\\api\\cards_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/cards/me/renewable",
+      "src": "backend\\app\\api\\cards_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/cards/me/wallet",
+      "src": "backend\\app\\api\\cards.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/chat-sessions",
+      "src": "backend\\app\\api\\chat_history.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/chat-sessions/1",
+      "src": "backend\\app\\api\\chat_history.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/chat-sessions/active-check",
+      "src": "backend\\app\\api\\chat_history.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/chat/digital-human/1",
+      "src": "backend\\app\\api\\function_button.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/chat/sessions",
+      "src": "backend\\app\\api\\chat.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/chat/sessions/1",
+      "src": "backend\\app\\api\\chat.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/chat/sessions/1/first-message-stream",
+      "src": "backend\\app\\api\\chat.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/chat/sessions/1/messages",
+      "src": "backend\\app\\api\\chat.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/checkup/reports/1",
+      "src": "backend\\app\\api\\checkup_api_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/cities/locate",
+      "src": "backend\\app\\api\\city.py",
+      "code": 422,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/constitution/archive",
+      "src": "backend\\app\\api\\constitution.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/constitution/archive/1",
+      "src": "backend\\app\\api\\constitution.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/constitution/coupon/status",
+      "src": "backend\\app\\api\\constitution.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/constitution/encyclopedia/1",
+      "src": "backend\\app\\api\\constitution.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/constitution/result/1",
+      "src": "backend\\app\\api\\constitution.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/content/comments",
+      "src": "backend\\app\\api\\content.py",
+      "code": 422,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/content/favorites",
+      "src": "backend\\app\\api\\content.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/content/news/1",
+      "src": "backend\\app\\api\\content.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/coupons/mine",
+      "src": "backend\\app\\api\\coupons.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/coupons/summary",
+      "src": "backend\\app\\api\\coupons.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/coupons/usable-for-order",
+      "src": "backend\\app\\api\\coupons.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/cs/sessions",
+      "src": "backend\\app\\api\\customer_service.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/cs/sessions/1/messages",
+      "src": "backend\\app\\api\\customer_service.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/drug-identify/share/1",
+      "src": "backend\\app\\api\\drug_identify_share.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/drugs/search",
+      "src": "backend\\app\\api\\drug.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/experts/1",
+      "src": "backend\\app\\api\\expert.py",
+      "code": 500,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/experts/1/schedules",
+      "src": "backend\\app\\api\\expert.py",
+      "code": 500,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/experts/appointments/my",
+      "src": "backend\\app\\api\\expert.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/family/invitation/1",
+      "src": "backend\\app\\api\\family_management.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/family/managed-by",
+      "src": "backend\\app\\api\\family_management.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/family/management",
+      "src": "backend\\app\\api\\family_management.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/family/management/1/logs",
+      "src": "backend\\app\\api\\family_management.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/family/members",
+      "src": "backend\\app\\api\\family.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/family/members/1",
+      "src": "backend\\app\\api\\family.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/favorites/status",
+      "src": "backend\\app\\api\\favorites.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/feedback",
+      "src": "backend\\app\\api\\feedback.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/h5/checkout/info",
+      "src": "backend\\app\\api\\h5_checkout.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/h5/checkout/init",
+      "src": "backend\\app\\api\\h5_checkout.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/h5/slots",
+      "src": "backend\\app\\api\\h5_checkout.py",
+      "code": 422,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-plan/checkin-items",
+      "src": "backend\\app\\api\\health_plan_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-plan/checkin-items/1",
+      "src": "backend\\app\\api\\health_plan_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-plan/checkin-items/1/records",
+      "src": "backend\\app\\api\\health_plan_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-plan/medications",
+      "src": "backend\\app\\api\\health_plan_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-plan/medications/1",
+      "src": "backend\\app\\api\\health_plan_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-plan/medications/list",
+      "src": "backend\\app\\api\\health_plan_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-plan/medications/summary",
+      "src": "backend\\app\\api\\health_plan_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-plan/recommended-plans/1",
+      "src": "backend\\app\\api\\health_plan_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-plan/statistics",
+      "src": "backend\\app\\api\\health_plan_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-plan/template-categories",
+      "src": "backend\\app\\api\\health_plan_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-plan/template-categories/1",
+      "src": "backend\\app\\api\\health_plan_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-plan/today-todos",
+      "src": "backend\\app\\api\\health_plan_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-plan/user-plans",
+      "src": "backend\\app\\api\\health_plan_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-plan/user-plans/1",
+      "src": "backend\\app\\api\\health_plan_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-profile-v3/1/events",
+      "src": "backend\\app\\api\\health_profile_v3.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-profile-v3/1/medication-plan",
+      "src": "backend\\app\\api\\health_profile_v3.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-profile-v3/1/metric/1",
+      "src": "backend\\app\\api\\health_profile_v3.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-profile-v3/1/today-metrics",
+      "src": "backend\\app\\api\\health_profile_v3.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-profile-v3/devices",
+      "src": "backend\\app\\api\\health_profile_v3.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health/allergies",
+      "src": "backend\\app\\api\\health_profile.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health/checkup-reports",
+      "src": "backend\\app\\api\\health_profile.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health/checkup-reports/1",
+      "src": "backend\\app\\api\\health_profile.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health/guide-status",
+      "src": "backend\\app\\api\\health_profile.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health/medical-history",
+      "src": "backend\\app\\api\\health_profile.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health/medications",
+      "src": "backend\\app\\api\\health_profile.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health/profile",
+      "src": "backend\\app\\api\\health_profile.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health/profile/member/1",
+      "src": "backend\\app\\api\\health_profile.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health/visits",
+      "src": "backend\\app\\api\\health_profile.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/maps/static-map",
+      "src": "backend\\app\\api\\maps.py",
+      "code": 422,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/medication-library/suggest",
+      "src": "backend\\app\\api\\medication_add_optim_v1.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/medication-plans/hero-count",
+      "src": "backend\\app\\api\\medication_plans_v1.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/medication-plans/summary",
+      "src": "backend\\app\\api\\medication_plans_v1.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/medication-plans/today",
+      "src": "backend\\app\\api\\medication_plans_v1.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/medication-reminder/appointments",
+      "src": "backend\\app\\api\\medication_reminder.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/medication-reminder/badge",
+      "src": "backend\\app\\api\\medication_reminder.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/medication-reminder/plans",
+      "src": "backend\\app\\api\\medication_reminder.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/medication-reminder/plans/1/ai-call",
+      "src": "backend\\app\\api\\ai_call.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/medication-reminder/today",
+      "src": "backend\\app\\api\\medication_reminder.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/medication-stats/monthly-compliance",
+      "src": "backend\\app\\api\\medication_plans_v1.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/member/1/reports",
+      "src": "backend\\app\\api\\report_interpret.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/member/qrcode",
+      "src": "backend\\app\\api\\member_qr.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/bindding/wechat/status",
+      "src": "backend\\app\\api\\wechat_bindding.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/business-hours",
+      "src": "backend\\app\\api\\order_enhancement.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/calendar/cells",
+      "src": "backend\\app\\api\\merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/calendar/daily",
+      "src": "backend\\app\\api\\merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/calendar/daily-orders",
+      "src": "backend\\app\\api\\merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/calendar/items",
+      "src": "backend\\app\\api\\merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/calendar/kpi",
+      "src": "backend\\app\\api\\merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/calendar/list",
+      "src": "backend\\app\\api\\merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/calendar/monthly",
+      "src": "backend\\app\\api\\merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/calendar/views",
+      "src": "backend\\app\\api\\merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/concurrency-limit",
+      "src": "backend\\app\\api\\order_enhancement.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/dashboard",
+      "src": "backend\\app\\api\\merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/dashboard/day",
+      "src": "backend\\app\\api\\merchant_dashboard.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/dashboard/month",
+      "src": "backend\\app\\api\\merchant_dashboard.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/dashboard/month-day",
+      "src": "backend\\app\\api\\merchant_dashboard.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/dashboard/slot/1/1",
+      "src": "backend\\app\\api\\merchant_dashboard.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/dashboard/week",
+      "src": "backend\\app\\api\\merchant_dashboard.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/notifications",
+      "src": "backend\\app\\api\\merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/orders",
+      "src": "backend\\app\\api\\merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/orders/1/attachments",
+      "src": "backend\\app\\api\\merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/orders/1/detail",
+      "src": "backend\\app\\api\\merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/orders/1/notes",
+      "src": "backend\\app\\api\\merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/orders/records",
+      "src": "backend\\app\\api\\merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/orders/verify-code/1",
+      "src": "backend\\app\\api\\merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/profile",
+      "src": "backend\\app\\api\\account_security.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/shop/info",
+      "src": "backend\\app\\api\\account_security.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/stores",
+      "src": "backend\\app\\api\\merchant.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/merchant/stores/1/booking-config",
+      "src": "backend\\app\\api\\order_enhancement.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/messages",
+      "src": "backend\\app\\api\\messages.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/messages/unread-count",
+      "src": "backend\\app\\api\\messages.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/notifications/unread-count",
+      "src": "backend\\app\\api\\order_enhancement.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/openapi/redeem-codes/1/status",
+      "src": "backend\\app\\api\\third_party_openapi.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/orders/1",
+      "src": "backend\\app\\api\\order.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/orders/unified/1",
+      "src": "backend\\app\\api\\unified_orders.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/orders/unified/counts",
+      "src": "backend\\app\\api\\unified_orders.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/orders/unified/sandbox-confirm",
+      "src": "backend\\app\\api\\unified_orders.py",
+      "code": 422,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/orders/verify-code/1",
+      "src": "backend\\app\\api\\order.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/pay/available-methods",
+      "src": "backend\\app\\api\\payment_methods.py",
+      "code": 422,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/plans/1",
+      "src": "backend\\app\\api\\plan.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/plans/1/tasks",
+      "src": "backend\\app\\api\\plan.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/points/admin/exchange-records",
+      "src": "backend\\app\\api\\points_exchange.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/points/balance",
+      "src": "backend\\app\\api\\points.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/points/checkin/today-progress",
+      "src": "backend\\app\\api\\points.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/points/exchange-records",
+      "src": "backend\\app\\api\\points_exchange.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/points/exchange-records/1",
+      "src": "backend\\app\\api\\points_exchange.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/points/mall",
+      "src": "backend\\app\\api\\points.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/points/mall/items/1",
+      "src": "backend\\app\\api\\points_exchange.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/points/mall/products",
+      "src": "backend\\app\\api\\points.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/points/records",
+      "src": "backend\\app\\api\\points.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/points/summary",
+      "src": "backend\\app\\api\\points.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/points/tasks",
+      "src": "backend\\app\\api\\points.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/prd469/care-partners",
+      "src": "backend\\app\\api\\prd469_health_v5.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/prd469/care/medication-ai-call",
+      "src": "backend\\app\\api\\prd469_health_v5.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/prd469/device/list",
+      "src": "backend\\app\\api\\prd469_health_v5.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/prd469/health-event/timeline",
+      "src": "backend\\app\\api\\prd469_health_v5.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/prd469/health-info/1",
+      "src": "backend\\app\\api\\prd469_health_v5.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/prd469/health-info/1/family-history",
+      "src": "backend\\app\\api\\prd469_health_v5.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/prd469/health-info/1/surgery-history",
+      "src": "backend\\app\\api\\prd469_health_v5.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/prd469/medical-record/1",
+      "src": "backend\\app\\api\\prd469_health_v5.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/prd469/medical-record/list",
+      "src": "backend\\app\\api\\prd469_health_v5.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/prd469/medication-ai-call",
+      "src": "backend\\app\\api\\prd469_health_v5.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/prd469/reminder-setting",
+      "src": "backend\\app\\api\\prd469_health_v5.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/prd469/summary-stats/1",
+      "src": "backend\\app\\api\\prd469_health_v5.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/prd469/summary/1",
+      "src": "backend\\app\\api\\prd469_health_v5.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/products/1/time-slots/availability",
+      "src": "backend\\app\\api\\products.py",
+      "code": 422,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/report/alerts",
+      "src": "backend\\app\\api\\report.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/report/detail/1",
+      "src": "backend\\app\\api\\report.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/report/interpret/detail/1",
+      "src": "backend\\app\\api\\report_interpret.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/report/interpret/session/1",
+      "src": "backend\\app\\api\\report_interpret.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/report/interpret/session/1/messages",
+      "src": "backend\\app\\api\\report_interpret.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/report/interpret/session/1/ocr-detail",
+      "src": "backend\\app\\api\\report_interpret.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/report/interpret/session/1/stream",
+      "src": "backend\\app\\api\\report_interpret.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/report/interpret/session/1/task-status",
+      "src": "backend\\app\\api\\report_interpret.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/report/list",
+      "src": "backend\\app\\api\\report.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/report/share/1",
+      "src": "backend\\app\\api\\report.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/report/trend/1",
+      "src": "backend\\app\\api\\report.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/scan",
+      "src": "backend\\app\\api\\scan.py",
+      "code": 422,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/search/history",
+      "src": "backend\\app\\api\\search.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/search/suggest",
+      "src": "backend\\app\\api\\search.py",
+      "code": 422,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/services/1/available-slots",
+      "src": "backend\\app\\api\\order_enhancement.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/services/items/1",
+      "src": "backend\\app\\api\\service.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/services/list",
+      "src": "backend\\app\\api\\services_filter.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/share/1",
+      "src": "backend\\app\\api\\chat_share.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/shared/chat/1",
+      "src": "backend\\app\\api\\chat_history.py",
+      "code": 404,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/tcm/config",
+      "src": "backend\\app\\api\\tcm_config.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/tcm/diagnosis",
+      "src": "backend\\app\\api\\tcm.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/tcm/diagnosis/1",
+      "src": "backend\\app\\api\\tcm.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/user/font-setting",
+      "src": "backend\\app\\api\\font_setting.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/user/health-profile",
+      "src": "backend\\app\\api\\user_health_profile.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/users/invite-stats",
+      "src": "backend\\app\\api\\referral.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/users/me",
+      "src": "backend\\app\\api\\users.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/users/me/stats",
+      "src": "backend\\app\\api\\users.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/users/share-link",
+      "src": "backend\\app\\api\\referral.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/v1/consultant/1/medications",
+      "src": "backend\\app\\api\\consultant_profile_card.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/v1/consultant/1/profile_card",
+      "src": "backend\\app\\api\\consultant_profile_card.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/v1/notifications/unread-count",
+      "src": "backend\\app\\api\\notifications_unified.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/v2/user/addresses",
+      "src": "backend\\app\\api\\addresses_v2.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "backend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/verify/checkin-records",
+      "src": "backend\\app\\api\\member_qr.py",
+      "code": 401,
+      "loc": "",
+      "ok": false
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/",
+      "src": "h5-web\\src\\app\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/account-security",
+      "src": "h5-web\\src\\app\\(ai-chat)\\account-security\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai",
+      "src": "h5-web\\src\\app\\(tabs)\\ai\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home",
+      "src": "h5-web\\src\\app\\(ai-chat)\\ai-home\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home/medication-plans",
+      "src": "h5-web\\src\\app\\(ai-chat)\\ai-home\\medication-plans\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home/medication-plans/1",
+      "src": "h5-web\\src\\app\\(ai-chat)\\ai-home\\medication-plans\\[id]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home/medication-plans/new",
+      "src": "h5-web\\src\\app\\(ai-chat)\\ai-home\\medication-plans\\new\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home/medication-reminder",
+      "src": "h5-web\\src\\app\\(ai-chat)\\ai-home\\medication-reminder\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-settings",
+      "src": "h5-web\\src\\app\\(ai-chat)\\ai-settings\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/article/1",
+      "src": "h5-web\\src\\app\\article\\[id]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/articles",
+      "src": "h5-web\\src\\app\\articles\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/cards",
+      "src": "h5-web\\src\\app\\cards\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/cards/1",
+      "src": "h5-web\\src\\app\\cards\\[id]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/cards/redeem-code/1",
+      "src": "h5-web\\src\\app\\cards\\redeem-code\\[id]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/cards/renew/1",
+      "src": "h5-web\\src\\app\\cards\\renew\\[id]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/cards/usage-logs/1",
+      "src": "h5-web\\src\\app\\cards\\usage-logs\\[id]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/cards/wallet",
+      "src": "h5-web\\src\\app\\cards\\wallet\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/chat-history",
+      "src": "h5-web\\src\\app\\(ai-chat)\\chat-history\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/chat/1",
+      "src": "h5-web\\src\\app\\chat\\[sessionId]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkout",
+      "src": "h5-web\\src\\app\\checkout\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup",
+      "src": "h5-web\\src\\app\\checkup\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/chat/1",
+      "src": "h5-web\\src\\app\\checkup\\chat\\[sessionId]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/compare",
+      "src": "h5-web\\src\\app\\checkup\\compare\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/compare/select",
+      "src": "h5-web\\src\\app\\checkup\\compare\\select\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/detail/1",
+      "src": "h5-web\\src\\app\\checkup\\detail\\[id]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/result/1",
+      "src": "h5-web\\src\\app\\checkup\\result\\[id]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/trend",
+      "src": "h5-web\\src\\app\\checkup\\trend\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/city-select",
+      "src": "h5-web\\src\\app\\city-select\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/coupon-center",
+      "src": "h5-web\\src\\app\\coupon-center\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/customer-service",
+      "src": "h5-web\\src\\app\\customer-service\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/design-system-v2-preview",
+      "src": "h5-web\\src\\app\\design-system-v2-preview\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/devices",
+      "src": "h5-web\\src\\app\\devices\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/digital-human-call",
+      "src": "h5-web\\src\\app\\digital-human-call\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/drug",
+      "src": "h5-web\\src\\app\\drug\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/drug/chat/1",
+      "src": "h5-web\\src\\app\\drug\\chat\\[sessionId]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/expert/1",
+      "src": "h5-web\\src\\app\\expert\\[id]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/experts",
+      "src": "h5-web\\src\\app\\experts\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/family",
+      "src": "h5-web\\src\\app\\family\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/family-auth",
+      "src": "h5-web\\src\\app\\family-auth\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/family-bindlist",
+      "src": "h5-web\\src\\app\\family-bindlist\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/family-invite",
+      "src": "h5-web\\src\\app\\family-invite\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/feedback",
+      "src": "h5-web\\src\\app\\(ai-chat)\\feedback\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-archive",
+      "src": "h5-web\\src\\app\\(ai-chat)\\health-archive\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-guide",
+      "src": "h5-web\\src\\app\\health-guide\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-metric/1",
+      "src": "h5-web\\src\\app\\health-metric\\[type]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-plan",
+      "src": "h5-web\\src\\app\\health-plan\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-plan/checkin",
+      "src": "h5-web\\src\\app\\health-plan\\checkin\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-plan/checkin/add",
+      "src": "h5-web\\src\\app\\health-plan\\checkin\\add\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-plan/custom",
+      "src": "h5-web\\src\\app\\health-plan\\custom\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-plan/custom/1",
+      "src": "h5-web\\src\\app\\health-plan\\custom\\[categoryId]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-plan/custom/create",
+      "src": "h5-web\\src\\app\\health-plan\\custom\\create\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-plan/custom/my-plan/1",
+      "src": "h5-web\\src\\app\\health-plan\\custom\\my-plan\\[planId]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-plan/custom/plan/1",
+      "src": "h5-web\\src\\app\\health-plan\\custom\\plan\\[planId]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-plan/statistics",
+      "src": "h5-web\\src\\app\\health-plan\\statistics\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile",
+      "src": "h5-web\\src\\app\\health-profile\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/home",
+      "src": "h5-web\\src\\app\\(tabs)\\home\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/invite",
+      "src": "h5-web\\src\\app\\invite\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/landing",
+      "src": "h5-web\\src\\app\\landing\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/legal/privacy-policy",
+      "src": "h5-web\\src\\app\\legal\\privacy-policy\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/legal/service-agreement",
+      "src": "h5-web\\src\\app\\legal\\service-agreement\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/login",
+      "src": "h5-web\\src\\app\\login\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/member-card",
+      "src": "h5-web\\src\\app\\member-card\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant",
+      "src": "h5-web\\src\\app\\merchant\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/dashboard",
+      "src": "h5-web\\src\\app\\merchant\\dashboard\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/downloads",
+      "src": "h5-web\\src\\app\\merchant\\downloads\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/finance",
+      "src": "h5-web\\src\\app\\merchant\\finance\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/invoice",
+      "src": "h5-web\\src\\app\\merchant\\invoice\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/login",
+      "src": "h5-web\\src\\app\\merchant\\login\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m",
+      "src": "h5-web\\src\\app\\merchant\\m\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/dashboard",
+      "src": "h5-web\\src\\app\\merchant\\m\\dashboard\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/downloads",
+      "src": "h5-web\\src\\app\\merchant\\m\\downloads\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/finance",
+      "src": "h5-web\\src\\app\\merchant\\m\\finance\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/invoice",
+      "src": "h5-web\\src\\app\\merchant\\m\\invoice\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/login",
+      "src": "h5-web\\src\\app\\merchant\\m\\login\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/me",
+      "src": "h5-web\\src\\app\\merchant\\m\\me\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/messages",
+      "src": "h5-web\\src\\app\\merchant\\m\\messages\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/orders",
+      "src": "h5-web\\src\\app\\merchant\\m\\orders\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/orders/1",
+      "src": "h5-web\\src\\app\\merchant\\m\\orders\\[id]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/profile",
+      "src": "h5-web\\src\\app\\merchant\\m\\profile\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/profile/change-password",
+      "src": "h5-web\\src\\app\\merchant\\m\\profile\\change-password\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/profile/force-change-password",
+      "src": "h5-web\\src\\app\\merchant\\m\\profile\\force-change-password\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/reports",
+      "src": "h5-web\\src\\app\\merchant\\m\\reports\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/select-store",
+      "src": "h5-web\\src\\app\\merchant\\m\\select-store\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/settlement",
+      "src": "h5-web\\src\\app\\merchant\\m\\settlement\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/settlement/1",
+      "src": "h5-web\\src\\app\\merchant\\m\\settlement\\[id]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/staff",
+      "src": "h5-web\\src\\app\\merchant\\m\\staff\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/store-settings",
+      "src": "h5-web\\src\\app\\merchant\\m\\store-settings\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/verify",
+      "src": "h5-web\\src\\app\\merchant\\m\\verify\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/m/wechat-bindding",
+      "src": "h5-web\\src\\app\\merchant\\m\\wechat-bindding\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/messages",
+      "src": "h5-web\\src\\app\\merchant\\messages\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/order-dashboard",
+      "src": "h5-web\\src\\app\\merchant\\order-dashboard\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/orders",
+      "src": "h5-web\\src\\app\\merchant\\orders\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/profile",
+      "src": "h5-web\\src\\app\\merchant\\profile\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/profile/change-password",
+      "src": "h5-web\\src\\app\\merchant\\profile\\change-password\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/reports",
+      "src": "h5-web\\src\\app\\merchant\\reports\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/select-store",
+      "src": "h5-web\\src\\app\\merchant\\select-store\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/settlement",
+      "src": "h5-web\\src\\app\\merchant\\settlement\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/settlement/1",
+      "src": "h5-web\\src\\app\\merchant\\settlement\\[id]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/staff",
+      "src": "h5-web\\src\\app\\merchant\\staff\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/store-settings",
+      "src": "h5-web\\src\\app\\merchant\\store-settings\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/verifications",
+      "src": "h5-web\\src\\app\\merchant\\verifications\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/merchant/wechat-bindding",
+      "src": "h5-web\\src\\app\\merchant\\wechat-bindding\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/messages",
+      "src": "h5-web\\src\\app\\messages\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/my-addresses",
+      "src": "h5-web\\src\\app\\my-addresses\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/my-coupons",
+      "src": "h5-web\\src\\app\\my-coupons\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/my-favorites",
+      "src": "h5-web\\src\\app\\my-favorites\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/news",
+      "src": "h5-web\\src\\app\\news\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/news/1",
+      "src": "h5-web\\src\\app\\news\\[id]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/notifications",
+      "src": "h5-web\\src\\app\\notifications\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/order/1",
+      "src": "h5-web\\src\\app\\order\\[id]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/pay/success",
+      "src": "h5-web\\src\\app\\pay\\success\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/points",
+      "src": "h5-web\\src\\app\\points\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/points/detail",
+      "src": "h5-web\\src\\app\\points\\detail\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/points/exchange-records",
+      "src": "h5-web\\src\\app\\points\\exchange-records\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/points/mall",
+      "src": "h5-web\\src\\app\\points\\mall\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/points/product-detail",
+      "src": "h5-web\\src\\app\\points\\product-detail\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/points/records",
+      "src": "h5-web\\src\\app\\points\\records\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/product/1",
+      "src": "h5-web\\src\\app\\product\\[id]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/products",
+      "src": "h5-web\\src\\app\\products\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/profile",
+      "src": "h5-web\\src\\app\\(tabs)\\profile\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/profile/edit",
+      "src": "h5-web\\src\\app\\profile\\edit\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/refund-list",
+      "src": "h5-web\\src\\app\\refund-list\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/refund/1",
+      "src": "h5-web\\src\\app\\refund\\[orderId]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/review/1",
+      "src": "h5-web\\src\\app\\review\\[orderId]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/sandbox-pay",
+      "src": "h5-web\\src\\app\\sandbox-pay\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/scan",
+      "src": "h5-web\\src\\app\\scan\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/search",
+      "src": "h5-web\\src\\app\\search\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/search/result",
+      "src": "h5-web\\src\\app\\search\\result\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/services",
+      "src": "h5-web\\src\\app\\(tabs)\\services\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/settings",
+      "src": "h5-web\\src\\app\\settings\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/shared/chat/1",
+      "src": "h5-web\\src\\app\\shared\\chat\\[token]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/shared/drug/1",
+      "src": "h5-web\\src\\app\\shared\\drug\\[token]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/shared/report/1",
+      "src": "h5-web\\src\\app\\shared\\report\\[token]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/symptom",
+      "src": "h5-web\\src\\app\\symptom\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/tcm",
+      "src": "h5-web\\src\\app\\tcm\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/tcm/archive",
+      "src": "h5-web\\src\\app\\tcm\\archive\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/tcm/diagnosis/1",
+      "src": "h5-web\\src\\app\\tcm\\diagnosis\\[id]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/tcm/loading",
+      "src": "h5-web\\src\\app\\tcm\\loading\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/tcm/result/1",
+      "src": "h5-web\\src\\app\\tcm\\result\\[id]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/unified-order/1",
+      "src": "h5-web\\src\\app\\unified-order\\[id]\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    },
+    {
+      "kind": "frontend",
+      "method": "GET",
+      "url": "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/unified-orders",
+      "src": "h5-web\\src\\app\\unified-orders\\page.tsx",
+      "code": 200,
+      "loc": "",
+      "ok": true
+    }
+  ]
+}
