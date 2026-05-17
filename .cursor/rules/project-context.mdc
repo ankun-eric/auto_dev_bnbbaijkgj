@@ -27,7 +27,73 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: BUG_FIX_TIMEZONE_GLOBAL_20260517｜全系统时间字段时区根治（后端统一 UTC + 前端按本地时区显示）（2026-05-17 10:58）
+## Latest Update: PRD-MED-PLAN-ADD-OPTIM-V1-20260517｜添加用药计划页面优化（药品联想 + 频次抽屉 + 时间卡片 + 剂量滚轮 + 服用周期 + 单选时机 + 30字备注）（2026-05-17 11:50）
+
+### 一句话结论
+按 PRD 重构「添加用药计划」页面 6 大字段交互：①药品名称改为"输入 ≥2 字自动联想下拉（最多 6 条）+ 手动兜底"，新增后端接口 `GET /api/medication-library/suggest`；②用药时间改为抽屉式"4 频次卡片 + 单行动态时间卡片（仅显示时间数字）+ 点卡片弹时:分滚轮"；③每次剂量两栏滚轮，数量轮新增 ¼/½；④服用周期"起始日今天固定 + 持续天数滚轮（默认 4 天，1–90）+ 右侧自动结束日期"，移除"长期"开关；⑤服用时机 5 圆角标签**单选**；⑥备注单行 30 字限制 + 实时字数；⑦保存按钮始终可点，按顺序 Toast 提示首个缺失项，成功后 `router.back()` 返回上一页。
+
+### 后端核心改动
+- 新增 `backend/app/api/medication_add_optim_v1.py`：1 个新接口
+  - `GET /api/medication-library/suggest?q=...&limit=6`：药品名称联想
+    - q < 2 字符 → 返回空 `items`
+    - q ≥ 2 字符 → 在 `medication_library` 表按 `name` / `generic_name` 模糊匹配
+    - 优先级：`name` 前缀 > `generic_name` 前缀 > `name`/`generic_name` 包含
+    - 默认 6 条，最大 20 条；同一记录不重复
+- 修改 `backend/app/main.py`：注册 `medication_add_optim_v1.router`
+
+### 前端核心改动（h5-web）
+- 重构 `h5-web/src/components/medication/MedicationFormPanel.tsx`：
+  - 字段顺序按 PRD §四：药品名称 → 用药时间 → 每次剂量 → 服用周期 → 服用时机 → 备注 → 保存
+  - 药品名称：`<input>` + 联想下拉浮层（onMouseDown 抢占 onBlur，自动填入选中项）
+  - 用药时间触发器（点击展开抽屉）：抽屉内含 `FreqCard × 4` + `TimeCard × n`（横向滚动单行）+「确定」
+  - 时间卡片单击 → 弹出独立 `TimePickerDrawer`（h:m 两栏 `WheelColumn`）+ 取消/确定
+  - 每次剂量触发器 → `WheelColumn × 2`（数量含 ¼/½）
+  - 服用周期：开始固定"今天"文案 + 持续天数触发器 → `WheelColumn`（1–90）+ 右侧 `至 X月X日`
+  - 服用时机：5 个 `Chip` 单选（`饭前 饭后 空腹 随餐 睡前`）
+  - 备注：单行 input + 实时 `X/30` 字数标签 + `maxLength=30`
+  - 保存按钮 `disabled={submitting}` 始终可点，顺序校验 + Toast「请先填写 XX」
+  - 保存成功后 `router.back()` 返回上一页
+  - 兼容编辑模式：`planId` 存在时 `useEffect` 拉详情、submit 走 PUT、显示"删除"按钮
+  - 内置自定义 `BottomDrawer` / `WheelColumn` / `Chip` / `FreqCard` / `TimeCard` 小组件，不引入 antd-mobile Picker 以保证视觉风格统一
+
+### 测试与验证
+- 新增 `backend/tests/test_med_plan_add_optim_v1_20260517.py`（8 用例）：
+  1. q < 2 字符 → 空 items
+  2. q ≥ 2 字符 → 命中模糊匹配
+  3. 未登录 → 401
+  4. 默认 limit=6 上限
+  5. 返回结构字段完整（id/name/generic_name/spec/manufacturer）
+  6. 空关键词 → 空 items 但 200
+  7. 无匹配 → 空 items 但 200
+  8. 同一记录不重复返回
+- 本地 pytest：本次 8/8 PASS；回归 `test_med_plan_entry_v1_20260517.py` 16/16 PASS
+- 服务器部署 + 公网 smoke 测试：
+  - `/ai-home/medication-plans/new` 308（trailing slash 重定向，正常）
+  - `/api/medication-library/suggest` 未鉴权 401（鉴权生效）
+  - 注册 + 登录后调用 q="b" 返回空 items，q="阿莫" 命中真实药品库（如"阿莫西林克拉维酸钾片"）
+
+### 部署
+- 部署脚本：`deploy/_deploy_med_plan_add_optim_v1_20260517.py`（基于 ai-home 优化部署模板）
+- 容器：`6b099ed3-7175-4a78-91f4-44570c84ed27-backend` Up、`-h5` Up、`-db` Healthy；gateway nginx reload 成功
+- 容器内未装 pytest，回归仅依赖本地 + 公网 smoke
+
+### 用户体验手册
+- `user_docs/添加用药计划页面优化_20260517.md`
+
+### 受影响端
+- ✅ backend（FastAPI）
+- ✅ h5-web（Next.js · MedicationFormPanel 通用组件）
+- ❌ admin-web / flutter_app / miniprogram / verify-miniprogram 本次未改动 → **无需重新打包**
+
+### 遗留风险
+1. 药品库目前以 `medication_library` 表为唯一数据源，运营侧需持续补全常见药品（尤其慢性病用药）
+2. WheelColumn 是简化实现（scroll snap + onScroll → 最近项），在极少数浏览器下可能因 scroll-snap 兼容性表现略差，回退方案是点击单项直接选中
+3. PRD §三 提到"基于药品自动匹配单位"为后续迭代项，本期未实现
+4. 保存成功后采用 `router.back()` 返回上一页，调用方需保证页面栈深度 ≥ 2；若用户直接通过 URL 打开新增页（无 history），back 会返回浏览器历史上一页
+
+---
+
+## Previous Update: BUG_FIX_TIMEZONE_GLOBAL_20260517｜全系统时间字段时区根治（后端统一 UTC + 前端按本地时区显示）（2026-05-17 10:58）
 
 ### 一句话结论
 通过在 FastAPI 全局 JSON 响应类 `PriceFormattedJSONResponse` 中**集中拦截**所有 `datetime` 类型字段，把 naive UTC datetime（`datetime.utcnow()` 产物）一律输出为带 `+00:00` 后缀的 ISO 字符串，配合前端各端新增的 `parseServerTime` 工具（兼容无时区后缀的老接口），彻底根治"测试服在美国/生产服在中国导致前端列表时间偏 8 小时"的全局 Bug，**无需逐一修改后端 106 个 API 文件**。
