@@ -27,7 +27,47 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-MED-PLAN-ADD-OPTIM-V1-20260517｜添加用药计划页面优化（药品联想 + 频次抽屉 + 时间卡片 + 剂量滚轮 + 服用周期 + 单选时机 + 30字备注）（2026-05-17 11:50）
+## Latest Update: BUG_FIX_TIMEZONE_GLOBAL_V3_20260517｜全系统时区根治（全端版）— 散写清扫 + ESLint 防复发（2026-05-17 12:30）
+
+### 一句话结论
+
+在 v1（前端工具）+ v2（后端兜底）基础上**收口全端**：把 H5（46 文件）/ admin-web（6 文件）/ 小程序（16 文件）/ Flutter App（12 文件）共 **80 个文件**、**100+ 处**散写的 `new Date(变量)` / `.toLocaleString()` / `DateTime.parse(...)` 全量替换为各端 `datetime` 工具的 `parseServerTime / formatDateTime / formatFriendlyTime` 等；新增 `h5-web/.eslintrc.json` 的 `[TIMEZONE_V3]` 规则禁止散写复发；`miniprogram/utils/util.js` 旧 `formatTime` 内部委托到 `datetime.js`，对旧调用方零侵入。**会员 6399 切换咨询人时多 8 小时的问题彻底根治**。
+
+### 改动清单
+
+- **后端**：本次无需新代码（v2 的 `backend/app/core/price_formatter.py:PriceFormattedJSONResponse` 已为全局兜底）。10/10 单元测试通过。
+- **H5（46 文件）**：`h5-web/src/app/(ai-chat)/chat-history/page.tsx`、`Sidebar.tsx`、`ChatSidebar.tsx`、`chat/[sessionId]`、`ai-home`、`health-archive`、`health-profile`、`devices`、`points/{exchange-records,detail}`、`ai-chat/ProfileCard`、`health-metric/[type]`、`checkup/{detail,page,chat,compare/select}`、`tcm/{result,page}`、`shared/chat`、`drug/{chat,page}`、`unified-order/[id]`、`unified-orders`、`merchant/m/{orders,dashboard,messages}`、`(tabs)/{ai,home}`、`pay/success`、`news/{id,page}`、`my-coupons`、`health-plan/statistics`、`coupon-center`、`checkout`、`article/[id]`、`articles`、`refund-list`、`my-favorites`、`family-bindlist`、`notifications`、`cards/{usage-logs,redeem-code,wallet}`、`medication/MedicationFormPanel` 等
+- **admin-web（6 文件）**：`health-check-templates`、`theme-config`、`product-system/orders`、`merchant/accounts`、`map-config`、`ai-config`
+- **小程序（16 文件）**：`pages/{health-profile,unified-order-detail,points/detail,points-exchange-records,cards/redeem-code,home,drug-chat,drug,tcm,coupon-center,ai,messages,health-plan/statistics,family}`、`components/{profile-card,chat-drawer}`、`utils/util.js`（旧函数内部委托）
+- **Flutter App（12 文件）**：`screens/ai/chat_screen`、`screens/points/{exchange_records,points_detail}`、`widgets/{ai_profile_card,chat_history_drawer}`、`screens/order/unified_order_detail_screen`、`screens/coupon/my_coupons_screen`、`screens/cards/redeem_code_screen`、`screens/health/{drug_screen,tcm_screen}`、`screens/messages/messages_screen`、`screens/family/family_bindlist_screen`
+- **ESLint 配置**：新增 `h5-web/.eslintrc.json` 含 5 条 `[TIMEZONE_V3] no-restricted-syntax` 规则（warn 级），禁止后续散写 `new Date(变量)` 与 `toLocaleString/toLocaleDateString/toLocaleTimeString`
+
+### 替换规则
+
+- `new Date(后端字段)` → `parseServerTime(后端字段)`
+- `new Date(后端字段).toLocaleString('zh-CN')` / `.toLocaleDateString(...)` → `formatDateTime(后端字段)` / `formatDate(后端字段)` / `formatFriendlyTime(后端字段)`
+- 计算时间差用的 `.getTime()` → `(parseServerTime(后端字段)?.getTime() ?? 0)`（小程序 ES5 改为三目）
+- Flutter：`DateTime.parse(变量).toString()` / `.year-month-day 拼接` → `formatDateTime(变量, pattern: '...')`
+- 保留：`new Date()`（无参取本地"现在"）、`new Date(now.getFullYear(), now.getMonth(), now.getDate())`（本地日历构造）
+
+### 部署与验证
+
+- 部署脚本：`_deploy_timezone_global_v3.py` 通过 SFTP 上传 82 个文件 → `docker compose build --no-cache h5-web admin-web` → `up -d`，gateway 重新连接网络并 reload
+- 验证脚本：`_verify_timezone_global_v3.py`，12/12 关键页面 HTTPS 200，10/10 后端时区单元测试通过
+- 打包产物：
+  - 小程序 zip：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_20260517_123547_1156.zip`
+  - 安卓 APK：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/app_20260517125245_809ef1.apk`
+  - iOS Release：`https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260517-123747-lrhl`
+- 用户手册：`user_docs/全系统时区根治v3全端版.md`
+
+### 防复发
+
+- ESLint warn 级提示：开发者后续在 H5 项目里散写 `new Date(变量)` 或 `toLocaleString` 系列时会在 lint 中看到 `[TIMEZONE_V3]` 警告，提醒改用统一工具
+- Code Review 检查清单：检查后端是否误用 `datetime.now()`、检查前端是否绕过 `parseServerTime` / `formatDateTime`
+
+---
+
+## 历史更新: PRD-MED-PLAN-ADD-OPTIM-V1-20260517｜添加用药计划页面优化（药品联想 + 频次抽屉 + 时间卡片 + 剂量滚轮 + 服用周期 + 单选时机 + 30字备注）（2026-05-17 11:50）
 
 ### 一句话结论
 按 PRD 重构「添加用药计划」页面 6 大字段交互：①药品名称改为"输入 ≥2 字自动联想下拉（最多 6 条）+ 手动兜底"，新增后端接口 `GET /api/medication-library/suggest`；②用药时间改为抽屉式"4 频次卡片 + 单行动态时间卡片（仅显示时间数字）+ 点卡片弹时:分滚轮"；③每次剂量两栏滚轮，数量轮新增 ¼/½；④服用周期"起始日今天固定 + 持续天数滚轮（默认 4 天，1–90）+ 右侧自动结束日期"，移除"长期"开关；⑤服用时机 5 圆角标签**单选**；⑥备注单行 30 字限制 + 实时字数；⑦保存按钮始终可点，按顺序 Toast 提示首个缺失项，成功后 `router.back()` 返回上一页。
