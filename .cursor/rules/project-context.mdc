@@ -27,7 +27,68 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: BUG_FIX_TIMEZONE_GLOBAL_V3_20260517｜全系统时区根治（全端版）— 散写清扫 + ESLint 防复发（2026-05-17 12:30）
+## Latest Update: PRD-MED-PLAN-OPTIM-V1-20260517｜用药计划页面优化（H5 + 小程序，终版）（2026-05-17 14:45）
+
+### 一句话结论
+
+按 PRD V1.0 终版对「用药计划」核心模块做跨端统一改造：①新增**顶部医嘱提示条**（黄底警示，"用药请遵循医嘱"，常驻不可关闭）；②全字段统一为"标题+值同行"列表行排版（普通行 48px / 服用周期行 56px）；③**服用周期重构**为 `startDate + endDate + isLongTerm` 三字段结构（替代原"持续天数"模型），表单页双行展示主值（起止日期）+ 副值（共 N 天 / 长期服用）；④**服用时机 Tag-B 视觉**（5 标签单选，浅蓝底 `#E0F2FE` + 主色字 `#0EA5E9`，选中态主色实底白字）；⑤**主色统一为 `#0EA5E9`**（H5 旧 `#4A9EE0` 全量替换；小程序相关页面同步）；⑥**小程序老数据迁移兜底**（早上→饭前 / 中午|下午|晚上→饭后 / 睡前→睡前，后端读时映射 + 写时映射）；⑦备注统一为单行 30 字限制；⑧APP 本次不动，下一迭代单独立项。
+
+### 后端核心改动
+
+- 修改 `backend/app/api/health_plan_v2.py`：
+  - 新增 `_migrate_timing()`：服用时机老枚举映射到新枚举（饭前/饭后/空腹/随餐/睡前）
+  - `create_medication`：入参 guidance 自动迁移；`long_term=True` 时 `end_date` 强制置 null
+  - `update_medication`：同上；`long_term` 切换为 True 时清空 `end_date`
+  - `get_medication_detail` / `update_medication`：响应 guidance 读时兜底
+  - 列表接口 `medications/list`：响应 guidance 读时兜底
+- Schema 无需改动（`MedicationReminderCreate/Update/Response` 已包含 `start_date / end_date / long_term`）
+
+### 前端核心改动
+
+- **H5（h5-web）**：
+  - `src/components/medication/MedicalAdviceTip.tsx`（新）：顶部黄底医嘱提示条
+  - `src/components/medication/CycleDrawer.tsx`（新）：服用周期抽屉（开始/结束日期 + 长期开关 + 校验）
+  - `src/components/medication/MedicationFormPanel.tsx`（重写）：列表行式 + 4 抽屉（药品名 / 用药时间 / 剂量 / 服用周期 / 备注）+ Tag-B 时机 + 主色 #0EA5E9
+  - `src/app/(ai-chat)/ai-home/medication-plans/page.tsx`：列表卡片"X 至 长期 · 共 N 天"展示；主色 #0EA5E9
+- **小程序（miniprogram）**：
+  - `pages/health-plan/medication-form/`（重写 wxml + wxss + js）：医嘱条 + 列表行 + 5 抽屉（名称 / 用药时间 / 剂量 picker-view / 服用周期 / 备注）+ Tag-B 时机 + 老数据迁移兜底
+  - `pages/health-plan/medications/index.{wxml,wxss,js}`：列表卡片新增"服用周期/服用时机"行；主色 #0EA5E9（FAB / 状态徽章 / action 按钮）
+
+### 测试与验证
+
+- 新增 `backend/tests/test_med_plan_optim_v1_20260517.py`（8 用例）：覆盖 long_term 强制空 end_date、起止日期存储、服用时机老枚举写入/读取兜底、更新切换 long_term、列表返回字段、guidance=None 不报错
+- 公网 smoke 测试（`_smoke_optim_v1.py`）：8/8 PASS（注册→普通计划→长期计划→老枚举迁移→列表→PUT 切长期→详情→联想接口）
+- 部署验证：H5 渲染包含"用药请遵循医嘱"+ 主色 #0EA5E9 多处出现；所有路由 308/401 正常
+
+### 部署
+
+- 部署脚本：`deploy/_deploy_med_plan_optim_v1_20260517.py` + `_redeploy_optim_v1.py`（强制重拉 GitHub 最新 commit）
+- 容器：`6b099ed3-...-backend` Up、`-h5` Up、`-db` Healthy；gateway nginx reload 成功
+
+### 用户体验手册
+
+- `user_docs/用药计划页面优化_20260517.md`
+
+### 打包产物
+
+- 微信小程序 zip：[miniprogram_20260517_144414_5aff.zip](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_20260517_144414_5aff.zip) — HTTP 200 已验证
+
+### 受影响端
+
+- ✅ backend（FastAPI）
+- ✅ h5-web（Next.js）
+- ✅ miniprogram（小程序，需重新打包导入开发者工具）
+- ❌ admin-web / flutter_app / verify-miniprogram 本次未改动 → **无需重新打包**
+
+### 遗留风险
+
+1. APP 端（Flutter）本次未动，主色仍是橙色 `#FA8C16`，需要下一迭代单独立项做"全局换肤"
+2. 小程序列表卡片是最小调整（仅新增展示行 + 替换颜色），未完全跟随 H5 的"标题+值同行"列表行风格
+3. 后端容器内仍未安装 pytest，新增 8 个测试只能在本地或公网 smoke 验证
+
+---
+
+## 历史更新: BUG_FIX_TIMEZONE_GLOBAL_V3_20260517｜全系统时区根治（全端版）— 散写清扫 + ESLint 防复发（2026-05-17 12:30）
 
 ### 一句话结论
 
