@@ -14,6 +14,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { NavBar, SpinLoading, Toast, ImageViewer, Image } from 'antd-mobile';
 import api from '@/lib/api';
 import { resolveAssetUrl, resolveAssetUrls } from '@/lib/asset-url';
+import { parseServerTime } from '@/lib/datetime';
 
 interface Message {
   id: string;
@@ -336,8 +337,8 @@ function CheckupChatContent() {
       const imgsB = (b.file_urls && b.file_urls.length > 0) ? b.file_urls : (b.file_url ? [b.file_url] : []);
       const spanText = (() => {
         try {
-          const da = new Date(a.created_at).getTime();
-          const db = new Date(b.created_at).getTime();
+          const da = parseServerTime(a.created_at)?.getTime() ?? 0;
+          const db = parseServerTime(b.created_at)?.getTime() ?? 0;
           const months = Math.round(Math.abs(db - da) / (1000 * 60 * 60 * 24 * 30));
           if (months < 1) return '不足 1 个月';
           if (months < 12) return `${months} 个月`;

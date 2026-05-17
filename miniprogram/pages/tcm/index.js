@@ -1,5 +1,7 @@
 const { get, post } = require('../../utils/request');
 const { checkLogin } = require('../../utils/util');
+// [BUG_FIX_TIMEZONE_GLOBAL_20260517] 统一时间解析/格式化
+const { parseServerTime, formatDateTime, formatDate, formatTime, formatRelativeTime, formatFriendlyTime } = require('../../utils/datetime');
 
 const RELATION_COLORS = {
   '本人': '#52c41a',
@@ -90,14 +92,7 @@ Page({
 
   _formatTime(dateStr) {
     if (!dateStr) return '';
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '';
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const h = String(d.getHours()).padStart(2, '0');
-    const min = String(d.getMinutes()).padStart(2, '0');
-    return `${y}-${m}-${day} ${h}:${min}`;
+    return formatDateTime(dateStr);
   },
 
   startTongue() {

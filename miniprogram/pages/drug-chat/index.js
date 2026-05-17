@@ -2,6 +2,8 @@
 const { get, post } = require('../../utils/request');
 const { generateId, checkLogin } = require('../../utils/util');
 const { checkFileSize, uploadWithProgress } = require('../../utils/upload-utils');
+// [BUG_FIX_TIMEZONE_GLOBAL_20260517] 统一时间解析/格式化
+const { parseServerTime, formatDateTime, formatDate, formatTime, formatRelativeTime, formatFriendlyTime } = require('../../utils/datetime');
 const app = getApp();
 
 const REGENERATE_DEBOUNCE_MS = 10 * 1000;
@@ -151,10 +153,7 @@ Page({
 
   _formatMsgTime(dateStr) {
     if (!dateStr) return '';
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '';
-    const pad = n => String(n).padStart(2, '0');
-    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return formatTime(dateStr);
   },
 
   _nowTime() {

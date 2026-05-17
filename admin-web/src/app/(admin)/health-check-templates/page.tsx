@@ -14,6 +14,7 @@ import {
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { get, post, put, del } from '@/lib/api';
+import { formatDateTime } from '@/lib/datetime';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -221,7 +222,7 @@ export default function HealthCheckTemplatesPage() {
       ),
     },
     { title: '最后更新', dataIndex: 'updated_at', key: 'updated_at', width: 180,
-      render: (v?: string) => v ? new Date(v).toLocaleString() : '-' },
+      render: (v?: string) => v ? formatDateTime(v) : '-' },
     {
       title: '操作', key: 'action', width: 160,
       render: (_: any, r: Template) => (

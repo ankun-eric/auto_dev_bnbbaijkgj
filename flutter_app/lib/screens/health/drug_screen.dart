@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../providers/health_provider.dart';
 import '../../services/api_service.dart';
+import '../../utils/datetime_utils.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/health_profile_editor.dart';
 
@@ -335,12 +336,8 @@ class _DrugScreenState extends State<DrugScreen> {
 
   String _formatTime(String? timeStr) {
     if (timeStr == null || timeStr.isEmpty) return '';
-    try {
-      final dt = DateTime.parse(timeStr);
-      return '${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    } catch (_) {
-      return timeStr;
-    }
+    final s = formatDateTime(timeStr, pattern: 'MM-dd HH:mm');
+    return s.isEmpty ? timeStr : s;
   }
 
   @override

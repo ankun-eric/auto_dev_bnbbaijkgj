@@ -7,6 +7,7 @@ import '../../services/api_service.dart';
 import '../../services/server_time_service.dart';
 import '../../utils/price_formatter.dart';
 import '../../utils/fulfillment_label.dart';
+import '../../utils/datetime_utils.dart';
 // [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0]
 import '../../utils/reschedule_error.dart';
 // [BUG-FIX-RESCHEDULE-POPUP-AUTO-CLOSE v1.0] 改约成功通知订单列表刷新
@@ -830,9 +831,10 @@ class _UnifiedOrderDetailScreenState extends State<UnifiedOrderDetailScreen> {
     // 默认日期：已存在则回填，否则明天
     DateTime initialDate = DateTime.now().add(const Duration(days: 1));
     if (apptItem.appointmentTime != null && apptItem.appointmentTime!.isNotEmpty) {
-      try {
-        initialDate = DateTime.parse(apptItem.appointmentTime!);
-      } catch (_) { /* 保持默认 */ }
+      final parsed = parseServerTime(apptItem.appointmentTime!);
+      if (parsed != null) {
+        initialDate = parsed;
+      }
     }
     DateTime selectedDate = DateTime(initialDate.year, initialDate.month, initialDate.day);
     // 已存在时段则回填

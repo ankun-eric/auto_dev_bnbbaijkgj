@@ -8,6 +8,7 @@ import type { ImageUploadItem } from 'antd-mobile/es/components/image-uploader';
 import api from '@/lib/api';
 import { createChatSession } from '@/lib/chat-session';
 import { checkFileSize } from '@/lib/upload-utils';
+import { formatDateTime } from '@/lib/datetime';
 
 const constitutionQuestions = [
   { id: 1, q: '您是否容易疲劳？', options: ['从不', '偶尔', '经常', '总是'] },
@@ -83,9 +84,7 @@ function getMemberTagLabel(member: DiagnosisRecord['family_member']): string {
 }
 
 function formatTime(dateStr: string) {
-  const d = new Date(dateStr);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return formatDateTime(dateStr);
 }
 
 const CONSTITUTION_COLORS: Record<string, string> = {

@@ -6,6 +6,7 @@ import { Tabs, Card, Image, Empty, SpinLoading, InfiniteScroll, SwipeAction, Toa
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { resolveAssetUrl } from '@/lib/asset-url';
+import { formatDate } from '@/lib/datetime';
 
 interface FavoriteItem {
   id: number;
@@ -149,7 +150,7 @@ export default function MyFavoritesPage() {
                       <div className="text-xs text-gray-400 mt-1 line-clamp-2">{item.detail.summary}</div>
                     )}
                     <div className="text-xs text-gray-300 mt-1">
-                      {item.created_at ? new Date(item.created_at).toLocaleDateString('zh-CN') : ''}
+                      {item.created_at ? formatDate(item.created_at) : ''}
                     </div>
                   </div>
                 </div>

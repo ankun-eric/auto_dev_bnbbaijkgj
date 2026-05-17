@@ -6,6 +6,7 @@ import React, { useEffect, useState } from 'react';
 import { NavBar, List, Empty, Toast, PullToRefresh } from 'antd-mobile';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { formatDateTime } from '@/lib/datetime';
 
 export default function MessagesMobilePage() {
   const router = useRouter();
@@ -40,7 +41,7 @@ export default function MessagesMobilePage() {
         ) : (
           <List>
             {items.map((m: any) => (
-              <List.Item key={m.id} description={m.created_at ? new Date(m.created_at).toLocaleString('zh-CN') : ''}>
+              <List.Item key={m.id} description={m.created_at ? formatDateTime(m.created_at) : ''}>
                 <div style={{ fontWeight: m.is_read ? 400 : 600 }}>{m.title || m.content}</div>
                 {m.title && m.content && <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>{m.content}</div>}
               </List.Item>

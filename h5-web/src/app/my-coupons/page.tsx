@@ -6,6 +6,7 @@ import { Tabs, Empty, SpinLoading, Button, Tag, InfiniteScroll, Dialog, Input, T
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { couponTypeLabel, jumpToUseCoupon } from '@/lib/coupon';
+import { parseServerTime, formatDate } from '@/lib/datetime';
 
 interface CouponInfo {
   id: number;
@@ -186,7 +187,7 @@ function MyCouponsPage() {
 
   const getCouponExpiryStatus = (expireAt: string | null): 'expiring' | 'normal' => {
     if (!expireAt) return 'normal';
-    const endTime = new Date(expireAt).getTime();
+    const endTime = parseServerTime(expireAt)?.getTime() ?? NaN;
     if (Number.isNaN(endTime)) return 'normal';
     const diffMs = endTime - Date.now();
     const sevenDays = 7 * 24 * 60 * 60 * 1000;
@@ -370,12 +371,12 @@ function MyCouponsPage() {
                     style={{ color: isExpiring ? '#f5222d' : '#999' }}
                   >
                     {uc.expire_at
-                      ? `有效期至 ${new Date(uc.expire_at).toLocaleDateString('zh-CN')}`
+                      ? `有效期至 ${formatDate(uc.expire_at)}`
                       : `领取后 ${coupon.validity_days || 30} 天内有效`}
                   </div>
                   {isDisabled && uc.used_at && (
                     <div className="text-xs text-gray-400 mt-0.5">
-                      使用于 {new Date(uc.used_at).toLocaleDateString('zh-CN')}
+                      使用于 {formatDate(uc.used_at)}
                     </div>
                   )}
                   {/* [OPT-1] 仅"可用"Tab 显示【去使用】主按钮 */}

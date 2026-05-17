@@ -21,6 +21,7 @@ import {
   message,
 } from 'antd';
 import { get, post, put, del } from '@/lib/api';
+import { formatDateTime } from '@/lib/datetime';
 
 const { Title, Text } = Typography;
 
@@ -97,18 +98,6 @@ function renderRoleTag(roleCode?: string | null, roleName?: string | null) {
   }
   // 未知角色兜底，显示原始 role_name 或 role_code，不再固定"老板"
   return <Tag>{roleName || roleCode || '-'}</Tag>;
-}
-
-function formatDateTime(value?: string | null): string {
-  if (!value) return '-';
-  try {
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return '-';
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  } catch {
-    return '-';
-  }
 }
 
 export default function MerchantAccountsPage() {
@@ -515,12 +504,12 @@ export default function MerchantAccountsPage() {
               {
                 title: '创建时间',
                 width: 160,
-                render: (_: any, it: MerchantStaffItem) => formatDateTime(it.created_at),
+                render: (_: any, it: MerchantStaffItem) => formatDateTime(it.created_at) || '-',
               },
               {
                 title: '最后登录时间',
                 width: 160,
-                render: (_: any, it: MerchantStaffItem) => formatDateTime(it.last_login_at),
+                render: (_: any, it: MerchantStaffItem) => formatDateTime(it.last_login_at) || '-',
               },
               {
                 title: '绑定门店',

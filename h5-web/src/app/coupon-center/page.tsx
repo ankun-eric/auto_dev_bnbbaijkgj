@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button, Tag, Empty, SpinLoading, Toast } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
+import { formatDate } from '@/lib/datetime';
 
 interface Coupon {
   id: number;
@@ -160,7 +161,7 @@ export default function CouponCenterPage() {
                     </div>
                     <div className="text-xs text-gray-400 mt-1">
                       {coupon.valid_end
-                        ? `有效期至 ${new Date(coupon.valid_end).toLocaleDateString('zh-CN')}`
+                        ? `有效期至 ${formatDate(coupon.valid_end)}`
                         : '长期有效'}
                     </div>
                     <div className="text-xs text-gray-400 mt-0.5">剩余{Math.max(0, remaining)}张</div>

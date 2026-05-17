@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { NavBar, Card, Tag, Image, Empty, SpinLoading, InfiniteScroll, PullToRefresh } from 'antd-mobile';
 import api from '@/lib/api';
 import { resolveAssetUrl } from '@/lib/asset-url';
+import { formatDateTime } from '@/lib/datetime';
 
 interface OrderItem {
   id: number;
@@ -209,7 +210,7 @@ export default function RefundListPage() {
                   ))}
                   <div className="flex items-center justify-between pt-2 border-t border-gray-50">
                     <span className="text-xs text-gray-400">
-                      {new Date(order.created_at).toLocaleString('zh-CN')}
+                      {formatDateTime(order.created_at)}
                     </span>
                     <span className="text-sm">
                       退款金额 <span className="font-bold text-red-500">¥{order.refund_amount ?? order.paid_amount}</span>

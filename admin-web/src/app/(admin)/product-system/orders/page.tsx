@@ -15,6 +15,7 @@ import { get, post } from '@/lib/api';
 import { resolveAssetUrl } from '@/lib/asset-url';
 import dayjs from 'dayjs';
 import { fulfillmentLabel } from '@/utils/fulfillmentLabel';
+import { parseServerTime, formatDateTime } from '@/lib/datetime';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -482,8 +483,11 @@ export default function UnifiedOrdersPage() {
       const apptItem = record.items?.find(it => it.appointment_time);
       const apptDate = apptItem?.appointment_time;
       if (apptDate) {
-        const d = new Date(apptDate);
-        return <Tag color="geekblue">{`待核销（预约 ${d.getMonth() + 1}月${d.getDate()}日）`}</Tag>;
+        const d = parseServerTime(apptDate);
+        if (d) {
+          return <Tag color="geekblue">{`待核销（预约 ${d.getMonth() + 1}月${d.getDate()}日）`}</Tag>;
+        }
+        return <Tag color="geekblue">待核销</Tag>;
       }
       return <Tag color="geekblue">待核销</Tag>;
     }
@@ -919,11 +923,11 @@ export default function UnifiedOrdersPage() {
                     return (
                     <React.Fragment key={idx}>
                       <Descriptions.Item label="预约日期" span={1}>
-                        {item.appointment_time ? new Date(item.appointment_time).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'}
+                        {item.appointment_time ? formatDateTime(item.appointment_time, 'YYYY年MM月DD日') : '-'}
                       </Descriptions.Item>
                       {isTimeSlotMode && (
                         <Descriptions.Item label="预约时段" span={1}>
-                          {item.appointment_data?.time_slot || (item.appointment_time ? new Date(item.appointment_time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '-')}
+                          {item.appointment_data?.time_slot || (item.appointment_time ? formatDateTime(item.appointment_time, 'HH:mm') : '-')}
                         </Descriptions.Item>
                       )}
                       <Descriptions.Item label="预约状态" span={1}>

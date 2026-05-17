@@ -8,6 +8,7 @@ import { Tabs, InfiniteScroll, PullToRefresh, SearchBar, Empty } from 'antd-mobi
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { getCurrentStoreId, statusMap } from '../mobile-lib';
+import { formatDateTime } from '@/lib/datetime';
 
 // PRD「商家 PC 后台优化 v1.1」F1：移动端商家 Tab 改为 14 态体系常用项
 // 全部 / 待付款 / 待发货 / 待核销 / 已完成 / 已退款（不暴露 redeemed/paid）
@@ -136,7 +137,7 @@ export default function OrdersMobilePage() {
                       {st.text}
                     </span>
                     <span style={{ fontSize: 11, color: '#999' }}>
-                      {o.created_at ? new Date(o.created_at).toLocaleString('zh-CN') : ''}
+                      {o.created_at ? formatDateTime(o.created_at) : ''}
                     </span>
                   </div>
                 </div>

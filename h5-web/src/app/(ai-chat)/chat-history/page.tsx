@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { NavBar, Dialog, Toast, Checkbox } from 'antd-mobile';
 import { THEME } from '@/lib/theme';
 import api from '@/lib/api';
+import { parseServerTime, formatDate } from '@/lib/datetime';
 
 interface ChatHistoryItem {
   id: string;
@@ -113,7 +114,7 @@ export default function ChatHistoryPage() {
       { label: '更早', items: [] },
     ];
     list.forEach(item => {
-      const t = new Date(item.time).getTime();
+      const t = parseServerTime(item.time)?.getTime() ?? 0;
       if (t >= today) groups[0].items.push(item);
       else if (t >= yesterday) groups[1].items.push(item);
       else if (t >= week) groups[2].items.push(item);
@@ -305,7 +306,7 @@ function HistoryItem({
       <div className="flex-1 min-w-0">
         <div className="text-sm truncate" style={{ color: THEME.textPrimary }}>{item.title}</div>
         <div className="text-xs mt-0.5" style={{ color: THEME.textSecondary }}>
-          {new Date(item.time).toLocaleDateString('zh-CN')}
+          {formatDate(item.time)}
         </div>
       </div>
     </div>

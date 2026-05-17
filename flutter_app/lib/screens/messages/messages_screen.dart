@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../utils/datetime_utils.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -285,18 +286,15 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   String _formatTime(String? isoTime) {
     if (isoTime == null || isoTime.isEmpty) return '';
-    try {
-      final dt = DateTime.parse(isoTime);
-      final now = DateTime.now();
-      final diff = now.difference(dt);
-      if (diff.inMinutes < 1) return '刚刚';
-      if (diff.inHours < 1) return '${diff.inMinutes}分钟前';
-      if (diff.inDays < 1) return '${diff.inHours}小时前';
-      if (diff.inDays < 7) return '${diff.inDays}天前';
-      return '${dt.month}/${dt.day}';
-    } catch (_) {
-      return '';
-    }
+    final dt = parseServerTime(isoTime);
+    if (dt == null) return '';
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 1) return '刚刚';
+    if (diff.inHours < 1) return '${diff.inMinutes}分钟前';
+    if (diff.inDays < 1) return '${diff.inHours}小时前';
+    if (diff.inDays < 7) return '${diff.inDays}天前';
+    return '${dt.month}/${dt.day}';
   }
 
   @override

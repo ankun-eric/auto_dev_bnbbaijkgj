@@ -1,4 +1,6 @@
 const { get, post } = require('../../utils/request');
+// [BUG_FIX_TIMEZONE_GLOBAL_20260517] 统一时间解析/格式化
+const { parseServerTime, formatDateTime, formatDate, formatTime, formatRelativeTime, formatFriendlyTime } = require('../../utils/datetime');
 
 Page({
   data: {
@@ -32,8 +34,8 @@ Page({
 
   formatExpire(item) {
     if (item.valid_end) {
-      const d = new Date(item.valid_end);
-      return `有效期至 ${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const s = formatDate(item.valid_end);
+      if (s) return `有效期至 ${s}`;
     }
     return '长期有效';
   },

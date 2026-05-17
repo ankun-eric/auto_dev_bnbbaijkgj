@@ -5,6 +5,7 @@ import { NavBar, Toast, Button, Dialog, TextArea, Empty, DotLoading, Tag, Popup,
 import { useRouter, useParams } from 'next/navigation';
 import api from '@/lib/api';
 import { getCurrentStoreId, statusMap } from '../../mobile-lib';
+import { parseServerTime, formatDateTime } from '@/lib/datetime';
 // [BUG-FIX-MERCHANT-RESCHEDULE-V1 2026-05-07] 商家 H5 端「调整预约时间」抽屉化改造
 // 复用客户端服务器时间工具，按服务器时间过滤已过去的整段时段
 import {
@@ -172,7 +173,7 @@ export default function OrderDetailMobilePage() {
       defaultDate = new Date(`${order.appointment_date}T00:00:00`);
     } else if (order.appointment_time) {
       try {
-        defaultDate = new Date(order.appointment_time);
+        defaultDate = parseServerTime(order.appointment_time) || new Date();
       } catch {
         defaultDate = new Date();
         defaultDate.setDate(defaultDate.getDate() + 1);
@@ -292,7 +293,7 @@ export default function OrderDetailMobilePage() {
           <div>客户: <span style={{ color: '#333' }}>{order.user_display || '—'}</span></div>
           <div>金额: <span style={{ color: '#fa541c', fontWeight: 600 }}>¥{order.amount}</span></div>
           <div>门店: <span style={{ color: '#333' }}>{order.store_name || '—'}</span></div>
-          <div>下单: <span style={{ color: '#333' }}>{order.created_at ? new Date(order.created_at).toLocaleString('zh-CN') : '—'}</span></div>
+          <div>下单: <span style={{ color: '#333' }}>{order.created_at ? formatDateTime(order.created_at) : '—'}</span></div>
           {(order.appointment_time || order.time_slot) && (
             <div style={{ gridColumn: '1 / -1' }}>
               预约时间: <span style={{ color: '#1677ff', fontWeight: 500 }}>
@@ -302,7 +303,7 @@ export default function OrderDetailMobilePage() {
                   ? `${order.appointment_date} ${order.time_slot}`
                   : order.time_slot
                     ? order.time_slot
-                    : (order.appointment_time ? new Date(order.appointment_time).toLocaleString('zh-CN') : '—')}
+                    : (order.appointment_time ? formatDateTime(order.appointment_time) : '—')}
               </span>
             </div>
           )}
@@ -358,7 +359,7 @@ export default function OrderDetailMobilePage() {
             ))}
             {order.last_reschedule_notify.created_at && (
               <div style={{ marginTop: 4, color: '#999' }}>
-                通知时间：{new Date(order.last_reschedule_notify.created_at).toLocaleString('zh-CN')}
+                通知时间：{formatDateTime(order.last_reschedule_notify.created_at)}
               </div>
             )}
             {order.last_reschedule_notify_status === 'all_failed' && (
@@ -429,7 +430,7 @@ export default function OrderDetailMobilePage() {
                 <div style={{ fontSize: 13, color: '#333', lineHeight: 1.5 }}>{n.content}</div>
                 <div style={{ fontSize: 11, color: '#999', marginTop: 4, display: 'flex', justifyContent: 'space-between' }}>
                   <span>{n.staff_name || ''}</span>
-                  <span>{n.created_at ? new Date(n.created_at).toLocaleString('zh-CN') : ''}</span>
+                  <span>{n.created_at ? formatDateTime(n.created_at) : ''}</span>
                 </div>
               </div>
             ))}

@@ -46,6 +46,7 @@ import { redirectToPayUrl } from '@/lib/basePath';
 import { resolveAssetUrl } from '@/lib/asset-url';
 // [2026-05-05 订单页地址导航按钮 PRD v1.0] 通用导航按钮组件
 import AddressNavButton from '@/components/AddressNavButton';
+import { formatDate } from '@/lib/datetime';
 
 // ───────────── 类型 ─────────────
 
@@ -1266,8 +1267,8 @@ function CheckoutPage() {
             const c = uc.coupon as any;
             const isFreeTrial = c?.type === 'free_trial';
             const desc = isFreeTrial
-              ? `免费体验券 ${c?.valid_end ? `| 有效期至${new Date(c.valid_end).toLocaleDateString('zh-CN')}` : ''}`
-              : (c ? `满${c.condition_amount}可用 ${c.valid_end ? `| 有效期至${new Date(c.valid_end).toLocaleDateString('zh-CN')}` : ''}` : '');
+              ? `免费体验券 ${c?.valid_end ? `| 有效期至${formatDate(c.valid_end)}` : ''}`
+              : (c ? `满${c.condition_amount}可用 ${c.valid_end ? `| 有效期至${formatDate(c.valid_end)}` : ''}` : '');
             return (
               <List.Item
                 key={uc.id}

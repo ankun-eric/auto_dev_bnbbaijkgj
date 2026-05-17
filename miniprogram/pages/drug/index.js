@@ -2,6 +2,8 @@ const { get, put } = require('../../utils/request');
 const { uploadFile } = require('../../utils/request');
 const { checkLogin, formatRelativeTime } = require('../../utils/util');
 const { checkFileSize, uploadWithProgress } = require('../../utils/upload-utils');
+// [BUG_FIX_TIMEZONE_GLOBAL_20260517] 统一时间解析/格式化
+const { parseServerTime, formatDateTime, formatDate, formatTime: formatTimeUnified, formatRelativeTime: formatRelativeTimeUnified, formatFriendlyTime } = require('../../utils/datetime');
 
 const RELATION_EMOJI = {
   '本人': '👤', '爸爸': '👨', '妈妈': '👩', '父亲': '👨', '母亲': '👩',
@@ -153,9 +155,9 @@ Page({
 
   _formatTime(dateStr) {
     if (!dateStr) return '';
-    const ts = new Date(dateStr).getTime();
-    if (isNaN(ts)) return '';
-    return formatRelativeTime(ts);
+    const d = parseServerTime(dateStr);
+    if (!d) return '';
+    return formatRelativeTime(d.getTime());
   },
 
   _getStatusText(status) {

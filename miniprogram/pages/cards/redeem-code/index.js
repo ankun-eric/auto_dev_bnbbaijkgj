@@ -1,5 +1,7 @@
 // [卡管理 v2.0 第 3 期] 小程序核销码页（极简版）
 const request = require('../../../utils/request');
+// [BUG_FIX_TIMEZONE_GLOBAL_20260517] 统一时间解析/格式化
+const { parseServerTime, formatDateTime, formatDate, formatTime, formatRelativeTime, formatFriendlyTime } = require('../../../utils/datetime');
 
 Page({
   data: {
@@ -29,7 +31,8 @@ Page({
     const that = this;
     if (that.data.timer) clearInterval(that.data.timer);
     const t = setInterval(() => {
-      const exp = new Date(that.data.code.expires_at).getTime();
+      const _expD = parseServerTime(that.data.code.expires_at);
+      const exp = _expD ? _expD.getTime() : 0;
       const left = Math.max(0, Math.floor((exp - Date.now()) / 1000));
       that.setData({ remaining: left });
       if (left <= 0) {

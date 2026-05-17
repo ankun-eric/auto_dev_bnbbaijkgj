@@ -14,6 +14,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Toast, Popup, Input, Button } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
+import { formatDateTime } from '@/lib/datetime';
 
 const T = {
   brand50: '#f0f9ff',
@@ -266,7 +267,7 @@ export default function HealthMetricDetailPage() {
                 </span>
                 <span style={{ fontSize: 13, color: T.brand800, marginLeft: 4 }}>{meta.unit}</span>
                 <div style={{ fontSize: 13, color: T.brand600, marginTop: 4 }}>
-                  {latest.value?.period || latest.value?.activity || ''} · {new Date(latest.measured_at).toLocaleString('zh-CN')}
+                  {latest.value?.period || latest.value?.activity || ''} · {formatDateTime(latest.measured_at)}
                 </div>
               </>
             ) : (
@@ -352,7 +353,7 @@ export default function HealthMetricDetailPage() {
                     <span style={{ fontSize: 12, color: T.brand800, marginLeft: 4 }}>{meta.unit}</span>
                   </div>
                   <div style={{ fontSize: 12, color: T.brand600, marginTop: 2 }}>
-                    {new Date(r.measured_at).toLocaleString('zh-CN')}
+                    {formatDateTime(r.measured_at)}
                   </div>
                 </div>
                 <span

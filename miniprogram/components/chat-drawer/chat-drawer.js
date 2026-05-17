@@ -1,4 +1,6 @@
 const { del, put, post } = require('../../utils/request');
+// [BUG_FIX_TIMEZONE_GLOBAL_20260517] 统一时间解析/格式化
+const { parseServerTime, formatDateTime, formatDate, formatTime, formatRelativeTime, formatFriendlyTime } = require('../../utils/datetime');
 
 const SESSION_TYPE_MAP = {
   health_qa: '健康问答',
@@ -157,7 +159,8 @@ Component({
           return;
         }
 
-        const ts = new Date(s.updated_at || s.created_at).getTime();
+        const _tsD = parseServerTime(s.updated_at || s.created_at);
+        const ts = _tsD ? _tsD.getTime() : 0;
         if (ts >= todayStart) {
           groups.today.push(item);
         } else if (ts >= yesterdayStart) {

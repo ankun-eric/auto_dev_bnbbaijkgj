@@ -21,6 +21,7 @@ import ReminderBellButton from '@/components/ai-chat/ReminderBellButton';
 import ReminderDrawer from '@/components/ai-chat/ReminderDrawer';
 import { trackEvent, aiChatTrack, aiHomeFnTrack, type AiChatTargetType } from '@/lib/analytics';
 import { FnCell } from '@/components/design-system';
+import { parseServerTime } from '@/lib/datetime';
 // [AICHAT-OPTIM-FIX-V1 F-06] ChatCards 调度器
 import { resolveCardType, backendButtonToCardButton, ChatCard, type ChatCardType } from '@/components/ai-chat/ChatCards';
 // [PRD-AICHAT-CAPSULE-V1 2026-05-15] 输入框上方胶囊条（与菜单模式共用 chat_function_buttons 数据）
@@ -466,7 +467,8 @@ function getGreeting(): string {
 }
 
 function formatTimestamp(iso: string): string {
-  const d = new Date(iso);
+  const d = parseServerTime(iso);
+  if (!d) return '';
   const hh = d.getHours().toString().padStart(2, '0');
   const mm = d.getMinutes().toString().padStart(2, '0');
   return `${hh}:${mm}`;
@@ -474,7 +476,8 @@ function formatTimestamp(iso: string): string {
 
 // [PRD-433 F-09] 微信式时间分隔条文案：今天 HH:mm / 昨天 HH:mm / 周X HH:mm / YYYY/MM/DD HH:mm
 function formatWeChatTime(iso: string): string {
-  const d = new Date(iso);
+  const d = parseServerTime(iso);
+  if (!d) return '';
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const startOfYesterday = startOfToday - 86400000;
@@ -497,7 +500,7 @@ function formatWeChatTime(iso: string): string {
 
 function shouldShowTime(prev: string | null, curr: string): boolean {
   if (!prev) return true;
-  return new Date(curr).getTime() - new Date(prev).getTime() > 5 * 60 * 1000;
+  return (parseServerTime(curr)?.getTime() ?? 0) - (parseServerTime(prev)?.getTime() ?? 0) > 5 * 60 * 1000;
 }
 
 function renderMarkdown(text: string): string {
@@ -838,7 +841,7 @@ export default function AiHomePage() {
         const session = list[0];
         const sid = String(session.id);
         setSidAndRef(sid);
-        setLastMsgTime(new Date(session.updated_at || session.created_at).getTime());
+        setLastMsgTime(parseServerTime(session.updated_at || session.created_at)?.getTime() ?? 0);
         await loadSessionMessages(sid);
       }
     } catch {}

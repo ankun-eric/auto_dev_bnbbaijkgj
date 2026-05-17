@@ -180,7 +180,7 @@ export default function HealthArchivePage() {
                             style={{ height: `${Math.max(pct, 5)}%`, background: THEME.primary, minHeight: 4, opacity: 0.3 + (pct / 100) * 0.7 }}
                           />
                           <span className="text-xs" style={{ color: THEME.textSecondary, fontSize: 10 }}>
-                            {new Date(d.date).getDate()}日
+                            {Number((d.date || '').split('-')[2]) || ''}日
                           </span>
                         </div>
                       );

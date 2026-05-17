@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation';
 import { List, Empty, PullToRefresh, Toast, Tag } from 'antd-mobile';
 import api from '@/lib/api';
 import GreenNavBar from '@/components/GreenNavBar';
+import { parseServerTime, formatDate } from '@/lib/datetime';
 
 interface NotificationItem {
   id: number;
@@ -39,18 +40,15 @@ const EVENT_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 function formatTime(iso: string): string {
-  try {
-    const d = new Date(iso);
-    const now = Date.now();
-    const diff = (now - d.getTime()) / 1000;
-    if (diff < 60) return '刚刚';
-    if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`;
-    if (diff < 86400 * 7) return `${Math.floor(diff / 86400)}天前`;
-    return d.toLocaleDateString('zh-CN');
-  } catch {
-    return iso;
-  }
+  const d = parseServerTime(iso);
+  if (!d) return iso;
+  const now = Date.now();
+  const diff = (now - d.getTime()) / 1000;
+  if (diff < 60) return '刚刚';
+  if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`;
+  if (diff < 86400 * 7) return `${Math.floor(diff / 86400)}天前`;
+  return formatDate(iso);
 }
 
 export default function NotificationsPage() {

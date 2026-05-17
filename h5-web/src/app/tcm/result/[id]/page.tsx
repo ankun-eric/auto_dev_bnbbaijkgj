@@ -6,6 +6,7 @@ import { Button, SpinLoading, Toast } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { resolveAssetUrl } from '@/lib/asset-url';
+import { formatDate } from '@/lib/datetime';
 
 /**
  * 体质测评结果页（一期 · 6 屏）。
@@ -415,7 +416,7 @@ export default function TcmResultPage() {
             {data.screen1_card.type}
           </div>
           <div className="text-xs text-gray-500 mb-2">
-            为「{data.member_label}」分析 · {new Date(data.created_at).toLocaleDateString()}
+            为「{data.member_label}」分析 · {formatDate(data.created_at)}
           </div>
           <div
             className="inline-block px-3 py-1 rounded-full text-xs mb-4"

@@ -7,6 +7,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { PullToRefresh, Toast, Dialog } from 'antd-mobile';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { formatDateTime } from '@/lib/datetime';
 import {
   getProfile,
   getCurrentStoreId,
@@ -238,7 +239,7 @@ export default function DashboardMobilePage() {
                       {o.product_name || o.title || '商品'}
                     </div>
                     <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>
-                      {o.created_at ? new Date(o.created_at).toLocaleString('zh-CN') : ''}
+                      {o.created_at ? formatDateTime(o.created_at) : ''}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>

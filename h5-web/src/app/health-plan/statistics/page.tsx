@@ -350,7 +350,8 @@ export default function StatisticsPage() {
                   const WEEKDAY_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
                   let label = d.date.slice(-2);
                   try {
-                    const dayOfWeek = new Date(d.date).getDay();
+                    const [yy, mm, dd] = (d.date || '').split('-').map(Number);
+                    const dayOfWeek = new Date(yy, (mm || 1) - 1, dd || 1).getDay();
                     label = WEEKDAY_NAMES[dayOfWeek] || d.date.slice(-2);
                   } catch {/* keep */}
                   return (

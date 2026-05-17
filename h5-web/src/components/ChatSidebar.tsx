@@ -12,6 +12,7 @@ import {
 import { CloseOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 import { createChatSession } from '@/lib/chat-session';
+import { parseServerTime, formatDateTime } from '@/lib/datetime';
 
 interface SessionItem {
   id: number;
@@ -66,7 +67,8 @@ function groupByTime(items: SessionItem[]): TimeGroup[] {
       groups.pinned.push(item);
       return;
     }
-    const d = new Date(item.updated_at);
+    const d = parseServerTime(item.updated_at);
+    if (!d) { groups.older.push(item); return; }
     if (d >= todayStart) groups.today.push(item);
     else if (d >= yesterdayStart) groups.yesterday.push(item);
     else if (d >= weekStart) groups.week.push(item);
@@ -381,12 +383,7 @@ export default function ChatSidebar({
                       </div>
                       <div className="text-[11px] text-gray-300 mt-1 pl-0">
                         {item.message_count || 0}条消息 ·{' '}
-                        {new Date(item.updated_at).toLocaleDateString('zh-CN', {
-                          month: 'numeric',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                        {formatDateTime(item.updated_at, 'MM-DD HH:mm')}
                       </div>
                     </div>
                   );

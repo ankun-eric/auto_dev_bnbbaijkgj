@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { NavBar, Button, TextArea, Avatar, Tag, Toast, Divider, SpinLoading } from 'antd-mobile';
 import { HeartOutline, HeartFill, StarOutline, StarFill } from 'antd-mobile-icons';
 import api from '@/lib/api';
+import { formatDate } from '@/lib/datetime';
 
 interface ArticleDetail {
   id: number;
@@ -65,7 +66,7 @@ export default function ArticleDetailPage() {
         // PRD F2：优先使用后端 JOIN users 返回的实时字段
         user: c.author_nick || c.user_name || c.user?.name || '用户',
         content: c.content ?? '',
-        time: c.created_at ? new Date(c.created_at).toLocaleDateString('zh-CN') : '',
+        time: c.created_at ? formatDate(c.created_at) : '',
         avatar: c.author_avatar || c.user_avatar || c.user?.avatar || '',
       })));
     } catch {
@@ -190,7 +191,7 @@ export default function ArticleDetailPage() {
             </Tag>
           )}
           {article.author_name && <span className="text-xs text-gray-400">{article.author_name}</span>}
-          {timeText && <span className="text-xs text-gray-300">{new Date(timeText).toLocaleDateString('zh-CN')}</span>}
+          {timeText && <span className="text-xs text-gray-300">{formatDate(timeText)}</span>}
           <span className="text-xs text-gray-300">{article.view_count ?? 0}阅读</span>
         </div>
 

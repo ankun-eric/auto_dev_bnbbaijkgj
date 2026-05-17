@@ -1,6 +1,8 @@
 const { get, post } = require('../../utils/request');
 // [2026-05-05 订单页地址导航按钮 PRD v1.0]
 const { navigateToAddress } = require('../../utils/map-nav');
+// [BUG_FIX_TIMEZONE_GLOBAL_20260517] 统一时间解析/格式化
+const { parseServerTime, formatDateTime, formatDate, formatTime, formatRelativeTime, formatFriendlyTime } = require('../../utils/datetime');
 // [BUG-FIX-RESCHEDULE-V2 2026-05-07] 服务器时间工具：用于改约弹窗按服务器时间过滤已过去的整段时段
 const {
   initServerTime,
@@ -209,7 +211,8 @@ Page({
     let initialDate = fmt(tomorrow);
     if (apptItem.appointment_time) {
       try {
-        initialDate = fmt(new Date(apptItem.appointment_time));
+        const _apptDate = parseServerTime(apptItem.appointment_time);
+        if (_apptDate) initialDate = fmt(_apptDate);
       } catch (e) { /* 保持默认明天 */ }
     }
     let initialSlot = '';

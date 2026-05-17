@@ -6,6 +6,7 @@ import { Card, Tag, Button, Empty, SpinLoading, InfiniteScroll, Toast } from 'an
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { jumpToUseCoupon } from '@/lib/coupon';
+import { formatDateTime } from '@/lib/datetime';
 
 interface ExchangeRecord {
   id: number;
@@ -54,11 +55,7 @@ const STATUS_META: Record<string, { text: string; color: string }> = {
 
 function fmt(dt?: string | null) {
   if (!dt) return '';
-  try {
-    return new Date(dt).toLocaleString('zh-CN', { hour12: false });
-  } catch {
-    return dt;
-  }
+  return formatDateTime(dt, 'YYYY-MM-DD HH:mm:ss') || dt;
 }
 
 // [OPT-2/OPT-3] 用户可见文案中"free_trial / 免费试用" → "免费体验券 / 免费体验"

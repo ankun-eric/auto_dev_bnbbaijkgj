@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { NavBar, Card, Tag, Empty, InfiniteScroll, SpinLoading } from 'antd-mobile';
 import api from '@/lib/api';
+import { formatDate } from '@/lib/datetime';
 
 interface ArticleRow {
   id: number;
@@ -92,7 +93,7 @@ export default function ArticlesPage() {
                       <span className="text-xs text-gray-400 ml-2">{item.view_count ?? 0} 阅读</span>
                       {(item.published_at || item.created_at) && (
                         <span className="text-xs text-gray-300 ml-2">
-                          {new Date((item.published_at || item.created_at) as string).toLocaleDateString('zh-CN')}
+                          {formatDate((item.published_at || item.created_at) as string)}
                         </span>
                       )}
                     </div>

@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { NavBar, SpinLoading, Toast, Image, ImageViewer, Input, Dialog } from 'antd-mobile';
 import { EditSOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
+import { formatDateTime } from '@/lib/datetime';
 
 interface ReportDetail {
   id: number;
@@ -177,7 +178,7 @@ export default function CheckupDetailPage() {
 
           <div style={{ fontSize: 13, color: '#666', lineHeight: 1.8 }}>
             <div>咨询人：{memberLabel}</div>
-            <div>上传时间：{new Date(data.created_at).toLocaleString('zh-CN')}</div>
+            <div>上传时间：{formatDateTime(data.created_at)}</div>
           </div>
         </div>
 

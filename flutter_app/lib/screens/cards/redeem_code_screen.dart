@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/cards_v2_service.dart';
+import '../../utils/datetime_utils.dart';
 
 /// 卡核销码屏幕（v2.0 第 3 期）
 class RedeemCodeScreen extends StatefulWidget {
@@ -48,7 +49,7 @@ class _RedeemCodeScreenState extends State<RedeemCodeScreen> {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_code == null) return;
-      final exp = DateTime.parse(_code!['expires_at']).millisecondsSinceEpoch;
+      final exp = parseServerTime(_code!['expires_at'])?.millisecondsSinceEpoch ?? 0;
       final left = ((exp - DateTime.now().millisecondsSinceEpoch) / 1000).floor();
       setState(() => _remaining = left > 0 ? left : 0);
       if (left <= 0) _issue();

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../models/family_management.dart';
+import '../../utils/datetime_utils.dart';
 
 class FamilyBindListScreen extends StatefulWidget {
   const FamilyBindListScreen({super.key});
@@ -290,11 +291,7 @@ class _FamilyBindListScreenState extends State<FamilyBindListScreen> {
   }
 
   String _formatDate(String dateStr) {
-    try {
-      final date = DateTime.parse(dateStr);
-      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-    } catch (_) {
-      return dateStr;
-    }
+    final s = formatDate(dateStr);
+    return s.isEmpty ? dateStr : s;
   }
 }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Toast, Dialog, Button } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
+import { formatDate as fmtServerDate } from '@/lib/datetime';
 
 interface ManagedByItem {
   id: number;
@@ -50,14 +51,7 @@ export default function FamilyBindListPage() {
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    } catch {
-      return '';
-    }
-  };
+  const formatDate = (dateStr: string) => fmtServerDate(dateStr);
 
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(160deg, #f0faf0 0%, #e8f4ff 100%)' }}>

@@ -1,5 +1,7 @@
 const { get, put } = require('../../utils/request');
 const { formatRelativeTime } = require('../../utils/util');
+// [BUG_FIX_TIMEZONE_GLOBAL_20260517] 统一时间解析/格式化
+const { parseServerTime, formatDateTime, formatDate, formatTime, formatRelativeTime: formatRelativeTimeUnified, formatFriendlyTime } = require('../../utils/datetime');
 
 Page({
   data: {
@@ -78,10 +80,14 @@ Page({
   },
 
   formatItems(items) {
-    return items.map(item => ({
-      ...item,
-      timeLabel: item.created_at ? formatRelativeTime(new Date(item.created_at).getTime()) : ''
-    }));
+    return items.map(item => {
+      let timeLabel = '';
+      if (item.created_at) {
+        const _d = parseServerTime(item.created_at);
+        if (_d) timeLabel = formatRelativeTime(_d.getTime());
+      }
+      return Object.assign({}, item, { timeLabel });
+    });
   },
 
   async onMsgTap(e) {

@@ -10,6 +10,7 @@ import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
 import { compressImages } from '@/lib/image-compress';
 import AlertBanner from '@/components/AlertBanner';
 import DiseaseTagSelector, { type DiseaseItem } from '@/components/DiseaseTagSelector';
+import { formatDateTime } from '@/lib/datetime';
 import HealthProfileEditor, { type HealthProfileEditorRef, showUnsavedChangesModal } from '@/components/HealthProfileEditor';
 import { resolveAssetUrl } from '@/lib/asset-url';
 
@@ -666,15 +667,7 @@ export default function CheckupPage() {
   const selectedMember = familyMembers.find((m) => m.id === selectedMemberId);
 
   const formatDate = (dateStr: string) => {
-    try {
-      return new Date(dateStr).toLocaleDateString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      });
-    } catch {
-      return dateStr;
-    }
+    return formatDateTime(dateStr, 'YYYY/MM/DD') || dateStr;
   };
 
   return (

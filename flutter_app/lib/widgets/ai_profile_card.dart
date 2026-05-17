@@ -1,6 +1,7 @@
 // [PRD-432] AI 回答顶部「咨询对象档案」折叠卡片 - Flutter
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../utils/datetime_utils.dart';
 
 class AiProfileCard extends StatefulWidget {
   final int consultantId;
@@ -125,14 +126,7 @@ class _AiProfileCardState extends State<AiProfileCard> {
 
   String _formatMd(String? iso) {
     if (iso == null) return '';
-    try {
-      final d = DateTime.parse(iso);
-      final m = d.month.toString().padLeft(2, '0');
-      final dd = d.day.toString().padLeft(2, '0');
-      return '$m/$dd';
-    } catch (_) {
-      return '';
-    }
+    return formatDateTime(iso, pattern: 'MM/dd');
   }
 
   String _renderListField(Map? f) {

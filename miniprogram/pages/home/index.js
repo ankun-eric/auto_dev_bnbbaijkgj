@@ -1,5 +1,7 @@
 const { get, post } = require('../../utils/request');
 const { syncTabBar } = require('../../utils/util');
+// [BUG_FIX_TIMEZONE_GLOBAL_20260517] 统一时间解析/格式化
+const { parseServerTime, formatDateTime, formatDate, formatTime, formatRelativeTime, formatFriendlyTime } = require('../../utils/datetime');
 
 // Bug-1/Bug-3 策略：移除默认 Banner 与硬编码菜单，完全以后端返回为准
 const DEFAULT_CONFIG = {
@@ -188,15 +190,15 @@ Page({
 
   _formatArticleTime(createdAt) {
     if (!createdAt) return '';
-    const t = new Date(createdAt);
-    if (isNaN(t.getTime())) return '';
+    const t = parseServerTime(createdAt);
+    if (!t) return '';
     const diffMs = Date.now() - t.getTime();
     const diffH = Math.floor(diffMs / (60 * 60 * 1000));
     if (diffH < 1) return '刚刚';
     if (diffH < 24) return `${diffH}小时前`;
     const diffD = Math.floor(diffH / 24);
     if (diffD < 30) return `${diffD}天前`;
-    return t.toLocaleDateString();
+    return formatDate(createdAt);
   },
 
   onBannerTap(e) {

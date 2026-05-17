@@ -7,6 +7,7 @@ import { AddOutline, MessageOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 import { createChatSession } from '@/lib/chat-session';
 import ChatSidebar from '@/components/ChatSidebar';
+import { formatDate } from '@/lib/datetime';
 
 const consultTypes = [
   {
@@ -206,7 +207,7 @@ export default function AIPage() {
                       </div>
                     </div>
                     <span className="text-xs text-gray-300 ml-2 whitespace-nowrap">
-                      {new Date(chat.updated_at).toLocaleDateString('zh-CN')}
+                      {formatDate(chat.updated_at)}
                     </span>
                   </div>
                 </Card>

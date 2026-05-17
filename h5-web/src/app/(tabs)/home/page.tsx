@@ -8,6 +8,7 @@ import api from '@/lib/api';
 import { getSelectedCity, getLocationCache, requestGeolocation, CityInfo } from '@/lib/cityUtils';
 import MarketingBadge from '@/components/MarketingBadge';
 import { resolveAssetUrl } from '@/lib/asset-url';
+import { formatDate } from '@/lib/datetime';
 
 interface RecommendProduct {
   id: number;
@@ -841,7 +842,7 @@ export default function HomePage() {
                       {n.title}
                     </div>
                     {n.publishedAt && (
-                      <div className="text-xs text-gray-400 mt-1">{new Date(n.publishedAt).toLocaleDateString('zh-CN')}</div>
+                      <div className="text-xs text-gray-400 mt-1">{formatDate(n.publishedAt)}</div>
                     )}
                   </div>
                 </div>

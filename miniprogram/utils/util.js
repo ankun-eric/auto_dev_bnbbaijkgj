@@ -1,32 +1,17 @@
+// [BUG_FIX_TIMEZONE_GLOBAL_20260517] 旧 formatTime/formatDate/formatRelativeTime
+// 内部统一委托到 utils/datetime.js，对外保留旧签名（date 支持 Date / 字符串 / 时间戳）
+const _dt = require('./datetime');
+
 function formatTime(date) {
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  const hour = date.getHours();
-  const minute = date.getMinutes();
-  const second = date.getSeconds();
-  return `${pad(year)}-${pad(month)}-${pad(day)} ${pad(hour)}:${pad(minute)}:${pad(second)}`;
+  return _dt.formatDateTime(date, 'YYYY-MM-DD HH:mm:ss');
 }
 
 function formatDate(date) {
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  return `${pad(year)}-${pad(month)}-${pad(day)}`;
+  return _dt.formatDate(date);
 }
 
 function formatRelativeTime(timestamp) {
-  const now = Date.now();
-  const diff = now - timestamp;
-  const minute = 60 * 1000;
-  const hour = 60 * minute;
-  const day = 24 * hour;
-
-  if (diff < minute) return '刚刚';
-  if (diff < hour) return `${Math.floor(diff / minute)}分钟前`;
-  if (diff < day) return `${Math.floor(diff / hour)}小时前`;
-  if (diff < 7 * day) return `${Math.floor(diff / day)}天前`;
-  return formatDate(new Date(timestamp));
+  return _dt.formatRelativeTime(timestamp);
 }
 
 function pad(n) {

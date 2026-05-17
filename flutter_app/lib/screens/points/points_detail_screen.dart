@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../utils/datetime_utils.dart';
 import 'exchange_records_screen.dart' show ExchangeRecord, jumpToUseCoupon;
 
 class PointsDetailScreen extends StatefulWidget {
@@ -292,13 +293,8 @@ class _ExchangeRecordsTabState extends State<_ExchangeRecordsTab> {
 
   String _fmt(String? iso) {
     if (iso == null || iso.isEmpty) return '';
-    try {
-      final d = DateTime.parse(iso).toLocal();
-      final p = (int n) => n < 10 ? '0$n' : '$n';
-      return '${d.year}-${p(d.month)}-${p(d.day)} ${p(d.hour)}:${p(d.minute)}';
-    } catch (_) {
-      return iso;
-    }
+    final s = formatDateTime(iso);
+    return s.isEmpty ? iso : s;
   }
 
   @override

@@ -6,6 +6,7 @@ import { Empty, SpinLoading, Tabs, Tag } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import CardFace from '@/components/card/CardFace';
 import api from '@/lib/api';
+import { formatDate } from '@/lib/datetime';
 
 interface UserCard {
   id: number;
@@ -142,7 +143,7 @@ export default function CardWalletPage() {
                     : it.status === 'used_up' ? <Tag color="default">用完</Tag>
                     : it.status === 'refunded' ? <Tag color="default">已退款</Tag>
                     : <Tag color="success">使用中</Tag>}
-                  <span>有效期至 {new Date(it.valid_to).toLocaleDateString()}</span>
+                  <span>有效期至 {formatDate(it.valid_to)}</span>
                 </div>
               </div>
             );

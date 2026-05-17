@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button, Empty, SpinLoading, Toast } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import cardsV2, { RedemptionCode } from '@/services/cardsV2';
+import { parseServerTime } from '@/lib/datetime';
 
 /**
  * 卡管理 v2.0 第 3 期：核销码面板
@@ -42,7 +43,7 @@ export default function RedeemCodePage() {
     if (!code) return;
     const compute = () => {
       const now = Date.now();
-      const exp = new Date(code.expires_at).getTime();
+      const exp = parseServerTime(code.expires_at)?.getTime() ?? 0;
       const left = Math.max(0, Math.floor((exp - now) / 1000));
       setRemaining(left);
       if (left <= 0) {

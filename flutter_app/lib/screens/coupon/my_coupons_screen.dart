@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/coupon.dart';
 import '../../services/api_service.dart';
+import '../../utils/datetime_utils.dart';
 import '../points/exchange_records_screen.dart' show jumpToUseCoupon;
 
 class MyCouponsScreen extends StatefulWidget {
@@ -239,13 +240,10 @@ class _CouponTabState extends State<_CouponTab>
 
   bool _isExpiringSoon(String? validEnd) {
     if (validEnd == null || validEnd.isEmpty) return false;
-    try {
-      final t = DateTime.parse(validEnd);
-      final diff = t.difference(DateTime.now());
-      return !diff.isNegative && diff.inDays <= 7;
-    } catch (_) {
-      return false;
-    }
+    final t = parseServerTime(validEnd);
+    if (t == null) return false;
+    final diff = t.difference(DateTime.now());
+    return !diff.isNegative && diff.inDays <= 7;
   }
 
   @override

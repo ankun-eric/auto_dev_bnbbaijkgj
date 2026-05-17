@@ -1,4 +1,6 @@
 const { get } = require('../../../utils/request');
+// [BUG_FIX_TIMEZONE_GLOBAL_20260517] 统一时间解析/格式化
+const { parseServerTime, formatDateTime, formatDate, formatTime, formatRelativeTime, formatFriendlyTime } = require('../../../utils/datetime');
 
 Page({
   data: {
@@ -25,10 +27,10 @@ Page({
         if (res.weekly_data && res.weekly_data.length > 0) {
           const maxCount = Math.max(...res.weekly_data.map(function(d) { return d.count || 0; }), 1);
           res.weekly_data = res.weekly_data.map(function(d) {
-            const dateObj = new Date(d.date);
+            const dateObj = parseServerTime(d.date);
             const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
             return {
-              day: '周' + dayNames[dateObj.getDay()],
+              day: dateObj ? '周' + dayNames[dateObj.getDay()] : '',
               count: d.count || 0,
               rate: Math.round(((d.count || 0) / maxCount) * 100),
             };

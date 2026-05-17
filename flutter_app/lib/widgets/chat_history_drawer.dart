@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/chat_provider.dart';
 import '../models/chat_session.dart';
+import '../utils/datetime_utils.dart';
 
 class ChatHistoryDrawer extends StatefulWidget {
   final VoidCallback? onNewChat;
@@ -71,37 +72,31 @@ class _ChatHistoryDrawerState extends State<ChatHistoryDrawer> {
 
   String _formatTime(String? dateStr) {
     if (dateStr == null) return '';
-    try {
-      final date = DateTime.parse(dateStr);
-      final now = DateTime.now();
-      final diff = now.difference(date);
-      if (diff.inMinutes < 1) return '刚刚';
-      if (diff.inHours < 1) return '${diff.inMinutes}分钟前';
-      if (diff.inDays < 1) return '${diff.inHours}小时前';
-      if (diff.inDays == 1) return '昨天';
-      if (diff.inDays < 7) return '${diff.inDays}天前';
-      return '${date.month}/${date.day}';
-    } catch (_) {
-      return '';
-    }
+    final date = parseServerTime(dateStr);
+    if (date == null) return '';
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    if (diff.inMinutes < 1) return '刚刚';
+    if (diff.inHours < 1) return '${diff.inMinutes}分钟前';
+    if (diff.inDays < 1) return '${diff.inHours}小时前';
+    if (diff.inDays == 1) return '昨天';
+    if (diff.inDays < 7) return '${diff.inDays}天前';
+    return '${date.month}/${date.day}';
   }
 
   String _getGroupLabel(String? dateStr) {
     if (dateStr == null) return '更早';
-    try {
-      final date = DateTime.parse(dateStr);
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final sessionDay = DateTime(date.year, date.month, date.day);
-      final diff = today.difference(sessionDay).inDays;
-      if (diff == 0) return '今天';
-      if (diff == 1) return '昨天';
-      if (diff <= 7) return '近7天';
-      if (diff <= 30) return '近30天';
-      return '更早';
-    } catch (_) {
-      return '更早';
-    }
+    final date = parseServerTime(dateStr);
+    if (date == null) return '更早';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final sessionDay = DateTime(date.year, date.month, date.day);
+    final diff = today.difference(sessionDay).inDays;
+    if (diff == 0) return '今天';
+    if (diff == 1) return '昨天';
+    if (diff <= 7) return '近7天';
+    if (diff <= 30) return '近30天';
+    return '更早';
   }
 
   Map<String, List<ChatSession>> _groupSessions(List<ChatSession> sessions) {

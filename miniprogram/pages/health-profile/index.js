@@ -9,6 +9,8 @@
  *           /api/prd469/summary/{id}、/api/family/management、/api/disease-presets
  */
 const { get, put, post, del } = require('../../utils/request');
+// [BUG_FIX_TIMEZONE_GLOBAL_20260517] 统一时间解析/格式化
+const { parseServerTime, formatDateTime, formatDate, formatTime, formatRelativeTime, formatFriendlyTime } = require('../../utils/datetime');
 
 const TAB_LIST = [
   { id: 'today-data',     label: '今日数据' },
@@ -23,7 +25,8 @@ const BLOOD_TYPES = ['A', 'B', 'AB', 'O', '未知'];
 function calcAge(birthday) {
   if (!birthday) return null;
   try {
-    const b = new Date(birthday);
+    const b = parseServerTime(birthday);
+    if (!b) return null;
     const now = new Date();
     let age = now.getFullYear() - b.getFullYear();
     const m = now.getMonth() - b.getMonth();

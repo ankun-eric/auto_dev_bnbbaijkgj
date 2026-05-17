@@ -1,5 +1,7 @@
 const { generateId } = require('../../utils/util');
 const { get, post, put } = require('../../utils/request');
+// [BUG_FIX_TIMEZONE_GLOBAL_20260517] 统一时间解析/格式化
+const { parseServerTime, formatDateTime, formatDate, formatTime, formatRelativeTime, formatFriendlyTime } = require('../../utils/datetime');
 
 const RELATION_COLORS = {
   '本人': '#52c41a',
@@ -50,7 +52,11 @@ Page({
         id: String(m.id),
         name: m.nickname || '',
         relation: m.relation_type_name || m.relationship_type || '',
-        age: m.birthday ? new Date().getFullYear() - new Date(m.birthday).getFullYear() : '',
+        age: (function() {
+          if (!m.birthday) return '';
+          var _bd = parseServerTime(m.birthday);
+          return _bd ? new Date().getFullYear() - _bd.getFullYear() : '';
+        })(),
         phone: '',
         color: getRelationColor(m.relation_type_name || ''),
         conditions: m.medical_histories || []

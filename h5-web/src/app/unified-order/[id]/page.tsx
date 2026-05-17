@@ -20,6 +20,7 @@ import ContactStoreModal from '@/app/orders/components/ContactStoreModal';
 import { resolveAssetUrl } from '@/lib/asset-url';
 // [2026-05-05 订单页地址导航按钮 PRD v1.0]
 import AddressNavButton from '@/components/AddressNavButton';
+import { parseServerTime, formatDateTime } from '@/lib/datetime';
 
 interface OrderItem {
   id: number;
@@ -277,7 +278,7 @@ export default function UnifiedOrderDetailPage() {
     // 已存在预约时间则回填，否则默认明天
     if (apptItem.appointment_time) {
       try {
-        setApptDate(new Date(apptItem.appointment_time));
+        setApptDate(parseServerTime(apptItem.appointment_time) || new Date());
       } catch {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
@@ -592,11 +593,11 @@ export default function UnifiedOrderDetailPage() {
               <span>订单编号</span><span>{order.order_no}</span>
             </div>
             <div className="flex justify-between">
-              <span>下单时间</span><span>{new Date(order.created_at).toLocaleString('zh-CN')}</span>
+              <span>下单时间</span><span>{formatDateTime(order.created_at)}</span>
             </div>
             {order.paid_at && (
               <div className="flex justify-between">
-                <span>支付时间</span><span>{new Date(order.paid_at).toLocaleString('zh-CN')}</span>
+                <span>支付时间</span><span>{formatDateTime(order.paid_at)}</span>
               </div>
             )}
             {/* [支付配置 PRD v1.0] 优先显示具体支付通道文案 */}
@@ -642,7 +643,7 @@ export default function UnifiedOrderDetailPage() {
           <Card style={{ borderRadius: 12, marginBottom: 12 }}>
             <div className="font-medium text-base mb-3">预约信息</div>
             {order.items.filter(item => item.appointment_time).map(item => {
-              const apptDate = item.appointment_time ? new Date(item.appointment_time).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-') : '';
+              const apptDate = item.appointment_time ? formatDateTime(item.appointment_time, 'YYYY-MM-DD') : '';
               // [预约日期模式 Bug 修复 v1.0] 仅 time_slot 模式才展示时段；date 模式无论历史脏数据如何，一律不展示时段
               const isTimeSlotMode = item.appointment_mode === 'time_slot';
               const timeSlot = isTimeSlotMode ? (item.appointment_data?.time_slot || '') : '';
@@ -851,21 +852,21 @@ export default function UnifiedOrderDetailPage() {
             direction="vertical"
             style={{ '--title-font-size': '13px', '--description-font-size': '11px' }}
           >
-            <Steps.Step title="下单成功" description={new Date(order.created_at).toLocaleString('zh-CN')} />
+            <Steps.Step title="下单成功" description={formatDateTime(order.created_at)} />
             {order.paid_at && (
-              <Steps.Step title="支付完成" description={new Date(order.paid_at).toLocaleString('zh-CN')} />
+              <Steps.Step title="支付完成" description={formatDateTime(order.paid_at)} />
             )}
             {order.shipped_at && (
-              <Steps.Step title="已发货" description={new Date(order.shipped_at).toLocaleString('zh-CN')} />
+              <Steps.Step title="已发货" description={formatDateTime(order.shipped_at)} />
             )}
             {order.received_at && (
-              <Steps.Step title="已收货" description={new Date(order.received_at).toLocaleString('zh-CN')} />
+              <Steps.Step title="已收货" description={formatDateTime(order.received_at)} />
             )}
             {order.completed_at && (
-              <Steps.Step title="已完成" description={new Date(order.completed_at).toLocaleString('zh-CN')} />
+              <Steps.Step title="已完成" description={formatDateTime(order.completed_at)} />
             )}
             {order.cancelled_at && (
-              <Steps.Step title="已取消" description={`${new Date(order.cancelled_at).toLocaleString('zh-CN')}${order.cancel_reason ? ` (${order.cancel_reason})` : ''}`} />
+              <Steps.Step title="已取消" description={`${formatDateTime(order.cancelled_at)}${order.cancel_reason ? ` (${order.cancel_reason})` : ''}`} />
             )}
           </Steps>
         </Card>

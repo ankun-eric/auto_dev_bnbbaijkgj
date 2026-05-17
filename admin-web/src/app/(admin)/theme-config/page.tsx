@@ -6,6 +6,7 @@ import {
 } from 'antd';
 import { CheckCircleOutlined, EditOutlined, EyeOutlined, ReloadOutlined } from '@ant-design/icons';
 import { get, put, post } from '@/lib/api';
+import { formatDateTime } from '@/lib/datetime';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -132,7 +133,7 @@ export default function ThemeConfigPage() {
     { title: '版本', dataIndex: 'version', width: 80 },
     {
       title: '更新时间', dataIndex: 'updated_at', width: 200,
-      render: (v: number) => new Date(v).toLocaleString(),
+      render: (v: number) => formatDateTime(v),
     },
     {
       title: '操作', width: 280,

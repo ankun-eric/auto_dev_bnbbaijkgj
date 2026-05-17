@@ -1,4 +1,6 @@
 const { get } = require('../../utils/request');
+// [BUG_FIX_TIMEZONE_GLOBAL_20260517] 统一时间解析/格式化
+const { parseServerTime, formatDateTime, formatDate, formatTime, formatRelativeTime, formatFriendlyTime } = require('../../utils/datetime');
 
 const TYPE_META = {
   coupon: { text: '优惠券', color: '#fa8c16', icon: '🎫' },
@@ -19,13 +21,7 @@ const STATUS_META = {
 
 function fmt(dt) {
   if (!dt) return '';
-  try {
-    const d = new Date(dt);
-    const pad = (n) => (n < 10 ? '0' + n : String(n));
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  } catch (e) {
-    return String(dt);
-  }
+  return formatDateTime(dt);
 }
 
 Page({

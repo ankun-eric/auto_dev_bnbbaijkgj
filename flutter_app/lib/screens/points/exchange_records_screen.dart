@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../widgets/custom_app_bar.dart';
+import '../../utils/datetime_utils.dart';
 
 /// OPT-4：兑换记录中的优惠券字段（snake_case → camelCase）
 class ExchangeRecord {
@@ -134,13 +135,8 @@ class _PointsExchangeRecordsScreenState extends State<PointsExchangeRecordsScree
 
   String _fmt(String? iso) {
     if (iso == null || iso.isEmpty) return '';
-    try {
-      final d = DateTime.parse(iso).toLocal();
-      final p = (int n) => n < 10 ? '0$n' : '$n';
-      return '${d.year}-${p(d.month)}-${p(d.day)} ${p(d.hour)}:${p(d.minute)}';
-    } catch (_) {
-      return iso;
-    }
+    final s = formatDateTime(iso);
+    return s.isEmpty ? iso : s;
   }
 
   void _goAppointment(Map<String, dynamic> r) {

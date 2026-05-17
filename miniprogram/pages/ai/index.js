@@ -1,5 +1,7 @@
 const { get, post } = require('../../utils/request');
 const { checkLogin, ensureMerchantEntry, syncTabBar } = require('../../utils/util');
+// [BUG_FIX_TIMEZONE_GLOBAL_20260517] 统一时间解析/格式化
+const { parseServerTime, formatDateTime, formatDate, formatTime, formatRelativeTime, formatFriendlyTime } = require('../../utils/datetime');
 
 Page({
   data: {
@@ -68,7 +70,8 @@ Page({
 
   _formatSessionTime(dateStr) {
     if (!dateStr) return '';
-    const d = new Date(dateStr);
+    const d = parseServerTime(dateStr);
+    if (!d) return '';
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const ts = d.getTime();

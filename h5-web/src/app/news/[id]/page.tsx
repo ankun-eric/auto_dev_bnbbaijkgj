@@ -6,6 +6,7 @@ import { NavBar, Tag, Toast, Divider, SpinLoading, Button, TextArea, Avatar } fr
 import { HeartOutline, HeartFill, StarOutline, StarFill } from 'antd-mobile-icons';
 import api from '@/lib/api';
 import { resolveAssetUrl } from '@/lib/asset-url';
+import { formatDate } from '@/lib/datetime';
 
 interface NewsDetail {
   id: number;
@@ -66,7 +67,7 @@ export default function NewsDetailPage() {
         // PRD F2：优先使用后端 JOIN users 返回的实时字段
         user: c.author_nick || c.user_name || c.user?.name || '用户',
         content: c.content ?? '',
-        time: c.created_at ? new Date(c.created_at).toLocaleDateString('zh-CN') : '',
+        time: c.created_at ? formatDate(c.created_at) : '',
         avatar: c.author_avatar || c.user_avatar || c.user?.avatar || '',
       })));
     } catch {
@@ -173,7 +174,7 @@ export default function NewsDetailPage() {
         <h1 className="text-xl font-bold leading-tight">{news.title}</h1>
         <div className="flex items-center flex-wrap mt-3 mb-4 gap-2">
           {news.source && <span className="text-xs text-gray-500">来源：{news.source}</span>}
-          {timeText && <span className="text-xs text-gray-300">{new Date(timeText).toLocaleDateString('zh-CN')}</span>}
+          {timeText && <span className="text-xs text-gray-300">{formatDate(timeText)}</span>}
           <span className="text-xs text-gray-300">{news.view_count ?? 0}阅读</span>
         </div>
         {news.tags && news.tags.length > 0 && (

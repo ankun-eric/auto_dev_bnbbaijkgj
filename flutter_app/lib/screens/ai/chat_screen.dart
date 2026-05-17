@@ -27,6 +27,7 @@ import '../../widgets/health_self_check_card.dart';
 import '../../services/api_service.dart';
 import '../../services/sse_service.dart';
 import '../../services/tts_service.dart';
+import '../../utils/datetime_utils.dart';
 
 // [PRD-433 v1.0] 气泡卡片化视觉改版 - 设计 Token（与 H5/小程序严格一致）
 class _ChatTokens {
@@ -2134,11 +2135,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   DateTime? _parseMessageTime(String? iso) {
     if (iso == null || iso.isEmpty) return null;
-    try {
-      return DateTime.parse(iso).toLocal();
-    } catch (_) {
-      return null;
-    }
+    return parseServerTime(iso);
   }
 
   Widget _timeDividerWidget(DateTime t) {

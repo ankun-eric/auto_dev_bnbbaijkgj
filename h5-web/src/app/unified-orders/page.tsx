@@ -7,6 +7,7 @@ import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import ContactStoreModal from '@/app/orders/components/ContactStoreModal';
 import { resolveAssetUrl } from '@/lib/asset-url';
+import { formatDateTime } from '@/lib/datetime';
 
 interface OrderItem {
   id: number;
@@ -598,7 +599,7 @@ function UnifiedOrdersPage() {
                 <div className="flex items-center justify-between pt-2 border-t border-gray-50">
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-gray-400">
-                      {new Date(order.created_at).toLocaleString('zh-CN')}
+                      {formatDateTime(order.created_at)}
                     </span>
                     {showHotBadge && (
                       <span style={{

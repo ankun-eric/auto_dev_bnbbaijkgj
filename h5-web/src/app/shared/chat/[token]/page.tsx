@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { SpinLoading } from 'antd-mobile';
 import axios from 'axios';
+import { formatDate, formatTime } from '@/lib/datetime';
 
 interface SharedMessageItem {
   role: string;
@@ -113,7 +114,7 @@ export default function SharedChatPage() {
             <h1 className="font-bold text-base truncate" style={{ color: '#0C4A6E' }}>{chat.session_title || 'AI健康咨询'}</h1>
             <p className="text-xs mt-0.5" style={{ color: 'rgba(12,74,110,0.7)' }}>
               {chat.view_count}次查看
-              {chat.created_at && ` · ${new Date(chat.created_at).toLocaleDateString('zh-CN')}`}
+              {chat.created_at && ` · ${formatDate(chat.created_at)}`}
               {chat.user_nickname && ` · ${chat.user_nickname}分享`}
             </p>
           </div>
@@ -143,7 +144,7 @@ export default function SharedChatPage() {
               </div>
               {msg.created_at && (
                 <div className={`text-xs text-gray-300 mt-1 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
-                  {new Date(msg.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                  {formatTime(msg.created_at)}
                 </div>
               )}
             </div>

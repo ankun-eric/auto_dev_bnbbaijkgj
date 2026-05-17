@@ -64,6 +64,7 @@ import { ToastUnified } from '@/lib/toast-unified';
 import { THEME } from '@/lib/theme';
 import { useAuth } from '@/lib/auth';
 import api from '@/lib/api';
+import { parseServerTime, formatDateTime } from '@/lib/datetime';
 
 // ─────────────────────────────────────────────────────────────────────
 // 类型定义
@@ -171,13 +172,13 @@ const formatBadge = (n: number): string => {
 
 function formatRelativeTime(iso: string): string {
   if (!iso) return '';
-  const t = new Date(iso).getTime();
+  const t = parseServerTime(iso)?.getTime() ?? NaN;
   if (!Number.isFinite(t)) return '';
   const diff = Date.now() - t;
   if (diff < 60 * 1000) return '刚刚';
   if (diff < 60 * 60 * 1000) return `${Math.floor(diff / 60000)}分钟前`;
   if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / 3600000)}小时前`;
-  return new Date(iso).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
+  return formatDateTime(iso, 'MM-DD');
 }
 
 /** F-10 角色 → 颜色映射（保证同一角色色值固定） */
@@ -203,7 +204,7 @@ function groupHistories(items: ChatHistoryItem[]) {
     { label: '更早', items: [] },
   ];
   items.forEach((it) => {
-    const t = new Date(it.time).getTime();
+    const t = parseServerTime(it.time)?.getTime() ?? NaN;
     if (!Number.isFinite(t)) {
       groups[2].items.push(it);
       return;
@@ -443,8 +444,8 @@ export default function Sidebar({
     const pinned = histories
       .filter((h) => h.pinned)
       .sort((a, b) => {
-        const ta = new Date(a.pinnedAt || a.time).getTime();
-        const tb = new Date(b.pinnedAt || b.time).getTime();
+        const ta = parseServerTime(a.pinnedAt || a.time)?.getTime() ?? 0;
+        const tb = parseServerTime(b.pinnedAt || b.time)?.getTime() ?? 0;
         return tb - ta;
       })
       .slice(0, PIN_LIMIT);

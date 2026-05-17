@@ -8,6 +8,7 @@ import api from '@/lib/api';
 import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
 import DiseaseTagSelector, { type DiseaseItem } from '@/components/DiseaseTagSelector';
 import HealthProfileEditor, { type HealthProfileEditorRef, showUnsavedChangesModal } from '@/components/HealthProfileEditor';
+import { formatDateTime } from '@/lib/datetime';
 
 const MAX_IMAGES = 5;
 const MAX_SIZE = 20 * 1024 * 1024;
@@ -130,9 +131,7 @@ function getMemberTagLabel(member: HistoryItem['family_member']): { label: strin
 }
 
 function formatTime(dateStr: string) {
-  const d = new Date(dateStr);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return formatDateTime(dateStr);
 }
 
 const STEP_ITEMS = [

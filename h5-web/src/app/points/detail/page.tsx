@@ -19,6 +19,7 @@ import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { jumpToUseCoupon } from '@/lib/coupon';
 import { resolveAssetUrl } from '@/lib/asset-url';
+import { formatDateTime } from '@/lib/datetime';
 
 interface PointsRecord {
   id: number;
@@ -84,11 +85,7 @@ const STATUS_META: Record<string, { text: string; color: string }> = {
 
 function fmt(dt?: string | null) {
   if (!dt) return '';
-  try {
-    return new Date(dt).toLocaleString('zh-CN', { hour12: false });
-  } catch {
-    return dt;
-  }
+  return formatDateTime(dt, 'YYYY-MM-DD HH:mm:ss') || dt;
 }
 
 // ──────────── 子组件：积分明细 Tab ────────────

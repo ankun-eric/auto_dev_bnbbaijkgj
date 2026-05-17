@@ -1,0 +1,28 @@
+{
+  "extends": "next/core-web-vitals",
+  "rules": {
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "NewExpression[callee.name='Date'][arguments.0.type='Identifier']",
+        "message": "[TIMEZONE_V3] 禁止 new Date(变量) 解析后端字段，请改用 parseServerTime/formatDateTime（来自 @/lib/datetime）"
+      },
+      {
+        "selector": "NewExpression[callee.name='Date'][arguments.0.type='MemberExpression']",
+        "message": "[TIMEZONE_V3] 禁止 new Date(obj.xxx) 解析后端字段，请改用 parseServerTime/formatDateTime（来自 @/lib/datetime）"
+      },
+      {
+        "selector": "CallExpression[callee.property.name='toLocaleString']",
+        "message": "[TIMEZONE_V3] 禁用 toLocaleString，请用 @/lib/datetime 中的 formatDateTime 等工具"
+      },
+      {
+        "selector": "CallExpression[callee.property.name='toLocaleDateString']",
+        "message": "[TIMEZONE_V3] 禁用 toLocaleDateString，请用 @/lib/datetime 中的 formatDate 等工具"
+      },
+      {
+        "selector": "CallExpression[callee.property.name='toLocaleTimeString']",
+        "message": "[TIMEZONE_V3] 禁用 toLocaleTimeString，请用 @/lib/datetime 中的 formatTime 等工具"
+      }
+    ]
+  }
+}

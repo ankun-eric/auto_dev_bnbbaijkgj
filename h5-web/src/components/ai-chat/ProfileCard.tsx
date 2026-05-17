@@ -16,6 +16,7 @@ import api from '@/lib/api';
 import MedicationDrawer from './MedicationDrawer';
 import AdvisorCapsule from './AdvisorCapsule';
 import { formatGender } from '@/utils/format';
+import { formatDateTime } from '@/lib/datetime';
 
 export interface ProfileCardProps {
   consultantId: number;
@@ -79,14 +80,7 @@ interface ProfileCardData {
 
 function formatMonthDay(iso: string | null): string {
   if (!iso) return '';
-  try {
-    const d = new Date(iso);
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${m}/${dd}`;
-  } catch {
-    return '';
-  }
+  return formatDateTime(iso, 'MM/DD');
 }
 
 function genderIcon(gender: string): string {

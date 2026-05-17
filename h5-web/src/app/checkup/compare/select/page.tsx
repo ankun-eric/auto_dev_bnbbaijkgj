@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { NavBar, Toast, SpinLoading, Empty } from 'antd-mobile';
 import api from '@/lib/api';
 import { resolveAssetUrl } from '@/lib/asset-url';
+import { formatDateTime } from '@/lib/datetime';
 
 interface MemberItem {
   id: number;
@@ -239,7 +240,7 @@ function CompareSelectContent() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</div>
                     <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
-                      {new Date(r.created_at).toLocaleString('zh-CN')}
+                      {formatDateTime(r.created_at)}
                     </div>
                   </div>
                 </div>

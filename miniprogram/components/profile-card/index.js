@@ -1,4 +1,6 @@
 // [PRD-432] AI 回答顶部「咨询对象档案」折叠卡片 - 小程序组件
+// [BUG_FIX_TIMEZONE_GLOBAL_20260517] 统一时间解析/格式化
+const { parseServerTime, formatDateTime, formatDate, formatTime, formatRelativeTime, formatFriendlyTime } = require('../../utils/datetime');
 const app = getApp();
 
 const profileCardCache = {};
@@ -124,7 +126,8 @@ Component({
     _formatMD(iso) {
       if (!iso) return '';
       try {
-        const d = new Date(iso);
+        const d = parseServerTime(iso);
+        if (!d) return '';
         const m = String(d.getMonth() + 1).padStart(2, '0');
         const dd = String(d.getDate()).padStart(2, '0');
         return `${m}/${dd}`;

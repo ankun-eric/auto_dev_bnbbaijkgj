@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Empty, List, SpinLoading } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import cardsV2, { CardUsageLog } from '@/services/cardsV2';
+import { formatDateTime } from '@/lib/datetime';
 
 export default function CardUsageLogsPage() {
   const params = useParams();
@@ -43,7 +44,7 @@ export default function CardUsageLogsPage() {
                 key={it.id}
                 description={
                   <>
-                    {it.store_name || `门店#${it.store_id || '-'}`} · {new Date(it.used_at).toLocaleString()}
+                    {it.store_name || `门店#${it.store_id || '-'}`} · {formatDateTime(it.used_at)}
                   </>
                 }
               >

@@ -11,6 +11,7 @@ import api from '@/lib/api';
 import { BH_TOKENS } from '@/lib/health-tokens';
 import { ToastUnified } from '@/lib/toast-unified';
 import { showUnifiedConfirm } from '@/lib/dialog-unified';
+import { formatDateTime } from '@/lib/datetime';
 
 interface DeviceItem {
   id: number;
@@ -137,7 +138,7 @@ export default function DevicesPage() {
                   <div style={{ fontSize: 16, fontWeight: 600, color: BH_TOKENS.textPrimary }}>{d.device_name || '未命名设备'}</div>
                   <div style={{ fontSize: 12, color: BH_TOKENS.textSecondary, marginTop: 2 }}>
                     {d.device_type || '通用'} · {d.is_online === false ? '离线' : '在线'}
-                    {d.last_sync_at ? ` · 同步 ${new Date(d.last_sync_at).toLocaleString()}` : ''}
+                    {d.last_sync_at ? ` · 同步 ${formatDateTime(d.last_sync_at)}` : ''}
                   </div>
                 </div>
                 <div style={{ fontSize: 18, color: BH_TOKENS.brand500 }}>›</div>
@@ -175,7 +176,7 @@ export default function DevicesPage() {
               状态：{detail.status || 'active'}
             </div>
             <div style={{ fontSize: 14, color: BH_TOKENS.textSecondary, marginBottom: 20 }}>
-              绑定时间：{detail.bound_at ? new Date(detail.bound_at).toLocaleString() : '—'}
+              绑定时间：{detail.bound_at ? formatDateTime(detail.bound_at) : '—'}
             </div>
             <button
               onClick={() => handleUnbind(detail)}

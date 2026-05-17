@@ -32,6 +32,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, Button, NavBar, SpinLoading, Toast } from 'antd-mobile';
 import { CheckCircleFill } from 'antd-mobile-icons';
 import api from '@/lib/api';
+import { formatDateTime } from '@/lib/datetime';
 
 interface OrderItemBrief {
   product_id: number;
@@ -246,17 +247,7 @@ function PaySuccessPage() {
   // 时间格式化（YYYY-MM-DD HH:mm）
   const fmtTime = (s: string | null | undefined) => {
     if (!s) return '-';
-    try {
-      const d = new Date(s);
-      const y = d.getFullYear();
-      const mo = String(d.getMonth() + 1).padStart(2, '0');
-      const da = String(d.getDate()).padStart(2, '0');
-      const h = String(d.getHours()).padStart(2, '0');
-      const mi = String(d.getMinutes()).padStart(2, '0');
-      return `${y}-${mo}-${da} ${h}:${mi}`;
-    } catch {
-      return '-';
-    }
+    return formatDateTime(s) || '-';
   };
 
   const paymentText = (() => {

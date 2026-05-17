@@ -13,6 +13,7 @@ import {
   AimOutlined, ToolOutlined, SyncOutlined,
 } from '@ant-design/icons';
 import { get, post, put, del, patch } from '@/lib/api';
+import { formatDateTime } from '@/lib/datetime';
 
 const { Title, Text } = Typography;
 
@@ -534,7 +535,7 @@ export default function AIConfigPage() {
         }
         const isSuccess = record.last_test_status === 'success';
         const timeStr = record.last_test_time
-          ? new Date(record.last_test_time).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+          ? formatDateTime(record.last_test_time, 'MM-DD HH:mm')
           : '';
         return (
           <div>

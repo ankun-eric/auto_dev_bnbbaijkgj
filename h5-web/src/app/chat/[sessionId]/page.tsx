@@ -15,6 +15,7 @@ import { aiChatTrack, aiHomeFnTrack } from '@/lib/analytics';
 // [AICHAT-OPTIM-FIX-V1 F-05/F-06 2026-05-14] 胶囊条 + ChatCard 组件
 import CapsuleBar from '@/components/ai-chat/CapsuleBar';
 import { ChatCard, resolveCardType, backendButtonToCardButton, type ChatCardType } from '@/components/ai-chat/ChatCards';
+import { parseServerTime, formatTime } from '@/lib/datetime';
 
 interface DrugInfoCardData {
   drug_name?: string;
@@ -247,8 +248,8 @@ function TopReportCard({ reports, isCompare, galleryExpanded, setGalleryExpanded
     const imgsB = (b.file_urls && b.file_urls.length > 0) ? b.file_urls : (b.file_url ? [b.file_url] : []);
     const spanText = (() => {
       try {
-        const da = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+        const da = a.created_at ? (parseServerTime(a.created_at)?.getTime() ?? 0) : 0;
+        const db = b.created_at ? (parseServerTime(b.created_at)?.getTime() ?? 0) : 0;
         if (!da || !db) return '';
         const months = Math.round(Math.abs(db - da) / (1000 * 60 * 60 * 24 * 30));
         if (months < 1) return '不足 1 个月';
@@ -1086,7 +1087,7 @@ function ChatPageInner() {
           id: String(m.id),
           role: m.role as 'user' | 'assistant',
           content: m.content,
-          time: new Date(m.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+          time: formatTime(m.created_at),
         }));
         setMessages([welcomeMessage, ...historyMsgs]);
       }

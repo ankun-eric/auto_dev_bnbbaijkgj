@@ -34,6 +34,7 @@ import HealthInfoBlock from '@/components/health-profile-v5/HealthInfoBlock';
 import CareReminderBlock from '@/components/health-profile-v5/CareReminderBlock';
 import HealthEventsBlock from '@/components/health-profile-v5/HealthEventsBlock';
 import { BH_TOKENS } from '@/lib/health-tokens';
+import { parseServerTime } from '@/lib/datetime';
 
 // ─── [PRD-HEALTH-OPT-V1 2026-05-14 R1] 设计 Token：蓝白渐变 + 大圆角 ───
 const T = {
@@ -929,8 +930,8 @@ function relationEmoji(name: string): string {
 
 function calcAge(birthday: string): number | null {
   try {
-    const b = new Date(birthday);
-    if (Number.isNaN(b.getTime())) return null;
+    const b = parseServerTime(birthday);
+    if (!b) return null;
     const now = new Date();
     let age = now.getFullYear() - b.getFullYear();
     const m = now.getMonth() - b.getMonth();

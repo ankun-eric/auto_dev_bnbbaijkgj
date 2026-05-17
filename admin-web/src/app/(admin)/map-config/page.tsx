@@ -43,6 +43,7 @@ import {
   SaveOutlined,
 } from '@ant-design/icons';
 import { get, post, put } from '@/lib/api';
+import { formatDateTime } from '@/lib/datetime';
 
 const { Title, Text, Paragraph, Link: TypographyLink } = Typography;
 
@@ -219,7 +220,7 @@ export default function MapConfigPage() {
         key: 'created_at',
         width: 180,
         render: (v: string) =>
-          v ? new Date(v).toLocaleString('zh-CN', { hour12: false }) : '-',
+          v ? formatDateTime(v, 'YYYY-MM-DD HH:mm:ss') : '-',
       },
       { title: '操作人', dataIndex: 'operator_name', key: 'operator_name', width: 140, render: (v: string) => v || '-' },
       {
@@ -263,7 +264,7 @@ export default function MapConfigPage() {
         <Paragraph type="secondary" style={{ marginBottom: 16 }}>
           统一管理高德地图所有 Key 与默认参数。保存后全系统立即生效，无需重启。
           {hasRecord
-            ? ` 当前正在使用数据库配置${updatedAt ? `（更新于 ${new Date(updatedAt).toLocaleString('zh-CN', { hour12: false })}）` : ''}。`
+            ? ` 当前正在使用数据库配置${updatedAt ? `（更新于 ${formatDateTime(updatedAt, 'YYYY-MM-DD HH:mm:ss')}）` : ''}。`
             : ' 当前尚未保存过配置，系统正在使用环境变量兜底，保存后将自动切换到数据库配置。'}
         </Paragraph>
 

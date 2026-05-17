@@ -7,6 +7,7 @@ import api from '@/lib/api';
 import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
 import DrugMergeCardFlat, { type DrugListItem, type MemberInfo } from '@/components/drug/DrugMergeCardFlat';
 import DrugImageViewer from '@/components/drug/DrugImageViewer';
+import { parseServerTime } from '@/lib/datetime';
 
 const MAX_DRUGS_COMPARE = 2;
 const REGENERATE_COOLDOWN_MS = 10_000;
@@ -59,7 +60,8 @@ const BASE_SHARE_URL =
 
 function formatMsgTime(dateStr?: string) {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
+  const d = parseServerTime(dateStr);
+  if (!d) return '';
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
@@ -329,12 +331,7 @@ export default function DrugChatPage() {
           role: m.role as 'user' | 'assistant',
           content: m.content,
           image_urls: m.image_urls,
-          time:
-            formatMsgTime(m.created_at) ||
-            new Date(m.created_at).toLocaleTimeString('zh-CN', {
-              hour: '2-digit',
-              minute: '2-digit',
-            }),
+          time: formatMsgTime(m.created_at),
           created_at: m.created_at,
         }));
         setMessages([welcomeMessage, ...historyMsgs]);
