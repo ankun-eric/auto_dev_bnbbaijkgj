@@ -88,6 +88,49 @@ alwaysApply: false
 
 ---
 
+## 最近一次变更: BUG_FIX_AI_HOME_3BUGS_20260517｜AI 对话三 Bug 修复（H5+后端，sanitizer 收敛 + 咨询人会话维度收口）（2026-05-17 15:08）
+
+### 一句话结论
+
+针对 ai-home 三个用户高频反馈 Bug 一次性修复：① **Bug A（正文末段被吞）** 改造 `sanitize_ai_output`，关键词从模糊收敛到整句级（移除"请遵医嘱"、"仅供参考，不能替代"等高误伤词），清洗粒度从段落级改为行级，**取消末尾追加免责声明**（法务话术下沉到前端 `AiActionBar` 小灰字）；② **Bug B（历史会话粘旧咨询人）** 前端 `handleSelectSession` / `loadLastSession` 进会话时**强制从 `chat_session.family_member_id` 回填** `selectedConsultant`；③ **Bug C（新对话三处不一致）** `handleNewConversation` 强制清空咨询人为本人，确保胶囊 / 发送参数 / 档案引用三处永远一致。
+
+### 改动清单
+
+- **后端**：
+  - `backend/app/utils/ai_output_sanitizer.py` 收敛改造：
+    - 整句级 `_DISCLAIMER_LINE_PATTERNS`（仅命中"AI 识别结果仅供参考"、"本回答仅供参考，不构成医疗诊断"等完整免责整句）
+    - 新增 `_strip_disclaimer_lines`（行级清洗，命中只去那一行，保留同段其他正文）
+    - `_is_full_paragraph_disclaimer` 仅当**整段=单行免责整句**才整段移除（避免误伤）
+    - 不再"保留最后一段免责声明"（`disclaimer_paragraphs` 完全去掉）
+  - `backend/app/api/chat.py:_append_disclaimer` 不再注入 `AiDisclaimerConfig.disclaimer_text`，仅做 sanitize 兜底
+  - 现有 `GET /api/chat/sessions/{id}` 返回 `family_member_id` + `family_member` 简要档案（已有，本次复用）
+  - 现有 `POST /api/chat/sessions/{id}/switch-member` 切换写库（已有，本次复用）
+- **H5（Next.js）**：`h5-web/src/app/(ai-chat)/ai-home/page.tsx`
+  - `handleSelectSession`：进历史会话时并行 `GET /api/chat/sessions/{id}` 拉详情，按 `family_member` / `family_member_id` 强制覆盖 `selectedConsultant`（is_self 视为本人态 → null；其他成员 → 强制覆盖）
+  - `loadLastSession`：自动恢复最近会话时也走相同回填逻辑
+  - `handleNewConversation`：新增 `setSelectedConsultant(null)`，新对话强制回到本人态
+- **测试**：
+  - 新增 `backend/tests/test_ai_home_3bugs_20260517.py`（10 个用例）：覆盖正文末段保留、多段免责去重至零、独立段落整段移除、零免责输入恒等、行级清洗保留同段其他行、模糊短语不剥离、幂等性、空输入安全、行级判定白盒、整段判定白盒
+  - 修改 `backend/tests/test_drug_identify_bug_v3_20260516.py:test_sanitize_dedups_disclaimer_paragraphs` 适配新策略（"全部移除"，不再"保留最后一段"）
+- **部署**：
+  - 部署脚本：`deploy/_deploy_ai_home_3bugs_20260517.py`（基于既有模板）
+  - 服务器侧 sanitizer smoke：`deploy/_smoke_ai_home_3bugs_20260517.py`（5 个用例全绿）
+  - 公网 smoke：`/ai-home` 308、`/api/health` 200、`/api/chat/sessions` 401（鉴权生效）
+
+### 验收路径
+
+- 用例 A：[ai-home](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home) 问"高血压能吃西瓜吗"，正文末段完整 + 操作栏稳定可见 + 刷新后长度一致
+- 用例 B：选成员 X → 发消息 → 关闭 → 重新打开 → 进该会话，胶囊为 X、AI 回答按 X 档案
+- 用例 C：上一轮 X 结束 → 新对话，胶囊=本人 + AI 正文按本人档案 + "结合 XX 档案"=本人
+
+### 已知遗留 / 后续
+
+1. 苹果 APP 端本次不交付，下个版本回归
+2. 小程序 / 安卓端共享后端 sanitizer 改造（自然受益），前端各自的"咨询人收口"按相同方案在后续版本同步
+3. 服务器后端容器仍不带 pytest，单测在本地 + smoke 验证（已 100% 通过）
+
+---
+
 ## 历史更新: BUG_FIX_TIMEZONE_GLOBAL_V3_20260517｜全系统时区根治（全端版）— 散写清扫 + ESLint 防复发（2026-05-17 12:30）
 
 ### 一句话结论
