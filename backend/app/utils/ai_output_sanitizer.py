@@ -301,8 +301,49 @@ def verify_drug_name_against_ocr(model_drug_name: str, ocr_text: str) -> float:
     return round(best, 4)
 
 
+# ──────────────────────────────────────────────────────────────────────────
+# [BUG_FIX_AI_HOME_ACTIONBAR_AND_ATTACHMENT_FILTER_20260517 · Bug-2]
+# 内部协议提示语清洗：
+#   "请参考下面相关附件：\n[附件 xxx.png 已保存到工作目录: .chat_attachments/xxx.png]"
+#
+# 这类提示语来自上游 AI agent 链路里的"工具调用内部协议"，本来不应外露给终端用户，
+# 但偶尔会出现在 AI 回复正文中。本函数在 AI 消息 / 用户消息入库前做一道清洗，
+# 保证 chat_messages.content 干净。
+#
+# 设计：必须三段同时满足才匹配（"请参考下面相关附件" + "[附件 xxx" + ".chat_attachments/xxx]"），
+# 避免误伤用户自然语言中的"请..."。图片 URL 不动（前端会渲染为缩略图）。
+# ──────────────────────────────────────────────────────────────────────────
+_ATTACHMENT_HINT_RE = re.compile(
+    r"请参考下面相关附件[:：]\s*\n*\s*\[附件\s+[A-Za-z0-9_\-\.]+\s+已保存到工作目录:\s*\.chat_attachments\/[^\]]+\]",
+    re.MULTILINE,
+)
+
+
+def sanitize_attachment_hint(text: str) -> str:
+    """清除 AI 回复 / 用户消息正文中的"内部协议附件提示语"整段。
+
+    匹配规则（必须三段同时满足才删除）：
+        请参考下面相关附件：
+        \\n*
+        \\[附件 xxx.png 已保存到工作目录: .chat_attachments/xxx.png\\]
+
+    保留图片 URL 不动（由前端抽取后渲染为缩略图）。
+    任何异常都直接返回原文本，绝不让兜底反而把正常输出搞坏。
+    """
+    if not text or not isinstance(text, str):
+        return text or ""
+    try:
+        out = _ATTACHMENT_HINT_RE.sub("", text)
+        # 压缩 sub 后可能引入的 3+ 空行
+        out = re.sub(r"\n{3,}", "\n\n", out)
+        return out.rstrip()
+    except Exception:
+        return text
+
+
 __all__ = [
     "sanitize_ai_output",
     "sanitize_for_drug_card",
+    "sanitize_attachment_hint",
     "verify_drug_name_against_ocr",
 ]

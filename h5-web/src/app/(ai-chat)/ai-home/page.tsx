@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Toast, Swiper, Dialog } from 'antd-mobile';
+import { Toast, Swiper, Dialog, ImageViewer } from 'antd-mobile';
 import { THEME } from '@/lib/theme';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -38,12 +38,72 @@ import {
   uploadFileToServer,
 } from '@/lib/upload-utils';
 
+// ──────────────────────────────────────────────────────────────────────
+// [BUG_FIX_AI_HOME_ACTIONBAR_AND_ATTACHMENT_FILTER_20260517 · Bug-2]
+// AI 回复正文清洗 & 图片缩略图抽离工具
+//
+// Bug 现象（DB 中存在脏数据）：AI 回复正文里偶尔出现两类不应外露的内容
+//   1) 图片裸链接 URL（含 markdown 形态 `![](url)`） → 应渲染为可点击放大的小缩略图卡片
+//   2) 内部协议提示语 `请参考下面相关附件：\n[附件 xxx 已保存到工作目录:
+//      .chat_attachments/xxx]` → 整段过滤掉不显示
+//
+// 后端入库前已做相同正则清洗（方案②），这里前端兜底是为了应对 DB 历史脏数据
+// （DB 不动，靠前端兜底渲染干净）。
+// ──────────────────────────────────────────────────────────────────────
+const ATTACHMENT_HINT_RE =
+  /请参考下面相关附件[:：]\s*\n*\s*\[附件\s+[A-Za-z0-9_\-\.]+\s+已保存到工作目录:\s*\.chat_attachments\/[^\]]+\]/g;
+
+function sanitizeAiContent(raw: string): string {
+  if (!raw) return raw;
+  return raw.replace(ATTACHMENT_HINT_RE, '').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+const IMG_URL_RE = /(https?:\/\/[^\s)\]\"']+?\.(?:png|jpg|jpeg|gif|webp)(?:\?[^\s)\]\"']*)?)/gi;
+const MD_IMG_RE = /!\[[^\]]*\]\(([^)]+)\)/g;
+
+/**
+ * 从 AI 回复正文里抽离图片 URL（Markdown 形态 + 裸链接），
+ * 返回剔除图片占位后的纯文本 + 去重后的图片 URL 数组。
+ * 用于在文本下方渲染并排小缩略图（80×80）。
+ */
+function extractImagesFromContent(raw: string): { text: string; images: string[] } {
+  if (!raw) return { text: raw, images: [] };
+  const images: string[] = [];
+  let text = raw.replace(MD_IMG_RE, (_, url) => {
+    if (url) images.push(String(url).trim());
+    return '';
+  });
+  text = text.replace(IMG_URL_RE, (url) => {
+    images.push(url);
+    return '';
+  });
+  text = text.replace(/\n{3,}/g, '\n\n').trim();
+  const dedup = Array.from(new Set(images.filter(Boolean)));
+  return { text, images: dedup };
+}
+
+function openAiHomeImageViewer(images: string[], defaultIndex: number) {
+  try {
+    ImageViewer.Multi.show({
+      images,
+      defaultIndex: Math.max(0, Math.min(defaultIndex, images.length - 1)),
+    });
+  } catch {}
+}
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   time: string;
   isStreaming?: boolean;
+  /**
+   * [BUG_FIX_AI_HOME_ACTIONBAR_AND_ATTACHMENT_FILTER_20260517 · Bug-1]
+   * 流式结束 done 事件里 id 会被替换成后端持久化的 message_id；为了让流读完后
+   * 的"兜底置回 isStreaming=false"仍能匹配到这条消息，done 时把原乐观 id 记
+   * 录在这个字段上，兜底用「原 id 或新 id」双重匹配。
+   */
+  __origAiMsgId?: string;
   /** [PRD-432] 该消息绑定的咨询对象 family_member_id，AI 回答顶部档案卡片用 */
   consultantTargetId?: number | null;
   /** [PRD-433 F-14] 参考资料：仅当数组非空时渲染，接口未返回则不显示 */
@@ -1104,9 +1164,22 @@ export default function AiHomePage() {
                   // 用后端持久化的真实 message_id 替换乐观 id，
                   // 这样后续点击"加入用药计划"才能调 /api/chat/messages/{id}/mark-added-to-plan
                   const persistedId = parsed?.message_id;
+                  // [BUG_FIX_AI_HOME_ACTIONBAR_AND_ATTACHMENT_FILTER_20260517 · Bug-1]
+                  // 致命根因修复：必须在 done 事件这一次 setMessages 里"原子写入"
+                  // isStreaming: false。原代码先把 m.id 从 aiMsgId 替换成了 persistedId，
+                  // 然后下面流读完后的兜底 `m.id === aiMsgId` 永远匹配不上，
+                  // 导致 isStreaming 永远停留在 true、ActionBar 不显示。
+                  // 同时记录 __origAiMsgId 供下方双 id 防御性兜底匹配。
                   setMessages(prev => prev.map(m => (
                     m.id === aiMsgId
-                      ? { ...m, id: persistedId ? String(persistedId) : m.id, content: fullText, drugMeta: meta }
+                      ? {
+                          ...m,
+                          id: persistedId ? String(persistedId) : m.id,
+                          content: fullText,
+                          drugMeta: meta,
+                          isStreaming: false,
+                          __origAiMsgId: aiMsgId,
+                        } as any
                       : m
                   )));
                   continue;
@@ -1122,15 +1195,23 @@ export default function AiHomePage() {
           }
         }
 
+        // [BUG_FIX_AI_HOME_ACTIONBAR_AND_ATTACHMENT_FILTER_20260517 · Bug-1]
+        // 防御性兜底：done 事件已把 m.id 从 aiMsgId 改成了 persistedId，
+        // 这里用「原 id 或新 id（通过 __origAiMsgId 标记）」双重匹配，
+        // 确保任何分支下流式结束后 isStreaming 都能被置回 false。
         setMessages(prev => prev.map(m =>
-          m.id === aiMsgId ? { ...m, isStreaming: false } : m
+          (m.id === aiMsgId || (m as any).__origAiMsgId === aiMsgId)
+            ? { ...m, isStreaming: false }
+            : m
         ));
         abortRef.current = null;
         return true;
       } catch (err: any) {
         if (err.name === 'AbortError') {
           setMessages(prev => prev.map(m =>
-            m.id === aiMsgId ? { ...m, isStreaming: false } : m
+            (m.id === aiMsgId || (m as any).__origAiMsgId === aiMsgId)
+              ? { ...m, isStreaming: false }
+              : m
           ));
           return true;
         }
@@ -3966,7 +4047,59 @@ export default function AiHomePage() {
                           </button>
                         </div>
                       ) : (
-                        <span dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+                        /* [BUG_FIX_AI_HOME_ACTIONBAR_AND_ATTACHMENT_FILTER_20260517 · Bug-2]
+                         * 普通文本 AI 回复渲染前：
+                         *   1) sanitize 掉「内部协议提示语」整段
+                         *   2) 把图片 URL（裸链接 + markdown 形态）从正文抽离到 imageUrls
+                         *      下方紧贴文本渲染一行 80×80 小缩略图（横向滚动 / 全屏预览） */
+                        (() => {
+                          const sanitized = sanitizeAiContent(msg.content || '');
+                          const { text: aiText, images: aiImageUrls } = extractImagesFromContent(sanitized);
+                          return (
+                            <>
+                              {aiText && (
+                                <span dangerouslySetInnerHTML={{ __html: renderMarkdown(aiText) }} />
+                              )}
+                              {aiImageUrls.length > 0 && (
+                                <div
+                                  data-testid="ai-home-ai-thumbnails"
+                                  style={{
+                                    display: 'flex',
+                                    gap: 8,
+                                    marginTop: aiText ? 8 : 0,
+                                    overflowX: 'auto',
+                                    paddingBottom: 2,
+                                  }}
+                                >
+                                  {aiImageUrls.map((url, idx) => (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      key={`${url}-${idx}`}
+                                      src={url}
+                                      alt=""
+                                      style={{
+                                        width: 80,
+                                        height: 80,
+                                        borderRadius: 8,
+                                        objectFit: 'cover',
+                                        flexShrink: 0,
+                                        cursor: 'pointer',
+                                        border: '1px solid #EAEBED',
+                                        background: '#F5F5F5',
+                                      }}
+                                      onClick={() => openAiHomeImageViewer(aiImageUrls, idx)}
+                                      onError={(e) => {
+                                        try {
+                                          (e.currentTarget as HTMLImageElement).style.opacity = '0.4';
+                                        } catch {}
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()
                       )}
                       {/* [PRD-433 F-10] 流式输出已去除光标闪烁 span */}
                     </div>
@@ -4008,9 +4141,12 @@ export default function AiHomePage() {
                       <div data-testid="ai-home-ai-action-bar" style={{ marginTop: 12 }}>
                         <AiActionBar
                           ttsPlaying={ttsPlaying}
-                          onCopy={() => handleCopy(msg.content)}
+                          /* [BUG_FIX_AI_HOME_ACTIONBAR_AND_ATTACHMENT_FILTER_20260517 · Bug-2]
+                           * 复制 / 语音播报内容也走 sanitize，避免把"内部协议提示语"
+                           * 和图片 URL 文本带进剪贴板或 TTS 播报 */
+                          onCopy={() => handleCopy(sanitizeAiContent(msg.content || ''))}
                           onShare={() => setShareOpen(true)}
-                          onTts={() => handleTTS(msg.content)}
+                          onTts={() => handleTTS(sanitizeAiContent(msg.content || ''))}
                           disclaimer={disclaimerText}
                           disableToast
                         />

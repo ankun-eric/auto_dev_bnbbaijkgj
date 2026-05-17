@@ -83,6 +83,21 @@ async def _filter_sensitive_words(content: str, db: AsyncSession) -> str:
     return content
 
 
+def _sanitize_attachment_hint_safe(content: Optional[str]) -> str:
+    """[BUG_FIX_AI_HOME_ACTIONBAR_AND_ATTACHMENT_FILTER_20260517 · Bug-2]
+    入库前统一清洗"内部协议附件提示语"。
+
+    适用于 AI 回复 / 用户消息（防御性，避免上游脏数据）。任何异常返回原文本。
+    """
+    if not content:
+        return content or ""
+    try:
+        from app.utils.ai_output_sanitizer import sanitize_attachment_hint
+        return sanitize_attachment_hint(content)
+    except Exception:
+        return content
+
+
 async def _append_disclaimer(content: str, session_type: str, db: AsyncSession) -> str:
     """[BUG_FIX_AI_HOME_3BUGS_20260517 · Bug A] 取消末尾追加免责声明。
 
@@ -566,7 +581,9 @@ async def send_message(
     user_msg = ChatMessage(
         session_id=session_id,
         role=MessageRole.user,
-        content=data.content,
+        # [BUG_FIX_AI_HOME_ACTIONBAR_AND_ATTACHMENT_FILTER_20260517 · Bug-2]
+        # 用户消息入库前 sanitize：防御性清除"内部协议附件提示语"
+        content=_sanitize_attachment_hint_safe(data.content),
         message_type=data.message_type,
         file_url=data.file_url,
         message_metadata=msg_metadata,
@@ -645,6 +662,9 @@ async def send_message(
 
     ai_content = await _filter_sensitive_words(ai_content, db)
     ai_content = await _append_disclaimer(ai_content, session_type_val, db)
+    # [BUG_FIX_AI_HOME_ACTIONBAR_AND_ATTACHMENT_FILTER_20260517 · Bug-2]
+    # AI 回复入库前 sanitize：清除"内部协议附件提示语"
+    ai_content = _sanitize_attachment_hint_safe(ai_content)
 
     if not session.model_name and model_used:
         session.model_name = model_used
@@ -730,7 +750,9 @@ async def _stream_drug_identify(
                     ai_msg = ChatMessage(
                         session_id=session_id,
                         role=MessageRole.assistant,
-                        content=full_text or "识别完成",
+                        # [BUG_FIX_AI_HOME_ACTIONBAR_AND_ATTACHMENT_FILTER_20260517 · Bug-2]
+                        # 拍照识药 AI 回复入库前 sanitize
+                        content=_sanitize_attachment_hint_safe(full_text) or "识别完成",
                         message_type=MessageType.text,
                         response_time_ms=elapsed_ms,
                         source=user_source,
@@ -829,7 +851,9 @@ async def _stream_report_interpret(
                     ai_msg = ChatMessage(
                         session_id=session_id,
                         role=MessageRole.assistant,
-                        content=full_text or "解读完成",
+                        # [BUG_FIX_AI_HOME_ACTIONBAR_AND_ATTACHMENT_FILTER_20260517 · Bug-2]
+                        # 报告解读 AI 回复入库前 sanitize
+                        content=_sanitize_attachment_hint_safe(full_text) or "解读完成",
                         message_type=MessageType.text,
                         response_time_ms=elapsed_ms,
                         source=user_source,
@@ -913,7 +937,10 @@ async def stream_message(
     user_msg = ChatMessage(
         session_id=session_id,
         role=MessageRole.user,
-        content=data.content,
+        # [BUG_FIX_AI_HOME_ACTIONBAR_AND_ATTACHMENT_FILTER_20260517 · Bug-2]
+        # 用户消息入库前 sanitize：防御性清除上游可能携带的"内部协议附件提示语"，
+        # 保证 chat_messages 表中没有此类脏数据。
+        content=_sanitize_attachment_hint_safe(data.content),
         message_type=data.message_type,
         file_url=data.file_url,
         message_metadata=stream_msg_metadata,
@@ -1108,6 +1135,10 @@ async def stream_message(
 
                 ai_content = await _filter_sensitive_words(full_content, captured_db)
                 ai_content = await _append_disclaimer(ai_content, captured_session_type_val, captured_db)
+                # [BUG_FIX_AI_HOME_ACTIONBAR_AND_ATTACHMENT_FILTER_20260517 · Bug-2]
+                # AI 回复入库前 sanitize：清除"内部协议附件提示语"整段；
+                # 保留图片 URL，由前端抽取后渲染为可点击放大的缩略图。
+                ai_content = _sanitize_attachment_hint_safe(ai_content)
 
                 ai_msg = ChatMessage(
                     session_id=captured_session_id,
