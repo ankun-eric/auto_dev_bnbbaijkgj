@@ -1768,6 +1768,17 @@ async def lifespan(app: FastAPI):
         import traceback as _tb
         _tb.print_exc()
         print(f"[migrate] prd_aichat_funcbtn_optim_v1: 迁移失败 err={_e}", flush=True)
+    # [PRD-MED-PLAN-INTERACT-OPTIM-V1 2026-05-18] 用药计划重复 active 软删 + 名字标准化
+    try:
+        print("[migrate] prd_med_plan_interact_optim_v1: 启动迁移...", flush=True)
+        from app.core.database import async_session as _async_session4
+        from app.services.prd_med_plan_interact_optim_v1_migration import run_migration_with_session as _run_med_plan_optim
+        _stats4 = await _run_med_plan_optim(_async_session4)
+        print(f"[migrate] prd_med_plan_interact_optim_v1: 迁移完成 stats={_stats4}", flush=True)
+    except Exception as _e:
+        import traceback as _tb
+        _tb.print_exc()
+        print(f"[migrate] prd_med_plan_interact_optim_v1: 迁移失败 err={_e}", flush=True)
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities
@@ -1883,6 +1894,8 @@ app.include_router(bottom_nav.admin_router)
 app.include_router(search.router)
 app.include_router(admin_search.router)
 app.include_router(health_plan_v2.router)
+# [PRD-MED-PLAN-INTERACT-OPTIM-V1 2026-05-18 §5.2] /api/medication-plan/check-duplicate 别名
+app.include_router(health_plan_v2._med_plan_alias_router)
 app.include_router(admin_health_plan.router)
 app.include_router(city.router)
 app.include_router(city.admin_router)

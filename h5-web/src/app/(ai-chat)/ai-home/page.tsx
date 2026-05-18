@@ -34,6 +34,9 @@ import DrugIdentifyCard from './components/DrugIdentifyCard';
 // [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 加入 / 查看用药计划抽屉
 import AddMedicationDrawer from './components/AddMedicationDrawer';
 import ViewMedicationPlansDrawer from './components/ViewMedicationPlansDrawer';
+// [PRD-MED-PLAN-INTERACT-OPTIM-V1 2026-05-18] 重新拍照 + 识别失败抽屉
+import RetakePhotoDrawer from './components/RetakePhotoDrawer';
+import RecognizeFailDrawer from './components/RecognizeFailDrawer';
 // [Bug-471 2026-05-15] AI 对话卡片 / 胶囊「相册 / 拍照 / 本机 / 微信」共用的文件选择 + 上传工具
 import {
   pickFilesViaHiddenInput,
@@ -658,6 +661,10 @@ export default function AiHomePage() {
   // [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 识药结果加入/查看用药计划抽屉状态
   const [addMedDrawerOpen, setAddMedDrawerOpen] = useState(false);
   const [viewMedDrawerOpen, setViewMedDrawerOpen] = useState(false);
+  // [PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.1] 重新拍照 & 识别失败抽屉控制位
+  const [retakeDrawerOpen, setRetakeDrawerOpen] = useState(false);
+  const [recogFailDrawerOpen, setRecogFailDrawerOpen] = useState(false);
+  const recogTimerRef = useRef<any>(null);
   /** 当前操作的识药卡片来源消息 id（用于乐观更新 added_to_plan 状态） */
   const [activeDrugMsgId, setActiveDrugMsgId] = useState<string | null>(null);
   /** 当前操作的识药卡片数据 */
@@ -1172,6 +1179,15 @@ export default function AiHomePage() {
                 if (currentEvent === 'done') {
                   const meta = parsed?.meta || null;
                   const fullText = parsed?.full_content || accumulated;
+                  // [PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.1.3] 识药结果到达 → 关闭兜底定时器；
+                  //   若是 drug_identify_retake 类型 → 自动弹失败抽屉
+                  if (recogTimerRef.current) {
+                    clearTimeout(recogTimerRef.current);
+                    recogTimerRef.current = null;
+                  }
+                  if (meta && meta.message_type === 'drug_identify_retake') {
+                    setRecogFailDrawerOpen(true);
+                  }
                   // [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517 · Bug-3]
                   // 用后端持久化的真实 message_id 替换乐观 id，
                   // 这样后续点击"加入用药计划"才能调 /api/chat/messages/{id}/mark-added-to-plan
@@ -4095,9 +4111,8 @@ export default function AiHomePage() {
                               router.push(`/ai-home/medication-plans?keyword=${encodeURIComponent(drugName)}`);
                             }}
                             onRetake={() => {
-                              try {
-                                Toast.show({ content: '请通过下方拍照按钮重新拍摄药盒', position: 'bottom' });
-                              } catch {}
+                              // [PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.1.2] 重新拍照 → 弹出「拍照 / 相册选择」抽屉
+                              setRetakeDrawerOpen(true);
                             }}
                             onViewAllPlans={() => {
                               // [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 抽屉内查看，不再跳页
@@ -4769,6 +4784,72 @@ export default function AiHomePage() {
           }
           // 异步重刷一次以校准
           refreshDrugAddedStatus([dn]).catch(() => {});
+        }}
+      />
+
+      {/* [PRD-MED-PLAN-INTERACT-OPTIM-V1 2026-05-18 §3.1.2] 重新拍照选择抽屉 */}
+      <RetakePhotoDrawer
+        open={retakeDrawerOpen}
+        onClose={() => setRetakeDrawerOpen(false)}
+        onPicked={async (file) => {
+          // 上传图片 + 走识药 SSE 流程
+          try {
+            Toast.show({ icon: 'loading', content: '识别中…', duration: 0 });
+            const url = await uploadImageToServer(file);
+            try { Toast.clear(); } catch {}
+
+            // 启动识别失败兜底定时器：60s 内未拿到识药卡片或重拍消息 → 视为失败
+            if (recogTimerRef.current) clearTimeout(recogTimerRef.current);
+            recogTimerRef.current = setTimeout(() => {
+              setRecogFailDrawerOpen(true);
+            }, 60000);
+
+            // 通过和拍照按钮一致的接口触发 SSE：传 image url + 识药 intent
+            handleSend('我上传了一张药品图片，请帮我识别', 'preset', {
+              suppressUserBubble: true,
+              backendText: `[用户上传的图片 1 张]\n1. ${url}\n\n我上传了一张药品图片，请帮我识别`,
+              sseExtras: {
+                intent: 'drug_identify',
+                imageUrls: [url],
+                buttonType: 'drug_identify',
+                buttonId: null,
+              },
+            } as any);
+          } catch {
+            try { Toast.clear(); } catch {}
+            // 上传失败 → 直接弹失败抽屉
+            setRecogFailDrawerOpen(true);
+          }
+        }}
+      />
+
+      {/* [PRD-MED-PLAN-INTERACT-OPTIM-V1 2026-05-18 §3.1.3-3.1.4] 识别失败抽屉（含手动录入滑动切换） */}
+      <RecognizeFailDrawer
+        open={recogFailDrawerOpen}
+        onClose={() => setRecogFailDrawerOpen(false)}
+        onRetry={() => {
+          setRecogFailDrawerOpen(false);
+          setRetakeDrawerOpen(true);
+        }}
+        familyMemberId={selectedConsultant?.id ?? null}
+        onSaved={() => {
+          // 手动录入保存成功 → 关闭抽屉 + 刷新识药卡片状态
+          setRecogFailDrawerOpen(false);
+          const names: string[] = [];
+          for (const m of messages) {
+            if (
+              m.drugMeta &&
+              m.drugMeta.message_type === 'drug_identify_card' &&
+              Array.isArray(m.drugMeta.medicines)
+            ) {
+              const n =
+                m.drugMeta.medicines[0]?.name ||
+                m.drugMeta.medicines[0]?.brand ||
+                '';
+              if (n) names.push(n);
+            }
+          }
+          if (names.length) refreshDrugAddedStatus(names).catch(() => {});
         }}
       />
 

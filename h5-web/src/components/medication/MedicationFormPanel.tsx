@@ -32,7 +32,8 @@ const FREQ_DEFAULTS: Record<number, string[]> = {
   4: ['08:00', '12:00', '16:00', '20:00'],
 };
 
-const NOTES_MAX = 30;
+// [PRD-MED-PLAN-INTERACT-OPTIM-V1 2026-05-18] 备注全端统一 200 字
+const NOTES_MAX = 200;
 
 const PRIMARY = '#0EA5E9';
 const TEXT = '#1F2937';
@@ -188,6 +189,21 @@ export default function MedicationFormPanel(props: MedicationFormPanelProps) {
   const [notesDrawerOpen, setNotesDrawerOpen] = useState(false);
   const [timePickerIdx, setTimePickerIdx] = useState<number | null>(null);
 
+  // [PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.2] 必填字段错误集合，
+  // key ∈ {'name','time','dosage','cycle','timing'}；保存校验失败 → 设置；
+  // 用户点击 / 修改对应字段 → 立即从集合中移除。
+  const [errFields, setErrFields] = useState<Set<string>>(new Set());
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const clearErr = (k: string) => {
+    setErrFields((prev) => {
+      if (!prev.has(k)) return prev;
+      const next = new Set(prev);
+      next.delete(k);
+      return next;
+    });
+  };
+
   // ───── 编辑模式加载 ─────
   useEffect(() => {
     if (!editing) return;
@@ -274,38 +290,94 @@ export default function MedicationFormPanel(props: MedicationFormPanelProps) {
   }, [form.startDate, form.endDate, form.isLongTerm]);
 
   // ───── 保存 ─────
-  const handleSubmit = async () => {
-    if (!form.medicine_name.trim()) {
-      Toast.show({ content: '请填写完整信息' });
-      return;
+  // [PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.2]
+  // 校验必填字段，返回未通过的字段 key 列表；同时把列表写入 errFields，
+  // 滚动定位到第一个未通过字段（顶部 padding 80px 避免被吸顶元素遮挡）。
+  const validateRequired = (): string[] => {
+    const errs: string[] = [];
+    if (!form.medicine_name.trim()) errs.push('name');
+    if (
+      !form.frequency_per_day ||
+      form.custom_times.length !== form.frequency_per_day ||
+      form.custom_times.some((t) => !t)
+    ) {
+      errs.push('time');
     }
-    if (!form.frequency_per_day || form.custom_times.length !== form.frequency_per_day) {
-      Toast.show({ content: '请填写完整信息' });
-      return;
-    }
-    if (!form.dosage_value || !form.dosage_unit) {
-      Toast.show({ content: '请填写完整信息' });
-      return;
-    }
+    if (!form.dosage_value || !form.dosage_unit) errs.push('dosage');
     if (!form.startDate) {
-      Toast.show({ content: '请填写完整信息' });
-      return;
-    }
-    if (!form.isLongTerm) {
+      errs.push('cycle');
+    } else if (!form.isLongTerm) {
       const s = parseISO(form.startDate);
       const e = parseISO(form.endDate);
-      if (!e) {
-        Toast.show({ content: '请填写完整信息' });
-        return;
-      }
-      if (s && e.getTime() < s.getTime()) {
-        Toast.show({ content: '结束日期不能早于开始日期' });
-        return;
+      if (!e) errs.push('cycle');
+      else if (s && e.getTime() < s.getTime()) errs.push('cycle');
+    }
+    if (!form.guidance) errs.push('timing');
+    setErrFields(new Set(errs));
+    if (errs.length > 0) {
+      const first = errs[0];
+      const el = rowRefs.current[first];
+      if (el && typeof el.scrollIntoView === 'function') {
+        try {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch {
+          // 兼容旧 WebView
+          el.scrollIntoView();
+        }
       }
     }
-    if (!form.guidance) {
-      Toast.show({ content: '请填写完整信息' });
+    return errs;
+  };
+
+  const handleSubmit = async () => {
+    const errs = validateRequired();
+    if (errs.length > 0) {
+      Toast.show({ content: '请填写带 * 号的必填项' });
       return;
+    }
+
+    // [PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.3] 新增模式下，先调用 check-duplicate
+    // 命中已存在 → 弹窗「该药已加入用药计划，是否重新编辑？」
+    if (!editing) {
+      try {
+        const dupRes: any = await api.post(
+          '/api/health-plan/medications/check-duplicate',
+          {
+            drug_name: form.medicine_name.trim(),
+            taker_id:
+              familyMemberId !== undefined && familyMemberId !== null && familyMemberId > 0
+                ? familyMemberId
+                : 0,
+          },
+        );
+        const dupData = dupRes?.data?.data || dupRes?.data || dupRes;
+        if (dupData && dupData.exists && dupData.plan_id) {
+          const ok = await Dialog.confirm({
+            title: '提示',
+            content: '该药已加入用药计划,是否重新编辑?',
+            confirmText: '确定',
+            cancelText: '取消',
+          });
+          if (!ok) {
+            return;
+          }
+          if (isDrawer) {
+            // 抽屉模式下：把 newId 回吐给上层，让上层切换为「打开编辑用药抽屉」
+            onSaved?.(dupData.plan_id);
+            return;
+          }
+          // 页面模式：跳转编辑页（采用 router.push）
+          try {
+            router.push(`/ai-home/medication-plans/${dupData.plan_id}/edit`);
+          } catch {
+            // 退化方案
+            window.location.href = `/ai-home/medication-plans/${dupData.plan_id}/edit`;
+          }
+          return;
+        }
+      } catch {
+        // check-duplicate 失败不阻塞保存，由后端 409 兜底
+      }
     }
 
     setSubmitting(true);
@@ -353,9 +425,36 @@ export default function MedicationFormPanel(props: MedicationFormPanelProps) {
         router.back();
       }
     } catch (err: any) {
+      // [PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.3] 后端 409 兜底：弹「该药已加入用药计划，是否重新编辑？」
+      const status = err?.response?.status;
       const detail = err?.response?.data?.detail;
-      const msg = typeof detail === 'object' ? detail?.message || JSON.stringify(detail) : detail || '保存失败';
-      Toast.show({ content: msg, icon: 'fail' });
+      const isDup =
+        status === 409 &&
+        typeof detail === 'object' &&
+        detail?.code === 'MEDICATION_DUPLICATE_ACTIVE';
+      if (isDup && !editing) {
+        const existingId: number | undefined = detail?.existing_id;
+        const ok = await Dialog.confirm({
+          title: '提示',
+          content: '该药已加入用药计划,是否重新编辑?',
+          confirmText: '确定',
+          cancelText: '取消',
+        });
+        if (ok && existingId) {
+          if (isDrawer) {
+            onSaved?.(existingId);
+          } else {
+            try {
+              router.push(`/ai-home/medication-plans/${existingId}/edit`);
+            } catch {
+              window.location.href = `/ai-home/medication-plans/${existingId}/edit`;
+            }
+          }
+        }
+      } else {
+        const msg = typeof detail === 'object' ? detail?.message || JSON.stringify(detail) : detail || '保存失败';
+        Toast.show({ content: msg, icon: 'fail' });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -399,7 +498,13 @@ export default function MedicationFormPanel(props: MedicationFormPanelProps) {
         <Row
           title="药品名称"
           required
+          hasError={errFields.has('name')}
+          errMsg="请填写药品名称"
+          rowRef={(el) => {
+            rowRefs.current['name'] = el;
+          }}
           onClick={() => {
+            clearErr('name');
             setEditingName(true);
             setNameDraft(form.medicine_name);
           }}
@@ -415,7 +520,15 @@ export default function MedicationFormPanel(props: MedicationFormPanelProps) {
         <Row
           title="用药时间"
           required
-          onClick={() => setTimeDrawerOpen(true)}
+          hasError={errFields.has('time')}
+          errMsg="请选择用药时间"
+          rowRef={(el) => {
+            rowRefs.current['time'] = el;
+          }}
+          onClick={() => {
+            clearErr('time');
+            setTimeDrawerOpen(true);
+          }}
           right={
             <span style={{ color: TEXT, fontSize: 14 }} data-testid="value-time">
               {timeDisplay}
@@ -428,7 +541,15 @@ export default function MedicationFormPanel(props: MedicationFormPanelProps) {
         <Row
           title="每次剂量"
           required
-          onClick={() => setDosageDrawerOpen(true)}
+          hasError={errFields.has('dosage')}
+          errMsg="请选择每次剂量"
+          rowRef={(el) => {
+            rowRefs.current['dosage'] = el;
+          }}
+          onClick={() => {
+            clearErr('dosage');
+            setDosageDrawerOpen(true);
+          }}
           right={
             <span style={{ color: TEXT, fontSize: 14 }} data-testid="value-dosage">
               {dosageDisplay}
@@ -442,7 +563,15 @@ export default function MedicationFormPanel(props: MedicationFormPanelProps) {
           title="服用周期"
           required
           tall
-          onClick={() => setCycleDrawerOpen(true)}
+          hasError={errFields.has('cycle')}
+          errMsg="请选择服用周期"
+          rowRef={(el) => {
+            rowRefs.current['cycle'] = el;
+          }}
+          onClick={() => {
+            clearErr('cycle');
+            setCycleDrawerOpen(true);
+          }}
           right={
             <div
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}
@@ -470,6 +599,11 @@ export default function MedicationFormPanel(props: MedicationFormPanelProps) {
           title="服用时机"
           required
           tall
+          hasError={errFields.has('timing')}
+          errMsg="请选择服用时机"
+          rowRef={(el) => {
+            rowRefs.current['timing'] = el;
+          }}
           right={
             <div
               style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end', maxWidth: '70%' }}
@@ -483,6 +617,7 @@ export default function MedicationFormPanel(props: MedicationFormPanelProps) {
                     data-testid={`timing-${t}`}
                     onClick={(e) => {
                       e.stopPropagation();
+                      clearErr('timing');
                       setForm({ ...form, guidance: t });
                     }}
                     style={{
@@ -513,7 +648,7 @@ export default function MedicationFormPanel(props: MedicationFormPanelProps) {
           last
           right={
             <span style={{ color: form.notes ? TEXT : '#9CA3AF', fontSize: 14, maxWidth: 180, textAlign: 'right' }}>
-              {form.notes || '如:饭后服用,避免空腹刺激胃部'}
+              {form.notes || '可填写服用提醒、注意事项等（选填）'}
             </span>
           }
           testid="row-notes"
@@ -654,6 +789,7 @@ export default function MedicationFormPanel(props: MedicationFormPanelProps) {
             }}
             onConfirm={() => {
               setForm({ ...form, medicine_name: nameDraft.trim() });
+              if (nameDraft.trim()) clearErr('name');
               setEditingName(false);
               setShowSuggest(false);
             }}
@@ -807,6 +943,9 @@ function Row({
   showArrow = true,
   tall = false,
   last = false,
+  hasError = false,
+  errMsg,
+  rowRef,
 }: {
   title: string;
   required?: boolean;
@@ -816,14 +955,18 @@ function Row({
   showArrow?: boolean;
   tall?: boolean;
   last?: boolean;
+  /** [PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.2] 该行命中必填错误 → label 变红 + 下方红色错误提示 */
+  hasError?: boolean;
+  errMsg?: string;
+  rowRef?: (el: HTMLDivElement | null) => void;
 }) {
   return (
     <div
+      ref={rowRef}
       data-testid={testid}
+      data-haserror={hasError ? '1' : '0'}
       onClick={onClick}
       style={{
-        display: 'flex',
-        alignItems: 'center',
         padding: tall ? '12px 14px' : '12px 14px',
         minHeight: tall ? 56 : 48,
         borderBottom: last ? 'none' : `1px solid ${DIVIDER}`,
@@ -831,12 +974,30 @@ function Row({
         background: '#fff',
       }}
     >
-      <div style={{ flexShrink: 0, fontSize: 14, color: TEXT, fontWeight: 500, minWidth: 80 }}>
-        {title}
-        {required && <span style={{ color: '#EF4444', marginLeft: 2 }}>*</span>}
+      <div style={{ display: 'flex', alignItems: 'center', minHeight: tall ? 32 : 24 }}>
+        <div
+          style={{
+            flexShrink: 0,
+            fontSize: 14,
+            color: hasError ? '#EF4444' : TEXT,
+            fontWeight: 500,
+            minWidth: 80,
+          }}
+        >
+          {title}
+          {required && <span style={{ color: '#EF4444', marginLeft: 2 }}>*</span>}
+        </div>
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', overflow: 'hidden' }}>{right}</div>
+        {showArrow && <span style={{ marginLeft: 8, color: '#9CA3AF', fontSize: 16 }}>›</span>}
       </div>
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', overflow: 'hidden' }}>{right}</div>
-      {showArrow && <span style={{ marginLeft: 8, color: '#9CA3AF', fontSize: 16 }}>›</span>}
+      {hasError && errMsg && (
+        <div
+          data-testid={`${testid || 'row'}-error`}
+          style={{ marginTop: 4, marginLeft: 0, fontSize: 12, color: '#EF4444', lineHeight: 1.5 }}
+        >
+          {errMsg}
+        </div>
+      )}
     </div>
   );
 }
@@ -949,29 +1110,34 @@ function NotesDrawer({
   return (
     <BottomDrawer title="备注" onClose={onCancel}>
       <div style={{ position: 'relative' }}>
-        <input
+        {/* [PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.4] 备注：多行 textarea，默认 3 行高度，
+            最大 200 字，右下角字数计数器 */}
+        <textarea
           data-testid="notes-input"
           autoFocus
           value={val}
           maxLength={NOTES_MAX}
+          rows={3}
           onChange={(e) => setVal(e.target.value.slice(0, NOTES_MAX))}
-          placeholder="如:饭后服用,避免空腹刺激胃部"
+          placeholder="可填写服用提醒、注意事项等（选填）"
           style={{
             width: '100%',
             padding: '10px 12px',
-            paddingRight: 56,
+            paddingBottom: 28,
             borderRadius: 8,
             border: '1px solid #D1D5DB',
             fontSize: 14,
+            lineHeight: 1.6,
             boxSizing: 'border-box',
+            resize: 'none',
+            fontFamily: 'inherit',
           }}
         />
         <span
           style={{
             position: 'absolute',
             right: 12,
-            top: '50%',
-            transform: 'translateY(-50%)',
+            bottom: 8,
             color: SUB,
             fontSize: 12,
           }}

@@ -487,6 +487,20 @@ class ApiService {
     return _dio.post(ApiConfig.hpMedications, data: data);
   }
 
+  /// [PRD-MED-PLAN-INTERACT-OPTIM-V1 §5.2 2026-05-18] 重复药品判定
+  Future<Response> checkMedicationDuplicate({
+    required String drugName,
+    int? takerId,
+  }) async {
+    return _dio.post(
+      '${ApiConfig.hpMedications}/check-duplicate',
+      data: {
+        'drug_name': drugName,
+        'taker_id': takerId ?? 0,
+      },
+    );
+  }
+
   Future<Response> getMedications() async {
     return _dio.get(ApiConfig.hpMedications);
   }

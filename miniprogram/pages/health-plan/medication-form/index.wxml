@@ -1,6 +1,6 @@
 <!--
   [PRD-MED-PLAN-OPTIM-V1 2026-05-17] 用药计划表单（终版）
-  顶部医嘱提示条 + 整页列表行式 + 长期开关 + Tag-B 服用时机 + 30 字备注
+  顶部医嘱提示条 + 整页列表行式 + 长期开关 + Tag-B 服用时机 + 200 字备注（PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.4）
 -->
 <view class="page">
   <!-- F-01 医嘱提示条 -->
@@ -12,61 +12,76 @@
   <!-- 表单卡片 -->
   <view class="form-card">
     <!-- 药品名称 -->
-    <view class="row" bindtap="onTapName">
-      <text class="row-title">药品名称<text class="required">*</text></text>
-      <view class="row-right">
-        <text class="row-value {{!name ? 'placeholder' : ''}}">{{name || '请输入药品名称'}}</text>
-        <text class="row-arrow">›</text>
+    <view class="row {{errFields.name ? 'row-error' : ''}}" bindtap="onTapName">
+      <view class="row-line">
+        <text class="row-title {{errFields.name ? 'title-err' : ''}}">药品名称<text class="required">*</text></text>
+        <view class="row-right">
+          <text class="row-value {{!name ? 'placeholder' : ''}}">{{name || '请输入药品名称'}}</text>
+          <text class="row-arrow">›</text>
+        </view>
       </view>
+      <view class="row-err-msg" wx:if="{{errFields.name}}">请填写药品名称</view>
     </view>
 
     <!-- 用药时间 -->
-    <view class="row" bindtap="openTimeDrawer">
-      <text class="row-title">用药时间<text class="required">*</text></text>
-      <view class="row-right">
-        <text class="row-value">每日 {{frequencyPerDay}} 次 · {{timesText}}</text>
-        <text class="row-arrow">›</text>
+    <view class="row {{errFields.time ? 'row-error' : ''}}" bindtap="openTimeDrawer">
+      <view class="row-line">
+        <text class="row-title {{errFields.time ? 'title-err' : ''}}">用药时间<text class="required">*</text></text>
+        <view class="row-right">
+          <text class="row-value">每日 {{frequencyPerDay}} 次 · {{timesText}}</text>
+          <text class="row-arrow">›</text>
+        </view>
       </view>
+      <view class="row-err-msg" wx:if="{{errFields.time}}">请选择用药时间</view>
     </view>
 
     <!-- 每次剂量 -->
-    <view class="row" bindtap="openDosageDrawer">
-      <text class="row-title">每次剂量<text class="required">*</text></text>
-      <view class="row-right">
-        <text class="row-value">{{dosageValue}} {{dosageUnit}}</text>
-        <text class="row-arrow">›</text>
+    <view class="row {{errFields.dosage ? 'row-error' : ''}}" bindtap="openDosageDrawer">
+      <view class="row-line">
+        <text class="row-title {{errFields.dosage ? 'title-err' : ''}}">每次剂量<text class="required">*</text></text>
+        <view class="row-right">
+          <text class="row-value">{{dosageValue}} {{dosageUnit}}</text>
+          <text class="row-arrow">›</text>
+        </view>
       </view>
+      <view class="row-err-msg" wx:if="{{errFields.dosage}}">请选择每次剂量</view>
     </view>
 
     <!-- 服用周期（双行） -->
-    <view class="row row-tall" bindtap="openCycleDrawer">
-      <text class="row-title">服用周期<text class="required">*</text></text>
-      <view class="row-right cycle-col">
-        <text class="cycle-main">{{cycleMain}}</text>
-        <text class="cycle-sub {{isLongTerm ? 'cycle-sub-long' : ''}}">{{cycleSub}}</text>
+    <view class="row row-tall {{errFields.cycle ? 'row-error' : ''}}" bindtap="openCycleDrawer">
+      <view class="row-line">
+        <text class="row-title {{errFields.cycle ? 'title-err' : ''}}">服用周期<text class="required">*</text></text>
+        <view class="row-right cycle-col">
+          <text class="cycle-main">{{cycleMain}}</text>
+          <text class="cycle-sub {{isLongTerm ? 'cycle-sub-long' : ''}}">{{cycleSub}}</text>
+        </view>
+        <text class="row-arrow">›</text>
       </view>
-      <text class="row-arrow">›</text>
+      <view class="row-err-msg" wx:if="{{errFields.cycle}}">请选择服用周期</view>
     </view>
 
     <!-- 服用时机 Tag-B 单选 -->
-    <view class="row row-tall row-timing">
-      <text class="row-title">服用时机<text class="required">*</text></text>
-      <view class="timing-wrap">
-        <view
-          wx:for="{{timingOptions}}"
-          wx:key="*this"
-          class="timing-tag {{guidance === item ? 'active' : ''}}"
-          data-val="{{item}}"
-          catchtap="onTapTiming"
-        >{{item}}</view>
+    <view class="row row-tall row-timing {{errFields.timing ? 'row-error' : ''}}">
+      <view class="row-line">
+        <text class="row-title {{errFields.timing ? 'title-err' : ''}}">服用时机<text class="required">*</text></text>
+        <view class="timing-wrap">
+          <view
+            wx:for="{{timingOptions}}"
+            wx:key="*this"
+            class="timing-tag {{guidance === item ? 'active' : ''}}"
+            data-val="{{item}}"
+            catchtap="onTapTiming"
+          >{{item}}</view>
+        </view>
       </view>
+      <view class="row-err-msg" wx:if="{{errFields.timing}}">请选择服用时机</view>
     </view>
 
     <!-- 备注 -->
     <view class="row last" bindtap="openNotesDrawer">
       <text class="row-title">备注</text>
       <view class="row-right">
-        <text class="row-value {{!notes ? 'placeholder' : ''}}">{{notes || '如:饭后服用,避免空腹刺激胃部'}}</text>
+        <text class="row-value {{!notes ? 'placeholder' : ''}}">{{notes || '可填写服用提醒、注意事项等（选填）'}}</text>
         <text class="row-arrow">›</text>
       </view>
     </view>
@@ -218,13 +233,13 @@
       <view class="notes-wrap">
         <input
           class="text-input"
-          placeholder="如:饭后服用,避免空腹刺激胃部"
+          placeholder="可填写服用提醒、注意事项等（选填）"
           value="{{notesDraft}}"
-          maxlength="30"
+          maxlength="200"
           focus="{{notesDrawerOpen}}"
           bindinput="onNotesInput"
         />
-        <text class="notes-count">{{notesDraft.length}}/30</text>
+        <text class="notes-count">{{notesDraft.length}}/200</text>
       </view>
       <view class="drawer-footer">
         <view class="btn-cancel" catchtap="closeNotesDrawer">取消</view>

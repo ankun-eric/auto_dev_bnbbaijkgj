@@ -1,7 +1,11 @@
 from datetime import date, datetime
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+# [PRD-MED-PLAN-INTERACT-OPTIM-V1 2026-05-18] 备注字段全端统一上限：200 字
+MEDICATION_NOTES_MAX = 200
 
 
 # ──────────────── 用药提醒 ────────────────
@@ -12,7 +16,8 @@ class MedicationReminderCreate(BaseModel):
     dosage: Optional[str] = None
     time_period: Optional[str] = None
     remind_time: Optional[str] = None
-    notes: Optional[str] = None
+    # [PRD-MED-PLAN-INTERACT-OPTIM-V1] 备注 200 字硬上限
+    notes: Optional[str] = Field(default=None, max_length=MEDICATION_NOTES_MAX)
     # [PRD-469 v2 P0] 新字段
     frequency_per_day: Optional[int] = None
     custom_times: Optional[List[str]] = None
@@ -36,7 +41,8 @@ class MedicationReminderUpdate(BaseModel):
     dosage: Optional[str] = None
     time_period: Optional[str] = None
     remind_time: Optional[str] = None
-    notes: Optional[str] = None
+    # [PRD-MED-PLAN-INTERACT-OPTIM-V1] 备注 200 字硬上限
+    notes: Optional[str] = Field(default=None, max_length=MEDICATION_NOTES_MAX)
     # [PRD-469 v2 P0] 新字段
     frequency_per_day: Optional[int] = None
     custom_times: Optional[List[str]] = None

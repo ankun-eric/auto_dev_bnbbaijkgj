@@ -93,6 +93,8 @@ Page({
   data: {
     isEdit: false,
     id: '',
+    // [PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.2] 必填红字校验错误集合
+    errFields: {},
     name: '',
     nameDraft: '',
     nameDrawerOpen: false,
@@ -189,7 +191,7 @@ Page({
         cycleMain: cd.main,
         cycleSub: cd.sub,
         guidance: migrateTiming(d.guidance),
-        notes: (d.notes || '').slice(0, 30),
+        notes: (d.notes || '').slice(0, 200),
       });
     }).catch(function () {
       wx.showToast({ title: '加载失败', icon: 'none' });
@@ -200,6 +202,7 @@ Page({
 
   // ───── 药品名称 ─────
   onTapName: function () {
+    this._clearErr && this._clearErr('name');
     this.setData({ nameDrawerOpen: true, nameDraft: this.data.name, nameSuggests: [] });
   },
   closeNameDrawer: function () {
@@ -236,7 +239,10 @@ Page({
   },
 
   // ───── 用药时间 ─────
-  openTimeDrawer: function () { this.setData({ timeDrawerOpen: true }); },
+  openTimeDrawer: function () {
+    this._clearErr && this._clearErr('time');
+    this.setData({ timeDrawerOpen: true });
+  },
   closeTimeDrawer: function () { this.setData({ timeDrawerOpen: false }); },
   onChangeFreq: function (e) {
     var n = Number(e.currentTarget.dataset.n);
@@ -253,7 +259,10 @@ Page({
   },
 
   // ───── 剂量 ─────
-  openDosageDrawer: function () { this.setData({ dosageDrawerOpen: true }); },
+  openDosageDrawer: function () {
+    this._clearErr && this._clearErr('dosage');
+    this.setData({ dosageDrawerOpen: true });
+  },
   closeDosageDrawer: function () { this.setData({ dosageDrawerOpen: false }); },
   onChangeDosage: function (e) {
     var arr = e.detail.value;
@@ -269,6 +278,7 @@ Page({
 
   // ───── 服用周期 ─────
   openCycleDrawer: function () {
+    this._clearErr && this._clearErr('cycle');
     var start = this.data.startDate;
     var end = this.data.endDate;
     var isLT = this.data.isLongTerm;
@@ -342,6 +352,18 @@ Page({
   onTapTiming: function (e) {
     var v = e.currentTarget.dataset.val;
     this.setData({ guidance: v });
+    this._clearErr('timing');
+  },
+
+  // [PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.2] 工具：清除某字段红字
+  _clearErr: function (key) {
+    var ef = this.data.errFields || {};
+    if (!ef[key]) return;
+    var next = {};
+    for (var k in ef) {
+      if (k !== key) next[k] = ef[k];
+    }
+    this.setData({ errFields: next });
   },
 
   // ───── 备注 ─────
@@ -350,7 +372,7 @@ Page({
   },
   closeNotesDrawer: function () { this.setData({ notesDrawerOpen: false }); },
   onNotesInput: function (e) {
-    var v = (e.detail.value || '').slice(0, 30);
+    var v = (e.detail.value || '').slice(0, 200);
     this.setData({ notesDraft: v });
   },
   confirmNotes: function () {
@@ -358,40 +380,66 @@ Page({
   },
 
   // ───── 提交 ─────
+  // [PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.2-3.3] 必填红字校验 + 重复药品弹窗
   onSubmit: function () {
     var d = this.data;
-    if (!d.name || !d.name.trim()) {
-      wx.showToast({ title: '请填写完整信息', icon: 'none' });
-      return;
-    }
-    if (!d.frequencyPerDay || d.customTimes.length !== d.frequencyPerDay) {
-      wx.showToast({ title: '请填写完整信息', icon: 'none' });
-      return;
-    }
-    if (!d.dosageValue || !d.dosageUnit) {
-      wx.showToast({ title: '请填写完整信息', icon: 'none' });
-      return;
-    }
+    var errs = [];
+    if (!d.name || !d.name.trim()) errs.push('name');
+    if (!d.frequencyPerDay || d.customTimes.length !== d.frequencyPerDay) errs.push('time');
+    if (!d.dosageValue || !d.dosageUnit) errs.push('dosage');
     if (!d.startDate) {
-      wx.showToast({ title: '请填写完整信息', icon: 'none' });
-      return;
-    }
-    if (!d.isLongTerm) {
+      errs.push('cycle');
+    } else if (!d.isLongTerm) {
       var s = parseISO(d.startDate);
       var e = parseISO(d.endDate);
-      if (!e) {
-        wx.showToast({ title: '请填写完整信息', icon: 'none' });
-        return;
-      }
-      if (s && e.getTime() < s.getTime()) {
-        wx.showToast({ title: '结束日期不能早于开始日期', icon: 'none' });
-        return;
-      }
+      if (!e) errs.push('cycle');
+      else if (s && e.getTime() < s.getTime()) errs.push('cycle');
     }
-    if (!d.guidance) {
-      wx.showToast({ title: '请填写完整信息', icon: 'none' });
+    if (!d.guidance) errs.push('timing');
+    var errMap = {};
+    for (var i = 0; i < errs.length; i++) errMap[errs[i]] = true;
+    this.setData({ errFields: errMap });
+    if (errs.length > 0) {
+      wx.showToast({ title: '请填写带 * 号的必填项', icon: 'none' });
       return;
     }
+
+    // [PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.3] 新增模式下调用 check-duplicate
+    var self = this;
+    if (!d.isEdit) {
+      post('/api/health-plan/medications/check-duplicate', {
+        drug_name: d.name.trim(),
+        taker_id: 0,
+      }, { showLoading: false, suppressErrorToast: true }).then(function (res) {
+        var dd = (res && res.data) ? res.data : res || {};
+        if (dd && dd.exists && dd.plan_id) {
+          wx.showModal({
+            title: '提示',
+            content: '该药已加入用药计划,是否重新编辑?',
+            confirmText: '确定',
+            cancelText: '取消',
+            success: function (mr) {
+              if (mr && mr.confirm) {
+                wx.redirectTo({
+                  url: '/pages/health-plan/medication-form/index?id=' + dd.plan_id,
+                });
+              }
+            },
+          });
+        } else {
+          self._doSubmit();
+        }
+      }).catch(function () {
+        // 接口失败 → 走老路径，让后端 409 兜底
+        self._doSubmit();
+      });
+      return;
+    }
+    this._doSubmit();
+  },
+
+  _doSubmit: function () {
+    var d = this.data;
 
     var dvBackend = dosageForBackend(d.dosageValue);
     var sParsed = parseISO(d.startDate);
@@ -426,8 +474,27 @@ Page({
         self.requestSubscribeMessage(result && (result.id || (result.data && result.data.id)));
       }
       setTimeout(function () { wx.navigateBack(); }, 1200);
-    }).catch(function () {
-      /* error handled by request */
+    }).catch(function (err) {
+      // [PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.3] 409 重复药品兜底
+      var statusCode = err && (err.statusCode || (err.data && err.data.statusCode));
+      var detail = err && err.data && err.data.detail;
+      var isDup = statusCode === 409 && detail && typeof detail === 'object'
+        && detail.code === 'MEDICATION_DUPLICATE_ACTIVE';
+      if (isDup && !d.isEdit && detail.existing_id) {
+        wx.showModal({
+          title: '提示',
+          content: '该药已加入用药计划,是否重新编辑?',
+          confirmText: '确定',
+          cancelText: '取消',
+          success: function (mr) {
+            if (mr && mr.confirm) {
+              wx.redirectTo({
+                url: '/pages/health-plan/medication-form/index?id=' + detail.existing_id,
+              });
+            }
+          },
+        });
+      }
     }).then(function () {
       self.setData({ submitting: false });
     });

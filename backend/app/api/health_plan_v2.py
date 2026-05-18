@@ -64,9 +64,22 @@ def _norm_drug_name(name: Optional[str]) -> str:
 
 
 async def _find_active_same_name(
-    db: AsyncSession, user_id: int, drug_name: str, exclude_id: Optional[int] = None
+    db: AsyncSession,
+    user_id: int,
+    drug_name: str,
+    exclude_id: Optional[int] = None,
+    family_member_id: Optional[int] = None,
 ) -> Optional[MedicationReminder]:
-    """查询当前用户是否已有同名「进行中」用药计划。"""
+    """[PRD-MED-PLAN-INTERACT-OPTIM-V1 2026-05-18] 查询当前用户在同一服用人维度下是否已有同名「进行中」用药计划。
+
+    匹配维度（与 PRD §3.3.1 一致）：
+      - user_id 一致
+      - family_member_id 一致（None=本人；>0=指定家庭成员；负数视为不传，仅 user_id 维度）
+      - medicine_name 大小写不敏感 + 去空白后完全相等
+
+    判定为「进行中」：
+      - status='active' 且 (long_term=True OR end_date IS NULL OR end_date >= today)
+    """
     today = date.today()
     target = _norm_drug_name(drug_name)
     if not target:
@@ -75,11 +88,16 @@ async def _find_active_same_name(
         MedicationReminder.user_id == user_id,
         MedicationReminder.status == "active",
     )
+    # family_member_id 维度过滤（None=本人态）
+    if family_member_id is None or family_member_id == 0:
+        stmt = stmt.where(MedicationReminder.family_member_id.is_(None))
+    elif family_member_id > 0:
+        stmt = stmt.where(MedicationReminder.family_member_id == family_member_id)
+    # family_member_id < 0：不过滤家庭成员维度（兼容旧调用）
     res = await db.execute(stmt)
     for r in res.scalars().all():
         if exclude_id and r.id == exclude_id:
             continue
-        # 仅判定「进行中」：未结束（长期 OR end_date IS NULL OR end_date >= today）
         is_ongoing = bool(r.long_term) or r.end_date is None or (r.end_date and r.end_date >= today)
         if is_ongoing and _norm_drug_name(r.medicine_name) == target:
             return r
@@ -188,6 +206,73 @@ async def check_medications_batch(
     return {"code": 0, "data": result}
 
 
+# ──────────────── [PRD-MED-PLAN-INTERACT-OPTIM-V1 2026-05-18 §5.2] 重复药品判定接口 ────────────────
+
+
+@router.post("/medications/check-duplicate")
+async def check_medication_duplicate(
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD-MED-PLAN-INTERACT-OPTIM-V1 §5.2] 新增药品前重复判定。
+
+    入参：
+      - drug_name / medicine_name: 药品名（必填）
+      - taker_id / family_member_id / consultant_id: 服用人 ID，省略或 0 = 本人
+
+    返回：
+      { "code": 0, "data": { "exists": bool, "plan_id": int|null, "existing_name": str|null } }
+    """
+    drug_name = (
+        payload.get("drug_name")
+        or payload.get("medicine_name")
+        or ""
+    ).strip()
+    if not drug_name:
+        return {"code": 0, "data": {"exists": False, "plan_id": None, "existing_name": None}}
+
+    raw_taker = payload.get("taker_id")
+    if raw_taker is None:
+        raw_taker = payload.get("family_member_id")
+    if raw_taker is None:
+        raw_taker = payload.get("consultant_id")
+    try:
+        taker_id: Optional[int] = int(raw_taker) if raw_taker not in (None, "") else None
+    except (TypeError, ValueError):
+        taker_id = None
+
+    existing = await _find_active_same_name(
+        db, current_user.id, drug_name, family_member_id=taker_id
+    )
+    if existing is None:
+        return {"code": 0, "data": {"exists": False, "plan_id": None, "existing_name": None}}
+    return {
+        "code": 0,
+        "data": {
+            "exists": True,
+            "plan_id": existing.id,
+            "existing_name": existing.medicine_name,
+        },
+    }
+
+
+# ──────────────── 别名路径（PRD §5.2 文案中的 /api/medication-plan/check-duplicate）────────────────
+
+# 提供前端 PRD 文案中提到的 `/api/medication-plan/check-duplicate` 路径，
+# 内部仍走 health-plan v2 的同一实现，避免新建独立 router 造成依赖混乱。
+_med_plan_alias_router = APIRouter(prefix="/api/medication-plan", tags=["用药计划-别名"])
+
+
+@_med_plan_alias_router.post("/check-duplicate")
+async def check_medication_duplicate_alias(
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await check_medication_duplicate(payload, current_user=current_user, db=db)
+
+
 @router.post("/medications", response_model=MedicationReminderResponse)
 async def create_medication(
     data: MedicationReminderCreate,
@@ -201,8 +286,12 @@ async def create_medication(
     if "guidance" in payload:
         payload["guidance"] = _migrate_timing(payload.get("guidance"))
 
-    # [PRD-MED-PLAN-V1] 同名药品去重：不允许同时存在两条「进行中」
-    existing = await _find_active_same_name(db, current_user.id, drug_name)
+    # [PRD-MED-PLAN-V1 / PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.3.1]
+    # 重复药品判定维度：药品名 + 服用人（family_member_id）
+    _fmid = payload.get("family_member_id")
+    existing = await _find_active_same_name(
+        db, current_user.id, drug_name, family_member_id=_fmid
+    )
     if existing is not None:
         raise HTTPException(
             status_code=409,
@@ -543,10 +632,20 @@ async def update_medication(
     # [PRD-MED-PLAN-OPTIM-V1 R-09] 服用时机老枚举入参兜底迁移
     if "guidance" in payload:
         payload["guidance"] = _migrate_timing(payload.get("guidance"))
-    # [PRD-MED-PLAN-V1] 改名时要做同名「进行中」去重（排除自身）
-    if "medicine_name" in payload and payload["medicine_name"]:
+    # [PRD-MED-PLAN-V1 / PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.3.1]
+    # 改名 / 改服用人时按「药品名 + 服用人」维度做同名「进行中」去重（排除自身）
+    name_for_dup = payload.get("medicine_name") or reminder.medicine_name
+    if "family_member_id" in payload:
+        fmid_for_dup = payload.get("family_member_id")
+    else:
+        fmid_for_dup = reminder.family_member_id
+    if ("medicine_name" in payload and payload["medicine_name"]) or "family_member_id" in payload:
         existing = await _find_active_same_name(
-            db, current_user.id, payload["medicine_name"], exclude_id=reminder.id
+            db,
+            current_user.id,
+            name_for_dup,
+            exclude_id=reminder.id,
+            family_member_id=fmid_for_dup,
         )
         if existing is not None:
             raise HTTPException(

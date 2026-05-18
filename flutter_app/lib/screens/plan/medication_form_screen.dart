@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../../services/api_service.dart';
 
 class MedicationFormScreen extends StatefulWidget {
@@ -69,7 +70,14 @@ class _MedicationFormScreenState extends State<MedicationFormScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    // [PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.2] Flutter 的 Form.validate() 自带必填红字提示，
+    // 这里仅在校验失败后让 SnackBar 给出统一文案
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请填写带 * 号的必填项')),
+      );
+      return;
+    }
     setState(() => _submitting = true);
 
     final data = {
@@ -81,6 +89,44 @@ class _MedicationFormScreenState extends State<MedicationFormScreen> {
     };
 
     try {
+      // [PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.3] 新增模式下先做重复药品判定
+      if (!_isEdit) {
+        try {
+          final r = await _apiService.checkMedicationDuplicate(
+            drugName: _nameController.text.trim(),
+            takerId: 0,
+          );
+          final body = r.data is Map ? (r.data as Map) : {};
+          final inner = body['data'] is Map ? body['data'] as Map : body;
+          if (inner['exists'] == true && inner['plan_id'] != null) {
+            final ok = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('提示'),
+                content: const Text('该药已加入用药计划,是否重新编辑?'),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+                  TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('确定')),
+                ],
+              ),
+            );
+            if (mounted) setState(() => _submitting = false);
+            if (ok == true) {
+              if (!mounted) return;
+              // 进入编辑模式：把现有记录传入并切回编辑
+              Navigator.pushReplacementNamed(
+                context,
+                '/plan/medication-form',
+                arguments: {'id': inner['plan_id']},
+              );
+            }
+            return;
+          }
+        } catch (_) {
+          // check 失败不阻塞，由后端 409 兜底
+        }
+      }
+
       if (_isEdit) {
         await _apiService.updateMedication(_editData!['id'] as int, data);
       } else {
@@ -88,7 +134,33 @@ class _MedicationFormScreenState extends State<MedicationFormScreen> {
       }
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      if (mounted) {
+      // [PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.3] 后端 409 重复药品兜底
+      bool handled = false;
+      if (e is DioException && e.response?.statusCode == 409) {
+        final detail = e.response?.data is Map ? (e.response!.data as Map)['detail'] : null;
+        if (detail is Map && detail['code'] == 'MEDICATION_DUPLICATE_ACTIVE' && detail['existing_id'] != null) {
+          final ok = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('提示'),
+              content: const Text('该药已加入用药计划,是否重新编辑?'),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+                TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('确定')),
+              ],
+            ),
+          );
+          if (ok == true && mounted) {
+            Navigator.pushReplacementNamed(
+              context,
+              '/plan/medication-form',
+              arguments: {'id': detail['existing_id']},
+            );
+          }
+          handled = true;
+        }
+      }
+      if (!handled && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(_isEdit ? '更新失败' : '创建失败'), backgroundColor: Colors.red),
         );
@@ -167,11 +239,16 @@ class _MedicationFormScreenState extends State<MedicationFormScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              _buildLabel('备注（选填）'),
+              // [PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.4] 备注全端统一：上限 200 字，3 行 textarea，字数计数
+              _buildLabel('备注'),
               TextFormField(
                 controller: _notesController,
-                decoration: _inputDecoration('添加备注信息'),
+                decoration: _inputDecoration('可填写服用提醒、注意事项等（选填）').copyWith(
+                  counterText: '${_notesController.text.length}/200',
+                ),
                 maxLines: 3,
+                maxLength: 200,
+                onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 32),
               SizedBox(
