@@ -1,0 +1,120 @@
+$ docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_family_member_v2_20260518.py 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/tests/test_family_member_v2_20260518.py 2>
+
+---
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend ls /app/tests/test_family_member_v2_20260518.py
+/app/tests/test_family_member_v2_20260518.py
+
+---
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend bash -lc 'cd /app && python -m pytest tests/test_family_member_v2_20260518.py -v --tb=long --no-header -p no:warnings 2>&1 | tail -80'
+============================= test session starts ==============================
+collecting ... collected 7 items
+
+tests/test_family_member_v2_20260518.py::test_family_v2_chinese_relation_save PASSED [ 14%]
+tests/test_family_member_v2_20260518.py::test_family_v2_other_custom_relation PASSED [ 28%]
+tests/test_family_member_v2_20260518.py::test_family_v2_full_payload FAILED [ 42%]
+tests/test_family_member_v2_20260518.py::test_family_v2_list_returns_required_fields PASSED [ 57%]
+tests/test_family_member_v2_20260518.py::test_family_v2_birthday_iso_format PASSED [ 71%]
+tests/test_family_member_v2_20260518.py::test_family_v2_missing_relation_rejects FAILED [ 85%]
+tests/test_family_member_v2_20260518.py::test_family_v2_health_profile_birthday_provided PASSED [100%]
+
+=================================== FAILURES ===================================
+_________________________ test_family_v2_full_payload __________________________
+
+client = <httpx.AsyncClient object at 0x779baaf9bc50>
+auth_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzc5MTkxMjA4fQ.jGItYWfhIPqgqebiA0YtIHK8AvhEyuuFeWJ3bzA2F7M', 'Client-Type': 'h5-user'}
+
+    @pytest.mark.asyncio
+    async def test_family_v2_full_payload(client: AsyncClient, auth_headers):
+        """鏂拌〃鍗曞畬鏁村瓧娈甸兘鍙惤搴?""
+        resp = await client.post("/api/family/members", json={
+            "relationship_type": "鐖哥埜",
+            "name": "鎴戠埜",
+            "nickname": "鎴戠埜",
+            "gender": "male",
+            "birthday": "1965-01-01",
+            "height": 175.5,
+            "weight": 70.2,
+            "medical_histories": ["楂樿鍘?, "绯栧翱鐥?],
+            "allergies": [
+                {"type": "drug", "items": ["闈掗湁绱?]},
+                {"type": "food", "items": ["娴烽矞"]},
+            ],
+        }, headers=auth_headers)
+>       assert resp.status_code == 200, resp.text
+E       AssertionError: {"detail":"璇锋眰鍙傛暟 绫诲瀷涓嶆纭細Input should be a valid string锛? 绫诲瀷涓嶆纭細Input should be a valid string","messages":["璇锋眰鍙傛暟 绫诲瀷涓嶆纭細Input should be a valid string","1 绫诲瀷涓嶆纭細Input should be a valid string"],"errors":[{"type":"string_type","loc":["body","allergies",0],"msg":"Input should be a valid string","input":{"type":"drug","items":["闈掗湁绱?]}},{"type":"string_type","loc":["body","allergies",1],"msg":"Input should be a valid string","input":{"type":"food","items":["娴烽矞"]}}]}
+E       assert 422 == 200
+E        +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+
+tests/test_family_member_v2_20260518.py:63: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  app.exception:main.py:2157 [Bug-419] RequestValidationError at POST /api/family/members: errors=[{'type': 'string_type', 'loc': ('body', 'allergies', 0), 'msg': 'Input should be a valid string', 'input': {'type': 'drug', 'items': ['闈掗湁绱?]}}, {'type': 'string_type', 'loc': ('body', 'allergies', 1), 'msg': 'Input should be a valid string', 'input': {'type': 'food', 'items': ['娴烽矞']}}] body={"relationship_type": "\u7238\u7238", "name": "\u6211\u7238", "nickname": "\u6211\u7238", "gender": "male", "birthday": "1965-01-01", "height": 175.5, "weight": 70.2, "medical_histories": ["\u9ad8\u8840\u538b", "\u7cd6\u5c3f\u75c5"], "allergies": [{"type": "drug", "items": ["\u9752\u9709\u7d20"]}, {"type": "food", "items": ["\u6d77\u9c9c"]}]}
+___________________ test_family_v2_missing_relation_rejects ____________________
+
+client = <httpx.AsyncClient object at 0x779baafa8a10>
+auth_headers = {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzc5MTkxMjEwfQ.76s2I6Ap0M-C7mFn_MI27eny99o8BH2ETQ4FGO-T8L8', 'Client-Type': 'h5-user'}
+
+    @pytest.mark.asyncio
+    async def test_family_v2_missing_relation_rejects(client: AsyncClient, auth_headers):
+        """缂哄叧绯诲瓧娈垫椂鎷掔粷"""
+        resp = await client.post("/api/family/members", json={
+            "name": "鏃犲叧绯?,
+            "nickname": "鏃犲叧绯?,
+            "gender": "male",
+            "birthday": "1990-01-01",
+        }, headers=auth_headers)
+>       assert resp.status_code == 400
+E       assert 422 == 400
+E        +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+
+tests/test_family_member_v2_20260518.py:123: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  app.exception:main.py:2157 [Bug-419] RequestValidationError at POST /api/family/members: errors=[{'type': 'missing', 'loc': ('body', 'relationship_type'), 'msg': 'Field required', 'input': {'name': '鏃犲叧绯?, 'nickname': '鏃犲叧绯?, 'gender': 'male', 'birthday': '1990-01-01'}}] body={"name": "\u65e0\u5173\u7cfb", "nickname": "\u65e0\u5173\u7cfb", "gender": "male", "birthday": "1990-01-01"}
+=========================== short test summary info ============================
+FAILED tests/test_family_member_v2_20260518.py::test_family_v2_full_payload
+FAILED tests/test_family_member_v2_20260518.py::test_family_v2_missing_relation_rejects
+========================= 2 failed, 5 passed in 5.44s ==========================
+
+---
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend bash -lc 'cd /app && python -m pytest tests/test_family.py -q --tb=short 2>&1 | tail -40'
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+  /usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+app/main.py:2008
+  /app/app/main.py:2008: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+app/main.py:2038
+  /app/app/main.py:2038: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+app/main.py:2057
+  /app/app/main.py:2057: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+12 passed, 30 warnings in 8.64s
+
+---

@@ -34,6 +34,12 @@ interface ConsultTargetPickerProps {
   currentMemberId: number | null;
   /** 选中已有成员（is_self=true 的本人 memberId 传 null） */
   onSelect: (member: FamilyMemberItem | null) => void;
+  /**
+   * [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F14 2026-05-18]
+   * 候选列表排除当前咨询人：当前咨询人仍然显示在列表中，但置灰 + 名字后追加「（当前）」标注，
+   * 整行不可点击。本组件内部直接根据 currentMemberId 判断。
+   * 仅当 visible=true 时生效。
+   */
 }
 
 export default function ConsultTargetPicker({
@@ -67,6 +73,14 @@ export default function ConsultTargetPicker({
   }, [visible]);
 
   const handleSelectMember = (m: FamilyMemberItem) => {
+    // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F14] 当前咨询人不可点击
+    const isCurrent = m.is_self ? currentMemberId == null : m.id === currentMemberId;
+    if (isCurrent) {
+      try {
+        Toast.show({ content: '该家庭成员已是当前咨询人', position: 'bottom' });
+      } catch {}
+      return;
+    }
     onSelect(m.is_self ? null : m);
     onClose();
   };
@@ -147,19 +161,26 @@ export default function ConsultTargetPicker({
               else subParts.push('-');
               const subText = subParts.filter(Boolean).join(' · ');
               const displayName = m.is_self ? '本人' : m.nickname;
+              // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F14] 当前咨询人置灰 + (当前) 标注 + 不可点击
+              const itemBg = isCurrent
+                ? '#F1F5F9'
+                : (m.is_self ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)' : '#F8FAFC');
+              const nameColor = isCurrent ? '#94A3B8' : (m.is_self ? '#fff' : '#0F172A');
+              const subColor = isCurrent ? '#CBD5E1' : (m.is_self ? 'rgba(255,255,255,0.85)' : '#64748B');
               return (
                 <div
                   key={`${m.id}-${m.is_self ? 'self' : 'mem'}`}
-                  className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer"
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl"
                   style={{
-                    background: isCurrent
-                      ? (m.is_self ? 'linear-gradient(135deg, #38BDF8, #0284C7)' : '#E0F2FE')
-                      : (m.is_self ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)' : '#F8FAFC'),
-                    border: isCurrent && !m.is_self ? '1.5px solid #0EA5E9' : '1.5px solid transparent',
-                    boxShadow: m.is_self ? '0 4px 14px rgba(2,132,199,0.2)' : 'none',
+                    background: itemBg,
+                    border: '1.5px solid transparent',
+                    boxShadow: !isCurrent && m.is_self ? '0 4px 14px rgba(2,132,199,0.2)' : 'none',
+                    opacity: isCurrent ? 0.7 : 1,
+                    cursor: isCurrent ? 'not-allowed' : 'pointer',
                   }}
                   onClick={() => handleSelectMember(m)}
                   data-testid="consult-target-item"
+                  data-current={isCurrent ? '1' : '0'}
                 >
                   <MemberBadge
                     relationName={relationName}
@@ -170,13 +191,21 @@ export default function ConsultTargetPicker({
                   <div className="flex-1 min-w-0">
                     <div
                       className="text-sm font-semibold truncate"
-                      style={{ color: m.is_self ? '#fff' : '#0F172A' }}
+                      style={{ color: nameColor }}
                     >
                       {displayName}
+                      {isCurrent && (
+                        <span
+                          style={{ marginLeft: 6, fontSize: 12, fontWeight: 500, color: '#94A3B8' }}
+                          data-testid="consult-target-current-label"
+                        >
+                          （当前）
+                        </span>
+                      )}
                     </div>
                     <div
                       className="text-xs mt-1 truncate"
-                      style={{ color: m.is_self ? 'rgba(255,255,255,0.85)' : '#64748B' }}
+                      style={{ color: subColor }}
                     >
                       {subText}
                     </div>
@@ -185,7 +214,7 @@ export default function ConsultTargetPicker({
                     <span
                       className="text-base"
                       style={{
-                        color: m.is_self ? '#fff' : '#0EA5E9',
+                        color: '#94A3B8',
                         fontWeight: 700,
                       }}
                       aria-label="当前选中"

@@ -40,6 +40,12 @@ interface Props {
   onGoMedicationManage?: () => void;
   onGoOrderList?: () => void;
   onChangeBadge?: () => void;
+  /** [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F11 2026-05-18]
+   * 可选咨询人筛选维度：
+   *   - undefined / null：与顶部全局铃铛一致（按当前用户口径）
+   *   - number：按家庭成员（咨询人）筛选今日用药提醒（同一份后端数据源，仅传入 consultant_id 维度）
+   */
+  consultantId?: number | null;
 }
 
 export default function ReminderDrawer({
@@ -48,6 +54,7 @@ export default function ReminderDrawer({
   onGoMedicationManage,
   onGoOrderList,
   onChangeBadge,
+  consultantId,
 }: Props) {
   const [meds, setMeds] = useState<MedicationItem[]>([]);
   const [appts, setAppts] = useState<AppointmentItem[]>([]);
@@ -63,8 +70,14 @@ export default function ReminderDrawer({
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
+      // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F10/F11] 按 consultantId 维度筛选
+      // 后端兼容：未传 consultant_id 时与顶部铃铛行为一致
+      const medUrl =
+        consultantId != null && consultantId > 0
+          ? `/api/medication-reminder/today?consultant_id=${encodeURIComponent(consultantId)}`
+          : '/api/medication-reminder/today';
       const [m, a] = await Promise.all([
-        api.get<any>('/api/medication-reminder/today').catch(() => []),
+        api.get<any>(medUrl).catch(() => []),
         api.get<any>('/api/medication-reminder/appointments').catch(() => []),
       ]);
       const medsArr = Array.isArray(m) ? m : (m as any)?.data ?? [];
@@ -74,7 +87,7 @@ export default function ReminderDrawer({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [consultantId]);
 
   useEffect(() => {
     if (open) {

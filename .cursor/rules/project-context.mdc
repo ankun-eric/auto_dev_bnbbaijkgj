@@ -27,6 +27,55 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1｜ai-home 拍照识药功能优化（2026-05-18 20:15）
+
+### 范围
+- H5 `/ai-home`（仅 H5 端，小程序与 Flutter 本期 API 兼容、UI 不动）
+- 后端 `/api/medication-reminder/today` 接口新增 `consultant_id` 入参（按咨询人筛选）
+
+### F1~F14 关键改造点
+- **F1~F4 流式输出体验**：识药卡 4 区块按 800/1600/2400ms 时间窗渐进释放可见性 + 260ms 整卡淡入；保持「先轻后重」即基础信息卡先于其他三卡显示
+- **F5 区块级失败兜底**：失败区块改为占位卡 + 「点击重试」按钮；其他区块正常显示不阻塞
+- **F6 整次识药重试**：自动复用原图（`drugRetryImageMap` 状态维护），清空当前 AI 回答后走全量流式
+- **F8 4 按钮等大 4 等分**：DrugIdentifyCard 底部按钮区改造为 `[识药结果] [用药提醒] [加入用药计划] [再次识别]`，统一高度 44px + 单行省略
+- **F9/F10/F11 用药提醒按钮**：替换原「药品详情」位置；红点按咨询人 ID 维度刷新；点击弹出与顶部铃铛 100% 等价的 ReminderDrawer
+- **F12 切换咨询人=启动新会话**：复用既有的 `handleConsultantSelect` + `archive_previous_session_id` 合并接口
+- **F13 AI 回答中禁用切换器**：胶囊按钮置灰 + loading 小图标（spin keyframes 动画）+ 点击弹 Toast
+- **F14 候选列表当前咨询人置灰 + (当前) 标注**：`ConsultTargetPicker.tsx` 添加 `data-current` + 不可点击逻辑
+
+### 新增/修改的关键文件
+- 新增 `backend/tests/test_aihome_drug_identify_optim_v1_20260518.py`（7 个用例全部通过）
+- 改造 `backend/app/api/medication_reminder.py`：`today_medications` 新增 `consultant_id` 入参，优先级高于 `patient_id`
+- 改造 `h5-web/src/app/(ai-chat)/ai-home/components/DrugIdentifyCard.tsx`：
+  - 新增 `visibleSections/failedSections/onRetryAll/onReminder/reminderRedDot/reminderDisabled` props
+  - 底部按钮区从 2 行（4 按钮，44px + 36px）改为 1 行 4 等分（统一 44px）
+  - 新增 `DrugActionButton` + `FailedSectionPlaceholder` 私有子组件
+  - 卡片整卡淡入 `@keyframes aihomeDrugSectionFadeIn`
+- 改造 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：
+  - 新增 state：`reminderDrawerConsultantId / reminderRedDotMap / reminderEmptyMap / drugRetryImageMap / drugCardVisibleSectionsMap`
+  - 新增 `refreshReminderRedDot` 按咨询人维度刷新红点
+  - 新增 useEffect：messages 变化时为新识药卡按时间窗递进释放可见性
+  - 胶囊按钮 `AI 回答中` 派生态（基于 `messages.some(m=>m.isStreaming) || sending`）+ loading 小图标 + 置灰 + Toast 拦截
+  - SSE done 事件保留 image_urls 到 `drugRetryImageMap`，供 F6 重试复用
+- 改造 `h5-web/src/components/ai-chat/ConsultTargetPicker.tsx`：当前咨询人置灰 + 「（当前）」标注 + 不可点击 + Toast 提示
+- 改造 `h5-web/src/components/ai-chat/ReminderDrawer.tsx`：新增 `consultantId` 入参，按咨询人 ID 调 `/api/medication-reminder/today?consultant_id=...`
+
+### 部署与测试
+- 部署脚本 `deploy/_deploy_aihome_drug_identify_optim_v1_20260518.py`：SFTP 上传 → docker cp 进 backend 容器 → 重启 backend → 重建 h5-web → smoke + pytest
+- 已部署到正式服务器（容器 `6b099ed3-7175-4a78-91f4-44570c84ed27-h5/backend`）
+- Smoke：`/api/openapi.json` 200，`/ai-home` 308，`/api/medication-reminder/today?consultant_id=1` 401（路由可达 + 鉴权正确）
+- 容器内 pytest：`test_aihome_drug_identify_optim_v1_20260518.py` **7/7 PASS**
+
+### 用户手册
+- `user_docs/拍照识药功能优化.md`
+
+### 不在范围
+- 不动 Flutter / iOS / Android 原生客户端（仅 API 兼容，旧字段保留）
+- 不动微信小程序（小程序识药卡片暂沿用旧版按钮布局）
+- 后端 `drug_identify_engine.py` 已存在 SSE 流式（progress + delta + done），本期不再改造后端，前端按时间窗实现 F1~F3 的"分阶段渐进淡入"
+
+---
+
 ## Latest Update: PRD-FAMILY-MEMBER-V2｜家庭成员模块重构 v2.0（2026-05-18 19:30）
 
 ### 范围

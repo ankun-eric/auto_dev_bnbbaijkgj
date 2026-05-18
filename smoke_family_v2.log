@@ -1,0 +1,10 @@
+=== 瀹瑰櫒鍐?pytest ===
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python -m pytest tests/test_family_member_v2_20260518.py tests/test_family.py -q -x --tb=short 2>&1 | tail -100
+/usr/local/bin/python: No module named pytest
+
+
+=== 澶栫綉 HTTPS ===
+  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/openapi.json -> 200
+  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home -> 200
+  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile -> 200

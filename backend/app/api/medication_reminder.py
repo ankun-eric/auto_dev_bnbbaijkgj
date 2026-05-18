@@ -154,6 +154,11 @@ async def delete_plan(
 @router.get("/today", response_model=List[TodayMedicationItem])
 async def today_medications(
     patient_id: Optional[int] = Query(None),
+    # [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F10/F11 2026-05-18]
+    # 增加 consultant_id 入参：与 patient_id 等价，按"咨询人 ID"维度筛选今日用药提醒。
+    # 同时传入时以 consultant_id 优先，兼容前端两种调用方式（识药卡片用 consultant_id，
+    # 历史调用方继续用 patient_id）。
+    consultant_id: Optional[int] = Query(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -163,8 +168,9 @@ async def today_medications(
         .where(MedicationPlan.user_id == current_user.id)
         .where(MedicationPlan.enabled == True)  # noqa: E712
     )
-    if patient_id is not None:
-        plan_stmt = plan_stmt.where(MedicationPlan.patient_id == patient_id)
+    effective_pid = consultant_id if consultant_id is not None else patient_id
+    if effective_pid is not None:
+        plan_stmt = plan_stmt.where(MedicationPlan.patient_id == effective_pid)
     plans = (await db.execute(plan_stmt)).scalars().all()
 
     plan_ids = [p.id for p in plans]

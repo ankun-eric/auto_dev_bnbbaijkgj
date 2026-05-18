@@ -76,6 +76,34 @@ export interface DrugIdentifyCardProps {
   onViewDetail?: () => void;
   onRetake?: () => void;
   onViewAllPlans?: () => void;
+  /** [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F9/F10/F11 2026-05-18]
+   * 用药提醒按钮：点击事件 + 红点 + 置灰态
+   * - onReminder：点击「用药提醒」按钮的回调（弹出与顶部铃铛 100% 等价的打卡抽屉）
+   * - reminderRedDot：右上角是否显示红点（按咨询人维度）
+   * - reminderDisabled：咨询人无任何用药计划时按钮置灰
+   */
+  onReminder?: () => void;
+  reminderRedDot?: boolean;
+  reminderDisabled?: boolean;
+  /** [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F1~F4 2026-05-18]
+   * 分阶段流式可见性：在卡片"基础信息卡 / 用法用量卡 / 安全提示卡 / 个性化风险卡"上做整卡淡入。
+   * 未传入时默认全部可见（向后兼容）。
+   */
+  visibleSections?: {
+    basic?: boolean;
+    usage?: boolean;
+    safety?: boolean;
+    risk?: boolean;
+  };
+  /** 标记某区块加载失败（前端按 8s 超时判定），失败的区块改为"加载失败"占位卡 + 重试按钮 */
+  failedSections?: {
+    basic?: boolean;
+    usage?: boolean;
+    safety?: boolean;
+    risk?: boolean;
+  };
+  /** 整次识药重试（点击失败占位卡的「点击重试」按钮触发） */
+  onRetryAll?: () => void;
 }
 
 const row = (label: string, value: any) => {
@@ -110,7 +138,25 @@ export default function DrugIdentifyCard(props: DrugIdentifyCardProps) {
     onViewDetail,
     onRetake,
     onViewAllPlans,
+    onReminder,
+    reminderRedDot = false,
+    reminderDisabled = false,
+    visibleSections,
+    failedSections,
+    onRetryAll,
   } = props;
+
+  // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F1~F3]
+  // 默认全部可见（向后兼容），传入 visibleSections 时按其控制
+  const showBasic = visibleSections?.basic !== false;
+  const showUsage = visibleSections?.usage !== false;
+  const showSafety = visibleSections?.safety !== false;
+  const showRisk = visibleSections?.risk !== false;
+
+  const failBasic = !!failedSections?.basic;
+  const failUsage = !!failedSections?.usage;
+  const failSafety = !!failedSections?.safety;
+  const failRisk = !!failedSections?.risk;
 
   const blockAdd = conflicts.some((c) => c.block_add) || personalizedRisk?.level === 'danger';
   const highConflict = conflicts.find((c) => c.severity === 'high');
@@ -188,23 +234,34 @@ export default function DrugIdentifyCard(props: DrugIdentifyCardProps) {
           </div>
         )}
 
-        {/* ① 药品基础信息 */}
-        <div data-testid="drug-card-section-basic" style={{ marginTop: 4, marginBottom: 12 }}>
-          <div style={{ fontSize: 14, color: '#1677FF', fontWeight: 600, marginBottom: 6 }}>① 药品基础信息</div>
-          {row('通用名', card.generic_name)}
-          {row('商品名', card.brand_name)}
-          {row('规格', card.spec)}
-          {row('剂型', card.dosage_form)}
-          {row('厂家', card.manufacturer)}
-          {row('批准文号', card.approval_no)}
-          {row('分类', card.category)}
-          {row('类型', card.rx_type)}
-        </div>
+        {/* ① 药品基础信息（整卡淡入；失败时占位） */}
+        {failBasic ? (
+          <FailedSectionPlaceholder title="① 药品基础信息" onRetry={onRetryAll} testid="drug-card-section-basic-failed" />
+        ) : showBasic ? (
+          <div
+            data-testid="drug-card-section-basic"
+            className="aihome-drug-section-fadein"
+            style={{ marginTop: 4, marginBottom: 12 }}
+          >
+            <div style={{ fontSize: 14, color: '#1677FF', fontWeight: 600, marginBottom: 6 }}>① 药品基础信息</div>
+            {row('通用名', card.generic_name)}
+            {row('商品名', card.brand_name)}
+            {row('规格', card.spec)}
+            {row('剂型', card.dosage_form)}
+            {row('厂家', card.manufacturer)}
+            {row('批准文号', card.approval_no)}
+            {row('分类', card.category)}
+            {row('类型', card.rx_type)}
+          </div>
+        ) : null}
 
         {/* ② 用法用量 —— 仅在命中库或字段有值时渲染（合规） */}
-        {libraryMatched && (card.usage || card.usage_adult || card.usage_children || card.timing) && (
+        {failUsage ? (
+          <FailedSectionPlaceholder title="② 用法用量" onRetry={onRetryAll} testid="drug-card-section-usage-failed" />
+        ) : showUsage && libraryMatched && (card.usage || card.usage_adult || card.usage_children || card.timing) ? (
           <div
             data-testid="drug-card-section-usage"
+            className="aihome-drug-section-fadein"
             style={{ padding: 12, background: '#F0F9FF', borderRadius: 8, marginBottom: 12 }}
           >
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6, color: '#0369A1' }}>
@@ -214,12 +271,15 @@ export default function DrugIdentifyCard(props: DrugIdentifyCardProps) {
             {row('儿童用法', card.usage_children)}
             {row('服药时机', card.timing)}
           </div>
-        )}
+        ) : null}
 
         {/* ③ 安全提示 —— 仅在命中库时才渲染（避免编造禁忌） */}
-        {libraryMatched && (card.contraindications || card.adverse_reactions || card.interactions || card.special_population) && (
+        {failSafety ? (
+          <FailedSectionPlaceholder title="③ 安全提示" onRetry={onRetryAll} testid="drug-card-section-safety-failed" />
+        ) : showSafety && libraryMatched && (card.contraindications || card.adverse_reactions || card.interactions || card.special_population) ? (
           <div
             data-testid="drug-card-section-safety"
+            className="aihome-drug-section-fadein"
             style={{
               padding: 12,
               background: '#FEF2F2',
@@ -247,12 +307,15 @@ export default function DrugIdentifyCard(props: DrugIdentifyCardProps) {
             {row('相互作用', card.interactions)}
             {row('特殊人群', card.special_population)}
           </div>
-        )}
+        ) : null}
 
         {/* ④ 个性化风险提示（基于当前选中成员档案） */}
-        {personalizedRisk && (
+        {failRisk ? (
+          <FailedSectionPlaceholder title="④ 个性化风险" onRetry={onRetryAll} testid="drug-card-section-risk-failed" />
+        ) : showRisk && personalizedRisk ? (
           <div
             data-testid="drug-card-section-personalized"
+            className="aihome-drug-section-fadein"
             style={{
               padding: 12,
               background: riskColor(personalizedRisk.level).bg,
@@ -287,14 +350,28 @@ export default function DrugIdentifyCard(props: DrugIdentifyCardProps) {
               </ul>
             )}
           </div>
-        )}
+        ) : null}
+
+        {/* 卡片整卡淡入动画 keyframes（200~300ms） */}
+        <style>{`
+          @keyframes aihomeDrugSectionFadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          .aihome-drug-section-fadein {
+            animation: aihomeDrugSectionFadeIn 260ms ease-out;
+          }
+        `}</style>
       </div>
 
       {/* —— ⑤ 操作按钮区（固定底部） ——
-       * [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18]
-       *   - 「加入用药计划」/「已加入用药计划」 + 「查看用药计划」并列
-       *   - 「已加入」态：灰色描边按钮 + 对勾，仍可点击
-       *   - 空咨询人态：置灰不可点击 + Toast「请先选择咨询人」
+       * [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F8/F9/F10/F11 2026-05-18]
+       *   4 按钮等高、等宽、4 等分布局：
+       *   [识药结果] [用药提醒(红点)] [加入用药计划] [再次识别]
+       *   - 按钮高度统一 44px；字号、字重、圆角、内边距全部统一
+       *   - 「加入用药计划」沿用主色调（保持视觉重点）
+       *   - 「用药提醒」次级按钮（浅底）右上角条件渲染红点
+       *   - 文案过长时单行省略（…）
        */}
       <div
         data-testid="drug-card-actions"
@@ -305,93 +382,172 @@ export default function DrugIdentifyCard(props: DrugIdentifyCardProps) {
           borderBottomLeftRadius: 12,
           borderBottomRightRadius: 12,
           display: 'flex',
-          flexDirection: 'column',
           gap: 8,
           flexShrink: 0,
         }}
       >
-        {/* 主按钮行：加入用药计划 + 查看用药计划 */}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            type="button"
-            onClick={blockAdd ? undefined : onAddPlan}
-            disabled={blockAdd}
-            data-testid="btn-add-plan"
-            style={{
-              flex: 1,
-              height: 44,
-              borderRadius: 8,
-              border: added ? '1px solid #9CA3AF' : 'none',
-              background: blockAdd ? '#D1D5DB' : added ? '#F3F4F6' : '#0EA5E9',
-              color: added ? '#4B5563' : '#fff',
-              fontSize: 15,
-              fontWeight: 600,
-              cursor: blockAdd ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {blockAdd
-              ? '存在用药风险，无法加入'
-              : added
-              ? '✓ 已加入用药计划'
-              : '+ 加入用药计划'}
-          </button>
-          <button
-            type="button"
-            onClick={onViewAllPlans}
-            data-testid="btn-view-plans"
-            style={{
-              flex: 1,
-              height: 44,
-              borderRadius: 8,
-              border: '1px solid #0EA5E9',
-              background: '#fff',
-              color: '#0EA5E9',
-              fontSize: 15,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            📋 查看用药计划
-          </button>
-        </div>
-        {/* 次按钮行：药品详情 / 重新拍照 */}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            type="button"
-            onClick={onViewDetail}
-            data-testid="btn-view-detail"
-            style={{
-              flex: 1,
-              height: 36,
-              borderRadius: 8,
-              border: '1px solid #D1D5DB',
-              background: '#fff',
-              color: '#374151',
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
-            🔍 药品详情
-          </button>
-          <button
-            type="button"
-            onClick={onRetake}
-            data-testid="btn-retake"
-            style={{
-              flex: 1,
-              height: 36,
-              borderRadius: 8,
-              border: '1px solid #D1D5DB',
-              background: '#fff',
-              color: '#374151',
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
-            📷 重新拍照
-          </button>
-        </div>
+        {/* 1. 识药结果（次级，浅描边） */}
+        <DrugActionButton
+          testid="btn-drug-result"
+          onClick={onViewDetail}
+          icon="📋"
+          label="识药结果"
+          variant="secondary"
+        />
+
+        {/* 2. 用药提醒（次级 + 红点 + 可置灰） */}
+        <DrugActionButton
+          testid="btn-reminder"
+          onClick={reminderDisabled ? undefined : onReminder}
+          icon="🛎"
+          label="用药提醒"
+          variant="secondary"
+          disabled={reminderDisabled}
+          redDot={reminderRedDot && !reminderDisabled}
+          title={reminderDisabled ? '今日暂无待打卡提醒' : '查看用药提醒'}
+        />
+
+        {/* 3. 加入用药计划（主色，根据 added/blockAdd 状态切换） */}
+        <DrugActionButton
+          testid="btn-add-plan"
+          onClick={blockAdd ? undefined : onAddPlan}
+          icon={added ? '✓' : '＋'}
+          label={blockAdd ? '存在风险' : added ? '已加入' : '加入计划'}
+          variant={blockAdd ? 'disabled' : added ? 'added' : 'primary'}
+          disabled={blockAdd}
+        />
+
+        {/* 4. 再次识别 */}
+        <DrugActionButton
+          testid="btn-retake"
+          onClick={onRetake}
+          icon="🔄"
+          label="再次识别"
+          variant="secondary"
+        />
       </div>
+    </div>
+  );
+}
+
+/** [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F8] 等大 4 等分按钮（统一规格 + 文案省略） */
+function DrugActionButton(props: {
+  testid: string;
+  onClick?: () => void;
+  icon: string;
+  label: string;
+  variant: 'primary' | 'secondary' | 'added' | 'disabled';
+  disabled?: boolean;
+  redDot?: boolean;
+  title?: string;
+}) {
+  const { testid, onClick, icon, label, variant, disabled, redDot, title } = props;
+  const base = {
+    flex: 1,
+    height: 44,
+    minWidth: 0,
+    borderRadius: 8,
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    padding: '0 6px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    position: 'relative' as const,
+    whiteSpace: 'nowrap' as const,
+    overflow: 'hidden' as const,
+    textOverflow: 'ellipsis' as const,
+  };
+  let style: React.CSSProperties = base;
+  if (variant === 'primary') {
+    style = { ...base, background: '#0EA5E9', color: '#fff', border: 'none' };
+  } else if (variant === 'added') {
+    style = { ...base, background: '#F3F4F6', color: '#4B5563', border: '1px solid #9CA3AF' };
+  } else if (variant === 'disabled') {
+    style = { ...base, background: '#D1D5DB', color: '#fff', border: 'none' };
+  } else {
+    // secondary
+    style = {
+      ...base,
+      background: '#F8FAFC',
+      color: disabled ? '#9CA3AF' : '#0F172A',
+      border: '1px solid #E2E8F0',
+      opacity: disabled ? 0.6 : 1,
+    };
+  }
+  return (
+    <button
+      type="button"
+      data-testid={testid}
+      onClick={onClick}
+      disabled={disabled}
+      title={title || label}
+      style={style}
+    >
+      <span style={{ fontSize: 15, lineHeight: 1, flexShrink: 0 }}>{icon}</span>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {label}
+      </span>
+      {redDot && (
+        <span
+          data-testid="btn-reminder-reddot"
+          style={{
+            position: 'absolute',
+            top: 6,
+            right: 6,
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            background: '#FF3B30',
+            boxShadow: '0 0 0 1.5px #fff',
+          }}
+        />
+      )}
+    </button>
+  );
+}
+
+/** [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F5] 单区块加载失败占位卡 + 整次重试 */
+function FailedSectionPlaceholder(props: { title: string; onRetry?: () => void; testid?: string }) {
+  const { title, onRetry, testid } = props;
+  return (
+    <div
+      data-testid={testid}
+      style={{
+        padding: '14px 12px',
+        background: '#FFF7ED',
+        borderRadius: 8,
+        border: '1px dashed #FDBA74',
+        marginBottom: 12,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 8,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#9A3412' }}>
+        <span style={{ fontSize: 16 }}>⚠</span>
+        <span style={{ fontSize: 13 }}>{title}：该部分内容加载失败</span>
+      </div>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          style={{
+            padding: '4px 12px',
+            borderRadius: 6,
+            border: '1px solid #FB923C',
+            background: '#fff',
+            color: '#EA580C',
+            fontSize: 12,
+            cursor: 'pointer',
+          }}
+        >
+          点击重试
+        </button>
+      )}
     </div>
   );
 }

@@ -1,0 +1,133 @@
+$ docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_family_member_v2_20260518.py 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/tests/test_family_member_v2_20260518.py 2>
+
+---
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend ls /app/tests/test_family_member_v2_20260518.py
+/app/tests/test_family_member_v2_20260518.py
+
+---
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend bash -lc 'cd /app && python -m pytest tests/test_family_member_v2_20260518.py -q -x --tb=short 2>&1 | tail -80'
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:341
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:341: UserWarning: Valid config keys have changed in V2:
+  * 'orm_mode' has been renamed to 'from_attributes'
+    warnings.warn(message, UserWarning)
+
+app/api/ocr.py:159
+  /app/app/api/ocr.py:159: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    period: str = Query("today", regex="^(today|7d|30d|all)$"),
+
+app/api/merchant_v1.py:771
+  /app/app/api/merchant_v1.py:771: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    period: str = Query("day", regex="^(day|week|month)$"),
+
+app/api/merchant_v1.py:772
+  /app/app/api/merchant_v1.py:772: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    dim: str = Query("merchant", regex="^(merchant|store)$"),
+
+../usr/local/lib/python3.11/site-packages/pydantic/fields.py:795
+  /usr/local/lib/python3.11/site-packages/pydantic/fields.py:795: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warn('`min_items` is deprecated and will be removed, use `min_length` instead', DeprecationWarning)
+
+../usr/local/lib/python3.11/site-packages/pydantic/fields.py:801
+  /usr/local/lib/python3.11/site-packages/pydantic/fields.py:801: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warn('`max_items` is deprecated and will be removed, use `max_length` instead', DeprecationWarning)
+
+app/main.py:2001
+  /app/app/main.py:2001: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+  /usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+app/main.py:2008
+  /app/app/main.py:2008: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+app/main.py:2038
+  /app/app/main.py:2038: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+app/main.py:2057
+  /app/app/main.py:2057: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_family_member_v2_20260518.py::test_family_v2_full_payload
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 2 passed, 30 warnings in 2.88s
+
+---
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend bash -lc 'cd /app && python -m pytest tests/test_family.py -q --tb=short 2>&1 | tail -40'
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+  /usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+app/main.py:2008
+  /app/app/main.py:2008: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+app/main.py:2038
+  /app/app/main.py:2038: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+app/main.py:2057
+  /app/app/main.py:2057: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+12 passed, 30 warnings in 8.62s
+
+---

@@ -97,6 +97,13 @@ function openAiHomeImageViewer(images: string[], defaultIndex: number) {
   } catch {}
 }
 
+/**
+ * [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F1~F3 2026-05-18]
+ * 识药卡片"分阶段渐进淡入"——已升级 messageId 的曾经被渲染过、可立刻全可见，
+ * 模块级缓存避免历史会话重进时重复触发渐进。
+ */
+const _drugCardProgressiveCache = new Set<string>();
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -614,6 +621,22 @@ export default function AiHomePage() {
 
   // [PRD-439 F-02/F-04] 提醒抽屉 + 徽标
   const [reminderOpen, setReminderOpen] = useState(false);
+  // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F11 2026-05-18]
+  // 识药卡底部「用药提醒」按钮触发的抽屉：可指定按某个咨询人 ID 筛选
+  const [reminderDrawerConsultantId, setReminderDrawerConsultantId] = useState<number | null>(null);
+  // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F10] 各咨询人的"今日是否有未打卡用药提醒"红点缓存
+  // key = consultantId (0 表示本人)，value = true 表示有红点
+  const [reminderRedDotMap, setReminderRedDotMap] = useState<Record<number, boolean>>({});
+  // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F10] 各咨询人是否"无任何用药计划"（按钮置灰）
+  const [reminderEmptyMap, setReminderEmptyMap] = useState<Record<number, boolean>>({});
+  // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F6] 识药消息保留的原图（用于整次重试，会话生命周期内有效）
+  const [drugRetryImageMap, setDrugRetryImageMap] = useState<Record<string, string[]>>({});
+
+  // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F1~F3] 识药卡片"分阶段渐进淡入"可见性状态
+  // 当 drugMeta 第一次进入消息时，由 useEffect 按时间窗依次释放 usage / safety / risk 三卡
+  const [drugCardVisibleSectionsMap, setDrugCardVisibleSectionsMap] = useState<
+    Record<string, { basic: boolean; usage: boolean; safety: boolean; risk: boolean }>
+  >({});
   // [PRD-AIHOME-OPTIM-V1 2026-05-17 R1] 本次优化后铃铛不再显示数字徽标（红点提示移到汉堡图标）。
   // 但 ReminderDrawer 内部仍依赖 refreshReminderBadge 在抽屉打开/关闭时同步徽标状态，故保留 state 与 setter。
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -1210,6 +1233,14 @@ export default function AiHomePage() {
                         } as any
                       : m
                   )));
+                  // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F6] 保留原图，供"整次识药重试"复用
+                  try {
+                    const imgUrls: string[] = (meta && Array.isArray(meta.image_urls)) ? meta.image_urls : [];
+                    if (imgUrls.length > 0) {
+                      const targetId = persistedId ? String(persistedId) : aiMsgId;
+                      setDrugRetryImageMap((prev) => ({ ...prev, [targetId]: imgUrls }));
+                    }
+                  } catch {}
                   continue;
                 }
                 if (parsed.content) {
@@ -2556,6 +2587,70 @@ export default function AiHomePage() {
       refreshDrugAddedStatus(names);
     }
   }, [messages, selectedConsultant, refreshDrugAddedStatus]);
+
+  // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F1~F3] 监听 messages，对新到达的识药卡按 800/1600/2400ms 渐进释放
+  useEffect(() => {
+    for (const m of messages) {
+      if (
+        m.drugMeta &&
+        m.drugMeta.message_type === 'drug_identify_card' &&
+        !_drugCardProgressiveCache.has(m.id) &&
+        !drugCardVisibleSectionsMap[m.id]
+      ) {
+        const mid = m.id;
+        // 初始：仅基础信息可见
+        setDrugCardVisibleSectionsMap((prev) => ({
+          ...prev,
+          [mid]: { basic: true, usage: false, safety: false, risk: false },
+        }));
+        // 依次释放
+        setTimeout(() => {
+          setDrugCardVisibleSectionsMap((prev) => ({
+            ...prev,
+            [mid]: { ...(prev[mid] || { basic: true, usage: false, safety: false, risk: false }), usage: true },
+          }));
+        }, 800);
+        setTimeout(() => {
+          setDrugCardVisibleSectionsMap((prev) => ({
+            ...prev,
+            [mid]: { ...(prev[mid] || { basic: true, usage: true, safety: false, risk: false }), safety: true },
+          }));
+        }, 1600);
+        setTimeout(() => {
+          setDrugCardVisibleSectionsMap((prev) => ({
+            ...prev,
+            [mid]: { basic: true, usage: true, safety: true, risk: true },
+          }));
+          _drugCardProgressiveCache.add(mid);
+        }, 2400);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
+
+  // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F10 2026-05-18]
+  // 刷新当前咨询人维度的「用药提醒」红点 + 空状态
+  const refreshReminderRedDot = useCallback(async () => {
+    const cid = selectedConsultant?.id ?? 0;
+    try {
+      const url = cid > 0
+        ? `/api/medication-reminder/today?consultant_id=${cid}`
+        : '/api/medication-reminder/today';
+      const res: any = await api.get(url);
+      const list = Array.isArray(res) ? res : (res?.data ?? []);
+      const hasUnchecked = Array.isArray(list) && list.some((it: any) => !it.checked);
+      const isEmpty = !Array.isArray(list) || list.length === 0;
+      setReminderRedDotMap((prev) => ({ ...prev, [cid]: !!hasUnchecked }));
+      setReminderEmptyMap((prev) => ({ ...prev, [cid]: !!isEmpty }));
+    } catch {
+      // 接口失败按"无红点"处理（保守）
+      setReminderRedDotMap((prev) => ({ ...prev, [cid]: false }));
+    }
+  }, [selectedConsultant]);
+
+  useEffect(() => {
+    refreshReminderRedDot();
+  }, [refreshReminderRedDot, messages.length]);
 
   // [PRD-420 F5-2 / BUG-466] 「返回上一会话」按钮点击：恢复原会话与原咨询对象
   // 撤销时同样要：
@@ -4023,6 +4118,11 @@ export default function AiHomePage() {
                        *   - drug_identify_retake → 提示重新拍照气泡 + 「重新拍照」按钮（点击同 capsule 拍照入口）
                        *   - 其他 / null → 退化为普通 Markdown
                        */}
+                      {/* [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F1~F3 2026-05-18]
+                         * 「分阶段渐进淡入」：识药卡 4 卡按"基础信息 → 用法用量 → 安全提示 → 个性化风险"
+                         * 顺序依次淡入。后端一次性 done meta 后，前端按时间窗渐进释放可见性，
+                         * 配合卡片自身 260ms fadeIn 动画，达成 PRD §2.1 F1~F3 的"先轻后重"体验。
+                         */}
                       {msg.drugMeta && msg.drugMeta.message_type === 'drug_identify_card' && Array.isArray(msg.drugMeta.medicines) && msg.drugMeta.medicines.length > 0 ? (
                         /* [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517 · Bug-1/2]
                          *   - 先渲染流式两段播报文本气泡（msg.content）
@@ -4036,6 +4136,7 @@ export default function AiHomePage() {
                             </div>
                           )}
                           <DrugIdentifyCard
+                            visibleSections={drugCardVisibleSectionsMap[msg.id] || { basic: true, usage: false, safety: false, risk: false }}
                             card={{
                               drug_name: msg.drugMeta.medicines[0]?.name || msg.drugMeta.medicines[0]?.brand || '已识别药品',
                               generic_name: msg.drugMeta.medicines[0]?.name || null,
@@ -4129,6 +4230,43 @@ export default function AiHomePage() {
                                 disease_tags: (msg.drugMeta?.medicines?.[0] as any)?.disease_tags || null,
                               });
                               setViewMedDrawerOpen(true);
+                            }}
+                            // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F9/F10/F11 2026-05-18]
+                            // 用药提醒按钮：按"咨询人"维度判定红点 / 空状态 / 弹抽屉
+                            onReminder={() => {
+                              const cid = (msg.consultantTargetId ?? selectedConsultant?.id ?? 0) as number;
+                              setReminderDrawerConsultantId(cid > 0 ? cid : null);
+                              setReminderOpen(true);
+                            }}
+                            reminderRedDot={(() => {
+                              const cid = (msg.consultantTargetId ?? selectedConsultant?.id ?? 0) as number;
+                              return Boolean(reminderRedDotMap[cid]);
+                            })()}
+                            reminderDisabled={(() => {
+                              const cid = (msg.consultantTargetId ?? selectedConsultant?.id ?? 0) as number;
+                              return Boolean(reminderEmptyMap[cid]);
+                            })()}
+                            // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F6] 整次识药重试 - 复用原图
+                            onRetryAll={() => {
+                              const urls = drugRetryImageMap[msg.id];
+                              if (urls && urls.length > 0) {
+                                // 1. 整条 AI 回答从聊天流中移除
+                                setMessages((prev) => prev.filter((it) => it.id !== msg.id));
+                                // 2. 用原图重走识药流程：直接调用 sendSSE
+                                try {
+                                  Toast.show({ content: 'AI 正在重新识别…', position: 'bottom' });
+                                } catch {}
+                                // 通过原图入口重新触发（与首次拍照后处理一致）
+                                handleSend({
+                                  text: '请识别此药品',
+                                  sseExtras: { image_urls: urls },
+                                } as any).catch(() => {});
+                              } else {
+                                try {
+                                  Toast.show({ content: '图片信息已过期，请重新拍照识别', position: 'bottom' });
+                                } catch {}
+                                setRetakeDrawerOpen(true);
+                              }
                             }}
                           />
                         </div>
@@ -4328,8 +4466,18 @@ export default function AiHomePage() {
       <SectionErrorBoundary name="reminder_drawer">
         <ReminderDrawer
           open={reminderOpen}
-          onClose={() => setReminderOpen(false)}
-          onChangeBadge={refreshReminderBadge}
+          onClose={() => {
+            setReminderOpen(false);
+            // 关闭后重置识药卡触发的咨询人筛选维度
+            setReminderDrawerConsultantId(null);
+            // [F10] 关闭后立刻重新计算红点（与顶部铃铛关闭一致逻辑）
+            refreshReminderRedDot();
+          }}
+          onChangeBadge={() => {
+            refreshReminderBadge();
+            refreshReminderRedDot();
+          }}
+          consultantId={reminderDrawerConsultantId}
           onGoMedicationManage={() => {
             setReminderOpen(false);
             router.push('/ai-home/medication-plans');
@@ -4615,15 +4763,56 @@ export default function AiHomePage() {
         {!voiceMode && (familyPillVisible || archiveLinkVisible) && (
           <div className="flex items-center justify-between gap-3 mt-2">
             {familyPillVisible ? (
-              <button
-                className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full"
-                style={{ background: THEME.primaryLight, color: THEME.primary, fontSize: 12 }}
-                onClick={() => setConsultantOpen(true)}
-                aria-label="切换咨询对象"
-              >
-                <span>{renderFamilyPillText()}</span>
-                <span style={{ fontSize: 10 }}>⇆</span>
-              </button>
+              (() => {
+                // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F13 2026-05-18]
+                // AI 流式响应期间：胶囊置灰 + 右侧 loading 小图标 + 点击弹 Toast
+                const isAiResponding = sending || messages.some((m) => m.isStreaming);
+                return (
+                  <button
+                    data-testid="ai-home-consultant-pill"
+                    data-disabled={isAiResponding ? '1' : '0'}
+                    className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full"
+                    style={{
+                      background: isAiResponding ? '#E5E7EB' : THEME.primaryLight,
+                      color: isAiResponding ? '#9CA3AF' : THEME.primary,
+                      fontSize: 12,
+                      cursor: isAiResponding ? 'not-allowed' : 'pointer',
+                      opacity: isAiResponding ? 0.75 : 1,
+                    }}
+                    onClick={() => {
+                      if (isAiResponding) {
+                        try {
+                          Toast.show({ content: 'AI 正在回答中，请稍候再切换咨询人', position: 'bottom' });
+                        } catch {}
+                        return;
+                      }
+                      setConsultantOpen(true);
+                    }}
+                    aria-label="切换咨询对象"
+                  >
+                    <span>{renderFamilyPillText()}</span>
+                    {isAiResponding ? (
+                      <span
+                        data-testid="ai-home-consultant-pill-loading"
+                        aria-label="AI 正在回答"
+                        style={{
+                          width: 12,
+                          height: 12,
+                          border: '1.5px solid #9CA3AF',
+                          borderTopColor: 'transparent',
+                          borderRadius: '50%',
+                          animation: 'aihomeConsultPillSpin 0.85s linear infinite',
+                          display: 'inline-block',
+                          marginLeft: 4,
+                        }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: 10 }}>⇆</span>
+                    )}
+                    <style>{`@keyframes aihomeConsultPillSpin{to{transform:rotate(360deg)}}`}</style>
+                  </button>
+                );
+              })()
             ) : <div />}
             {archiveLinkVisible && (
               <button
