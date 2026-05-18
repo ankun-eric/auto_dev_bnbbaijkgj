@@ -1013,11 +1013,12 @@ function HealthProfileV2PageInner() {
           boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
         }}
       >
-        <GreenNavBar>我的健康档案</GreenNavBar>
+        <GreenNavBar>健康档案</GreenNavBar>
         {renderMemberBar()}
       </div>
 
       {renderHero()}
+      <HeroQuickEntriesV2 memberId={selectedMemberId} router={router} />
       {renderGuardianSection()}
 
       {renderStickyTabs()}
@@ -1119,6 +1120,82 @@ function calcAge(birthday: string): number | null {
   } catch {
     return null;
   }
+}
+
+// [PRD-HEALTH-ARCHIVE-OPTIM-V2 2026-05-18] Hero 卡底部三入口快捷区
+function HeroQuickEntriesV2({ memberId, router }: { memberId: number | null; router: any }) {
+  const [counts, setCounts] = useState<{ medication_today_count: number; device_count: number; family_member_count: number }>({
+    medication_today_count: 0,
+    device_count: 0,
+    family_member_count: 0,
+  });
+  useEffect(() => {
+    (async () => {
+      try {
+        const url = memberId != null ? `/api/family-archive-v2/hero-counts?member_id=${memberId}` : '/api/family-archive-v2/hero-counts';
+        const r: any = await api.get(url);
+        const d = r.data || r;
+        setCounts({
+          medication_today_count: Number(d.medication_today_count || 0),
+          device_count: Number(d.device_count || 0),
+          family_member_count: Number(d.family_member_count || 0),
+        });
+      } catch {
+        // ignore
+      }
+    })();
+  }, [memberId]);
+
+  const entry = (icon: string, label: string, count: number, onClick: () => void, testid: string) => (
+    <div
+      data-testid={testid}
+      onClick={onClick}
+      style={{
+        flex: 1,
+        background: '#fff',
+        borderRadius: 10,
+        padding: '12px 8px',
+        position: 'relative',
+        cursor: 'pointer',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+        textAlign: 'center',
+      }}
+    >
+      <div style={{ fontSize: 22 }}>{icon}</div>
+      <div style={{ marginTop: 4, fontSize: 13, color: '#444', fontWeight: 600 }}>{label}</div>
+      {count > 0 && (
+        <span
+          style={{
+            position: 'absolute',
+            top: 6,
+            right: 8,
+            background: '#FF6B1F',
+            color: '#fff',
+            fontSize: 11,
+            borderRadius: 9,
+            padding: '0 6px',
+            minWidth: 18,
+            height: 18,
+            lineHeight: '18px',
+            textAlign: 'center',
+            fontWeight: 600,
+          }}
+        >
+          {count}
+        </span>
+      )}
+    </div>
+  );
+
+  return (
+    <div data-testid="hero-quick-entries-v2" style={{ padding: '0 16px', marginTop: 10 }}>
+      <div style={{ display: 'flex', gap: 10 }}>
+        {entry('💊', '今日用药', counts.medication_today_count, () => router.push('/medication-plan/today'), 'qe-medication')}
+        {entry('🩺', '我的设备', counts.device_count, () => router.push(`/devices/member?member_id=${memberId ?? ''}`), 'qe-devices')}
+        {entry('👨‍👩‍👧', '家庭成员', counts.family_member_count, () => router.push('/family'), 'qe-family')}
+      </div>
+    </div>
+  );
 }
 
 // [PRD-MED-PLAN-ENTRY-V1 2026-05-17] 外层 Suspense 包裹，配合内部 useSearchParams 通过 Next.js 静态预渲染检查

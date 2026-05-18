@@ -2555,6 +2555,72 @@ async def _sync_family_guardian_v1(conn: AsyncConnection) -> None:
         ))
 
 
+async def _sync_family_members_archive_optim_v2(conn: AsyncConnection) -> None:
+    """[PRD-HEALTH-ARCHIVE-OPTIM-V2 2026-05-18] family_members 新增 4 列：
+    - avatar_color_index TINYINT NULL（0-4 循环）
+    - ai_call_enabled BOOLEAN DEFAULT FALSE
+    - ai_call_timing VARCHAR(16) DEFAULT 'on_time'
+    - guardian_alert_minutes TINYINT DEFAULT 5
+    """
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "family_members" not in tables:
+            return set()
+        return {col["name"] for col in inspector.get_columns("family_members")}
+
+    cols = await conn.run_sync(_load)
+    if not cols:
+        return
+
+    if "avatar_color_index" not in cols:
+        try:
+            await conn.execute(text(
+                "ALTER TABLE family_members ADD COLUMN avatar_color_index TINYINT NULL"
+            ))
+        except Exception as e:
+            print(f"[schema_sync] family_members.avatar_color_index add warn: {e}")
+    if "ai_call_enabled" not in cols:
+        try:
+            await conn.execute(text(
+                "ALTER TABLE family_members ADD COLUMN ai_call_enabled TINYINT(1) NOT NULL DEFAULT 0"
+            ))
+        except Exception as e:
+            print(f"[schema_sync] family_members.ai_call_enabled add warn: {e}")
+    if "ai_call_timing" not in cols:
+        try:
+            await conn.execute(text(
+                "ALTER TABLE family_members ADD COLUMN ai_call_timing VARCHAR(16) NOT NULL DEFAULT 'on_time'"
+            ))
+        except Exception as e:
+            print(f"[schema_sync] family_members.ai_call_timing add warn: {e}")
+    if "guardian_alert_minutes" not in cols:
+        try:
+            await conn.execute(text(
+                "ALTER TABLE family_members ADD COLUMN guardian_alert_minutes TINYINT NOT NULL DEFAULT 5"
+            ))
+        except Exception as e:
+            print(f"[schema_sync] family_members.guardian_alert_minutes add warn: {e}")
+
+    # 已存在数据补充 avatar_color_index：按 user_id 内的 created_at 顺序循环
+    try:
+        await conn.execute(text(
+            """
+            UPDATE family_members fm
+            JOIN (
+                SELECT id,
+                       (ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at, id) - 1) %% 5 AS idx
+                FROM family_members
+                WHERE avatar_color_index IS NULL
+            ) t ON fm.id = t.id
+            SET fm.avatar_color_index = t.idx
+            WHERE fm.avatar_color_index IS NULL
+            """
+        ))
+    except Exception as e:
+        print(f"[schema_sync] family_members.avatar_color_index backfill warn: {e}")
+
+
 async def _sync_guardian_ai_call_settings_v1(conn: AsyncConnection) -> None:
     """[PRD-HEALTH-ARCHIVE-OPTIM-V1 2026-05-18] 创建 guardian_ai_call_settings 表。
 
@@ -2651,6 +2717,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_family_guardian_v1(conn)
     # [PRD-HEALTH-ARCHIVE-OPTIM-V1 2026-05-18] guardian_ai_call_settings 表创建（按 owner+target 唯一）
     await _sync_guardian_ai_call_settings_v1(conn)
+    # [PRD-HEALTH-ARCHIVE-OPTIM-V2 2026-05-18] family_members 新增 avatar_color_index/ai_call_enabled/ai_call_timing/guardian_alert_minutes
+    await _sync_family_members_archive_optim_v2(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

@@ -383,6 +383,14 @@ class FamilyMember(Base):
     relation_type_id = mapped_column(Integer, ForeignKey("relation_types.id"), nullable=True)
     # [PRD-FAMILY-GUARDIAN-V1] 虚拟老人档案手机号：用于注册时按手机号匹配迁移
     virtual_phone = mapped_column(String(20), nullable=True, index=True)
+    # [PRD-HEALTH-ARCHIVE-OPTIM-V2 2026-05-18] 头像徽章配色索引（0-4，按入档顺序循环）
+    avatar_color_index = mapped_column(Integer, nullable=True)
+    # [PRD-HEALTH-ARCHIVE-OPTIM-V2 2026-05-18] AI 外呼提醒开关
+    ai_call_enabled = mapped_column(Boolean, default=False, nullable=False)
+    # [PRD-HEALTH-ARCHIVE-OPTIM-V2 2026-05-18] AI 外呼呼叫时机：on_time/delay_5/delay_10/delay_15
+    ai_call_timing = mapped_column(String(16), default="on_time", nullable=False)
+    # [PRD-HEALTH-ARCHIVE-OPTIM-V2 2026-05-18] 超时通知守护者触发时长（分钟）：5/10/15
+    guardian_alert_minutes = mapped_column(Integer, default=5, nullable=False)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="family_members", foreign_keys=[user_id])

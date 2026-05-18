@@ -27,7 +27,45 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1｜ai-home 拍照识药功能优化（2026-05-18 20:15）
+## Latest Update: PRD-HEALTH-ARCHIVE-OPTIM-V2｜健康档案页面优化 v2（2026-05-18 22:35）
+
+### 范围
+- H5 `/health-profile` 标题改"健康档案" + 新增 Hero 卡三入口快捷区（今日用药 / 我的设备 / 家庭成员）
+- H5 `/family` 列表页激活：去掉自动跳转，做成真正的家庭成员管理列表
+  - 守护状态 Pill（已守护蓝 / 未守护橙 / 本人不显示）
+  - 卡片底部 2-3 按钮（本人=编辑+提醒设置 / 已守护=编辑+解绑+提醒设置 / 未守护=编辑+邀请+提醒设置）
+  - 右上角 `+` 调起 NewFamilyMemberModal
+  - 内嵌 3 个抽屉：提醒设置 / 提醒历史 / 解绑（短信验证码）
+- H5 新增 `/devices/member?member_id=X` 当前成员设备列表页（顶部副标 `共 X 台 · Y 台在线`、在线/离线 Pill、本人可管理/其他只读）
+- 后端 FamilyMember 表新增 4 字段：`avatar_color_index` / `ai_call_enabled` / `ai_call_timing` / `guardian_alert_minutes`
+- 后端新增 `/api/family-archive-v2/*` 7 个端点：members / hero-counts / member/{id}/devices / alert-settings (GET+PUT) / alert-history / unbind/send-code / unbind/confirm
+- schema_sync 新增 `_sync_family_members_archive_optim_v2`：上线时自动为现存成员按入档顺序循环赋 avatar_color_index
+
+### 新增/修改的关键文件
+- 新增 `backend/app/api/health_archive_optim_v2.py`（7 个 API 端点）
+- 改造 `backend/app/models/models.py`：FamilyMember 新增 4 字段
+- 改造 `backend/app/services/schema_sync.py`：新增 `_sync_family_members_archive_optim_v2` 同步函数
+- 改造 `backend/app/main.py`：注册 health_archive_optim_v2 router
+- 新增 `backend/tests/test_health_archive_optim_v2_20260518.py`（10 用例全部通过）
+- 改造 `h5-web/src/app/health-profile/page.tsx`：标题 + Hero 三入口快捷区 `HeroQuickEntriesV2`
+- 重写 `h5-web/src/app/family/page.tsx`：完整家庭成员列表页 + 提醒设置/解绑/提醒历史 3 抽屉
+- 新增 `h5-web/src/app/devices/member/page.tsx`：当前成员设备列表页
+- 部署脚本 `deploy/_deploy_health_archive_optim_v2_20260518.py`
+
+### 部署与测试
+- 已部署到正式服务器（容器 `6b099ed3-7175-4a78-91f4-44570c84ed27-h5/backend`）
+- 服务器容器内 pytest：`test_health_archive_optim_v2_20260518.py` **10/10 PASS**
+- Smoke：`/api/openapi.json` 200，`/health-profile`、`/family`、`/devices/member` 308 → 200，`/api/family-archive-v2/members` 401（路由可达 + 鉴权正确）
+
+### 不在范围
+- 不动小程序 / Flutter / iOS / Android 原生客户端（本期 API 完全向后兼容）
+
+### 用户手册
+- `user_docs/健康档案页面优化v2.md`
+
+---
+
+## Previous Update: PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1｜ai-home 拍照识药功能优化（2026-05-18 20:15）
 
 ### 范围
 - H5 `/ai-home`（仅 H5 端，小程序与 Flutter 本期 API 兼容、UI 不动）
