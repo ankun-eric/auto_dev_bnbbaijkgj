@@ -31,16 +31,28 @@ def _random_phone() -> str:
     return "138" + "".join(random.choices(string.digits, k=8))
 
 
+# 后端 TEST_PHONES = {13800138000, 13800000001, 13800000002}，固定验证码 123456
+TEST_PHONES = ["13800138000", "13800000001", "13800000002"]
+_test_phone_idx = 0
+
+
+def _pick_test_phone() -> str:
+    global _test_phone_idx
+    p = TEST_PHONES[_test_phone_idx % len(TEST_PHONES)]
+    _test_phone_idx += 1
+    return p
+
+
 def _login_or_register(phone: str) -> str:
-    """获取测试用 token：发送验证码 → 用通用 code 登录。"""
+    """获取测试用 token：发送验证码 → 用通用 code 登录（开发环境通用 code = 123456）。"""
     requests.post(
-        f"{API_URL}/auth/send-code",
-        json={"phone": phone, "scene": "login"},
+        f"{API_URL}/auth/sms-code",
+        json={"phone": phone, "type": "login"},
         timeout=TIMEOUT,
         verify=False,
     )
     res = requests.post(
-        f"{API_URL}/auth/login-by-code",
+        f"{API_URL}/auth/sms-login",
         json={"phone": phone, "code": TEST_CODE},
         timeout=TIMEOUT,
         verify=False,
@@ -70,7 +82,8 @@ def test_backend_health():
 
 @pytest.fixture(scope="module")
 def auth():
-    phone = _random_phone()
+    # 使用预置测试号，固定验证码 123456
+    phone = _pick_test_phone()
     token = _login_or_register(phone)
     return {"phone": phone, "token": token}
 
@@ -156,6 +169,7 @@ def test_e2e_create_member_then_push_dedup(auth):
         "relationship_type": "father",
         "nickname": "测试父亲" + str(int(time.time())),
         "gender": "male",
+        "name": "测试父亲",
     }
     res = requests.post(
         f"{API_URL}/family/members",
@@ -164,11 +178,11 @@ def test_e2e_create_member_then_push_dedup(auth):
         timeout=TIMEOUT,
         verify=False,
     )
-    # 接受 200/201 或者已有 endpoint 形态差异
     if res.status_code in (404, 405):
         pytest.skip(f"/api/family/members endpoint not available: {res.status_code}")
     assert res.status_code in (200, 201), res.text
-    member_id = res.json().get("id") or res.json().get("data", {}).get("id")
+    body = res.json()
+    member_id = body.get("id") or body.get("data", {}).get("id")
     assert member_id, res.text
 
     # 2) 首次触发推送
@@ -231,9 +245,9 @@ def test_zero_abnormal_no_push():
 
 def test_admin_endpoints_require_admin():
     for path in (
-        "/admin/alert-templates",
-        "/admin/abnormal-thresholds",
-        "/admin/alert-logs",
+        "/api/admin/alert-templates",
+        "/api/admin/abnormal-thresholds",
+        "/api/admin/alert-logs",
     ):
         res = requests.get(f"{BASE_URL}{path}", timeout=TIMEOUT, verify=False)
         assert res.status_code in (401, 403), f"{path} should require admin, got {res.status_code}"
