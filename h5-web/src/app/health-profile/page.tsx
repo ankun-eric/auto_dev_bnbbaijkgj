@@ -26,6 +26,7 @@ import { Toast } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMemberModal';
+import MemberBadge from '@/components/family/MemberBadge';
 import { formatGender } from '@/utils/format';
 // [PRD-HEALTH-OPT-V1 2026-05-14 R2] 中部「我的设备」卡片已移除，由顶部右上角设备图标替代
 // import DeviceListBlock from '@/components/health-profile-v5/DeviceListBlock';
@@ -415,7 +416,12 @@ function HealthProfileV2PageInner() {
         const active = m.id === selectedMemberId;
         const flag = guardedFlags.get(m.id);
         const guarded = !!flag?.guarded;
-        const avatar = m.is_self ? '🙂' : relationEmoji(m.relation_type_name || m.relationship_type || '');
+        const relationName = m.relation_type_name || m.relationship_type || '';
+        // [PRD-FAMILY-MEMBER-V2 2026-05-18] 头像改为字徽方案（圆形主色底 + 白字）
+        const age = m.birthday ? calcAge(m.birthday) : null;
+        const subText = m.is_self
+          ? `${m.gender ? formatGender(m.gender) : ''}${age != null ? ` · ${age}岁` : ''}`.replace(/^ ·/, '')
+          : `${relationName}${m.gender ? ' · ' + formatGender(m.gender) : ''}${age != null ? ` · ${age}岁` : ''}`;
         return (
           <div
             key={m.id}
@@ -428,16 +434,18 @@ function HealthProfileV2PageInner() {
             <div
               style={{
                 position: 'relative',
-                width: 48, height: 48, borderRadius: '50%',
-                background: active ? T.brand500 : '#fff',
-                color: active ? '#fff' : T.brand700,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 22, fontWeight: 600,
-                border: active ? `2px solid ${T.brand600}` : `1px solid ${T.brand200}`,
-                boxShadow: active ? '0 4px 12px rgba(34,197,94,0.25)' : 'none',
+                padding: 2,
+                borderRadius: '50%',
+                background: active ? `linear-gradient(135deg, #38BDF8, #0284C7)` : 'transparent',
+                boxShadow: active ? '0 4px 12px rgba(2,132,199,0.25)' : 'none',
               }}
             >
-              {avatar}
+              <MemberBadge
+                relationName={relationName}
+                name={m.nickname}
+                isSelf={m.is_self}
+                size={44}
+              />
               {/* [PRD-HEALTH-ARCHIVE-OPTIM-V1 F3] 「被守护」角标 */}
               {guarded && (
                 <span
@@ -454,8 +462,12 @@ function HealthProfileV2PageInner() {
                 >被守护</span>
               )}
             </div>
-            <span style={{ fontSize: 13, color: T.brand800, marginTop: 4 }}>
+            <span style={{ fontSize: 12, color: T.brand800, marginTop: 4, maxWidth: 80, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {m.is_self ? '本人' : (m.relation_type_name || m.nickname)}
+            </span>
+            {/* 副信息：显示年龄而非出生日期 */}
+            <span style={{ fontSize: 10, color: T.textSecondary, marginTop: 1, whiteSpace: 'nowrap' }}>
+              {subText || '—'}
             </span>
           </div>
         );
@@ -526,12 +538,20 @@ function HealthProfileV2PageInner() {
               style={{
                 position: 'relative',
                 width: 64, height: 64, borderRadius: '50%',
-                background: 'rgba(255,255,255,0.25)',
+                background: 'rgba(255,255,255,0.18)',
+                padding: 4,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 32, fontWeight: 700,
               }}
             >
-              {selectedMember?.is_self ? '🙂' : relationEmoji(selectedMember?.relation_type_name || '')}
+              {/* [PRD-FAMILY-MEMBER-V2 2026-05-18] Hero 大头像改为字徽方案 */}
+              <MemberBadge
+                relationName={selectedMember?.relation_type_name || selectedMember?.relationship_type || ''}
+                name={selectedMember?.nickname || profile.name}
+                isSelf={!!selectedMember?.is_self}
+                size={56}
+                fontSize={22}
+                showPlaceholderTag={false}
+              />
               {/* [PRD-HEALTH-ARCHIVE-OPTIM-V1 F3] Hero 大头像也同步显示「被守护」角标 */}
               {memberGuarded && (
                 <span

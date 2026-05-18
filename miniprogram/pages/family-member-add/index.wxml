@@ -1,0 +1,140 @@
+<!-- [PRD-FAMILY-MEMBER-V2 2026-05-18] 添加家庭成员 -->
+<view class="page" wx:if="{{!showSelfBlocker}}">
+  <!-- 邀请横幅 -->
+  <view class="invite-banner" bindtap="goInvite">
+    <view class="banner-left">
+      <text class="banner-icon">💙</text>
+      <view>
+        <view class="banner-title">邀请家人加入健康守护计划</view>
+        <view class="banner-sub">共同管理家庭健康档案</view>
+      </view>
+    </view>
+    <view class="banner-btn">去邀请</view>
+  </view>
+
+  <!-- 错误顶部条 -->
+  <view class="error-banner" wx:if="{{ageInvalid}}">⚠️ 关系与出生日期不符，请检查后重新填写</view>
+
+  <!-- 关系网格 -->
+  <view class="card">
+    <view class="card-title"><text class="required">*</text> 成员关系</view>
+    <view class="grid">
+      <view
+        wx:for="{{relationDefs}}"
+        wx:key="name"
+        class="pill {{selectedRelation === item.name ? 'pill-active' : ''}} {{usedUnique[item.name] ? 'pill-disabled' : ''}} {{ageInvalid && selectedRelation === item.name ? 'pill-error' : ''}}"
+        bindtap="onSelectRelation"
+        data-name="{{item.name}}"
+      >{{item.name}}</view>
+    </view>
+
+    <view class="field-row" wx:if="{{isOther}}">
+      <view class="field-label"><text class="required">*</text> 关系</view>
+      <input
+        class="field-input {{errFields.customRelation ? 'field-input-err' : ''}}"
+        placeholder="如：舅舅、表妹"
+        maxlength="8"
+        value="{{customRelation}}"
+        bindinput="onInputCustomRelation"
+      />
+    </view>
+  </view>
+
+  <!-- 基础字段 -->
+  <view class="card">
+    <view class="field-row">
+      <view class="field-label"><text class="required">*</text> 姓名</view>
+      <input
+        class="field-input {{errFields.name ? 'field-input-err' : ''}}"
+        placeholder="请输入"
+        maxlength="12"
+        value="{{name}}"
+        bindinput="onInputName"
+      />
+    </view>
+
+    <view class="field-row">
+      <view class="field-label"><text class="required">*</text> 性别</view>
+      <view wx:if="{{selectedDef && selectedDef.gender}}" class="field-locked">
+        {{selectedDef.gender === 'M' ? '男（自动）' : '女（自动）'}}
+      </view>
+      <view wx:else class="gender-group">
+        <view
+          class="gender-btn {{gender === 'male' ? 'gender-btn-active' : ''}}"
+          bindtap="onSelectGender"
+          data-gender="male"
+        >男</view>
+        <view
+          class="gender-btn {{gender === 'female' ? 'gender-btn-active' : ''}}"
+          bindtap="onSelectGender"
+          data-gender="female"
+        >女</view>
+      </view>
+    </view>
+
+    <view class="field-row">
+      <view class="field-label"><text class="required">*</text> 出生日期</view>
+      <picker mode="date" value="{{birthday}}" start="1900-01-01" end="{{currentDate}}" bindchange="onBirthdayChange">
+        <view class="field-input {{(errFields.birthday || ageInvalid) ? 'field-input-err' : ''}} field-input-pick">
+          <text>{{birthday || '请选择'}}</text>
+          <text class="arrow">›</text>
+        </view>
+      </picker>
+    </view>
+  </view>
+
+  <!-- 折叠区 -->
+  <view class="card">
+    <view class="more-toggle" bindtap="toggleMore">
+      <text>其他（选填）</text>
+      <text class="arrow {{moreOpen ? 'arrow-open' : ''}}">›</text>
+    </view>
+    <view wx:if="{{moreOpen}}" class="more-body">
+      <view class="two-col">
+        <view class="col">
+          <view class="sub-label">身高(cm)</view>
+          <input class="field-input" type="digit" placeholder="0-300" value="{{height}}" bindinput="onInputHeight" />
+        </view>
+        <view class="col">
+          <view class="sub-label">体重(kg)</view>
+          <input class="field-input" type="digit" placeholder="0-300" value="{{weight}}" bindinput="onInputWeight" />
+        </view>
+      </view>
+      <view class="sub-block">
+        <view class="sub-label">既往病史</view>
+        <view class="chip-group">
+          <view
+            wx:for="{{chronics}}"
+            wx:key="*this"
+            class="chip {{pickedChronics.indexOf(item) >= 0 ? 'chip-active' : ''}}"
+            bindtap="toggleChronic"
+            data-name="{{item}}"
+          >{{item}}</view>
+        </view>
+      </view>
+      <view class="sub-block">
+        <view class="sub-label">过敏史</view>
+        <input class="field-input mb6" placeholder="药物过敏（如：青霉素、头孢）" value="{{drugAllergy}}" bindinput="onInputDrug" />
+        <input class="field-input mb6" placeholder="食物过敏（如：海鲜、坚果）" value="{{foodAllergy}}" bindinput="onInputFood" />
+        <input class="field-input" placeholder="其他过敏（如：花粉、尘螨）" value="{{otherAllergy}}" bindinput="onInputOther" />
+      </view>
+    </view>
+  </view>
+
+  <view class="bottom-tip">请保证信息真实性，将基于您的档案信息提供个性化健康服务</view>
+  <button class="submit-btn {{(submitting || ageInvalid) ? 'submit-btn-disabled' : ''}}" disabled="{{submitting || ageInvalid}}" bindtap="onSubmit">
+    {{submitting ? '保存中...' : '保存'}}
+  </button>
+</view>
+
+<!-- 本人档案拦截 -->
+<view class="blocker-mask" wx:if="{{showSelfBlocker}}">
+  <view class="blocker-card">
+    <view class="blocker-icon">!</view>
+    <view class="blocker-title">请先完善您的个人档案</view>
+    <view class="blocker-btns">
+      <button class="blocker-btn blocker-btn-ghost" bindtap="cancelBlocker">取消</button>
+      <button class="blocker-btn blocker-btn-primary" bindtap="goCompleteSelfProfile">去完善</button>
+    </view>
+  </view>
+</view>

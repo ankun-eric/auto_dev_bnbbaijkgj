@@ -1,42 +1,46 @@
 'use client';
 
 /**
- * [PRD-469 M3] 新建家庭成员弹层（v5 同款）
+ * [PRD-FAMILY-MEMBER-V2 2026-05-18] 新版家庭成员表单
  *
- * - 关系网格（16 项预置 + 「其他」自定义）
- * - 关系绑定头像（emoji，与 AI 对话页一致）
- * - 7 字段表单
- * - 「其他」自定义关系名重复校验
+ * 核心特性：
+ * - 邀请共管横幅（顶部）
+ * - 关系网格 4 列纯文字胶囊（15 个一次性展开）
+ * - 必填仅 4 项：成员关系、姓名、性别、出生日期
+ * - 性别智能锁定（除"其他"外）
+ * - 出生日期智能默认值（基于本人出生年）
+ * - 关系唯一性硬约束
+ * - 关系合理性硬校验
+ * - 本人档案未完善拦截
+ * - 折叠区：身高、体重、既往病史、过敏史
+ * - 保存后关闭抽屉 + Toast
+ * - 不支持删除
  */
 
-import { useEffect, useState } from 'react';
-import { Toast, Mask, Picker } from 'antd-mobile';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Toast, Popup, DatePicker } from 'antd-mobile';
 import api from '@/lib/api';
+import {
+  RELATION_DEFS,
+  findRelationDef,
+  computeDefaultBirthday,
+  validateRelationAge,
+  calcAge,
+  extractSelfBirthYear,
+  FAM_THEME as T,
+  CHRONIC_DISEASE_OPTIONS,
+} from '@/lib/family-relation';
 
-interface RelationOption {
-  key: string;
-  name: string;
-  avatar: string;
-  is_other: boolean;
+interface ExistingMember {
+  id: number;
+  is_self: boolean;
+  nickname?: string;
+  relationship_type?: string;
+  relation_type_name?: string;
+  birthday?: string;
+  gender?: string;
 }
-
-const T = {
-  brand500: '#22c55e',
-  brand600: '#16a34a',
-  brand700: '#15803d',
-  brand100: '#dcfce7',
-  brand200: '#bbf7d0',
-  textPrimary: '#1f2937',
-  textSecondary: '#6b7280',
-};
-
-const BLOOD_TYPES = [
-  { label: 'A', value: 'A' },
-  { label: 'B', value: 'B' },
-  { label: 'AB', value: 'AB' },
-  { label: 'O', value: 'O' },
-  { label: '不详', value: '不详' },
-];
 
 interface Props {
   onClose: () => void;
@@ -44,311 +48,659 @@ interface Props {
 }
 
 export default function NewFamilyMemberModal({ onClose, onSuccess }: Props) {
-  const [step, setStep] = useState<'relation' | 'form'>('relation');
-  const [options, setOptions] = useState<RelationOption[]>([]);
-  const [selectedKey, setSelectedKey] = useState<string>('');
-  const [customName, setCustomName] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const router = useRouter();
 
-  const [name, setName] = useState('');
-  const [gender, setGender] = useState<'男' | '女' | ''>('');
+  // 数据
+  const [members, setMembers] = useState<ExistingMember[]>([]);
+  const [selfBirthYear, setSelfBirthYear] = useState<number | null>(null);
+  const [selfBirthday, setSelfBirthday] = useState<string>('');
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [showSelfBlocker, setShowSelfBlocker] = useState(false);
+
+  // 表单
+  const [selectedRelation, setSelectedRelation] = useState<string>('');
+  const [customRelation, setCustomRelation] = useState<string>('');
+  const [name, setName] = useState<string>('');
+  const [gender, setGender] = useState<'male' | 'female' | ''>('');
   const [birthday, setBirthday] = useState<string>('');
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [height, setHeight] = useState<string>('');
   const [weight, setWeight] = useState<string>('');
-  const [bloodType, setBloodType] = useState<string>('');
-  const [bloodPickerVisible, setBloodPickerVisible] = useState(false);
-  const [phone, setPhone] = useState('');
+  const [chronics, setChronics] = useState<string[]>([]);
+  const [drugAllergy, setDrugAllergy] = useState<string>('');
+  const [foodAllergy, setFoodAllergy] = useState<string>('');
+  const [otherAllergy, setOtherAllergy] = useState<string>('');
 
+  // 校验态
+  const [errFields, setErrFields] = useState<Set<string>>(new Set());
+  const [ageInvalid, setAgeInvalid] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const relationOf = useMemo(() => findRelationDef(selectedRelation), [selectedRelation]);
+  const isOther = relationOf?.name === '其他';
+
+  // 初始拉数据：本人档案 + 家庭成员列表
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
-        const res: any = await api.get('/api/prd469/family-member/relation-options');
-        const data = res.data || res;
-        setOptions(Array.isArray(data.items) ? data.items : []);
-      } catch {
-        setOptions([]);
+        const [hpRes, mbRes] = await Promise.allSettled([
+          api.get('/api/health/profile'),
+          api.get('/api/family/members'),
+        ]);
+        if (cancelled) return;
+        if (hpRes.status === 'fulfilled') {
+          const data: any = (hpRes.value as any)?.data || hpRes.value;
+          const bd = data?.birthday || data?.birth_date || null;
+          if (bd) {
+            setSelfBirthday(String(bd).slice(0, 10));
+            setSelfBirthYear(extractSelfBirthYear({ birthday: bd }));
+          }
+        }
+        if (mbRes.status === 'fulfilled') {
+          const data: any = (mbRes.value as any)?.data || mbRes.value;
+          const items: ExistingMember[] = Array.isArray(data?.items)
+            ? data.items
+            : Array.isArray(data)
+            ? data
+            : [];
+          setMembers(items);
+          // 本人 birthday 也可从家庭成员中取
+          const self = items.find((m) => m.is_self);
+          if (self?.birthday) {
+            const y = extractSelfBirthYear({ birthday: self.birthday });
+            if (y && !selfBirthYear) {
+              setSelfBirthYear(y);
+              setSelfBirthday(String(self.birthday).slice(0, 10));
+            }
+          }
+        }
+      } finally {
+        if (!cancelled) setProfileLoaded(true);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const selectedOption = options.find((o) => o.key === selectedKey);
+  // 加载完毕后判断是否需要拦截
+  useEffect(() => {
+    if (profileLoaded && !selfBirthYear) {
+      setShowSelfBlocker(true);
+    }
+  }, [profileLoaded, selfBirthYear]);
 
-  const handleSelectRelation = (key: string) => {
-    setSelectedKey(key);
-    setCustomName('');
-  };
+  // 已存在的唯一关系
+  const usedUniqueRelations = useMemo(() => {
+    const set = new Set<string>();
+    members.forEach((m) => {
+      if (m.is_self) return;
+      const rn = m.relation_type_name || m.relationship_type;
+      const def = findRelationDef(rn || '');
+      if (def && def.unique) set.add(def.name);
+    });
+    return set;
+  }, [members]);
 
-  const handleNext = async () => {
-    if (!selectedKey) {
-      Toast.show({ content: '请选择关系', icon: 'fail' });
+  // 当选择关系时：自动锁定性别 + 自动填充默认出生年
+  const handleSelectRelation = (rn: string) => {
+    if (usedUniqueRelations.has(rn)) {
+      Toast.show({ content: '已添加过该关系', icon: 'fail' });
       return;
     }
-    if (selectedOption?.is_other) {
-      const trimmed = customName.trim();
-      if (!trimmed) {
-        Toast.show({ content: '请填写自定义关系名', icon: 'fail' });
-        return;
-      }
-      try {
-        const res: any = await api.post('/api/prd469/family-member/relation-custom/check', { name: trimmed });
-        const data = res.data || res;
-        if (!data.valid) {
-          Toast.show({ content: data.reason || '关系名重复', icon: 'fail' });
-          return;
-        }
-      } catch {
-        Toast.show({ content: '校验失败，请重试', icon: 'fail' });
-        return;
+    setSelectedRelation(rn);
+    const def = findRelationDef(rn);
+    if (def) {
+      if (def.gender === 'M') setGender('male');
+      else if (def.gender === 'F') setGender('female');
+      else setGender('');
+      // 自动填充出生日期默认值
+      if (selfBirthYear) {
+        const def_bday = computeDefaultBirthday(selfBirthYear, rn);
+        setBirthday(def_bday);
       }
     }
-    setStep('form');
+    setErrFields((s) => {
+      const ns = new Set(s);
+      ns.delete('relation');
+      ns.delete('birthday');
+      return ns;
+    });
+    setAgeInvalid(false);
+  };
+
+  // 表单字段清错
+  const clearErr = (field: string) => {
+    setErrFields((s) => {
+      if (!s.has(field)) return s;
+      const ns = new Set(s);
+      ns.delete(field);
+      return ns;
+    });
+    if (field === 'birthday' || field === 'relation') setAgeInvalid(false);
+  };
+
+  // 校验
+  const validate = (): boolean => {
+    const errs = new Set<string>();
+    if (!selectedRelation) errs.add('relation');
+    if (isOther) {
+      const tr = customRelation.trim();
+      if (!tr || tr.length < 1 || tr.length > 8) errs.add('customRelation');
+    }
+    const n = name.trim();
+    if (!n || n.length < 1 || n.length > 12) errs.add('name');
+    if (!gender) errs.add('gender');
+    if (!birthday) errs.add('birthday');
+    // 出生日期上限：≤ 今天
+    if (birthday && birthday > new Date().toISOString().slice(0, 10)) {
+      errs.add('birthday');
+    }
+    // 关系合理性
+    let invalidAge = false;
+    if (selectedRelation && birthday && selfBirthday) {
+      if (!validateRelationAge(selectedRelation, birthday, selfBirthday)) {
+        invalidAge = true;
+        errs.add('relation');
+        errs.add('birthday');
+      }
+    }
+    setErrFields(errs);
+    setAgeInvalid(invalidAge);
+    return errs.size === 0;
   };
 
   const handleSubmit = async () => {
-    const nameTrimmed = name.trim();
-    if (!nameTrimmed || nameTrimmed.length < 2 || nameTrimmed.length > 20) {
-      Toast.show({ content: '姓名需为 2–20 个字', icon: 'fail' });
+    if (!validate()) {
+      Toast.show({ content: '请补全或修正标红字段', icon: 'fail' });
       return;
     }
-    if (!gender) {
-      Toast.show({ content: '请选择性别', icon: 'fail' });
-      return;
-    }
-    if (!birthday) {
-      Toast.show({ content: '请选择出生日期', icon: 'fail' });
-      return;
-    }
-
-    const relationLabel = selectedOption?.is_other ? customName.trim() : (selectedOption?.name || '');
+    const def = findRelationDef(selectedRelation)!;
+    const relationLabel = isOther ? customRelation.trim() : def.name;
+    const nickname = name.trim();
     setSubmitting(true);
     try {
-      await api.post('/api/family/members', {
+      const body: any = {
         relationship_type: relationLabel,
-        nickname: nameTrimmed,
-        name: nameTrimmed,
-        gender,
+        nickname,
+        name: nickname,
+        gender: gender === 'male' ? 'male' : 'female',
         birthday,
-        height: height ? Number(height) : undefined,
-        weight: weight ? Number(weight) : undefined,
-        blood_type: bloodType || undefined,
-        phone: phone || undefined,
-      });
+      };
+      if (height) body.height = Number(height);
+      if (weight) body.weight = Number(weight);
+      if (chronics.length) body.medical_histories = chronics;
+      // 后端 allergies 是 List[str]，前端把三组按 "药物:xxx、食物:xxx" 形态合并为字符串数组
+      const allergies: string[] = [];
+      const pushParts = (prefix: string, raw: string) => {
+        raw.split(/[,，;；\s]+/).filter(Boolean).forEach((s) => allergies.push(`${prefix}:${s}`));
+      };
+      if (drugAllergy.trim()) pushParts('药物', drugAllergy);
+      if (foodAllergy.trim()) pushParts('食物', foodAllergy);
+      if (otherAllergy.trim()) pushParts('其他', otherAllergy);
+      if (allergies.length) body.allergies = allergies;
+
+      await api.post('/api/family/members', body);
+      Toast.show({ content: '添加成功', icon: 'success' });
       onSuccess();
     } catch (e: any) {
       const detail = e?.response?.data?.detail || '保存失败';
-      Toast.show({ content: detail, icon: 'fail' });
+      Toast.show({ content: typeof detail === 'string' ? detail : '保存失败', icon: 'fail' });
     } finally {
       setSubmitting(false);
     }
   };
 
-  return (
-    <Mask visible color="rgba(0,0,0,0.5)">
+  const goCompleteSelfProfile = () => {
+    setShowSelfBlocker(false);
+    onClose();
+    router.push('/health-profile');
+  };
+
+  const cancelBlocker = () => {
+    setShowSelfBlocker(false);
+    onClose();
+  };
+
+  const goInvite = () => {
+    // 跳转邀请共管页（复用现有）
+    onClose();
+    router.push('/family-invite');
+  };
+
+  if (showSelfBlocker) {
+    return (
       <div
-        data-testid="prd469-new-member-modal"
         style={{
-          position: 'fixed', left: 0, right: 0, bottom: 0,
-          background: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16,
-          maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+          position: 'fixed', inset: 0, zIndex: 3000,
+          background: 'rgba(15,23,42,0.55)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
+        data-testid="fm-v2-self-blocker"
       >
         <div
           style={{
-            padding: '14px 16px', display: 'flex', justifyContent: 'space-between',
-            alignItems: 'center', borderBottom: `1px solid ${T.brand100}`,
+            width: '78%', maxWidth: 320, background: '#fff',
+            borderRadius: 16, padding: '22px 18px 18px', textAlign: 'center',
+            boxShadow: '0 12px 40px rgba(2,132,199,0.25)',
           }}
         >
-          <span style={{ fontSize: 17, fontWeight: 700, color: T.textPrimary }}>新建家庭成员</span>
-          <span onClick={onClose} style={{ fontSize: 22, color: T.textSecondary, cursor: 'pointer' }}>×</span>
+          <div
+            style={{
+              width: 44, height: 44, borderRadius: '50%',
+              background: T.pillBg, color: T.primary,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 24, fontWeight: 700, marginBottom: 10,
+            }}
+          >!</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: T.textPrimary, marginBottom: 16 }}>
+            请先完善您的个人档案
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={cancelBlocker}
+              style={{
+                flex: 1, padding: '10px 0', borderRadius: 22,
+                background: '#F1F5F9', color: T.textPrimary,
+                border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              }}
+            >取消</button>
+            <button
+              onClick={goCompleteSelfProfile}
+              style={{
+                flex: 1, padding: '10px 0', borderRadius: 22,
+                background: `linear-gradient(135deg, ${T.primaryLight}, ${T.primaryDark})`,
+                color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              }}
+            >去完善</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Popup
+      visible
+      onMaskClick={onClose}
+      position="bottom"
+      bodyStyle={{
+        borderRadius: '20px 20px 0 0',
+        height: '92vh',
+        background: T.pageBg,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+      data-testid="fm-v2-modal"
+    >
+      {/* 顶部 NavBar */}
+      <div
+        style={{
+          padding: '14px 16px',
+          background: '#fff',
+          borderRadius: '20px 20px 0 0',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          borderBottom: `1px solid ${T.divider}`,
+        }}
+      >
+        <span onClick={onClose} style={{ fontSize: 20, color: T.textSecondary, cursor: 'pointer', padding: '0 4px' }}>‹</span>
+        <span style={{ fontSize: 16, fontWeight: 700, color: T.textPrimary }}>添加家庭成员</span>
+        <span style={{ width: 16 }} />
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px 16px' }}>
+        {/* 邀请横幅 */}
+        <div
+          onClick={goInvite}
+          style={{
+            background: `linear-gradient(135deg, ${T.primaryLight}, ${T.primaryDark})`,
+            borderRadius: 14, padding: '12px 14px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            cursor: 'pointer', boxShadow: '0 4px 12px rgba(2,132,199,0.18)',
+            marginBottom: 14,
+          }}
+          data-testid="fm-v2-invite-banner"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ fontSize: 20 }}>💙</div>
+            <div>
+              <div style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>邀请家人加入健康守护计划</div>
+              <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11, marginTop: 2 }}>共同管理家庭健康档案</div>
+            </div>
+          </div>
+          <div
+            style={{
+              background: '#fff', color: T.primaryDark,
+              fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 14,
+            }}
+          >去邀请</div>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
-          {step === 'relation' && (
-            <>
-              <div style={{ fontSize: 14, color: T.textSecondary, marginBottom: 12 }}>① 选择与本人的关系</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-                {options.map((o) => {
-                  const active = selectedKey === o.key;
-                  return (
-                    <div
-                      key={o.key}
-                      onClick={() => handleSelectRelation(o.key)}
-                      data-testid={`prd469-relation-${o.key}`}
-                      style={{
-                        display: 'flex', flexDirection: 'column', alignItems: 'center',
-                        gap: 6, padding: '10px 4px', borderRadius: 12,
-                        background: active ? T.brand100 : '#f9fafb',
-                        border: active ? `2px solid ${T.brand500}` : '2px solid transparent',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 40, height: 40, borderRadius: '50%',
-                          background: '#fff',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 24, fontWeight: 600,
-                        }}
-                      >{o.avatar}</div>
-                      <span style={{ fontSize: 13, color: T.textPrimary }}>{o.name}</span>
-                    </div>
-                  );
-                })}
-              </div>
+        {/* 错误顶部条 */}
+        {ageInvalid && (
+          <div
+            style={{
+              background: '#FEF2F2', border: `1px solid #FECACA`,
+              borderRadius: 10, padding: '8px 12px', color: T.textError,
+              fontSize: 12, marginBottom: 12,
+            }}
+            data-testid="fm-v2-error-banner"
+          >
+            ⚠️ 关系与出生日期不符，请检查后重新填写
+          </div>
+        )}
 
-              {selectedOption?.is_other && (
-                <div style={{ marginTop: 16 }}>
-                  <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 6 }}>请填写自定义关系名（如「大儿子」「二儿子」）</div>
-                  <input
-                    type="text"
-                    value={customName}
-                    onChange={(e) => setCustomName(e.target.value)}
-                    placeholder="自定义关系名"
-                    maxLength={16}
-                    style={{
-                      width: '100%', padding: '10px 12px', borderRadius: 8,
-                      border: `1px solid ${T.brand200}`, fontSize: 14,
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-              )}
-            </>
-          )}
-
-          {step === 'form' && (
-            <>
-              <div style={{ fontSize: 14, color: T.textSecondary, marginBottom: 12 }}>② 填写基础信息</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: `1px solid ${T.brand100}` }}>
-                <div
+        {/* 关系网格 */}
+        <div
+          style={{
+            background: '#fff', borderRadius: 14, padding: '14px 12px 12px',
+            marginBottom: 12, boxShadow: '0 2px 8px rgba(15,23,42,0.05)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: 10 }}>
+            <span style={{ color: T.textError, fontSize: 14, marginRight: 4 }}>*</span>
+            <span style={{ fontSize: 14, color: T.textSecondary, fontWeight: 600 }}>成员关系</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+            {RELATION_DEFS.map((def) => {
+              const isActive = selectedRelation === def.name;
+              const isDisabled = def.unique && usedUniqueRelations.has(def.name);
+              const isErr = ageInvalid && isActive;
+              return (
+                <button
+                  key={def.name}
+                  data-testid={`fm-v2-relation-${def.name}`}
+                  disabled={isDisabled}
+                  onClick={() => handleSelectRelation(def.name)}
+                  title={isDisabled ? '已添加过该关系' : ''}
                   style={{
-                    width: 48, height: 48, borderRadius: '50%', background: T.brand100,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28,
+                    height: 36, borderRadius: 10, padding: 0,
+                    background: isErr
+                      ? '#FEE2E2'
+                      : isActive
+                        ? T.pillBgActive
+                        : isDisabled
+                          ? T.pillBgDisabled
+                          : T.pillBg,
+                    color: isErr
+                      ? T.textError
+                      : isActive
+                        ? T.primaryDark
+                        : isDisabled
+                          ? T.textHint
+                          : T.textPrimary,
+                    border: isErr
+                      ? `1.5px solid ${T.errorBorder}`
+                      : isActive
+                        ? `1.5px solid ${T.pillBorderActive}`
+                        : '1.5px solid transparent',
+                    fontSize: 13, fontWeight: isActive ? 600 : 500,
+                    cursor: isDisabled ? 'not-allowed' : 'pointer',
+                    opacity: isDisabled ? 0.6 : 1,
                   }}
-                >{selectedOption?.avatar || '🧑'}</div>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: T.textPrimary }}>
-                    {selectedOption?.is_other ? customName : selectedOption?.name}
-                  </div>
-                  <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>关系头像（自动绑定）</div>
-                </div>
-              </div>
-
-              <FormRow label="姓名" required>
-                <input
-                  type="text" value={name} onChange={(e) => setName(e.target.value)}
-                  placeholder="请输入姓名（2-20 字）" maxLength={20}
-                  style={inputStyle}
-                />
-              </FormRow>
-              <FormRow label="性别" required>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  {['男', '女'].map((g) => (
-                    <button
-                      key={g}
-                      onClick={() => setGender(g as '男' | '女')}
-                      style={{
-                        flex: 1, padding: '8px 0', borderRadius: 8,
-                        border: gender === g ? `2px solid ${T.brand500}` : `1px solid ${T.brand200}`,
-                        background: gender === g ? T.brand100 : '#fff',
-                        color: gender === g ? T.brand700 : T.textPrimary,
-                        fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                      }}
-                    >{g}</button>
-                  ))}
-                </div>
-              </FormRow>
-              <FormRow label="出生日期" required>
-                <input
-                  type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)}
-                  style={inputStyle}
-                />
-              </FormRow>
-              <FormRow label="身高 (cm)">
-                <input
-                  type="number" value={height} onChange={(e) => setHeight(e.target.value)}
-                  placeholder="如 170" style={inputStyle}
-                />
-              </FormRow>
-              <FormRow label="体重 (kg)">
-                <input
-                  type="number" value={weight} onChange={(e) => setWeight(e.target.value)}
-                  placeholder="如 65" style={inputStyle}
-                />
-              </FormRow>
-              <FormRow label="血型">
-                <div
-                  onClick={() => setBloodPickerVisible(true)}
-                  style={{ ...inputStyle, cursor: 'pointer', color: bloodType ? T.textPrimary : '#9ca3af' }}
-                >
-                  {bloodType || '请选择血型'}
-                </div>
-              </FormRow>
-              <FormRow label="手机号">
-                <input
-                  type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
-                  placeholder="用于共管邀请（选填）" maxLength={11} style={inputStyle}
-                />
-              </FormRow>
-            </>
+                >{def.name}</button>
+              );
+            })}
+          </div>
+          {isOther && (
+            <FieldRow label="关系" required hasError={errFields.has('customRelation')}>
+              <input
+                value={customRelation}
+                onChange={(e) => { setCustomRelation(e.target.value); clearErr('customRelation'); }}
+                placeholder="如：舅舅、表妹"
+                maxLength={8}
+                style={inputStyle}
+                data-testid="fm-v2-custom-relation"
+              />
+            </FieldRow>
           )}
         </div>
 
-        <div style={{ padding: 16, borderTop: `1px solid ${T.brand100}`, display: 'flex', gap: 12 }}>
-          {step === 'relation' ? (
-            <>
-              <button onClick={onClose} style={btnGhost}>取消</button>
-              <button onClick={handleNext} style={btnPrimary} data-testid="prd469-relation-next-btn">下一步</button>
-            </>
-          ) : (
-            <>
-              <button onClick={() => setStep('relation')} style={btnGhost}>上一步</button>
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                style={{ ...btnPrimary, opacity: submitting ? 0.6 : 1 }}
-                data-testid="prd469-member-submit-btn"
-              >{submitting ? '保存中…' : '保存'}</button>
-            </>
+        {/* 基础字段卡片 */}
+        <div
+          style={{
+            background: '#fff', borderRadius: 14,
+            marginBottom: 12, boxShadow: '0 2px 8px rgba(15,23,42,0.05)',
+            overflow: 'hidden',
+          }}
+        >
+          <FieldRow label="姓名" required hasError={errFields.has('name')} errMsg={errFields.has('name') ? '请输入姓名（1-12 字）' : ''}>
+            <input
+              value={name}
+              onChange={(e) => { setName(e.target.value); clearErr('name'); }}
+              placeholder="请输入"
+              maxLength={12}
+              style={inputStyle}
+              data-testid="fm-v2-name"
+            />
+          </FieldRow>
+
+          <FieldRow label="性别" required hasError={errFields.has('gender')}>
+            {relationOf && relationOf.gender ? (
+              <div
+                style={{
+                  ...inputStyle, color: T.textHint, background: '#F8FAFC',
+                  display: 'flex', alignItems: 'center',
+                }}
+                data-testid="fm-v2-gender-locked"
+              >
+                {relationOf.gender === 'M' ? '男（自动）' : '女（自动）'}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 8 }}>
+                {(['male', 'female'] as const).map((g) => (
+                  <button
+                    key={g}
+                    onClick={() => { setGender(g); clearErr('gender'); }}
+                    data-testid={`fm-v2-gender-${g}`}
+                    style={{
+                      flex: 1, padding: '8px 0', borderRadius: 8,
+                      background: gender === g ? T.pillBgActive : T.pillBg,
+                      color: gender === g ? T.primaryDark : T.textPrimary,
+                      border: gender === g ? `1.5px solid ${T.pillBorderActive}` : '1.5px solid transparent',
+                      fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >{g === 'male' ? '男' : '女'}</button>
+                ))}
+              </div>
+            )}
+          </FieldRow>
+
+          <FieldRow
+            label="出生日期"
+            required
+            hasError={errFields.has('birthday') || (ageInvalid && true)}
+            isLast
+          >
+            <div
+              onClick={() => { setDatePickerVisible(true); clearErr('birthday'); }}
+              style={{
+                ...inputStyle, cursor: 'pointer', display: 'flex',
+                justifyContent: 'space-between', alignItems: 'center',
+                color: ageInvalid ? T.textError : birthday ? T.textPrimary : T.textHint,
+              }}
+              data-testid="fm-v2-birthday"
+            >
+              <span>{birthday || '请选择'}</span>
+              <span style={{ color: T.textHint }}>›</span>
+            </div>
+          </FieldRow>
+        </div>
+
+        {/* 其他（选填）折叠区 */}
+        <div
+          style={{
+            background: '#fff', borderRadius: 14,
+            boxShadow: '0 2px 8px rgba(15,23,42,0.05)',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            onClick={() => setMoreOpen((v) => !v)}
+            style={{
+              padding: '14px 16px', cursor: 'pointer',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              fontSize: 14, fontWeight: 600, color: T.textSecondary,
+            }}
+            data-testid="fm-v2-more-toggle"
+          >
+            <span>其他（选填）</span>
+            <span style={{ color: T.textHint, transition: 'transform .2s', transform: moreOpen ? 'rotate(90deg)' : 'rotate(0)' }}>›</span>
+          </div>
+
+          {moreOpen && (
+            <div style={{ padding: '0 4px 8px' }}>
+              <div style={{ display: 'flex' }}>
+                <FieldRow label="身高(cm)" inline>
+                  <input
+                    type="number" value={height} onChange={(e) => setHeight(e.target.value)}
+                    placeholder="0-300" style={inputStyle} data-testid="fm-v2-height"
+                  />
+                </FieldRow>
+                <FieldRow label="体重(kg)" inline>
+                  <input
+                    type="number" value={weight} onChange={(e) => setWeight(e.target.value)}
+                    placeholder="0-300" style={inputStyle} data-testid="fm-v2-weight"
+                  />
+                </FieldRow>
+              </div>
+              <div style={{ padding: '8px 12px 4px' }}>
+                <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 6, fontWeight: 600 }}>既往病史</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {CHRONIC_DISEASE_OPTIONS.map((d) => {
+                    const active = chronics.includes(d);
+                    return (
+                      <button
+                        key={d}
+                        onClick={() => setChronics((p) => p.includes(d) ? p.filter((x) => x !== d) : [...p, d])}
+                        style={{
+                          padding: '4px 10px', borderRadius: 14, fontSize: 12,
+                          background: active ? T.pillBgActive : T.pillBg,
+                          color: active ? T.primaryDark : T.textPrimary,
+                          border: active ? `1px solid ${T.pillBorderActive}` : '1px solid transparent',
+                          cursor: 'pointer',
+                        }}
+                      >{d}</button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div style={{ padding: '10px 12px 4px' }}>
+                <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 6, fontWeight: 600 }}>过敏史</div>
+                <input
+                  value={drugAllergy} onChange={(e) => setDrugAllergy(e.target.value)}
+                  placeholder="药物过敏（如：青霉素、头孢）" style={{ ...inputStyle, marginBottom: 6 }}
+                />
+                <input
+                  value={foodAllergy} onChange={(e) => setFoodAllergy(e.target.value)}
+                  placeholder="食物过敏（如：海鲜、坚果）" style={{ ...inputStyle, marginBottom: 6 }}
+                />
+                <input
+                  value={otherAllergy} onChange={(e) => setOtherAllergy(e.target.value)}
+                  placeholder="其他过敏（如：花粉、尘螨）" style={inputStyle}
+                />
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      <Picker
-        columns={[BLOOD_TYPES]}
-        visible={bloodPickerVisible}
-        onClose={() => setBloodPickerVisible(false)}
-        onConfirm={(val) => { setBloodType(String(val[0] || '')); setBloodPickerVisible(false); }}
+      {/* 底部 */}
+      <div
+        style={{
+          padding: '10px 16px 16px',
+          background: '#fff',
+          borderTop: `1px solid ${T.divider}`,
+        }}
+      >
+        <div style={{ fontSize: 11, color: T.textHint, textAlign: 'center', marginBottom: 8 }}>
+          请保证信息真实性，将基于您的档案信息提供个性化健康服务
+        </div>
+        <button
+          onClick={handleSubmit}
+          disabled={submitting || ageInvalid}
+          data-testid="fm-v2-submit"
+          style={{
+            width: '100%', height: 46, borderRadius: 23,
+            background: (submitting || ageInvalid)
+              ? '#CBD5E1'
+              : `linear-gradient(135deg, ${T.primaryLight}, ${T.primaryDark})`,
+            color: '#fff', border: 'none',
+            fontSize: 15, fontWeight: 700,
+            cursor: (submitting || ageInvalid) ? 'not-allowed' : 'pointer',
+            boxShadow: '0 6px 16px rgba(2,132,199,0.25)',
+          }}
+        >{submitting ? '保存中...' : '保存'}</button>
+      </div>
+
+      {/* 出生日期选择器 */}
+      <DatePicker
+        visible={datePickerVisible}
+        onClose={() => setDatePickerVisible(false)}
+        precision="day"
+        max={new Date()}
+        min={new Date('1900-01-01')}
+        value={birthday ? new Date(birthday) : new Date()}
+        title="选择出生日期"
+        onConfirm={(val: Date) => {
+          const d = val;
+          const str = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          setBirthday(str);
+          setDatePickerVisible(false);
+          clearErr('birthday');
+        }}
       />
-    </Mask>
+    </Popup>
   );
 }
 
 const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '10px 12px', borderRadius: 8,
-  border: `1px solid ${T.brand200}`, fontSize: 14, boxSizing: 'border-box',
+  width: '100%',
+  padding: '10px 12px',
+  borderRadius: 10,
+  border: '1px solid #E2E8F0',
+  fontSize: 14,
+  boxSizing: 'border-box',
+  background: '#fff',
+  color: '#0F172A',
 };
 
-const btnGhost: React.CSSProperties = {
-  flex: 1, padding: '12px 0', borderRadius: 24,
-  background: '#fff', color: T.textPrimary,
-  border: `1px solid ${T.brand200}`, fontSize: 15, fontWeight: 600, cursor: 'pointer',
-};
-
-const btnPrimary: React.CSSProperties = {
-  flex: 1, padding: '12px 0', borderRadius: 24,
-  background: T.brand500, color: '#fff',
-  border: 'none', fontSize: 15, fontWeight: 600, cursor: 'pointer',
-};
-
-function FormRow({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function FieldRow({
+  label,
+  required,
+  children,
+  hasError,
+  errMsg,
+  isLast,
+  inline,
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+  hasError?: boolean;
+  errMsg?: string;
+  isLast?: boolean;
+  inline?: boolean;
+}) {
   return (
-    <div style={{ padding: '12px 0', borderBottom: `1px solid ${T.brand100}` }}>
-      <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 6 }}>
-        {required && <span style={{ color: '#ef4444', marginRight: 4 }}>*</span>}
-        {label}
+    <div
+      style={{
+        padding: '12px 16px',
+        borderBottom: isLast ? 'none' : `1px solid ${T.divider}`,
+        flex: inline ? 1 : undefined,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
+        {required && <span style={{ color: T.textError, marginRight: 3 }}>*</span>}
+        <span style={{ fontSize: 13, color: hasError ? T.textError : T.textSecondary, fontWeight: 600 }}>{label}</span>
       </div>
       {children}
+      {hasError && errMsg && (
+        <div style={{ fontSize: 11, color: T.textError, marginTop: 4 }}>{errMsg}</div>
+      )}
     </div>
   );
 }

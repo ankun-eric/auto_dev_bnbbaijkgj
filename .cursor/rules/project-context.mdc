@@ -27,6 +27,45 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-FAMILY-MEMBER-V2｜家庭成员模块重构 v2.0（2026-05-18 19:30）
+
+### 范围
+- H5 `/health-profile`、AI 对话页 `/ai-home` 的家庭成员新增表单统一改造
+- 小程序新增独立页面 `pages/family-member-add/`
+- 后端 API 复用 `/api/family/members`（CRUD 无大改），新增 pytest 兼容性用例
+
+### 关键改造点
+- 入口统一：AI 对话页咨询人抽屉 + 健康档案页「+」按钮，复用同一 `NewFamilyMemberModal` 组件
+- 关系网格：15 种关系 4 列纯文字胶囊一次性展开
+- 智能预填：性别按关系自动锁定；出生年按辈分推算（父母+25/祖辈+50/配偶±2/兄弟姐妹±3/子女-25/其他同岁）
+- 关系唯一性：父母/配偶/祖辈唯一，已存在则胶囊置灰
+- 硬校验（中等模式）：父母/子女/祖辈年龄矛盾时阻止保存
+- 本人档案未完善拦截：进入即检测，缺失出生年时弹窗引导
+- 字徽列表头像：圆形主色底 + 白字（爸→「爸」、儿子→「儿」、本人→「我」），按辈分分 4 色
+- 列表副信息：`关系 · 性别 · 年龄`（实时按今天计算）
+- 老数据兜底：缺字段显示「-」，缺关系字段时取姓名首字 + 灰蓝色 + 右上角「待补充」角标
+
+### 新增/修改的关键文件
+- 新增 `h5-web/src/lib/family-relation.ts`：关系定义、字徽、年龄、默认出生年、合理性校验集中库
+- 新增 `h5-web/src/components/family/MemberBadge.tsx`：统一字徽圆形组件
+- 改造 `h5-web/src/components/health-profile-v5/NewFamilyMemberModal.tsx`
+- 改造 `h5-web/src/components/ai-chat/ConsultTargetPicker.tsx`（delegate 到 NewFamilyMemberModal）
+- 改造 `h5-web/src/app/health-profile/page.tsx`（接入 MemberBadge + calcAge）
+- 新增小程序页面 `miniprogram/pages/family-member-add/` 并注册到 `app.json`
+- 新增后端兼容测试 `backend/tests/test_family_member_v2_20260518.py`（7 用例全部通过）
+- 部署脚本 `deploy/_deploy_family_member_v2_20260518.py` + 测试脚本 `deploy/_pytest_family_v2.py`
+
+### 部署与测试
+- 已部署到正式服务器（容器 `6b099ed3-7175-4a78-91f4-44570c84ed27-h5`）
+- Smoke：`/api/openapi.json` 200，`/ai-home`、`/health-profile` 308→200
+- 后端 pytest：新增 7 用例 + 既有 12 用例全部 PASS
+
+### 不在范围
+- 不动 Flutter / iOS 原生客户端（仅 API 兼容）
+- 暂不提供家庭成员删除入口
+
+---
+
 ## Latest Update: PRD-HEALTH-ARCHIVE-OPTIM-V1｜健康档案页面优化 v1（2026-05-18 16:30）
 
 ### 范围
