@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -14,6 +15,7 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.models import (
     CheckupReport,
+    FamilyAlertLog,
     FamilyManagement,
     FamilyMember,
     User,
@@ -24,8 +26,11 @@ from app.services.family_guardian_service import (
     list_alert_logs_for_user,
     push_aggregated_alert,
 )
+from app.utils.alert_sig import verify_alert_redirect
 
 router = APIRouter(tags=["家庭体检异常守护推送"])
+
+_alert_logger = logging.getLogger("alert_redirect")
 
 
 class CheckupParsedPayload(BaseModel):
@@ -244,6 +249,141 @@ async def reject_migration(
 class RegisterHookPayload(BaseModel):
     user_id: int
     phone: str
+
+
+# ============================================================
+# [PRD-FAMILY-GUARDIAN-V1] 公众号推送·中转页 alert-redirect 配套接口
+# ------------------------------------------------------------
+# /api/alert/click-tracking ：点击回执（更新 family_alert_logs.delivery_status='clicked'）
+# /api/alert/verify         ：sig 校验工具（前端中转页 SSR / 客户端可调用）
+# /api/alert/event          ：埋点事件（曝光、唤起成功、降级、点击各按钮等）
+# ============================================================
+
+
+class AlertClickTrackingPayload(BaseModel):
+    """点击回执：仅 logId 必传；sig/t/memberId/reportId 可选（一旦传入则强制校验）。"""
+
+    logId: int
+    memberId: Optional[int] = None
+    reportId: Optional[int] = None
+    t: Optional[int] = None
+    sig: Optional[str] = None
+
+
+@router.post("/api/alert/click-tracking")
+async def alert_click_tracking(
+    payload: AlertClickTrackingPayload,
+    db: AsyncSession = Depends(get_db),
+):
+    """中转页点击回执：将 family_alert_logs.delivery_status 由 sent/delivered → clicked。
+
+    设计说明：
+    - 当且仅当客户端同时提供了 t + sig 时才执行 HMAC 校验；缺失则按宽松模式仅校验 logId
+      （这是为了兼容旧版前端落地链接，新链接均带签名）。
+    - 仅当当前状态为 sent / delivered 时更新；其余状态（如 clicked / failed）静默忽略以保证幂等。
+    - 接口不强制鉴权（公众号点击无 JWT），靠 sig + 状态机防越权。
+    """
+    log = (
+        await db.execute(select(FamilyAlertLog).where(FamilyAlertLog.id == payload.logId))
+    ).scalar_one_or_none()
+    if not log:
+        raise HTTPException(status_code=404, detail="推送日志不存在")
+
+    # sig 校验（如客户端提供）
+    if payload.sig is not None or payload.t is not None:
+        if payload.sig is None or payload.t is None:
+            raise HTTPException(status_code=403, detail="签名缺失")
+        if not verify_alert_redirect(
+            log_id=payload.logId,
+            member_id=payload.memberId if payload.memberId is not None else log.member_id,
+            report_id=payload.reportId if payload.reportId is not None else log.report_id,
+            t=payload.t,
+            sig=payload.sig,
+        ):
+            raise HTTPException(status_code=403, detail="签名校验失败")
+
+    if log.delivery_status in ("sent", "delivered"):
+        log.delivery_status = "clicked"
+        log.clicked_at = datetime.utcnow()
+        await db.flush()
+        return {
+            "ok": True,
+            "log_id": log.id,
+            "status": log.delivery_status,
+            "clicked_at": log.clicked_at.isoformat(),
+        }
+
+    # 已点击 / 失败 → 幂等返回当前状态
+    return {
+        "ok": True,
+        "log_id": log.id,
+        "status": log.delivery_status,
+        "clicked_at": log.clicked_at.isoformat() if log.clicked_at else None,
+        "idempotent": True,
+    }
+
+
+class AlertVerifyPayload(BaseModel):
+    logId: int
+    memberId: Optional[int] = None
+    reportId: Optional[int] = None
+    t: int
+    sig: str
+
+
+@router.post("/api/alert/verify")
+async def alert_verify_sig(payload: AlertVerifyPayload):
+    """sig 校验：前端中转页可在加载时调用，签名失败时直接展示 403 友好页。"""
+    ok = verify_alert_redirect(
+        log_id=payload.logId,
+        member_id=payload.memberId,
+        report_id=payload.reportId,
+        t=payload.t,
+        sig=payload.sig,
+    )
+    if not ok:
+        raise HTTPException(status_code=403, detail="链接已失效")
+    return {"ok": True}
+
+
+_ALLOWED_ALERT_EVENTS = {
+    "alert_redirect_view",
+    "alert_redirect_app_launched",
+    "alert_redirect_fallback_wechat",
+    "alert_redirect_fallback_browser",
+    "alert_redirect_click_weapp",
+    "alert_redirect_click_download",
+    "alert_redirect_click_h5",
+}
+
+
+class AlertEventPayload(BaseModel):
+    """埋点事件：与 PRD §7 表格保持一致，未在白名单中的事件返回 400。"""
+
+    event: str
+    logId: Optional[int] = None
+    memberId: Optional[int] = None
+    reportId: Optional[int] = None
+    extra: Optional[Dict[str, Any]] = None
+
+
+@router.post("/api/alert/event")
+async def alert_event(payload: AlertEventPayload):
+    """埋点事件接收：服务端仅记录 access log（数据量大，不入业务表）。
+
+    生产环境可对接埋点 SDK 或写入 ClickHouse。这里 stdout 落盘即可。
+    """
+    if payload.event not in _ALLOWED_ALERT_EVENTS:
+        raise HTTPException(status_code=400, detail="未知埋点事件")
+    _alert_logger.info(
+        "[ALERT_EVENT] event=%s logId=%s memberId=%s reportId=%s extra=%s",
+        payload.event,
+        payload.logId,
+        payload.memberId,
+        payload.reportId,
+        payload.extra,
+    )
+    return {"ok": True, "event": payload.event}
 
 
 @router.post("/api/internal/user/registered")
