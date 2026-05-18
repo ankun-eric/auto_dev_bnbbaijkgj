@@ -9,10 +9,12 @@
  *   3) 同时提供"复制链接到微信打开小程序"等兜底
  */
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function FamilyAlertBridgePage() {
+export const dynamic = 'force-dynamic';
+
+function FamilyAlertBridge() {
   const params = useSearchParams();
   const reportId = params.get('report_id');
   const memberId = params.get('member_id');
@@ -116,20 +118,22 @@ export default function FamilyAlertBridgePage() {
               ── 未安装 App？使用小程序查看 ──
             </div>
 
-            {/* 小程序链接（在微信中点击会自动跳转） */}
-            <wx-open-launch-weapp
-              username="gh_xxx_binihealth"
-              path={`/pages/checkup-detail/index?report_id=${reportId || ''}&member_id=${memberId || ''}`}
-              style={{
-                display: 'block',
-                width: '100%',
-                height: '50px',
+            {/* 小程序链接（在微信中点击会自动跳转）- 使用 dangerouslySetInnerHTML 渲染 wx-open-launch-weapp 标签 */}
+            <div
+              style={{ width: '100%' }}
+              dangerouslySetInnerHTML={{
+                __html: `
+                  <wx-open-launch-weapp
+                    username="gh_xxx_binihealth"
+                    path="/pages/checkup-detail/index?report_id=${reportId || ''}&member_id=${memberId || ''}"
+                    style="display:block;width:100%;height:50px;">
+                    <script type="text/wxtag-template">
+                      <button style="width:100%;height:50px;background:#1296db;color:#fff;border:none;border-radius:10px;font-size:16px;">🟢 打开微信小程序查看</button>
+                    </script>
+                  </wx-open-launch-weapp>
+                `,
               }}
-            >
-              <script type="text/wxtag-template">
-                {`<button style="width:100%;height:50px;background:#1296db;color:#fff;border:none;border-radius:10px;font-size:16px;">🟢 打开微信小程序查看</button>`}
-              </script>
-            </wx-open-launch-weapp>
+            />
 
             <div style={{ marginTop: '16px', padding: '12px', background: '#f9f9f9', borderRadius: '8px', fontSize: '13px', color: '#666', lineHeight: 1.6 }}>
               💡 <strong>提示</strong>：如打不开，请确认本页是在微信浏览器中打开，或在「贝尼健康」公众号底部菜单进入小程序查看。
@@ -138,5 +142,13 @@ export default function FamilyAlertBridgePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function FamilyAlertBridgePage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#999' }}>加载中…</div>}>
+      <FamilyAlertBridge />
+    </Suspense>
   );
 }
