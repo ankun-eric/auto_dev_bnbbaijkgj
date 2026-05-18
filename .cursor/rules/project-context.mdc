@@ -27,6 +27,39 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-FAMILY-AUTH-MP-V1｜小程序「接受守护邀请」页（2026-05-18 10:35）
+
+### 一句话结论
+
+按 PRD 把小程序 `pages/family-auth/index` 由简易接受/拒绝升级为**完整状态机闭环**：①顶部品牌条 + 邀请人卡片（头像 / 关系标签 / 到期时间）；②关系说明卡片（接受后将发生 + 已被守护人数 / 上限）；③健康档案合并字段预览（每行可切换「将合并 / 保留原值」）；④一次性授权协议（未勾选时「接受」置灰）；⑤接受成功后强制展示**关注公众号引导弹层**；⑥拒绝二次确认；⑦完整失效态文案矩阵（expired / used / cancelled / self / limit）；⑧未登录引导 + 网络异常重试。后端 `GET /api/family/invitation/{code}` 新增 `inviter_avatar`、`inviter_phone`、`member_id`、`relationship_type`、`is_self_invite`、`current_managed_by_count`、`max_managed_by_count`、`reached_managed_by_limit`、`invalid_reason`、`merge_preview` 字段；`POST .../accept` 新增可选 `merge_fields` 列表参数。
+
+### 后端核心改动
+
+- `backend/app/schemas/family_management.py`：`InvitationDetailResponse` 大幅扩字段；新增 `MergePreviewField`；`InvitationAcceptRequest` 增加 `merge_fields: Optional[List[str]]`
+- `backend/app/api/family_management.py`：
+  - 新增 `MERGEABLE_HEALTH_FIELDS`（18 个可合并字段的 key/label 元数据）、`MERGEABLE_FIELD_KEYS`、`_normalize_invalid_reason`
+  - `GET /api/family/invitation/{code}`：可选鉴权（解析 Authorization JWT），返回 `is_self_invite` / 上限信息 / `merge_preview`；自动归一化 `invalid_reason`
+  - `POST /api/family/invitation/{code}/accept`：接收可选 `payload.merge_fields`，按 None=全合并、空=不合并、子集=按 key 合并
+- `backend/tests/test_family_auth_mp_v1.py`（新，8 用例，全部通过）：覆盖新字段、自邀检测、未登录态、拒绝后状态、merge_fields 空/部分/无 body 的兼容性
+
+### 前端核心改动
+
+- `miniprogram/pages/family-auth/index.{js,wxml,wxss,json}`：完整重写实现 PRD §1~§9 全部要素
+
+### 部署与产物
+
+- 后端：通过 `_deploy_family_auth_mp.py` 用 `docker cp` 把 2 个 .py 拷进 `6b099ed3-...-backend:/app/...` 并重启容器；openapi.json HTTP 200
+- 小程序：`_pack_mp_family_auth_v1.py` 打包为 `miniprogram_family_auth_<ts>_<rnd>.zip`，先 SFTP 到宿主机 `uploads/miniprogram/`，再 `docker cp` 进 backend 容器 `/app/uploads/`（因为 backend 用 docker volume），HEAD 校验 200
+- 下载 URL 模板：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/uploads/<file>`
+
+### 兼容性
+
+- detail 接口新字段为追加字段，旧客户端（H5、admin）可继续使用
+- accept 接口的 `merge_fields=None`（旧客户端不传 body）= 维持旧行为全合并，向后兼容
+- pytest 8/8 通过
+
+---
+
 ## Latest Update: PRD-AICHAT-FUNCBTN-OPTIM-V1｜AI 咨询配置·功能按钮管理优化（2026-05-17 16:00）
 
 ### 一句话结论

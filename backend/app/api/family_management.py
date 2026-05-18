@@ -1,8 +1,9 @@
 import logging
 import uuid
 from datetime import datetime, timedelta
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +27,7 @@ from app.schemas.family_management import (
     InvitationCreateResponse,
     InvitationDetailResponse,
     ManagedByResponse,
+    MergePreviewField,
     OperationLogResponse,
 )
 
@@ -36,6 +38,41 @@ router = APIRouter(tags=["家庭健康档案共管"])
 INVITATION_EXPIRE_HOURS = 24
 MAX_MANAGED_COUNT = 10
 MAX_MANAGED_BY_COUNT = 3
+
+# [PRD-FAMILY-AUTH-MP-V1] 健康档案可合并字段元数据：(key, label)
+# key 与 HealthProfile 列名一一对应，label 用于前端展示
+MERGEABLE_HEALTH_FIELDS = [
+    ("name", "昵称"),
+    ("gender", "性别"),
+    ("birthday", "生日"),
+    ("height", "身高"),
+    ("weight", "体重"),
+    ("blood_type", "血型"),
+    ("smoking", "吸烟史"),
+    ("drinking", "饮酒史"),
+    ("exercise_habit", "运动习惯"),
+    ("sleep_habit", "睡眠习惯"),
+    ("diet_habit", "饮食习惯"),
+    ("chronic_diseases", "慢性病"),
+    ("medical_histories", "既往病史"),
+    ("allergies", "过敏史"),
+    ("drug_allergies", "药物过敏"),
+    ("food_allergies", "食物过敏"),
+    ("other_allergies", "其他过敏"),
+    ("genetic_diseases", "遗传病"),
+]
+MERGEABLE_FIELD_KEYS = {k for k, _ in MERGEABLE_HEALTH_FIELDS}
+
+
+def _normalize_invalid_reason(status: str) -> str | None:
+    """[PRD-FAMILY-AUTH-MP-V1] 将邀请 status 归一化为失效原因码。"""
+    if status == "expired":
+        return "expired"
+    if status == "accepted":
+        return "used"
+    if status == "cancelled":
+        return "cancelled"
+    return None
 
 
 @router.post("/api/family/invitation", response_model=InvitationCreateResponse)
@@ -108,11 +145,44 @@ async def create_invitation(
     )
 
 
+async def _try_get_optional_user(request_headers: dict, db: AsyncSession) -> Optional[User]:
+    """[PRD-FAMILY-AUTH-MP-V1] 解析 Authorization 头，可选返回当前用户；无 token 时返回 None。
+
+    避免直接依赖 get_current_user（强制鉴权），让邀请详情接口同时兼容未登录态预览
+    与登录态富信息两种调用方式。
+    """
+    auth = request_headers.get("authorization") or request_headers.get("Authorization")
+    if not auth or not auth.lower().startswith("bearer "):
+        return None
+    token = auth.split(None, 1)[1].strip()
+    if not token:
+        return None
+    try:
+        from jose import jwt as _jwt  # 局部 import
+        from app.core.config import settings as _settings
+
+        payload = _jwt.decode(token, _settings.SECRET_KEY, algorithms=[_settings.ALGORITHM])
+        raw_sub = payload.get("sub") if payload else None
+        if raw_sub is None:
+            return None
+        user_id = int(str(raw_sub))
+        u = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+        return u
+    except Exception:
+        return None
+
+
 @router.get("/api/family/invitation/{code}", response_model=InvitationDetailResponse)
 async def get_invitation_detail(
     code: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
+    """[PRD-FAMILY-AUTH-MP-V1] 邀请详情。
+
+    - 不强制登录：未登录时返回基本信息 + invalid_reason
+    - 已登录时额外返回：is_self_invite、当前用户已被守护数量、合并预览
+    """
     result = await db.execute(
         select(FamilyInvitation).where(FamilyInvitation.invite_code == code)
     )
@@ -136,19 +206,100 @@ async def get_invitation_detail(
         invitation.status = "expired"
         await db.flush()
 
+    invalid_reason = _normalize_invalid_reason(status)
+
+    # 当前用户视角字段
+    current_user: Optional[User] = None
+    if request is not None:
+        try:
+            current_user = await _try_get_optional_user(dict(request.headers), db)
+        except Exception:
+            current_user = None
+
+    is_self_invite = bool(
+        current_user and invitation.inviter_user_id == current_user.id
+    )
+    if is_self_invite and invalid_reason is None and status == "pending":
+        invalid_reason = "self"
+
+    managed_by_count = 0
+    if current_user is not None:
+        cnt_res = await db.execute(
+            select(func.count(FamilyManagement.id)).where(
+                FamilyManagement.managed_user_id == current_user.id,
+                FamilyManagement.status == "active",
+            )
+        )
+        managed_by_count = int(cnt_res.scalar() or 0)
+    reached_limit = managed_by_count >= MAX_MANAGED_BY_COUNT
+    if (
+        invalid_reason is None
+        and status == "pending"
+        and current_user is not None
+        and reached_limit
+    ):
+        invalid_reason = "limit"
+
+    # 合并预览
+    merge_preview: list[MergePreviewField] = []
+    if current_user is not None and status == "pending" and not is_self_invite:
+        inviter_hp = (
+            await db.execute(
+                select(HealthProfile).where(
+                    HealthProfile.user_id == invitation.inviter_user_id,
+                    HealthProfile.family_member_id == invitation.member_id,
+                )
+            )
+        ).scalar_one_or_none()
+        acceptor_hp = (
+            await db.execute(
+                select(HealthProfile).where(
+                    HealthProfile.user_id == current_user.id,
+                    HealthProfile.family_member_id.is_(None),
+                )
+            )
+        ).scalar_one_or_none()
+        for key, label in MERGEABLE_HEALTH_FIELDS:
+            inviter_val = getattr(inviter_hp, key, None) if inviter_hp else None
+            acceptor_val = getattr(acceptor_hp, key, None) if acceptor_hp else None
+            if inviter_val is None and acceptor_val is None:
+                continue
+            will_merge = bool(acceptor_val in (None, "") and inviter_val not in (None, ""))
+            merge_preview.append(
+                MergePreviewField(
+                    key=key,
+                    label=label,
+                    acceptor_value=acceptor_val,
+                    inviter_value=inviter_val,
+                    will_merge=will_merge,
+                )
+            )
+
     return InvitationDetailResponse(
         invite_code=invitation.invite_code,
         status=status,
+        inviter_user_id=invitation.inviter_user_id,
         inviter_nickname=inviter.nickname if inviter else None,
+        inviter_avatar=inviter.avatar if inviter else None,
+        inviter_phone=inviter.phone if inviter else None,
+        member_id=invitation.member_id,
         member_nickname=member.nickname if member else None,
+        relationship_type=member.relationship_type if member else None,
         expires_at=invitation.expires_at,
         created_at=invitation.created_at,
+        is_self_invite=is_self_invite,
+        current_managed_by_count=managed_by_count,
+        max_managed_by_count=MAX_MANAGED_BY_COUNT,
+        reached_managed_by_limit=reached_limit,
+        invalid_reason=invalid_reason,
+        merge_preview=merge_preview,
     )
 
 
 @router.post("/api/family/invitation/{code}/accept")
 async def accept_invitation(
     code: str,
+    payload: Optional[InvitationAcceptRequest] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -206,6 +357,14 @@ async def accept_invitation(
     )
     acceptor_hp = acceptor_hp_result.scalar_one_or_none()
 
+    # [PRD-FAMILY-AUTH-MP-V1] 根据 payload.merge_fields 控制合并范围
+    # - None  → 兼容旧行为，合并所有可合并字段
+    # - []    → 不合并任何字段（用户全部选择"保留原值"）
+    # - 子集  → 仅合并指定 key
+    requested_keys: Optional[set[str]] = None
+    if payload is not None and payload.merge_fields is not None:
+        requested_keys = {k for k in payload.merge_fields if k in MERGEABLE_FIELD_KEYS}
+
     if acceptor_hp and inviter_hp:
         mergeable_fields = [
             "name", "height", "weight", "blood_type", "gender", "birthday",
@@ -214,6 +373,8 @@ async def accept_invitation(
             "drug_allergies", "food_allergies", "other_allergies", "genetic_diseases",
         ]
         for field in mergeable_fields:
+            if requested_keys is not None and field not in requested_keys:
+                continue
             acceptor_val = getattr(acceptor_hp, field, None)
             if acceptor_val is None:
                 inviter_val = getattr(inviter_hp, field, None)
@@ -221,27 +382,33 @@ async def accept_invitation(
                     setattr(acceptor_hp, field, inviter_val)
         acceptor_hp.updated_at = datetime.utcnow()
     elif not acceptor_hp and inviter_hp:
+        # 仅当用户没有现成档案时，从邀请人档案派生
+        def _maybe(field_name: str):
+            if requested_keys is not None and field_name not in requested_keys:
+                return None
+            return getattr(inviter_hp, field_name, None)
+
         acceptor_hp = HealthProfile(
             user_id=current_user.id,
             family_member_id=None,
-            name=inviter_hp.name,
-            height=inviter_hp.height,
-            weight=inviter_hp.weight,
-            blood_type=inviter_hp.blood_type,
-            gender=inviter_hp.gender,
-            birthday=inviter_hp.birthday,
-            smoking=inviter_hp.smoking,
-            drinking=inviter_hp.drinking,
-            exercise_habit=inviter_hp.exercise_habit,
-            sleep_habit=inviter_hp.sleep_habit,
-            diet_habit=inviter_hp.diet_habit,
-            chronic_diseases=inviter_hp.chronic_diseases,
-            medical_histories=inviter_hp.medical_histories,
-            allergies=inviter_hp.allergies,
-            drug_allergies=inviter_hp.drug_allergies,
-            food_allergies=inviter_hp.food_allergies,
-            other_allergies=inviter_hp.other_allergies,
-            genetic_diseases=inviter_hp.genetic_diseases,
+            name=_maybe("name"),
+            height=_maybe("height"),
+            weight=_maybe("weight"),
+            blood_type=_maybe("blood_type"),
+            gender=_maybe("gender"),
+            birthday=_maybe("birthday"),
+            smoking=_maybe("smoking"),
+            drinking=_maybe("drinking"),
+            exercise_habit=_maybe("exercise_habit"),
+            sleep_habit=_maybe("sleep_habit"),
+            diet_habit=_maybe("diet_habit"),
+            chronic_diseases=_maybe("chronic_diseases"),
+            medical_histories=_maybe("medical_histories"),
+            allergies=_maybe("allergies"),
+            drug_allergies=_maybe("drug_allergies"),
+            food_allergies=_maybe("food_allergies"),
+            other_allergies=_maybe("other_allergies"),
+            genetic_diseases=_maybe("genetic_diseases"),
         )
         db.add(acceptor_hp)
 

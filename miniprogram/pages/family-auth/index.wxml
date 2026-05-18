@@ -1,68 +1,195 @@
+<!-- [PRD-FAMILY-AUTH-MP-V1] 接受守护邀请页 -->
 <view class="auth-page">
+  <!-- 顶部品牌条 -->
+  <view class="brand-bar">
+    <view class="brand-logo">
+      <text class="brand-logo-text">B</text>
+    </view>
+    <text class="brand-title">家庭健康守护邀请</text>
+    <view class="brand-cs" bindtap="onCallService">
+      <text class="brand-cs-icon">💬</text>
+    </view>
+  </view>
+
   <!-- Loading -->
   <view class="loading-wrap" wx:if="{{loading}}">
     <view class="loading-spinner"></view>
     <text class="loading-text">正在加载邀请信息…</text>
   </view>
 
-  <!-- Error -->
+  <!-- 致命错误（参数缺失 / 网络异常） -->
   <view class="result-wrap" wx:elif="{{error}}">
     <text class="result-icon">⚠️</text>
     <text class="result-text">{{error}}</text>
-    <button class="home-btn" bindtap="goHome">返回首页</button>
+    <view class="result-actions">
+      <button wx:if="{{networkError}}" class="primary-btn" bindtap="onRetry">重试</button>
+      <button class="ghost-btn" bindtap="goHome">返回首页</button>
+    </view>
   </view>
 
-  <!-- Success result：守护关系建立成功 + 关注公众号引导 -->
+  <!-- 失效态（PRD §5） -->
+  <view class="invalid-wrap" wx:elif="{{invalidReason}}">
+    <view class="invalid-card">
+      <text class="invalid-icon">🚫</text>
+      <text class="invalid-title">{{invalidTitle}}</text>
+      <text class="invalid-desc">{{invalidDesc}}</text>
+      <view class="invalid-actions">
+        <button
+          wx:if="{{invalidAction === 'contact'}}"
+          class="primary-btn"
+          bindtap="onInvalidAction"
+        >联系邀请人</button>
+        <button
+          wx:elif="{{invalidAction === 'bindlist'}}"
+          class="primary-btn"
+          bindtap="onInvalidAction"
+        >前往「我的家庭」</button>
+        <button class="ghost-btn" bindtap="goHome">返回首页</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 成功态 -->
   <view class="success-wrap" wx:elif="{{resultStatus === 'success'}}">
-    <view class="success-card">
-      <view class="success-avatar-wrap">
-        <image class="success-avatar" wx:if="{{invitation.inviter_avatar}}" src="{{invitation.inviter_avatar}}" mode="aspectFill" />
-        <view class="success-avatar-placeholder" wx:else>
-          <text class="avatar-text">{{invitation.inviter_nickname ? invitation.inviter_nickname[0] : '家'}}</text>
+    <view class="success-banner">
+      <text class="success-banner-icon">✅</text>
+      <text class="success-banner-text">{{resultMessage}}</text>
+    </view>
+
+    <!-- 关注公众号引导弹层（PRD §4.2） -->
+    <view class="mp-modal-mask" wx:if="{{showFollowMp}}">
+      <view class="mp-modal">
+        <text class="mp-modal-title">最后一步：让 {{invitation.inviter_nickname || '邀请人'}} 能收到您的健康提醒</text>
+        <text class="mp-modal-sub">请「{{invitation.inviter_nickname || '邀请人'}}」长按下方二维码关注公众号</text>
+        <view class="mp-qr-placeholder">
+          <text class="mp-qr-text">[ bini-health 公众号二维码 ]</text>
         </view>
+        <text class="mp-modal-tip">关注成功后，子女才能在公众号收到您的体检异常推送</text>
+        <text class="mp-modal-note">※ 您可截图发给 {{invitation.inviter_nickname || '邀请人'}}，让 TA 关注</text>
+        <button class="primary-btn mp-modal-btn" bindtap="onConfirmFollowMp">我已通知 {{invitation.inviter_nickname || '邀请人'}} 关注</button>
       </view>
-      <text class="success-name">{{invitation.inviter_nickname || '家人'}}</text>
-      <text class="success-relation">已成功守护 {{invitation.inviter_nickname || '对方'}}</text>
-      <text class="success-hint">可在第一时间收到对方的体检异常等健康提醒</text>
     </view>
-    <!-- 强制关注公众号引导 -->
-    <view class="follow-mp-card">
-      <text class="follow-mp-title">📣 还差最后一步：关注公众号</text>
-      <text class="follow-mp-desc">为了让您能及时收到体检异常提醒，请长按下方二维码识别并关注"贝尼健康"公众号</text>
-      <view class="follow-mp-qr">
-        <text class="follow-mp-qr-placeholder">[ 公众号二维码 ]</text>
-      </view>
-      <text class="follow-mp-tip">关注后即可在异常发生时第一时间收到推送</text>
-    </view>
+
     <view class="success-actions">
-      <button class="home-btn" bindtap="goHome">已关注，打开首页</button>
-      <text class="later-link" bindtap="goHomeLater">稍后再说</text>
+      <button class="primary-btn" bindtap="goHome">返回首页</button>
+      <text class="link-btn" bindtap="goBindList">查看我的家人</text>
     </view>
   </view>
 
-  <!-- Rejected / Error result -->
-  <view class="result-wrap" wx:elif="{{resultStatus}}">
-    <text class="result-icon" wx:if="{{resultStatus === 'rejected'}}">🚫</text>
-    <text class="result-icon" wx:else>❌</text>
+  <!-- 拒绝/接受出错 -->
+  <view class="result-wrap" wx:elif="{{resultStatus === 'rejected' || resultStatus === 'error'}}">
+    <text class="result-icon">{{resultStatus === 'rejected' ? '🚫' : '❌'}}</text>
     <text class="result-text">{{resultMessage}}</text>
     <view class="result-actions">
-      <button class="home-btn" bindtap="goHome">返回首页</button>
+      <button class="primary-btn" bindtap="goHome">返回首页</button>
     </view>
   </view>
 
-  <!-- Pending confirmation -->
-  <view class="auth-content" wx:elif="{{invitation}}">
-    <view class="auth-card">
-      <view class="auth-icon-wrap">
-        <text class="auth-icon">🤝</text>
+  <!-- 正常态：邀请确认 -->
+  <block wx:elif="{{invitation}}">
+    <!-- 邀请人卡片 -->
+    <view class="card inviter-card">
+      <view class="inviter-row">
+        <view class="inviter-avatar">
+          <image
+            wx:if="{{invitation.inviter_avatar}}"
+            class="inviter-avatar-img"
+            src="{{invitation.inviter_avatar}}"
+            mode="aspectFill"
+          />
+          <view wx:else class="inviter-avatar-fallback">
+            <text class="inviter-avatar-text">{{invitation.inviter_nickname ? invitation.inviter_nickname[0] : '家'}}</text>
+          </view>
+        </view>
+        <view class="inviter-info">
+          <text class="inviter-name">
+            {{invitation.inviter_nickname || '家人'}}
+            <text class="inviter-relation" wx:if="{{relationshipLabel}}">（您的{{relationshipLabel}}）</text>
+          </text>
+          <text class="inviter-desc">邀请您加入家庭健康守护</text>
+          <text class="inviter-expire">邀请到期：{{expiresAtText}}</text>
+        </view>
       </view>
-      <text class="auth-inviter-name">{{invitation.inviter_nickname || '对方'}}</text>
-      <text class="auth-desc">TA 邀请你加入家庭健康圈</text>
     </view>
 
-    <view class="auth-actions">
-      <button class="accept-btn" bindtap="onAccept" disabled="{{processing}}" loading="{{processing}}">同意</button>
-      <button class="reject-btn" bindtap="onReject" disabled="{{processing}}">拒绝</button>
+    <!-- 关系说明卡片 -->
+    <view class="card explain-card">
+      <text class="card-title">接受后将发生：</text>
+      <view class="explain-item">
+        <text class="explain-icon explain-icon-ok">✅</text>
+        <text class="explain-text">{{invitation.inviter_nickname || '邀请人'}} 可查看您的体检报告与健康档案</text>
+      </view>
+      <view class="explain-item">
+        <text class="explain-icon explain-icon-ok">✅</text>
+        <text class="explain-text">您的体检异常会自动推送给 {{invitation.inviter_nickname || '邀请人'}}</text>
+      </view>
+      <view class="explain-item">
+        <text class="explain-icon explain-icon-ok">✅</text>
+        <text class="explain-text">您随时可以在「我的-家庭」中解除守护</text>
+      </view>
+      <view class="explain-item explain-item-warn">
+        <text class="explain-icon explain-icon-warn">⚠️</text>
+        <text class="explain-text">
+          您当前已有 {{invitation.current_managed_by_count || 0}} 位守护者（最多 {{invitation.max_managed_by_count || 3}} 位）
+        </text>
+      </view>
     </view>
-  </view>
+
+    <!-- 健康档案合并预览 -->
+    <view class="card merge-card" wx:if="{{mergePreview.length}}">
+      <text class="card-title">健康档案合并预览</text>
+      <text class="card-sub">下列字段可从「{{invitation.inviter_nickname || '邀请人'}}」处合并到您的档案：</text>
+      <view class="merge-list">
+        <view
+          class="merge-item"
+          wx:for="{{mergePreview}}"
+          wx:key="key"
+        >
+          <view class="merge-info">
+            <text class="merge-label">{{item.label}}</text>
+            <text class="merge-values">
+              {{item.acceptor_value || '（空）'}} → {{item.inviter_value || '—'}}
+            </text>
+          </view>
+          <view
+            class="merge-toggle {{mergeChoices[item.key] === 'merge' ? 'on' : 'off'}}"
+            data-key="{{item.key}}"
+            bindtap="onToggleMergeField"
+          >
+            <text class="merge-toggle-text">{{mergeChoices[item.key] === 'merge' ? '将合并' : '保留原值'}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 授权协议 -->
+    <view class="agree-row">
+      <view
+        class="agree-check {{agreed ? 'checked' : ''}}"
+        bindtap="onToggleAgree"
+      >
+        <text wx:if="{{agreed}}" class="agree-check-mark">✓</text>
+      </view>
+      <view class="agree-text">
+        <text bindtap="onToggleAgree">我已阅读</text>
+        <text class="agree-link" bindtap="onOpenAgreement">《家庭健康守护授权协议》</text>
+        <text bindtap="onToggleAgree">，同意 {{invitation.inviter_nickname || '邀请人'}} 在守护期间查看我的健康档案与体检报告，并接收我的体检异常通知。</text>
+      </view>
+    </view>
+
+    <!-- 操作按钮 -->
+    <view class="action-row">
+      <button
+        class="accept-btn {{!agreed || processing ? 'disabled' : ''}}"
+        bindtap="onAccept"
+        disabled="{{!agreed || processing}}"
+        loading="{{processing}}"
+      >接 受</button>
+      <button
+        class="reject-btn"
+        bindtap="onReject"
+        disabled="{{processing}}"
+      >拒 绝</button>
+    </view>
+  </block>
 </view>

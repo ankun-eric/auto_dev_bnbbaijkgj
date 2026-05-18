@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "授权确认"
+  "navigationBarTitleText": "家庭健康守护邀请",
+  "navigationBarBackgroundColor": "#1AAD19",
+  "navigationBarTextStyle": "white",
+  "disableScroll": false
 }
