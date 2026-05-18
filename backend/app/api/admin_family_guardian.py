@@ -46,7 +46,7 @@ class TemplatePayload(BaseModel):
     is_active: bool = True
 
 
-@router.get("/admin/alert-templates")
+@router.get("/api/admin/alert-templates")
 async def admin_list_templates(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
@@ -79,7 +79,7 @@ async def admin_list_templates(
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
-@router.post("/admin/alert-templates")
+@router.post("/api/admin/alert-templates")
 async def admin_create_template(
     payload: TemplatePayload,
     current_user: User = Depends(get_current_user),
@@ -97,7 +97,7 @@ async def admin_create_template(
     return {"id": t.id}
 
 
-@router.put("/admin/alert-templates/{tid}")
+@router.put("/api/admin/alert-templates/{tid}")
 async def admin_update_template(
     tid: int,
     payload: TemplatePayload,
@@ -117,7 +117,7 @@ async def admin_update_template(
     return {"message": "ok"}
 
 
-@router.delete("/admin/alert-templates/{tid}")
+@router.delete("/api/admin/alert-templates/{tid}")
 async def admin_delete_template(
     tid: int,
     current_user: User = Depends(get_current_user),
@@ -150,7 +150,7 @@ class ThresholdPayload(BaseModel):
     is_active: bool = True
 
 
-@router.get("/admin/abnormal-thresholds")
+@router.get("/api/admin/abnormal-thresholds")
 async def admin_list_thresholds(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
@@ -193,7 +193,7 @@ async def admin_list_thresholds(
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
-@router.post("/admin/abnormal-thresholds")
+@router.post("/api/admin/abnormal-thresholds")
 async def admin_create_threshold(
     payload: ThresholdPayload,
     current_user: User = Depends(get_current_user),
@@ -206,7 +206,7 @@ async def admin_create_threshold(
     return {"id": t.id}
 
 
-@router.put("/admin/abnormal-thresholds/{tid}")
+@router.put("/api/admin/abnormal-thresholds/{tid}")
 async def admin_update_threshold(
     tid: int,
     payload: ThresholdPayload,
@@ -226,7 +226,7 @@ async def admin_update_threshold(
     return {"message": "ok"}
 
 
-@router.delete("/admin/abnormal-thresholds/{tid}")
+@router.delete("/api/admin/abnormal-thresholds/{tid}")
 async def admin_delete_threshold(
     tid: int,
     current_user: User = Depends(get_current_user),
@@ -277,7 +277,7 @@ def _build_logs_query(
     return q, cq
 
 
-@router.get("/admin/alert-logs")
+@router.get("/api/admin/alert-logs")
 async def admin_list_logs(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
@@ -359,7 +359,7 @@ async def admin_list_logs(
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
-@router.get("/admin/alert-logs/export")
+@router.get("/api/admin/alert-logs/export")
 async def admin_export_logs(
     start_at: Optional[str] = Query(None),
     end_at: Optional[str] = Query(None),

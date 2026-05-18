@@ -57,7 +57,7 @@ export default function AbnormalThresholdsPage() {
     setLoading(true);
     try {
       const res = await get<{ items: ThresholdRow[] }>(
-        '/admin/abnormal-thresholds',
+        '/api/admin/abnormal-thresholds',
         keyword ? { keyword } : undefined,
       );
       setData(res.items || []);
@@ -89,10 +89,10 @@ export default function AbnormalThresholdsPage() {
     const values = await form.validateFields();
     try {
       if (editing) {
-        await put(`/admin/abnormal-thresholds/${editing.id}`, values);
+        await put(`/api/admin/abnormal-thresholds/${editing.id}`, values);
         message.success('已更新');
       } else {
-        await post('/admin/abnormal-thresholds', values);
+        await post('/api/admin/abnormal-thresholds', values);
         message.success('已创建');
       }
       setModalOpen(false);
@@ -108,7 +108,7 @@ export default function AbnormalThresholdsPage() {
       content: `确定删除「${row.metric_name}」吗？`,
       onOk: async () => {
         try {
-          await del(`/admin/abnormal-thresholds/${row.id}`);
+          await del(`/api/admin/abnormal-thresholds/${row.id}`);
           message.success('已删除');
           fetchData();
         } catch (e: any) {

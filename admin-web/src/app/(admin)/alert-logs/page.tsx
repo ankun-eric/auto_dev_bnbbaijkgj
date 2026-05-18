@@ -79,7 +79,7 @@ export default function AlertLogsPage() {
         params.start_at = values.dateRange[0].toISOString();
         params.end_at = values.dateRange[1].toISOString();
       }
-      const res = await get<{ items: LogRow[]; total: number }>('/admin/alert-logs', params);
+      const res = await get<{ items: LogRow[]; total: number }>('/api/admin/alert-logs', params);
       setData(res.items || []);
       setPagination({ current: page, pageSize: pagination.pageSize, total: res.total || 0 });
     } catch (e: any) {
@@ -108,7 +108,7 @@ export default function AlertLogsPage() {
       if (values.clicked !== undefined && values.clicked !== null && values.clicked !== '')
         qs.append('clicked', String(values.clicked));
       const token = localStorage.getItem('admin_token') || '';
-      const resp = await fetch(`${apiBase}/admin/alert-logs/export?${qs.toString()}`, {
+      const resp = await fetch(`${apiBase}/api/admin/alert-logs/export?${qs.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!resp.ok) throw new Error('导出失败');

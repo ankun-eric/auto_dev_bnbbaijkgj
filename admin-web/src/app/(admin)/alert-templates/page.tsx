@@ -61,7 +61,7 @@ export default function AlertTemplatesPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await get<{ items: TemplateRow[] }>('/admin/alert-templates');
+      const res = await get<{ items: TemplateRow[] }>('/api/admin/alert-templates');
       setData(res.items || []);
     } catch (e: any) {
       message.error(e?.response?.data?.detail || '加载失败');
@@ -91,10 +91,10 @@ export default function AlertTemplatesPage() {
     const values = await form.validateFields();
     try {
       if (editing) {
-        await put(`/admin/alert-templates/${editing.id}`, values);
+        await put(`/api/admin/alert-templates/${editing.id}`, values);
         message.success('已更新');
       } else {
-        await post('/admin/alert-templates', values);
+        await post('/api/admin/alert-templates', values);
         message.success('已创建');
       }
       setModalOpen(false);
@@ -110,7 +110,7 @@ export default function AlertTemplatesPage() {
       content: `确定删除「${row.code}」吗？`,
       onOk: async () => {
         try {
-          await del(`/admin/alert-templates/${row.id}`);
+          await del(`/api/admin/alert-templates/${row.id}`);
           message.success('已删除');
           fetchData();
         } catch (e: any) {
