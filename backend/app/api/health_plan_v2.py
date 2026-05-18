@@ -118,6 +118,76 @@ def _migrate_timing(raw: Optional[str]) -> Optional[str]:
     return _TIMING_LEGACY_MAP.get(raw, raw)
 
 
+# ──────────────── [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 批量查询药品是否已加入用药计划 ────────────────
+
+
+@router.get("/medications/check-batch")
+async def check_medications_batch(
+    drug_names: str = Query(..., description="逗号分隔的药品名列表"),
+    consultant_id: Optional[int] = Query(None, description="咨询人(family_member)ID，省略或0=本人"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD-AI-DRUG-CARD-MEDPLAN-V1] 批量查询识药卡片药名是否已加入当前咨询人有效期内的用药计划。
+
+    匹配规则：
+    - 当前用户 user_id = current_user.id
+    - family_member_id = consultant_id（None / 0 / 空 视为「本人」即 family_member_id IS NULL）
+    - status = 'active'
+    - 用药周期覆盖今天：long_term=True OR end_date IS NULL OR end_date >= today
+      并且 start_date IS NULL OR start_date <= today
+    - 字段：medicine_name OR generic_name 任一 LIKE %drug_name% （宽松匹配，大小写不敏感）
+
+    返回：{ "code": 0, "data": { "药名": true/false, ... } }
+    """
+    names_raw = [n.strip() for n in (drug_names or "").split(",") if n.strip()]
+    if not names_raw:
+        return {"code": 0, "data": {}}
+
+    today_d = date.today()
+    conds = [
+        MedicationReminder.user_id == current_user.id,
+        MedicationReminder.status == "active",
+        or_(
+            MedicationReminder.long_term == True,  # noqa: E712
+            MedicationReminder.end_date.is_(None),
+            MedicationReminder.end_date >= today_d,
+        ),
+        or_(
+            MedicationReminder.start_date.is_(None),
+            MedicationReminder.start_date <= today_d,
+        ),
+    ]
+    if consultant_id and consultant_id > 0:
+        conds.append(MedicationReminder.family_member_id == consultant_id)
+    else:
+        conds.append(MedicationReminder.family_member_id.is_(None))
+
+    res = await db.execute(
+        select(
+            MedicationReminder.medicine_name,
+            MedicationReminder.generic_name,
+        ).where(and_(*conds))
+    )
+    rows = res.all()
+
+    pool: list[tuple[str, str]] = []
+    for mn, gn in rows:
+        pool.append(((mn or "").lower(), (gn or "").lower()))
+
+    result: dict[str, bool] = {}
+    for raw in names_raw:
+        key = raw.lower()
+        hit = False
+        if key:
+            for mn, gn in pool:
+                if (mn and key in mn) or (gn and key in gn) or (mn and mn in key) or (gn and gn in key):
+                    hit = True
+                    break
+        result[raw] = hit
+    return {"code": 0, "data": result}
+
+
 @router.post("/medications", response_model=MedicationReminderResponse)
 async def create_medication(
     data: MedicationReminderCreate,
@@ -272,6 +342,7 @@ async def _read_med_ai_call_enabled(db: AsyncSession, user_id: int) -> bool:
 async def list_medications_flat(
     segment: Optional[str] = Query(None, description="筛选: today=今日用药 / all=全部在用药品 / archived=历史用药 / 空=全部在用药品"),
     tab: Optional[str] = Query(None, description="[PRD-MED-PLAN-ENTRY-V1] Tab 过滤: in_progress/not_started/finished；空=in_progress（与 segment 二选一，segment 优先）"),
+    consultant_id: Optional[int] = Query(None, description="[PRD-AI-DRUG-CARD-MEDPLAN-V1] 咨询人(family_member)ID过滤；None/0=本人(family_member_id IS NULL)；-1=不过滤"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -329,6 +400,18 @@ async def list_medications_flat(
         stmt = select(MedicationReminder).where(*_active_med_filter(current_user.id, today)).order_by(
             MedicationReminder.remind_time.asc()
         )
+
+    # [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 咨询人过滤：
+    #   - None：不过滤（兼容旧客户端）
+    #   - -1 ：明确不过滤
+    #   - 0  ：本人 → family_member_id IS NULL
+    #   - >0 ：指定家庭成员
+    if consultant_id is not None and consultant_id != -1:
+        if consultant_id == 0:
+            stmt = stmt.where(MedicationReminder.family_member_id.is_(None))
+        else:
+            stmt = stmt.where(MedicationReminder.family_member_id == consultant_id)
+
     reminders = (await db.execute(stmt)).scalars().all()
 
     items: list[dict] = []
@@ -378,6 +461,9 @@ async def list_medications_flat(
             # [PRD-MED-PLAN-V1] 标记：列表卡片是否显示电话图标
             "ai_call_badge": ai_call_badge,
             "is_ongoing": is_ongoing,
+            # [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 咨询人归属 + 通用名
+            "family_member_id": r.family_member_id,
+            "generic_name": r.generic_name,
         })
 
     return {

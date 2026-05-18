@@ -26,6 +26,9 @@ class MedicationReminderCreate(BaseModel):
     dosage_unit: Optional[str] = None   # 片/粒/袋/支/瓶/贴/g/mL/mg/μg
     duration_days: Optional[int] = None  # 服用天数
     guidance: Optional[str] = None       # 餐前/餐后/空腹/随餐服用/睡前
+    # [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 咨询人归属 + 通用名
+    family_member_id: Optional[int] = None
+    generic_name: Optional[str] = None
 
 
 class MedicationReminderUpdate(BaseModel):
@@ -47,6 +50,9 @@ class MedicationReminderUpdate(BaseModel):
     dosage_unit: Optional[str] = None
     duration_days: Optional[int] = None
     guidance: Optional[str] = None
+    # [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 咨询人归属 + 通用名
+    family_member_id: Optional[int] = None
+    generic_name: Optional[str] = None
 
 
 class MedicationReminderResponse(BaseModel):
@@ -74,6 +80,9 @@ class MedicationReminderResponse(BaseModel):
     dosage_unit: Optional[str] = None
     duration_days: Optional[int] = None
     guidance: Optional[str] = None
+    # [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 咨询人归属 + 通用名
+    family_member_id: Optional[int] = None
+    generic_name: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

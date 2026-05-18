@@ -2393,6 +2393,20 @@ async def _sync_medication_reminders_prd469_v2(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE medication_reminders ADD COLUMN guidance VARCHAR(16) NULL"))
         except Exception as e:
             print(f"[schema_sync] medication_reminders.guidance add warn: {e}")
+    # [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 咨询人归属 + 通用名（用于宽松匹配）
+    if "family_member_id" not in cols:
+        try:
+            await conn.execute(text(
+                "ALTER TABLE medication_reminders ADD COLUMN family_member_id INT NULL, "
+                "ADD INDEX ix_medication_reminders_family_member_id (family_member_id)"
+            ))
+        except Exception as e:
+            print(f"[schema_sync] medication_reminders.family_member_id add warn: {e}")
+    if "generic_name" not in cols:
+        try:
+            await conn.execute(text("ALTER TABLE medication_reminders ADD COLUMN generic_name VARCHAR(200) NULL"))
+        except Exception as e:
+            print(f"[schema_sync] medication_reminders.generic_name add warn: {e}")
 
 
 async def _sync_reminder_settings_med_v1(conn: AsyncConnection) -> None:

@@ -1,32 +1,54 @@
 'use client';
 /**
- * [PRD-DRUG-CARD-V3 2026-05-16] 加入用药计划抽屉（最小可用版）
+ * [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 加入用药计划抽屉
  *
- * 字段 1:1 复用 /ai-home/medication-plans/new 页面。
- * 完整字段在该页已实现，本抽屉提供快捷预填后跳转。
+ * 复用 MedicationFormPanel 的全部字段，在抽屉内就地完成新增，不再跳转新页面。
+ * 抽屉支持：
+ *   - 自动预填药品名 / 通用名
+ *   - 关联当前 AI 对话页咨询人（family_member_id）
+ *   - 保存成功 → onSaved 回调（识药卡片立即变为「已加入」+ Toast）
+ *   - 保存失败 → 抽屉不关闭，Toast 提示错误
  */
 import React from 'react';
+import MedicationFormPanel from '@/components/medication/MedicationFormPanel';
 import type { DrugCardFields } from './DrugIdentifyCard';
 
 export interface AddMedicationDrawerProps {
   open: boolean;
   card: DrugCardFields;
+  /** 当前 AI 对话页选中咨询人 family_member.id；本人态传 null/0 */
+  familyMemberId?: number | null;
+  /** 咨询人昵称（用于抽屉标题）；本人态传空 */
+  consultantName?: string | null;
+  /** 是否本人态（隐藏咨询人姓名前缀） */
+  isSelf?: boolean;
   onClose: () => void;
+  /** 保存成功回调 */
+  onSaved?: (newId: number | null) => void;
 }
 
-export default function AddMedicationDrawer({ open, card, onClose }: AddMedicationDrawerProps) {
+export default function AddMedicationDrawer({
+  open,
+  card,
+  familyMemberId,
+  consultantName,
+  isSelf,
+  onClose,
+  onSaved,
+}: AddMedicationDrawerProps) {
   if (!open) return null;
-  const handleGoFull = () => {
-    const params = new URLSearchParams();
-    if (card.drug_name) params.set('drug_name', card.drug_name);
-    if (card.generic_name) params.set('generic_name', card.generic_name);
-    if (card.spec) params.set('spec', card.spec);
-    if (card.manufacturer) params.set('manufacturer', card.manufacturer);
-    if (card.disease_tags && card.disease_tags.length) {
-      params.set('disease_tags', card.disease_tags.join(','));
-    }
-    window.location.href = `/ai-home/medication-plans/new?${params.toString()}`;
-  };
+
+  const title = isSelf || !consultantName
+    ? '加入用药计划'
+    : `为 ${consultantName} 加入用药计划`;
+
+  const prefillName =
+    card.drug_name ||
+    card.generic_name ||
+    card.brand_name ||
+    '';
+  const prefillGeneric = card.generic_name || undefined;
+
   return (
     <div
       onClick={onClose}
@@ -49,53 +71,49 @@ export default function AddMedicationDrawer({ open, card, onClose }: AddMedicati
           maxWidth: 600,
           borderTopLeftRadius: 16,
           borderTopRightRadius: 16,
-          padding: 20,
           maxHeight: '90vh',
-          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>加入用药计划</div>
+        <div
+          style={{
+            padding: '14px 16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            borderBottom: '1px solid #F0F0F0',
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ fontSize: 17, fontWeight: 700, color: '#111827' }} data-testid="add-med-drawer-title">
+            {title}
+          </div>
           <button
             type="button"
             onClick={onClose}
-            style={{ border: 'none', background: 'transparent', fontSize: 20, cursor: 'pointer' }}
+            style={{ border: 'none', background: 'transparent', fontSize: 22, cursor: 'pointer', color: '#6B7280' }}
             aria-label="close"
+            data-testid="add-med-drawer-close"
           >
             ✕
           </button>
         </div>
-        <div style={{ fontSize: 16, color: '#333', marginBottom: 8, lineHeight: 1.7 }}>
-          药品名：<b>{card.drug_name || '-'}</b>
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <MedicationFormPanel
+            key={`add-${prefillName}`}
+            mode="drawer"
+            prefillName={prefillName}
+            prefillGenericName={prefillGeneric}
+            familyMemberId={familyMemberId ?? null}
+            hideDelete
+            onSaved={(id) => {
+              onSaved?.(id);
+              onClose();
+            }}
+            onCancel={onClose}
+          />
         </div>
-        {card.generic_name && (
-          <div style={{ fontSize: 15, color: '#666', marginBottom: 6 }}>通用名：{card.generic_name}</div>
-        )}
-        {card.spec && <div style={{ fontSize: 15, color: '#666', marginBottom: 6 }}>规格：{card.spec}</div>}
-        {card.manufacturer && (
-          <div style={{ fontSize: 15, color: '#666', marginBottom: 6 }}>厂家：{card.manufacturer}</div>
-        )}
-        <div style={{ fontSize: 14, color: '#888', margin: '12px 0', lineHeight: 1.7 }}>
-          完整字段（用药人、剂量、频次、起止日期、提醒、AI 外呼等）请进入用药计划新增页编辑。
-        </div>
-        <button
-          type="button"
-          onClick={handleGoFull}
-          data-testid="btn-go-add-full"
-          style={{
-            height: 48,
-            width: '100%',
-            borderRadius: 8,
-            border: 'none',
-            background: '#1677FF',
-            color: '#fff',
-            fontSize: 16,
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
-        >
-          继续填写用药信息
-        </button>
       </div>
     </div>
   );

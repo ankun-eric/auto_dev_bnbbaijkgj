@@ -290,7 +290,12 @@ export default function DrugIdentifyCard(props: DrugIdentifyCardProps) {
         )}
       </div>
 
-      {/* —— ⑤ 操作按钮区（固定底部） —— */}
+      {/* —— ⑤ 操作按钮区（固定底部） ——
+       * [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18]
+       *   - 「加入用药计划」/「已加入用药计划」 + 「查看用药计划」并列
+       *   - 「已加入」态：灰色描边按钮 + 对勾，仍可点击
+       *   - 空咨询人态：置灰不可点击 + Toast「请先选择咨询人」
+       */}
       <div
         data-testid="drug-card-actions"
         style={{
@@ -305,41 +310,68 @@ export default function DrugIdentifyCard(props: DrugIdentifyCardProps) {
           flexShrink: 0,
         }}
       >
-        <button
-          type="button"
-          onClick={added || blockAdd ? undefined : onAddPlan}
-          disabled={added || blockAdd}
-          data-testid="btn-add-plan"
-          style={{
-            height: 44,
-            borderRadius: 8,
-            border: 'none',
-            background: added ? '#D1D5DB' : blockAdd ? '#D1D5DB' : '#1677FF',
-            color: '#fff',
-            fontSize: 16,
-            fontWeight: 600,
-            cursor: added || blockAdd ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {added ? '已加入用药计划' : blockAdd ? '存在用药风险，无法加入' : '+ 加入用药计划'}
-        </button>
+        {/* 主按钮行：加入用药计划 + 查看用药计划 */}
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             type="button"
-            onClick={onViewDetail || onViewAllPlans}
-            data-testid="btn-view-detail"
+            onClick={blockAdd ? undefined : onAddPlan}
+            disabled={blockAdd}
+            data-testid="btn-add-plan"
             style={{
               flex: 1,
-              height: 40,
+              height: 44,
               borderRadius: 8,
-              border: '1px solid #D1D5DB',
+              border: added ? '1px solid #9CA3AF' : 'none',
+              background: blockAdd ? '#D1D5DB' : added ? '#F3F4F6' : '#0EA5E9',
+              color: added ? '#4B5563' : '#fff',
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: blockAdd ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {blockAdd
+              ? '存在用药风险，无法加入'
+              : added
+              ? '✓ 已加入用药计划'
+              : '+ 加入用药计划'}
+          </button>
+          <button
+            type="button"
+            onClick={onViewAllPlans}
+            data-testid="btn-view-plans"
+            style={{
+              flex: 1,
+              height: 44,
+              borderRadius: 8,
+              border: '1px solid #0EA5E9',
               background: '#fff',
-              color: '#333',
-              fontSize: 14,
+              color: '#0EA5E9',
+              fontSize: 15,
+              fontWeight: 600,
               cursor: 'pointer',
             }}
           >
-            🔍 查看药品详情
+            📋 查看用药计划
+          </button>
+        </div>
+        {/* 次按钮行：药品详情 / 重新拍照 */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            type="button"
+            onClick={onViewDetail}
+            data-testid="btn-view-detail"
+            style={{
+              flex: 1,
+              height: 36,
+              borderRadius: 8,
+              border: '1px solid #D1D5DB',
+              background: '#fff',
+              color: '#374151',
+              fontSize: 13,
+              cursor: 'pointer',
+            }}
+          >
+            🔍 药品详情
           </button>
           <button
             type="button"
@@ -347,12 +379,12 @@ export default function DrugIdentifyCard(props: DrugIdentifyCardProps) {
             data-testid="btn-retake"
             style={{
               flex: 1,
-              height: 40,
+              height: 36,
               borderRadius: 8,
               border: '1px solid #D1D5DB',
               background: '#fff',
-              color: '#333',
-              fontSize: 14,
+              color: '#374151',
+              fontSize: 13,
               cursor: 'pointer',
             }}
           >

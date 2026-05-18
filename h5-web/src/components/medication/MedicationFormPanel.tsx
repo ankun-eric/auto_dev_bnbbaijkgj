@@ -122,14 +122,45 @@ interface FormState {
   notes: string;
 }
 
-export default function MedicationFormPanel({ planId }: { planId?: number }) {
+/**
+ * [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18]
+ * 新增可选 props 支撑「抽屉模式」（AI 对话识药结果加入用药计划）：
+ *   - mode='drawer' 时不调用 router.back()，改为调用 onSaved/onCancel
+ *   - prefillName: 识药结果药品名自动预填
+ *   - prefillGenericName: 识药通用名
+ *   - familyMemberId: 咨询人 ID（None=本人）
+ *   - hideDelete: 抽屉模式下不显示删除按钮
+ */
+export interface MedicationFormPanelProps {
+  planId?: number;
+  mode?: 'page' | 'drawer';
+  prefillName?: string;
+  prefillGenericName?: string;
+  familyMemberId?: number | null;
+  hideDelete?: boolean;
+  onSaved?: (newId: number | null) => void;
+  onCancel?: () => void;
+}
+
+export default function MedicationFormPanel(props: MedicationFormPanelProps) {
+  const {
+    planId,
+    mode = 'page',
+    prefillName,
+    prefillGenericName,
+    familyMemberId,
+    hideDelete = false,
+    onSaved,
+    onCancel,
+  } = props;
   const router = useRouter();
   const editing = !!planId;
+  const isDrawer = mode === 'drawer';
 
   const [form, setForm] = useState<FormState>(() => {
     const t = today();
     return {
-      medicine_name: '',
+      medicine_name: prefillName || '',
       dosage_value: '1',
       dosage_unit: '片',
       frequency_per_day: 2,
@@ -300,13 +331,27 @@ export default function MedicationFormPanel({ planId }: { planId?: number }) {
         notes: form.notes || '',
         reminder_enabled: true,
       };
+      // [PRD-AI-DRUG-CARD-MEDPLAN-V1] 抽屉模式带咨询人 + 通用名
+      if (familyMemberId !== undefined && familyMemberId !== null && familyMemberId > 0) {
+        payload.family_member_id = familyMemberId;
+      }
+      if (prefillGenericName) {
+        payload.generic_name = prefillGenericName;
+      }
+      let newId: number | null = null;
       if (editing) {
         await api.put(`/api/health-plan/medications/${planId}`, payload);
+        newId = planId || null;
       } else {
-        await api.post('/api/health-plan/medications', payload);
+        const res: any = await api.post('/api/health-plan/medications', payload);
+        newId = (res?.data?.id ?? res?.id ?? null) as number | null;
       }
-      Toast.show({ content: editing ? '保存成功' : '添加成功', icon: 'success' });
-      router.back();
+      Toast.show({ content: editing ? '保存成功' : '已加入用药计划', icon: 'success' });
+      if (isDrawer) {
+        onSaved?.(newId);
+      } else {
+        router.back();
+      }
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
       const msg = typeof detail === 'object' ? detail?.message || JSON.stringify(detail) : detail || '保存失败';
@@ -477,7 +522,7 @@ export default function MedicationFormPanel({ planId }: { planId?: number }) {
 
       {/* 保存按钮 */}
       <div style={{ padding: 16, display: 'flex', gap: 12 }}>
-        {editing && (
+        {editing && !hideDelete && (
           <button
             data-testid="med-form-delete"
             onClick={handleDelete}
@@ -494,6 +539,25 @@ export default function MedicationFormPanel({ planId }: { planId?: number }) {
             }}
           >
             删除
+          </button>
+        )}
+        {isDrawer && (
+          <button
+            data-testid="med-form-cancel"
+            onClick={() => onCancel?.()}
+            style={{
+              flex: 1,
+              padding: '12px 0',
+              background: '#fff',
+              color: '#374151',
+              border: '1px solid #D1D5DB',
+              borderRadius: 24,
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            取消
           </button>
         )}
         <button

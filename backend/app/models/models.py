@@ -2306,6 +2306,10 @@ class MedicationReminder(Base):
     dosage_unit = mapped_column(String(16), nullable=True)   # 单位（片/粒/袋/支/瓶/贴/g/mL/mg/μg）
     duration_days = mapped_column(Integer, nullable=True)    # 服用天数
     guidance = mapped_column(String(16), nullable=True)      # 用药指导：餐前/餐后/空腹/随餐服用/睡前
+    # [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 用药计划归属咨询人（NULL=本人）
+    family_member_id = mapped_column(Integer, ForeignKey("family_members.id"), nullable=True, index=True)
+    # [PRD-AI-DRUG-CARD-MEDPLAN-V1] 通用名（用于宽松匹配「已加入」识别）
+    generic_name = mapped_column(String(200), nullable=True)
 
     user = relationship("User")
     check_ins = relationship("MedicationCheckIn", back_populates="reminder")

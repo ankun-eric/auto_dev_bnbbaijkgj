@@ -31,6 +31,9 @@ import HealthSelfCheckDrawer, { type HealthSelfCheckSubmitPayload, type HealthCh
 import HealthSelfCheckCard from '@/components/ai-chat/HealthSelfCheckCard';
 // [BUG_FIX_拍照识药三联_20260516] 聊天内嵌识药引擎：识药结果卡片
 import DrugIdentifyCard from './components/DrugIdentifyCard';
+// [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 加入 / 查看用药计划抽屉
+import AddMedicationDrawer from './components/AddMedicationDrawer';
+import ViewMedicationPlansDrawer from './components/ViewMedicationPlansDrawer';
 // [Bug-471 2026-05-15] AI 对话卡片 / 胶囊「相册 / 拍照 / 本机 / 微信」共用的文件选择 + 上传工具
 import {
   pickFilesViaHiddenInput,
@@ -652,6 +655,15 @@ export default function AiHomePage() {
   }, []);
   const [hasHealthTask, setHasHealthTask] = useState(false);
   const [selectedConsultant, setSelectedConsultant] = useState<FamilyMember | null>(null);
+  // [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 识药结果加入/查看用药计划抽屉状态
+  const [addMedDrawerOpen, setAddMedDrawerOpen] = useState(false);
+  const [viewMedDrawerOpen, setViewMedDrawerOpen] = useState(false);
+  /** 当前操作的识药卡片来源消息 id（用于乐观更新 added_to_plan 状态） */
+  const [activeDrugMsgId, setActiveDrugMsgId] = useState<string | null>(null);
+  /** 当前操作的识药卡片数据 */
+  const [activeDrugCard, setActiveDrugCard] = useState<any>(null);
+  /** [PRD F4] 识药结果"是否已加入"状态：按 `${consultantId}|${drugName}` 缓存 */
+  const [drugAddedMap, setDrugAddedMap] = useState<Record<string, boolean>>({});
   // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查抽屉状态
   const [hscDrawerOpen, setHscDrawerOpen] = useState(false);
   const [hscDrawerButton, setHscDrawerButton] = useState<FunctionButton | null>(null);
@@ -1262,6 +1274,28 @@ export default function AiHomePage() {
   //   2. 把 idle 判断 + sid 决定提前到"加入 userMsg 之前"，并通过 preserveOnClear
   //      回调把 userMsg 回填到清空后的列表，从源头杜绝首句被一并抹掉。
   //   3. 透传 source（text/voice/preset）到后端流式接口，便于审计与回归。
+  // [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 识药结果"是否已加入"批量刷新
+  // 入参 drug_names 来自当前消息列表中所有识药卡片的药品名
+  const refreshDrugAddedStatus = useCallback(async (drugNames: string[]) => {
+    const consultantId = selectedConsultant?.id ?? 0;
+    const unique = Array.from(new Set(drugNames.filter((n) => n && n.trim())));
+    if (unique.length === 0) return;
+    try {
+      const qs = `drug_names=${encodeURIComponent(unique.join(','))}&consultant_id=${consultantId}`;
+      const res: any = await api.get(`/api/health-plan/medications/check-batch?${qs}`);
+      const data = (res?.data?.data ?? res?.data ?? {}) as Record<string, boolean>;
+      setDrugAddedMap((prev) => {
+        const next = { ...prev };
+        for (const name of unique) {
+          next[`${consultantId}|${name}`] = !!data[name];
+        }
+        return next;
+      });
+    } catch {
+      // 静默
+    }
+  }, [selectedConsultant]);
+
   const handleSend = useCallback(async (
     text?: string,
     source: 'text' | 'voice' | 'preset' = 'text',
@@ -2484,6 +2518,28 @@ export default function AiHomePage() {
     }, 5000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConsultant, messages]);
+
+  // [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18 / F4]
+  // 消息列表或咨询人切换时，批量刷新所有识药卡片的「是否已加入用药计划」状态
+  useEffect(() => {
+    const names: string[] = [];
+    for (const m of messages) {
+      if (
+        m.drugMeta &&
+        m.drugMeta.message_type === 'drug_identify_card' &&
+        Array.isArray(m.drugMeta.medicines)
+      ) {
+        const n =
+          m.drugMeta.medicines[0]?.name ||
+          m.drugMeta.medicines[0]?.brand ||
+          '';
+        if (n) names.push(n);
+      }
+    }
+    if (names.length > 0) {
+      refreshDrugAddedStatus(names);
+    }
+  }, [messages, selectedConsultant, refreshDrugAddedStatus]);
 
   // [PRD-420 F5-2 / BUG-466] 「返回上一会话」按钮点击：恢复原会话与原咨询对象
   // 撤销时同样要：
@@ -3990,25 +4046,46 @@ export default function AiHomePage() {
                             conflicts={[]}
                             personalizedRisk={msg.drugMeta.personalized_risk || null}
                             memberName={msg.drugMeta.member_name || null}
-                            added={Boolean(msg.drugMeta.added_to_plan)}
-                            onAddPlan={() => {
-                              const drugName =
+                            added={(() => {
+                              // [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18 / F4]
+                              // 优先使用 drugAddedMap（按当前咨询人维度），
+                              // 兜底兼容 drugMeta.added_to_plan（旧版本字段）
+                              const dn =
                                 msg.drugMeta?.medicines?.[0]?.name ||
                                 msg.drugMeta?.medicines?.[0]?.brand ||
                                 '';
-                              // [Bug-3] 1) 本地立即标记 added_to_plan=true（乐观更新）
-                              setMessages(prev => prev.map(m =>
-                                m.id === msg.id
-                                  ? { ...m, drugMeta: { ...(m.drugMeta || {}), added_to_plan: true } as any }
-                                  : m
-                              ));
-                              // [Bug-3] 2) 写入云端，跨设备 / 刷新后均保持"已加入用药计划"
-                              // 仅当消息 id 是数字（来自后端持久化）时才写云端；本地乐观 id（a-xxx）跳过
-                              const mid = Number(msg.id);
-                              if (Number.isFinite(mid) && mid > 0) {
-                                api.post(`/api/chat/messages/${mid}/mark-added-to-plan`).catch(() => {});
+                              const cid = selectedConsultant?.id ?? 0;
+                              const mapHit = drugAddedMap[`${cid}|${dn}`];
+                              if (mapHit !== undefined) return mapHit;
+                              return Boolean(msg.drugMeta.added_to_plan);
+                            })()}
+                            onAddPlan={async () => {
+                              // [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18]
+                              // 已加入态：弹二次确认
+                              // 未加入态：直接打开抽屉
+                              const dn =
+                                msg.drugMeta?.medicines?.[0]?.name ||
+                                msg.drugMeta?.medicines?.[0]?.brand ||
+                                '';
+                              const cid = selectedConsultant?.id ?? 0;
+                              const isAdded =
+                                drugAddedMap[`${cid}|${dn}`] ?? Boolean(msg.drugMeta?.added_to_plan);
+                              if (isAdded) {
+                                const ok = await Dialog.confirm({
+                                  content: '该药已在用药计划中，是否再次加入 / 修改？',
+                                });
+                                if (!ok) return;
                               }
-                              router.push(`/ai-home/medication-plans/new?drug_name=${encodeURIComponent(drugName)}`);
+                              setActiveDrugMsgId(msg.id);
+                              setActiveDrugCard({
+                                drug_name: dn,
+                                generic_name: msg.drugMeta?.medicines?.[0]?.name || null,
+                                brand_name: msg.drugMeta?.medicines?.[0]?.brand || null,
+                                spec: msg.drugMeta?.medicines?.[0]?.spec || null,
+                                manufacturer: msg.drugMeta?.medicines?.[0]?.manufacturer || null,
+                                disease_tags: (msg.drugMeta?.medicines?.[0] as any)?.disease_tags || null,
+                              });
+                              setAddMedDrawerOpen(true);
                             }}
                             onViewDetail={() => {
                               const drugName =
@@ -4022,7 +4099,22 @@ export default function AiHomePage() {
                                 Toast.show({ content: '请通过下方拍照按钮重新拍摄药盒', position: 'bottom' });
                               } catch {}
                             }}
-                            onViewAllPlans={() => router.push('/ai-home/medication-plans')}
+                            onViewAllPlans={() => {
+                              // [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 抽屉内查看，不再跳页
+                              setActiveDrugMsgId(msg.id);
+                              setActiveDrugCard({
+                                drug_name:
+                                  msg.drugMeta?.medicines?.[0]?.name ||
+                                  msg.drugMeta?.medicines?.[0]?.brand ||
+                                  '',
+                                generic_name: msg.drugMeta?.medicines?.[0]?.name || null,
+                                brand_name: msg.drugMeta?.medicines?.[0]?.brand || null,
+                                spec: msg.drugMeta?.medicines?.[0]?.spec || null,
+                                manufacturer: msg.drugMeta?.medicines?.[0]?.manufacturer || null,
+                                disease_tags: (msg.drugMeta?.medicines?.[0] as any)?.disease_tags || null,
+                              });
+                              setViewMedDrawerOpen(true);
+                            }}
                           />
                         </div>
                       ) : msg.drugMeta && msg.drugMeta.message_type === 'drug_identify_retake' ? (
@@ -4651,6 +4743,65 @@ export default function AiHomePage() {
           </button>
         </div>
       )}
+
+      {/* [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 加入用药计划抽屉 */}
+      <AddMedicationDrawer
+        open={addMedDrawerOpen}
+        card={activeDrugCard || { drug_name: '' }}
+        familyMemberId={selectedConsultant?.id ?? null}
+        consultantName={selectedConsultant?.nickname || null}
+        isSelf={!selectedConsultant}
+        onClose={() => setAddMedDrawerOpen(false)}
+        onSaved={() => {
+          // 保存成功后：本地立即标记 added=true（按 drugAddedMap） + 触发批量刷新
+          const dn = activeDrugCard?.drug_name || '';
+          const cid = selectedConsultant?.id ?? 0;
+          if (dn) {
+            setDrugAddedMap((prev) => ({ ...prev, [`${cid}|${dn}`]: true }));
+          }
+          // 兼容旧字段：同时把消息 drugMeta.added_to_plan 也写 true
+          if (activeDrugMsgId) {
+            setMessages((prev) => prev.map((m) =>
+              m.id === activeDrugMsgId
+                ? { ...m, drugMeta: { ...(m.drugMeta || {}), added_to_plan: true } as any }
+                : m,
+            ));
+          }
+          // 异步重刷一次以校准
+          refreshDrugAddedStatus([dn]).catch(() => {});
+        }}
+      />
+
+      {/* [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 查看用药计划抽屉 */}
+      <ViewMedicationPlansDrawer
+        open={viewMedDrawerOpen}
+        familyMemberId={selectedConsultant?.id ?? null}
+        consultantName={selectedConsultant?.nickname || null}
+        isSelf={!selectedConsultant}
+        onClose={() => setViewMedDrawerOpen(false)}
+        onGoAdd={() => {
+          // 空态「去新增」：关查看 → 开加入
+          setAddMedDrawerOpen(true);
+        }}
+        onChanged={() => {
+          // 列表中条目编辑/删除后重新刷新所有识药卡片状态
+          const names: string[] = [];
+          for (const m of messages) {
+            if (
+              m.drugMeta &&
+              m.drugMeta.message_type === 'drug_identify_card' &&
+              Array.isArray(m.drugMeta.medicines)
+            ) {
+              const n =
+                m.drugMeta.medicines[0]?.name ||
+                m.drugMeta.medicines[0]?.brand ||
+                '';
+              if (n) names.push(n);
+            }
+          }
+          if (names.length) refreshDrugAddedStatus(names);
+        }}
+      />
 
       <style jsx global>{`
         @keyframes bounce {
