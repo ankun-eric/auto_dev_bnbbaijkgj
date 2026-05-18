@@ -1,5 +1,0 @@
-docs: 同步 PRD-MED-PLAN-INTERACT-OPTIM-V1 项目索引 + 用户体验手册
-
-- project-context.mdc 追加用药计划交互优化 v1 完整记录
-- user_docs/用药计划交互优化.md 面向终端用户的使用手册
-  含 H5/小程序/Android APK/iOS IPA 全端访问链接
