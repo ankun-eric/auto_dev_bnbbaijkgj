@@ -27,6 +27,69 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-AI-DRUG-CARD-MEDPLAN-V1｜AI 对话识药结果·加入/查看用药计划（2026-05-18 13:00）
+
+### 一句话结论
+
+按 PRD v1.0 把 AI 对话识药卡片与「用药计划」模块深度联动：①识药卡片底部新增「加入用药计划」+「查看用药计划」双按钮（PRD F1），「已加入」态自动切换为灰色描边 + ✓ 图标且仍可点击（F4）；②**加入抽屉**复用现有 `MedicationFormPanel`，支持 `mode='drawer'` + `prefillName` + `prefillGenericName` + `familyMemberId` + `onSaved/onCancel`，保存成功直接关抽屉并触发识药卡片状态翻转，失败抽屉不关（PRD F2）；③**查看抽屉** `ViewMedicationPlansDrawer` 沿用 `/ai-home/medication-plans` 展示效果，列表项支持「就地折叠展开 / 编辑（切表单态）/ 删除（二次确认）」，空态「去新增」自动切换到加入抽屉（PRD F3）；④数据库 `medication_reminders` 新增 `family_member_id INT NULL` + `generic_name VARCHAR(200) NULL`，按咨询人维度严格隔离用药计划；⑤后端新增 `GET /api/health-plan/medications/check-batch?drug_names=...&consultant_id=...` 批量查询接口（PRD 6.1），按 `medicine_name OR generic_name` 宽松大小写不敏感匹配 + 有效期内（`long_term=True OR end_date IS NULL OR end_date >= today` 且 `start_date IS NULL OR start_date <= today`）；⑥list 接口新增 `consultant_id` 过滤（None=不过滤 / 0=本人 / -1=明确不过滤 / >0=指定家庭成员）；⑦ai-home `drugAddedMap` 状态机按 `${consultantId}|${drugName}` 缓存，messages 或 selectedConsultant 变化时批量重刷。
+
+### 后端核心改动
+
+- `backend/app/models/models.py`：`MedicationReminder` 新增 `family_member_id`（FK family_members.id）+ `generic_name`
+- `backend/app/schemas/health_plan_v2.py`：`MedicationReminderCreate/Update/Response` 三 schema 同步新增两字段
+- `backend/app/services/schema_sync.py`：`_sync_medication_reminders_prd469_v2` 补 `ALTER TABLE ADD COLUMN family_member_id INT NULL + INDEX` 与 `generic_name VARCHAR(200)`
+- `backend/app/api/health_plan_v2.py`：
+  - **新增** `GET /api/health-plan/medications/check-batch`：宽松双向匹配（key in name 或 name in key），按 consultant_id 严格分桶
+  - `list_medications_flat` 新增 `consultant_id` Query 参数，按家庭成员归属过滤
+  - 列表 items 透出 `family_member_id` + `generic_name`
+- `backend/tests/test_ai_drug_card_medplan_v1_20260518.py`（新，10 用例，全部通过）：
+  - 本人态命中 / 全部未命中 / 咨询人隔离 / generic_name 宽松匹配 / 过期不算 / 空入参 / 创建持久化 / list 过滤 / list 返回新字段 / 未鉴权 401
+
+### 前端核心改动（h5-web）
+
+- `src/components/medication/MedicationFormPanel.tsx`：
+  - 新增 `MedicationFormPanelProps`：`mode='drawer'` / `prefillName` / `prefillGenericName` / `familyMemberId` / `hideDelete` / `onSaved` / `onCancel`
+  - 提交时若 `familyMemberId > 0` 注入 `payload.family_member_id`；预填通用名注入 `payload.generic_name`
+  - drawer 模式保存成功不调 `router.back()`，改调 `onSaved(newId)`
+  - drawer 模式底部多一个「取消」按钮
+- `src/app/(ai-chat)/ai-home/components/AddMedicationDrawer.tsx`：**完全重写**——从「跳转新增页」改为「抽屉内嵌 MedicationFormPanel 全表单」
+- `src/app/(ai-chat)/ai-home/components/ViewMedicationPlansDrawer.tsx`（新）：抽屉内列表 + 就地折叠 + 编辑切表单态 + 删除二次确认 + 空态「去新增」
+- `src/app/(ai-chat)/ai-home/components/DrugIdentifyCard.tsx`：底部按钮区改为「加入 + 查看」并列；「已加入」态保留可点击；色板统一为 `#0EA5E9`
+- `src/app/(ai-chat)/ai-home/page.tsx`：
+  - 新增 `addMedDrawerOpen` / `viewMedDrawerOpen` / `activeDrugMsgId` / `activeDrugCard` / `drugAddedMap` 状态
+  - 新增 `refreshDrugAddedStatus(drugNames[])` 调 `check-batch` 接口刷新
+  - 新增 `useEffect`：messages / selectedConsultant 变化时批量刷新所有识药卡片状态
+  - DrugIdentifyCard `added` 优先取 `drugAddedMap`，兜底 `drugMeta.added_to_plan`
+  - 「已加入」点击 → `Dialog.confirm`「该药已在用药计划中，是否再次加入/修改？」→ 确认才开抽屉
+  - 「查看用药计划」改为打开 `ViewMedicationPlansDrawer`，不再跳页
+  - 「去新增」空态切换：onGoAdd 关查看 → 开加入
+
+### 部署与产物
+
+- 部署脚本：`deploy/_deploy_ai_drug_card_medplan_v1_20260518.py`（直接 SFTP 上传变更文件 + `docker cp` 同步后端 .py + rebuild h5-web）
+- 冒烟脚本：`deploy/_smoke_ai_drug_card_medplan_v1_20260518.py`（容器内 pytest 10/10 + 外网 HTTPS 端到端 7/7）
+- 容器：`6b099ed3-...-backend` Up、`-h5` Up、`-db` Healthy
+- 验证：`/ai-home` 200、`/api/openapi.json` 200、`check-batch` 401（未登录）、注册→登录→创建→check-batch→list 全链路通过
+- 用户手册：`user_docs/AI对话识药结果加入查看用药计划_20260518.md`
+
+### 受影响端
+
+- ✅ backend（FastAPI） — 新增字段 + 新接口 + list 过滤
+- ✅ h5-web（Next.js） — 识药卡片 + 两个新抽屉 + 状态机
+- ❌ admin-web / miniprogram / flutter_app / verify-miniprogram 本次未改动 → **无需重新打包**
+
+### 兼容性
+
+- list 接口 `consultant_id` 参数为 None 时维持旧行为（不过滤），旧客户端零回归
+- create / update schema 新字段 `family_member_id` / `generic_name` 为 Optional，旧客户端不传也兼容
+- DrugIdentifyCard `added` 状态优先用 `drugAddedMap`，未命中 key 时兜底 `drugMeta.added_to_plan`，旧的"乐观更新"路径仍生效
+
+### 用户体验手册
+
+- `user_docs/AI对话识药结果加入查看用药计划_20260518.md`
+
+---
+
 ## Latest Update: PRD-FAMILY-AUTH-MP-V1｜小程序「接受守护邀请」页（2026-05-18 10:35）
 
 ### 一句话结论
