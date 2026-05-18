@@ -109,27 +109,25 @@ export default function CareReminderBlock({ token: T, isLinked, profileId, membe
     <div id="care-reminder" data-testid="prd469-care-reminder" style={{ padding: '12px 16px' }}>
       <h3 style={{ fontSize: 18, fontWeight: 600, color: T.brand700, margin: '8px 0 12px' }}>共管与提醒</h3>
 
-      {/* [PRD-MED-PLAN-V1 2026-05-16] 用药 AI 外呼提醒 全局开关
-          在「健康提醒」与「共管」两个区域共用同一份数据 */}
+      {/* [PRD-HEALTH-ARCHIVE-OPTIM-V1 F7] 用药 AI 外呼提醒整体迁移至「家庭守护列表」/被守护人详情，
+          此处不再提供独立开关，改为入口跳转。 */}
       <div
-        data-testid="med-plan-v1-aicall-switch-block"
-        id="medication-ai-call-switch"
+        data-testid="bh-aicall-entry-card"
+        onClick={() => router.push('/family-guardian-list?reminder=self')}
         style={{
-          background: '#fff', borderRadius: 12, padding: 16, marginBottom: 12,
+          background: '#fff', borderRadius: 12, padding: 14, marginBottom: 12,
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
           borderLeft: '3px solid #0284C7',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
         }}
       >
-        <div style={{ fontSize: 14, fontWeight: 600, color: T.brand700, marginBottom: 6 }}>📞 用药 AI 外呼提醒</div>
-        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
-          开启后，将按用药计划中的服药时间，自动 AI 电话提醒按时吃药。共管家人也可代为开启。
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: T.brand700 }}>📞 用药 AI 外呼提醒</div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
+            到家庭守护列表中按被守护人配置 AI 外呼提醒（包含本人对自己）
+          </div>
         </div>
-        <ToggleRow
-          label="开启用药 AI 外呼提醒"
-          checked={!!setting?.medication_ai_call_enabled}
-          onChange={(v) => update({ medication_ai_call_enabled: v })}
-          T={T}
-        />
+        <span style={{ fontSize: 18, color: '#9ca3af' }}>›</span>
       </div>
 
       {/* 共管家人列表 —— Tab内直接展示 [PRD-469 v2 P1] */}
@@ -194,59 +192,21 @@ export default function CareReminderBlock({ token: T, isLinked, profileId, membe
         )}
       </div>
 
-      {/* 漏打卡提醒 */}
+      {/* [PRD-HEALTH-ARCHIVE-OPTIM-V1 F6] 漏打卡提醒区块整块移除（站内/微信/AI 外呼开关全部移除，
+          站内/微信通知作为系统默认通道，永远开启，不再向用户暴露配置）。
+          仅保留入口，点击跳转家庭守护列表。 */}
       <div
+        data-testid="bh-checkin-reminder-entry"
+        onClick={() => router.push('/family-guardian-list?reminder=self')}
         style={{
-          background: '#fff', borderRadius: 12, padding: 16, marginBottom: 12,
+          background: '#fff', borderRadius: 12, padding: 14, marginBottom: 12,
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
           borderLeft: '3px solid #22c55e',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
         }}
       >
-        <div style={{ fontSize: 14, fontWeight: 600, color: T.brand700, marginBottom: 12 }}>🔔 漏打卡提醒</div>
-        <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>漏打卡阈值（连续 N 天未打卡时通知）</div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          {THRESHOLD_OPTIONS.map((n) => {
-            const active = setting?.miss_threshold_days === n;
-            return (
-              <button
-                key={n}
-                onClick={() => update({ miss_threshold_days: n })}
-                data-testid={`prd469-threshold-${n}`}
-                style={{
-                  flex: 1, padding: '8px 0', borderRadius: 8,
-                  background: active ? T.brand500 : '#f3f4f6',
-                  color: active ? '#fff' : '#374151',
-                  border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                }}
-              >{n} 天</button>
-            );
-          })}
-        </div>
-
-        <ToggleRow label="站内消息" checked={!!setting?.push_inapp}
-          onChange={(v) => update({ push_inapp: v })} T={T} />
-        <ToggleRow label="微信小程序订阅消息" checked={!!setting?.push_wechat}
-          onChange={(v) => update({ push_wechat: v })} T={T} />
-        <ToggleRow label="同时通知共管家人" checked={!!setting?.notify_caregivers}
-          onChange={(v) => update({ notify_caregivers: v })} T={T} />
-
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 0' }}>
-          <span style={{ flex: 1, fontSize: 14, color: '#374151' }}>静默时段</span>
-          <input
-            type="time"
-            value={setting?.silent_start || ''}
-            onChange={(e) => update({ silent_start: e.target.value })}
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: 6 }}
-          />
-          <span style={{ margin: '0 6px', color: '#9ca3af' }}>~</span>
-          <input
-            type="time"
-            value={setting?.silent_end || ''}
-            onChange={(e) => update({ silent_end: e.target.value })}
-            style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: 6 }}
-          />
-        </div>
-        <div style={{ fontSize: 12, color: '#9ca3af', marginTop: -6 }}>静默时段内不推送提醒（默认建议 22:00–07:00）</div>
+        <span style={{ fontSize: 14, fontWeight: 600, color: T.brand700 }}>🔔 打卡提醒设置</span>
+        <span style={{ fontSize: 18, color: '#9ca3af' }}>›</span>
       </div>
 
       {/* 权限管理弹层 [PRD-469 v2 P1] */}

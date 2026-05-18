@@ -7,18 +7,17 @@ export const dynamicParams = true;
 /**
  * [PRD-健康档案路径统一 2026-05-16] 健康档案 v2 设计搬迁回主路径 /health-profile
  *
- * 历史：PRD-469（2026-05-12）曾把新版部署到 /health-profile-v2，旧 /health-profile 改为 404。
- * 现状：v2 设计稳定，按本 PRD 将 v2 内容搬回 /health-profile，并彻底删除 /health-profile-v2。
- *
- * 信息架构：
- *   家庭成员条（"+"按钮）→ Hero 卡 → 粘性 5 Tab（滚动联动）
- *     Tab 1 今日数据 6 宫格
- *     Tab 2 健康信息（既往病史 / 过敏史 / 家族病史 / 个人习惯）
- *     Tab 3 用药计划
- *     Tab 4 共管与提醒
- *     Tab 5 健康事件
- *
- * 视觉规范：v5 健康绿主色 + 圆角 12/16px + 病历卡左侧 3px 竖线
+ * [PRD-HEALTH-ARCHIVE-OPTIM-V1 2026-05-18] 健康档案页面优化 V1
+ *   F1 顶部双层吸顶（标题栏 + 咨询人切换条）
+ *   F2 切换咨询人时全页数据一刀切随切换（含用药接口加 consultant_id）
+ *   F3 头像右上角"被守护"角标
+ *   F4 Hero 卡重构：关系标签放姓名后；移除既往病史/过敏史/家族遗传字段；
+ *       第 4 格"在用药品"改为"今日用药 · N ›"主入口
+ *   F5 Hero 卡下方新增「共管/守护」区域，三态切换：
+ *       本人 = 已守护 N 人 ›  /  非本人未守护 = + 邀请共管  /  非本人已守护 = 管理
+ *   F6 漏打卡提醒区域简化为单一入口「打卡提醒设置 ›」
+ *   F8 移除顶部右上角设备 Logo
+ *   F9 非本人态完全不出现设备入口；TA 的设备走家庭守护列表
  */
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -180,6 +179,9 @@ function HealthProfileV2PageInner() {
   // [PRD-MED-PLAN-ENTRY-V1 2026-05-17] 用药入口 Hero 文案 + 摘要卡数据
   const [medHero, setMedHero] = useState<{ display_text: string; status: string; remaining_today: number } | null>(null);
   const [medSummary, setMedSummary] = useState<Array<{ id: number; name: string; dosage: string; frequency_text: string; timing_text: string; status_text: string }>>([]);
+  // [PRD-HEALTH-ARCHIVE-OPTIM-V1] 被守护角标映射 + 已守护 N 人摘要 + 当前选中成员的 managed_user_id
+  const [guardedFlags, setGuardedFlags] = useState<Map<number, { guarded: boolean; managed_user_id: number | null }>>(new Map());
+  const [guardianSummary, setGuardianSummary] = useState<{ managed_count: number }>({ managed_count: 0 });
   const searchParams = useSearchParams();
 
   const fetchMembers = useCallback(async () => {
@@ -229,10 +231,17 @@ function HealthProfileV2PageInner() {
     }
   }, []);
 
-  // [PRD-MED-PLAN-ENTRY-V1] Hero 第 4 格文案
-  const fetchMedHero = useCallback(async () => {
+  // [PRD-HEALTH-ARCHIVE-OPTIM-V1] 把当前选中成员翻译为 consultant_id：本人=0；其它=member.id
+  const consultantIdParam = useMemo(() => {
+    const m = members.find((x) => x.id === selectedMemberId);
+    if (!m) return -1; // 未选中：不过滤
+    return m.is_self ? 0 : m.id;
+  }, [members, selectedMemberId]);
+
+  // [PRD-MED-PLAN-ENTRY-V1] Hero 第 4 格文案；[PRD-HEALTH-ARCHIVE-OPTIM-V1] 加 consultant_id 联动
+  const fetchMedHero = useCallback(async (consultantId: number) => {
     try {
-      const res: any = await api.get('/api/medication-plans/hero-count');
+      const res: any = await api.get(`/api/medication-plans/hero-count?consultant_id=${consultantId}`);
       const data = res.data || res;
       setMedHero({ display_text: data.display_text, status: data.status, remaining_today: data.remaining_today });
     } catch {
@@ -240,14 +249,40 @@ function HealthProfileV2PageInner() {
     }
   }, []);
 
-  // [PRD-MED-PLAN-ENTRY-V1] 摘要卡：仅服药中
-  const fetchMedSummary = useCallback(async () => {
+  // [PRD-MED-PLAN-ENTRY-V1] 摘要卡：仅服药中；[PRD-HEALTH-ARCHIVE-OPTIM-V1] 加 consultant_id 联动
+  const fetchMedSummary = useCallback(async (consultantId: number) => {
     try {
-      const res: any = await api.get('/api/medication-plans/summary');
+      const res: any = await api.get(`/api/medication-plans/summary?consultant_id=${consultantId}`);
       const data = res.data || res;
       setMedSummary(Array.isArray(data.items) ? data.items : []);
     } catch {
       setMedSummary([]);
+    }
+  }, []);
+
+  // [PRD-HEALTH-ARCHIVE-OPTIM-V1 F3] 被守护标记
+  const fetchGuardedFlags = useCallback(async () => {
+    try {
+      const res: any = await api.get('/api/health-archive/family-members/guarded-flags');
+      const data = res.data || res;
+      const map = new Map<number, { guarded: boolean; managed_user_id: number | null }>();
+      (data.items || []).forEach((it: any) => {
+        map.set(it.member_id, { guarded: !!it.guarded, managed_user_id: it.managed_user_id ?? null });
+      });
+      setGuardedFlags(map);
+    } catch {
+      setGuardedFlags(new Map());
+    }
+  }, []);
+
+  // [PRD-HEALTH-ARCHIVE-OPTIM-V1 F5] 已守护 N 人
+  const fetchGuardianSummary = useCallback(async () => {
+    try {
+      const res: any = await api.get('/api/health-archive/guardian/summary');
+      const data = res.data || res;
+      setGuardianSummary({ managed_count: data.managed_count || 0 });
+    } catch {
+      setGuardianSummary({ managed_count: 0 });
     }
   }, []);
 
@@ -273,6 +308,7 @@ function HealthProfileV2PageInner() {
   }, []);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
+  useEffect(() => { fetchGuardedFlags(); fetchGuardianSummary(); }, [fetchGuardedFlags, fetchGuardianSummary]);
 
   // [PRD-MED-PLAN-ENTRY-V1] ?focus=medication 自动滚动定位
   useEffect(() => {
@@ -287,6 +323,16 @@ function HealthProfileV2PageInner() {
 
   useEffect(() => {
     if (selectedMemberId == null) return;
+    // [PRD-HEALTH-ARCHIVE-OPTIM-V1 F2] 切换咨询人后，先清空旧数据，避免出现「上一个人数据残影」
+    setMedHero(null);
+    setMedSummary([]);
+    setTodayMetrics(null);
+    setMedications([]);
+    setHeroMetrics([]);
+    // 切换后滚动到顶部
+    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch {}
+    const m = members.find((x) => x.id === selectedMemberId);
+    const cid = m ? (m.is_self ? 0 : m.id) : -1;
     (async () => {
       const profileId = await fetchProfile(selectedMemberId);
       if (profileId != null) {
@@ -295,12 +341,12 @@ function HealthProfileV2PageInner() {
           fetchMedication(profileId),
           fetchLinkStatus(selectedMemberId),
           fetchHeroSummary(profileId),
-          fetchMedHero(),
-          fetchMedSummary(),
+          fetchMedHero(cid),
+          fetchMedSummary(cid),
         ]);
       }
     })();
-  }, [selectedMemberId, fetchProfile, fetchTodayMetrics, fetchMedication, fetchLinkStatus, fetchHeroSummary]);
+  }, [selectedMemberId, members, fetchProfile, fetchTodayMetrics, fetchMedication, fetchLinkStatus, fetchHeroSummary, fetchMedHero, fetchMedSummary]);
 
   // [PRD-469 M5] 修复：从添加用药页返回时，强制刷新用药计划
   useEffect(() => {
@@ -359,6 +405,7 @@ function HealthProfileV2PageInner() {
   );
 
   // ─── 成员条（头像化 + "+" 添加按钮）─────────────────────────────────
+  // [PRD-HEALTH-ARCHIVE-OPTIM-V1 F1 F3] 与标题栏一起整体吸顶 + 头像加「被守护」角标
   const renderMemberBar = () => (
     <div
       data-testid="prd469-member-bar"
@@ -366,7 +413,8 @@ function HealthProfileV2PageInner() {
     >
       {members.map((m) => {
         const active = m.id === selectedMemberId;
-        const hasLink = !!m.member_user_id;
+        const flag = guardedFlags.get(m.id);
+        const guarded = !!flag?.guarded;
         const avatar = m.is_self ? '🙂' : relationEmoji(m.relation_type_name || m.relationship_type || '');
         return (
           <div
@@ -379,6 +427,7 @@ function HealthProfileV2PageInner() {
           >
             <div
               style={{
+                position: 'relative',
                 width: 48, height: 48, borderRadius: '50%',
                 background: active ? T.brand500 : '#fff',
                 color: active ? '#fff' : T.brand700,
@@ -387,15 +436,24 @@ function HealthProfileV2PageInner() {
                 border: active ? `2px solid ${T.brand600}` : `1px solid ${T.brand200}`,
                 boxShadow: active ? '0 4px 12px rgba(34,197,94,0.25)' : 'none',
               }}
-            >{avatar}</div>
-            {hasLink && (
-              <div
-                style={{
-                  width: 10, height: 10, borderRadius: '50%', background: T.brand500,
-                  position: 'absolute', top: 0, right: 6, border: '2px solid #fff',
-                }}
-              />
-            )}
+            >
+              {avatar}
+              {/* [PRD-HEALTH-ARCHIVE-OPTIM-V1 F3] 「被守护」角标 */}
+              {guarded && (
+                <span
+                  data-testid={`bh-guarded-badge-${m.id}`}
+                  style={{
+                    position: 'absolute', top: -6, right: -10,
+                    background: '#0EA5E9', color: '#fff',
+                    fontSize: 10, fontWeight: 600,
+                    padding: '2px 6px', borderRadius: 10,
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+                    border: '1px solid #fff',
+                    whiteSpace: 'nowrap', lineHeight: 1.1,
+                  }}
+                >被守护</span>
+              )}
+            </div>
             <span style={{ fontSize: 13, color: T.brand800, marginTop: 4 }}>
               {m.is_self ? '本人' : (m.relation_type_name || m.nickname)}
             </span>
@@ -423,11 +481,10 @@ function HealthProfileV2PageInner() {
     </div>
   );
 
-  // ─── Hero（v5 设计稿对齐：头像+姓名+四格健康摘要+编辑按钮） ────────────
+  // ─── Hero（[PRD-HEALTH-ARCHIVE-OPTIM-V1 F4] 重构：关系标签放姓名后 + 移除三类病史 + 今日用药主入口） ─
   const renderHero = () => {
     if (!profile) return null;
     const age = profile.birthday ? calcAge(profile.birthday) : null;
-    // 5 行基础信息收纳到副标题，主体改为 4 格健康摘要指标
     const baseLine = [
       profile.gender ? formatGender(profile.gender) : '',
       age != null ? `${age} 岁` : '',
@@ -436,12 +493,9 @@ function HealthProfileV2PageInner() {
       profile.blood_type ? `${profile.blood_type}型` : '',
     ].filter(Boolean).join(' · ') || '未填基础信息';
 
-    const metrics: HeroMetric[] = heroMetrics.length > 0 ? heroMetrics : [
-      { label: '既往病史', count: 0, unit: '项' },
-      { label: '过敏史', count: 0, unit: '项' },
-      { label: '家族遗传', count: 0, unit: '项' },
-      { label: '在用药品', count: 0, unit: '种' },
-    ];
+    const relLabel = selectedMember?.is_self ? '本人' : (selectedMember?.relation_type_name || '家庭成员');
+    const memberGuarded = selectedMember ? !!guardedFlags.get(selectedMember.id)?.guarded : false;
+    const medText = medHero?.display_text || '今日用药 · 0';
 
     return (
       <div style={{ padding: '12px 16px' }}>
@@ -452,7 +506,6 @@ function HealthProfileV2PageInner() {
             boxShadow: T.shadow, position: 'relative',
           }}
         >
-          {/* 编辑基本信息按钮 [PRD-469 v2 P1] */}
           <button
             data-testid="prd469-hero-edit-btn"
             onClick={() => {
@@ -471,6 +524,7 @@ function HealthProfileV2PageInner() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div
               style={{
+                position: 'relative',
                 width: 64, height: 64, borderRadius: '50%',
                 background: 'rgba(255,255,255,0.25)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -478,59 +532,167 @@ function HealthProfileV2PageInner() {
               }}
             >
               {selectedMember?.is_self ? '🙂' : relationEmoji(selectedMember?.relation_type_name || '')}
+              {/* [PRD-HEALTH-ARCHIVE-OPTIM-V1 F3] Hero 大头像也同步显示「被守护」角标 */}
+              {memberGuarded && (
+                <span
+                  data-testid="bh-hero-guarded-badge"
+                  style={{
+                    position: 'absolute', top: -4, right: -16,
+                    background: '#0EA5E9', color: '#fff',
+                    fontSize: 11, fontWeight: 600,
+                    padding: '2px 8px', borderRadius: 10,
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+                    border: '1px solid #fff',
+                  }}
+                >被守护</span>
+              )}
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{profile.name || '未填'}</div>
-              <div style={{ fontSize: 13, opacity: 0.9 }}>
-                {selectedMember?.is_self ? '本人' : (selectedMember?.relation_type_name || '家庭成员')}
-                {isLinked && (
-                  <span
-                    style={{
-                      marginLeft: 8, padding: '2px 8px', borderRadius: 10,
-                      background: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: 600,
-                    }}
-                  >✓ 已关联</span>
-                )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {/* [PRD-HEALTH-ARCHIVE-OPTIM-V1 F4-1] 姓名 + 关系标签同行（关系字号约 65%） */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 22, fontWeight: 700 }}>{profile.name || '未填'}</span>
+                <span
+                  data-testid="bh-hero-relation-label"
+                  style={{
+                    fontSize: 14, fontWeight: 500,
+                    padding: '2px 10px', borderRadius: 10,
+                    background: 'rgba(255,255,255,0.28)',
+                  }}
+                >{relLabel}</span>
               </div>
-              <div style={{ fontSize: 12, opacity: 0.75, marginTop: 4 }}>{baseLine}</div>
+              <div style={{ fontSize: 12, opacity: 0.85 }}>{baseLine}</div>
             </div>
           </div>
 
-          {/* 四格健康摘要指标（设计稿对齐） */}
+          {/* [PRD-HEALTH-ARCHIVE-OPTIM-V1 F4-3] 今日用药入口（替换原四格摘要中的「在用药物」字段，
+              既往病史 / 过敏史 / 家族遗传三项不在 Hero 卡上展示） */}
           <div
-            data-testid="prd469-hero-metrics"
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 16 }}
+            data-testid="bh-hero-today-medication"
+            onClick={() => router.push('/ai-home/medication-reminder')}
+            style={{
+              marginTop: 16,
+              padding: '12px 16px',
+              background: 'rgba(255,255,255,0.18)',
+              borderRadius: 12,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              cursor: 'pointer',
+            }}
           >
-            {metrics.map((m) => {
-              // [PRD-MED-PLAN-ENTRY-V1 2026-05-17] 第 4 格「在用药品」升级为主入口：使用新文案规则 + 跳用药提醒页
-              const isMed = m.label === '在用药品' || m.label === '长期用药';
-              const medText = medHero?.display_text || '今日用药 0';
-              return (
-                <div
-                  key={m.label}
-                  data-testid={`prd469-hero-metric-${m.label}`}
-                  onClick={isMed ? () => router.push('/ai-home/medication-reminder') : undefined}
-                  style={{
-                    textAlign: 'center', padding: '10px 4px',
-                    background: 'rgba(255,255,255,0.18)', borderRadius: 10,
-                    cursor: isMed ? 'pointer' : 'default',
-                  }}
-                >
-                  {isMed ? (
-                    <>
-                      <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2 }}>{medText}</div>
-                      <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>{m.label}</div>
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ fontSize: 20, fontWeight: 700 }}>{m.count}</div>
-                      <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>{m.label}</div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 20 }}>💊</span>
+              <span style={{ fontSize: 16, fontWeight: 700 }}>{medText}</span>
+            </div>
+            <span style={{ fontSize: 22, fontWeight: 400 }}>›</span>
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ─── [PRD-HEALTH-ARCHIVE-OPTIM-V1 F5] 共管区域（Hero 卡正下方，三态切换） ───
+  const renderGuardianSection = () => {
+    if (!selectedMember) return null;
+    const isSelf = !!selectedMember.is_self;
+    const flag = guardedFlags.get(selectedMember.id);
+    const guarded = !!flag?.guarded;
+    const managedUserId = flag?.managed_user_id ?? null;
+
+    // 场景 A：本人 → 已守护 N 人
+    if (isSelf) {
+      const count = guardianSummary.managed_count || 0;
+      return (
+        <div style={{ padding: '0 16px 8px' }}>
+          <div
+            data-testid="bh-guardian-area-self"
+            onClick={() => router.push('/family-guardian-list')}
+            style={{
+              background: '#fff', borderRadius: 12, padding: '14px 16px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.04)', cursor: 'pointer',
+              borderLeft: `3px solid ${T.brand500}`,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 20 }}>👨‍👩‍👧</span>
+              <span style={{ fontSize: 15, fontWeight: 600, color: T.brand800 }}>
+                {count > 0 ? `已守护 ${count} 人` : '暂未守护任何人，去邀请家人'}
+              </span>
+            </div>
+            <span style={{ fontSize: 18, color: '#9ca3af' }}>›</span>
+          </div>
+        </div>
+      );
+    }
+
+    // 场景 B：非本人 + 未守护
+    if (!guarded) {
+      return (
+        <div style={{ padding: '0 16px 8px' }}>
+          <button
+            data-testid="bh-guardian-area-invite"
+            onClick={() => router.push(`/family-invite?member_id=${selectedMember.id}`)}
+            style={{
+              width: '100%', padding: '12px 16px',
+              background: '#0EA5E9', color: '#fff',
+              border: 'none', borderRadius: 12,
+              fontSize: 15, fontWeight: 600, cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(14,165,233,0.25)',
+            }}
+          >+ 邀请共管</button>
+        </div>
+      );
+    }
+
+    // 场景 C：非本人 + 已守护
+    return (
+      <div style={{ padding: '0 16px 8px' }}>
+        <button
+          data-testid="bh-guardian-area-manage"
+          onClick={() => {
+            const url = managedUserId
+              ? `/family-guardian-list/${managedUserId}`
+              : '/family-guardian-list';
+            router.push(url);
+          }}
+          style={{
+            width: '100%', padding: '12px 16px',
+            background: '#fff', color: T.brand700,
+            border: `1px solid ${T.brand400}`, borderRadius: 12,
+            fontSize: 15, fontWeight: 600, cursor: 'pointer',
+          }}
+        >🔧 管理</button>
+      </div>
+    );
+  };
+
+  // ─── [PRD-HEALTH-ARCHIVE-OPTIM-V1 F6] 打卡提醒设置入口（替代原漏打卡区域） ───
+  const renderReminderEntry = () => {
+    if (!selectedMember) return null;
+    const isSelf = !!selectedMember.is_self;
+    const flag = guardedFlags.get(selectedMember.id);
+    const guarded = !!flag?.guarded;
+    const managedUserId = flag?.managed_user_id ?? null;
+
+    // 非本人 + 未守护 → 隐藏入口
+    if (!isSelf && !guarded) return null;
+
+    const href = isSelf
+      ? '/family-guardian-list?reminder=self'
+      : (managedUserId != null ? `/family-guardian-list/${managedUserId}` : '/family-guardian-list');
+
+    return (
+      <div style={{ padding: '0 16px 12px' }}>
+        <div
+          data-testid="bh-reminder-entry"
+          onClick={() => router.push(href)}
+          style={{
+            background: '#fff', borderRadius: 12, padding: '12px 16px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.04)', cursor: 'pointer',
+          }}
+        >
+          <span style={{ fontSize: 14, color: T.brand800 }}>🔔 打卡提醒设置</span>
+          <span style={{ fontSize: 18, color: '#9ca3af' }}>›</span>
         </div>
       </div>
     );
@@ -639,24 +801,8 @@ function HealthProfileV2PageInner() {
     </div>
   );
 
-  // ─── [PRD-HEALTH-OPT-V1 R2] 顶部右上角设备图标入口 ─
-  const renderTopDeviceEntry = () => (
-    <div
-      data-testid="bh-top-device-entry"
-      onClick={() => router.push('/devices')}
-      style={{
-        position: 'absolute', top: 12, right: 16,
-        width: 36, height: 36, borderRadius: 18,
-        background: 'rgba(255,255,255,0.92)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        cursor: 'pointer', zIndex: 5,
-        boxShadow: '0 2px 8px rgba(74, 158, 224, 0.15)',
-      }}
-      title="设备管理"
-    >
-      <span style={{ fontSize: 18 }}>⌚</span>
-    </div>
-  );
+  // [PRD-HEALTH-ARCHIVE-OPTIM-V1 F8] 顶部右上角设备 Logo 已下线，函数保留为 no-op 仅作占位防止外部引用。
+  const renderTopDeviceEntry = () => null;
 
   // ─── Tab 1：今日数据 6 宫格 ─────────────────────────────────────────
   const renderTodayMetrics = () => {
@@ -838,11 +984,22 @@ function HealthProfileV2PageInner() {
 
   return (
     <div style={{ background: BH_TOKENS.bgPage, minHeight: '100vh', paddingBottom: 80, position: 'relative' }}>
-      <GreenNavBar>我的健康档案</GreenNavBar>
-      {renderTopDeviceEntry()}
-      {renderMemberBar()}
+      {/* [PRD-HEALTH-ARCHIVE-OPTIM-V1 F1] 顶部标题栏 + 咨询人切换条整体吸顶 */}
+      <div
+        data-testid="bh-sticky-top"
+        style={{
+          position: 'sticky', top: 0, zIndex: 60,
+          background: T.brand50,
+          boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
+        }}
+      >
+        <GreenNavBar>我的健康档案</GreenNavBar>
+        {renderMemberBar()}
+      </div>
+
       {renderHero()}
-      {/* [PRD-HEALTH-OPT-V1 R2] 中部「我的设备」卡片已移除；改由顶部右上角图标进入设备管理页 */}
+      {renderGuardianSection()}
+
       {renderStickyTabs()}
       {renderTodayMetrics()}
       <HealthInfoBlock profileId={profile?.id} token={T} />
@@ -855,6 +1012,8 @@ function HealthProfileV2PageInner() {
         isSelf={!!selectedMember?.is_self}
       />
       <HealthEventsBlock profileId={profile?.id} token={T} />
+
+      {renderReminderEntry()}
 
       {showAddMember && (
         <NewFamilyMemberModal

@@ -1,8 +1,119 @@
 /**
  * [PRD-健康档案路径统一 2026-05-16] 小程序端 v2 对齐版样式
+ * [PRD-HEALTH-ARCHIVE-OPTIM-V1 2026-05-18] 健康档案页面优化：被守护角标 + 关系标签 + 今日用药 + 共管区
  * 主色蓝白渐变（对齐 H5 v2 BH_TOKENS），圆角 12/16rpx*2，病历卡左侧 3px 竖线
  * 原文件备份为 index.wxss.bak-2026-05-16
  */
+
+/* [PRD-HEALTH-ARCHIVE-OPTIM-V1] 被守护角标（成员条头像右上角） */
+.guarded-badge {
+  position: absolute;
+  top: -10rpx;
+  right: -16rpx;
+  background: #0EA5E9;
+  color: #fff;
+  font-size: 18rpx;
+  font-weight: 600;
+  padding: 2rpx 10rpx;
+  border-radius: 16rpx;
+  border: 2rpx solid #fff;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+/* [PRD-HEALTH-ARCHIVE-OPTIM-V1] Hero 大头像「被守护」角标 */
+.hero-guarded-badge {
+  position: absolute;
+  top: -6rpx;
+  right: -30rpx;
+  background: #0EA5E9;
+  color: #fff;
+  font-size: 20rpx;
+  font-weight: 600;
+  padding: 4rpx 12rpx;
+  border-radius: 16rpx;
+  border: 2rpx solid #fff;
+  white-space: nowrap;
+}
+
+/* [PRD-HEALTH-ARCHIVE-OPTIM-V1] Hero 姓名+关系标签同行 */
+.hero-name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+  flex-wrap: wrap;
+  margin-bottom: 8rpx;
+}
+.hero-rel-label {
+  font-size: 22rpx;
+  font-weight: 500;
+  padding: 2rpx 14rpx;
+  border-radius: 14rpx;
+  background: rgba(255, 255, 255, 0.28);
+  color: #fff;
+}
+
+/* [PRD-HEALTH-ARCHIVE-OPTIM-V1] Hero 今日用药入口 */
+.hero-today-medication {
+  margin-top: 24rpx;
+  padding: 20rpx 24rpx;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.hero-today-medication-text {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #fff;
+}
+.hero-today-medication-arrow {
+  font-size: 32rpx;
+  color: #fff;
+}
+
+/* [PRD-HEALTH-ARCHIVE-OPTIM-V1] 共管区域 */
+.guardian-area {
+  padding: 0 24rpx 16rpx;
+}
+.guardian-row {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-left: 6rpx solid #0EA5E9;
+}
+.guardian-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1f2937;
+}
+.guardian-arrow {
+  font-size: 32rpx;
+  color: #9ca3af;
+}
+.guardian-invite-btn {
+  background: #0EA5E9;
+  color: #fff;
+  text-align: center;
+  padding: 24rpx;
+  border-radius: 16rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+.guardian-manage-btn {
+  background: #fff;
+  color: #0284C7;
+  border: 2rpx solid #BAE6FD;
+  text-align: center;
+  padding: 24rpx;
+  border-radius: 16rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+}
 
 page {
   background: #F0F7FF;

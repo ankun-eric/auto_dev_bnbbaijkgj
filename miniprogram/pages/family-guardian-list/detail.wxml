@@ -1,0 +1,62 @@
+<view class="page">
+  <block wx:if="{{setting}}">
+    <view class="card">
+      <view class="card-title">📞 AI 外呼提醒（{{setting.target_nickname || ('用户#' + setting.target_user_id)}}）</view>
+
+      <view class="row row-line">
+        <text class="row-label">AI 外呼总开关</text>
+        <switch checked="{{setting.enabled}}" bindchange="onToggleEnabled" color="#0EA5E9"/>
+      </view>
+
+      <view class="row-block">
+        <text class="row-label">免打扰时段</text>
+        <view class="time-row">
+          <picker mode="time" value="{{setting.dnd_start}}" bindchange="onChangeDndStart">
+            <view class="time-box">{{setting.dnd_start}}</view>
+          </picker>
+          <text class="time-sep">~</text>
+          <picker mode="time" value="{{setting.dnd_end}}" bindchange="onChangeDndEnd">
+            <view class="time-box">{{setting.dnd_end}}</view>
+          </picker>
+        </view>
+        <view class="hint">该时段内不外呼（跨天有效，默认 22:00-07:00）</view>
+      </view>
+
+      <view class="row-block">
+        <text class="row-label">外呼对象</text>
+        <view class="seg-row">
+          <view
+            class="seg {{setting.call_target === 'self' ? 'seg-active' : ''}}"
+            bindtap="onChangeCallTarget" data-value="self"
+          >被守护人本人</view>
+          <view
+            class="seg {{setting.call_target === 'guardian' ? 'seg-active' : ''}}"
+            bindtap="onChangeCallTarget" data-value="guardian"
+          >守护者</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="card" wx:if="{{!isSelf}}">
+      <view class="card-title">📱 TA 的设备</view>
+      <view wx:if="{{deviceLoading}}" class="hint">加载中…</view>
+      <view wx:elif="{{devices.length === 0}}">
+        <view class="hint">TA 暂未绑定设备</view>
+        <button class="btn-primary" bindtap="onRemindBind">提醒 TA 绑定设备 ›</button>
+      </view>
+      <view wx:else>
+        <view wx:for="{{devices}}" wx:key="id" class="device-row">
+          <view>
+            <view class="device-name">{{item.device_name || item.device_type}}</view>
+            <view class="hint">{{item.last_sync_at ? ('最后同步：' + item.last_sync_at) : '尚未同步'}}</view>
+          </view>
+          <text class="readonly-tag">只读</text>
+        </view>
+      </view>
+    </view>
+
+    <button wx:if="{{!isSelf}}" class="btn-danger" bindtap="onCancelManagement">解除守护</button>
+  </block>
+
+  <view wx:else class="loading">加载中…</view>
+</view>

@@ -13,7 +13,7 @@
     <text class="managed-notice-arrow">查看 ›</text>
   </view>
 
-  <!-- 1. 家庭成员条 -->
+  <!-- 1. 家庭成员条 [PRD-HEALTH-ARCHIVE-OPTIM-V1 F1 F3] -->
   <view class="member-bar-wrap">
     <scroll-view class="member-bar" scroll-x>
       <view
@@ -23,7 +23,8 @@
       >
         <view class="avatar {{selectedMemberId === item.id ? 'avatar-active' : ''}}">
           <text class="avatar-emoji">{{h.relationEmoji(item)}}</text>
-          <view class="link-dot" wx:if="{{item.member_user_id}}"></view>
+          <!-- [PRD-HEALTH-ARCHIVE-OPTIM-V1 F3] 被守护角标 -->
+          <view class="guarded-badge" wx:if="{{guardedFlags[item.id]}}">被守护</view>
         </view>
         <text class="member-label">{{item.is_self ? '本人' : (item.relation_type_name || item.nickname)}}</text>
       </view>
@@ -36,30 +37,53 @@
     </scroll-view>
   </view>
 
-  <!-- 2. Hero 卡 -->
+  <!-- 2. Hero 卡 [PRD-HEALTH-ARCHIVE-OPTIM-V1 F4] -->
   <view class="hero-card-wrap" wx:if="{{profile}}">
     <view class="hero-card">
       <view class="hero-edit-btn" bindtap="onEditHero">✏️ 编辑</view>
       <view class="hero-top">
         <view class="hero-avatar">
           <text class="hero-avatar-emoji">{{h.relationEmoji(selectedMember)}}</text>
+          <view class="hero-guarded-badge" wx:if="{{!selectedMember.is_self && guardedFlags[selectedMember.id]}}">被守护</view>
         </view>
         <view class="hero-info">
-          <view class="hero-name">{{profile.name || '未填'}}</view>
-          <view class="hero-sub">
-            <text>{{selectedMember.is_self ? '本人' : (selectedMember.relation_type_name || '家庭成员')}}</text>
-            <text class="link-badge" wx:if="{{isLinked}}">✓ 已关联</text>
+          <!-- [PRD-HEALTH-ARCHIVE-OPTIM-V1 F4-1] 姓名 + 关系标签同行 -->
+          <view class="hero-name-row">
+            <text class="hero-name">{{profile.name || '未填'}}</text>
+            <text class="hero-rel-label">{{selectedMember.is_self ? '本人' : (selectedMember.relation_type_name || '家庭成员')}}</text>
           </view>
           <view class="hero-baseline">{{baseLine || '未填基础信息'}}</view>
         </view>
       </view>
-      <view class="hero-metrics">
-        <view class="hero-metric" wx:for="{{heroMetrics}}" wx:key="label">
-          <view class="hero-metric-count">{{item.count}}</view>
-          <view class="hero-metric-label">{{item.label}}</view>
-        </view>
+
+      <!-- [PRD-HEALTH-ARCHIVE-OPTIM-V1 F4-3] 今日用药入口 -->
+      <view class="hero-today-medication" bindtap="onTapTodayMedication">
+        <text class="hero-today-medication-text">💊 {{medHeroText || '今日用药 · 0'}}</text>
+        <text class="hero-today-medication-arrow">›</text>
       </view>
     </view>
+  </view>
+
+  <!-- [PRD-HEALTH-ARCHIVE-OPTIM-V1 F5] 共管区域 -->
+  <view class="guardian-area" wx:if="{{profile}}">
+    <view
+      wx:if="{{selectedMember.is_self}}"
+      class="guardian-row"
+      bindtap="onTapGuardianList"
+    >
+      <text class="guardian-text">👨‍👩‍👧 {{managedCount > 0 ? ('已守护 ' + managedCount + ' 人') : '暂未守护任何人，去邀请家人'}}</text>
+      <text class="guardian-arrow">›</text>
+    </view>
+    <view
+      wx:elif="{{!guardedFlags[selectedMember.id]}}"
+      class="guardian-invite-btn"
+      bindtap="onTapInviteCoManage"
+    >+ 邀请共管</view>
+    <view
+      wx:else
+      class="guardian-manage-btn"
+      bindtap="onTapManageGuardian"
+    >🔧 管理</view>
   </view>
 
   <!-- 3. 粘性 5 Tab -->

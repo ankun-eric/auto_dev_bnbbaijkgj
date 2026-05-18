@@ -87,6 +87,12 @@ Page({
     ],
     baseLine: '',
 
+    // [PRD-HEALTH-ARCHIVE-OPTIM-V1 2026-05-18] 新增字段
+    guardedFlags: {}, // { [member_id]: true } 当前主账号已守护的成员
+    managedUserIdMap: {}, // { [member_id]: managed_user_id }
+    managedCount: 0,
+    medHeroText: '今日用药 · 0',
+
     chronicPresets: [],
     allergyPresets: [],
     geneticPresets: [],
@@ -119,11 +125,76 @@ Page({
     this.loadPresets();
     this.loadMembers();
     this.loadManagedByInfo();
+    this.loadGuardedFlags();
+    this.loadGuardianSummary();
   },
 
   onShow() {
     if (this.data.selectedMemberId && this.data.profile && this.data.profile.id) {
       this.loadMedicationPlan(this.data.profile.id);
+    }
+    // [PRD-HEALTH-ARCHIVE-OPTIM-V1] 每次回到页面刷新守护状态
+    this.loadGuardedFlags();
+    this.loadGuardianSummary();
+  },
+
+  // [PRD-HEALTH-ARCHIVE-OPTIM-V1 F3] 加载被守护标记
+  async loadGuardedFlags() {
+    try {
+      const res = await get('/api/health-archive/family-members/guarded-flags', {}, { showLoading: false, suppressErrorToast: true });
+      const items = (res && (res.items || (res.data && res.data.items))) || [];
+      const flags = {};
+      const userIdMap = {};
+      items.forEach((it) => {
+        if (it.guarded) flags[it.member_id] = true;
+        if (it.managed_user_id) userIdMap[it.member_id] = it.managed_user_id;
+      });
+      this.setData({ guardedFlags: flags, managedUserIdMap: userIdMap });
+    } catch (_) {}
+  },
+
+  // [PRD-HEALTH-ARCHIVE-OPTIM-V1 F5] 已守护 N 人摘要
+  async loadGuardianSummary() {
+    try {
+      const res = await get('/api/health-archive/guardian/summary', {}, { showLoading: false, suppressErrorToast: true });
+      const data = (res && (res.data || res)) || {};
+      this.setData({ managedCount: data.managed_count || 0 });
+    } catch (_) {}
+  },
+
+  // [PRD-HEALTH-ARCHIVE-OPTIM-V1 F4-3] 今日用药文案
+  async loadMedHero(consultantId) {
+    try {
+      const url = `/api/medication-plans/hero-count?consultant_id=${consultantId}`;
+      const res = await get(url, {}, { showLoading: false, suppressErrorToast: true });
+      const data = (res && (res.data || res)) || {};
+      this.setData({ medHeroText: data.display_text || '今日用药 · 0' });
+    } catch (_) {
+      this.setData({ medHeroText: '今日用药 · 0' });
+    }
+  },
+
+  onTapTodayMedication() {
+    wx.navigateTo({ url: '/pages/health-plan/medication-reminder/index' });
+  },
+
+  onTapGuardianList() {
+    wx.navigateTo({ url: '/pages/family-guardian-list/index' });
+  },
+
+  onTapInviteCoManage() {
+    const id = this.data.selectedMemberId;
+    if (!id) return;
+    wx.navigateTo({ url: `/pages/family-invite/index?member_id=${id}` });
+  },
+
+  onTapManageGuardian() {
+    const memberId = this.data.selectedMemberId;
+    const targetUserId = this.data.managedUserIdMap[memberId];
+    if (targetUserId) {
+      wx.navigateTo({ url: `/pages/family-guardian-list/index?target=${targetUserId}` });
+    } else {
+      wx.navigateTo({ url: '/pages/family-guardian-list/index' });
     }
   },
 
@@ -182,6 +253,9 @@ Page({
     this.setData({ selectedMemberId: id, selectedMember: m || null });
     this.loadProfile(id);
     this.loadLinkStatus(id);
+    // [PRD-HEALTH-ARCHIVE-OPTIM-V1 F2] 按选中咨询人加载今日用药数
+    const cid = m ? (m.is_self ? 0 : m.id) : -1;
+    this.loadMedHero(cid);
   },
 
   async loadProfile(memberId) {

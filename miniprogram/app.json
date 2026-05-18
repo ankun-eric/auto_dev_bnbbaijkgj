@@ -57,6 +57,8 @@
     "pages/family-auth/index",
     "pages/family-bindlist/index",
     "pages/family-migration/index",
+    "pages/family-guardian-list/index",
+    "pages/family-guardian-list/detail",
     "pages/messages/index",
     "pages/invite/index",
     "pages/products/index",

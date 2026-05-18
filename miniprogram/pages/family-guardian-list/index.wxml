@@ -1,0 +1,31 @@
+<!--
+[PRD-HEALTH-ARCHIVE-OPTIM-V1 2026-05-18] 小程序：家庭守护列表（主账号视角）
+列出本人 + 已守护家人的 AI 外呼提醒配置入口。
+-->
+<view class="page">
+  <view class="header">
+    <text class="header-text">{{loading ? '加载中…' : ('已守护 ' + (totalCount - 1) + ' 人 + 本人对自己')}}</text>
+  </view>
+
+  <view
+    wx:for="{{items}}" wx:key="target_user_id"
+    class="item"
+    bindtap="onItemTap" data-target="{{item.target_user_id}}" data-is-self="{{item.is_self}}"
+  >
+    <view class="avatar {{item.is_self ? 'avatar-self' : 'avatar-other'}}">
+      <text>{{item.is_self ? '🙂' : '👤'}}</text>
+    </view>
+    <view class="info">
+      <view class="name">
+        {{item.target_nickname || ('用户#' + item.target_user_id)}}
+        <text wx:if="{{item.is_self}}" class="self-tag">（本人）</text>
+      </view>
+      <view class="sub">AI 外呼：{{item.enabled ? ('开 · 免打扰 ' + item.dnd_start + '-' + item.dnd_end) : '关'}}</view>
+    </view>
+    <text class="arrow">›</text>
+  </view>
+
+  <view wx:if="{{!loading && items.length === 0}}" class="empty">
+    <text>暂无守护关系，请在「健康档案」中选中家人发起邀请共管。</text>
+  </view>
+</view>

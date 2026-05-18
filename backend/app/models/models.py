@@ -4000,6 +4000,38 @@ class ReminderSetting(Base):
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class GuardianAiCallSetting(Base):
+    """[PRD-HEALTH-ARCHIVE-OPTIM-V1 2026-05-18] 被守护人维度的 AI 外呼提醒配置（单层结构）。
+
+    每个被守护人（含本人对自己）只有一份 AI 外呼配置，
+    该被守护人名下的所有用药计划共用同一份设置（不再支持单计划差异化）。
+
+    target_user_id：
+      - 当配置 owner (= owner_user_id) 是自己时，target_user_id = owner_user_id（本人对自己）
+      - 当 owner 是守护者时，target_user_id = 被守护人的 user_id
+
+    call_target：
+      - "self"：拨给被守护人本人
+      - "guardian"：拨给守护者（若不存在守护关系则回退为 "self"）
+    """
+
+    __tablename__ = "guardian_ai_call_settings"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    owner_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    target_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    enabled = mapped_column(Boolean, default=False, nullable=False)
+    dnd_start = mapped_column(String(8), nullable=True, default="22:00")
+    dnd_end = mapped_column(String(8), nullable=True, default="07:00")
+    call_target = mapped_column(String(16), default="self", nullable=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("owner_user_id", "target_user_id", name="uk_guardian_aicall_owner_target"),
+    )
+
+
 class MedicalRecordCard(Base):
     """[PRD-469 v2 P0 M8] 病历卡（健康事件 Tab 下的病历卡列表 + OCR 解析）。
 

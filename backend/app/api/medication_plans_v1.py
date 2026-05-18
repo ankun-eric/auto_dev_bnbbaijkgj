@@ -25,17 +25,27 @@ from __future__ import annotations
 from datetime import date, datetime, time, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.models import MedicationCheckIn, MedicationReminder, User
+from app.models.models import FamilyMember, MedicationCheckIn, MedicationReminder, User
 from app.services.medication_status_scheduler import auto_flow_medication_status
 
 router = APIRouter(prefix="/api", tags=["用药计划入口 V1"])
+
+
+# [PRD-HEALTH-ARCHIVE-OPTIM-V1 2026-05-18] 咨询人维度过滤：按 family_member_id 过滤当前用户的提醒。
+#   consultant_id 语义：None / -1 = 不过滤（兼容旧客户端，相当于本人）；0 = 本人（family_member_id IS NULL）；>0 = 指定家庭成员
+def _apply_consultant_filter(stmt, consultant_id: Optional[int]):
+    if consultant_id is None or consultant_id == -1:
+        return stmt
+    if consultant_id == 0:
+        return stmt.where(MedicationReminder.family_member_id.is_(None))
+    return stmt.where(MedicationReminder.family_member_id == consultant_id)
 
 # ──────────────── 工具函数 ────────────────
 
@@ -80,7 +90,8 @@ def _has_started(r: MedicationReminder, today: date) -> bool:
 
 
 async def _list_today_active_reminders(
-    db: AsyncSession, user_id: int, today: date
+    db: AsyncSession, user_id: int, today: date,
+    consultant_id: Optional[int] = None,
 ) -> list[MedicationReminder]:
     stmt = select(MedicationReminder).where(
         MedicationReminder.user_id == user_id,
@@ -91,6 +102,7 @@ async def _list_today_active_reminders(
             MedicationReminder.end_date >= today,
         ),
     )
+    stmt = _apply_consultant_filter(stmt, consultant_id)
     reminders = (await db.execute(stmt)).scalars().all()
     # start_date 校验：未开始的剔除
     return [r for r in reminders if _has_started(r, today)]
@@ -117,10 +129,11 @@ def _format_date_str(d: date) -> str:
 
 @router.get("/medication-plans/hero-count")
 async def hero_count(
+    consultant_id: Optional[int] = Query(None, description="[PRD-HEALTH-ARCHIVE-OPTIM-V1] 咨询人 family_member id；None/-1=不过滤(本人兼容)；0=本人；>0=家庭成员"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Hero「在用药品」格子直接渲染数据。
+    """Hero「今日用药」格子直接渲染数据。
 
     Returns:
         {
@@ -135,21 +148,28 @@ async def hero_count(
     # 懒触发状态流转，避免完全依赖定时任务
     await auto_flow_medication_status(db, user_id=current_user.id)
 
-    reminders = await _list_today_active_reminders(db, current_user.id, today)
+    reminders = await _list_today_active_reminders(db, current_user.id, today, consultant_id=consultant_id)
     total_today = sum(len(_schedule_of(r)) for r in reminders)
-    checkins = await _today_checkins(db, current_user.id, today)
+    # 已打卡：在按 consultant 过滤后的 reminder 集合内统计
+    reminder_ids = {r.id for r in reminders}
+    if consultant_id is None or consultant_id == -1:
+        checkins = await _today_checkins(db, current_user.id, today)
+    else:
+        all_today_checkins = await _today_checkins(db, current_user.id, today)
+        checkins = [c for c in all_today_checkins if c.reminder_id in reminder_ids]
     done_today = len(checkins)
     remaining = max(total_today - done_today, 0)
 
+    # [PRD-HEALTH-ARCHIVE-OPTIM-V1 2026-05-18 F4-3] 文案统一为「今日用药 · N」
     if total_today == 0:
         status = "none"
-        text = "今日用药 0"
+        text = "今日用药 · 0"
     elif remaining == 0:
         status = "all_done"
-        text = "今日用药已完成"
+        text = f"今日用药 · {total_today} ✓"
     else:
         status = "has_remaining"
-        text = f"还有 {remaining} 次用药"
+        text = f"今日用药 · {total_today}"
 
     return {
         "total_today": total_today,
@@ -363,6 +383,7 @@ def _timing_text(r: MedicationReminder) -> str:
 
 @router.get("/medication-plans/summary")
 async def medication_plans_summary(
+    consultant_id: Optional[int] = Query(None, description="[PRD-HEALTH-ARCHIVE-OPTIM-V1] 咨询人 family_member id；None/-1=不过滤(本人兼容)；0=本人；>0=家庭成员"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -382,6 +403,7 @@ async def medication_plans_summary(
             MedicationReminder.end_date >= today,
         ),
     )
+    stmt = _apply_consultant_filter(stmt, consultant_id)
     rows = (await db.execute(stmt)).scalars().all()
     # 仅保留已开始的
     rows = [r for r in rows if _has_started(r, today)]

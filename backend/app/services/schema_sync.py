@@ -2555,6 +2555,38 @@ async def _sync_family_guardian_v1(conn: AsyncConnection) -> None:
         ))
 
 
+async def _sync_guardian_ai_call_settings_v1(conn: AsyncConnection) -> None:
+    """[PRD-HEALTH-ARCHIVE-OPTIM-V1 2026-05-18] 创建 guardian_ai_call_settings 表。
+
+    每个 (owner_user_id, target_user_id) 唯一一份配置，被守护人名下所有用药计划共用。
+    """
+    def _has_table(sync_conn) -> bool:
+        return "guardian_ai_call_settings" in set(inspect(sync_conn).get_table_names())
+
+    exists = await conn.run_sync(_has_table)
+    if exists:
+        return
+    await conn.execute(text(
+        """
+        CREATE TABLE guardian_ai_call_settings (
+            id INT NOT NULL AUTO_INCREMENT,
+            owner_user_id INT NOT NULL,
+            target_user_id INT NOT NULL,
+            enabled TINYINT(1) NOT NULL DEFAULT 0,
+            dnd_start VARCHAR(8) NULL DEFAULT '22:00',
+            dnd_end VARCHAR(8) NULL DEFAULT '07:00',
+            call_target VARCHAR(16) NOT NULL DEFAULT 'self',
+            created_at DATETIME NULL,
+            updated_at DATETIME NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY uk_guardian_aicall_owner_target (owner_user_id, target_user_id),
+            INDEX ix_gacs_owner (owner_user_id),
+            INDEX ix_gacs_target (target_user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """
+    ))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -2617,6 +2649,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_reminder_settings_med_v1(conn)
     # [PRD-FAMILY-GUARDIAN-V1 2026-05-18] 家庭体检异常守护推送：表与字段
     await _sync_family_guardian_v1(conn)
+    # [PRD-HEALTH-ARCHIVE-OPTIM-V1 2026-05-18] guardian_ai_call_settings 表创建（按 owner+target 唯一）
+    await _sync_guardian_ai_call_settings_v1(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

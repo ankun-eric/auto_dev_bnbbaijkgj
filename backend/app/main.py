@@ -105,6 +105,7 @@ from app.api import (
     medication_library_v3,
     medication_plans_v1,
     medication_add_optim_v1,
+    health_archive_optim_v1,
 )
 from app.core.database import Base, engine
 from app.core.price_formatter import PriceFormattedJSONResponse
@@ -1779,6 +1780,17 @@ async def lifespan(app: FastAPI):
         import traceback as _tb
         _tb.print_exc()
         print(f"[migrate] prd_med_plan_interact_optim_v1: 迁移失败 err={_e}", flush=True)
+    # [PRD-HEALTH-ARCHIVE-OPTIM-V1 2026-05-18] AI 外呼配置迁移：用药计划层 + 人维度总开关 → 单层被守护人维度
+    try:
+        print("[migrate] prd_health_archive_optim_v1: 启动迁移...", flush=True)
+        from app.core.database import async_session as _async_session5
+        from app.services.prd_health_archive_optim_v1_migration import run_migration_with_session as _run_health_archive_optim
+        _stats5 = await _run_health_archive_optim(_async_session5)
+        print(f"[migrate] prd_health_archive_optim_v1: 迁移完成 stats={_stats5}", flush=True)
+    except Exception as _e:
+        import traceback as _tb
+        _tb.print_exc()
+        print(f"[migrate] prd_health_archive_optim_v1: 迁移失败 err={_e}", flush=True)
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities
@@ -1982,6 +1994,7 @@ app.include_router(medication_plans_v1.router)
 app.include_router(medication_add_optim_v1.router)
 # [PRD-468 2026-05-12] 健康档案改版 v3
 app.include_router(health_profile_v3.router)
+app.include_router(health_archive_optim_v1.router)  # [PRD-HEALTH-ARCHIVE-OPTIM-V1] 健康档案页面优化 V1
 
 
 # [2026-05-05 SDK 健康看板] 启动期 SDK 分级自检：核心缺失 → 容器退出；可选缺失 → CRITICAL 告警
