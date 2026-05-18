@@ -2416,6 +2416,131 @@ async def _sync_reminder_settings_med_v1(conn: AsyncConnection) -> None:
             print(f"[schema_sync] reminder_settings.medication_ai_call_enabled add warn: {e}")
 
 
+async def _sync_family_guardian_v1(conn: AsyncConnection) -> None:
+    """[PRD-FAMILY-GUARDIAN-V1] 家庭体检异常守护推送：
+    - family_members 新增 virtual_phone
+    - 新建 abnormal_thresholds / alert_message_templates / family_alert_logs / virtual_member_migrations
+    """
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        fm_cols = set()
+        if "family_members" in tables:
+            fm_cols = {col["name"] for col in inspector.get_columns("family_members")}
+        return tables, fm_cols
+
+    tables, fm_cols = await conn.run_sync(_load)
+
+    if "family_members" in tables and "virtual_phone" not in fm_cols:
+        try:
+            await conn.execute(text(
+                "ALTER TABLE family_members ADD COLUMN virtual_phone VARCHAR(20) NULL"
+            ))
+            await conn.execute(text(
+                "CREATE INDEX idx_fm_virtual_phone ON family_members (virtual_phone)"
+            ))
+        except Exception as e:
+            print(f"[schema_sync] family_members.virtual_phone add warn: {e}")
+
+    if "abnormal_thresholds" not in tables:
+        await conn.execute(text(
+            """
+            CREATE TABLE abnormal_thresholds (
+                id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                metric_code VARCHAR(64) NOT NULL,
+                metric_name VARCHAR(128) NOT NULL,
+                severity VARCHAR(16) NOT NULL DEFAULT 'warning',
+                lower_bound DECIMAL(12,4) NULL,
+                upper_bound DECIMAL(12,4) NULL,
+                unit VARCHAR(32) NULL,
+                gender VARCHAR(8) NULL,
+                age_min INT NULL,
+                age_max INT NULL,
+                is_active TINYINT(1) NOT NULL DEFAULT 1,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                INDEX idx_metric_code (metric_code)
+            )
+            """
+        ))
+
+    if "alert_message_templates" not in tables:
+        await conn.execute(text(
+            """
+            CREATE TABLE alert_message_templates (
+                id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                code VARCHAR(64) NOT NULL UNIQUE,
+                channel VARCHAR(16) NOT NULL,
+                scene VARCHAR(32) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                content TEXT NOT NULL,
+                is_active TINYINT(1) NOT NULL DEFAULT 1,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL
+            )
+            """
+        ))
+        # 种子数据：极简三占位文案
+        now = "NOW()"
+        await conn.execute(text(
+            f"""
+            INSERT INTO alert_message_templates (code, channel, scene, title, content, is_active, created_at, updated_at) VALUES
+            ('checkup_abnormal_mini', 'mini_subscribe', 'checkup_abnormal', '体检异常提醒',
+             '您的{{relationship}}{{nickname}}的体检报告有 {{count}} 项异常，请及时关注', 1, {now}, {now}),
+            ('checkup_abnormal_wechat', 'wechat_mp', 'checkup_abnormal', '体检异常提醒',
+             '您的{{relationship}}{{nickname}}的体检报告有 {{count}} 项异常，点击查看详情', 1, {now}, {now}),
+            ('checkup_abnormal_app', 'app_push', 'checkup_abnormal', '体检异常提醒',
+             '您的{{relationship}}{{nickname}}的体检报告有 {{count}} 项异常，请及时关注', 1, {now}, {now}),
+            ('family_bind_success', 'mini_subscribe', 'family_bind', '守护关系建立成功',
+             '{{nickname}} 已成为您的守护者，可在第一时间收到您的健康提醒', 1, {now}, {now}),
+            ('family_unbind_notify', 'mini_subscribe', 'family_unbind', '守护关系解除提醒',
+             '{{nickname}} 已解除与您的守护关系', 1, {now}, {now})
+            """
+        ))
+
+    if "family_alert_logs" not in tables:
+        await conn.execute(text(
+            """
+            CREATE TABLE family_alert_logs (
+                id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                member_id INT NOT NULL,
+                guardian_user_id INT NOT NULL,
+                report_id INT NULL,
+                severity VARCHAR(16) NOT NULL DEFAULT 'warning',
+                abnormal_count INT NOT NULL DEFAULT 0,
+                template_code VARCHAR(64) NOT NULL DEFAULT 'checkup_abnormal',
+                channel VARCHAR(16) NOT NULL DEFAULT 'mini_subscribe',
+                delivery_status VARCHAR(16) NOT NULL DEFAULT 'sent',
+                error_msg VARCHAR(255) NULL,
+                pushed_at DATETIME NOT NULL,
+                clicked_at DATETIME NULL,
+                is_archived TINYINT(1) NOT NULL DEFAULT 0,
+                INDEX idx_member_pushed (member_id, pushed_at),
+                INDEX idx_guardian_pushed (guardian_user_id, pushed_at),
+                INDEX idx_status (delivery_status)
+            )
+            """
+        ))
+
+    if "virtual_member_migrations" not in tables:
+        await conn.execute(text(
+            """
+            CREATE TABLE virtual_member_migrations (
+                id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                member_id INT NOT NULL,
+                target_user_id INT NOT NULL,
+                creator_user_id INT NOT NULL,
+                virtual_phone VARCHAR(20) NOT NULL,
+                status VARCHAR(16) NOT NULL DEFAULT 'pending',
+                created_at DATETIME NOT NULL,
+                confirmed_at DATETIME NULL,
+                INDEX idx_target (target_user_id, status),
+                INDEX idx_member (member_id)
+            )
+            """
+        ))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -2476,6 +2601,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_medication_reminders_prd469_v2(conn)
     # [PRD-MED-PLAN-V1 2026-05-16] reminder_settings 增加 medication_ai_call_enabled
     await _sync_reminder_settings_med_v1(conn)
+    # [PRD-FAMILY-GUARDIAN-V1 2026-05-18] 家庭体检异常守护推送：表与字段
+    await _sync_family_guardian_v1(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

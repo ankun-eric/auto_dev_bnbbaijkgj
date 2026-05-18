@@ -16,7 +16,7 @@
   <view class="invite-content" wx:elif="{{invitation}}">
     <view class="invite-card">
       <view class="invite-header">
-        <text class="invite-title">家庭健康档案共管邀请</text>
+        <text class="invite-title">家庭健康档案守护邀请</text>
         <text class="invite-subtitle">扫码或点击链接接受邀请</text>
       </view>
 

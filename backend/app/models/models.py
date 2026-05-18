@@ -381,6 +381,8 @@ class FamilyMember(Base):
     status = mapped_column(String(20), default="active")
     is_self = mapped_column(Boolean, default=False, nullable=False)
     relation_type_id = mapped_column(Integer, ForeignKey("relation_types.id"), nullable=True)
+    # [PRD-FAMILY-GUARDIAN-V1] 虚拟老人档案手机号：用于注册时按手机号匹配迁移
+    virtual_phone = mapped_column(String(20), nullable=True, index=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="family_members", foreign_keys=[user_id])
@@ -4097,3 +4099,73 @@ class AiCallLog(Base):
     duration = mapped_column(Integer, default=0)
     quota_consumed = mapped_column(Boolean, default=False)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+
+# ──────────────── [PRD-FAMILY-GUARDIAN-V1] 家庭体检异常·守护推送 ────────────────
+
+
+class AbnormalThreshold(Base):
+    """异常阈值配置 - 全局生效，预留 gender/age 供二期人群分级"""
+    __tablename__ = "abnormal_thresholds"
+
+    id = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    metric_code = mapped_column(String(64), nullable=False)
+    metric_name = mapped_column(String(128), nullable=False)
+    severity = mapped_column(String(16), nullable=False, default="warning")
+    lower_bound = mapped_column(DECIMAL(12, 4), nullable=True)
+    upper_bound = mapped_column(DECIMAL(12, 4), nullable=True)
+    unit = mapped_column(String(32), nullable=True)
+    gender = mapped_column(String(8), nullable=True)
+    age_min = mapped_column(Integer, nullable=True)
+    age_max = mapped_column(Integer, nullable=True)
+    is_active = mapped_column(Boolean, nullable=False, default=True)
+    created_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AlertMessageTemplate(Base):
+    """异常推送文案模板 - 支持 {relationship} {nickname} {count} 三占位"""
+    __tablename__ = "alert_message_templates"
+
+    id = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    code = mapped_column(String(64), nullable=False, unique=True)
+    channel = mapped_column(String(16), nullable=False)
+    scene = mapped_column(String(32), nullable=False)
+    title = mapped_column(String(255), nullable=False)
+    content = mapped_column(Text, nullable=False)
+    is_active = mapped_column(Boolean, nullable=False, default=True)
+    created_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class FamilyAlertLog(Base):
+    """守护者异常推送日志 - 含通道/状态/点击/严重程度，供管理后台查询与导出"""
+    __tablename__ = "family_alert_logs"
+
+    id = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    member_id = mapped_column(Integer, nullable=False, index=True)
+    guardian_user_id = mapped_column(Integer, nullable=False, index=True)
+    report_id = mapped_column(Integer, nullable=True)
+    severity = mapped_column(String(16), nullable=False, default="warning")
+    abnormal_count = mapped_column(Integer, nullable=False, default=0)
+    template_code = mapped_column(String(64), nullable=False, default="checkup_abnormal")
+    channel = mapped_column(String(16), nullable=False, default="mini_subscribe")
+    delivery_status = mapped_column(String(16), nullable=False, default="sent")
+    error_msg = mapped_column(String(255), nullable=True)
+    pushed_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    clicked_at = mapped_column(DateTime, nullable=True)
+    is_archived = mapped_column(Boolean, nullable=False, default=False)
+
+
+class VirtualMemberMigration(Base):
+    """虚拟老人档案迁移待确认记录 - 注册成功后弹窗确认"""
+    __tablename__ = "virtual_member_migrations"
+
+    id = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    member_id = mapped_column(Integer, nullable=False, index=True)
+    target_user_id = mapped_column(Integer, nullable=False, index=True)
+    creator_user_id = mapped_column(Integer, nullable=False)
+    virtual_phone = mapped_column(String(20), nullable=False)
+    status = mapped_column(String(16), nullable=False, default="pending")
+    created_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    confirmed_at = mapped_column(DateTime, nullable=True)

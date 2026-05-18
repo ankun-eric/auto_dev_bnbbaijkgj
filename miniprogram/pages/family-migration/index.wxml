@@ -1,0 +1,36 @@
+<view class="mig-page">
+  <view wx:if="{{loading}}" class="loading">加载中…</view>
+
+  <view wx:elif="{{items.length === 0}}" class="empty">
+    <text class="empty-icon">✅</text>
+    <text class="empty-text">暂无待处理的家庭档案接管请求</text>
+    <button class="home-btn" bindtap="goHome">返回首页</button>
+  </view>
+
+  <block wx:else>
+    <view class="header">
+      <text class="header-title">家庭档案接管</text>
+      <text class="header-desc">您的家人为您预建了健康档案，请确认是否接管</text>
+    </view>
+
+    <view wx:for="{{items}}" wx:key="id" class="mig-card">
+      <view class="mig-row">
+        <text class="mig-label">家人</text>
+        <text class="mig-value">{{item.creator_nickname || '家人'}}</text>
+      </view>
+      <view class="mig-row">
+        <text class="mig-label">档案昵称</text>
+        <text class="mig-value">{{item.member_nickname || '未填写'}}</text>
+      </view>
+      <view class="mig-row">
+        <text class="mig-label">关系</text>
+        <text class="mig-value">{{item.relationship_type || '家人'}}</text>
+      </view>
+      <view class="mig-tip">接管后，您的家人将自动成为您的守护者，可在第一时间收到您的体检异常提醒。</view>
+      <view class="mig-actions">
+        <button class="btn-confirm" data-id="{{item.id}}" bindtap="onConfirm" disabled="{{processing}}">确认接管</button>
+        <button class="btn-reject" data-id="{{item.id}}" bindtap="onReject" disabled="{{processing}}">拒绝</button>
+      </view>
+    </view>
+  </block>
+</view>

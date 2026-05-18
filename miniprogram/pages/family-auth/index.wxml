@@ -12,7 +12,7 @@
     <button class="home-btn" bindtap="goHome">返回首页</button>
   </view>
 
-  <!-- Success result -->
+  <!-- Success result：守护关系建立成功 + 关注公众号引导 -->
   <view class="success-wrap" wx:elif="{{resultStatus === 'success'}}">
     <view class="success-card">
       <view class="success-avatar-wrap">
@@ -22,11 +22,20 @@
         </view>
       </view>
       <text class="success-name">{{invitation.inviter_nickname || '家人'}}</text>
-      <text class="success-relation">{{invitation.inviter_nickname || '对方'}} 已成为你的家人</text>
-      <text class="success-hint">现在可以查看和管理彼此的健康档案了</text>
+      <text class="success-relation">已成功守护 {{invitation.inviter_nickname || '对方'}}</text>
+      <text class="success-hint">可在第一时间收到对方的体检异常等健康提醒</text>
+    </view>
+    <!-- 强制关注公众号引导 -->
+    <view class="follow-mp-card">
+      <text class="follow-mp-title">📣 还差最后一步：关注公众号</text>
+      <text class="follow-mp-desc">为了让您能及时收到体检异常提醒，请长按下方二维码识别并关注"贝尼健康"公众号</text>
+      <view class="follow-mp-qr">
+        <text class="follow-mp-qr-placeholder">[ 公众号二维码 ]</text>
+      </view>
+      <text class="follow-mp-tip">关注后即可在异常发生时第一时间收到推送</text>
     </view>
     <view class="success-actions">
-      <button class="home-btn" bindtap="goHome">打开首页查看</button>
+      <button class="home-btn" bindtap="goHome">已关注，打开首页</button>
       <text class="later-link" bindtap="goHomeLater">稍后再说</text>
     </view>
   </view>

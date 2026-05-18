@@ -16,7 +16,7 @@ const TAB_LIST = [
   { id: 'today-data',     label: '今日数据' },
   { id: 'health-info',    label: '健康信息' },
   { id: 'medication-plan',label: '用药计划' },
-  { id: 'care-reminder',  label: '共管与提醒' },
+  { id: 'care-reminder',  label: '守护与提醒' },
   { id: 'health-events',  label: '健康事件' },
 ];
 
@@ -453,7 +453,7 @@ Page({
       const res = await post('/api/family/invite-link', { member_id: id }, { showLoading: true });
       const code = (res && (res.data && res.data.code || res.code)) || '';
       wx.setClipboardData({
-        data: code ? `健康档案共管邀请码：${code}` : '邀请已发送',
+        data: code ? `健康档案守护邀请码：${code}` : '邀请已发送',
         success: () => wx.showToast({ title: '邀请码已复制', icon: 'success' }),
       });
     } catch (_) {

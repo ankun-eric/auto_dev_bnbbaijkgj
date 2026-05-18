@@ -199,6 +199,10 @@ const menuItems: MenuItem[] = [
     children: [
       { key: '/system-messages', label: '消息列表' },
       { key: '/system-messages/send', label: '发送消息' },
+      // [PRD-FAMILY-GUARDIAN-V1] 家庭体检异常守护推送
+      { key: '/alert-templates', label: '异常文案模板' },
+      { key: '/abnormal-thresholds', label: '异常阈值配置' },
+      { key: '/alert-logs', label: '推送记录' },
     ],
   },
   { key: '/customer-service', icon: <CustomerServiceOutlined />, label: '客服工作台' },
@@ -263,7 +267,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/function-buttons') || pathname.startsWith('/digital-humans') || pathname.startsWith('/voice-service') || pathname.startsWith('/tts-config') || pathname.startsWith('/share-config') || pathname.startsWith('/body-part-dict') || pathname.startsWith('/health-check-templates')) return ['ai-consult-config'];
   if (pathname.startsWith('/home-settings') || pathname.startsWith('/home-menus') || pathname.startsWith('/home-banners') || pathname.startsWith('/notices') || pathname.startsWith('/bottom-nav') || pathname.startsWith('/home-settings/ai-home-config')) return ['home-config'];
   if (pathname.startsWith('/search')) return ['search-manage'];
-  if (pathname.startsWith('/system-messages')) return ['messages'];
+  if (pathname.startsWith('/system-messages') || pathname.startsWith('/alert-templates') || pathname.startsWith('/abnormal-thresholds') || pathname.startsWith('/alert-logs')) return ['messages'];
   if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config') || pathname.startsWith('/map-config')) return ['system'];
   if (pathname.startsWith('/health-plan')) return ['health-plan'];
   if (pathname.startsWith('/health-records') || pathname.startsWith('/relation-types') || pathname.startsWith('/disease-presets') || pathname.startsWith('/family-management')) return ['health'];

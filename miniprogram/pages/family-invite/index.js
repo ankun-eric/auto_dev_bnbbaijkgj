@@ -111,7 +111,7 @@ Page({
   onShareAppMessage() {
     if (!this.data.invitation) return {};
     return {
-      title: '邀请你共管家庭健康档案',
+      title: '邀请你守护家庭健康档案',
       path: `/pages/family-auth/index?code=${this.data.invitation.invite_code}`,
       imageUrl: this.data.invitation.qr_url || ''
     };

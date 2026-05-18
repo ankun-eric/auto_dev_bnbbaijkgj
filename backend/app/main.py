@@ -1823,6 +1823,11 @@ app.include_router(points_exchange.router)
 app.include_router(plan.router)
 app.include_router(family.router)
 app.include_router(family_management.router)
+# [PRD-FAMILY-GUARDIAN-V1] 家庭体检异常守护推送
+from app.api import family_guardian as _family_guardian  # noqa: E402
+from app.api import admin_family_guardian as _admin_family_guardian  # noqa: E402
+app.include_router(_family_guardian.router)
+app.include_router(_admin_family_guardian.router)
 app.include_router(content.router)
 app.include_router(notification.router)
 # PRD-425: AI 对话首页顶栏徽标——通知中心未读总数统一聚合接口

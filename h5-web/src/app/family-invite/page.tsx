@@ -142,7 +142,7 @@ function FamilyInviteContent() {
                 className="px-6 pt-8 pb-6 text-center"
                 style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
               >
-                <div className="text-white text-lg font-bold mb-1">家庭健康档案共管</div>
+                <div className="text-white text-lg font-bold mb-1">家庭健康档案守护</div>
                 <div className="text-white/80 text-xs">邀请您一起守护家人健康</div>
               </div>
 

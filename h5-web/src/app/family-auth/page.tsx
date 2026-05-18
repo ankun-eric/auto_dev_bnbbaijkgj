@@ -108,7 +108,7 @@ function FamilyAuthContent() {
   const handleReject = async () => {
     const result = await Dialog.confirm({
       title: '拒绝邀请',
-      content: '确定要拒绝此共管邀请吗？',
+      content: '确定要拒绝此守护邀请吗？',
     });
     if (!result) return;
     setSubmitting(true);
@@ -296,7 +296,7 @@ function FamilyAuthContent() {
             <Result
               status="info"
               title="已拒绝"
-              description="您已拒绝此共管邀请"
+              description="您已拒绝此守护邀请"
             />
             <div className="mt-6 px-8">
               <Button
