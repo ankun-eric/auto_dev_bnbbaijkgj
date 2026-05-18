@@ -27,7 +27,74 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-AI-DRUG-CARD-MEDPLAN-V1｜AI 对话识药结果·加入/查看用药计划（2026-05-18 13:00）
+## Latest Update: PRD-MED-PLAN-INTERACT-OPTIM-V1｜用药计划交互优化 v1（2026-05-18 14:54）
+
+### 一句话结论
+
+按 PRD v1.0 全端打通「用药计划」新增/编辑链路的 5 项交互优化：①后端新增 `POST /api/health-plan/medications/check-duplicate` + 别名 `POST /api/medication-plan/check-duplicate`（按 `药品名 + family_member_id` 标准化匹配），重复药品判定维度从「仅药品名」升级为「药品名 + 服用人」，create / update 都接入；`MedicationReminderCreate/Update` schema 增加 `notes 200 字硬上限`；启动期幂等迁移脚本 `prd_med_plan_interact_optim_v1_migration.py` 自动清理同人同药多条 active 记录（保留 `updated_at` 最新、其余软删，**不动 medication_check_in 历史**）并 trim 药名；②H5 `MedicationFormPanel.tsx` 必填红字 + 自动滚动定位 + 点击/修改即消失，备注 textarea 改 3 行 + 200 字 + 字数计数，保存前先 `check-duplicate` 命中即弹「该药已加入用药计划，是否重新编辑？」（确定 → 跳已存在记录编辑），且 catch 兜底处理后端 409；③H5 新增 `RetakePhotoDrawer.tsx`（拍照 / 相册选择）+ `RecognizeFailDrawer.tsx`（失败抽屉 + 手动录入两步滑动切换 + 返回箭头滑回）并接入 ai-home page；④小程序同步：备注 30 → 200 字，wxml 红字校验 + 错误提示 + onTap 时清错，js 保存前 check-duplicate + 409 兜底；⑤Flutter 同步：备注 maxLength=200 + counter + 重复药品 AlertDialog（含 dio 409 兜底）。Pytest 10/10 全部通过。
+
+### 后端核心改动
+
+- `backend/app/schemas/health_plan_v2.py`：新增 `MEDICATION_NOTES_MAX = 200`；`MedicationReminderCreate/Update.notes` 加 `Field(max_length=200)`
+- `backend/app/api/health_plan_v2.py`：
+  - `_find_active_same_name` 新增 `family_member_id` 参数（None/0=本人，>0=家庭成员，<0=不过滤）
+  - `create_medication` / `update_medication` 调用点同步传 `family_member_id`，重复判定严格按「药品名 + 服用人」
+  - **新增** `POST /api/health-plan/medications/check-duplicate`：入参 `drug_name + taker_id`，出参 `{exists, plan_id, existing_name}`
+  - **新增** `_med_plan_alias_router` 路由 `POST /api/medication-plan/check-duplicate` 别名
+- `backend/app/main.py`：注册 `_med_plan_alias_router`；启动 lifespan 接入迁移脚本
+- `backend/app/services/prd_med_plan_interact_optim_v1_migration.py`（**新**）：扫描 `(user_id, family_member_id, normalized(medicine_name))` 维度，多条 active 保留最新一条、其余 `status='deleted'`（软删），药名 trim 标准化写回；`app_settings._migration_done.prd_med_plan_interact_optim_v1=1` 幂等
+- `backend/tests/test_med_plan_interact_optim_v1_20260518.py`（**新**，10 用例，全部通过）：check-duplicate 命中/未命中/大小写trim宽松/服用人隔离/别名路由/notes 200 字限制/create 409/update 不重复触发 409/...
+
+### 前端核心改动
+
+#### h5-web
+
+- `src/components/medication/MedicationFormPanel.tsx`：
+  - `NOTES_MAX 30 → 200`，`NotesDrawer` 改 textarea 3 行 + maxLength=200 + 字数计数 + 占位文案统一「可填写服用提醒、注意事项等（选填）」
+  - 新增 `errFields: Set<string>` + `rowRefs` + `clearErr()`；保存时 `validateRequired()` 失败 Toast + 红字 + scrollIntoView
+  - 新增 `Row` 支持 `hasError / errMsg / rowRef` Props（红色 label + 下方红色错误提示）
+  - 保存路径：新增态先调 `/api/health-plan/medications/check-duplicate`，命中弹「该药已加入用药计划，是否重新编辑？」，确定后 router.push 到编辑页或 drawer 模式 onSaved
+  - catch 兜底处理后端 409 `Duplicate active medication`
+- `src/app/(ai-chat)/ai-home/components/RetakePhotoDrawer.tsx`（**新**）：底部抽屉「📷 拍照 / 🖼 从相册选择」+ 隐藏 file input（accept=image/*, capture=environment / 无 capture）
+- `src/app/(ai-chat)/ai-home/components/RecognizeFailDrawer.tsx`（**新**）：两步抽屉
+  - Step1：「未能识别出药品信息」+ 再试一次 / 手动录入 / 取消
+  - Step2：`MedicationFormPanel mode='drawer'` 空白表单 + 左上「‹ 返回」滑回 Step1 + 右上「✕」关闭
+- `src/app/(ai-chat)/ai-home/page.tsx`：
+  - 引入 `RetakePhotoDrawer` + `RecognizeFailDrawer` + 状态 `retakeDrawerOpen/recogFailDrawerOpen` + `recogTimerRef`（60s 兜底失败）
+  - `DrugIdentifyCard onRetake` → 打开 `RetakePhotoDrawer`
+  - `onPicked` → 上传图片 → toast「识别中...」+ 启动 60s timer → `handleSend` 触发 SSE
+  - SSE done 收到 `drug_identify_card` → 清 timer；收到 `drug_identify_retake` → 自动打开失败抽屉
+
+#### 小程序
+
+- `pages/health-plan/medication-form/index.js`：
+  - `notes` 200 字 slice
+  - `onSubmit`：必填校验 → errFields → Toast 拦截；新增态先 `wx.request` check-duplicate → 命中 wx.showModal「该药已加入用药计划,是否重新编辑?」→ 确定 redirectTo 编辑页；失败兜底走 `_doSubmit`
+  - `_doSubmit` catch 处理 409 → 弹同样模态
+  - `_clearErr(field)` 在 `onTapName / openTimeDrawer / openDosageDrawer / openCycleDrawer / onTapTiming` 中清错
+- `index.wxml`：备注 `maxlength=200` + 占位文案统一 + 字数计数 `/200`；row 增加 `row-error / title-err / row-err-msg` 条件渲染
+- `index.wxss`：新增 `.row-line` / `.row-err-msg` / `.title-err` 红字样式
+
+#### Flutter（iOS + Android）
+
+- `lib/services/api_service.dart`：新增 `checkMedicationDuplicate({drugName, takerId})` → `POST hpMedications/check-duplicate`
+- `lib/screens/plan/medication_form_screen.dart`：
+  - 备注 TextFormField `maxLength: 200` + `counterText: ${len}/200` + 占位「可填写服用提醒、注意事项等（选填）」
+  - `_submit`：`Form.validate()` 失败 SnackBar；新增态先调 checkMedicationDuplicate → 命中 AlertDialog「该药已加入用药计划，是否重新编辑？」→ 确定 Navigator.pushReplacement 到已存在记录编辑页
+  - catch 处理 `DioException` 409 同样弹 AlertDialog
+
+### 部署 & 测试 & 包
+
+- 部署脚本：`deploy/_deploy_med_plan_interact_optim_v1_20260518.py`（SFTP 上传 → docker cp 进 backend 容器 → 重建 h5-web → 健康检查 + smoke）
+- 烟雾测试：`deploy/_smoke_med_plan_interact_optim_v1.py`（容器内 pytest + curl 多接口）
+- 小程序包：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/uploads/miniprogram_med_plan_interact_20260518_145235_3628.zip`
+- Android APK：`https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/android-medplan-v20260518-145423-4e27`
+- iOS IPA：`https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-medplan-v20260518-145423-4e27`
+- 用户手册：`user_docs/用药计划交互优化.md`
+
+---
+
+## Previous Update: PRD-AI-DRUG-CARD-MEDPLAN-V1｜AI 对话识药结果·加入/查看用药计划（2026-05-18 13:00）
 
 ### 一句话结论
 
