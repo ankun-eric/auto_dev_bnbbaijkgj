@@ -27,6 +27,58 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-HEALTH-ARCHIVE-OPTIM-V1｜健康档案页面优化 v1（2026-05-18 16:30）
+
+### 范围
+- 健康档案页（H5 `/health-profile`、小程序 `pages/health-profile`）整体重构
+- 新增「家庭守护列表」前端模块：H5 `/family-guardian-list`、`/family-guardian-list/[targetId]`；小程序 `pages/family-guardian-list/index`、`pages/family-guardian-list/detail`
+- 新增后端 API 模块：`backend/app/api/health_archive_optim_v1.py`
+- 新增 SQLAlchemy 模型 `GuardianAiCallSetting`（表 `guardian_ai_call_settings`），唯一约束 `(owner_user_id, target_user_id)`
+- 一次性迁移脚本 `backend/app/services/prd_health_archive_optim_v1_migration.py`：把原 `medication_plans.ai_call_*` 与 `reminder_settings.medication_ai_call_enabled` 聚合迁移到新表
+- 用药计划查询全部接受 `consultant_id` 参数（hero-count / summary / today reminders）
+
+### 核心后端接口（前缀均为 `/api/health-archive`）
+- `GET /ai-call/settings`：当前主账号所有被守护人 AI 外呼配置列表（含本人对自己）
+- `GET /ai-call/settings/{target_user_id}`：单个目标的 AI 外呼配置（含权限校验）
+- `PUT /ai-call/settings/{target_user_id}`：更新；`call_target='guardian'` 但无守护关系时自动回退为 `self`
+- `GET /guardian/summary`：返回 `managed_count` 与 `managed_user_ids`
+- `GET /family-members/guarded-flags`：返回每个家庭成员的 `member_id -> {guarded, managed_user_id}`
+- `GET /guardian/{managed_user_id}/devices`：只读列出被守护人设备
+- `POST /guardian/{managed_user_id}/devices/remind-bind`：站内 + 微信通道提醒 TA 绑定设备
+
+### 关键 UI 调整
+- F1 顶部标题栏 + 咨询人切换条整体吸顶（H5 `sticky`，小程序原生）
+- F2 切换咨询人即时刷新 Hero / 今日用药 / 用药计划 / 共管区
+- F3 头像右上角胶囊「被守护」角标（切换条头像 + Hero 大头像）
+- F4 Hero 卡瘦身：移除既往病史/过敏史/家族遗传；姓名后跟小号关系标签；新增「💊 今日用药 · N ›」
+- F5 共管区三态：本人态「已守护 N 人 ›」/ 非本人未守护「+ 邀请共管」/ 非本人已守护「🔧 管理」
+- F6 漏打卡提醒原区域整体改为单行入口「📞 打卡提醒设置 ›」（去掉站内/微信开关）
+- F7 AI 外呼提醒整体迁出 ai-home 到「家庭守护列表」单层结构
+- F8 健康档案页右上角"设备 Logo"下线（`renderTopDeviceEntry` 返回 null）
+- F9 设备管理：本人态走个人中心；非本人态彻底无设备入口；被守护人设备只读出现在守护详情页
+
+### 数据迁移规则
+- 总开关初始值：用户名下用药计划"AI 开"占多数则为开
+- 免打扰时段：取最近一次有效配置；无历史默认 `22:00-07:00`
+- 外呼对象：取最近一次有效配置；无历史默认 `self`
+- 旧字段 `medication_plans.ai_call_*` 与 `reminder_settings.medication_ai_call_enabled` **仍保留**但不再向 UI 暴露
+- 迁移幂等：通过 `app_settings._migration_done.prd_health_archive_optim_v1` 标记跳过
+
+### 测试与部署
+- 后端测试：`backend/tests/test_health_archive_optim_v1_20260518.py` 13 个用例全部通过（容器内 pytest 验证）
+- 部署：`deploy/_deploy_health_archive_optim_v1_20260518.py`（SFTP 上传 + docker compose 重建 backend & h5-web）
+- 烟雾测试：`deploy/_smoke_health_archive_optim_v1_20260518.py`、`_smoke2_health_archive_optim_v1.py`、`_smoke3_run_pytest.py`
+- 8 个核心接口在公网 gateway 均返回 401（路由可达 + 鉴权正确）
+- H5 `/health-profile`、`/family-guardian-list` 公网 200
+- 迁移落库：`self_settings_inserted=105`、`guardian_settings_inserted=3`
+- 小程序 zip 包：`deploy/miniprogram_health_archive_optim_v1_20260518_163443.zip`
+- Flutter：本期 API 向后兼容，UI 不改动（旧字段保留）
+
+### 用户手册
+- `user_docs/健康档案页面优化.md`
+
+---
+
 ## Latest Update: PRD-MED-PLAN-INTERACT-OPTIM-V1｜用药计划交互优化 v1（2026-05-18 14:54）
 
 ### 一句话结论
