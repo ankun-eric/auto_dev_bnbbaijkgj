@@ -1804,6 +1804,17 @@ async def lifespan(app: FastAPI):
         import traceback as _tb
         _tb.print_exc()
         print(f"[migrate] questionnaire_v1: 迁移失败 err={_e}", flush=True)
+    # [PRD-LEGACY-HOME-CLEANUP-V1.1 2026-05-19] 管理后台「首页配置」遗留菜单下线清理
+    try:
+        print("[migrate] prd_legacy_home_cleanup_v11: 启动迁移...", flush=True)
+        from app.core.database import async_session as _async_session7
+        from app.services.prd_legacy_home_cleanup_v11_migration import run_migration_with_session as _run_legacy_home_cleanup
+        _stats7 = await _run_legacy_home_cleanup(_async_session7)
+        print(f"[migrate] prd_legacy_home_cleanup_v11: 迁移完成 stats={_stats7}", flush=True)
+    except Exception as _e:
+        import traceback as _tb
+        _tb.print_exc()
+        print(f"[migrate] prd_legacy_home_cleanup_v11: 迁移失败 err={_e}", flush=True)
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities

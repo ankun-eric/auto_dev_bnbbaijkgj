@@ -1,7 +1,16 @@
 """Tests for Home Config — 首页动态配置与字体切换.
 
-Covers user-facing endpoints (no auth) and admin CRUD for
-home config, menus, and banners.
+[PRD-LEGACY-HOME-CLEANUP-V1.1 2026-05-19]
+旧菜单式 /home 首页已下线后，本测试集只覆盖：
+- GET /api/home-config / /api/home-menus / /api/home-banners
+  （读接口保留供小程序/Flutter 老首页继续读取）
+- GET/PUT /api/admin/home-config（仅 font_* 字段写入）
+- /api/admin/home-banners 全套 CRUD（admin Banner 管理页保留）
+
+已删除的测试：
+- TC-007 ~ TC-011：admin home-menus 写接口（POST/PUT/DELETE/sort）已物理删除
+- TC-017 中针对 home-menus 写接口的 no-auth 用例
+- TC-006 search_placeholder 写入用例（PUT 仅接收 font_* 字段）
 """
 
 import pytest
@@ -88,7 +97,10 @@ async def test_tc001_get_home_config_public(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_tc002_get_visible_menus_public(client: AsyncClient):
-    """GET /api/home-menus returns 200 with items array."""
+    """GET /api/home-menus returns 200 with items array.
+
+    小程序 / Flutter 老首页仍在调用，保留接口与可见性过滤。
+    """
     await _seed_menu("菜单A", sort_order=1)
     await _seed_menu("菜单B", sort_order=2)
 
@@ -147,136 +159,26 @@ async def test_tc005_admin_get_home_config(client: AsyncClient, admin_headers):
 
 
 # ══════════════════════════════════════════════
-#  TC-006: 管理员更新首页配置
+#  TC-006: 管理员更新「字体配置」字段
 # ══════════════════════════════════════════════
 
 
 @pytest.mark.asyncio
-async def test_tc006_admin_update_home_config(client: AsyncClient, admin_headers):
-    """PUT /api/admin/home-config updates search_placeholder."""
-    new_placeholder = "搜索健康知识..."
+async def test_tc006_admin_update_font_config(client: AsyncClient, admin_headers):
+    """PUT /api/admin/home-config updates a font_* field.
+
+    [PRD-LEGACY-HOME-CLEANUP-V1.1 2026-05-19]
+    原 search_placeholder 写入用例已下线，写接口只接收 font_* 字段。
+    """
     resp = await client.put(
         "/api/admin/home-config",
         headers=admin_headers,
-        json={"search_placeholder": new_placeholder},
+        json={"font_standard_size": 17},
     )
     assert resp.status_code == 200
 
     verify = await client.get("/api/admin/home-config", headers=admin_headers)
-    assert verify.json()["search_placeholder"] == new_placeholder
-
-
-# ══════════════════════════════════════════════
-#  TC-007: 管理员获取所有菜单
-# ══════════════════════════════════════════════
-
-
-@pytest.mark.asyncio
-async def test_tc007_admin_list_menus(client: AsyncClient, admin_headers):
-    """GET /api/admin/home-menus returns all menus (including hidden)."""
-    await _seed_menu("可见菜单", is_visible=True)
-    await _seed_menu("隐藏菜单", is_visible=False)
-
-    resp = await client.get("/api/admin/home-menus", headers=admin_headers)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert len(data["items"]) == 2
-
-
-# ══════════════════════════════════════════════
-#  TC-008: 管理员新增菜单项
-# ══════════════════════════════════════════════
-
-
-@pytest.mark.asyncio
-async def test_tc008_admin_create_menu(client: AsyncClient, admin_headers):
-    """POST /api/admin/home-menus creates a menu item."""
-    resp = await client.post(
-        "/api/admin/home-menus",
-        headers=admin_headers,
-        json={
-            "name": "体检报告",
-            "icon_type": "emoji",
-            "icon_content": "📋",
-            "link_type": "internal",
-            "link_url": "/pages/checkup",
-            "sort_order": 1,
-            "is_visible": True,
-        },
-    )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["name"] == "体检报告"
-    assert data["icon_content"] == "📋"
-    assert "id" in data
-
-
-# ══════════════════════════════════════════════
-#  TC-009: 管理员编辑菜单项
-# ══════════════════════════════════════════════
-
-
-@pytest.mark.asyncio
-async def test_tc009_admin_update_menu(client: AsyncClient, admin_headers):
-    """PUT /api/admin/home-menus/{id} updates menu fields."""
-    menu_id = await _seed_menu("待编辑菜单")
-
-    resp = await client.put(
-        f"/api/admin/home-menus/{menu_id}",
-        headers=admin_headers,
-        json={"name": "已编辑菜单", "icon_content": "🏥"},
-    )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["name"] == "已编辑菜单"
-    assert data["icon_content"] == "🏥"
-
-
-# ══════════════════════════════════════════════
-#  TC-010: 管理员菜单排序
-# ══════════════════════════════════════════════
-
-
-@pytest.mark.asyncio
-async def test_tc010_admin_sort_menus(client: AsyncClient, admin_headers):
-    """PUT /api/admin/home-menus/sort updates sort order."""
-    id1 = await _seed_menu("菜单1", sort_order=1)
-    id2 = await _seed_menu("菜单2", sort_order=2)
-
-    resp = await client.put(
-        "/api/admin/home-menus/sort",
-        headers=admin_headers,
-        json=[
-            {"id": id1, "sort_order": 2},
-            {"id": id2, "sort_order": 1},
-        ],
-    )
-    assert resp.status_code == 200
-
-    verify = await client.get("/api/admin/home-menus", headers=admin_headers)
-    items = verify.json()["items"]
-    by_id = {i["id"]: i for i in items}
-    assert by_id[id1]["sort_order"] == 2
-    assert by_id[id2]["sort_order"] == 1
-
-
-# ══════════════════════════════════════════════
-#  TC-011: 管理员删除菜单项
-# ══════════════════════════════════════════════
-
-
-@pytest.mark.asyncio
-async def test_tc011_admin_delete_menu(client: AsyncClient, admin_headers):
-    """DELETE /api/admin/home-menus/{id} removes the menu item."""
-    menu_id = await _seed_menu("待删除菜单")
-
-    resp = await client.delete(f"/api/admin/home-menus/{menu_id}", headers=admin_headers)
-    assert resp.status_code == 200
-    assert "删除成功" in resp.json()["message"]
-
-    verify = await client.get("/api/admin/home-menus", headers=admin_headers)
-    names = [m["name"] for m in verify.json()["items"]]
-    assert "待删除菜单" not in names
+    assert verify.json()["font_standard_size"] == 17
 
 
 # ══════════════════════════════════════════════
@@ -399,19 +301,7 @@ async def test_tc017_no_auth_admin_home_config(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_tc017_no_auth_admin_update_config(client: AsyncClient):
-    resp = await client.put("/api/admin/home-config", json={"search_placeholder": "x"})
-    assert resp.status_code in (401, 403)
-
-
-@pytest.mark.asyncio
-async def test_tc017_no_auth_admin_menus(client: AsyncClient):
-    resp = await client.get("/api/admin/home-menus")
-    assert resp.status_code in (401, 403)
-
-
-@pytest.mark.asyncio
-async def test_tc017_no_auth_admin_create_menu(client: AsyncClient):
-    resp = await client.post("/api/admin/home-menus", json={"name": "x", "icon_content": "x", "link_url": "x"})
+    resp = await client.put("/api/admin/home-config", json={"font_standard_size": 18})
     assert resp.status_code in (401, 403)
 
 
@@ -494,3 +384,86 @@ async def test_tc020_font_config_update_reflected(client: AsyncClient, admin_hea
     assert data["font_standard_size"] == 16
     assert data["font_large_size"] == 20
     assert data["font_xlarge_size"] == 24
+
+
+# ══════════════════════════════════════════════
+#  TC-021: page-style 常量接口（PRD v1.1 新增）
+# ══════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_tc021_page_style_returns_ai_chat_constant(client: AsyncClient):
+    """GET /api/app-settings/page-style 永久返回 ai_chat（PRD v1.1）.
+
+    旧菜单式 /home 已下线，page_style 切换 UI 物理删除；该读接口短暂保留为
+    常量入口，等小程序/Flutter 改造完成后随 v1.2 一并清理。
+    """
+    resp = await client.get("/api/app-settings/page-style")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["key"] == "page_style"
+    assert data["value"] == "ai_chat"
+
+
+# ══════════════════════════════════════════════
+#  TC-022: page-style 写接口已物理删除（PRD v1.1）
+# ══════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_tc022_page_style_put_removed(client: AsyncClient, admin_headers):
+    """PUT /api/admin/app-settings/page-style 已删除，应返回 404 或 405."""
+    resp = await client.put(
+        "/api/admin/app-settings/page-style",
+        headers=admin_headers,
+        json={"value": "menu"},
+    )
+    assert resp.status_code in (404, 405)
+
+
+# ══════════════════════════════════════════════
+#  TC-023: home-menus 写接口已物理删除（PRD v1.1）
+# ══════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_tc023_home_menus_write_endpoints_removed(
+    client: AsyncClient, admin_headers
+):
+    """admin home-menus 全套写接口已下线，POST/PUT/DELETE/sort/list 均返回 404."""
+    # GET list 已删（保留用户端 GET /api/home-menus，不影响）
+    list_resp = await client.get("/api/admin/home-menus", headers=admin_headers)
+    assert list_resp.status_code in (404, 405)
+
+    create_resp = await client.post(
+        "/api/admin/home-menus",
+        headers=admin_headers,
+        json={
+            "name": "x",
+            "icon_type": "emoji",
+            "icon_content": "💊",
+            "link_type": "internal",
+            "link_url": "/x",
+        },
+    )
+    assert create_resp.status_code in (404, 405)
+
+    sort_resp = await client.put(
+        "/api/admin/home-menus/sort",
+        headers=admin_headers,
+        json=[{"id": 1, "sort_order": 1}],
+    )
+    assert sort_resp.status_code in (404, 405)
+
+    update_resp = await client.put(
+        "/api/admin/home-menus/1",
+        headers=admin_headers,
+        json={"name": "x"},
+    )
+    assert update_resp.status_code in (404, 405)
+
+    del_resp = await client.delete(
+        "/api/admin/home-menus/1",
+        headers=admin_headers,
+    )
+    assert del_resp.status_code in (404, 405)

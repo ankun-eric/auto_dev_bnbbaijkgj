@@ -1602,7 +1602,7 @@ export default function AIHomeConfigPage() {
         }}
       >
         <Title level={4} style={{ margin: 0 }}>
-          AI 对话模式首页配置
+          AI首页配置
         </Title>
         <Space>
           <Button

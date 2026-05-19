@@ -1,25 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
 export default function RootPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
 
+  // [PRD-LEGACY-HOME-CLEANUP-V1.1 2026-05-19]
+  // 旧 page-style 兼容 fetch 已删除：H5 端唯一首页为 /ai-home，不再需要根据
+  // /api/app-settings/page-style 做任何路由分支判断。
   useEffect(() => {
-    // [PRD-AI-HOME-V1 2026-05-19] (tabs) 路由组已归档，菜单模式首页 /home 下线，
-    // 强制收敛为 AI 首页 /ai-home。保留对 /api/app-settings/page-style 的调用以兼容旧后端，
-    // 但无论返回什么值，前端一律落到 /ai-home。
-    fetch(`${basePath}/api/app-settings/page-style`)
-      .then(res => res.json())
-      .catch(() => {})
-      .finally(() => {
-        router.replace('/ai-home');
-        setLoading(false);
-      });
+    router.replace('/ai-home');
   }, [router]);
 
   return (

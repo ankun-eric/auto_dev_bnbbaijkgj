@@ -930,10 +930,11 @@ async def _clean_chat_history_once(db: AsyncSession):
 
 
 async def _init_home_config(db: AsyncSession):
+    # [PRD-LEGACY-HOME-CLEANUP-V1.1 2026-05-19]
+    # 旧菜单式 /home 首页已下线，仅保留 font_* 5 个字段的默认值初始化。
+    # 原 home_search_visible / home_search_placeholder / home_grid_columns 三条 KV
+    # 已从默认值列表中移除（避免 v11 迁移 DELETE 后又被 init_default_data 重新插入）。
     _home_configs = [
-        {"config_key": "home_search_visible", "config_value": "true", "config_type": "home", "description": "首页搜索栏是否显示"},
-        {"config_key": "home_search_placeholder", "config_value": "搜索您想要的健康服务", "config_type": "home", "description": "首页搜索栏占位文本"},
-        {"config_key": "home_grid_columns", "config_value": "3", "config_type": "home", "description": "首页菜单列数"},
         {"config_key": "home_font_switch_enabled", "config_value": "true", "config_type": "home", "description": "字体切换开关"},
         {"config_key": "home_font_default_level", "config_value": "standard", "config_type": "home", "description": "默认字体等级"},
         {"config_key": "home_font_standard_size", "config_value": "16", "config_type": "home", "description": "标准字号"},

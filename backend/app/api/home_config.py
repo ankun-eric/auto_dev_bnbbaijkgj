@@ -14,9 +14,7 @@ from app.schemas.home_config import (
     HomeBannerUpdate,
     HomeConfigResponse,
     HomeConfigUpdate,
-    HomeMenuItemCreate,
     HomeMenuItemResponse,
-    HomeMenuItemUpdate,
     SortItem,
 )
 
@@ -114,25 +112,30 @@ async def admin_get_home_config(
     return _build_config_response(raw)
 
 
+# [PRD-LEGACY-HOME-CLEANUP-V1.1 2026-05-19]
+# 「首页基础设置」改名「字体配置」后，PUT /api/admin/home-config 仅接收 font_* 字段。
+# search_visible / search_placeholder / grid_columns 等旧字段的写入路径已下线，
+# 即使前端误传也只静默忽略（不报错），底层 KV 不再被覆盖。
+_FONT_FIELD_KEY_MAP = {
+    "font_switch_enabled": "home_font_switch_enabled",
+    "font_default_level": "home_font_default_level",
+    "font_standard_size": "home_font_standard_size",
+    "font_large_size": "home_font_large_size",
+    "font_xlarge_size": "home_font_xlarge_size",
+}
+
+
 @admin_router.put("/home-config")
 async def admin_update_home_config(
     data: HomeConfigUpdate,
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
-    field_key_map = {
-        "search_visible": "home_search_visible",
-        "search_placeholder": "home_search_placeholder",
-        "grid_columns": "home_grid_columns",
-        "font_switch_enabled": "home_font_switch_enabled",
-        "font_default_level": "home_font_default_level",
-        "font_standard_size": "home_font_standard_size",
-        "font_large_size": "home_font_large_size",
-        "font_xlarge_size": "home_font_xlarge_size",
-    }
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
-        config_key = field_key_map[field]
+        config_key = _FONT_FIELD_KEY_MAP.get(field)
+        if not config_key:
+            continue
         str_value = str(value).lower() if isinstance(value, bool) else str(value)
         result = await db.execute(
             select(SystemConfig).where(SystemConfig.config_key == config_key)
@@ -148,89 +151,13 @@ async def admin_update_home_config(
                 config_type="home",
                 description=config_key,
             ))
-    return {"message": "首页配置更新成功"}
+    return {"message": "字体配置更新成功"}
 
 
-# ── 菜单管理 ──
-
-@admin_router.get("/home-menus")
-async def admin_list_menus(
-    current_user=Depends(admin_dep),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(HomeMenuItem).order_by(HomeMenuItem.sort_order.asc())
-    )
-    items = [HomeMenuItemResponse.model_validate(m) for m in result.scalars().all()]
-    return {"items": items}
-
-
-@admin_router.post("/home-menus")
-async def admin_create_menu(
-    data: HomeMenuItemCreate,
-    current_user=Depends(admin_dep),
-    db: AsyncSession = Depends(get_db),
-):
-    menu = HomeMenuItem(**data.model_dump())
-    db.add(menu)
-    await db.flush()
-    await db.refresh(menu)
-    return HomeMenuItemResponse.model_validate(menu)
-
-
-@admin_router.put("/home-menus/sort")
-async def admin_sort_menus(
-    items: List[SortItem] = Body(...),
-    current_user=Depends(admin_dep),
-    db: AsyncSession = Depends(get_db),
-):
-    for item in items:
-        result = await db.execute(
-            select(HomeMenuItem).where(HomeMenuItem.id == item.id)
-        )
-        menu = result.scalar_one_or_none()
-        if menu:
-            menu.sort_order = item.sort_order
-    await db.flush()
-    return {"message": "排序更新成功"}
-
-
-@admin_router.put("/home-menus/{menu_id}")
-async def admin_update_menu(
-    menu_id: int,
-    data: HomeMenuItemUpdate,
-    current_user=Depends(admin_dep),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(HomeMenuItem).where(HomeMenuItem.id == menu_id)
-    )
-    menu = result.scalar_one_or_none()
-    if not menu:
-        raise HTTPException(status_code=404, detail="菜单项不存在")
-
-    for key, value in data.model_dump(exclude_unset=True).items():
-        setattr(menu, key, value)
-    menu.updated_at = datetime.utcnow()
-    await db.flush()
-    await db.refresh(menu)
-    return HomeMenuItemResponse.model_validate(menu)
-
-
-@admin_router.delete("/home-menus/{menu_id}")
-async def admin_delete_menu(
-    menu_id: int,
-    current_user=Depends(admin_dep),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(HomeMenuItem).where(HomeMenuItem.id == menu_id)
-    )
-    menu = result.scalar_one_or_none()
-    if not menu:
-        raise HTTPException(status_code=404, detail="菜单项不存在")
-    await db.delete(menu)
-    return {"message": "删除成功"}
+# [PRD-LEGACY-HOME-CLEANUP-V1.1 2026-05-19]
+# 「首页菜单管理」整体下线：
+# - 管理端 GET /api/admin/home-menus 及全部写接口（POST/PUT/DELETE/sort）一并物理删除
+# - 用户端 GET /api/home-menus 保留原样供小程序/Flutter 老首页继续读取
 
 
 # ── Banner 管理 ──

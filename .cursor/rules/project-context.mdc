@@ -27,6 +27,65 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-LEGACY-HOME-CLEANUP-V1.1｜管理后台「首页配置」遗留菜单下线清理（2026-05-19 20:30）
+
+**任务类型**：清理性减法改造（admin-web + backend + h5-web 三端，跨端审计自洽）
+
+**核心变更**：
+
+- admin-web 侧边栏「首页配置」组结构调整（`(admin)/layout.tsx`）：
+  - 删除 3 个旧菜单页：「页面风格」「首页菜单管理」、原「首页基础设置」（改名为「字体配置」）
+  - 「AI 对话模式首页配置」→「AI首页配置」
+  - 「功能按钮管理」从「AI咨询配置」分组迁入「首页配置」分组
+  - 「字体配置」页瘦身：仅保留 5 个 font_* 字段编辑器
+- 后端写接口物理删除（`backend/app/api/`）：
+  - `PUT /api/admin/app-settings/page-style` 删除；`GET` 改为常量永久返回 `ai_chat`
+  - `POST/PUT/DELETE /api/admin/home-menus` 全套删除；`GET /api/home-menus` 保留供小程序/Flutter 老首页
+  - `PUT /api/admin/home-config` 保留但仅接收 font_* 字段
+- backend 新增启动期一次性迁移 `prd_legacy_home_cleanup_v11_migration.py`：
+  - 清 `app_settings.page_style` KV
+  - 清 `system_configs` 表 `home_*` 非 font_* KV（注意：实际表名是 `system_configs` 复数，不是 PRD 写的 `system_config`）
+  - banner `link_url='/home'` → `/ai-home`；`/home/menu/*` 与 `/menu-mode/*` 自动 `is_visible=false`
+  - 治理结果完整记录到审计表 `banner_migration_log_20260519`
+  - 幂等标志：`_migration_done.prd_legacy_home_cleanup_v11`
+- `init_data.py._init_home_config` 同步移除 3 条废弃 KV 的默认值（避免迁移 DELETE 后又被重新插入）
+- h5-web：
+  - **修复历史 Bug**：`(ai-chat)/ai-home/page.tsx` banner 路径 `/api/h5/home-banners` → `/api/home-banners`，catch 升级 `console.warn`
+  - 删除 `app/page.tsx` 中 page-style 兼容 fetch 块
+  - 物理删除 `_archived_tabs/home/` 和 `src/lib/useHomeConfig.ts`
+- 测试：`backend/tests/test_home_config.py` 重写——21 用例全过：
+  - 保留 banner CRUD、字体配置 PUT、page-style 常量、page-style 写接口已 404、home-menus 写接口已 404
+  - 删除针对已下线接口的旧用例（TC-007~011 home-menus 写接口；TC-006 search_placeholder 写入）
+- 跨端审计结论（PRD 附录 B）：
+  - 后端读接口 `GET /api/home-config`、`/api/home-menus`、`/api/home-banners`、`/api/app-settings/page-style` 全部保留为常量或原样
+  - 小程序 `miniprogram/pages/home/index.js` 与 Flutter `flutter_app/lib/config/api_config.dart` 本次**未改动**，老首页继续可用
+  - 待《小程序 & Flutter App AI 首页改造 PRD v1.0》完成后，启动本 PRD 的 v1.2 收尾，彻底清理后端读接口
+
+**部署链路**：
+- `deploy/_deploy_legacy_home_cleanup_v11_20260519.py` SFTP 上传 + docker cp + 重启 backend + 重建前端镜像
+- `deploy/_rebuild_frontends_legacy_home_cleanup.py` 用 `docker compose`（v2 plugin）no-cache 重建 admin-web/h5-web
+- `deploy/_redeploy_v11_migration.py` 修复 `system_config` → `system_configs` 表名后重跑迁移
+- `deploy/_v11_finalize.py` 上传修正版 init_data.py + 手动 DELETE 残留 KV
+- `deploy/_v11_db_verify_inner.py` 容器内 DB 验证：A=0, B=0, C=5, D=已建, E=done, F=0, G=0, H=0
+
+**关键文件**：
+- `backend/app/api/app_settings.py` — page-style 写接口删除、GET 改常量
+- `backend/app/api/home_config.py` — home-menus 写接口删除、PUT home-config 仅 font_*
+- `backend/app/services/prd_legacy_home_cleanup_v11_migration.py` — 新增迁移
+- `backend/app/init_data.py` — 移除 3 条废弃 KV 默认值
+- `backend/app/main.py` — 注册启动期迁移调用（行号 ~1810）
+- `backend/tests/test_home_config.py` — 21 用例重写
+- `admin-web/src/app/(admin)/layout.tsx` — 侧边栏重组
+- `admin-web/src/app/(admin)/home-settings/page.tsx` — 改名「字体配置」+ 瘦身
+- `admin-web/src/app/(admin)/home-settings/ai-home-config/page.tsx` — 标题改名「AI首页配置」
+- `h5-web/src/app/(ai-chat)/ai-home/page.tsx` — banner Bug 修复
+- `h5-web/src/app/page.tsx` — 删除 page-style fetch
+- 已删除：`admin-web/src/app/(admin)/home-settings/page-style/`、`admin-web/src/app/(admin)/home-menus/`、`h5-web/src/app/_archived_tabs/home/`、`h5-web/src/lib/useHomeConfig.ts`
+
+**用户手册**：`user_docs/管理后台首页配置遗留菜单下线清理.md`
+
+---
+
 ## Latest Update: PRD-QUESTIONNAIRE-V1｜AI 咨询配置 - 通用问卷与图像采集统一架构重构（2026-05-19 18:50）
 
 ### 范围（后端 + admin-web）

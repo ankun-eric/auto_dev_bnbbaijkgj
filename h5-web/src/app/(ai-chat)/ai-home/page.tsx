@@ -812,10 +812,14 @@ export default function AiHomePage() {
   }, []);
 
   useEffect(() => {
-    api.get('/api/h5/home-banners').then((res: any) => {
+    // [PRD-LEGACY-HOME-CLEANUP-V1.1 2026-05-19] 历史 Bug 修复：
+    // 原路径 /api/h5/home-banners 404 被 catch 静默吞掉，banner 永远为空数组。
+    // 后端正确路径为 /api/home-banners（H5/小程序/Flutter 共用），同时 catch 升级
+    // 为 console.warn 兜底，避免下一次再出现"404 被静默吞掉"的隐藏 bug。
+    api.get('/api/home-banners').then((res: any) => {
       const data = res.data || res;
       setBanners(Array.isArray(data.items) ? data.items : []);
-    }).catch(() => {});
+    }).catch((e) => console.warn('home-banners load failed', e));
 
     // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 客户端本地缓存 5 分钟
     // - 缓存键：aichat_function_buttons

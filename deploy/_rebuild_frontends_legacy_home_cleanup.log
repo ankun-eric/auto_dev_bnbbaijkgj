@@ -1,0 +1,139 @@
+Connecting to ubuntu@newbb.test.bangbangvip.com:22...
+Connected.
+compose file: docker-compose.prod.yml
+
+$ docker compose version 2>&1 | head -1
+Docker Compose version v5.1.2
+
+
+--- 浣跨敤鍛戒护: docker compose ---
+
+--- rebuild admin-web 涓?h5-web (no-cache) ---
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build --no-cache admin-web h5-web 2>&1 | tail -80
+#20 154.8 鈹?鈼?/notices                                 9.77 kB         440 kB
+#20 154.8 鈹?鈼?/ocr-config                              14.9 kB         367 kB
+#20 154.8 鈹?鈼?/ocr-global-config                       14 kB           316 kB
+#20 154.8 鈹?鈼?/payment-config                          15 kB           366 kB
+#20 154.8 鈹?鈼?/points/levels                           9.08 kB         404 kB
+#20 154.8 鈹?鈼?/points/mall                             20.7 kB         481 kB
+#20 154.8 鈹?鈼?/points/rules                            10.3 kB         295 kB
+#20 154.8 鈹?鈼?/product-system/appointment-forms        12.2 kB         407 kB
+#20 154.8 鈹?鈼?/product-system/cards                    17.6 kB         412 kB
+#20 154.8 鈹?鈼?/product-system/cards/dashboard          5.04 kB         397 kB
+#20 154.8 鈹?鈼?/product-system/categories               6.22 kB         407 kB
+#20 154.8 鈹?鈼?/product-system/coupons                  36 kB           496 kB
+#20 154.8 鈹?鈼?/product-system/new-user-coupons         14.2 kB         397 kB
+#20 154.8 鈹?鈼?/product-system/orders                   19.8 kB         469 kB
+#20 154.8 鈹?鈼?/product-system/orders/dashboard         16.6 kB         346 kB
+#20 154.8 鈹?鈼?/product-system/partners                 14.6 kB         420 kB
+#20 154.8 鈹?鈼?/product-system/products                 26.6 kB         470 kB
+#20 154.8 鈹?鈼?/product-system/redemptions              7.15 kB         418 kB
+#20 154.8 鈹?鈼?/product-system/statistics               8.87 kB         757 kB
+#20 154.8 鈹?鈼?/product-system/store-bindding           11.8 kB         410 kB
+#20 154.8 鈹?鈼?/product-system/visits                   7.58 kB         448 kB
+#20 154.8 鈹?鈼?/profile                                 5.07 kB         252 kB
+#20 154.8 鈹?鈼?/profile/change-password                 7.66 kB         287 kB
+#20 154.8 鈹?鈼?/prompt-templates                        14.6 kB         318 kB
+#20 154.8 鈹?鈼?/questionnaire-templates                 11.1 kB         425 kB
+#20 154.8 鈹?鈼?/referral                                7.46 kB         382 kB
+#20 154.8 鈹?鈼?/relation-types                          11.5 kB         406 kB
+#20 154.8 鈹?鈼?/search-config                           10 kB           414 kB
+#20 154.8 鈹?鈼?/search/asr-config                       7 kB            296 kB
+#20 154.8 鈹?鈼?/search/block-words                      12.6 kB         402 kB
+#20 154.8 鈹?鈼?/search/recommend                        14.2 kB         409 kB
+#20 154.8 鈹?鈼?/search/statistics                       240 kB         1.09 MB
+#20 154.8 鈹?鈼?/settings                                11 kB           368 kB
+#20 154.8 鈹?鈼?/share-config                            4.21 kB         371 kB
+#20 154.8 鈹?鈼?/sms                                     25.1 kB         423 kB
+#20 154.8 鈹?鈼?/system-messages                         11.4 kB         433 kB
+#20 154.8 鈹?鈼?/system-messages/send                    4.92 kB         314 kB
+#20 154.8 鈹?鈼?/system/sdk-health                       17 kB           285 kB
+#20 154.8 鈹?鈼?/tcm-config                              4.05 kB         284 kB
+#20 154.8 鈹?鈼?/theme-config                            7.6 kB          403 kB
+#20 154.8 鈹?鈼?/tts-config                              5.07 kB         334 kB
+#20 154.8 鈹?鈼?/users                                   15.3 kB         404 kB
+#20 154.8 鈹?鈼?/voice-service                           3.46 kB         345 kB
+#20 154.8 鈹?鈼?/wechat-push                             4.92 kB         291 kB
+#20 154.8 + First Load JS shared by all                87.7 kB
+#20 154.8   鈹?chunks/2117-1ca38137e0e3b541.js          31.9 kB
+#20 154.8   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js      53.6 kB
+#20 154.8   鈹?other shared chunks (total)              2.13 kB
+#20 154.8 
+#20 154.8 
+#20 154.8 鈼? (Static)   prerendered as static content
+#20 154.8 茠  (Dynamic)  server-rendered on demand
+#20 154.8 
+#20 DONE 155.0s
+
+#26 [admin-web runner 3/5] COPY --from=builder /app/.next/standalone ./
+#26 DONE 0.5s
+
+#27 [admin-web runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#27 DONE 0.1s
+
+#28 [admin-web runner 5/5] COPY --from=builder /app/public ./public
+#28 DONE 0.1s
+
+#29 [admin-web] exporting to image
+#29 exporting layers
+#29 exporting layers 1.4s done
+#29 exporting manifest sha256:0c38bef0531c7213066e73dd8aa95faba296f9604a377c00abf24f8d86a22115 0.0s done
+#29 exporting config sha256:061a2b0b7d9071fc27f85a3264d82655c97ff37a4de3f526bde483095172274b 0.0s done
+#29 exporting attestation manifest sha256:e1172fd134ac62a0ec041a710f45f7114c156357ea433474c3e5732648773af4 0.0s done
+#29 exporting manifest list sha256:9d410e38abbfe863e213a20ca2d0f3975192dd4a8117798592eb4a4cf5c191dc 0.0s done
+#29 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest done
+#29 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+#29 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.5s done
+#29 DONE 2.0s
+
+#30 [admin-web] resolving provenance for metadata file
+#30 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built 
+
+
+--- recreate admin-web 涓?h5-web 瀹瑰櫒 ---
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d --force-recreate admin-web h5-web 2>&1 | tail -30
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+
+
+--- 绛夊緟 admin-web 鍜?h5-web 灏辩华 ---
+  admin: running
+  h5: running
+
+--- 楠岃瘉鍓嶇 URL ---
+
+$ curl -ks -L -o /dev/null -w 'admin 棣栭〉 (/admin/): HTTP %{http_code}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/'
+admin 棣栭〉 (/admin/): HTTP 200
+
+
+$ curl -ks -L -o /dev/null -w 'h5 ai-home (/ai-home): HTTP %{http_code}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home'
+h5 ai-home (/ai-home): HTTP 200
+
+
+$ curl -ks -L -o /dev/null -w 'h5 root锛堝簲 302/200 璺?ai-home锛?(/): HTTP %{http_code}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/'
+h5 root锛堝簲 302/200 璺?ai-home锛?(/): HTTP 200
+
+
+$ curl -ks -L -o /dev/null -w 'GET home-banners (/api/home-banners): HTTP %{http_code}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/home-banners'
+GET home-banners (/api/home-banners): HTTP 200
+
+
+$ curl -ks -L -o /dev/null -w 'GET page-style 甯搁噺 (/api/app-settings/page-style): HTTP %{http_code}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/app-settings/page-style'
+GET page-style 甯搁噺 (/api/app-settings/page-style): HTTP 200
+
+
+鉁?鍓嶇閲嶅缓瀹屾垚

@@ -91,7 +91,6 @@ const menuItems: MenuItem[] = [
     icon: <PhoneOutlined />,
     label: 'AI咨询配置',
     children: [
-      { key: '/function-buttons', label: '功能按钮管理' },
       // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查功能 2 个配置入口
       { key: '/body-part-dict', label: '部位症状字典' },
       { key: '/health-check-templates', label: '健康自查问卷模板' },
@@ -107,14 +106,18 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
+    // [PRD-LEGACY-HOME-CLEANUP-V1.1 2026-05-19] 首页配置组结构调整：
+    // - 移除「首页基础设置」「页面风格」「首页菜单管理」
+    // - 「AI 对话模式首页配置」改名「AI首页配置」
+    // - 「功能按钮管理」从 AI咨询配置 迁入
+    // - 原「首页基础设置」改名「字体配置」并瘦身为仅 font_* 字段
     key: 'home-config',
     icon: <HomeOutlined />,
     label: '首页配置',
     children: [
-      { key: '/home-settings', label: '首页基础设置' },
-      { key: '/home-settings/page-style', label: '页面风格' },
-      { key: '/home-settings/ai-home-config', label: 'AI 对话模式首页配置' },
-      { key: '/home-menus', label: '首页菜单管理' },
+      { key: '/home-settings/ai-home-config', label: 'AI首页配置' },
+      { key: '/function-buttons', label: '功能按钮管理' },
+      { key: '/home-settings', label: '字体配置' },
       { key: '/home-banners', label: '首页Banner管理' },
       { key: '/notices', label: '公告管理' },
       { key: '/bottom-nav', label: '底部导航配置' },
@@ -267,7 +270,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/ai-config') || pathname.startsWith('/chat-records') || pathname.startsWith('/knowledge') || pathname.startsWith('/search-config') || pathname.startsWith('/fallback-config') || pathname.startsWith('/ocr-config') || pathname.startsWith('/ocr-global-config') || pathname.startsWith('/checkup-details') || pathname.startsWith('/drug-details')) return ['ai'];
   if (pathname.startsWith('/ai-center') || pathname.startsWith('/prompt-templates') || pathname.startsWith('/tcm-config')) return ['ai-center'];
   if (pathname.startsWith('/function-buttons') || pathname.startsWith('/digital-humans') || pathname.startsWith('/voice-service') || pathname.startsWith('/tts-config') || pathname.startsWith('/share-config') || pathname.startsWith('/body-part-dict') || pathname.startsWith('/health-check-templates') || pathname.startsWith('/questionnaire-templates')) return ['ai-consult-config'];
-  if (pathname.startsWith('/home-settings') || pathname.startsWith('/home-menus') || pathname.startsWith('/home-banners') || pathname.startsWith('/notices') || pathname.startsWith('/bottom-nav') || pathname.startsWith('/home-settings/ai-home-config')) return ['home-config'];
+  if (pathname.startsWith('/home-settings') || pathname.startsWith('/home-banners') || pathname.startsWith('/notices') || pathname.startsWith('/bottom-nav') || pathname.startsWith('/home-settings/ai-home-config') || pathname.startsWith('/function-buttons')) return ['home-config'];
   if (pathname.startsWith('/search')) return ['search-manage'];
   if (pathname.startsWith('/system-messages') || pathname.startsWith('/alert-templates') || pathname.startsWith('/abnormal-thresholds') || pathname.startsWith('/alert-logs')) return ['messages'];
   if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config') || pathname.startsWith('/map-config')) return ['system'];
