@@ -27,7 +27,63 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-AIHOME-SKELETON-V1（ai-home 首屏骨架屏改造）(2026-05-19)
+## Latest Update: PRD-BELL-UNIFIED-V1｜铃铛红点统一计数 + AI 首页今日待办胶囊（2026-05-19 12:15）
+
+### 范围（仅后端 + H5 端）
+- 后端 `/api/medication-reminder/badge`：
+  - 合并 6 个订单状态：pending_payment / pending_appointment / appointed / pending_use / partial_used / pending_receipt
+  - 终态（pending_shipment / refunding / completed / cancelled / expired / refunded）不计入红点
+  - 新增 `medication.{count, has_urgent}` / `order.{count, has_urgent, breakdown}` 嵌套字段
+  - 旧字段 `medication_unchecked / appointment_pending / total` 保留兼容
+  - 紧急标记：过点未服用 → medication.has_urgent；存在 pending_payment → order.has_urgent
+- 后端 `/api/medication-reminder/appointments`：
+  - 新增 `status_in` 查询参数（逗号分隔 6 状态），不传默认返回 6 状态合并
+  - 扩展返回字段：`status / amount / quantity / spec / created_at / remaining_redeem_count / total_redeem_count / tracking_company / tracking_number`
+  - 排序：appointed_at asc + order_id desc
+- H5 新组件 `h5-web/src/components/ai-chat/TodayTodoCapsules.tsx`：
+  - 一行两胶囊（💊 今日用药 / 🛒 待处理订单），紧凑型
+  - 白底 + 浅描边 + 左侧 3px 品牌色竖条（用药 #0EA5E9 / 订单 #F59E0B）+ 轻阴影
+  - 数字 = 0 也始终显示；数字 > 0 显示静态红点；含紧急事项时脉动（CSS animation）
+  - 整块可点击；点击 = 打开铃铛抽屉；scale(0.97) 按压反馈
+- H5 新模块 `h5-web/src/lib/bell-event-bus.ts`：全局事件总线（badge:refresh / medication:checked / order:status_changed）
+- H5 重写 `h5-web/src/components/ai-chat/ReminderDrawer.tsx`：
+  - 顶部标题改 `待办事项 (N)` + 关闭按钮
+  - 两区块：💊 用药提醒 + 🛒 待处理订单，区块标题含「查看全部 →」跳转
+  - 用药行：`✓ 已服用` 按钮；已打卡置灰不可撤销；已过点未服用显示 `⚠ 已超时` 标签
+  - 订单行：手风琴就地展开；主操作按钮按状态分文案；展开内容含订单号/规格/金额/下单时间/门店/核销码/物流等
+  - 已完成折叠分组「已完成 (N) ▼」默认折叠
+  - 加载失败兜底「加载失败，点击重试」
+- H5 `ReminderBellButton.tsx`：恢复 `badgeCount` 红点角标（≤9 显示数字，>9 显示 `9+`，=0 无角标），红色 #EF4444
+- H5 `ai-home/page.tsx`：
+  - 引入 TodayTodoCapsules，位于欢迎区下方 + 空对话占位上方，仅在 `messages.length === 0` 显示
+  - badge 接口订阅 `badge:refresh` 事件 + visibilitychange 双保险；onChangeBadge 时发布 `badge:refresh`
+  - ReminderBellButton 透传 `badgeCount={reminderBadge}`
+- pytest：`backend/tests/test_bell_unified_v1_20260519.py` 12 用例 + 既有 PRD-439 用例 21 个 = **33/33 全部通过**（服务器容器内）
+
+### 关键文件
+- 改造 `backend/app/api/medication_reminder.py`：badge 6 状态 + appointments status_in + has_urgent
+- 改造 `backend/app/schemas/medication_reminder.py`：BadgeMedicationDetail / BadgeOrderDetail / BadgeOrderBreakdown / 扩展 AppointmentItem
+- 新增 `h5-web/src/lib/bell-event-bus.ts`
+- 新增 `h5-web/src/components/ai-chat/TodayTodoCapsules.tsx`
+- 重写 `h5-web/src/components/ai-chat/ReminderDrawer.tsx`
+- 改造 `h5-web/src/components/ai-chat/ReminderBellButton.tsx`：恢复红点 badgeCount
+- 改造 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：胶囊接入 + 事件订阅 + badgeCount 透传
+- 新增 `backend/tests/test_bell_unified_v1_20260519.py`（12 用例）
+- 新增部署脚本 `deploy/_deploy_bell_unified_v1_20260519.py`
+- 新增手册 `user_docs/铃铛红点统一计数与今日待办胶囊.md`
+
+### 部署与测试
+- 已部署到正式服务器；smoke：openapi 200 / ai-home 308 / badge 401 / appointments 401（鉴权可达）
+- 容器内 pytest：33/33 PASS
+
+### 不在范围
+- 小程序、Flutter App、iOS、Android、Windows 桌面端本次未改动（API 完全向后兼容，旧客户端可继续运行）
+- 系统级推送（App Push / 微信模板消息）：已有；本期不做
+- 撤销机制（与今日用药一致，不做）；首次进入引导浮层；暗黑模式适配（下版本）
+
+---
+
+## Previous Update: PRD-AIHOME-SKELETON-V1（ai-home 首屏骨架屏改造）(2026-05-19)
 
 - 新增组件 `h5-web/src/components/ai-chat/AiHomeSkeleton.tsx`：像素级还原 ai-home 真实结构的整页骨架屏（顶部条 + 欢迎区 + 健康贴士卡 + 6 格功能宫格 + 推荐问 + 输入框），含微光流动 shimmer 动画 + 失败态"加载失败，点击重试"卡片
 - 改造 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：

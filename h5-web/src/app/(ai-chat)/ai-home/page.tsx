@@ -19,6 +19,9 @@ import ProfileCard, { clearProfileCardCache } from '@/components/ai-chat/Profile
 import AiAvatar from '@/components/ai-chat/AiAvatar';
 import ReminderBellButton from '@/components/ai-chat/ReminderBellButton';
 import ReminderDrawer from '@/components/ai-chat/ReminderDrawer';
+// [PRD-BELL-UNIFIED-V1 2026-05-19] AI 首页"今日待办"胶囊
+import TodayTodoCapsules from '@/components/ai-chat/TodayTodoCapsules';
+import { publishBellEvent, subscribeBellEvent } from '@/lib/bell-event-bus';
 // [PRD-AIHOME-SKELETON-V1 2026-05-19] 首屏骨架屏：消除刷新跳变
 import AiHomeSkeleton from '@/components/ai-chat/AiHomeSkeleton';
 import { trackEvent, aiChatTrack, aiHomeFnTrack, type AiChatTargetType } from '@/lib/analytics';
@@ -657,6 +660,27 @@ export default function AiHomePage() {
       setReminderBadge(0);
     }
   }, []);
+
+  // [PRD-BELL-UNIFIED-V1 2026-05-19] 订阅全局事件总线：badge:refresh / 切回前台时同步铃铛数字
+  useEffect(() => {
+    const unsub = subscribeBellEvent('badge:refresh', () => refreshReminderBadge());
+    const onVisible = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        refreshReminderBadge();
+      }
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisible);
+    }
+    // 首次进入时也拉一次
+    refreshReminderBadge();
+    return () => {
+      unsub();
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisible);
+      }
+    };
+  }, [refreshReminderBadge]);
 
   // 顶部欢迎面板（欢迎区/健康贴士/功能宫格/推荐问）改为常驻瀑布流：
   // 始终位于文档流顶部，与消息列表一起自然向下排布、整体滚动；
@@ -3876,6 +3900,16 @@ export default function AiHomePage() {
               )}
             </SectionErrorBoundary>
 
+            {/* [PRD-BELL-UNIFIED-V1 2026-05-19] AI 首页"今日待办"胶囊
+                - 位置：LOGO（欢迎区）下方、"还没有对话记录"提示文案上方
+                - 始终显示，无论待办数是否为 0
+                - 点击 = 打开铃铛抽屉 */}
+            <SectionErrorBoundary name="today_todo_capsules">
+              {messages.length === 0 && (
+                <TodayTodoCapsules onOpenDrawer={() => setReminderOpen(true)} />
+              )}
+            </SectionErrorBoundary>
+
             {/* v1.0 空对话占位（大图标 + 主标题 居中） */}
             <SectionErrorBoundary name="empty_placeholder">
               {emptyPlaceholderVisible && messages.length === 0 && (
@@ -4695,6 +4729,7 @@ export default function AiHomePage() {
           <ReminderBellButton
             initialTop={bellInitialTop}
             position={aiHomeConfig.floating_button?.position === 'left_bottom' ? 'left' : 'right'}
+            badgeCount={reminderBadge}
             onClick={() => setReminderOpen(true)}
           />
         )}
@@ -4713,6 +4748,8 @@ export default function AiHomePage() {
           onChangeBadge={() => {
             refreshReminderBadge();
             refreshReminderRedDot();
+            // [PRD-BELL-UNIFIED-V1 2026-05-19] 通过事件总线让胶囊 / 其他订阅者同步刷新
+            publishBellEvent('badge:refresh');
           }}
           consultantId={reminderDrawerConsultantId}
           onGoMedicationManage={() => {

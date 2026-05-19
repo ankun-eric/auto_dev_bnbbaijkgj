@@ -18,8 +18,11 @@ import { CSSProperties, useState, useRef, useEffect, useCallback } from 'react';
 
 interface Props {
   /**
-   * 已废弃保留：原本用于显示数字角标，本次优化后不再显示数字（红点提示移到汉堡图标）。
-   * 保留 prop 以兼容外部调用方，传入任意值都不会影响铃铛视觉。
+   * [PRD-BELL-UNIFIED-V1 2026-05-19] 铃铛红点合并计数：
+   *   = 0 → 不显示任何角标
+   *   > 0 → 显示红色圆点 + 白色数字
+   *   > 9 → 显示 "9+"
+   * 颜色：#EF4444
    */
   badgeCount?: number;
   onClick: () => void;
@@ -85,6 +88,7 @@ function clampToViewport(x: number, y: number): { x: number; y: number } {
 
 export default function ReminderBellButton({
   onClick,
+  badgeCount = 0,
   position = 'right',
 }: Props) {
   // 默认右 12px、垂直正中：用 sentinel -1 表示"未初始化"
@@ -282,10 +286,37 @@ export default function ReminderBellButton({
           opacity: 1,
           lineHeight: 1,
           filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.18))',
+          position: 'relative',
         }}
         aria-label="提醒铃铛"
       >
         🔔
+        {/* [PRD-BELL-UNIFIED-V1] 红点角标：数字 0 不显示，>9 显示 "9+" */}
+        {badgeCount > 0 && (
+          <span
+            data-testid="bell-badge-dot"
+            data-count={badgeCount}
+            style={{
+              position: 'absolute',
+              top: -2,
+              right: -2,
+              minWidth: 16,
+              height: 16,
+              padding: '0 4px',
+              background: '#EF4444',
+              color: '#fff',
+              borderRadius: 9999,
+              fontSize: 10,
+              fontWeight: 700,
+              lineHeight: '16px',
+              textAlign: 'center',
+              boxShadow: '0 0 0 1.5px #fff',
+              boxSizing: 'border-box',
+            }}
+          >
+            {badgeCount > 9 ? '9+' : badgeCount}
+          </span>
+        )}
       </div>
     </div>
   );

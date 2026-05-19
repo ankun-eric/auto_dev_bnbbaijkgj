@@ -35,6 +35,9 @@ from app.models.models import (
 )
 from app.schemas.medication_reminder import (
     AppointmentItem,
+    BadgeMedicationDetail,
+    BadgeOrderBreakdown,
+    BadgeOrderDetail,
     BadgeResponse,
     CheckRequest,
     CheckResponse,
@@ -44,6 +47,32 @@ from app.schemas.medication_reminder import (
     TodayMedicationItem,
     UncheckRequest,
 )
+
+
+# [PRD-BELL-UNIFIED-V1 2026-05-19] 铃铛红点合并计数 / 待办订单口径
+# 6 种"球在用户脚下"的订单状态。pending_shipment（待发货）、refunding（退款中）、
+# completed / cancelled / expired / refunded 等终态不进入红点。
+BELL_PENDING_ORDER_STATUSES = [
+    UnifiedOrderStatus.pending_payment,
+    UnifiedOrderStatus.pending_appointment,
+    UnifiedOrderStatus.appointed,
+    UnifiedOrderStatus.pending_use,
+    UnifiedOrderStatus.partial_used,
+    UnifiedOrderStatus.pending_receipt,
+]
+
+BELL_PENDING_ORDER_STATUS_VALUES = {s.value for s in BELL_PENDING_ORDER_STATUSES}
+
+
+def _order_status_text(status: UnifiedOrderStatus) -> str:
+    return {
+        UnifiedOrderStatus.pending_payment: "待支付",
+        UnifiedOrderStatus.pending_appointment: "待预约",
+        UnifiedOrderStatus.appointed: "已预约",
+        UnifiedOrderStatus.pending_use: "待核销",
+        UnifiedOrderStatus.partial_used: "部分核销",
+        UnifiedOrderStatus.pending_receipt: "待收货",
+    }.get(status, getattr(status, "value", str(status)))
 
 router = APIRouter(prefix="/api/medication-reminder", tags=["PRD-439 用药提醒"])
 logger = logging.getLogger(__name__)
@@ -272,7 +301,20 @@ async def badge(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """[PRD-BELL-UNIFIED-V1 2026-05-19] 铃铛红点合并计数
+
+    红点数字 = 用药待服条数 + 待处理订单条数（6 个"球在用户脚下"状态合并）。
+    - 用药待服：今天计划要吃但未点"已服用"的，按"次"计数（08:00/14:00/20:00 算 3 条）
+    - 订单状态计入红点的有 6 个：
+        pending_payment / pending_appointment / appointed / pending_use / partial_used / pending_receipt
+    - 紧急标记 has_urgent：
+        medication.has_urgent → 存在已过点（scheduled_time < 当前时间）但未打卡的条目
+        order.has_urgent → 存在 pending_payment 订单（口径：30 分钟内即将超时也算紧急；这里简化为有任意待支付即视为紧急，前端可再细化）
+    旧字段 medication_unchecked / appointment_pending / total 保留，保障旧客户端向后兼容。
+    """
     today = date.today()
+    now_dt = datetime.now()
+    now_hhmm = now_dt.strftime("%H:%M")
     plan_stmt = (
         select(MedicationPlan)
         .where(MedicationPlan.user_id == current_user.id)
@@ -295,39 +337,98 @@ async def badge(
             checked_keys.add((plan_id, st))
 
     medication_unchecked = 0
+    medication_has_urgent = False
     for p in plans:
         for t in (p.schedule or []):
             if (p.id, t) not in checked_keys:
                 medication_unchecked += 1
+                if t < now_hhmm:
+                    medication_has_urgent = True
 
-    appt_stmt = select(UnifiedOrder).where(
+    # 订单：6 状态合并计数 + 状态细分 + 紧急标记
+    order_stmt = select(UnifiedOrder).where(
         UnifiedOrder.user_id == current_user.id,
-        UnifiedOrder.status.in_([UnifiedOrderStatus.pending_use, UnifiedOrderStatus.appointed]),
+        UnifiedOrder.status.in_(BELL_PENDING_ORDER_STATUSES),
     )
-    appt_count = len((await db.execute(appt_stmt)).scalars().all())
+    orders = (await db.execute(order_stmt)).scalars().all()
+    breakdown = BadgeOrderBreakdown()
+    order_has_urgent = False
+    for o in orders:
+        sv = getattr(o.status, "value", str(o.status))
+        if sv == "pending_payment":
+            breakdown.pending_payment += 1
+            order_has_urgent = True  # 待支付天然紧急（用户随时可能丢单）
+        elif sv == "pending_appointment":
+            breakdown.pending_appointment += 1
+        elif sv == "appointed":
+            breakdown.appointed += 1
+        elif sv == "pending_use":
+            breakdown.pending_use += 1
+        elif sv == "partial_used":
+            breakdown.partial_used += 1
+        elif sv == "pending_receipt":
+            breakdown.pending_receipt += 1
 
-    total = medication_unchecked + appt_count
+    order_count = (
+        breakdown.pending_payment + breakdown.pending_appointment + breakdown.appointed
+        + breakdown.pending_use + breakdown.partial_used + breakdown.pending_receipt
+    )
+    total = medication_unchecked + order_count
     return BadgeResponse(
         medication_unchecked=medication_unchecked,
-        appointment_pending=appt_count,
+        appointment_pending=order_count,
         total=total,
+        medication=BadgeMedicationDetail(
+            count=medication_unchecked,
+            has_urgent=medication_has_urgent,
+        ),
+        order=BadgeOrderDetail(
+            count=order_count,
+            has_urgent=order_has_urgent,
+            breakdown=breakdown,
+        ),
     )
 
 
 @router.get("/appointments", response_model=List[AppointmentItem])
 async def appointments(
     patient_id: Optional[int] = Query(None),
+    status_in: Optional[str] = Query(
+        None,
+        description=(
+            "逗号分隔的 UnifiedOrderStatus 集合。"
+            "默认（不传时）使用 PRD-BELL-UNIFIED-V1 的 6 状态合并："
+            "pending_payment,pending_appointment,appointed,pending_use,partial_used,pending_receipt。"
+            "传入未知值会被忽略。"
+        ),
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """[PRD-BELL-UNIFIED-V1 2026-05-19] 铃铛抽屉订单列表（6 状态合并）
+
+    与 /badge 的口径完全一致：
+      pending_payment（待支付）/ pending_appointment（待预约）/ appointed（已预约）
+      pending_use（待核销）/ partial_used（部分核销）/ pending_receipt（待收货）
+    """
+    # 解析 status_in；未传或解析后为空，使用 6 状态合并默认值
+    if status_in:
+        raw = [s.strip() for s in status_in.split(",") if s.strip()]
+        statuses = []
+        for s in raw:
+            if s in BELL_PENDING_ORDER_STATUS_VALUES:
+                statuses.append(UnifiedOrderStatus(s))
+        if not statuses:
+            statuses = list(BELL_PENDING_ORDER_STATUSES)
+    else:
+        statuses = list(BELL_PENDING_ORDER_STATUSES)
+
     stmt = (
         select(UnifiedOrder)
         .where(UnifiedOrder.user_id == current_user.id)
-        .where(UnifiedOrder.status.in_([
-            UnifiedOrderStatus.pending_use,
-            UnifiedOrderStatus.appointed,
-        ]))
+        .where(UnifiedOrder.status.in_(statuses))
         .options(selectinload(UnifiedOrder.items), selectinload(UnifiedOrder.store))
+        .order_by(UnifiedOrder.created_at.desc())
     )
     orders = (await db.execute(stmt)).scalars().all()
 
@@ -344,6 +445,20 @@ async def appointments(
             store_addr = getattr(store, "address", None)
             location = ("｜".join([s for s in [store_name, store_addr] if s])
                         ) or store_name or store_addr
+        # 部分核销剩余次数
+        total_redeem = getattr(first_item, "total_redeem_count", None) if first_item else None
+        used_redeem = getattr(first_item, "used_redeem_count", None) if first_item else None
+        remaining_redeem = (
+            (total_redeem - used_redeem)
+            if (isinstance(total_redeem, int) and isinstance(used_redeem, int))
+            else None
+        )
+        amount_val = None
+        try:
+            if getattr(o, "total_amount", None) is not None:
+                amount_val = f"{float(o.total_amount):.2f}"
+        except Exception:
+            amount_val = None
         items.append(
             AppointmentItem(
                 order_id=o.id,
@@ -351,12 +466,22 @@ async def appointments(
                 service_name=(first_item.product_name if first_item else "—"),
                 appointed_at=appt_dt.strftime("%Y-%m-%d %H:%M") if appt_dt else None,
                 location=location,
-                status_text="待核销" if o.status == UnifiedOrderStatus.pending_use else "已预约",
+                status_text=_order_status_text(o.status),
                 qrcode_url=None,
                 verification_code=getattr(first_item, "verification_code", None) if first_item else None,
+                status=getattr(o.status, "value", str(o.status)),
+                amount=amount_val,
+                quantity=getattr(first_item, "quantity", None) if first_item else None,
+                spec=getattr(first_item, "sku_name", None) if first_item else None,
+                created_at=o.created_at.strftime("%Y-%m-%d %H:%M") if getattr(o, "created_at", None) else None,
+                remaining_redeem_count=remaining_redeem,
+                total_redeem_count=total_redeem,
+                tracking_company=getattr(o, "tracking_company", None),
+                tracking_number=getattr(o, "tracking_number", None),
             )
         )
-    items.sort(key=lambda x: (x.appointed_at or "9999"))
+    # 优先按 appointed_at 排序（无值放最后），再按订单 id desc
+    items.sort(key=lambda x: (x.appointed_at or "9999", -x.order_id))
     return items
 
 

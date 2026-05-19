@@ -1,0 +1,135 @@
+local root: C:\auto_output\bnbbaijkgj
+Connected to newbb.test.bangbangvip.com
+
+=== Step 1: Tar & upload changed files ===
+  + h5-web/src/app/(ai-chat)/ai-home/page.tsx (243306 bytes)
+  + h5-web/src/components/ai-chat/AiHomeSkeleton.tsx (7884 bytes)
+  + h5-web/src/app/globals.css (22478 bytes)
+uploaded 74241 bytes to /tmp/6b099ed3-7175-4a78-91f4-44570c84ed27-skeleton.tar.gz
+
+=== Step 2: Extract on server ===
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && tar -xzf /tmp/6b099ed3-7175-4a78-91f4-44570c84ed27-skeleton.tar.gz && rm -f /tmp/6b099ed3-7175-4a78-91f4-44570c84ed27-skeleton.tar.gz
+[exit 0]
+
+$ ls -la /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/components/ai-chat/AiHomeSkeleton.tsx /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/'(ai-chat)'/ai-home/page.tsx 2>&1
+-rw-rw-r-- 1 ubuntu ubuntu 243306 May 19 10:39 /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/page.tsx
+-rw-rw-r-- 1 ubuntu ubuntu   7884 May 19 10:38 /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/components/ai-chat/AiHomeSkeleton.tsx
+
+[exit 0]
+
+$ head -5 /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/components/ai-chat/AiHomeSkeleton.tsx
+'use client';
+
+
+
+/**
+
+ * AiHomeSkeleton 鈥斺€?ai-home 棣栧睆鏁撮〉楠ㄦ灦灞?
+ * [PRD-AIHOME-SKELETON-V1 2026-05-19]
+
+
+[exit 0]
+
+$ grep -c 'AiHomeSkeleton' /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/'(ai-chat)'/ai-home/page.tsx
+2
+
+[exit 0]
+
+$ grep -c 'firstScreenStatus' /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/'(ai-chat)'/ai-home/page.tsx
+4
+
+[exit 0]
+
+$ grep -c 'skeleton-shimmer' /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/globals.css
+4
+
+[exit 0]
+
+=== Step 3: Rebuild h5-web container ===
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build h5-web 2>&1 | tail -40
+#12 92.35 鈹?茠 /unified-order/[id]                        9.95 kB         248 kB
+#12 92.35 鈹?鈼?/unified-orders                            4.05 kB         242 kB
+#12 92.35 + First Load JS shared by all                  87.6 kB
+#12 92.35   鈹?chunks/2117-3615d1923728c5e4.js            31.9 kB
+#12 92.35   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js        53.6 kB
+#12 92.35   鈹?other shared chunks (total)                2.1 kB
+#12 92.35 
+#12 92.35 
+#12 92.35 鈼? (Static)   prerendered as static content
+#12 92.35 茠  (Dynamic)  server-rendered on demand
+#12 92.35 
+#12 DONE 92.5s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.2s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.5s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 10.7s done
+#16 exporting manifest sha256:2a325dba2264425a9e00f4c3b4c407652495a56ca48b0c131eaf940b160e2896 0.0s done
+#16 exporting config sha256:5af0e30598f8d5263bd901e6d88b4d9657f87aaf0a630c27377119829fbb823d 0.0s done
+#16 exporting attestation manifest sha256:de95f974e6981f270178b958fee1083aae5d760022e38bf723dc86bf8a02c445 0.0s done
+#16 exporting manifest list sha256:f5851a058c94ffcf14fc19f6c159049be46de08eb32c0ba104d08a22a65483a6 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 1.9s done
+#16 DONE 12.6s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.5s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+
+[exit 0]
+
+=== Step 4: Recreate h5-web ===
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d --force-recreate h5-web 2>&1 | tail -20
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+
+[exit 0]
+
+=== Step 5: Wait for h5-web ===
+[0] 
+[1] 
+[2] 
+[3] 
+[4] 
+[5] 
+[6] 
+[7] 
+[8] 
+[9] 
+[10] 
+[11] 
+
+=== Step 6: Smoke (HTTP code for /ai-home) ===
+
+$ curl -sk -o /dev/null -w 'ai-home HTTP %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home
+ai-home HTTP 308
+
+[exit 0]
+
+$ curl -sk -o /dev/null -w 'root HTTP %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/
+root HTTP 200
+
+[exit 0]
+
+=== DEPLOY DONE ===

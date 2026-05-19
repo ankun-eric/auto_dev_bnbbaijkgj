@@ -71,10 +71,37 @@ class UncheckRequest(BaseModel):
     log_id: int
 
 
+# [PRD-BELL-UNIFIED-V1 2026-05-19] 铃铛红点合并计数：扩展后向兼容的字段，
+# 旧客户端仍可读 medication_unchecked / appointment_pending / total，新客户端用
+# medication / order 嵌套对象（含 has_urgent / breakdown）。
+class BadgeMedicationDetail(BaseModel):
+    count: int = 0
+    has_urgent: bool = False
+
+
+class BadgeOrderBreakdown(BaseModel):
+    pending_payment: int = 0
+    pending_appointment: int = 0
+    appointed: int = 0
+    pending_use: int = 0
+    partial_used: int = 0
+    pending_receipt: int = 0
+
+
+class BadgeOrderDetail(BaseModel):
+    count: int = 0
+    has_urgent: bool = False
+    breakdown: BadgeOrderBreakdown = Field(default_factory=BadgeOrderBreakdown)
+
+
 class BadgeResponse(BaseModel):
+    # 旧字段：保留兼容
     medication_unchecked: int
     appointment_pending: int
     total: int
+    # 新字段：合并计数 + 紧急标记 + 6 状态细分
+    medication: BadgeMedicationDetail = Field(default_factory=BadgeMedicationDetail)
+    order: BadgeOrderDetail = Field(default_factory=BadgeOrderDetail)
 
 
 class AppointmentItem(BaseModel):
@@ -86,3 +113,15 @@ class AppointmentItem(BaseModel):
     status_text: str = "待核销"
     qrcode_url: Optional[str] = None
     verification_code: Optional[str] = None
+    # [PRD-BELL-UNIFIED-V1] 抽屉订单条目扩展字段
+    status: Optional[str] = None  # 6 种状态码（pending_payment / pending_appointment / appointed / pending_use / partial_used / pending_receipt）
+    amount: Optional[str] = None
+    quantity: Optional[int] = None
+    spec: Optional[str] = None
+    created_at: Optional[str] = None
+    # 部分核销专用
+    remaining_redeem_count: Optional[int] = None
+    total_redeem_count: Optional[int] = None
+    # 待收货专用
+    tracking_company: Optional[str] = None
+    tracking_number: Optional[str] = None
