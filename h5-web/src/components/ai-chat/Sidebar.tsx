@@ -65,6 +65,8 @@ import { THEME } from '@/lib/theme';
 import { useAuth } from '@/lib/auth';
 import api from '@/lib/api';
 import { parseServerTime, formatDateTime } from '@/lib/datetime';
+// [PRD-AI-HOME-V1 2026-05-19] 抽屉顶栏新增「🎫 会员码」入口，复用 /api/member/qrcode 弹出二维码
+import MemberCodeModal from './MemberCodeModal';
 
 // ─────────────────────────────────────────────────────────────────────
 // 类型定义
@@ -258,6 +260,8 @@ export default function Sidebar({
   });
   const [unread, setUnread] = useState(0);
   const [loadFailed, setLoadFailed] = useState(false);
+  // [PRD-AI-HOME-V1 2026-05-19] 会员码弹窗可见态
+  const [memberCodeOpen, setMemberCodeOpen] = useState(false);
 
   // F-11 / F-12 操作态
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
@@ -413,6 +417,7 @@ export default function Sidebar({
       setSwipeOpenId(null);
       setManageMode(false);
       setSelectedIds(new Set());
+      setMemberCodeOpen(false);
     }
   }, [visible]);
 
@@ -1110,6 +1115,59 @@ export default function Sidebar({
                   gap: 16,
                 }}
               >
+                {/*
+                  [PRD-AI-HOME-V1 2026-05-19] 会员码入口（在铃铛之前）
+                    - 顺序：头像/昵称/ID 胶囊 → 🎫 会员码 → 🔔 铃铛 → ⚙ 齿轮
+                    - 视觉尺寸与铃铛/齿轮一致（24x24 hit-zone）
+                    - 点击 → 打开会员码弹窗（复用 /api/member/qrcode）
+                    - 未登录用户：在抽屉打开前一般已要求登录，此处简单兜底为 user 不存在时跳登录
+                */}
+                <button
+                  onClick={() => {
+                    if (!user) {
+                      navigateTo('/login');
+                      return;
+                    }
+                    setMemberCodeOpen(true);
+                  }}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    background: 'transparent',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    color: COLOR.textPrimary,
+                    lineHeight: 1,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  aria-label="会员码"
+                  data-testid="bh-icon-member-code"
+                >
+                  {/* 二维码缩略图样式 SVG：与铃铛/齿轮线宽风格一致 */}
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect x="3" y="3" width="7" height="7" rx="1" />
+                    <rect x="14" y="3" width="7" height="7" rx="1" />
+                    <rect x="3" y="14" width="7" height="7" rx="1" />
+                    <line x1="14" y1="14" x2="14" y2="17" />
+                    <line x1="17" y1="14" x2="17" y2="14" />
+                    <line x1="20" y1="14" x2="20" y2="17" />
+                    <line x1="14" y1="20" x2="17" y2="20" />
+                    <line x1="20" y1="20" x2="20" y2="20" />
+                  </svg>
+                </button>
                 {/* F-02 铃铛（仅红点） */}
                 <button
                   onClick={() => navigateTo('/notifications')}
@@ -1555,6 +1613,12 @@ export default function Sidebar({
 
       {/* [BUG-461 Fix-A] ⋯ 菜单 Portal 渲染入口 */}
       {renderHistoryMenuPortal()}
+
+      {/* [PRD-AI-HOME-V1 2026-05-19] 会员码弹窗 */}
+      <MemberCodeModal
+        visible={memberCodeOpen}
+        onClose={() => setMemberCodeOpen(false)}
+      />
     </>
   );
 }

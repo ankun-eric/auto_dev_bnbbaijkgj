@@ -189,7 +189,7 @@ export default function HealthGuidePage() {
       await saveCurrentStep();
       await api.post('/api/health/guide-status', { action: 'complete' });
       Toast.show({ content: '档案完善成功 ✓', duration: 2000 });
-      setTimeout(() => router.replace('/home'), 1500);
+      setTimeout(() => router.replace('/ai-home'), 1500);
     } catch {
       Toast.show({ content: '提交失败，请重试' });
     } finally {
@@ -203,7 +203,7 @@ export default function HealthGuidePage() {
     } catch {
       // ignore
     }
-    router.replace('/home');
+    router.replace('/ai-home');
   };
 
   const handlePrev = () => {
@@ -230,7 +230,7 @@ export default function HealthGuidePage() {
         <div className="text-sm text-gray-500 text-center">获取成员信息失败，请返回首页重试</div>
         <Button
           style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)', color: '#fff', border: 'none', borderRadius: 24 }}
-          onClick={() => router.replace('/home')}
+          onClick={() => router.replace('/ai-home')}
         >
           返回首页
         </Button>

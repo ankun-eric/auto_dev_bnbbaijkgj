@@ -11,11 +11,24 @@ const nextConfig = {
     return [];
   },
   // [2026-04-23 对话页统一化] 旧体检对话页路径 301 永久重定向到公共咨询页，外部/历史链接仍可访问
+  // [PRD-AI-HOME-V1 2026-05-19] (tabs) 路由组已归档：/home、/ai 旧入口统一 301 重定向到 /ai-home，
+  //   避免外部分享或浏览器历史命中已下线路由出现 404。
+  //   /profile 因 app/profile 同名独立页仍在使用，**不**做重定向。
   async redirects() {
     return [
       {
         source: '/checkup/chat/:sid',
         destination: '/chat/:sid?type=report_interpret&auto_start=1',
+        permanent: true,
+      },
+      {
+        source: '/home',
+        destination: '/ai-home',
+        permanent: true,
+      },
+      {
+        source: '/ai',
+        destination: '/ai-home',
         permanent: true,
       },
     ];

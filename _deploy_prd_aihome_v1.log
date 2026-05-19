@@ -1,0 +1,113 @@
+[deploy] connecting newbb.test.bangbangvip.com ...
+[deploy] connected.
+$ ls -la /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app 2>&1 | head -n 5
+total 280
+drwxrwxr-x 61 ubuntu ubuntu  4096 May 19 10:41 .
+drwxrwxr-x  7 ubuntu ubuntu  4096 May  3 18:44 ..
+drwxrwxr-x  8 ubuntu ubuntu  4096 May 17 01:08 (ai-chat)
+drwxrwxr-x  2 ubuntu ubuntu  4096 May 18 10:22 alert-redirect
+
+[deploy] tarball size = 125.0 KiB
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && rm -rf 'h5-web/src/app/(tabs)' && tar -xzf _deploy_prd_aihome_v1.tar.gz
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build h5-web 2>&1 | tail -n 80
+#12 91.04 鈹?鈼?/merchant/select-store                     2.81 kB         294 kB
+#12 91.04 鈹?鈼?/merchant/settlement                       16 kB           378 kB
+#12 91.04 鈹?茠 /merchant/settlement/[id]                  8.83 kB         264 kB
+#12 91.04 鈹?鈼?/merchant/staff                            10.4 kB         435 kB
+#12 91.04 鈹?鈼?/merchant/store-settings                   8.7 kB          318 kB
+#12 91.04 鈹?鈼?/merchant/verifications                    3.18 kB         383 kB
+#12 91.04 鈹?鈼?/merchant/wechat-bindding                  17.1 kB         270 kB
+#12 91.04 鈹?鈼?/messages                                  2.79 kB         235 kB
+#12 91.04 鈹?鈼?/my-addresses                              7.49 kB         240 kB
+#12 91.04 鈹?鈼?/my-coupons                                3.29 kB         240 kB
+#12 91.04 鈹?鈼?/my-favorites                              5.82 kB         238 kB
+#12 91.04 鈹?鈼?/news                                      2.61 kB         235 kB
+#12 91.04 鈹?茠 /news/[id]                                 5.85 kB         238 kB
+#12 91.04 鈹?鈼?/notifications                             5.54 kB         238 kB
+#12 91.04 鈹?茠 /order/[id]                                1.71 kB         211 kB
+#12 91.04 鈹?鈼?/pay/success                               3.54 kB         236 kB
+#12 91.04 鈹?鈼?/points                                    5.79 kB         238 kB
+#12 91.04 鈹?鈼?/points/detail                             3.08 kB         240 kB
+#12 91.04 鈹?鈼?/points/exchange-records                   2.6 kB          239 kB
+#12 91.04 鈹?鈼?/points/mall                               6.28 kB         238 kB
+#12 91.04 鈹?鈼?/points/product-detail                     6.42 kB         239 kB
+#12 91.04 鈹?鈼?/points/records                            4.72 kB         237 kB
+#12 91.04 鈹?茠 /product/[id]                              5.48 kB         238 kB
+#12 91.04 鈹?鈼?/products                                  3.14 kB         235 kB
+#12 91.04 鈹?鈼?/profile/edit                              2.49 kB         235 kB
+#12 91.04 鈹?鈼?/refund-list                               3.17 kB         235 kB
+#12 91.04 鈹?茠 /refund/[orderId]                          2.49 kB         235 kB
+#12 91.04 鈹?茠 /review/[orderId]                          2.15 kB         234 kB
+#12 91.04 鈹?鈼?/sandbox-pay                               2.15 kB         234 kB
+#12 91.04 鈹?鈼?/scan                                      109 kB          319 kB
+#12 91.04 鈹?鈼?/search                                    6.37 kB         238 kB
+#12 91.04 鈹?鈼?/search/result                             7.33 kB         239 kB
+#12 91.04 鈹?鈼?/services                                  5.5 kB          238 kB
+#12 91.04 鈹?鈼?/settings                                  6.06 kB         238 kB
+#12 91.04 鈹?茠 /shared/chat/[token]                       2.51 kB         235 kB
+#12 91.04 鈹?茠 /shared/drug/[token]                       2.52 kB         235 kB
+#12 91.04 鈹?茠 /shared/report/[token]                     2.72 kB         235 kB
+#12 91.04 鈹?鈼?/symptom                                   9.96 kB         247 kB
+#12 91.04 鈹?鈼?/tcm                                       12.4 kB         244 kB
+#12 91.04 鈹?鈼?/tcm/archive                               510 B           210 kB
+#12 91.04 鈹?茠 /tcm/diagnosis/[id]                        549 B           210 kB
+#12 91.04 鈹?鈼?/tcm/loading                               958 B           211 kB
+#12 91.04 鈹?茠 /tcm/result/[id]                           9.37 kB         241 kB
+#12 91.04 鈹?茠 /unified-order/[id]                        9.95 kB         248 kB
+#12 91.04 鈹?鈼?/unified-orders                            4.05 kB         242 kB
+#12 91.04 + First Load JS shared by all                  87.6 kB
+#12 91.04   鈹?chunks/2117-3615d1923728c5e4.js            31.9 kB
+#12 91.04   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js        53.6 kB
+#12 91.04   鈹?other shared chunks (total)                2.1 kB
+#12 91.04 
+#12 91.04 
+#12 91.05 鈼? (Static)   prerendered as static content
+#12 91.05 茠  (Dynamic)  server-rendered on demand
+#12 91.05 
+#12 DONE 91.2s
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.4s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 10.6s done
+#16 exporting manifest sha256:9f94f903a3e3a4ac6d265835795901bef5e32d14fc232d2c1e86318f096316bb 0.0s done
+#16 exporting config sha256:3d06b5bdc68e3f53f2c681e403a0b4528165d19d6c266f94b70f4b4f34fa0a49 0.0s done
+#16 exporting attestation manifest sha256:f2e30f15205aead6161ce632a7f359f8ddc278f872c2becab4d9f6e77f0e5d61 0.0s done
+#16 exporting manifest list sha256:9fcdfd7dd52e7fe161b9296e98e060a9a6f78a3fa1ab645629be56c9e2d8114c 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 2.0s done
+#16 DONE 12.7s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d h5-web 2>&1 | tail -n 40
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+
+[deploy] waiting h5-web ...
+$ docker logs --tail 5 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 2>&1
+  - Local:        http://302a0542896f:3001
+  - Network:      http://172.20.0.5:3001
+
+ 鉁?Starting...
+ 鉁?Ready in 99ms
+
+[deploy] h5-web ready
+[deploy] done.

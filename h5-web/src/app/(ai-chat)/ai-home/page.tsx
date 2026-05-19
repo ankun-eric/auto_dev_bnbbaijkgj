@@ -2173,7 +2173,14 @@ export default function AiHomePage() {
       //   - 开关关闭（默认）：直接跳转 external_url（保持原行为）
       //   - 开关开启：先弹卡片，让用户点卡片按钮再跳转（详见下方 navigate 卡片渲染）
       if (btn.button_type === 'page_navigate' && !btn.pre_card_for_navigate) {
-        const url = (btn.external_url || '').trim();
+        let url = (btn.external_url || '').trim();
+        // [PRD-AI-HOME-V1 2026-05-19] 旧 (tabs) 路径运行时兜底：
+        //   将 `/(tabs)/services` `/tabs/services` 等改写为独立 `/services`，避免 DB 脏数据导致 404。
+        const legacyFixed = url.replace(/^\/?\(tabs\)/, '').replace(/^\/?tabs\//, '/');
+        if (legacyFixed !== url) {
+          if (typeof console !== 'undefined') console.warn('[ai-home func btn] legacy (tabs) path rewritten:', url, '->', legacyFixed);
+          url = legacyFixed;
+        }
         if (url.startsWith('http')) {
           window.location.href = url;
           return;
@@ -3532,6 +3539,40 @@ export default function AiHomePage() {
               </span>
             </div>
 
+            {/*
+              [PRD-AI-HOME-V1 2026-05-19] 邀请图标：位于「⋯」更多菜单按钮左侧。
+                - 位置：right = 8(⋯ 按钮 right) + 32(⋯ 按钮宽) + 4(间距) = 44
+                - 视觉：🎁 礼物图标（纯图标，不带文字/红点），尺寸 32x32 与⋯按钮一致
+                - 行为：router.push('/invite')；/invite 路由项目已存在
+                - 显隐：始终展示（产品要求新增的全局入口）
+            */}
+            <button
+              type="button"
+              className="flex items-center justify-center"
+              style={{
+                position: 'absolute',
+                right: 44,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: 32,
+                height: 32,
+                color: THEME.textPrimary,
+                background: 'transparent',
+                border: 'none',
+                padding: 0,
+                margin: 0,
+                lineHeight: 1,
+                cursor: 'pointer',
+              }}
+              onClick={() => router.push('/invite')}
+              aria-label="邀请好友"
+              data-testid="ai-home-invite-btn"
+            >
+              <span style={{ fontSize: 20, lineHeight: 1 }} aria-hidden="true">
+                🎁
+              </span>
+            </button>
+
             {/* 右：⋯ 更多菜单（绝对定位 right:8） */}
             {topbarShowMoreMenu ? (
               <button
@@ -3857,10 +3898,27 @@ export default function AiHomePage() {
                       sub={it.sub_text}
                       badge={it.badge || undefined}
                       onClick={() => {
-                        const p = it.target_path;
-                        if (p && (p.startsWith('/') || p.startsWith('http'))) {
-                          if (p.startsWith('http')) window.location.href = p;
-                          else router.push(p);
+                        // [PRD-AI-HOME-V1 2026-05-19] target_path 运行时兜底：
+                        //   (tabs) 路由组已下线，所有指向旧 (tabs)/services 路径的 DB 配置
+                        //   都需自动重定向到独立 /services 路由。
+                        //   - `/(tabs)/services` / `/tabs/services` → `/services`
+                        //   - 空值或非法值 → 跳 `/services`（服务为宫格的默认兜底语义）
+                        let p = it.target_path;
+                        if (!p) {
+                          if (typeof console !== 'undefined') console.warn('[ai-home grid] target_path empty, fallback to /services', it);
+                          router.push('/services');
+                          return;
+                        }
+                        const legacy = p.replace(/^\/?\(tabs\)/, '').replace(/^\/?tabs\//, '/');
+                        if (legacy !== p) {
+                          if (typeof console !== 'undefined') console.warn('[ai-home grid] legacy (tabs) path rewritten:', p, '->', legacy);
+                          p = legacy;
+                        }
+                        if (p.startsWith('http')) window.location.href = p;
+                        else if (p.startsWith('/')) router.push(p);
+                        else {
+                          if (typeof console !== 'undefined') console.warn('[ai-home grid] invalid target_path, fallback to /services:', p);
+                          router.push('/services');
                         }
                       }}
                       testId={`bh-fn-cell-${it.id}`}

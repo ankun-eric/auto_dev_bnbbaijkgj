@@ -2,10 +2,19 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { SearchBar, Empty, SpinLoading, InfiniteScroll, Toast } from 'antd-mobile';
-import { CloseOutline } from 'antd-mobile-icons';
+import { Empty, SpinLoading, InfiniteScroll } from 'antd-mobile';
+import { CloseOutline, LeftOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 import MarketingBadge from '@/components/MarketingBadge';
+import GlobalSearchEntry from '@/components/search/GlobalSearchEntry';
+
+/**
+ * [PRD-AI-HOME-V1 2026-05-19] /services 独立化改造：
+ *   1. 路由由 `(tabs)/services` 提升至独立 `/services`（无底部 Tab Bar）
+ *   2. 顶部新增「返回 AI 首页」按钮（router.replace('/ai-home')），无论从何路径进入都稳定回到 AI 首页
+ *   3. 顶部搜索栏由 antd-mobile SearchBar（仅本地分类范围搜索）替换为 GlobalSearchEntry（点击跳全局 /search）
+ *   4. 配套删除：本地 SearchBar、searchInput/searchKeyword/searching/searchResults state、防抖 hook、搜索态分支
+ */
 
 /**
  * 改造④：用户端首页·服务列表
@@ -206,12 +215,9 @@ function ServicesPage() {
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const [searchInput, setSearchInput] = useState('');
-  const [searchKeyword, setSearchKeyword] = useState('');
-  const [searching, setSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<Product[]>([]);
-  const [hotRecs, setHotRecs] = useState<Product[]>([]);
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // [PRD-AI-HOME-V1 2026-05-19] 已废弃本地搜索 state / 防抖 / 搜索结果态：
+  //   原 searchInput / searchKeyword / searching / searchResults / hotRecs / debounceTimer
+  //   全部移除，搜索能力交由顶部 GlobalSearchEntry 跳全局 /search 承接。
 
   // F6/F7 联动相关
   const productListRef = useRef<HTMLDivElement>(null);
@@ -329,13 +335,12 @@ function ServicesPage() {
   );
 
   useEffect(() => {
-    if (searchKeyword) return;
     if (!activeTopId) return;
     setLoading(true);
     setPage(1);
     // 有子类时忽略 activeSubId，始终加载全部
     loadProducts(activeTopId, hasSubCategories ? null : activeSubId, 1, true, hasSubCategories);
-  }, [activeTopId, activeSubId, loadProducts, searchKeyword, hasSubCategories]);
+  }, [activeTopId, activeSubId, loadProducts, hasSubCategories]);
 
   const loadMore = async () => {
     const next = page + 1;
@@ -343,48 +348,9 @@ function ServicesPage() {
     await loadProducts(activeTopId, hasSubCategories ? null : activeSubId, next, false, hasSubCategories);
   };
 
-  // ── 搜索：300ms 防抖 ──
-  useEffect(() => {
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    debounceTimer.current = setTimeout(() => {
-      setSearchKeyword(searchInput.trim());
-    }, 300);
-    return () => {
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    };
-  }, [searchInput]);
-
-  useEffect(() => {
-    if (!searchKeyword) {
-      setSearchResults([]);
-      setHotRecs([]);
-      return;
-    }
-    setSearching(true);
-    api
-      .get(`/api/products?q=${encodeURIComponent(searchKeyword)}&page=1&page_size=30`)
-      .then(async (res: any) => {
-        const data = res.data || res;
-        const items: Product[] = data.items || [];
-        setSearchResults(items);
-        if (items.length === 0) {
-          try {
-            const hotRes: any = await api.get('/api/products/hot-recommendations?limit=6');
-            const hotData = hotRes.data || hotRes;
-            setHotRecs(hotData.items || []);
-          } catch {
-            setHotRecs([]);
-          }
-        } else {
-          setHotRecs([]);
-        }
-      })
-      .catch(() => {
-        setSearchResults([]);
-        Toast.show({ content: '搜索失败，请稍后重试', icon: 'fail' });
-      })
-      .finally(() => setSearching(false));
-  }, [searchKeyword]);
+  // [PRD-AI-HOME-V1 2026-05-19] 已移除「分类范围内搜索」相关 effect：
+  //   原 300ms 防抖、`/api/products?q=...` 搜索 fetch、热门推荐补位等逻辑
+  //   全部废弃。全局搜索由 GlobalSearchEntry 跳 `/search` 承接。
 
   // [OPT-1] 进入服务详情时透传 couponId（在带券模式下）
   const onProductClick = (p: Product) => {
@@ -590,61 +556,8 @@ function ServicesPage() {
     );
   }
 
-  // ───────── 渲染：搜索态 ─────────
-  if (searchKeyword) {
-    return (
-      <div className="min-h-screen bg-gray-50 pb-20">
-        <div className="sticky top-0 z-20 px-3 py-2 bg-white shadow-sm">
-          <SearchBar
-            placeholder="搜索全部服务/商品"
-            value={searchInput}
-            onChange={setSearchInput}
-            onClear={() => setSearchInput('')}
-            style={{ '--border-radius': '20px', '--height': '36px' }}
-          />
-        </div>
-
-        <div className="px-4 pt-3">
-          {searching ? (
-            <div className="flex items-center justify-center py-20">
-              <SpinLoading color="primary" />
-            </div>
-          ) : searchResults.length > 0 ? (
-            <>
-              <div className="text-xs text-gray-400 mb-2">
-                共找到 {searchResults.length} 个匹配结果
-              </div>
-              {searchResults.map((p) => (
-                <ProductCard key={p.id} product={p} onClick={() => onProductClick(p)} categoryMap={categoryMap} />
-              ))}
-            </>
-          ) : (
-            <div className="py-8">
-              <Empty description={`未找到「${searchKeyword}」相关结果`} />
-              {hotRecs.length > 0 && (
-                <div className="mt-6">
-                  <div className="flex items-center mb-3">
-                    <span className="text-base">🔥</span>
-                    <span className="text-sm font-semibold text-gray-700 ml-1">
-                      热门推荐
-                    </span>
-                  </div>
-                  {hotRecs.map((p) => (
-                    <ProductCard
-                      key={p.id}
-                      product={p}
-                      onClick={() => onProductClick(p)}
-                      categoryMap={categoryMap}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
+  // [PRD-AI-HOME-V1 2026-05-19] 已删除「搜索态分支」：原 if (searchKeyword) {...}
+  // 整段渲染逻辑废弃，全局搜索改由 GlobalSearchEntry 跳 `/search` 承接。
 
   // ───────── 渲染：常态（全新布局） ─────────
   // F1/F2: 全屏容器不滚动，左侧栏固定+独立滚动
@@ -659,14 +572,40 @@ function ServicesPage() {
         overflow: 'hidden',
       }}
     >
-      {/* 顶部搜索栏（固定吸顶） */}
-      <div className="px-3 py-2 bg-white shadow-sm flex-shrink-0" style={{ zIndex: 20 }}>
-        <SearchBar
-          placeholder="搜索全部服务/商品"
-          value={searchInput}
-          onChange={setSearchInput}
-          style={{ '--border-radius': '20px', '--height': '36px' }}
-        />
+      {/* [PRD-AI-HOME-V1 2026-05-19] 顶部条（固定吸顶）：返回按钮 + 全局搜索入口 */}
+      <div
+        className="px-3 py-2 bg-white shadow-sm flex-shrink-0"
+        style={{ zIndex: 20, display: 'flex', alignItems: 'center', gap: 8 }}
+        data-testid="services-topbar"
+      >
+        <button
+          type="button"
+          aria-label="返回 AI 首页"
+          data-testid="services-back-btn"
+          onClick={() => router.replace('/ai-home')}
+          style={{
+            width: 32,
+            height: 32,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
+            margin: 0,
+            cursor: 'pointer',
+            color: '#1F2937',
+            flexShrink: 0,
+          }}
+        >
+          <LeftOutline fontSize={22} />
+        </button>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <GlobalSearchEntry
+            placeholder="搜索服务、商品、医生…"
+            testId="services-global-search"
+          />
+        </div>
       </div>
 
       {/* 主内容区：左侧分类 + 右侧（Tab + 商品列表） */}

@@ -210,7 +210,8 @@ function LoginContent() {
         router.replace('/health-guide');
         return;
       }
-      router.replace('/home');
+      // [PRD-AI-HOME-V1 2026-05-19] 登录成功默认落地由 /home（菜单首页）改为 /ai-home（AI 首页）
+      router.replace('/ai-home');
     } catch (error: any) {
       const detail = error?.response?.data?.detail || '';
       Toast.show({ content: detail || '登录失败，请检查验证码' });

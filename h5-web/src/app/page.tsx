@@ -10,17 +10,16 @@ export default function RootPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // [PRD-AI-HOME-V1 2026-05-19] (tabs) 路由组已归档，菜单模式首页 /home 下线，
+    // 强制收敛为 AI 首页 /ai-home。保留对 /api/app-settings/page-style 的调用以兼容旧后端，
+    // 但无论返回什么值，前端一律落到 /ai-home。
     fetch(`${basePath}/api/app-settings/page-style`)
       .then(res => res.json())
-      .then(data => {
-        if (data.value === 'menu') {
-          router.replace('/home');
-        } else {
-          router.replace('/ai-home');
-        }
-      })
-      .catch(() => router.replace('/ai-home'))
-      .finally(() => setLoading(false));
+      .catch(() => {})
+      .finally(() => {
+        router.replace('/ai-home');
+        setLoading(false);
+      });
   }, [router]);
 
   return (

@@ -27,6 +27,46 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-AI-HOME-V1｜AI 首页与抽屉入口优化 + (tabs) 路由组清理（2026-05-19 17:00）
+
+### 范围（仅 H5 端）
+- 砍掉 `(tabs)` 路由组，归档到 `h5-web/src/app/_archived_tabs/`（Next.js App Router 自动忽略 `_` 前缀目录）：
+  - `_archived_tabs/layout.tsx`（旧底部 Tab Bar）
+  - `_archived_tabs/home/page.tsx`（旧"菜单模式首页"，搜索入口代码已抠出复用）
+  - `_archived_tabs/ai/page.tsx`（旧 AI 入口壳子）
+  - `_archived_tabs/profile/page.tsx`（旧"我的"页 —— 注意与 `app/profile/` 独立页同名但不同路径）
+  - `_archived_tabs/README.md`（归档说明 + 二次清理计划）
+- `(tabs)/services/page.tsx` 迁移到 `app/services/page.tsx`（路由仍为 `/services`），同时：
+  - 顶部新增「返回 AI 首页」按钮（`router.replace('/ai-home')`，统一回到 AI 首页，不用 `router.back()`）
+  - 顶部 antd-mobile `SearchBar` 替换为 `GlobalSearchEntry`（白底胶囊点击跳全局 `/search`）
+  - 删除本地搜索 state / 防抖 hook / 搜索结果态 / 搜索分支整段
+- 新增组件 `h5-web/src/components/search/GlobalSearchEntry.tsx`：从旧 `(tabs)/home` 抠出的全局搜索胶囊，可在任意页面复用
+- 新增组件 `h5-web/src/components/ai-chat/MemberCodeModal.tsx`：会员码二维码弹窗（复用 `/api/member/qrcode`，60s 自动刷新，失败可重试）
+- 修改 `h5-web/src/components/ai-chat/Sidebar.tsx`：顶栏图标组在铃铛前新增「🎫 会员码」按钮（22x22 SVG 二维码图标），点击弹出 MemberCodeModal
+- 修改 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：
+  - 顶栏 ⋯ 更多菜单左侧（right:44）新增 🎁 邀请图标按钮（`data-testid="ai-home-invite-btn"`），点击跳 `/invite`
+  - 宫格 `target_path` 运行时兜底：DB 中残留的 `/(tabs)/services`、`/tabs/services` 自动改写为 `/services`；空/非法值兜底跳 `/services`
+- 修改 `h5-web/src/app/(ai-chat)/ai-settings/page.tsx`：「个人信息」分组下新增「地址」入口（与「账号安全」并列），跳 `/my-addresses`
+- 修改 `h5-web/next.config.js`：新增 `/home → /ai-home` 与 `/ai → /ai-home` 的 301 永久重定向，外部分享/历史链接仍可访问
+- 路由副作用清理（全仓库 grep 替换）：
+  - `h5-web/src/app/page.tsx`：根路径不再分流 `/home`，无条件落 `/ai-home`
+  - `h5-web/src/app/login/page.tsx`：登录成功默认落地从 `/home` 改为 `/ai-home`
+  - `h5-web/src/app/search/result/page.tsx`：两处旧 `/home` 与 `/ai` 引用全部改为 `/ai-home`
+  - `h5-web/src/app/health-guide/page.tsx`：三处 `/home` 跳转改为 `/ai-home`
+
+### 不影响范围
+- 后端、admin-web、miniprogram、flutter_app 均**无代码变更**，无需重新打包客户端
+- `app/profile/` 独立页面（个人资料 / 编辑等）保持原状，不重定向
+- `/checkup`、`/drug`、`/tcm`、`/devices`、`/health-profile`、`/family`、`/points`、`/my-coupons`、`/my-favorites`、`/unified-orders`、`/notifications`、`/search`、`/products`、`/articles`、`/news` 等所有独立路由均不动
+- 抽屉内现有功能（资产 4 格 / 健康档案 / 我的设备 / 历史对话 / 管理态 / 批量删除 / 单条置顶/删除等）全部保留
+
+### 部署 & 验证
+- 已通过 `_deploy_prd_aihome_v1.py` 增量部署：tar 上传 → `docker compose build h5-web` → up -d
+- 19 条关键路由全部 200（含 `/home` `/ai` 重定向后落地 200）
+- testid 内容验证（含 JS chunk 提取）全部通过：`services-back-btn` / `services-global-search` / `global-search-entry` / `ai-home-invite-btn` / `settings-address-entry` / `bh-icon-member-code` / `bh-member-code-modal`
+
+---
+
 ## Latest Update: PRD-BELL-UNIFIED-V1｜铃铛红点统一计数 + AI 首页今日待办胶囊（2026-05-19 12:15）
 
 ### 范围（仅后端 + H5 端）

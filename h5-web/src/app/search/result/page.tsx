@@ -471,7 +471,7 @@ function SearchResultContent() {
       <div className="flex items-center px-3 py-2 bg-white border-b border-gray-100 sticky top-0 z-10">
         <button
           className="flex-shrink-0 w-8 h-8 flex items-center justify-center"
-          onClick={() => router.push('/home')}
+          onClick={() => router.push('/ai-home')}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
@@ -876,7 +876,7 @@ function EmptyState({ hotList, router }: { hotList: HotItem[]; router: ReturnTyp
       <button
         className="text-sm font-medium px-6 py-2 rounded-full text-white"
         style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
-        onClick={() => router.push('/ai')}
+        onClick={() => router.push('/ai-home')}
       >
         试试 AI 健康咨询
       </button>

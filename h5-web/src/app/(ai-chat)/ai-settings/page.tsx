@@ -58,6 +58,15 @@ export default function AiSettingsPage() {
           <List.Item arrow onClick={() => router.push('/account-security')}>
             账号安全
           </List.Item>
+          {/* [PRD-AI-HOME-V1 2026-05-19] 地址入口（与账号安全并列）。
+              项目内已有 /my-addresses 地址管理页，复用即可，不新建空壳页。 */}
+          <List.Item
+            arrow
+            onClick={() => router.push('/my-addresses')}
+            data-testid="settings-address-entry"
+          >
+            地址
+          </List.Item>
         </List>
 
         <List header="通知设置" style={{ '--border-top': 'none', '--header-font-size': '13px' } as React.CSSProperties}>
