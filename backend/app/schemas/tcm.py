@@ -23,6 +23,8 @@ class TCMDiagnosisResponse(BaseModel):
     family_member_id: Optional[int] = None
     constitution_description: Optional[str] = None
     advice_summary: Optional[str] = None
+    # [PRD-TCM-CONSTITUTION-36Q-V1 2026-05-20] 王琦本地公式 9 项转换分
+    constitution_scores: Optional[Dict[str, Any]] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -52,6 +54,8 @@ class ConstitutionQuestionResponse(BaseModel):
 class ConstitutionAnswerCreate(BaseModel):
     question_id: int
     answer_value: str
+    # [PRD-TCM-CONSTITUTION-36Q-V1] 0~4 选项索引（前端新版传 option_index，旧版只传 answer_value）
+    option_index: Optional[int] = None
 
 
 class ConstitutionTestRequest(BaseModel):

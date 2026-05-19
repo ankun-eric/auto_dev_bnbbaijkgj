@@ -371,6 +371,111 @@ async def _upgrade_buttons(db, tpl_id: int) -> int:
     return cnt
 
 
+async def _ensure_tcm_template(db) -> Optional[int]:
+    """[v1.2 F13] 确保中医体质测评 questionnaire 模板存在，返回 ID。
+
+    模板编码：tcm_constitution_wangqi_36
+    模板的"题库"沿用既有 constitution_questions 表（不在 questionnaire_question 中重复维护）；
+    questionnaire_template 这里只是个"入口元信息"，让中医体质测评也能复用按钮 + 引导卡片体系。
+    """
+    row = await db.execute(
+        text("SELECT id FROM questionnaire_template WHERE code = 'tcm_constitution_wangqi_36'"),
+    )
+    rec = row.fetchone()
+    if rec:
+        return int(rec[0])
+    res = await db.execute(
+        text(
+            "INSERT INTO questionnaire_template "
+            "(code, name, description, intro_text, estimated_minutes, allow_back, "
+            " shuffle_questions, report_layout, status, result_summary_template, source, "
+            " ai_prompt_template, created_at, updated_at) "
+            "VALUES ("
+            " 'tcm_constitution_wangqi_36', '中医体质测评（王琦 36 题版）', "
+            " '基于王琦国标 36 题，5 分钟了解您属于 9 种体质中的哪一种', "
+            " '请根据近一年的实际感受作答，共 36 题，5 分钟完成。', "
+            " 5, 1, 0, 'radar', 1, "
+            " NULL, 'system_migrated', "
+            " NULL, NOW(), NOW())"
+        ),
+    )
+    return res.lastrowid
+
+
+async def _register_tcm_constitution_button(db, tpl_id: int) -> int:
+    """[v1.2 F10] 把"中医体质测评"自动登记为一个 questionnaire 类型按钮（幂等）。"""
+    try:
+        existed = (
+            await db.execute(
+                text(
+                    "SELECT id FROM chat_function_buttons "
+                    "WHERE ai_function_type = 'questionnaire' "
+                    "  AND questionnaire_template_id = :tid LIMIT 1"
+                ),
+                {"tid": tpl_id},
+            )
+        ).fetchone()
+        if existed:
+            return 0
+        await db.execute(
+            text(
+                "INSERT INTO chat_function_buttons "
+                "(name, icon, button_type, ai_function_type, questionnaire_template_id, "
+                " questionnaire_display_form, sort_weight, is_enabled, is_recommended, is_capsule, "
+                " card_title, card_subtitle, button_sub_desc, pre_card_enabled, "
+                " pre_card_icon, pre_card_icon_type, ai_opening, "
+                " auto_user_message, created_at, updated_at) "
+                "VALUES "
+                "('中医体质测评', '🌿', 'ai_function', 'questionnaire', :tid, "
+                " 'DRAWER_STEPPED', 200, 1, 1, 1, "
+                " '中医体质测评', "
+                " '基于王琦国标 36 题，5 分钟了解您属于 9 种体质中的哪一种', "
+                " '预计耗时 4-5 分钟 · 数据加密保护', 1, "
+                " '🌿', 'emoji', '我想测一下自己的中医体质类型', "
+                " '开始中医体质测评', NOW(), NOW())"
+            ),
+            {"tid": tpl_id},
+        )
+        return 1
+    except Exception as e:  # noqa: BLE001
+        logger.debug("[questionnaire_drawer_v1.2] 中医体质按钮登记跳过: %s", e)
+        return 0
+
+
+async def _mark_reverse_score_questions(db) -> int:
+    """[v1.2 F13] 标记 34/35/36 题为反向计分。"""
+    try:
+        res = await db.execute(
+            text(
+                "UPDATE constitution_questions "
+                "SET is_reverse_score = 1 "
+                "WHERE order_num IN (34, 35, 36) "
+                "  AND (is_reverse_score IS NULL OR is_reverse_score = 0)"
+            ),
+        )
+        return res.rowcount or 0
+    except Exception as e:  # noqa: BLE001
+        logger.debug("[questionnaire_drawer_v1.2] 反向题标记跳过: %s", e)
+        return 0
+
+
+async def _backfill_precard_defaults(db) -> int:
+    """[v1.2 F10] 所有问卷类按钮的 pre_card_enabled 默认置 true（NULL→1）。"""
+    try:
+        res = await db.execute(
+            text(
+                "UPDATE chat_function_buttons "
+                "SET pre_card_enabled = 1 "
+                "WHERE ai_function_type = 'questionnaire' "
+                "  AND (pre_card_enabled IS NULL)"
+            ),
+        )
+        return res.rowcount or 0
+    except Exception as e:  # noqa: BLE001
+        logger.debug("[questionnaire_drawer_v1.2] pre_card 默认值回填跳过: %s", e)
+        return 0
+
+
 async def run_migration_with_session(async_session_factory):
     stats = {
         "columns_added": 0,
@@ -378,6 +483,9 @@ async def run_migration_with_session(async_session_factory):
         "questions_created": 0,
         "questions_updated": 0,
         "buttons_upgraded": 0,
+        "tcm_button_registered": 0,
+        "reverse_score_marked": 0,
+        "precard_backfilled": 0,
     }
     print("[migrate] questionnaire_drawer_v1: 启动", flush=True)
     try:
@@ -388,6 +496,18 @@ async def run_migration_with_session(async_session_factory):
                 "questionnaire_display_form",
                 "questionnaire_display_form VARCHAR(32) NULL DEFAULT 'DRAWER_SCROLL' "
                 "COMMENT '问卷展示形态：DRAWER_SCROLL / DRAWER_STEPPED / INLINE_CHAT'",
+            )
+            # [v1.2 新增] 引导卡片图标三选一相关字段
+            await _add_col(
+                db, "chat_function_buttons",
+                "pre_card_icon",
+                "pre_card_icon VARCHAR(500) NULL COMMENT '引导卡片图标内容（URL 或 Emoji）'",
+            )
+            await _add_col(
+                db, "chat_function_buttons",
+                "pre_card_icon_type",
+                "pre_card_icon_type VARCHAR(16) NULL DEFAULT 'default' "
+                "COMMENT '图标类型：url / emoji / default'",
             )
             await _add_col(
                 db, "questionnaire_template",
@@ -414,6 +534,20 @@ async def run_migration_with_session(async_session_factory):
                 db, "questionnaire_question",
                 "layout_hint",
                 "layout_hint VARCHAR(32) NULL DEFAULT 'tag_grid' COMMENT '题目视觉布局'",
+            )
+            # [v1.2 新增] TCM 体质题反向计分标识
+            await _add_col(
+                db, "constitution_questions",
+                "is_reverse_score",
+                "is_reverse_score BOOLEAN NULL DEFAULT 0 "
+                "COMMENT '是否反向计分（如平和质的 容易累/声音低弱/不开心）'",
+            )
+            # [v1.2 新增] Diagnosis 9 项转换分
+            await _add_col(
+                db, "tcm_diagnoses",
+                "constitution_scores",
+                "constitution_scores JSON NULL "
+                "COMMENT '王琦本地公式 9 项转换分 + 主体质 + 兼夹体质 + 置信度'",
             )
             await db.commit()
 
@@ -450,6 +584,22 @@ async def run_migration_with_session(async_session_factory):
 
             # 5. 升级按钮
             stats["buttons_upgraded"] = await _upgrade_buttons(db, tpl_id)
+            await db.commit()
+
+            # 6. [v1.2 新增] 反向计分题标记
+            stats["reverse_score_marked"] = await _mark_reverse_score_questions(db)
+            await db.commit()
+
+            # 7. [v1.2 新增] 中医体质测评模板 + 按钮自动登记
+            tcm_tpl_id = await _ensure_tcm_template(db)
+            if tcm_tpl_id:
+                stats["tcm_button_registered"] = await _register_tcm_constitution_button(
+                    db, tcm_tpl_id
+                )
+            await db.commit()
+
+            # 8. [v1.2 新增] pre_card_enabled 默认值回填
+            stats["precard_backfilled"] = await _backfill_precard_defaults(db)
             await db.commit()
 
         print(

@@ -24,14 +24,10 @@ Page({
     showResult: false,
     currentQuestion: 0,
     quizAnswers: [],
-    questions: [
-      { text: '您是否经常感到疲乏无力？', options: [{ label: '没有', value: 1 }, { label: '偶尔', value: 2 }, { label: '经常', value: 3 }, { label: '总是', value: 4 }] },
-      { text: '您是否容易出汗（不因运动）？', options: [{ label: '没有', value: 1 }, { label: '偶尔', value: 2 }, { label: '经常', value: 3 }, { label: '总是', value: 4 }] },
-      { text: '您的手脚是否经常发凉？', options: [{ label: '没有', value: 1 }, { label: '偶尔', value: 2 }, { label: '经常', value: 3 }, { label: '总是', value: 4 }] },
-      { text: '您是否经常感到口干舌燥？', options: [{ label: '没有', value: 1 }, { label: '偶尔', value: 2 }, { label: '经常', value: 3 }, { label: '总是', value: 4 }] },
-      { text: '您的睡眠质量如何？', options: [{ label: '很好', value: 1 }, { label: '一般', value: 2 }, { label: '较差', value: 3 }, { label: '很差', value: 4 }] },
-      { text: '您是否容易感到心情抑郁或焦虑？', options: [{ label: '没有', value: 1 }, { label: '偶尔', value: 2 }, { label: '经常', value: 3 }, { label: '总是', value: 4 }] }
-    ],
+    // [PRD-TCM-CONSTITUTION-36Q-V1 2026-05-20] 题目数据从 /api/tcm/questions 拉取真实 36 题
+    // 初始为兜底空数组，onLoad/openQuiz 时拉取
+    questions: [],
+    questionsLoaded: false,
     result: null,
 
     showMemberPicker: false,
@@ -48,9 +44,45 @@ Page({
     archiveLoading: false
   },
 
+  onLoad() {
+    // [PRD-TCM-CONSTITUTION-36Q-V1] 首次进入即拉取 36 题
+    this.loadConstitutionQuestions();
+  },
+
   onShow() {
     this.loadTcmConfig();
     this.loadArchiveList();
+    if (!this.data.questionsLoaded) {
+      this.loadConstitutionQuestions();
+    }
+  },
+
+  // [PRD-TCM-CONSTITUTION-36Q-V1 2026-05-20] 拉取王琦国标 36 题（5 级李克特量表）
+  async loadConstitutionQuestions() {
+    try {
+      const res = await get('/api/tcm/questions', {}, { showLoading: false, suppressErrorToast: true });
+      const items = (res && res.items) || [];
+      if (Array.isArray(items) && items.length > 0) {
+        const normalized = items
+          .slice()
+          .sort((a, b) => (a.order_num || 0) - (b.order_num || 0))
+          .map((q) => ({
+            id: q.id,
+            order_num: q.order_num,
+            question_group: q.question_group || '',
+            text: q.question_text || '',
+            is_reverse_score: !!q.is_reverse_score,
+            options: (Array.isArray(q.options) ? q.options : ['没有', '很少', '有时', '经常', '总是']).map((o, idx) => ({
+              label: String(o),
+              value: String(o),
+              index: idx,
+            })),
+          }));
+        this.setData({ questions: normalized, questionsLoaded: true });
+      }
+    } catch (e) {
+      console.log('loadConstitutionQuestions error', e);
+    }
   },
 
   async loadTcmConfig() {
@@ -219,10 +251,13 @@ Page({
     this.setData({ currentStep: 2 });
     wx.showLoading({ title: '分析中...', mask: true });
     try {
-      const answersArr = (answers || []).map((value, idx) => ({
-        question_id: idx + 1,
-        answer_value: String(value)
-      }));
+      // [PRD-TCM-CONSTITUTION-36Q-V1 2026-05-20] 使用真实服务端 question_id，不再硬编码 idx+1
+      const questions = this.data.questions || [];
+      const answersArr = (answers || []).map((value, idx) => {
+        const q = questions[idx];
+        const qid = q && q.id ? q.id : (idx + 1);
+        return { question_id: qid, answer_value: String(value) };
+      });
       const payload = { answers: answersArr };
       if (familyMemberId !== undefined && familyMemberId !== null && familyMemberId !== 0) {
         payload.family_member_id = familyMemberId;

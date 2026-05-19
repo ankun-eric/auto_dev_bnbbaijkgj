@@ -191,6 +191,11 @@ async def get_button_render_meta(
             "card_title": btn.card_title,
             "card_subtitle": btn.card_subtitle,
             "card_cover_image": btn.card_cover_image,
+            "button_sub_desc": btn.button_sub_desc,
+            # [PRD-QUESTIONNAIRE-DRAWER-V1.2 2026-05-20] 引导卡片三字段
+            "pre_card_enabled": bool(btn.pre_card_enabled) if btn.pre_card_enabled is not None else True,
+            "pre_card_icon": btn.pre_card_icon,
+            "pre_card_icon_type": btn.pre_card_icon_type or "default",
         },
         "display_form": btn.questionnaire_display_form or "DRAWER_SCROLL",
         "template": None,

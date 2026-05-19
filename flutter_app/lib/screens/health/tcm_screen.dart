@@ -375,16 +375,52 @@ class _TcmScreenState extends State<TcmScreen> {
     });
   }
 
-  void _showConstitutionTest() {
-    final answers = <int, int>{};
-    final questions = [
-      '1. 您是否经常感到疲劳、气短？',
-      '2. 您是否手脚发凉、怕冷？',
-      '3. 您是否口干舌燥、手足心热？',
-      '4. 您是否体形偏胖、腹部肥满？',
-      '5. 您是否面部容易出油？',
-    ];
-    final options = ['没有', '很少', '有时', '经常', '总是'];
+  // [PRD-TCM-CONSTITUTION-36Q-V1 2026-05-20] 拉取真实王琦 36 题
+  List<Map<String, dynamic>> _constitutionQuestions = [];
+  bool _constitutionQuestionsLoaded = false;
+
+  Future<void> _ensureConstitutionQuestionsLoaded() async {
+    if (_constitutionQuestionsLoaded && _constitutionQuestions.isNotEmpty) return;
+    try {
+      final response = await _api.getTcmQuestions();
+      if (response.statusCode == 200) {
+        final data = response.data;
+        final items = (data is Map ? (data['items'] as List? ?? []) : <dynamic>[]);
+        final normalized = items
+            .map((e) {
+              final m = Map<String, dynamic>.from(e as Map);
+              return {
+                'id': m['id'] as int,
+                'order_num': m['order_num'] ?? 0,
+                'question_group': m['question_group'] ?? '',
+                'question_text': m['question_text'] ?? '',
+                'is_reverse_score': m['is_reverse_score'] == true,
+                'options': List<String>.from(
+                  (m['options'] as List?)?.map((o) => o.toString()) ??
+                      ['没有', '很少', '有时', '经常', '总是'],
+                ),
+              };
+            })
+            .toList();
+        normalized.sort((a, b) =>
+            (a['order_num'] as int).compareTo(b['order_num'] as int));
+        _constitutionQuestions = normalized;
+        _constitutionQuestionsLoaded = true;
+      }
+    } catch (_) {}
+  }
+
+  void _showConstitutionTest() async {
+    // 先拉真题，未加载到则提示
+    await _ensureConstitutionQuestionsLoaded();
+    if (_constitutionQuestions.isEmpty) {
+      if (!mounted) return;
+      _showError('题库加载失败，请稍后重试');
+      return;
+    }
+    final questionsRaw = _constitutionQuestions;
+    final answers = <int, int>{}; // key: question_id, value: option_index (0~4)
+    final standardOptions = ['没有', '很少', '有时', '经常', '总是'];
 
     showModalBottomSheet(
       context: context,
@@ -416,8 +452,11 @@ class _TcmScreenState extends State<TcmScreen> {
                 Expanded(
                   child: ListView.builder(
                     controller: controller,
-                    itemCount: questions.length,
+                    itemCount: questionsRaw.length,
                     itemBuilder: (context, qIdx) {
+                      final q = questionsRaw[qIdx];
+                      final qid = q['id'] as int;
+                      final opts = (q['options'] as List).cast<String>();
                       return Container(
                         margin: const EdgeInsets.only(bottom: 16),
                         padding: const EdgeInsets.all(16),
@@ -428,16 +467,35 @@ class _TcmScreenState extends State<TcmScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(questions[qIdx], style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                            Row(
+                              children: [
+                                Text('${qIdx + 1}. ',
+                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: _kPrimaryPurple)),
+                                if ((q['question_group'] as String).isNotEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: _kPrimaryPurple.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      q['question_group'] as String,
+                                      style: const TextStyle(fontSize: 11, color: _kPrimaryPurple),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(q['question_text'] as String, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
                             const SizedBox(height: 12),
                             Row(
-                              children: List.generate(options.length, (oIdx) {
-                                final isSelected = answers[qIdx] == oIdx;
+                              children: List.generate(opts.length, (oIdx) {
+                                final isSelected = answers[qid] == oIdx;
                                 return Expanded(
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: 2),
                                     child: OutlinedButton(
-                                      onPressed: () => setSheetState(() => answers[qIdx] = oIdx),
+                                      onPressed: () => setSheetState(() => answers[qid] = oIdx),
                                       style: OutlinedButton.styleFrom(
                                         padding: const EdgeInsets.symmetric(vertical: 8),
                                         backgroundColor: isSelected ? _kPrimaryPurple.withOpacity(0.1) : null,
@@ -447,7 +505,7 @@ class _TcmScreenState extends State<TcmScreen> {
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                       ),
                                       child: Text(
-                                        options[oIdx],
+                                        opts[oIdx],
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: isSelected ? _kPrimaryPurple : const Color(0xFF666666),
@@ -468,7 +526,7 @@ class _TcmScreenState extends State<TcmScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: answers.length == questions.length
+                    onPressed: answers.length == questionsRaw.length
                         ? () {
                             Navigator.pop(context);
                             _showConsultMemberPickerBeforeSubmit(answers);
@@ -481,7 +539,7 @@ class _TcmScreenState extends State<TcmScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: Text(
-                      answers.length == questions.length ? '下一步：选择咨询人' : '请回答所有问题 (${answers.length}/${questions.length})',
+                      answers.length == questionsRaw.length ? '下一步：选择咨询人' : '请回答所有问题 (${answers.length}/${questionsRaw.length})',
                       style: const TextStyle(color: Colors.white),
                     ),
                   ),
@@ -591,9 +649,20 @@ class _TcmScreenState extends State<TcmScreen> {
     );
 
     try {
-      final answersList = answers.entries.map((e) => {
-        'question_id': e.key,
-        'answer_value': e.value.toString(),
+      // [PRD-TCM-CONSTITUTION-36Q-V1 2026-05-20]
+      // answers 的 key 已经是后端真实 question_id，value 是 option_index(0~4)。
+      // 同时传 option_index（后端公式优先用它）+ answer_value（文本兜底兼容老接口）。
+      const standardOptions = ['没有', '很少', '有时', '经常', '总是'];
+      final answersList = answers.entries.map((e) {
+        final optIdx = e.value;
+        final text = (optIdx >= 0 && optIdx < standardOptions.length)
+            ? standardOptions[optIdx]
+            : optIdx.toString();
+        return {
+          'question_id': e.key,
+          'option_index': optIdx,
+          'answer_value': text,
+        };
       }).toList();
       final payload = <String, dynamic>{
         'answers': answersList,

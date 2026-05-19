@@ -967,6 +967,8 @@ class TCMDiagnosis(Base):
     family_member_id = mapped_column(Integer, ForeignKey("family_members.id"), nullable=True, index=True)
     constitution_description = mapped_column(String(500), nullable=True)
     advice_summary = mapped_column(String(1000), nullable=True)
+    # ───── [PRD-TCM-CONSTITUTION-36Q-V1 2026-05-20] 王琦本地公式判定结果 ─────
+    constitution_scores = mapped_column(JSON, nullable=True, comment="9 项转换分 + 主体质 + 兼夹体质 + 置信度")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     user = relationship("User")
@@ -982,6 +984,8 @@ class ConstitutionQuestion(Base):
     question_group = mapped_column(String(50), nullable=True)
     options = mapped_column(JSON, nullable=True)
     order_num = mapped_column(Integer, default=0)
+    # ───── [PRD-TCM-CONSTITUTION-36Q-V1 2026-05-20] 反向计分标识 ─────
+    is_reverse_score = mapped_column(Boolean, nullable=True, default=False, comment="是否反向计分（如平和质的 容易累/声音低弱/不开心）")
 
 
 class ConstitutionAnswer(Base):
@@ -2589,6 +2593,9 @@ class ChatFunctionButton(Base):
     questionnaire_template_id = mapped_column(Integer, nullable=True, comment="关联问卷模板 ID（ai_function_type=questionnaire 时必填）")
     capture_purpose = mapped_column(String(32), nullable=True, comment="图像采集用途：identify_medicine / upload / interpret_report")
     pre_card_enabled = mapped_column(Boolean, nullable=True, default=True, comment="是否启用对话内说明卡片（对所有 ai_function_type 统一可用；覆盖旧 pre_card_for_navigate）")
+    # ───── [PRD-QUESTIONNAIRE-DRAWER-V1.2 2026-05-20] 引导卡片图标三选一 ─────
+    pre_card_icon = mapped_column(String(500), nullable=True, comment="引导卡片图标内容（URL 或 Emoji）")
+    pre_card_icon_type = mapped_column(String(16), nullable=True, default="default", comment="图标类型：url / emoji / default")
     # ───── [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 问卷展示形态 ─────
     # DRAWER_SCROLL=抽屉-一屏多题（默认，健康自查）/ DRAWER_STEPPED=抽屉-一题一屏（体质测评）/ INLINE_CHAT=对话内插入
     questionnaire_display_form = mapped_column(

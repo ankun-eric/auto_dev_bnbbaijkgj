@@ -374,6 +374,9 @@ export default function FunctionButtonsPage() {
             : !!record.pre_card_for_navigate || true,
         // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 问卷展示形态回填
         questionnaire_display_form: record.questionnaire_display_form || 'DRAWER_SCROLL',
+        // [PRD-QUESTIONNAIRE-DRAWER-V1.2 2026-05-20] 引导卡片图标三选一回填
+        pre_card_icon: (record as any).pre_card_icon || '',
+        pre_card_icon_type: (record as any).pre_card_icon_type || 'default',
       };
 
       // [PRD-AICHAT-CAPSULE-V2 2026-05-15] 移除 ai_reply_mode 字段回填（统一由「关联 Prompt 模板」承载）；
@@ -402,6 +405,9 @@ export default function FunctionButtonsPage() {
         pre_card_enabled: true,
         // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 默认抽屉-一屏多题
         questionnaire_display_form: 'DRAWER_SCROLL',
+        // [PRD-QUESTIONNAIRE-DRAWER-V1.2 2026-05-20] 引导卡片图标默认走默认 SVG
+        pre_card_icon: '',
+        pre_card_icon_type: 'default',
       });
     }
     setModalOpen(true);
@@ -501,6 +507,17 @@ export default function FunctionButtonsPage() {
         questionnaire_display_form:
           values.button_type === 'ai_function' && values.ai_function_type === 'questionnaire'
             ? (values.questionnaire_display_form || 'DRAWER_SCROLL')
+            : null,
+        // [PRD-QUESTIONNAIRE-DRAWER-V1.2 2026-05-20] 引导卡片图标三选一
+        // - ai_function 时才生效；其他类型置空
+        // - icon_type=default 时强制把 icon 内容清空
+        pre_card_icon_type:
+          values.button_type === 'ai_function'
+            ? (values.pre_card_icon_type || 'default')
+            : null,
+        pre_card_icon:
+          values.button_type === 'ai_function' && (values.pre_card_icon_type === 'url' || values.pre_card_icon_type === 'emoji')
+            ? (values.pre_card_icon || null)
             : null,
       };
 
@@ -900,10 +917,71 @@ export default function FunctionButtonsPage() {
               label="对话内说明卡片"
               name="pre_card_enabled"
               valuePropName="checked"
-              extra="开启后，用户点击按钮先在对话区插入一张说明卡片（标题/封面/描述），用户点卡片按钮再真正开启功能。关闭则直接进入功能流程，无卡片铺垫。"
+              extra="开启后，用户点击按钮先在对话区插入一张说明卡片（方案 D · 宾尼天蓝），用户点卡片「开始」按钮再真正进抽屉。关闭则直接进入功能流程，无卡片铺垫。"
             >
               <Switch checkedChildren="开（默认）" unCheckedChildren="关" />
             </Form.Item>
+          )}
+
+          {/* [PRD-QUESTIONNAIRE-DRAWER-V1.2 2026-05-20] 引导卡片图标三选一 */}
+          {watchedButtonType === 'ai_function' && watchedPreCardEnabled !== false && (
+            <>
+              <Form.Item
+                label="卡片图标"
+                name="pre_card_icon_type"
+                extra="三选一：上传图片 / 选择 Emoji / 使用默认。默认走系统问卷 SVG"
+              >
+                <Select
+                  options={[
+                    { label: '使用默认（系统问卷 SVG）', value: 'default' },
+                    { label: '选择 Emoji', value: 'emoji' },
+                    { label: '上传图片 URL', value: 'url' },
+                  ]}
+                />
+              </Form.Item>
+              <Form.Item
+                noStyle
+                shouldUpdate={(prev, next) => prev.pre_card_icon_type !== next.pre_card_icon_type}
+              >
+                {({ getFieldValue }) => {
+                  const t = getFieldValue('pre_card_icon_type');
+                  if (t === 'emoji') {
+                    return (
+                      <Form.Item
+                        label="选择 Emoji"
+                        name="pre_card_icon"
+                        extra="常用：🩺 🧬 💊 🥗 😴 🚶 📋 🌿 🍎 ⏰ 📝 ❤️"
+                      >
+                        <Input placeholder="🩺" maxLength={8} style={{ width: 120, fontSize: 22 }} />
+                      </Form.Item>
+                    );
+                  }
+                  if (t === 'url') {
+                    return (
+                      <Form.Item
+                        label="图标 URL"
+                        name="pre_card_icon"
+                        rules={[
+                          {
+                            validator: (_, v) => {
+                              if (!v) return Promise.resolve();
+                              const s = String(v).trim();
+                              if (s.startsWith('http://') || s.startsWith('https://') || s.startsWith('/')) {
+                                return Promise.resolve();
+                              }
+                              return Promise.reject(new Error('URL 必须以 http(s):// 或 / 开头'));
+                            },
+                          },
+                        ]}
+                      >
+                        <Input placeholder="https://example.com/icon.png" />
+                      </Form.Item>
+                    );
+                  }
+                  return null;
+                }}
+              </Form.Item>
+            </>
           )}
 
           {/* [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 页面跳转：地址 + 先弹卡片再跳转开关 */}

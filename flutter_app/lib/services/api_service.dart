@@ -360,6 +360,11 @@ class ApiService {
     return _dio.get(ApiConfig.tcmConfig);
   }
 
+  /// [PRD-TCM-CONSTITUTION-36Q-V1 2026-05-20] 拉取王琦国标 36 题
+  Future<Response> getTcmQuestions() async {
+    return _dio.get('/api/tcm/questions');
+  }
+
   Future<Response> postConstitutionTest(Map<String, dynamic> answers) async {
     return _dio.post(ApiConfig.tcmConstitutionTest, data: answers);
   }

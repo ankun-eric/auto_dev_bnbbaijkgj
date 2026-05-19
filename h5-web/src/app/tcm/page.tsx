@@ -10,16 +10,20 @@ import { createChatSession } from '@/lib/chat-session';
 import { checkFileSize } from '@/lib/upload-utils';
 import { formatDateTime } from '@/lib/datetime';
 
-const constitutionQuestions = [
-  { id: 1, q: '您是否容易疲劳？', options: ['从不', '偶尔', '经常', '总是'] },
-  { id: 2, q: '您是否容易气短？', options: ['从不', '偶尔', '经常', '总是'] },
-  { id: 3, q: '您手脚是否容易冰凉？', options: ['从不', '偶尔', '经常', '总是'] },
-  { id: 4, q: '您是否容易口干咽燥？', options: ['从不', '偶尔', '经常', '总是'] },
-  { id: 5, q: '您是否容易烦躁焦虑？', options: ['从不', '偶尔', '经常', '总是'] },
-  { id: 6, q: '您的睡眠质量如何？', options: ['很好', '一般', '较差', '很差'] },
-  { id: 7, q: '您的食欲如何？', options: ['很好', '一般', '较差', '很差'] },
-  { id: 8, q: '您是否容易感冒？', options: ['从不', '偶尔', '经常', '总是'] },
+// [PRD-TCM-CONSTITUTION-36Q-V1 2026-05-20] 中医体质测评改为从 /api/tcm/questions 拉取王琦国标 36 题
+// 不再使用硬编码 6/8 道泛题。下方常量仅作为兜底（接口异常时使用）。
+const FALLBACK_OPTIONS = ['没有', '很少', '有时', '经常', '总是'];
+const FALLBACK_QUESTIONS = [
+  { id: 1, question_text: '您容易疲乏吗？', question_group: '气虚质', order_num: 1, options: FALLBACK_OPTIONS, is_reverse_score: false },
 ];
+interface ConstitutionQ {
+  id: number;
+  question_text: string;
+  question_group?: string | null;
+  order_num: number;
+  options: string[];
+  is_reverse_score?: boolean;
+}
 
 interface TcmConfig {
   tongue_diagnosis_enabled: boolean;
@@ -157,6 +161,9 @@ export default function TcmPage() {
   const [faceImages, setFaceImages] = useState<ImageUploadItem[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
+  // [PRD-TCM-CONSTITUTION-36Q-V1 2026-05-20] 拉取真实 36 题
+  const [questions, setQuestions] = useState<ConstitutionQ[]>(FALLBACK_QUESTIONS as ConstitutionQ[]);
+  const [questionsLoading, setQuestionsLoading] = useState(true);
   const [showResult, setShowResult] = useState(false);
   const [constitutionResult, setConstitutionResult] = useState<{
     type: string;
@@ -247,6 +254,35 @@ export default function TcmPage() {
     fetchArchive();
   }, [fetchConfig, fetchHistory, fetchArchive]);
 
+  // [PRD-TCM-CONSTITUTION-36Q-V1 2026-05-20] 拉取王琦国标 36 题
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res: any = await api.get('/api/tcm/questions');
+        const data = res?.data ?? res;
+        const items = Array.isArray(data?.items) ? data.items : [];
+        if (!cancelled && items.length > 0) {
+          const normalized: ConstitutionQ[] = items.map((q: any) => ({
+            id: q.id,
+            question_text: q.question_text || q.title || '',
+            question_group: q.question_group || null,
+            order_num: q.order_num || 0,
+            options: Array.isArray(q.options) ? q.options.map(String) : FALLBACK_OPTIONS,
+            is_reverse_score: !!q.is_reverse_score,
+          }));
+          normalized.sort((a, b) => (a.order_num || 0) - (b.order_num || 0));
+          setQuestions(normalized);
+        }
+      } catch (e) {
+        // 接口失败保留 fallback
+      } finally {
+        if (!cancelled) setQuestionsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   const features: FeatureItem[] = [];
   if (tcmConfig) {
     if (tcmConfig.tongue_diagnosis_enabled) {
@@ -296,10 +332,12 @@ export default function TcmPage() {
   };
 
   const answerQuestion = (value: string) => {
-    const next = { ...answers, [constitutionQuestions[currentQ].id]: value };
+    const cur = questions[currentQ];
+    if (!cur) return;
+    const next = { ...answers, [cur.id]: value };
     setAnswers(next);
-    if (currentQ < constitutionQuestions.length - 1) {
-      setTimeout(() => setCurrentQ(currentQ + 1), 300);
+    if (currentQ < questions.length - 1) {
+      setTimeout(() => setCurrentQ(currentQ + 1), 200);
     } else {
       // 9 题答完 → 弹出咨询人选择，选定后再提交（最后一步必选咨询人）
       setTimeout(async () => {
@@ -465,7 +503,9 @@ export default function TcmPage() {
     setAddLoading(false);
   };
 
-  const progress = Math.round(((currentQ + (answers[constitutionQuestions[currentQ]?.id] ? 1 : 0)) / constitutionQuestions.length) * 100);
+  const progress = questions.length > 0
+    ? Math.round(((currentQ + (answers[questions[currentQ]?.id] ? 1 : 0)) / questions.length) * 100)
+    : 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -685,7 +725,12 @@ export default function TcmPage() {
             <div className="card">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium">
-                  第 {currentQ + 1} / {constitutionQuestions.length} 题
+                  第 {currentQ + 1} / {questions.length} 题
+                  {questions[currentQ]?.question_group ? (
+                    <span className="ml-2 text-xs text-gray-400">
+                      [{questions[currentQ]?.question_group}]
+                    </span>
+                  ) : null}
                 </span>
                 <span className="text-xs text-primary">{progress}%</span>
               </div>
@@ -698,14 +743,14 @@ export default function TcmPage() {
                 }}
               />
               <div className="text-base font-medium mb-4">
-                {constitutionQuestions[currentQ].q}
+                {questions[currentQ]?.question_text || '加载中...'}
               </div>
               <Space direction="vertical" block>
-                {constitutionQuestions[currentQ].options.map((opt) => (
+                {(questions[currentQ]?.options || FALLBACK_OPTIONS).map((opt) => (
                   <div
                     key={opt}
                     className={`p-3 rounded-xl border text-sm text-center cursor-pointer transition-all ${
-                      answers[constitutionQuestions[currentQ].id] === opt
+                      answers[questions[currentQ]?.id] === opt
                         ? 'border-primary bg-green-50 text-primary'
                         : 'border-gray-200'
                     }`}

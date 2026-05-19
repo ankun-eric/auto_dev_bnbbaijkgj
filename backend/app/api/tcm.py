@@ -26,6 +26,10 @@ from app.schemas.tcm import (
     TCMDiagnosisResponse,
 )
 from app.services.ai_service import tcm_analysis
+from app.services.constitution_score import (
+    REVERSE_SCORE_ORDER_NUMS,
+    calculate_constitution,
+)
 
 router = APIRouter(prefix="/api/tcm", tags=["中医辨证"])
 
@@ -141,8 +145,18 @@ async def list_diagnoses(
 
 @router.get("/questions")
 async def list_questions(db: AsyncSession = Depends(get_db)):
+    """[PRD-TCM-CONSTITUTION-36Q-V1] 返回 36 题国标，包含 is_reverse_score 反向计分标识。"""
     result = await db.execute(select(ConstitutionQuestion).order_by(ConstitutionQuestion.order_num.asc()))
-    items = [ConstitutionQuestionResponse.model_validate(q) for q in result.scalars().all()]
+    qs = list(result.scalars().all())
+    items = []
+    for q in qs:
+        item = ConstitutionQuestionResponse.model_validate(q).model_dump()
+        # 反向计分：优先取数据库字段，缺省时回退到 order_num ∈ {34,35,36}
+        is_reverse = bool(getattr(q, "is_reverse_score", False)) or (
+            q.order_num in REVERSE_SCORE_ORDER_NUMS
+        )
+        item["is_reverse_score"] = is_reverse
+        items.append(item)
     return {"items": items}
 
 
@@ -178,7 +192,7 @@ async def constitution_test(
         except Exception as e:  # noqa: BLE001
             raise HTTPException(status_code=422, detail=f"咨询人校验失败：{e}")
 
-    # ── 1. 查询 DB 中实际存在的问题 ID 集合 ──
+    # ── 1. 查询 DB 中实际存在的问题 ID 集合（含 order_num / question_group / is_reverse_score） ──
     q_ids = list({ans.question_id for ans in data.answers})
     try:
         q_rows = (await db.execute(
@@ -188,6 +202,15 @@ async def constitution_test(
         q_rows = []
     valid_q_map = {q.id: q.question_text for q in q_rows}
     valid_q_ids = set(valid_q_map.keys())
+    q_meta_map = {
+        q.id: {
+            "order_num": q.order_num,
+            "group": q.question_group,
+            "is_reverse_score": bool(getattr(q, "is_reverse_score", False))
+            or (q.order_num in REVERSE_SCORE_ORDER_NUMS),
+        }
+        for q in q_rows
+    }
 
     # ── 2. 拼接给 AI 的体质问卷文本（有题文用题文，无题文以编号占位）──
     answers_text_parts = []
@@ -195,6 +218,34 @@ async def constitution_test(
         q_text = valid_q_map.get(ans.question_id) or f"问题{ans.question_id}"
         answers_text_parts.append(f"{q_text}: {ans.answer_value}")
     constitution_data = "\n".join(answers_text_parts)
+
+    # ── 2.1. [PRD-TCM-CONSTITUTION-36Q-V1 F14] 王琦本地公式判定（确定性优先） ──
+    formula_answers = []
+    for ans in data.answers:
+        meta = q_meta_map.get(ans.question_id, {})
+        if not meta.get("group"):
+            continue
+        # answer_value 可能是文本"没有/很少/有时/经常/总是"或 0~4 索引
+        formula_answers.append({
+            "order_num": meta.get("order_num"),
+            "group": meta.get("group"),
+            "is_reverse_score": meta.get("is_reverse_score"),
+            "answer_value": ans.answer_value,
+            "option_index": getattr(ans, "option_index", None),
+        })
+    try:
+        formula_result = calculate_constitution(formula_answers)
+    except Exception:
+        formula_result = None
+
+    # 用本地公式覆盖 constitution_data 提示，注入"已知主体质/兼夹/9项转换分"
+    if formula_result is not None:
+        formula_hint = (
+            f"\n[本地公式判定] 主体质={formula_result.main_type}; "
+            f"兼夹={','.join(formula_result.secondary_types) or '无'}; "
+            f"9项转换分={formula_result.scores}"
+        )
+        constitution_data += formula_hint
 
     try:
         profile_result = await db.execute(select(HealthProfile).where(HealthProfile.user_id == current_user.id))
@@ -219,9 +270,17 @@ async def constitution_test(
             "health_plan": "建议保持规律作息、合理饮食和适量运动。如需深入辨证，请稍后重试。",
         }
 
-    constitution_type = (ai_result.get("constitution_type") or "平和质")[:50]
+    # [PRD-TCM-CONSTITUTION-36Q-V1 F14] 本地公式 > AI 判型（公式是权威）
+    if formula_result is not None and formula_result.main_type:
+        constitution_type = formula_result.main_type[:50]
+    else:
+        constitution_type = (ai_result.get("constitution_type") or "平和质")[:50]
     constitution_desc = ai_result.get("syndrome_analysis") or ""
     advice = ai_result.get("health_plan") or ""
+    # 9 项转换分（雷达图数据源）+ 主/兼夹/置信度
+    constitution_scores_payload = (
+        formula_result.to_dict() if formula_result is not None else None
+    )
 
     # ── 4. 入库（外键过滤后写入 ConstitutionAnswer）──
     # BUG ① 关键修复：把 chat_session 副流程的 try/except 放到 commit 之后，
@@ -236,6 +295,8 @@ async def constitution_test(
             family_member_id=data.family_member_id,
             constitution_description=constitution_type,
             advice_summary=(advice[:1000] if advice else None),
+            # [PRD-TCM-CONSTITUTION-36Q-V1] 9 项转换分入库
+            constitution_scores=constitution_scores_payload,
         )
         db.add(diagnosis)
         await db.flush()
@@ -266,6 +327,7 @@ async def constitution_test(
             "family_member_id": diagnosis.family_member_id,
             "constitution_description": diagnosis.constitution_description,
             "advice_summary": diagnosis.advice_summary,
+            "constitution_scores": diagnosis.constitution_scores,
             "created_at": diagnosis.created_at,
         }
     except HTTPException:
