@@ -2,7 +2,7 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,12 +17,21 @@ from app.models.models import (
     RelationType,
     User,
 )
+# [BUGFIX-HEALTH-ARCHIVE-MEMBER-TAB-V2 2026-05-19] 关系徽章字工具
+from app.utils.relation_badge import relation_badge_char
 
 logger = logging.getLogger(__name__)
 from app.schemas.health_v2 import DiseasePresetResponse, RelationTypeResponse
 from app.schemas.user import FamilyMemberCreate, FamilyMemberResponse, FamilyMemberUpdate
 
 router = APIRouter(tags=["家庭成员"])
+
+
+def _guard_status(member: FamilyMember) -> str:
+    """[BUGFIX-HEALTH-ARCHIVE-MEMBER-TAB-V2] 与 health_archive_optim_v2 保持一致的守护状态枚举。"""
+    if member.is_self:
+        return "self"
+    return "guarded" if member.member_user_id else "unguarded"
 
 
 def _to_member_response(member: FamilyMember) -> FamilyMemberResponse:
@@ -49,6 +58,25 @@ def _to_member_response(member: FamilyMember) -> FamilyMemberResponse:
     )
 
 
+def _enrich_member_dict(member: FamilyMember, fallback_color_index: int | None = None) -> dict:
+    """[BUGFIX-HEALTH-ARCHIVE-MEMBER-TAB-V2 2026-05-19] 在 FamilyMemberResponse 基础上
+    附加 avatar_color_index / relation_badge_char / guard_status 三个字段。
+
+    fallback_color_index：当库内字段为 NULL 时（极少数旧数据），使用该值作为兜底。
+    """
+    base = _to_member_response(member).model_dump()
+    color_index = member.avatar_color_index
+    if color_index is None:
+        color_index = fallback_color_index if fallback_color_index is not None else 0
+    relation_for_badge = "本人" if member.is_self else (
+        member.relationship_type or (member.relation_type.name if member.relation_type else "")
+    )
+    base["avatar_color_index"] = int(color_index) % 5
+    base["relation_badge_char"] = relation_badge_char(relation_for_badge, member.nickname)
+    base["guard_status"] = _guard_status(member)
+    return base
+
+
 @router.get("/api/family/members")
 async def list_family_members(
     current_user: User = Depends(get_current_user),
@@ -64,11 +92,18 @@ async def list_family_members(
     )
     members = list(result.scalars().all())
 
+    # [BUGFIX-HEALTH-ARCHIVE-MEMBER-TAB-V2 2026-05-19] 本人永远第一，其余按 created_at 升序
+    from datetime import datetime as _dt
     self_members = [m for m in members if m.is_self]
-    other_members = sorted([m for m in members if not m.is_self], key=lambda x: x.created_at)
+    other_members = sorted(
+        [m for m in members if not m.is_self],
+        key=lambda x: (x.created_at or _dt.min, x.id),
+    )
     ordered = self_members + other_members
 
-    return {"items": [_to_member_response(m) for m in ordered], "total": len(ordered)}
+    # [BUGFIX-HEALTH-ARCHIVE-MEMBER-TAB-V2 2026-05-19] 顺带回填配色（极少数 NULL 数据兜底）
+    items = [_enrich_member_dict(m, fallback_color_index=idx % 5) for idx, m in enumerate(ordered)]
+    return {"items": items, "total": len(items)}
 
 
 @router.post("/api/family/members", response_model=FamilyMemberResponse)
@@ -86,6 +121,18 @@ async def add_family_member(
             raise HTTPException(status_code=404, detail="关联用户不存在")
 
     nickname = data.nickname or data.name or ""
+
+    # [BUGFIX-HEALTH-ARCHIVE-MEMBER-TAB-V2 2026-05-19] 新成员入档时分配 avatar_color_index：
+    # 当前用户已入档成员数（含本人） % 5
+    count_res = await db.execute(
+        select(func.count(FamilyMember.id)).where(
+            FamilyMember.user_id == current_user.id,
+            FamilyMember.status == "active",
+        )
+    )
+    existing_count = int(count_res.scalar() or 0)
+    next_color_index = existing_count % 5
+
     member = FamilyMember(
         user_id=current_user.id,
         member_user_id=data.member_user_id,
@@ -99,6 +146,7 @@ async def add_family_member(
         medical_histories=data.medical_histories if data.medical_histories else None,
         allergies=data.allergies if data.allergies else None,
         is_self=False,
+        avatar_color_index=next_color_index,
     )
     db.add(member)
     await db.flush()
@@ -124,7 +172,7 @@ async def add_family_member(
     )
     member = result2.scalar_one()
 
-    return _to_member_response(member)
+    return _enrich_member_dict(member, fallback_color_index=next_color_index)
 
 
 @router.get("/api/family/members/{member_id}", response_model=FamilyMemberResponse)
@@ -142,7 +190,7 @@ async def get_family_member(
     if not member:
         raise HTTPException(status_code=404, detail="家庭成员不存在")
 
-    return _to_member_response(member)
+    return _enrich_member_dict(member)
 
 
 @router.put("/api/family/members/{member_id}", response_model=FamilyMemberResponse)
@@ -174,7 +222,7 @@ async def update_family_member(
     )
     member = result2.scalar_one()
 
-    return _to_member_response(member)
+    return _enrich_member_dict(member)
 
 
 @router.delete("/api/family/members/{member_id}")

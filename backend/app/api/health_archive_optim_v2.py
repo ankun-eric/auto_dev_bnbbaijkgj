@@ -34,33 +34,13 @@ from app.models.models import (
     User,
     VerificationCode,
 )
+# [BUGFIX-HEALTH-ARCHIVE-MEMBER-TAB-V2 2026-05-19] 统一关系徽章字映射到 utils
+from app.utils.relation_badge import relation_badge_char as _relation_badge_char  # noqa: F401
 
 router = APIRouter(prefix="/api/family-archive-v2", tags=["健康档案优化 V2"])
 
 
 # ─────────────────────── 工具函数 ─────────────────────────────
-
-_RELATION_BADGE_MAP = {
-    "本人": "我",
-    "自己": "我",
-    "我": "我",
-    "爸爸": "爸", "父亲": "爸", "爸": "爸",
-    "妈妈": "妈", "母亲": "妈", "妈": "妈",
-    "儿子": "娃", "女儿": "娃", "孩子": "娃",
-    "老公": "爱", "老婆": "爱", "丈夫": "爱", "妻子": "爱", "伴侣": "爱",
-}
-
-
-def _relation_badge_char(relation: str | None, fallback_name: str | None = None) -> str:
-    if not relation:
-        if fallback_name:
-            return (fallback_name.strip() or "?")[0]
-        return "?"
-    rel = (relation or "").strip()
-    if rel in _RELATION_BADGE_MAP:
-        return _RELATION_BADGE_MAP[rel]
-    # 兄弟姐妹 / 爷奶外公外婆 / 其他亲属：取关系第一字
-    return rel[0] if rel else (fallback_name or "?")[0]
 
 
 def _mask_phone(phone: str | None) -> str | None:

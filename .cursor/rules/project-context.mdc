@@ -27,6 +27,43 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: BUGFIX-HEALTH-ARCHIVE-MEMBER-TAB-V2｜健康档案顶部成员 Tab 重写为 V2 样式（2026-05-19 09:50）
+
+### 范围（仅 H5 顶部成员 Tab + 后端字段/映射）
+- H5 `health-profile/page.tsx` 完整重写 `renderMemberBar`：
+  - 选中态：橙色实底 `#FF8A3D` + 白字；未选中：浅蓝灰 `#EAF2FF` 整块底 + 深字
+  - 圆形字徽（36px）按 `avatar_color_index` 在 5 色（橙/蓝/绿/紫/粉）中循环，字按 `relation_badge_char` 渲染
+  - 两行文字：上行称呼/关系，下行姓名（超长省略号）
+  - 末尾灰底深灰加号 + 按钮（40px，背景 `#F3F4F6`、加号色 `#6B7280`），点击调起既有 NewFamilyMemberModal
+  - 本人永远第一；其余按 `created_at` 升序
+- 后端 `family.py`：
+  - `/api/family/members` 返回 `avatar_color_index` / `relation_badge_char` / `guard_status` 三个字段
+  - 新增 `_enrich_member_dict` 工具
+  - 新建家庭成员时按"当前活跃成员数 % 5"分配 `avatar_color_index`
+  - `_to_member_response` 保留，POST/GET/PUT 单成员接口也返回扩展字段
+- 后端 `health_archive_optim_v2.py`：徽章映射统一转发到 `app.utils.relation_badge`，"儿子"→"儿"、"女儿"→"女"自动生效
+- 后端 `schemas/user.py`：`FamilyMemberResponse` 扩展 `avatar_color_index/relation_badge_char/guard_status` 三个可选字段
+- 后端 `utils/relation_badge.py`（新增）：完整 §2.2 关系字徽映射表（爸/妈/儿/女/爱/哥/弟/姐/妹/爷/奶/外…）
+- 后端 `schema_sync.py` 已含 `avatar_color_index` 字段迁移 + 历史数据按 `created_at` 顺序回填，本次复用
+- 测试：`tests/test_health_archive_member_tab_v2_20260519.py` 新增 6 用例（含儿/女拆分、全量映射、mod5 循环、本人第一、v1/v2 接口一致性），本地全部通过
+- 服务器 pytest：本次 6 用例 + 既有 V2 10 用例 = 16 个全部通过
+
+### 关键文件
+- 新增 `backend/app/utils/relation_badge.py`
+- 改造 `backend/app/api/family.py`
+- 改造 `backend/app/api/health_archive_optim_v2.py`（徽章映射统一）
+- 改造 `backend/app/schemas/user.py`
+- 改造 `h5-web/src/app/health-profile/page.tsx`（renderMemberBar 重写）
+- 新增 `backend/tests/test_health_archive_member_tab_v2_20260519.py`
+- 新增部署脚本 `deploy/_deploy_health_archive_member_tab_v2_20260519.py`
+- 新增手册 `user_docs/健康档案顶部成员Tab样式优化.md`
+
+### 未涉及
+- 小程序、安卓、iOS、Windows 桌面端本次未改动；API 向后兼容，旧客户端可继续运行
+- 健康档案页 Hero 卡、三快捷入口、`/family` 列表页、`/devices/member`、提醒设置/解绑抽屉等模块未被改动
+
+---
+
 ## Latest Update: PRD-AI-HOME-OPTIM-FINAL-V1｜ai-home 首页优化（最终版）（2026-05-19 08:25）
 
 ### 范围（仅 H5 端）

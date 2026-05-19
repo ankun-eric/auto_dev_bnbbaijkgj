@@ -123,6 +123,10 @@ class FamilyMemberResponse(BaseModel):
     allergies: Optional[List[str]] = None
     status: str
     created_at: datetime
+    # [BUGFIX-HEALTH-ARCHIVE-MEMBER-TAB-V2 2026-05-19] V2 顶部成员 Tab 所需字段
+    avatar_color_index: Optional[int] = None
+    relation_badge_char: Optional[str] = None
+    guard_status: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

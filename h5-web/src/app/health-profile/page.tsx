@@ -77,6 +77,45 @@ interface FamilyMember {
   height?: number;
   weight?: number;
   member_user_id?: number | null;
+  // [BUGFIX-HEALTH-ARCHIVE-MEMBER-TAB-V2 2026-05-19] 顶部成员 Tab 新样式所需字段
+  avatar_color_index?: number | null;
+  relation_badge_char?: string | null;
+  guard_status?: string | null;
+}
+
+// [BUGFIX-HEALTH-ARCHIVE-MEMBER-TAB-V2 2026-05-19] 5 色循环底色表（PRD §2.3）
+const BADGE_COLOR_PALETTE: { bg: string; fg: string }[] = [
+  { bg: '#FFE8D6', fg: '#E66A1F' }, // 0 橙
+  { bg: '#E0EFFF', fg: '#1F6FE6' }, // 1 蓝
+  { bg: '#E8F7EE', fg: '#1FA168' }, // 2 绿
+  { bg: '#EFE4FF', fg: '#7E3FE6' }, // 3 紫
+  { bg: '#FFE4EE', fg: '#E63F86' }, // 4 粉
+];
+
+// [BUGFIX-HEALTH-ARCHIVE-MEMBER-TAB-V2 2026-05-19] 关系字徽前端兜底映射（防后端字段缺失）
+const FRONTEND_BADGE_FALLBACK: Record<string, string> = {
+  本人: '我', 自己: '我', 我: '我',
+  爸爸: '爸', 父亲: '爸', 爸: '爸',
+  妈妈: '妈', 母亲: '妈', 妈: '妈',
+  儿子: '儿', 女儿: '女',
+  老公: '爱', 老婆: '爱', 丈夫: '爱', 妻子: '爱', 伴侣: '爱', 爱人: '爱',
+  哥哥: '哥', 弟弟: '弟', 姐姐: '姐', 妹妹: '妹',
+  爷爷: '爷', 奶奶: '奶', 外公: '外', 外婆: '外',
+};
+
+function resolveBadgeChar(m: FamilyMember): string {
+  if (m.relation_badge_char) return m.relation_badge_char;
+  const rel = m.is_self
+    ? '本人'
+    : (m.relationship_type || m.relation_type_name || '');
+  if (rel && FRONTEND_BADGE_FALLBACK[rel]) return FRONTEND_BADGE_FALLBACK[rel];
+  if (rel) return rel.charAt(0);
+  return (m.nickname || '?').charAt(0);
+}
+
+function resolveRelationLabel(m: FamilyMember): string {
+  if (m.is_self) return '本人';
+  return m.relation_type_name || m.relationship_type || '家人';
 }
 
 interface HealthProfileBasic {
@@ -405,70 +444,125 @@ function HealthProfileV2PageInner() {
     [members, selectedMemberId]
   );
 
-  // ─── 成员条（头像化 + "+" 添加按钮）─────────────────────────────────
-  // [PRD-HEALTH-ARCHIVE-OPTIM-V1 F1 F3] 与标题栏一起整体吸顶 + 头像加「被守护」角标
+  // ─── 成员条 V2（按"健康档案页 · 顶部成员 Tab V2" Bug 修复方案 §2.4 重写）──────
+  // [BUGFIX-HEALTH-ARCHIVE-MEMBER-TAB-V2 2026-05-19]
+  // 1) 选中态：橙底 #FF8A3D + 白字；未选中：浅蓝灰 #EAF2FF 整块底 + 深字
+  // 2) 圆形字徽：底色按 avatar_color_index 取 5 色之一，字按 relation_badge_char
+  // 3) 两行文字：上=称呼/关系，下=姓名（超长省略号）
+  // 4) 末尾灰底深灰加号 + 按钮，点击调起 NewFamilyMemberModal
   const renderMemberBar = () => (
     <div
       data-testid="prd469-member-bar"
-      style={{ background: T.brand50, padding: '12px 16px', display: 'flex', gap: 12, overflowX: 'auto' }}
+      style={{
+        background: '#FFFFFF',
+        padding: '10px 16px 12px',
+        display: 'flex',
+        gap: 12,
+        overflowX: 'auto',
+        alignItems: 'center',
+      }}
     >
-      {members.map((m) => {
+      {members.map((m, idx) => {
         const active = m.id === selectedMemberId;
         const flag = guardedFlags.get(m.id);
         const guarded = !!flag?.guarded;
-        const relationName = m.relation_type_name || m.relationship_type || '';
-        // [PRD-FAMILY-MEMBER-V2 2026-05-18] 头像改为字徽方案（圆形主色底 + 白字）
-        const age = m.birthday ? calcAge(m.birthday) : null;
-        const subText = m.is_self
-          ? `${m.gender ? formatGender(m.gender) : ''}${age != null ? ` · ${age}岁` : ''}`.replace(/^ ·/, '')
-          : `${relationName}${m.gender ? ' · ' + formatGender(m.gender) : ''}${age != null ? ` · ${age}岁` : ''}`;
+        const badgeChar = resolveBadgeChar(m);
+        const colorIdx = ((m.avatar_color_index ?? idx) % 5 + 5) % 5;
+        const palette = BADGE_COLOR_PALETTE[colorIdx];
+        const relationLabel = resolveRelationLabel(m);
+        const displayName = m.nickname || (m.is_self ? '本人' : relationLabel);
         return (
           <div
             key={m.id}
+            data-testid={`bh-member-tab-${m.id}`}
             onClick={() => setSelectedMemberId(m.id)}
             style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-              minWidth: 64, cursor: 'pointer', position: 'relative',
+              flex: '0 0 auto',
+              width: 76,
+              height: 96,
+              borderRadius: 12,
+              background: active ? '#FF8A3D' : '#EAF2FF',
+              boxShadow: active ? '0 4px 12px rgba(255,138,61,0.25)' : 'none',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              padding: '8px 4px 6px',
+              cursor: 'pointer',
+              position: 'relative',
+              transition: 'background 0.18s ease',
             }}
           >
             <div
               style={{
                 position: 'relative',
-                padding: 2,
+                width: 36,
+                height: 36,
                 borderRadius: '50%',
-                background: active ? `linear-gradient(135deg, #38BDF8, #0284C7)` : 'transparent',
-                boxShadow: active ? '0 4px 12px rgba(2,132,199,0.25)' : 'none',
+                background: palette.bg,
+                color: palette.fg,
+                fontSize: 18,
+                fontWeight: 700,
+                lineHeight: '36px',
+                textAlign: 'center',
+                border: active ? '2px solid #FFFFFF' : 'none',
+                boxSizing: 'border-box',
               }}
             >
-              <MemberBadge
-                relationName={relationName}
-                name={m.nickname}
-                isSelf={m.is_self}
-                size={44}
-              />
-              {/* [PRD-HEALTH-ARCHIVE-OPTIM-V1 F3] 「被守护」角标 */}
+              {badgeChar}
               {guarded && (
                 <span
                   data-testid={`bh-guarded-badge-${m.id}`}
                   style={{
-                    position: 'absolute', top: -6, right: -10,
-                    background: '#0EA5E9', color: '#fff',
-                    fontSize: 10, fontWeight: 600,
-                    padding: '2px 6px', borderRadius: 10,
+                    position: 'absolute',
+                    top: -6,
+                    right: -10,
+                    background: '#0EA5E9',
+                    color: '#fff',
+                    fontSize: 9,
+                    fontWeight: 600,
+                    padding: '1px 5px',
+                    borderRadius: 8,
                     boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
                     border: '1px solid #fff',
-                    whiteSpace: 'nowrap', lineHeight: 1.1,
+                    whiteSpace: 'nowrap',
+                    lineHeight: 1.2,
                   }}
                 >被守护</span>
               )}
             </div>
-            <span style={{ fontSize: 12, color: T.brand800, marginTop: 4, maxWidth: 80, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {m.is_self ? '本人' : (m.relation_type_name || m.nickname)}
-            </span>
-            {/* 副信息：显示年龄而非出生日期 */}
-            <span style={{ fontSize: 10, color: T.textSecondary, marginTop: 1, whiteSpace: 'nowrap' }}>
-              {subText || '—'}
-            </span>
+            <div
+              style={{
+                marginTop: 6,
+                fontSize: 12,
+                lineHeight: '16px',
+                color: active ? '#FFFFFF' : '#1F2937',
+                fontWeight: active ? 600 : 500,
+                width: '100%',
+                textAlign: 'center',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                padding: '0 4px',
+              }}
+            >
+              {relationLabel}
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                lineHeight: '16px',
+                color: active ? 'rgba(255,255,255,0.92)' : '#6B7280',
+                width: '100%',
+                textAlign: 'center',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                padding: '0 4px',
+              }}
+            >
+              {displayName}
+            </div>
           </div>
         );
       })}
@@ -476,19 +570,30 @@ function HealthProfileV2PageInner() {
         onClick={() => setShowAddMember(true)}
         data-testid="prd469-add-member-btn"
         style={{
-          minWidth: 64, display: 'flex', flexDirection: 'column',
-          alignItems: 'center', cursor: 'pointer',
+          flex: '0 0 auto',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 76,
+          height: 96,
+          cursor: 'pointer',
         }}
       >
         <div
           style={{
-            width: 48, height: 48, borderRadius: '50%',
-            background: '#fff', border: `2px dashed ${T.brand400}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 24, color: T.brand500,
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            background: '#F3F4F6',
+            color: '#6B7280',
+            fontSize: 24,
+            lineHeight: '40px',
+            textAlign: 'center',
+            fontWeight: 400,
           }}
         >+</div>
-        <span style={{ fontSize: 13, color: T.brand800, marginTop: 4 }}>添加</span>
+        <span style={{ fontSize: 12, color: '#6B7280', marginTop: 6 }}>添加成员</span>
       </div>
     </div>
   );
