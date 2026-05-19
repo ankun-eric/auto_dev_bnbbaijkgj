@@ -19,6 +19,8 @@ import ProfileCard, { clearProfileCardCache } from '@/components/ai-chat/Profile
 import AiAvatar from '@/components/ai-chat/AiAvatar';
 import ReminderBellButton from '@/components/ai-chat/ReminderBellButton';
 import ReminderDrawer from '@/components/ai-chat/ReminderDrawer';
+// [PRD-AIHOME-SKELETON-V1 2026-05-19] 首屏骨架屏：消除刷新跳变
+import AiHomeSkeleton from '@/components/ai-chat/AiHomeSkeleton';
 import { trackEvent, aiChatTrack, aiHomeFnTrack, type AiChatTargetType } from '@/lib/analytics';
 import { FnCell } from '@/components/design-system';
 import { parseServerTime } from '@/lib/datetime';
@@ -663,6 +665,18 @@ export default function AiHomePage() {
 
   const [banners, setBanners] = useState<Banner[]>([]);
   const [funcButtons, setFuncButtons] = useState<FunctionButton[]>([]);
+  // [PRD-AIHOME-SKELETON-V1 2026-05-19] 首屏加载状态机：
+  //   'loading' → 显示骨架屏 + shimmer 动画
+  //   'failed'  → 骨架屏内显示「加载失败，点击重试」卡片
+  //   'ready'   → 真实内容淡入，骨架屏淡出
+  // 关键接口（function-buttons + family/members）齐了即可消失。
+  // 5 秒兜底超时；次要接口失败不影响首屏切换。
+  type FirstScreenStatus = 'loading' | 'ready' | 'failed';
+  const [firstScreenStatus, setFirstScreenStatus] = useState<FirstScreenStatus>('loading');
+  // 启动淡出动画的标志（true → 骨架屏 fade-out + 内容 fade-in 同时进行 200ms）
+  const [skeletonFading, setSkeletonFading] = useState(false);
+  // 关键接口重试触发器：递增即重新执行关键接口 effect
+  const [firstScreenRetryNonce, setFirstScreenRetryNonce] = useState(0);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   // [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 4.1] 胶囊 upload ActionSheet 开关
@@ -924,6 +938,57 @@ export default function AiHomePage() {
 
   useEffect(() => {
     loadLastSession();
+  }, []);
+
+  // [PRD-AIHOME-SKELETON-V1 2026-05-19] 关键接口并发 effect（功能宫格 + 咨询人）
+  //  - 两个接口 Promise.all 完成 → 触发淡出 → 200ms 后切换到真实内容
+  //  - 任一关键接口失败 / 5 秒超时 → 显示「加载失败，点击重试」卡片
+  //  - 重试时递增 firstScreenRetryNonce 重新执行本 effect
+  //  - 次要接口（banner、配置、健康贴士、提醒徽标、未读数等）在各自原有 effect 中
+  //    继续以 .catch 静默吞掉异常，不阻塞首屏切换
+  useEffect(() => {
+    // 重试时把状态重置回 loading
+    if (firstScreenRetryNonce > 0) {
+      setFirstScreenStatus('loading');
+      setSkeletonFading(false);
+    }
+    let cancelled = false;
+    const timeoutId = window.setTimeout(() => {
+      if (!cancelled) {
+        // 超过 5 秒未返回 → 失败兜底
+        setFirstScreenStatus((prev) => (prev === 'loading' ? 'failed' : prev));
+      }
+    }, 5000);
+
+    Promise.all([
+      api.get('/api/function-buttons'),
+      api.get('/api/family/members'),
+    ])
+      .then(() => {
+        if (cancelled) return;
+        window.clearTimeout(timeoutId);
+        // 关键接口已回来——具体写入 state 由原有 effect 完成（避免重复写入）
+        // 这里只负责切换骨架屏状态
+        setSkeletonFading(true);
+        window.setTimeout(() => {
+          if (!cancelled) setFirstScreenStatus('ready');
+        }, 200);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        window.clearTimeout(timeoutId);
+        setFirstScreenStatus('failed');
+      });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [firstScreenRetryNonce]);
+
+  // 重试关键接口：递增 nonce → 触发上面 effect 重跑
+  const handleRetryFirstScreen = useCallback(() => {
+    setFirstScreenRetryNonce((n) => n + 1);
   }, []);
 
   // [PRD-425] 进入 /ai-home 时拉取一次通知中心未读总数；离开页面再回来视为重新进入
@@ -3130,14 +3195,13 @@ export default function AiHomePage() {
       return av - bv;
     });
 
-  // 兜底：当 fnGridItems 为空且配置中有 items（或 FALLBACK 兜底），使用旧逻辑
-  const configuredItems = (aiHomeConfig.func_grid?.items && aiHomeConfig.func_grid.items.length > 0)
-    ? aiHomeConfig.func_grid.items
-    : FALLBACK_CONFIG.func_grid.items;
-  // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 宫格不再限制行数，全部铺开（fallback 也保持一致）
-  const fallbackGridItems = (configuredItems || [])
-    .filter((g) => g && g.enabled);
-
+  // [PRD-AIHOME-SKELETON-V1 2026-05-19] 移除「3 个内置兜底按钮」：
+  //   旧逻辑：当 fnGridItems 为空时，回退到 aiHomeConfig.func_grid.items 或 FALLBACK_CONFIG.func_grid.items（含 g1/g2/g3 三个硬编码按钮）
+  //   新逻辑：宫格仅由后端 /api/function-buttons 真实数据驱动；
+  //          - 关键接口 OK + 数据为空 → 宫格区不渲染（不再回填硬编码按钮）
+  //          - 关键接口失败 / 超时 → 由骨架屏内的「加载失败，点击重试」卡片承接，绝不出现老兜底
+  //   因此 fallbackGridItems 强制为空数组，gridItems 不再向 FnCell 提供任何数据。
+  const fallbackGridItems: FuncGridItemCfg[] = [];
   const gridItems = fnGridItems.length > 0 ? null : fallbackGridItems;
   // 标记：宫格曝光埋点的按钮 id 列表
   const gridExposureIds = fnGridItems.map((b) => b.id);
@@ -3245,7 +3309,30 @@ export default function AiHomePage() {
 
   return (
     <div
-      className="flex flex-col h-screen"
+      className="ai-home-root"
+      data-testid="ai-home-root"
+      style={{
+        position: 'relative',
+        maxWidth: 750,
+        margin: '0 auto',
+        height: '100vh',
+        overflow: 'hidden',
+      }}
+    >
+      {/* [PRD-AIHOME-SKELETON-V1 2026-05-19] 首屏骨架屏（loading/failed 时展示，
+          淡出阶段 ready 之前仍然渲染，与真实内容 200ms 交叠淡入淡出） */}
+      {firstScreenStatus !== 'ready' && (
+        <AiHomeSkeleton
+          className={skeletonFading ? 'fade-out' : ''}
+          showError={firstScreenStatus === 'failed'}
+          onRetry={handleRetryFirstScreen}
+        />
+      )}
+
+    <div
+      className={`flex flex-col h-screen ai-home-content ${
+        skeletonFading || firstScreenStatus === 'ready' ? 'fade-in' : ''
+      }`}
       style={{
         background: THEME.background,
         maxWidth: 750,
@@ -5284,6 +5371,7 @@ export default function AiHomePage() {
           margin: 4px 0;
         }
       `}</style>
+    </div>
     </div>
   );
 }

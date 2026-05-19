@@ -649,3 +649,57 @@ html, body {
 .adm-toast-mask .adm-toast-main-icon .adm-toast-loading {
   margin: 0 !important;
 }
+
+/* ============================================================
+   [PRD-AIHOME-SKELETON-V1 2026-05-19]
+   ai-home 首屏骨架屏（消除刷新跳变）
+   - 微光流动 shimmer：灰底 + 浅色高光从左到右循环
+   - 容器淡入 / 淡出：与真实内容 200ms 交叠
+   ============================================================ */
+
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: #EEF0F2;
+  /* 老版本浏览器对 inset 不支持 → 显式四向 0 兜底 */
+}
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: translateX(-100%);
+  animation: ai-home-skeleton-shimmer 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes ai-home-skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.ai-home-skeleton {
+  opacity: 1;
+  transition: opacity 200ms ease-out;
+}
+.ai-home-skeleton.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ai-home-content {
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+.ai-home-content.fade-in {
+  opacity: 1;
+}

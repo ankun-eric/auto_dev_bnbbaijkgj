@@ -27,7 +27,20 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-AI-HOME-IDLE-ARCHIVE-V1｜ai-home 主页空闲超时归档 & 历史会话列表优化（2026-05-19 10:30）
+## Latest Update: PRD-AIHOME-SKELETON-V1（ai-home 首屏骨架屏改造）(2026-05-19)
+
+- 新增组件 `h5-web/src/components/ai-chat/AiHomeSkeleton.tsx`：像素级还原 ai-home 真实结构的整页骨架屏（顶部条 + 欢迎区 + 健康贴士卡 + 6 格功能宫格 + 推荐问 + 输入框），含微光流动 shimmer 动画 + 失败态"加载失败，点击重试"卡片
+- 改造 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：
+  - 新增 `FirstScreenStatus` 状态机（`'loading' | 'ready' | 'failed'`）与 `skeletonFading`、`firstScreenRetryNonce` state
+  - 新增关键接口并发 effect：`Promise.all([/api/function-buttons, /api/family/members])` 完成后启动 200ms 淡出动画；5 秒超时兜底切 failed
+  - 新增 `handleRetryFirstScreen` 重试回调
+  - **移除"3 个内置兜底按钮"硬编码逻辑**：`fallbackGridItems` 强制为空数组，宫格只由真实接口数据驱动；接口失败由骨架屏内"加载失败，点击重试"卡片承接
+  - 渲染层根 div 改为 `ai-home-root`（position: relative），骨架屏 + 真实内容 200ms 淡入淡出交叠
+- 全局样式 `h5-web/src/app/globals.css`：新增 `.skeleton-shimmer`、`.ai-home-skeleton.fade-out`、`.ai-home-content.fade-in` + `@keyframes ai-home-skeleton-shimmer`
+- 部署脚本 `deploy_skeleton_v1.py` + 烟测脚本 `smoke_skeleton_v1.py`：5/5 烟测全部通过
+- 部署链接：[https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home)
+
+## Previous Update: PRD-AI-HOME-IDLE-ARCHIVE-V1｜ai-home 主页空闲超时归档 & 历史会话列表优化（2026-05-19 10:30）
 
 ### 范围（H5 ai-home 主页 + 后端 chat_sessions 数据模型与接口）
 - 后端数据模型 `ChatSession` 新增三个字段：
