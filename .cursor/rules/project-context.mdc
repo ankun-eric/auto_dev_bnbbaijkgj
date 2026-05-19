@@ -27,7 +27,55 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-HEALTH-ARCHIVE-OPTIM-V2｜健康档案页面优化 v2（2026-05-18 22:35）
+## Latest Update: PRD-AI-HOME-OPTIM-FINAL-V1｜ai-home 首页优化（最终版）（2026-05-19 08:25）
+
+### 范围（仅 H5 端）
+- 识药结果卡片底部 4 按钮改为 2×2 胶囊布局：
+  - 上行：[💊 加入用药计划] [📅 查看用药计划]
+  - 下行：[⏰ 今日用药]      [📸 重新拍照]
+  - 红点仅「今日用药」按钮（按"今天有计划就亮"规则）
+  - 置灰：识药失败→「加入用药计划」灰；今天无计划→「今日用药」灰
+- 铃铛 🔔：初始位置改为 viewport 50% 垂直正中 + 靠右；拖动后位置持久化到 `localStorage.bini.ai-home.bell.position`
+- 汉堡 ☰：三横线改为"右50%/全/左50%"错落感；垂直中线与「小康」文字视觉中线对齐
+- 保存后新增 1.5s Toast「已加入用药计划」
+- 「查看用药计划」 → 跳转 `/ai-home/medication-plans?tab=in_progress`
+- 「今日用药」 → 弹出 ReminderDrawer（复用 `/ai-home/medication-reminder` 打卡页能力）
+- 后端新增 `/api/medication/today`（同源接口）+ `/api/medication/plans/exists`
+- 小程序 / Flutter 未改动（这两端尚未实现 4 按钮式识药卡，本次跳过）
+
+### 新增 / 修改的关键文件
+- 新增 `backend/app/api/medication_today_v1.py`（2 个 API）
+- 改造 `backend/app/main.py`：注册 medication_today_v1 router
+- 新增 `backend/tests/test_ai_home_optim_final_v1_20260519.py`（10 用例全部通过）
+- 新增 `h5-web/src/app/(ai-chat)/ai-home/components/MedicationCardButtons.tsx`
+- 改造 `h5-web/src/app/(ai-chat)/ai-home/components/DrugIdentifyCard.tsx`：底部按钮换 2×2 网格
+- 改造 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：
+  - 汉堡 SVG 第 1 条改 50% 靠右；hamburger 按钮 top:50% + translateY(-50%) 与标题视觉中线对齐
+  - 标题 line-height 改为 1
+  - DrugIdentifyCard 新增 hasTodayMedication / loadingTodayMedication / recognitionFailed props
+  - 「查看用药计划」 → push `?tab=in_progress`
+  - 保存成功后新增 1.5s Toast + 触发 reminder 红点刷新
+  - 新增 reminderLoadingMap 状态（首屏防红点闪烁）
+- 改造 `h5-web/src/components/ai-chat/ReminderBellButton.tsx`：viewport 50% 默认位置 + localStorage 持久化 + 横竖屏边界保护
+- 部署脚本 `deploy/_deploy_ai_home_optim_final_v1_20260519.py`
+
+### 部署与测试
+- 已部署到正式服务器（容器 `6b099ed3-7175-4a78-91f4-44570c84ed27-h5/backend`）
+- 服务器容器内 pytest：
+  - `test_ai_home_optim_final_v1_20260519.py` **10/10 PASS**
+  - 全套相关测试 **37/37 PASS**（含 test_aihome_drug_identify_optim_v1_20260518 / test_ai_drug_card_medplan_v1_20260518 / test_ai_home_3bugs_20260517）
+- Smoke：`/api/openapi.json` 200；`/ai-home` / `/ai-home/medication-plans?tab=in_progress` 308 → 200；`/api/medication/today` 401（路由可达 + 鉴权正确）；`/api/medication/plans/exists` 401
+
+### 不在范围
+- 微信小程序的识药卡片（当前小程序的 drugCard 只展示药品信息，不含 4 按钮）
+- Flutter App 的 ai_home_screen.dart（当前 Flutter 该屏是咨询类型选择页，不含 4 按钮）
+
+### 后续行动
+- 后续如需将本次 H5 上的 4 按钮+铃铛+汉堡设计同步到小程序与 Flutter，需新建对应组件，工作量约 1-2 天
+
+---
+
+## Previous Update: PRD-HEALTH-ARCHIVE-OPTIM-V2｜健康档案页面优化 v2（2026-05-18 22:35）
 
 ### 范围
 - H5 `/health-profile` 标题改"健康档案" + 新增 Hero 卡三入口快捷区（今日用药 / 我的设备 / 家庭成员）

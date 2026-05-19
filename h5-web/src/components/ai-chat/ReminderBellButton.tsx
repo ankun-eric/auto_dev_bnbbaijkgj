@@ -2,16 +2,16 @@
 
 /**
  * [PRD-439 F-02] AI 对话首页 - 提醒铃铛悬浮按钮
- * [PRD-AIHOME-OPTIM-V1 2026-05-17 R1] 视觉调整：
- * - 完全去掉底色 / 背景框 / 渐变背景，仅保留 🔔 图标本身（图标不透明）
- * - 不再使用顶部数字角标（原 PRD-439 的红色数字徽标移除，改为由汉堡图标承担红点提示）
- * - 初始垂直位置改为顶部 banner 区域的垂直正中（由父组件通过 initialTop 传入）
- * - 拖动后的位置 **不持久化**：用户离开 ai-home 再回来时铃铛回到初始位置
  *
- * 仍然保留：
- * - 可拖动（长按 200ms 后进入拖拽态，仅垂直拖动）
- * - 点击触发 onClick（与拖拽互斥）
- * - 右侧贴边定位
+ * [PRD-AI-HOME-OPTIM-FINAL-V1 2026-05-19 §2] 铃铛位置 & 拖拽优化（最终版）
+ *   - 初始位置：屏幕靠右 + viewport 垂直正中（top: 50%, right: 12px）
+ *   - 不再受 banner / topbar 高度影响（initialTop prop 已废弃保留以兼容旧调用方）
+ *   - 拖拽：可拖动（长按 200ms 后进入拖拽态，仅垂直方向）
+ *   - 持久化：拖动结束后将 (x, y) 写入 localStorage，下次进入页面恢复
+ *     key = `bini.ai-home.bell.position`
+ *     value = { x: number, y: number, savedAt: number }
+ *   - 边界保护：恢复位置时若越界自动收回屏幕安全区内（距边缘至少 8px）
+ *   - 点击：触发 onClick（与拖拽互斥）
  */
 
 import { CSSProperties, useState, useRef, useEffect, useCallback } from 'react';
@@ -24,23 +24,72 @@ interface Props {
   badgeCount?: number;
   onClick: () => void;
   /**
-   * 初始 top 值（相对视口顶部，单位 px）。
-   * 由父组件在挂载时根据 banner 区域的位置计算"垂直正中"传入。
-   * 未传入时回退到默认值（约 96px，落在 topbar 之下）。
+   * 已废弃保留：原本用于初始 top 值（相对视口顶部，单位 px）。
+   * [PRD-AI-HOME-OPTIM-FINAL-V1] 本次优化后初始位置改为 viewport 50% 垂直正中 + 靠右，
+   * 不再依赖父组件传入 initialTop。保留此 prop 以兼容旧调用方。
    */
   initialTop?: number;
   position?: 'left' | 'right';
 }
 
 const LONG_PRESS_MS = 200;
+const BELL_SIZE = 36;
+const EDGE_MIN = 8;
+const STORAGE_KEY = 'bini.ai-home.bell.position';
+
+interface SavedPos {
+  x: number; // 距离屏幕右侧的偏移（px），始终为正
+  y: number; // 距离屏幕顶部的偏移（px）
+  savedAt: number;
+}
+
+function loadPos(): SavedPos | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw);
+    if (
+      v &&
+      typeof v === 'object' &&
+      typeof v.x === 'number' &&
+      typeof v.y === 'number' &&
+      typeof v.savedAt === 'number'
+    ) {
+      return v as SavedPos;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function savePos(p: SavedPos) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 把任意候选位置收敛到当前视口安全区内（距边缘至少 EDGE_MIN px） */
+function clampToViewport(x: number, y: number): { x: number; y: number } {
+  if (typeof window === 'undefined') return { x, y };
+  const winH = window.innerHeight;
+  const winW = window.innerWidth;
+  const safeX = Math.max(EDGE_MIN, Math.min(winW - BELL_SIZE - EDGE_MIN, x));
+  const safeY = Math.max(EDGE_MIN + 48, Math.min(winH - BELL_SIZE - EDGE_MIN, y));
+  return { x: safeX, y: safeY };
+}
 
 export default function ReminderBellButton({
   onClick,
-  initialTop,
   position = 'right',
 }: Props) {
-  const fallbackTop = 96;
-  const [top, setTop] = useState<number>(initialTop ?? fallbackTop);
+  // 默认右 12px、垂直正中：用 sentinel -1 表示"未初始化"
+  const [right, setRight] = useState<number>(12);
+  const [top, setTop] = useState<number>(-1);
   const [dragging, setDragging] = useState(false);
   const startYRef = useRef(0);
   const startTopRef = useRef(0);
@@ -49,21 +98,50 @@ export default function ReminderBellButton({
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialAppliedRef = useRef(false);
 
-  // 接收 initialTop 异步到位后的复位：只在首次有效值到来时应用一次
-  // [PRD-AIHOME-OPTIM-V1 R1] 不读取 sessionStorage，确保每次进入页面都从默认初始位置开始
+  // 首次挂载：优先恢复 localStorage，没有则用 viewport 50% 垂直正中
   useEffect(() => {
     if (initialAppliedRef.current) return;
-    if (typeof initialTop === 'number' && initialTop > 0) {
-      setTop(initialTop);
-      initialAppliedRef.current = true;
+    initialAppliedRef.current = true;
+    if (typeof window === 'undefined') return;
+    const winH = window.innerHeight;
+    const winW = window.innerWidth;
+    const saved = loadPos();
+    if (saved) {
+      // 持久化值是"距右侧"的偏移；转 x（左边距）后做边界保护，再回写
+      const xLeft = winW - saved.x - BELL_SIZE;
+      const { x: clampedX, y: clampedY } = clampToViewport(xLeft, saved.y);
+      setRight(Math.max(EDGE_MIN, winW - clampedX - BELL_SIZE));
+      setTop(clampedY);
+    } else {
+      // 默认：右 12px + viewport 50% 垂直正中
+      setRight(12);
+      setTop(Math.round(winH / 2 - BELL_SIZE / 2));
     }
-  }, [initialTop]);
+  }, []);
 
-  const clamp = useCallback((t: number) => {
+  // 窗口尺寸变化（横竖屏切换）：自动收回安全区
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => {
+      const winW = window.innerWidth;
+      const xLeft = winW - right - BELL_SIZE;
+      const { x, y } = clampToViewport(xLeft, top);
+      setRight(Math.max(EDGE_MIN, winW - x - BELL_SIZE));
+      setTop(y);
+    };
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
+    };
+  }, [right, top]);
+
+  const clampY = useCallback((t: number) => {
     if (typeof window === 'undefined') return t;
     const winH = window.innerHeight;
-    const minT = 56;
-    const maxT = winH - 56 - 48;
+    const minT = EDGE_MIN + 48;
+    const maxT = winH - BELL_SIZE - EDGE_MIN;
     return Math.max(minT, Math.min(maxT, t));
   }, []);
 
@@ -79,11 +157,29 @@ export default function ReminderBellButton({
     draggingRef.current = true;
   };
 
-  const onEnd = () => {
+  const persistCurrent = useCallback(
+    (nextTop: number) => {
+      if (typeof window === 'undefined') return;
+      const winW = window.innerWidth;
+      // 计算 x（距离屏幕左侧的偏移）→ 转 distFromRight
+      const distFromRight = right;
+      savePos({
+        x: distFromRight,
+        y: nextTop,
+        savedAt: Date.now(),
+      });
+    },
+    [right],
+  );
+
+  const onEnd = (finalTop?: number) => {
     cancelLong();
-    // [PRD-AIHOME-OPTIM-V1 R1] 不持久化位置，离开页面后重进自然复位
+    const wasDrag = draggingRef.current;
     draggingRef.current = false;
     setDragging(false);
+    if (wasDrag && typeof finalTop === 'number') {
+      persistCurrent(finalTop);
+    }
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -104,12 +200,13 @@ export default function ReminderBellButton({
     e.preventDefault();
     movedRef.current = true;
     const dy = t.clientY - startYRef.current;
-    setTop(clamp(startTopRef.current + dy));
+    setTop(clampY(startTopRef.current + dy));
   };
 
   const handleTouchEnd = () => {
     const wasDrag = draggingRef.current;
-    onEnd();
+    const finalTop = top;
+    onEnd(finalTop);
     if (!wasDrag && !movedRef.current) onClick();
   };
 
@@ -119,6 +216,7 @@ export default function ReminderBellButton({
     movedRef.current = false;
     cancelLong();
     longPressRef.current = setTimeout(enterDrag, LONG_PRESS_MS);
+    let lastTop = top;
     const move = (ev: MouseEvent) => {
       if (!draggingRef.current) {
         if (Math.abs(startYRef.current - ev.clientY) > 8) cancelLong();
@@ -126,20 +224,26 @@ export default function ReminderBellButton({
       }
       movedRef.current = true;
       const dy = ev.clientY - startYRef.current;
-      setTop(clamp(startTopRef.current + dy));
+      lastTop = clampY(startTopRef.current + dy);
+      setTop(lastTop);
     };
     const up = () => {
       window.removeEventListener('mousemove', move);
       window.removeEventListener('mouseup', up);
       const wasDrag = draggingRef.current;
-      onEnd();
+      onEnd(lastTop);
       if (!wasDrag && !movedRef.current) onClick();
     };
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
   };
 
-  const sideStyle: CSSProperties = position === 'left' ? { left: 16 } : { right: 16 };
+  // 没有有效 top 时（SSR 或首屏未挂载）暂不渲染，避免闪烁
+  if (top < 0) return null;
+
+  const sideStyle: CSSProperties = position === 'left'
+    ? { left: 12 }
+    : { right };
   const scale = dragging ? 1.05 : 1.0;
 
   return (
@@ -157,7 +261,6 @@ export default function ReminderBellButton({
         touchAction: dragging ? 'none' : 'auto',
         cursor: dragging ? 'grabbing' : 'pointer',
         willChange: 'transform, top',
-        // [PRD-AIHOME-OPTIM-V1 R1] 彻底去除底色、背景框与阴影，仅保留 emoji 图标本身
         background: 'transparent',
         border: 'none',
         boxShadow: 'none',
@@ -170,16 +273,14 @@ export default function ReminderBellButton({
     >
       <div
         style={{
-          width: 36,
-          height: 36,
+          width: BELL_SIZE,
+          height: BELL_SIZE,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 30,
-          // 图标本身完全不透明（仅外层底色去除）
           opacity: 1,
           lineHeight: 1,
-          // 给 emoji 一个轻微的投影，避免在浅色背景上看不清楚；不构成"底色/背景框"
           filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.18))',
         }}
         aria-label="提醒铃铛"

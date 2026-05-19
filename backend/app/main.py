@@ -105,6 +105,7 @@ from app.api import (
     medication_library_v3,
     medication_plans_v1,
     medication_add_optim_v1,
+    medication_today_v1,
     health_archive_optim_v1,
 )
 from app.core.database import Base, engine
@@ -1992,6 +1993,8 @@ app.include_router(medication_library_v3.admin_router)
 app.include_router(medication_plans_v1.router)
 # [PRD-MED-PLAN-ADD-OPTIM-V1 2026-05-17] 添加用药计划页面优化 - 药品名称联想 API
 app.include_router(medication_add_optim_v1.router)
+# [PRD-AI-HOME-OPTIM-FINAL-V1 2026-05-19] ai-home 首页优化 - 同源「今日用药」接口
+app.include_router(medication_today_v1.router)
 # [PRD-468 2026-05-12] 健康档案改版 v3
 app.include_router(health_profile_v3.router)
 app.include_router(health_archive_optim_v1.router)  # [PRD-HEALTH-ARCHIVE-OPTIM-V1] 健康档案页面优化 V1

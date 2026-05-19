@@ -629,6 +629,9 @@ export default function AiHomePage() {
   const [reminderRedDotMap, setReminderRedDotMap] = useState<Record<number, boolean>>({});
   // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F10] 各咨询人是否"无任何用药计划"（按钮置灰）
   const [reminderEmptyMap, setReminderEmptyMap] = useState<Record<number, boolean>>({});
+  // [PRD-AI-HOME-OPTIM-FINAL-V1 2026-05-19] 各咨询人今日用药数据是否仍在加载（首屏防红点闪烁）
+  // key=cid; true=loading 中（红点不显示）；false=数据已到位（按 reminderEmptyMap 计算）
+  const [reminderLoadingMap, setReminderLoadingMap] = useState<Record<number, boolean>>({});
   // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F6] 识药消息保留的原图（用于整次重试，会话生命周期内有效）
   const [drugRetryImageMap, setDrugRetryImageMap] = useState<Record<string, string[]>>({});
 
@@ -2632,6 +2635,8 @@ export default function AiHomePage() {
   // 刷新当前咨询人维度的「用药提醒」红点 + 空状态
   const refreshReminderRedDot = useCallback(async () => {
     const cid = selectedConsultant?.id ?? 0;
+    // [PRD-AI-HOME-OPTIM-FINAL-V1 2026-05-19] 进入加载：「今日用药」红点暂时不显示，防止首屏闪烁
+    setReminderLoadingMap((prev) => ({ ...prev, [cid]: true }));
     try {
       const url = cid > 0
         ? `/api/medication-reminder/today?consultant_id=${cid}`
@@ -2645,6 +2650,8 @@ export default function AiHomePage() {
     } catch {
       // 接口失败按"无红点"处理（保守）
       setReminderRedDotMap((prev) => ({ ...prev, [cid]: false }));
+    } finally {
+      setReminderLoadingMap((prev) => ({ ...prev, [cid]: false }));
     }
   }, [selectedConsultant]);
 
@@ -3161,8 +3168,10 @@ export default function AiHomePage() {
                 style={{
                   position: 'absolute',
                   left: 8,
-                  // 与"小康"标题顶端对齐：标题 lineHeight: 24px，居中在 48px 工作区内 → 文字顶端约 top:12
-                  top: 12,
+                  // [PRD-AI-HOME-OPTIM-FINAL-V1 2026-05-19 §3.2 方案 A]
+                  // 汉堡水平中线 ≡ "小康"文字视觉中线：按钮 32x32 在 48px 工作区内垂直居中
+                  top: '50%',
+                  transform: 'translateY(-50%)',
                   width: 32,
                   height: 32,
                   color: THEME.textPrimary,
@@ -3172,10 +3181,10 @@ export default function AiHomePage() {
                   margin: 0,
                   lineHeight: 1,
                   cursor: 'pointer',
-                  // 让内层 SVG 顶端对齐到按钮顶端（即与"小康"字顶端对齐）
+                  // SVG 在按钮内部居中 → 与"小康"文字视觉中线对齐
                   display: 'inline-flex',
-                  alignItems: 'flex-start',
-                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
                 onClick={() => setSidebarOpen(true)}
                 aria-label="历史会话"
@@ -3196,11 +3205,12 @@ export default function AiHomePage() {
                     aria-hidden="true"
                     data-testid="ai-home-hamburger-icon"
                   >
-                    {/* 第 1 条：全长 */}
+                    {/* [PRD-AI-HOME-OPTIM-FINAL-V1 2026-05-19 §3.1] 三横线"右-全-左"错落感 */}
+                    {/* 第 1 条：50% 长度，右对齐 */}
                     <rect
-                      x={0}
+                      x={HAMBURGER_WIDTH / 2}
                       y={0}
-                      width={HAMBURGER_WIDTH}
+                      width={HAMBURGER_WIDTH / 2}
                       height={BAR_HEIGHT}
                       rx={BAR_HEIGHT / 2}
                       fill="currentColor"
@@ -3270,7 +3280,9 @@ export default function AiHomePage() {
                   fontSize: 17,
                   fontWeight: 600,
                   color: THEME.textPrimary,
-                  lineHeight: '24px',
+                  // [PRD-AI-HOME-OPTIM-FINAL-V1 2026-05-19 §3.2] lineHeight:1 关闭额外行高带来的不可见偏移，
+                  // 保证"小康"文字视觉中线与汉堡水平中线对齐误差 ≤ 1px
+                  lineHeight: 1,
                   cursor: 'default',
                   whiteSpace: 'nowrap',
                   overflow: 'visible',
@@ -4205,11 +4217,9 @@ export default function AiHomePage() {
                               setAddMedDrawerOpen(true);
                             }}
                             onViewDetail={() => {
-                              const drugName =
-                                msg.drugMeta?.medicines?.[0]?.name ||
-                                msg.drugMeta?.medicines?.[0]?.brand ||
-                                '';
-                              router.push(`/ai-home/medication-plans?keyword=${encodeURIComponent(drugName)}`);
+                              // [PRD-AI-HOME-OPTIM-FINAL-V1 2026-05-19 §1.6.2]
+                              // 「查看用药计划」 → 跳转「医药计划」三 Tab 列表页并强制定位到「服药中」Tab
+                              router.push(`/ai-home/medication-plans?tab=in_progress`);
                             }}
                             onRetake={() => {
                               // [PRD-MED-PLAN-INTERACT-OPTIM-V1 §3.1.2] 重新拍照 → 弹出「拍照 / 相册选择」抽屉
@@ -4245,6 +4255,19 @@ export default function AiHomePage() {
                             reminderDisabled={(() => {
                               const cid = (msg.consultantTargetId ?? selectedConsultant?.id ?? 0) as number;
                               return Boolean(reminderEmptyMap[cid]);
+                            })()}
+                            // [PRD-AI-HOME-OPTIM-FINAL-V1 2026-05-19] 新 4 按钮所需 props
+                            // 识药是否失败：drug_identify_card 已经渲染本身就表示识药成功；
+                            // 历史 drug_identify_retake 那条消息会走另外的分支，不进入本卡片，
+                            // 因此这里恒为 false（识药成功）
+                            recognitionFailed={false}
+                            hasTodayMedication={(() => {
+                              const cid = (msg.consultantTargetId ?? selectedConsultant?.id ?? 0) as number;
+                              return !reminderEmptyMap[cid];
+                            })()}
+                            loadingTodayMedication={(() => {
+                              const cid = (msg.consultantTargetId ?? selectedConsultant?.id ?? 0) as number;
+                              return Boolean(reminderLoadingMap[cid]);
                             })()}
                             // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F6] 整次识药重试 - 复用原图
                             onRetryAll={() => {
@@ -4971,8 +4994,17 @@ export default function AiHomePage() {
                 : m,
             ));
           }
+          // [PRD-AI-HOME-OPTIM-FINAL-V1 2026-05-19 §1.6.1]
+          // 新增 1.5s 轻量 Toast：「已加入用药计划」
+          try {
+            Toast.show({ content: '已加入用药计划', position: 'top', duration: 1500 });
+          } catch {}
           // 异步重刷一次以校准
           refreshDrugAddedStatus([dn]).catch(() => {});
+          // 新加入计划后立即刷新"今日用药"红点 / 置灰状态
+          refreshReminderRedDot().catch(() => {});
+          // 关闭抽屉
+          setAddMedDrawerOpen(false);
         }}
       />
 

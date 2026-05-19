@@ -19,6 +19,7 @@
  * - 未命中库时不渲染"用药提醒"高风险红框（避免编造禁忌）
  */
 import React from 'react';
+import MedicationCardButtons from './MedicationCardButtons';
 
 export type DrugCardFields = {
   library_id?: number | null;
@@ -85,6 +86,12 @@ export interface DrugIdentifyCardProps {
   onReminder?: () => void;
   reminderRedDot?: boolean;
   reminderDisabled?: boolean;
+  /** [PRD-AI-HOME-OPTIM-FINAL-V1 2026-05-19] 识药结果（是否失败） —— 用于「加入用药计划」按钮置灰判定 */
+  recognitionFailed?: boolean;
+  /** [PRD-AI-HOME-OPTIM-FINAL-V1 2026-05-19] 当前咨询人今天是否有用药计划 */
+  hasTodayMedication?: boolean;
+  /** [PRD-AI-HOME-OPTIM-FINAL-V1 2026-05-19] 今日用药数据是否仍在加载（防止红点闪烁） */
+  loadingTodayMedication?: boolean;
   /** [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F1~F4 2026-05-18]
    * 分阶段流式可见性：在卡片"基础信息卡 / 用法用量卡 / 安全提示卡 / 个性化风险卡"上做整卡淡入。
    * 未传入时默认全部可见（向后兼容）。
@@ -139,8 +146,9 @@ export default function DrugIdentifyCard(props: DrugIdentifyCardProps) {
     onRetake,
     onViewAllPlans,
     onReminder,
-    reminderRedDot = false,
-    reminderDisabled = false,
+    recognitionFailed = false,
+    hasTodayMedication = false,
+    loadingTodayMedication = false,
     visibleSections,
     failedSections,
     onRetryAll,
@@ -364,14 +372,12 @@ export default function DrugIdentifyCard(props: DrugIdentifyCardProps) {
         `}</style>
       </div>
 
-      {/* —— ⑤ 操作按钮区（固定底部） ——
-       * [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F8/F9/F10/F11 2026-05-18]
-       *   4 按钮等高、等宽、4 等分布局：
-       *   [识药结果] [用药提醒(红点)] [加入用药计划] [再次识别]
-       *   - 按钮高度统一 44px；字号、字重、圆角、内边距全部统一
-       *   - 「加入用药计划」沿用主色调（保持视觉重点）
-       *   - 「用药提醒」次级按钮（浅底）右上角条件渲染红点
-       *   - 文案过长时单行省略（…）
+      {/* —— ⑤ 操作按钮区（固定底部，2x2 胶囊布局） ——
+       * [PRD-AI-HOME-OPTIM-FINAL-V1 2026-05-19]
+       *   上行：[💊 加入用药计划] [📅 查看用药计划]
+       *   下行：[⏰ 今日用药]      [📸 重新拍照]
+       *   - 胶囊样式 + emoji；红点仅「今日用药」
+       *   - 置灰：识药失败→加入计划灰；今天无计划→今日用药灰
        */}
       <div
         data-testid="drug-card-actions"
@@ -381,131 +387,29 @@ export default function DrugIdentifyCard(props: DrugIdentifyCardProps) {
           background: '#fff',
           borderBottomLeftRadius: 12,
           borderBottomRightRadius: 12,
-          display: 'flex',
-          gap: 8,
           flexShrink: 0,
         }}
       >
-        {/* 1. 识药结果（次级，浅描边） */}
-        <DrugActionButton
-          testid="btn-drug-result"
-          onClick={onViewDetail}
-          icon="📋"
-          label="识药结果"
-          variant="secondary"
-        />
-
-        {/* 2. 用药提醒（次级 + 红点 + 可置灰） */}
-        <DrugActionButton
-          testid="btn-reminder"
-          onClick={reminderDisabled ? undefined : onReminder}
-          icon="🛎"
-          label="用药提醒"
-          variant="secondary"
-          disabled={reminderDisabled}
-          redDot={reminderRedDot && !reminderDisabled}
-          title={reminderDisabled ? '今日暂无待打卡提醒' : '查看用药提醒'}
-        />
-
-        {/* 3. 加入用药计划（主色，根据 added/blockAdd 状态切换） */}
-        <DrugActionButton
-          testid="btn-add-plan"
-          onClick={blockAdd ? undefined : onAddPlan}
-          icon={added ? '✓' : '＋'}
-          label={blockAdd ? '存在风险' : added ? '已加入' : '加入计划'}
-          variant={blockAdd ? 'disabled' : added ? 'added' : 'primary'}
-          disabled={blockAdd}
-        />
-
-        {/* 4. 再次识别 */}
-        <DrugActionButton
-          testid="btn-retake"
-          onClick={onRetake}
-          icon="🔄"
-          label="再次识别"
-          variant="secondary"
+        <MedicationCardButtons
+          recognitionFailed={recognitionFailed || blockAdd}
+          hasTodayMedication={hasTodayMedication}
+          loadingTodayMedication={loadingTodayMedication}
+          alreadyJoined={added}
+          onJoin={() => {
+            if (onAddPlan) onAddPlan();
+          }}
+          onView={() => {
+            if (onViewDetail) onViewDetail();
+          }}
+          onToday={() => {
+            if (onReminder) onReminder();
+          }}
+          onRetake={() => {
+            if (onRetake) onRetake();
+          }}
         />
       </div>
     </div>
-  );
-}
-
-/** [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F8] 等大 4 等分按钮（统一规格 + 文案省略） */
-function DrugActionButton(props: {
-  testid: string;
-  onClick?: () => void;
-  icon: string;
-  label: string;
-  variant: 'primary' | 'secondary' | 'added' | 'disabled';
-  disabled?: boolean;
-  redDot?: boolean;
-  title?: string;
-}) {
-  const { testid, onClick, icon, label, variant, disabled, redDot, title } = props;
-  const base = {
-    flex: 1,
-    height: 44,
-    minWidth: 0,
-    borderRadius: 8,
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    padding: '0 6px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    position: 'relative' as const,
-    whiteSpace: 'nowrap' as const,
-    overflow: 'hidden' as const,
-    textOverflow: 'ellipsis' as const,
-  };
-  let style: React.CSSProperties = base;
-  if (variant === 'primary') {
-    style = { ...base, background: '#0EA5E9', color: '#fff', border: 'none' };
-  } else if (variant === 'added') {
-    style = { ...base, background: '#F3F4F6', color: '#4B5563', border: '1px solid #9CA3AF' };
-  } else if (variant === 'disabled') {
-    style = { ...base, background: '#D1D5DB', color: '#fff', border: 'none' };
-  } else {
-    // secondary
-    style = {
-      ...base,
-      background: '#F8FAFC',
-      color: disabled ? '#9CA3AF' : '#0F172A',
-      border: '1px solid #E2E8F0',
-      opacity: disabled ? 0.6 : 1,
-    };
-  }
-  return (
-    <button
-      type="button"
-      data-testid={testid}
-      onClick={onClick}
-      disabled={disabled}
-      title={title || label}
-      style={style}
-    >
-      <span style={{ fontSize: 15, lineHeight: 1, flexShrink: 0 }}>{icon}</span>
-      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {label}
-      </span>
-      {redDot && (
-        <span
-          data-testid="btn-reminder-reddot"
-          style={{
-            position: 'absolute',
-            top: 6,
-            right: 6,
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            background: '#FF3B30',
-            boxShadow: '0 0 0 1.5px #fff',
-          }}
-        />
-      )}
-    </button>
   );
 }
 
