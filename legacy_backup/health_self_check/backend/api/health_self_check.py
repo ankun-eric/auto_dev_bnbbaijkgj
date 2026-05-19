@@ -1,15 +1,5 @@
 """[PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查（health_self_check）功能 API。
 
-⚠️ [DEPRECATED 2026-05-19] PRD-QUESTIONNAIRE-DRAWER-V1
-该文件接口已被通用问卷接口取代：
-- POST /api/health-self-check/start  → POST /api/questionnaire/submit
-- GET  /api/health-self-check/template/{id} → GET /api/questionnaire/buttons/{button_id}/render-meta
-
-本文件保留是为了兼容期内仍在调用老接口的客户端（小程序/老版本 App 等）。
-代码副本备份在 legacy_backup/health_self_check/。
-后续可在所有客户端升级完毕后整体下线。
-
-
 包含三组路由：
 - 公开（用户端）：
     GET  /api/health-self-check/dict           列出启用的部位字典（含症状）

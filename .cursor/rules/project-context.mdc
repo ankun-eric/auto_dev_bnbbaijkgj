@@ -27,6 +27,39 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-QUESTIONNAIRE-DRAWER-V1｜健康自查"抽屉化"与新版问卷模板体系融合（2026-05-19 21:55）
+
+**任务类型**：架构融合 + 数据迁移（backend + admin-web + h5-web 三端）
+
+**核心变更**：
+
+- **架构统一**：把"老健康自查抽屉"与"新版对话内问卷"两套实现合并为一套，统一走 `ai_function_type=questionnaire` + `questionnaire_template` 配置
+- **后端**：
+  - `chat_function_buttons` 新增 `questionnaire_display_form` 字段（DRAWER_SCROLL / DRAWER_STEPPED / INLINE_CHAT，默认 DRAWER_SCROLL）
+  - `questionnaire_template` 新增 `result_summary_template TEXT` + `source VARCHAR(32)`（system_migrated / operator_created）
+  - `questionnaire_question` 新增 `display_condition_json JSON` + `option_filter_json JSON` + `layout_hint VARCHAR(32)`
+  - 新增 `GET /api/questionnaire/buttons/{button_id}/render-meta` 一次性返回抽屉渲染所需的按钮 + 模板 + 题目 + 联动规则
+  - 新增 `POST /api/questionnaire/submit` 抽屉提交，返回"问卷结果卡片"结构 + AI prompt hint
+  - 新增 `app/services/prd_questionnaire_drawer_v1_migration.py` 启动期幂等迁移：从 `body_part_dict` / `health_check_templates` 抽取部位/症状/持续时间生成 health_self_check 问卷模板的 3 道题（含部位↔症状 option_filter_json 联动），并升级所有老 button_type/ai_function_type=health_self_check 的按钮
+  - `app/api/health_self_check.py` 加 DEPRECATED 注释，保留接口兼容
+- **admin-web**：
+  - 功能按钮管理（function-buttons/page.tsx）：当 `ai_function_type=questionnaire` 时显示"问卷展示形态"下拉（DRAWER_SCROLL / DRAWER_STEPPED / INLINE_CHAT），带 tooltip
+  - 问卷模板管理（questionnaire-templates/page.tsx）：表单新增"结果摘要模板"TextArea；列表新增"来源"列（系统迁移 / 运营新建）
+- **h5-web**：
+  - 新增 `components/ai-chat/QuestionnaireDrawer.tsx`（通用问卷抽屉，支持 DRAWER_SCROLL/DRAWER_STEPPED + isQuestionVisible + visibleOptions 联动逻辑 + icon_grid/tag_grid/tag_list 三种布局）
+  - 新增 `components/ai-chat/QuestionnaireResultCard.tsx`（图文摘要卡，含🩺标题 + 字段块 + "AI 正在为你分析…"提示 + 📝重新填写）
+  - `(ai-chat)/ai-home/page.tsx` 路由按钮点击：`ai_function_type=questionnaire` 时按 `questionnaire_display_form` 分发（INLINE_CHAT 走原 inline；DRAWER_* 走新抽屉）；提交后插入 `kind=questionnaire_result_card` 消息
+- **代码备份**：`legacy_backup/health_self_check/` 包含 backend api/schemas + h5-web 老抽屉/结果卡组件 + README
+- **测试**：新增 `backend/tests/test_questionnaire_drawer_v1_20260519.py` 7 个用例，远端 pytest 全部通过
+- **部署**：通过 `_deploy_qn_drawer_v1.py` SSH + docker cp 增量更新 backend；admin-web/h5-web rebuild + restart；smoke test render-meta API 返回 display_form=DRAWER_SCROLL + 3 题 + option_filter 联动数据完整
+
+**用户感知**：
+- 健康自查回归"底部抽屉"交互（点击按钮 → 底部弹抽屉一屏多题 → 提交后对话流插入精致图文摘要卡 + AI 流式回复）
+- 部位↔症状联动：选"头部"→ 症状只显示头部相关
+- 运营在管理后台可 3 分钟创建一个新的抽屉式问卷按钮
+
+---
+
 ## Latest Update: PRD-LEGACY-HOME-CLEANUP-V1.1｜管理后台「首页配置」遗留菜单下线清理（2026-05-19 20:30）
 
 **任务类型**：清理性减法改造（admin-web + backend + h5-web 三端，跨端审计自洽）

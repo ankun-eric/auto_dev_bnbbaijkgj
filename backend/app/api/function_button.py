@@ -441,6 +441,33 @@ def _validate_questionnaire_and_capture(
             )
 
 
+# [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 问卷展示形态枚举
+ALLOWED_QUESTIONNAIRE_DISPLAY_FORMS = {"DRAWER_SCROLL", "DRAWER_STEPPED", "INLINE_CHAT"}
+
+
+def _validate_questionnaire_display_form(
+    ai_func_type: Optional[str],
+    display_form: Optional[str],
+) -> None:
+    """[PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19]
+
+    - 当 ai_function_type=questionnaire 且 display_form 非空时校验枚举合法
+    - 其他类型按钮该字段忽略
+    """
+    if ai_func_type != "questionnaire":
+        return
+    if not display_form:
+        return
+    if display_form not in ALLOWED_QUESTIONNAIRE_DISPLAY_FORMS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"questionnaire_display_form 取值不合法：{display_form}，"
+                f"允许值：{sorted(ALLOWED_QUESTIONNAIRE_DISPLAY_FORMS)}"
+            ),
+        )
+
+
 def _validate_navigate_url(btn_type: Optional[str], external_url: Optional[str]) -> None:
     """[PRD-AICHAT-FUNCBTN-OPTIM-V1] 页面跳转地址校验：必须 http(s):// 或 / 开头。
 
@@ -508,6 +535,9 @@ async def admin_create_button(
         data.questionnaire_template_id,
         data.capture_purpose,
     )
+    _validate_questionnaire_display_form(
+        data.ai_function_type, data.questionnaire_display_form,
+    )
     await _validate_button_prompt_binding(db, data.button_type, data.prompt_template_id)
     btn = ChatFunctionButton(**data.model_dump())
     db.add(btn)
@@ -546,6 +576,10 @@ async def admin_update_button(
     _validate_questionnaire_and_capture(
         effective_btn_type, effective_ai_fn_type, effective_qt_id, effective_cp
     )
+    effective_display_form = updates.get(
+        "questionnaire_display_form", btn.questionnaire_display_form
+    )
+    _validate_questionnaire_display_form(effective_ai_fn_type, effective_display_form)
     await _validate_button_prompt_binding(db, effective_btn_type, effective_pt_id)
     for field, value in updates.items():
         setattr(btn, field, value)

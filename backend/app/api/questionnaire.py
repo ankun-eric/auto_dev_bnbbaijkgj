@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.security import get_current_user, require_role
 from app.models.models import (
+    ChatFunctionButton,
     QuestionnaireAnswer,
     QuestionnaireClassificationRule,
     QuestionnaireQuestion,
@@ -158,6 +159,258 @@ def _compute_classification(
             return r
     # tag_match（最小版本：不计算 tags，直接落第一个）
     return rules[0]
+
+
+# [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 按钮渲染元信息接口
+@router.get("/buttons/{button_id}/render-meta")
+async def get_button_render_meta(
+    button_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """获取一个 AI 功能按钮的渲染元信息。
+
+    若按钮 ai_function_type=questionnaire，返回：
+    - display_form：DRAWER_SCROLL / DRAWER_STEPPED / INLINE_CHAT
+    - template：模板元信息（含 result_summary_template / source）
+    - questions：题目列表（含 display_condition_json / option_filter_json / layout_hint）
+    """
+    btn = await db.get(ChatFunctionButton, button_id)
+    if not btn:
+        raise HTTPException(status_code=404, detail="按钮不存在")
+    meta: dict[str, Any] = {
+        "button": {
+            "id": btn.id,
+            "name": btn.name,
+            "button_type": btn.button_type,
+            "ai_function_type": btn.ai_function_type,
+            "questionnaire_template_id": btn.questionnaire_template_id,
+            "questionnaire_display_form": btn.questionnaire_display_form or "DRAWER_SCROLL",
+            "ai_opening": btn.ai_opening,
+            "prompt_override_enabled": btn.prompt_override_enabled,
+            "prompt_override_text": btn.prompt_override_text,
+            "card_title": btn.card_title,
+            "card_subtitle": btn.card_subtitle,
+            "card_cover_image": btn.card_cover_image,
+        },
+        "display_form": btn.questionnaire_display_form or "DRAWER_SCROLL",
+        "template": None,
+        "questions": [],
+    }
+    tpl_id = btn.questionnaire_template_id
+    if not tpl_id and btn.ai_function_type == "questionnaire":
+        return meta
+    if tpl_id:
+        tpl = await db.get(QuestionnaireTemplate, tpl_id)
+        if tpl:
+            meta["template"] = {
+                "id": tpl.id,
+                "code": tpl.code,
+                "name": tpl.name,
+                "description": tpl.description,
+                "intro_text": tpl.intro_text,
+                "estimated_minutes": tpl.estimated_minutes,
+                "allow_back": tpl.allow_back,
+                "result_summary_template": tpl.result_summary_template,
+                "source": tpl.source,
+                "ai_prompt_template": tpl.ai_prompt_template,
+                "ai_opening": tpl.ai_opening,
+                "report_layout": tpl.report_layout,
+            }
+            q_rows = (
+                await db.execute(
+                    select(QuestionnaireQuestion)
+                    .where(QuestionnaireQuestion.template_id == tpl_id)
+                    .order_by(
+                        QuestionnaireQuestion.sort_order.asc(),
+                        QuestionnaireQuestion.id.asc(),
+                    )
+                )
+            ).scalars().all()
+            meta["questions"] = [
+                {
+                    "id": q.id,
+                    "sort_order": q.sort_order,
+                    "question_type": q.question_type,
+                    "title": q.title,
+                    "subtitle": q.subtitle,
+                    "required": q.required,
+                    "options": q.options or [],
+                    "dimension": q.dimension,
+                    "display_condition_json": q.display_condition_json,
+                    "option_filter_json": q.option_filter_json,
+                    "layout_hint": q.layout_hint or "tag_grid",
+                }
+                for q in q_rows
+            ]
+    return meta
+
+
+def _render_result_summary(
+    template: Optional[str],
+    answer_items: list[dict[str, Any]],
+) -> Optional[str]:
+    """把 result_summary_template 里的 {题目名/dimension} 占位符替换为答案文案。
+
+    优先级：dimension → title 末段 → 跳过。
+    多选答案用 `、` 拼接；单选直接显示 value；文本题直接显示文本。
+    """
+    if not template:
+        return None
+    out = template
+    for ai in answer_items:
+        val = ai.get("value")
+        text_val: str
+        if isinstance(val, list):
+            text_val = "、".join(str(v) for v in val if v is not None and str(v) != "")
+        elif val is None:
+            text_val = ""
+        else:
+            text_val = str(val)
+        keys = []
+        dim = ai.get("dimension")
+        if dim:
+            keys.append(dim)
+        title = ai.get("title") or ""
+        if title:
+            keys.append(title)
+        for k in keys:
+            placeholder = "{" + k + "}"
+            if placeholder in out:
+                out = out.replace(placeholder, text_val)
+    return out
+
+
+# [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 抽屉提交接口
+@router.post("/submit")
+async def submit_questionnaire(
+    payload: QuestionnaireAnswerSubmit,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """抽屉提交接口：与 POST /answers 行为一致，但额外返回"问卷结果卡片"渲染所需结构。
+
+    返回结构：
+    {
+      "answer_id": int,
+      "card": {
+        "template_name": str,
+        "summary_text": str | None,
+        "fields": [{"key", "label", "value"}],
+        "template_code": str,
+        "icon": "🩺"
+      },
+      "ai_prompt_hint": str | None
+    }
+    """
+    tpl = await db.get(QuestionnaireTemplate, payload.template_id)
+    if not tpl:
+        raise HTTPException(status_code=404, detail="问卷模板不存在")
+    question_rows = (
+        await db.execute(
+            select(QuestionnaireQuestion).where(
+                QuestionnaireQuestion.template_id == payload.template_id
+            )
+        )
+    ).scalars().all()
+    question_map = {q.id: q for q in question_rows}
+
+    total_score = 0.0
+    dimension_scores: dict[str, float] = {}
+    answer_items: list[dict[str, Any]] = []
+    for item in payload.answers:
+        q = question_map.get(item.question_id)
+        if not q:
+            continue
+        opts = q.options or []
+        score = 0.0
+        if q.question_type in ("single_choice", "multi_choice"):
+            chosen_values = (
+                [item.value] if not isinstance(item.value, list) else item.value
+            )
+            for opt in opts:
+                if opt.get("value") in chosen_values:
+                    score += float(opt.get("score", 0) or 0)
+        total_score += score
+        if q.dimension:
+            dimension_scores[q.dimension] = (
+                dimension_scores.get(q.dimension, 0.0) + score
+            )
+        answer_items.append(
+            {
+                "question_id": q.id,
+                "title": q.title,
+                "dimension": q.dimension,
+                "value": item.value,
+                "score": score,
+            }
+        )
+
+    rules = (
+        await db.execute(
+            select(QuestionnaireClassificationRule).where(
+                QuestionnaireClassificationRule.template_id == payload.template_id
+            )
+        )
+    ).scalars().all()
+    cls = _compute_classification(
+        payload.template_id, rules, total_score, dimension_scores
+    )
+    classification_id = cls.id if cls else None
+
+    ans = QuestionnaireAnswer(
+        user_id=current_user.id,
+        template_id=payload.template_id,
+        consultant_id=payload.consultant_id,
+        answers=answer_items,
+        total_score=total_score,
+        dimension_scores=dimension_scores or None,
+        classification_id=classification_id,
+        status="completed",
+        completed_at=datetime.utcnow(),
+    )
+    db.add(ans)
+    await db.flush()
+    await db.refresh(ans)
+
+    # 构建结果卡片
+    summary_text = _render_result_summary(tpl.result_summary_template, answer_items)
+    fields: list[dict[str, Any]] = []
+    for ai in answer_items:
+        val = ai.get("value")
+        if isinstance(val, list):
+            display = "、".join(str(v) for v in val if v is not None and str(v) != "")
+        elif val is None:
+            display = ""
+        else:
+            display = str(val)
+        label = ai.get("dimension") or ai.get("title") or ""
+        fields.append(
+            {
+                "key": ai.get("dimension") or f"q_{ai.get('question_id')}",
+                "label": label,
+                "value": display,
+            }
+        )
+
+    icon_map = {
+        "health_self_check": "🩺",
+        "tcm_constitution": "🌿",
+    }
+    icon = icon_map.get(tpl.code or "", "📝")
+
+    return {
+        "answer_id": ans.id,
+        "template_id": tpl.id,
+        "card": {
+            "template_code": tpl.code,
+            "template_name": tpl.name,
+            "summary_text": summary_text,
+            "fields": fields,
+            "icon": icon,
+        },
+        "ai_prompt_hint": tpl.ai_opening,
+        "classification_id": classification_id,
+    }
 
 
 @router.post("/answers", response_model=QuestionnaireAnswerResponse)

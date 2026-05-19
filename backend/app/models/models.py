@@ -2589,6 +2589,12 @@ class ChatFunctionButton(Base):
     questionnaire_template_id = mapped_column(Integer, nullable=True, comment="关联问卷模板 ID（ai_function_type=questionnaire 时必填）")
     capture_purpose = mapped_column(String(32), nullable=True, comment="图像采集用途：identify_medicine / upload / interpret_report")
     pre_card_enabled = mapped_column(Boolean, nullable=True, default=True, comment="是否启用对话内说明卡片（对所有 ai_function_type 统一可用；覆盖旧 pre_card_for_navigate）")
+    # ───── [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 问卷展示形态 ─────
+    # DRAWER_SCROLL=抽屉-一屏多题（默认，健康自查）/ DRAWER_STEPPED=抽屉-一题一屏（体质测评）/ INLINE_CHAT=对话内插入
+    questionnaire_display_form = mapped_column(
+        String(32), nullable=True, default="DRAWER_SCROLL",
+        comment="问卷展示形态：DRAWER_SCROLL / DRAWER_STEPPED / INLINE_CHAT"
+    )
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -2621,6 +2627,13 @@ class QuestionnaireTemplate(Base):
     ai_opening = mapped_column(Text, nullable=True, comment="答完后 AI 开场白")
     report_layout = mapped_column(String(32), nullable=True, default="standard", comment="报告布局：standard / radar / score_bar")
     status = mapped_column(Integer, nullable=True, default=1, comment="0-停用 1-启用")
+    # ───── [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 结果摘要模板 ─────
+    # 用于"问卷结果卡片"渲染，支持 {题目名} 占位符
+    # 例：部位：{部位} | 症状：{症状} | 持续：{持续时间}
+    result_summary_template = mapped_column(Text, nullable=True, comment="结果摘要模板（含 {题目名} 占位符，用于问卷结果卡片渲染）")
+    # ───── [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 来源标记 ─────
+    # system_migrated=系统迁移；operator_created=运营新建
+    source = mapped_column(String(32), nullable=True, default="operator_created", comment="模板来源 system_migrated / operator_created")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -2639,6 +2652,15 @@ class QuestionnaireQuestion(Base):
     required = mapped_column(Boolean, nullable=True, default=True)
     options = mapped_column(JSON, nullable=True, comment="选项列表 [{label,value,score,tags}]")
     dimension = mapped_column(String(64), nullable=True, comment="所属维度（阴虚/阳虚等）")
+    # ───── [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 题目联动 ─────
+    # 显示条件：{"deps": [{"question_id": N, "operator": "in", "values": ["A","B"]}], "logic": "and"}
+    # 满足条件时显示本题；为空则始终显示
+    display_condition_json = mapped_column(JSON, nullable=True, comment="题目显示条件：[{question_id, operator, values}]")
+    # 选项过滤规则：{"deps": [{"question_id": N, "operator": "in"}], "filter_map": {"head": ["headache","dizzy"], "chest":["chest_pain"]}, "default": "all"}
+    # 上一题答案 → 本题选项子集
+    option_filter_json = mapped_column(JSON, nullable=True, comment="选项过滤规则（按依赖题答案过滤选项）")
+    # 题目"视觉布局"（仅前端渲染用）：tag_grid 默认；icon_grid 图标网格；tag_list 标签列表
+    layout_hint = mapped_column(String(32), nullable=True, default="tag_grid", comment="题目视觉布局：tag_grid / icon_grid / tag_list / text")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

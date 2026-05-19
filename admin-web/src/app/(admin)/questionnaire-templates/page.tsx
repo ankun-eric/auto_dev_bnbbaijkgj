@@ -50,6 +50,9 @@ interface QuestionnaireTemplate {
   ai_opening?: string | null;
   report_layout?: string;
   status?: number;
+  // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19]
+  result_summary_template?: string | null;
+  source?: string | null;
   created_at?: string;
 }
 
@@ -363,6 +366,15 @@ export default function QuestionnaireTemplatesPage() {
           { title: 'ID', dataIndex: 'id', width: 80 },
           { title: '编码', dataIndex: 'code', width: 200, render: (v) => <Tag color="blue">{v}</Tag> },
           { title: '名称', dataIndex: 'name' },
+          {
+            title: '来源',
+            dataIndex: 'source',
+            width: 100,
+            render: (v) =>
+              v === 'system_migrated'
+                ? <Tag color="orange">系统迁移</Tag>
+                : <Tag color="green">运营新建</Tag>,
+          },
           { title: '预计分钟', dataIndex: 'estimated_minutes', width: 100 },
           {
             title: '状态',
@@ -436,6 +448,25 @@ export default function QuestionnaireTemplatesPage() {
           </Form.Item>
           <Form.Item label="答完 AI 开场白" name="ai_opening">
             <Input placeholder="例如：根据您的答题，初步分析如下…" />
+          </Form.Item>
+          {/* [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 结果摘要模板 */}
+          <Form.Item
+            label="结果摘要模板"
+            name="result_summary_template"
+            extra={
+              <span>
+                用于"问卷结果卡片"渲染，支持 <code>{'{题目名/维度}'}</code> 占位符。
+                <br />
+                示例：<code>部位：{'{部位}'} | 症状：{'{症状}'} | 持续：{'{持续时间}'}</code>
+              </span>
+            }
+          >
+            <TextArea
+              rows={2}
+              placeholder="部位：{部位} | 症状：{症状} | 持续：{持续时间}"
+              maxLength={500}
+              showCount
+            />
           </Form.Item>
         </Form>
       </Modal>

@@ -142,6 +142,8 @@ class ChatFunctionButtonCreate(BaseModel):
     questionnaire_template_id: Optional[int] = None
     capture_purpose: Optional[str] = None
     pre_card_enabled: Optional[bool] = True
+    # [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 问卷展示形态
+    questionnaire_display_form: Optional[str] = "DRAWER_SCROLL"
 
 
 class ChatFunctionButtonUpdate(BaseModel):
@@ -183,6 +185,8 @@ class ChatFunctionButtonUpdate(BaseModel):
     questionnaire_template_id: Optional[int] = None
     capture_purpose: Optional[str] = None
     pre_card_enabled: Optional[bool] = None
+    # [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 问卷展示形态
+    questionnaire_display_form: Optional[str] = None
 
 
 class ChatFunctionButtonResponse(BaseModel):
@@ -225,6 +229,8 @@ class ChatFunctionButtonResponse(BaseModel):
     questionnaire_template_id: Optional[int] = None
     capture_purpose: Optional[str] = None
     pre_card_enabled: Optional[bool] = None
+    # [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 问卷展示形态
+    questionnaire_display_form: Optional[str] = "DRAWER_SCROLL"
     created_at: datetime
     updated_at: datetime
 

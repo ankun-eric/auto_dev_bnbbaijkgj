@@ -26,6 +26,9 @@ class QuestionnaireTemplateBase(BaseModel):
     ai_opening: Optional[str] = None
     report_layout: Optional[str] = "standard"
     status: Optional[int] = 1
+    # [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19]
+    result_summary_template: Optional[str] = None
+    source: Optional[str] = "operator_created"
 
 
 class QuestionnaireTemplateCreate(QuestionnaireTemplateBase):
@@ -45,6 +48,9 @@ class QuestionnaireTemplateUpdate(BaseModel):
     ai_opening: Optional[str] = None
     report_layout: Optional[str] = None
     status: Optional[int] = None
+    # [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19]
+    result_summary_template: Optional[str] = None
+    source: Optional[str] = None
 
 
 class QuestionnaireTemplateResponse(QuestionnaireTemplateBase):
@@ -67,6 +73,10 @@ class QuestionnaireQuestionBase(BaseModel):
     required: Optional[bool] = True
     options: Optional[list[dict[str, Any]]] = None
     dimension: Optional[str] = None
+    # [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 题目联动
+    display_condition_json: Optional[dict[str, Any]] = None
+    option_filter_json: Optional[dict[str, Any]] = None
+    layout_hint: Optional[str] = "tag_grid"
 
 
 class QuestionnaireQuestionCreate(QuestionnaireQuestionBase):
@@ -81,6 +91,10 @@ class QuestionnaireQuestionUpdate(BaseModel):
     required: Optional[bool] = None
     options: Optional[list[dict[str, Any]]] = None
     dimension: Optional[str] = None
+    # [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19]
+    display_condition_json: Optional[dict[str, Any]] = None
+    option_filter_json: Optional[dict[str, Any]] = None
+    layout_hint: Optional[str] = None
 
 
 class QuestionnaireQuestionResponse(QuestionnaireQuestionBase):

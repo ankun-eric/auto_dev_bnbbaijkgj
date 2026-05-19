@@ -34,6 +34,14 @@ import CapsuleBar from '@/components/ai-chat/CapsuleBar';
 // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查抽屉 + 卡片气泡
 import HealthSelfCheckDrawer, { type HealthSelfCheckSubmitPayload, type HealthCheckTemplateDetail } from '@/components/ai-chat/HealthSelfCheckDrawer';
 import HealthSelfCheckCard from '@/components/ai-chat/HealthSelfCheckCard';
+// [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 通用问卷抽屉 + 结果卡片
+import QuestionnaireDrawer, {
+  type DisplayForm as QnDisplayForm,
+  type QnQuestion,
+  type QnTemplate,
+  type QnSubmitAnswerItem,
+} from '@/components/ai-chat/QuestionnaireDrawer';
+import QuestionnaireResultCard, { type QnResultCardPayload } from '@/components/ai-chat/QuestionnaireResultCard';
 // [BUG_FIX_拍照识药三联_20260516] 聊天内嵌识药引擎：识药结果卡片
 import DrugIdentifyCard from './components/DrugIdentifyCard';
 // [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 加入 / 查看用药计划抽屉
@@ -133,7 +141,7 @@ interface ChatMessage {
    *  - 'file'  : 用户上传的非图片文件消息（content = 文件名占位，files 字段携带文件元数据）
    *  - 'quick_ask_card' : 可编辑的快捷提问卡片消息（quickAskButton 字段携带按钮元数据）
    */
-  kind?: 'text' | 'image' | 'file' | 'quick_ask_card' | 'health_self_check_card';
+  kind?: 'text' | 'image' | 'file' | 'quick_ask_card' | 'health_self_check_card' | 'questionnaire_result_card';
   /**
    * [Bug-471 2026-05-15] 用户消息支持 1~5 张图片：图片 URL 数组（服务器返回）。
    * 当 kind === 'image' 且 images 非空时，气泡渲染为「横向缩略图小图墙」。
@@ -204,6 +212,14 @@ interface ChatMessage {
     // [PRD-HSC-SSE 2026-05-16] 补充症状描述（选填）
     symptomDescription?: string;
   };
+  /** [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 通用问卷结果卡片 payload */
+  questionnaireResult?: {
+    answerId: number;
+    templateId: number;
+    buttonId: number;
+    card: QnResultCardPayload;
+    aiStatusText?: string | null;
+  };
 }
 
 interface Banner {
@@ -246,6 +262,11 @@ interface FunctionButton {
   ai_function_type?: string | null;
   ai_opening?: string | null;
   pre_card_for_navigate?: boolean | null;
+  // [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 / PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19]
+  questionnaire_template_id?: number | null;
+  capture_purpose?: string | null;
+  pre_card_enabled?: boolean | null;
+  questionnaire_display_form?: string | null;
 }
 
 // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] AI 对话首页功能宫格专属 5 色循环配色池（去玫红版方案 A）
@@ -746,6 +767,13 @@ export default function AiHomePage() {
   const [hscDrawerOpen, setHscDrawerOpen] = useState(false);
   const [hscDrawerButton, setHscDrawerButton] = useState<FunctionButton | null>(null);
   const [hscDrawerPrefill, setHscDrawerPrefill] = useState<Partial<HealthSelfCheckSubmitPayload> | null>(null);
+  // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 通用问卷抽屉状态
+  const [qnDrawerOpen, setQnDrawerOpen] = useState(false);
+  const [qnDrawerLoading, setQnDrawerLoading] = useState(false);
+  const [qnDrawerButton, setQnDrawerButton] = useState<FunctionButton | null>(null);
+  const [qnDrawerTemplate, setQnDrawerTemplate] = useState<QnTemplate | null>(null);
+  const [qnDrawerQuestions, setQnDrawerQuestions] = useState<QnQuestion[]>([]);
+  const [qnDrawerDisplayForm, setQnDrawerDisplayForm] = useState<QnDisplayForm>('DRAWER_SCROLL');
   // [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517] 会话空闲超时由 30 → 60 分钟
   const [idleTimeout, setIdleTimeout] = useState<number>(60 * 60 * 1000);
   // [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] AI 流式结束的时刻，是 60min 倒计时的起点。
@@ -1947,6 +1975,86 @@ export default function AiHomePage() {
     );
   }, []);
 
+  // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 打开通用问卷抽屉：调 render-meta 拿模板与题目
+  const openQuestionnaireDrawer = useCallback(
+    async (btn: FunctionButton, displayForm: QnDisplayForm) => {
+      setQnDrawerButton(btn);
+      setQnDrawerDisplayForm(displayForm);
+      setQnDrawerLoading(true);
+      setQnDrawerOpen(true);
+      try {
+        const meta = await api.get<any>(`/api/questionnaire/buttons/${btn.id}/render-meta`);
+        if (meta?.template) {
+          setQnDrawerTemplate(meta.template as QnTemplate);
+          setQnDrawerQuestions((meta.questions || []) as QnQuestion[]);
+        } else {
+          Toast.show({ content: '问卷模板未配置，请联系运营' });
+          setQnDrawerOpen(false);
+        }
+      } catch (e: any) {
+        console.warn('[ai-home] render-meta fetch failed', e);
+        Toast.show({ content: '问卷加载失败，请重试' });
+        setQnDrawerOpen(false);
+      } finally {
+        setQnDrawerLoading(false);
+      }
+    },
+    [],
+  );
+
+  // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 通用问卷抽屉提交：调用 /api/questionnaire/submit
+  // 把"问卷结果卡片"插入对话流，然后触发 AI 流式回复（直接 reuse handleSend 把摘要文案作为 user 输入）
+  const handleQuestionnaireDrawerSubmit = useCallback(
+    async (items: QnSubmitAnswerItem[]) => {
+      const btn = qnDrawerButton;
+      const tpl = qnDrawerTemplate;
+      if (!btn || !tpl) return;
+      try {
+        const resp = await api.post<any>('/api/questionnaire/submit', {
+          template_id: tpl.id,
+          consultant_id: selectedConsultant?.id ?? null,
+          answers: items,
+        });
+        setQnDrawerOpen(false);
+        const card = (resp?.card || { fields: [] }) as QnResultCardPayload;
+        const summaryText: string =
+          card.summary_text ||
+          (card.fields || []).map((f) => `${f.label}：${f.value}`).filter(Boolean).join(' | ');
+        // 插入结果卡片消息（用户侧）
+        const cardMsg: ChatMessage = {
+          id: `qn-card-${Date.now()}`,
+          role: 'user',
+          content: summaryText,
+          time: new Date().toISOString(),
+          kind: 'questionnaire_result_card',
+          questionnaireResult: {
+            answerId: resp.answer_id,
+            templateId: tpl.id,
+            buttonId: Number(btn.id),
+            card,
+            aiStatusText: 'AI 正在为你分析…',
+          },
+        };
+        setMessages((prev) => [...prev, cardMsg]);
+        // 触发 AI 流式回复：直接复用 handleSend 把摘要发出去（preset 模式不再单独冒泡，已经有卡片）
+        lastMsgTimeRef.current = Date.now();
+        const aiPrompt =
+          btn.prompt_override_enabled && btn.prompt_override_text
+            ? btn.prompt_override_text
+            : tpl.ai_prompt_template || '';
+        const aiContext =
+          aiPrompt && aiPrompt.includes('{摘要}')
+            ? aiPrompt.replace('{摘要}', summaryText)
+            : `[${tpl.name}] ${summaryText}`;
+        handleSend(aiContext, 'preset');
+      } catch (e: any) {
+        console.warn('[ai-home] qn submit failed', e);
+        Toast.show({ content: e?.response?.data?.detail || '问卷提交失败' });
+      }
+    },
+    [qnDrawerButton, qnDrawerTemplate, selectedConsultant, handleSend],
+  );
+
   // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查抽屉提交：插入卡片气泡 → 调用后端 start → 插入 AI 回答
   // [PRD-HSC-SSE 2026-05-16] 改造为 SSE 流式：调用 /api/health-self-check/start-stream，
   //   按 event(meta|delta|done) 增量更新 AI 气泡内容；同时把 symptom_description 透传给后端 + 卡片展示。
@@ -2156,9 +2264,32 @@ export default function AiHomePage() {
    */
   const handleFunctionButtonClick = (btn: FunctionButton) => {
     try {
+      // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 通用问卷分发（最高优先级）
+      // 当 ai_function_type=questionnaire 时，按 questionnaire_display_form 决定行为：
+      //   DRAWER_SCROLL  → 弹通用问卷抽屉（一屏多题）
+      //   DRAWER_STEPPED → 弹通用问卷抽屉（一题一屏）
+      //   INLINE_CHAT    → 在对话流中插入问卷气泡（轻量级）—— 复用现有 ai-chat-card 走原流程
+      if (
+        btn.button_type === 'ai_function' &&
+        btn.ai_function_type === 'questionnaire' &&
+        btn.questionnaire_template_id
+      ) {
+        const displayForm = (btn.questionnaire_display_form || 'DRAWER_SCROLL') as QnDisplayForm;
+        if (displayForm === 'DRAWER_SCROLL' || displayForm === 'DRAWER_STEPPED') {
+          openQuestionnaireDrawer(btn, displayForm).catch((e) => {
+            console.warn('[ai-home] open questionnaire drawer failed', e);
+            Toast.show({ content: '问卷加载失败，请重试' });
+          });
+          return;
+        }
+        // INLINE_CHAT 走兜底（弹卡片到对话流）继续后续逻辑
+      }
+
       // [BUG-FIX 2026-05-16] health_self_check 类型：与胶囊行为完全一致，直接弹出健康自查抽屉
       // 修复前：宫格分发漏掉本分支，落入兜底逻辑被当成"导航卡片"渲染，导致点击无反应
       // [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] 兼容新主类型 ai_function + ai_function_type=health_self_check
+      // ⚠️ [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] DEPRECATED：老 health_self_check 子类型分支保留
+      //    仅当按钮还没被数据迁移升级时进入；新按钮一律走上面的 questionnaire 分支。
       const isHealthSelfCheck = btn.button_type === 'health_self_check' ||
         (btn.button_type === 'ai_function' && btn.ai_function_type === 'health_self_check');
       if (isHealthSelfCheck) {
@@ -4231,6 +4362,43 @@ export default function AiHomePage() {
                 );
               }
 
+              // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 通用问卷结果卡片气泡（用户侧）
+              if (isUser && msg.kind === 'questionnaire_result_card' && msg.questionnaireResult) {
+                const qr = msg.questionnaireResult;
+                return (
+                  <div
+                    key={msg.id}
+                    style={{ marginBottom: 24 }}
+                    data-testid="ai-home-qn-result-card-message"
+                  >
+                    {showTime && (
+                      <div className="text-center" style={{ padding: '8px 0' }}>
+                        <span style={{ fontSize: 12, color: '#9CA3AF' }}>
+                          {formatWeChatTime(msg.time)}
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginRight: 16 }}>
+                      <QuestionnaireResultCard
+                        payload={qr.card}
+                        aiStatusText={qr.aiStatusText}
+                        onRetry={() => {
+                          const btn = funcButtons.find(
+                            (b) => Number(b.id) === Number(qr.buttonId),
+                          );
+                          if (btn) {
+                            const df = (btn.questionnaire_display_form || 'DRAWER_SCROLL') as QnDisplayForm;
+                            openQuestionnaireDrawer(btn, df).catch(() => {
+                              Toast.show({ content: '问卷加载失败' });
+                            });
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              }
+
               // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查卡片气泡（用户侧）
               if (isUser && msg.kind === 'health_self_check_card' && msg.healthSelfCheck) {
                 const payload = msg.healthSelfCheck;
@@ -4864,6 +5032,16 @@ export default function AiHomePage() {
           if (!full) return;
           handleCapsuleByType(full);
         }}
+      />
+
+      {/* [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 通用问卷抽屉 */}
+      <QuestionnaireDrawer
+        open={qnDrawerOpen && !qnDrawerLoading && !!qnDrawerTemplate}
+        onClose={() => setQnDrawerOpen(false)}
+        template={qnDrawerTemplate}
+        questions={qnDrawerQuestions}
+        displayForm={qnDrawerDisplayForm}
+        onSubmit={handleQuestionnaireDrawerSubmit}
       />
 
       {/* [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查抽屉 */}

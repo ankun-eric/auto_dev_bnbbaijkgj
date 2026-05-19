@@ -47,6 +47,13 @@ const CAPTURE_PURPOSE_OPTIONS = [
   { value: 'interpret_report', label: '🩺 报告解读（相册/拍照/历史报告 → AI 解读）' },
 ];
 
+// [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 问卷展示形态
+const QUESTIONNAIRE_DISPLAY_FORM_OPTIONS = [
+  { value: 'DRAWER_SCROLL', label: '🪟 抽屉-一屏多题（健康自查）' },
+  { value: 'DRAWER_STEPPED', label: '📑 抽屉-一题一屏（体质测评）' },
+  { value: 'INLINE_CHAT', label: '💬 对话内插入（轻量问卷）' },
+];
+
 // [PRD-PROMPT-CONFIG-V1 2026-05-14] 老 9 种枚举（保留下拉以兼容编辑老数据；
 // 新建/迁移后的按钮统一从 MAIN_TYPE_OPTIONS 选择）
 const BUTTON_TYPE_OPTIONS = [
@@ -148,6 +155,8 @@ interface FunctionButton {
   questionnaire_template_id?: number | null;
   capture_purpose?: string | null;
   pre_card_enabled?: boolean | null;
+  // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 问卷展示形态
+  questionnaire_display_form?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -363,6 +372,8 @@ export default function FunctionButtonsPage() {
           record.pre_card_enabled !== null && record.pre_card_enabled !== undefined
             ? !!record.pre_card_enabled
             : !!record.pre_card_for_navigate || true,
+        // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 问卷展示形态回填
+        questionnaire_display_form: record.questionnaire_display_form || 'DRAWER_SCROLL',
       };
 
       // [PRD-AICHAT-CAPSULE-V2 2026-05-15] 移除 ai_reply_mode 字段回填（统一由「关联 Prompt 模板」承载）；
@@ -389,6 +400,8 @@ export default function FunctionButtonsPage() {
         prompt_override_enabled: false,
         // [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 默认值
         pre_card_enabled: true,
+        // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 默认抽屉-一屏多题
+        questionnaire_display_form: 'DRAWER_SCROLL',
       });
     }
     setModalOpen(true);
@@ -472,6 +485,11 @@ export default function FunctionButtonsPage() {
           values.button_type === 'ai_function'
             ? (values.pre_card_enabled !== undefined ? !!values.pre_card_enabled : true)
             : !!values.pre_card_for_navigate,
+        // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 问卷展示形态
+        questionnaire_display_form:
+          values.button_type === 'ai_function' && values.ai_function_type === 'questionnaire'
+            ? (values.questionnaire_display_form || 'DRAWER_SCROLL')
+            : null,
       };
 
       if (editingItem) {
@@ -809,27 +827,47 @@ export default function FunctionButtonsPage() {
 
           {/* [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] questionnaire 子类型：关联问卷模板 */}
           {watchedButtonType === 'ai_function' && watchedAiFunctionType === 'questionnaire' && (
-            <Form.Item
-              label="关联问卷模板"
-              name="questionnaire_template_id"
-              rules={[{ required: true, message: '请选择问卷模板' }]}
-              extra={
-                <span>
-                  问卷模板由「问卷模板管理」页面维护；
-                  <a onClick={() => router.push('/questionnaire-templates')}>前往问卷模板管理</a>
-                </span>
-              }
-            >
-              <Select
-                placeholder="请选择问卷模板"
-                showSearch
-                optionFilterProp="label"
-                options={questionnaireTemplates.map((t) => ({
-                  value: t.id,
-                  label: `${t.name}（${t.code}）`,
-                }))}
-              />
-            </Form.Item>
+            <>
+              <Form.Item
+                label="关联问卷模板"
+                name="questionnaire_template_id"
+                rules={[{ required: true, message: '请选择问卷模板' }]}
+                extra={
+                  <span>
+                    问卷模板由「问卷模板管理」页面维护；
+                    <a onClick={() => router.push('/questionnaire-templates')}>前往问卷模板管理</a>
+                  </span>
+                }
+              >
+                <Select
+                  placeholder="请选择问卷模板"
+                  showSearch
+                  optionFilterProp="label"
+                  options={questionnaireTemplates.map((t) => ({
+                    value: t.id,
+                    label: `${t.name}（${t.code}）`,
+                  }))}
+                />
+              </Form.Item>
+              {/* [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 问卷展示形态：三选一 */}
+              <Form.Item
+                label="问卷展示形态"
+                name="questionnaire_display_form"
+                initialValue="DRAWER_SCROLL"
+                rules={[{ required: true, message: '请选择问卷展示形态' }]}
+                extra={
+                  <span>
+                    决定用户点击按钮后问卷以何种形态出现：
+                    <b>抽屉-一屏多题</b>（健康自查推荐）/ <b>抽屉-一题一屏</b>（沉浸式体质测评）/ <b>对话内插入</b>（轻量级）
+                  </span>
+                }
+              >
+                <Select
+                  placeholder="请选择问卷展示形态"
+                  options={QUESTIONNAIRE_DISPLAY_FORM_OPTIONS}
+                />
+              </Form.Item>
+            </>
           )}
 
           {/* [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] image_capture 子类型：采集用途 */}
