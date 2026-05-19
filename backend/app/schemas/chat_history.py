@@ -73,6 +73,10 @@ class UserChatSessionItem(BaseModel):
     family_member_id: Optional[int] = None
     family_member_relation: Optional[str] = "self"
     family_member_nickname: Optional[str] = None
+    # [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 新增会话状态/归档时间/最后活动时间
+    status: Optional[str] = "archived"
+    archived_at: Optional[datetime] = None
+    last_active_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 

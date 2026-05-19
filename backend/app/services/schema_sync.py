@@ -2621,6 +2621,93 @@ async def _sync_family_members_archive_optim_v2(conn: AsyncConnection) -> None:
         print(f"[schema_sync] family_members.avatar_color_index backfill warn: {e}")
 
 
+async def _sync_chat_session_idle_archive_v1(conn: AsyncConnection) -> None:
+    """[PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] chat_sessions 增加 status/archived_at/last_active_at
+
+    幂等：检测列是否存在；建立部分性约束（MySQL 不支持 partial index → 应用层保证唯一）。
+    迁移规则（按 PRD 第 4 节）：
+      1) ADD COLUMN status / archived_at / last_active_at
+      2) 回填 last_active_at = updated_at
+      3) message_count = 0 的空会话软删除（is_deleted = TRUE）
+      4) 其余存量会话置为 archived，回填 archived_at = updated_at
+      5) 建立 (user_id, status, last_active_at) 复合索引以加速列表查询
+    """
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "chat_sessions" not in tables:
+            return None, set()
+        cols = {col["name"] for col in inspector.get_columns("chat_sessions")}
+        idx_names = {idx.get("name") for idx in inspector.get_indexes("chat_sessions") if idx.get("name")}
+        return cols, idx_names
+
+    session_cols, idx_names = await conn.run_sync(_load)
+    if session_cols is None:
+        return
+
+    altered = False
+    if "status" not in session_cols:
+        try:
+            await conn.execute(text(
+                "ALTER TABLE chat_sessions ADD COLUMN status VARCHAR(16) NOT NULL DEFAULT 'archived'"
+            ))
+            altered = True
+        except Exception as e:
+            print(f"[schema_sync] chat_sessions add status warn: {e}")
+    if "archived_at" not in session_cols:
+        try:
+            await conn.execute(text(
+                "ALTER TABLE chat_sessions ADD COLUMN archived_at DATETIME NULL"
+            ))
+            altered = True
+        except Exception as e:
+            print(f"[schema_sync] chat_sessions add archived_at warn: {e}")
+    if "last_active_at" not in session_cols:
+        try:
+            await conn.execute(text(
+                "ALTER TABLE chat_sessions ADD COLUMN last_active_at DATETIME NULL"
+            ))
+            altered = True
+        except Exception as e:
+            print(f"[schema_sync] chat_sessions add last_active_at warn: {e}")
+
+    # 数据迁移（幂等）：只有第一次需要回填，但每次启动也安全（基于 is_deleted/状态等条件过滤）
+    if altered or "status" not in session_cols or "last_active_at" not in session_cols:
+        try:
+            await conn.execute(text(
+                "UPDATE chat_sessions SET last_active_at = COALESCE(updated_at, created_at, NOW()) "
+                "WHERE last_active_at IS NULL"
+            ))
+        except Exception as e:
+            print(f"[schema_sync] chat_sessions backfill last_active_at warn: {e}")
+        try:
+            # 空会话（无任何消息）一次性软删除（脏数据清理）
+            await conn.execute(text(
+                "UPDATE chat_sessions SET is_deleted = 1 "
+                "WHERE (message_count IS NULL OR message_count = 0) AND (is_deleted IS NULL OR is_deleted = 0)"
+            ))
+        except Exception as e:
+            print(f"[schema_sync] chat_sessions soft-delete empty warn: {e}")
+        try:
+            # 其余存量会话置为 archived（archived_at 回填）
+            await conn.execute(text(
+                "UPDATE chat_sessions SET status = 'archived', "
+                "archived_at = COALESCE(archived_at, updated_at, created_at, NOW()) "
+                "WHERE status IS NULL OR status = '' OR (status = 'archived' AND archived_at IS NULL)"
+            ))
+        except Exception as e:
+            print(f"[schema_sync] chat_sessions backfill archived warn: {e}")
+
+    # 建索引（幂等）
+    if "idx_status_last_active" not in idx_names:
+        try:
+            await conn.execute(text(
+                "CREATE INDEX idx_status_last_active ON chat_sessions (user_id, status, last_active_at)"
+            ))
+        except Exception as e:
+            print(f"[schema_sync] chat_sessions add idx_status_last_active warn: {e}")
+
+
 async def _sync_guardian_ai_call_settings_v1(conn: AsyncConnection) -> None:
     """[PRD-HEALTH-ARCHIVE-OPTIM-V1 2026-05-18] 创建 guardian_ai_call_settings 表。
 
@@ -2674,6 +2761,7 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_settlement_proof_schema(conn)
     await _sync_sms_tables(conn)
     await _sync_chat_session_fields(conn)
+    await _sync_chat_session_idle_archive_v1(conn)
     await _sync_knowledge_tables(conn)
     await _sync_ai_center_tables(conn)
     await _sync_report_tables(conn)

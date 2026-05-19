@@ -896,6 +896,12 @@ class ChatSession(Base):
     interpret_error = mapped_column(Text, nullable=True)
     interpret_started_at = mapped_column(DateTime, nullable=True)
     interpret_finished_at = mapped_column(DateTime, nullable=True)
+    # [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 会话状态：active / archived
+    # 列表接口默认只返回 archived；唯一约束保障每个 (user_id, family_member_id) 同时仅 1 条 active。
+    status = mapped_column(String(16), nullable=False, default="archived", server_default="archived")
+    archived_at = mapped_column(DateTime, nullable=True)
+    # 最后活动时间（最后一条消息的时间），用于分组判定与列表排序
+    last_active_at = mapped_column(DateTime, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

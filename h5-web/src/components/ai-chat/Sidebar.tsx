@@ -192,13 +192,25 @@ function getRoleColor(askerRole?: string): { color: string; label: string } {
   return { color: FALLBACK_PALETTE[hash % FALLBACK_PALETTE.length], label: askerRole };
 }
 
-/** F-09 4 组时间分组 */
+/**
+ * F-09 时间分组（[PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 新增「今天」分组）
+ *
+ * 分组顺序（自上而下）：今天 → 最近 7 天 → 最近 30 天 → 更早
+ * 判定基准：last_active_at（前端字段名为 item.time）；按用户本地时区判定。
+ * 组内排序：保留外层调用者已按 last_active_at 倒序的结果。
+ */
 function groupHistories(items: ChatHistoryItem[]) {
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfTomorrow = startOfToday + DAY_MS;
+  // 今天：[startOfToday, startOfTomorrow)
+  // 最近 7 天：当前为不属于今天，且距今 ≤ 7 天（含昨天到 6 天前）
+  // 最近 30 天：距今 > 7 天 且 ≤ 30 天
+  // 更早：距今 > 30 天
   const sevenDaysAgo = startOfToday - 6 * DAY_MS;
   const thirtyDaysAgo = startOfToday - 29 * DAY_MS;
   const groups: { label: string; items: ChatHistoryItem[] }[] = [
+    { label: '今天', items: [] },
     { label: '最近 7 天', items: [] },
     { label: '最近 30 天', items: [] },
     { label: '更早', items: [] },
@@ -206,13 +218,15 @@ function groupHistories(items: ChatHistoryItem[]) {
   items.forEach((it) => {
     const t = parseServerTime(it.time)?.getTime() ?? NaN;
     if (!Number.isFinite(t)) {
-      groups[2].items.push(it);
+      groups[3].items.push(it);
       return;
     }
-    if (t >= sevenDaysAgo) groups[0].items.push(it);
-    else if (t >= thirtyDaysAgo) groups[1].items.push(it);
-    else groups[2].items.push(it);
+    if (t >= startOfToday && t < startOfTomorrow) groups[0].items.push(it);
+    else if (t >= sevenDaysAgo) groups[1].items.push(it);
+    else if (t >= thirtyDaysAgo) groups[2].items.push(it);
+    else groups[3].items.push(it);
   });
+  // 空分组隐藏（PRD §6.4.4）
   return groups.filter((g) => g.items.length > 0);
 }
 
@@ -278,7 +292,9 @@ export default function Sidebar({
   const loadHistories = useCallback(async () => {
     setLoadFailed(false);
     try {
-      const res: any = await api.get('/api/chat-sessions');
+      // [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 历史抽屉固定传 status=archived，
+      // 只展示已归档会话；正在使用的 active 会话不应出现在历史列表中。
+      const res: any = await api.get('/api/chat-sessions', { params: { status: 'archived' } });
       const data = res?.data ?? res;
       // 强化兜底：支持 [] / { items: [] } / { data: [] } 多种返回结构
       const rawList = Array.isArray(data)
@@ -294,7 +310,8 @@ export default function Sidebar({
           id: String(s.id),
           title: s.title || '新对话',
           summary: s.last_message || s.preview || s.summary || '',
-          time: s.updated_at || s.created_at || '',
+          // [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 优先使用 last_active_at 作为时间分组判定基准
+          time: s.last_active_at || s.updated_at || s.created_at || '',
           pinned: !!(s.is_pinned || s.pinned),
           pinnedAt: s.pinned_at || null,
           // [BUG-461 Fix-B] 咨询人角色优先消费后端新返回的 family_member_relation 字段，

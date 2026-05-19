@@ -1,6 +1,6 @@
 import json
 import time
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
@@ -473,12 +473,33 @@ async def create_session(
             )
 
     try:
+        # [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 创建新会话前，先归档当前用户所有 active 会话，
+        # 保证全局每个用户同时只能有 1 个 active；并将新会话置为 active + 写入 last_active_at。
+        now = datetime.utcnow()
+        try:
+            existing_active = await db.execute(
+                select(ChatSession).where(
+                    ChatSession.user_id == current_user.id,
+                    ChatSession.is_deleted == False,
+                    ChatSession.status == "active",
+                )
+            )
+            for s in existing_active.scalars().all():
+                s.status = "archived"
+                if s.archived_at is None:
+                    s.archived_at = now
+                s.updated_at = now
+        except Exception:
+            pass
+
         session = ChatSession(
             user_id=current_user.id,
             session_type=session_type,
             title=data.title or "新对话",
             family_member_id=family_member_id,
             symptom_info=data.symptom_info,
+            status="active",
+            last_active_at=now,
         )
         db.add(session)
         await db.flush()
@@ -684,6 +705,8 @@ async def send_message(
     db.add(ai_msg)
 
     session.message_count = (session.message_count or 0) + 1
+    # [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 每次消息落库都刷新最后活动时间
+    session.last_active_at = datetime.utcnow()
 
     if session.title == "新对话" and len(history_msgs) <= 2:
         session.title = data.content[:50]
@@ -761,6 +784,7 @@ async def _stream_drug_identify(
                     )
                     db.add(ai_msg)
                     captured_session.message_count = (captured_session.message_count or 0) + 1
+                    captured_session.last_active_at = datetime.utcnow()
                     if captured_session.title == "新对话":
                         captured_session.title = "拍照识药"
                     try:
@@ -862,6 +886,7 @@ async def _stream_report_interpret(
                     )
                     db.add(ai_msg)
                     captured_session.message_count = (captured_session.message_count or 0) + 1
+                    captured_session.last_active_at = datetime.utcnow()
                     if captured_session.title == "新对话":
                         captured_session.title = "报告解读"
                     try:
@@ -1153,6 +1178,7 @@ async def stream_message(
                 )
                 captured_db.add(ai_msg)
                 captured_session.message_count = (captured_session.message_count or 0) + 1
+                captured_session.last_active_at = datetime.utcnow()
                 if captured_session.title == "新对话" and len(captured_history_msgs) <= 2:
                     captured_session.title = captured_data.content[:50]
                 await captured_db.flush()
@@ -1490,6 +1516,10 @@ async def get_session_detail(
         # 旧 isoformat() 不带时区会被前端按本地时区误解析（导致"刚发生显示 8 小时前"）
         "created_at": iso_utc(sess.created_at),
         "updated_at": iso_utc(sess.updated_at),
+        # [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 返回会话状态相关字段
+        "status": sess.status or "archived",
+        "archived_at": iso_utc(sess.archived_at),
+        "last_active_at": iso_utc(sess.last_active_at),
         "report_id": report_id_val,
         "report_ids": report_ids_val,
         "compare_report_ids": report_ids_val,

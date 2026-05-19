@@ -305,23 +305,49 @@ async def admin_export_session(
 async def user_list_sessions(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    status: Optional[str] = Query("archived"),
+    consult_target_id: Optional[int] = Query(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """[PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19]
+    新增 status / consult_target_id 入参；默认仅返回 status='archived' 的会话（历史会话），
+    与"历史"语义对齐。前端历史抽屉固定传 status='archived'，需要全量时传 status='all'。
+    """
     # [BUG-460 (2026-05-11)] MySQL 不支持 `NULLS LAST` 语法，使用 `pinned_at IS NULL` 表达式
     # 模拟「NULL 排在最后」的效果（IS NULL 结果 0/1，ASC 时 0 在前 → 非 NULL 在前）。
     # 排序优先级：① 置顶在前 ② 置顶内按 pinned_at 倒序（NULL 置后） ③ 最近活跃在前。
     pinned_at_is_null = case((ChatSession.pinned_at.is_(None), 1), else_=0)
+    # [PRD-AI-HOME-IDLE-ARCHIVE-V1] 状态过滤：默认 archived，可传 active / all
+    status_norm = (status or "archived").strip().lower()
+    if status_norm not in {"archived", "active", "all"}:
+        status_norm = "archived"
     # [BUG-461 (2026-05-11)] selectinload(family_member) 关联拉取，避免 N+1；
     # 关联为空时统一兜底 relation='self'。
     query = (
         select(ChatSession)
         .options(selectinload(ChatSession.family_member))
         .where(ChatSession.user_id == current_user.id, ChatSession.is_deleted == False)
-        .order_by(
+    )
+    if status_norm != "all":
+        query = query.where(ChatSession.status == status_norm)
+    if consult_target_id is not None:
+        # consult_target_id 解释：None / 0 / 负值 → 本人会话；正数 → 对应家庭成员
+        try:
+            tid = int(consult_target_id)
+        except Exception:
+            tid = -1
+        if tid > 0:
+            query = query.where(ChatSession.family_member_id == tid)
+        else:
+            query = query.where(ChatSession.family_member_id.is_(None))
+    # 排序：置顶在前；同状态内按 last_active_at 倒序（兜底 updated_at）
+    query = (
+        query.order_by(
             ChatSession.is_pinned.desc(),
             pinned_at_is_null.asc(),
             ChatSession.pinned_at.desc(),
+            ChatSession.last_active_at.desc(),
             ChatSession.updated_at.desc(),
         )
         .offset((page - 1) * page_size)
@@ -372,6 +398,10 @@ async def user_list_sessions(
                     family_member_id=s.family_member_id,
                     family_member_relation=family_member_relation,
                     family_member_nickname=family_member_nickname,
+                    # [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 新增三个状态字段
+                    status=(s.status or "archived"),
+                    archived_at=s.archived_at,
+                    last_active_at=s.last_active_at or s.updated_at or s.created_at,
                     created_at=s.created_at or datetime.utcnow(),
                     updated_at=s.updated_at or s.created_at or datetime.utcnow(),
                 )
@@ -429,6 +459,8 @@ async def user_create_session(
     # 推到当前时间，确保抽屉历史列表立刻把"刚刚发生的活跃对话"提到顶部。
     # 仅校验：会话存在 + 属于当前用户 + 未删除；非法 / 越权 ID 静默忽略，
     # 不阻塞主流程（新会话仍然能创建出来）。
+    now = datetime.utcnow()
+    archived_old_ids: List[int] = []
     if data.archive_previous_session_id is not None:
         try:
             prev_result = await db.execute(
@@ -440,10 +472,36 @@ async def user_create_session(
             )
             prev_session = prev_result.scalar_one_or_none()
             if prev_session is not None:
-                prev_session.updated_at = datetime.utcnow()
+                # [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 真正改 status
+                prev_session.status = "archived"
+                if prev_session.archived_at is None:
+                    prev_session.archived_at = now
+                prev_session.updated_at = now
+                archived_old_ids.append(prev_session.id)
         except Exception:
             # 归档失败不影响新会话创建
             pass
+
+    # [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 强约束：
+    # 创建新 active 会话前，先把当前用户在同一咨询对象下的所有 active 会话归档
+    try:
+        existing_active = await db.execute(
+            select(ChatSession).where(
+                ChatSession.user_id == current_user.id,
+                ChatSession.is_deleted == False,
+                ChatSession.status == "active",
+            )
+        )
+        for s in existing_active.scalars().all():
+            # 只要属于当前用户，全部归档（避免出现两个 active）
+            s.status = "archived"
+            if s.archived_at is None:
+                s.archived_at = now
+            s.updated_at = now
+            if s.id not in archived_old_ids:
+                archived_old_ids.append(s.id)
+    except Exception:
+        pass
 
     new_session = ChatSession(
         user_id=current_user.id,
@@ -453,6 +511,8 @@ async def user_create_session(
         message_count=0,
         is_pinned=False,
         is_deleted=False,
+        status="active",
+        last_active_at=now,
     )
     db.add(new_session)
     await db.flush()
@@ -467,7 +527,10 @@ async def user_create_session(
         "family_member_nickname": family_member_nickname,
         "message_count": 0,
         "is_pinned": False,
+        "status": new_session.status,
+        "last_active_at": new_session.last_active_at.isoformat() if new_session.last_active_at else None,
         "archived_previous_session_id": data.archive_previous_session_id,
+        "archived_old_ids": archived_old_ids,
         "created_at": new_session.created_at.isoformat() if new_session.created_at else None,
         "updated_at": new_session.updated_at.isoformat() if new_session.updated_at else None,
     }
@@ -485,9 +548,10 @@ async def user_archive_session(
 ):
     """将指定会话标记为「已归档」。
 
-    实际行为：把会话的 `updated_at` 推到当前 UTC 时间。
+    [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 真正修改 status='archived'，并写入 archived_at。
     - 不删除消息、不修改 `is_deleted`、不修改其它业务字段
     - 仅会话属于当前用户、未删除时生效；否则返回 404
+    - 幂等：已是 archived 状态时不报错，archived_at 保留首次归档时间
     """
     result = await db.execute(
         select(ChatSession).where(
@@ -501,12 +565,131 @@ async def user_archive_session(
         raise HTTPException(status_code=404, detail="对话不存在")
 
     now = datetime.utcnow()
+    session.status = "archived"
+    if session.archived_at is None:
+        session.archived_at = now
     session.updated_at = now
     await db.flush()
     return {
         "message": "归档成功",
         "id": session.id,
+        "status": session.status,
+        "archived_at": session.archived_at.isoformat() if session.archived_at else None,
         "updated_at": session.updated_at.isoformat() if session.updated_at else None,
+    }
+
+
+# [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 新增获取当前活跃会话接口
+@router.get("/api/chat-sessions/active")
+async def user_get_active_session(
+    consult_target_id: Optional[int] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取当前用户在指定咨询对象下的 active 会话；不存在时返回 {"session": null}。"""
+    query = (
+        select(ChatSession)
+        .options(selectinload(ChatSession.family_member))
+        .where(
+            ChatSession.user_id == current_user.id,
+            ChatSession.is_deleted == False,
+            ChatSession.status == "active",
+        )
+    )
+    if consult_target_id is not None:
+        try:
+            tid = int(consult_target_id)
+        except Exception:
+            tid = -1
+        if tid > 0:
+            query = query.where(ChatSession.family_member_id == tid)
+        else:
+            query = query.where(ChatSession.family_member_id.is_(None))
+    query = query.order_by(ChatSession.last_active_at.desc(), ChatSession.updated_at.desc()).limit(1)
+    result = await db.execute(query)
+    session = result.scalar_one_or_none()
+    if not session:
+        return {"session": None}
+    return {
+        "session": {
+            "id": session.id,
+            "session_type": session.session_type.value if hasattr(session.session_type, "value") else str(session.session_type),
+            "title": session.title,
+            "family_member_id": session.family_member_id,
+            "message_count": session.message_count or 0,
+            "status": session.status,
+            "is_pinned": bool(session.is_pinned),
+            "last_active_at": session.last_active_at.isoformat() if session.last_active_at else None,
+            "created_at": session.created_at.isoformat() if session.created_at else None,
+            "updated_at": session.updated_at.isoformat() if session.updated_at else None,
+        }
+    }
+
+
+# [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 新增恢复（resume）接口
+@router.post("/api/chat-sessions/{session_id}/resume")
+async def user_resume_session(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """把已归档会话恢复为 active；同事务把同咨询对象下的旧 active 会话归档。
+
+    返回：
+      - session: 被恢复的会话详情
+      - archived_old_ids: 被归档的旧 active 会话 id 数组
+    """
+    result = await db.execute(
+        select(ChatSession).where(
+            ChatSession.id == session_id,
+            ChatSession.user_id == current_user.id,
+            ChatSession.is_deleted == False,
+        )
+    )
+    target = result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="对话不存在")
+
+    now = datetime.utcnow()
+    archived_old_ids: List[int] = []
+    try:
+        existing_active = await db.execute(
+            select(ChatSession).where(
+                ChatSession.user_id == current_user.id,
+                ChatSession.is_deleted == False,
+                ChatSession.status == "active",
+                ChatSession.id != target.id,
+            )
+        )
+        for s in existing_active.scalars().all():
+            s.status = "archived"
+            if s.archived_at is None:
+                s.archived_at = now
+            s.updated_at = now
+            archived_old_ids.append(s.id)
+    except Exception:
+        pass
+
+    target.status = "active"
+    target.last_active_at = now
+    target.updated_at = now
+    # resume 后清掉 archived_at，便于后续如果再次归档时取最新时间
+    target.archived_at = None
+    await db.flush()
+    return {
+        "message": "恢复成功",
+        "session": {
+            "id": target.id,
+            "session_type": target.session_type.value if hasattr(target.session_type, "value") else str(target.session_type),
+            "title": target.title,
+            "family_member_id": target.family_member_id,
+            "message_count": target.message_count or 0,
+            "status": target.status,
+            "is_pinned": bool(target.is_pinned),
+            "last_active_at": target.last_active_at.isoformat() if target.last_active_at else None,
+            "updated_at": target.updated_at.isoformat() if target.updated_at else None,
+        },
+        "archived_old_ids": archived_old_ids,
     }
 
 
@@ -629,6 +812,10 @@ async def user_get_session_detail(
         "family_member_nickname": family_member_nickname,
         "message_count": session.message_count or 0,
         "is_pinned": bool(session.is_pinned) if session.is_pinned is not None else False,
+        # [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 透出 status / archived_at / last_active_at
+        "status": session.status or "archived",
+        "archived_at": session.archived_at.isoformat() if session.archived_at else None,
+        "last_active_at": session.last_active_at.isoformat() if session.last_active_at else None,
         "created_at": session.created_at.isoformat() if session.created_at else None,
         "updated_at": session.updated_at.isoformat() if session.updated_at else None,
         "messages": messages,

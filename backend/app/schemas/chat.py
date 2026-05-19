@@ -49,13 +49,18 @@ class ChatSessionResponse(BaseModel):
     title: Optional[str] = None
     family_member_id: Optional[int] = None
     symptom_info: Optional[dict] = None
+    # [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 会话状态相关字段
+    status: Optional[str] = "archived"
+    archived_at: Optional[datetime] = None
+    last_active_at: Optional[datetime] = None
+    message_count: Optional[int] = 0
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
     # [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517] 时区规范
-    @field_serializer("created_at", "updated_at")
+    @field_serializer("created_at", "updated_at", "archived_at", "last_active_at")
     def _ser_dt(self, v: Optional[datetime], _info):
         return _to_utc_iso(v)
 

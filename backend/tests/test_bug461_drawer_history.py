@@ -253,7 +253,8 @@ async def test_bug461_c2_create_session_with_family_member(
     assert data["family_member_nickname"] == "我的妈妈"
 
     # 二次校验：该新会话立即出现在 list 接口中
-    list_resp = await client.get("/api/chat-sessions", headers=headers)
+    # [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 新建会话默认为 active，需要 status=all 才能在列表里看到
+    list_resp = await client.get("/api/chat-sessions?status=all", headers=headers)
     assert list_resp.status_code == 200
     items = list_resp.json()
     new_in_list = next((it for it in items if it["id"] == data["id"]), None)

@@ -678,9 +678,16 @@ export default function AiHomePage() {
   // "切换瞬间发送被串到旧会话"。任何写入 setSessionId 的位置都必须
   // 先写 currentSidRef.current，再调用 setSessionId（ref 永远领先 state）。
   const currentSidRef = useRef<string | null>(null);
+  // [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 跟踪当前会话状态（active / archived）：
+  // 当用户点击历史抽屉里某个已归档会话进入时，sidStatusRef = 'archived'；
+  // 用户在该会话中按"发送"时，handleSend 必须先调用 /resume 把它变为 active，
+  // 同时把任何旧 active 会话归档（后端在 /resume 接口里完成原子事务）。
+  const sidStatusRef = useRef<'active' | 'archived' | null>(null);
   const setSidAndRef = useCallback((sid: string | null) => {
     currentSidRef.current = sid;
     setSessionId(sid);
+    // 默认设为 active（除非外部显式覆盖）
+    sidStatusRef.current = sid ? 'active' : null;
   }, []);
   const [hasHealthTask, setHasHealthTask] = useState(false);
   const [selectedConsultant, setSelectedConsultant] = useState<FamilyMember | null>(null);
@@ -703,6 +710,9 @@ export default function AiHomePage() {
   const [hscDrawerPrefill, setHscDrawerPrefill] = useState<Partial<HealthSelfCheckSubmitPayload> | null>(null);
   // [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517] 会话空闲超时由 30 → 60 分钟
   const [idleTimeout, setIdleTimeout] = useState<number>(60 * 60 * 1000);
+  // [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] AI 流式结束的时刻，是 60min 倒计时的起点。
+  // 流式输出中不计时（值为 0 时代表当前不应被超时归档）。
+  const lastAiDoneAtRef = useRef<number>(0);
   // [Bug-433] lastMsgTime 改为 useRef：避免 React state 异步更新导致 handleSend
   // 在闭包中读到的旧值，从而错误命中"空闲超时清空消息"分支，造成会话首句丢失。
   // 任何写入 setLastMsgTime() 的位置都同步更新此 ref，保证语音/预设按钮等异步入口
@@ -1266,6 +1276,8 @@ export default function AiHomePage() {
             ? { ...m, isStreaming: false }
             : m
         ));
+        // [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] AI 流式完成 → 启动 60 分钟倒计时
+        lastAiDoneAtRef.current = Date.now();
         abortRef.current = null;
         return true;
       } catch (err: any) {
@@ -1275,6 +1287,8 @@ export default function AiHomePage() {
               ? { ...m, isStreaming: false }
               : m
           ));
+          // 流式被打断也视为已结束，启动倒计时
+          lastAiDoneAtRef.current = Date.now();
           return true;
         }
         if (attempt === retries - 1) {
@@ -1393,6 +1407,26 @@ export default function AiHomePage() {
     };
 
     try {
+      // [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 已归档会话追问：
+      // 用户点击历史会话后 sidStatusRef.current === 'archived'，
+      // 此时按下发送 → 先调用 /resume 把该会话激活（同事务把旧 active 归档），
+      // 拿到响应后再走原本的 idle 检查/发送流程。
+      if (sidStatusRef.current === 'archived' && currentSidRef.current) {
+        try {
+          await api.post(`/api/chat-sessions/${currentSidRef.current}/resume`);
+          sidStatusRef.current = 'active';
+          // 重置 idle 倒计时（resume 后新一轮活动开始）
+          lastAiDoneAtRef.current = 0;
+          // 通知抽屉刷新（被恢复的会话从历史列表消失；被顶替的旧 active 进入今天分组）
+          try {
+            window.dispatchEvent(new Event('bh-history-refresh'));
+          } catch {
+            /* ignore */
+          }
+        } catch {
+          // resume 失败，仍尝试继续发送（容错）
+        }
+      }
       // [Bug-433] 先决定 sid（idle 命中时清空消息），命中时通过 preserveOnClear
       // 把 userMsg 回填到清空后的列表，避免首句被一并抹掉。
       const sid = await checkIdleAndMaybeNewSession(() => (suppressBubble ? [] : [userMsg]));
@@ -2421,10 +2455,29 @@ export default function AiHomePage() {
   };
 
   const handleNewConversation = useCallback(() => {
+    // [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 「+ 新对话」按钮：
+    // - 当前 active 会话为空（message_count===0） → Toast「当前已是新对话」，不重复创建
+    // - 当前 active 会话有消息 → 调用 /archive 真正归档，然后清空对话区回到欢迎页
+    const curSid = currentSidRef.current;
+    const hasMessages = messages.length > 0;
+    if (!hasMessages) {
+      Toast.show({ content: '当前已是新对话' });
+      return;
+    }
+    // 异步归档旧会话（失败不阻塞前端动作）
+    if (curSid) {
+      try {
+        api.post(`/api/chat-sessions/${curSid}/archive`).catch(() => {});
+      } catch {
+        /* ignore */
+      }
+    }
     setMessages([]);
     currentSidRef.current = null;
     setSessionId(null);
     setLastMsgTime(0);
+    // 倒计时重置：未进入新会话前不计时
+    lastAiDoneAtRef.current = 0;
     // [BUG_FIX_AI_HOME_3BUGS_20260517 · Bug C]
     // 新建会话时强制把咨询人重置为「本人」，避免上一轮 X 的状态被带过来：
     // 旧实现：胶囊已显示"本人"但 selectedConsultant 仍是 X，AI 回答按 X 档案给建议。
@@ -2437,7 +2490,69 @@ export default function AiHomePage() {
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [messages.length, setLastMsgTime]);
+
+  /**
+   * [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 空闲超时自动归档检查
+   *
+   * 条件：
+   *   - 有活跃会话（currentSidRef.current 非空）
+   *   - 有 lastAiDoneAt（即 AI 已完整回复至少一次）
+   *   - 流式未在进行（messages 没有 isStreaming）
+   *   - Date.now() - lastAiDoneAt >= idleTimeout
+   *
+   * 动作：调用 /archive → 清空对话区 → 回到欢迎页 → 通知抽屉刷新
+   */
+  const idleArchiveCheck = useCallback(() => {
+    const curSid = currentSidRef.current;
+    const lastDone = lastAiDoneAtRef.current;
+    if (!curSid || !lastDone) return;
+    // 流式中不归档（PRD §6.1.1）
+    try {
+      if (messages.some((m: any) => m.isStreaming)) return;
+    } catch {
+      /* ignore */
+    }
+    if (Date.now() - lastDone < idleTimeout) return;
+
+    // 触发自动归档
+    try {
+      api.post(`/api/chat-sessions/${curSid}/archive`).catch(() => {});
+    } catch {
+      /* ignore */
+    }
+    setMessages([]);
+    currentSidRef.current = null;
+    setSessionId(null);
+    setLastMsgTime(0);
+    lastAiDoneAtRef.current = 0;
+    try {
+      window.dispatchEvent(new Event('bh-history-refresh'));
+    } catch {
+      /* ignore */
+    }
+  }, [idleTimeout, messages, setLastMsgTime]);
+
+  // [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 5 分钟轮询 + visibilitychange 兜底
+  useEffect(() => {
+    const POLL_INTERVAL = 5 * 60 * 1000;
+    const timer = setInterval(idleArchiveCheck, POLL_INTERVAL);
+    const onVisibility = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        // 切回前台立即检查一次（避免长时间后台导致定时器停摆）
+        idleArchiveCheck();
+      }
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibility);
+    }
+    return () => {
+      clearInterval(timer);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisibility);
+      }
+    };
+  }, [idleArchiveCheck]);
 
   // [PRD-420 F5 / BUG-466 (2026-05-11)] 切换咨询对象后的会话处理
   // 总策略：自动新建会话 + 用户体验增强（含 5 秒「返回上一会话」撤销栈）
@@ -2891,6 +3006,9 @@ export default function AiHomePage() {
     setMessages([]);
     currentSidRef.current = sid;
     setSessionId(sid);
+    // [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 历史抽屉中点击进入的会话默认视为 archived；
+    // 真实状态以详情接口返回的 status 字段为准（下方回填）。
+    sidStatusRef.current = 'archived';
     setSidebarOpen(false);
 
     // 并行：拉详情回填咨询人 + 拉历史消息
@@ -2900,6 +3018,15 @@ export default function AiHomePage() {
         const detail = detailRes?.data ?? detailRes;
         const fmBrief = detail?.family_member;
         const fmId: number | null | undefined = detail?.family_member_id;
+        // 回填会话状态：active 或 archived
+        try {
+          const st = (detail?.status || '').toLowerCase();
+          if (st === 'active' || st === 'archived') {
+            sidStatusRef.current = st as 'active' | 'archived';
+          }
+        } catch {
+          /* ignore */
+        }
 
         // 三态：
         //   - family_member 是 is_self 的 FamilyMember（后端 _ensure_self_family_member 写入）→ 视为本人态，胶囊回到「本人」

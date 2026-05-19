@@ -27,7 +27,52 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: BUGFIX-HEALTH-ARCHIVE-MEMBER-TAB-V2｜健康档案顶部成员 Tab 重写为 V2 样式（2026-05-19 09:50）
+## Latest Update: PRD-AI-HOME-IDLE-ARCHIVE-V1｜ai-home 主页空闲超时归档 & 历史会话列表优化（2026-05-19 10:30）
+
+### 范围（H5 ai-home 主页 + 后端 chat_sessions 数据模型与接口）
+- 后端数据模型 `ChatSession` 新增三个字段：
+  - `status` VARCHAR(16) NOT NULL DEFAULT 'archived'：会话状态 active / archived
+  - `archived_at` DATETIME NULL：归档时间
+  - `last_active_at` DATETIME NULL：最后活动时间（消息落库时刷新），用于历史列表分组与排序
+- `schema_sync._sync_chat_session_idle_archive_v1`（幂等迁移）：建列 / 回填 last_active_at = updated_at / 把 message_count=0 的空会话软删除 / 把存量会话置为 archived 并回填 archived_at / 建复合索引 `idx_status_last_active(user_id, status, last_active_at)`
+- 后端接口：
+  - `GET /api/chat-sessions`：新增 `status`（默认 archived，可传 active/all）、`consult_target_id` 入参；新增 `status / archived_at / last_active_at` 响应字段；排序基准换为 `last_active_at DESC`
+  - `POST /api/chat-sessions`：创建时自动把当前用户在同咨询对象下的旧 active 全部归档（保证全局唯一 active），新会话置为 active + 写入 last_active_at；响应新增 `status / archived_old_ids`
+  - `POST /api/chat-sessions/{id}/archive`：真正修改 status='archived' 并写入 archived_at（旧实现仅推 updated_at）
+  - `GET /api/chat-sessions/active`（新增）：获取当前用户在 consult_target_id 下的 active 会话；无则返回 `{"session": null}`
+  - `POST /api/chat-sessions/{id}/resume`（新增）：把已归档会话恢复为 active，同事务把旧 active 归档
+  - `POST /api/chat/sessions`：创建时同样归档旧 active（保持与 chat-sessions 一致）
+  - `GET /api/chat/sessions/{id}`：返回 status / archived_at / last_active_at
+  - 消息落库：四处 `message_count += 1` 全部同步刷新 `last_active_at = utcnow()`
+- 前端 H5：
+  - `ai-home/page.tsx`：新增 `lastAiDoneAtRef`（AI 流式 done 时刻），5 分钟轮询 + `visibilitychange` 兜底；超过 60 分钟自动归档当前会话 → 清空对话区回到欢迎页；
+  - 「+ 新对话」按钮（handleNewConversation）：当前 active 为空 → Toast「当前已是新对话」；非空 → 调 `/archive` 真归档 + 清空 + 回欢迎页
+  - 历史抽屉中点击会话进入 → 详情接口返回的 status 写入 `sidStatusRef`；用户发送时若 status='archived' → 先调 `/resume` 再发送（同事务自动顶替旧 active），dispatch `bh-history-refresh` 让抽屉刷新
+  - `Sidebar.tsx`：`loadHistories` 改为 `GET /api/chat-sessions?status=archived`；时间分组新增「今天」分组（位于「最近 7 天」上方）；时间基准从 `updated_at` 改为 `last_active_at`
+- 后端兼容字段：`ChatSessionResponse` schema 同步增加 status / archived_at / last_active_at / message_count
+- pytest 验证（容器内）：`test_ai_home_idle_archive_v1_20260519.py` 10/10 PASS + `test_bug461_drawer_history.py` 13/13 PASS + `test_chat_history.py` 17/17 PASS，共 40/40 通过
+- 部署：脚本 `deploy/_deploy_ai_home_idle_archive_v1_20260519.py`，已部署到正式服务器；smoke 200/308/401 全部正确
+
+### 新增 / 修改的关键文件
+- 改造 `backend/app/models/models.py`：ChatSession 增加 status / archived_at / last_active_at
+- 改造 `backend/app/services/schema_sync.py`：新增 `_sync_chat_session_idle_archive_v1`
+- 改造 `backend/app/api/chat_history.py`：列表 status 过滤 / 创建强约束 / 归档真改 status / 新增 active 与 resume 接口
+- 改造 `backend/app/api/chat.py`：POST /sessions 归档旧 active；消息落库刷 last_active_at；详情接口返回状态
+- 改造 `backend/app/schemas/chat.py`、`backend/app/schemas/chat_history.py`：增加状态字段
+- 新增 `backend/tests/test_ai_home_idle_archive_v1_20260519.py`（10 用例）
+- 改造 `backend/tests/test_bug461_drawer_history.py`：1 处使用 status=all 兼容新规则
+- 改造 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：60min idle 轮询 + resume 流程 + +新对话禁用态
+- 改造 `h5-web/src/components/ai-chat/Sidebar.tsx`：status=archived 过滤 + 「今天」分组 + last_active_at 时间基准
+- 新增部署脚本 `deploy/_deploy_ai_home_idle_archive_v1_20260519.py`
+- 新增用户手册 `user_docs/AI对话空闲超时归档与历史会话优化.md`
+
+### 不在范围
+- 小程序 / Flutter App / iOS / Android 原生客户端本次未改动；API 向后兼容，旧客户端可继续运行
+- 健康档案 / 用药计划 / AI 外呼等其他模块未被改动
+
+---
+
+## Previous Update: BUGFIX-HEALTH-ARCHIVE-MEMBER-TAB-V2｜健康档案顶部成员 Tab 重写为 V2 样式（2026-05-19 09:50）
 
 ### 范围（仅 H5 顶部成员 Tab + 后端字段/映射）
 - H5 `health-profile/page.tsx` 完整重写 `renderMemberBar`：
