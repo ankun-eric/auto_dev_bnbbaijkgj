@@ -2323,7 +2323,18 @@ export default function AiHomePage() {
           router.push(url.startsWith('/') ? url : `/${url}`);
           return;
         }
-        // 没有合法 url 时退化为弹卡片
+        // [PRD-PAGE-NAVIGATE-EXTERNAL-URL-FIX-V1 2026-05-19] Bug 修复 F3：
+        // page_navigate + 先弹卡片=否 + external_url 为空（异常 / 历史脏数据），
+        // 不再走"把 auto_user_message / 按钮名作为用户消息发出"的兜底（防止污染对话区），
+        // 改为给用户一条明确提示，并打前端日志埋点 page_navigate_empty_url。
+        try {
+          if (typeof console !== 'undefined') {
+            console.warn('[ai-home func btn] page_navigate_empty_url', { id: btn.id, name: btn.name });
+          }
+          try { aiHomeFnTrack.cardFail(btn.id, 'page_navigate_empty_url'); } catch {}
+          Toast.show({ content: '该按钮跳转地址异常，请联系管理员' });
+        } catch {}
+        return;
       }
 
       const cardType: ChatCardType = resolveCardType(btn.button_type, btn.ai_function_type);

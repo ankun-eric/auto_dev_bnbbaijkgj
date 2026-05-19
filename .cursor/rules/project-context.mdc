@@ -27,6 +27,51 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-PAGE-NAVIGATE-EXTERNAL-URL-FIX-V1｜功能按钮「页面跳转」类型 external_url 保存丢失 Bug 修复（2026-05-19 22:20）
+
+**任务类型**：Bug 修复（admin-web + h5-web 两端，后端无改动）
+
+**Bug 现象**：
+- 管理后台「功能按钮管理」中，选「按钮类型 = 页面跳转（page_navigate）」+ 填写跳转地址 + 保存后，DB 中 `external_url` 实际为 NULL，再次打开编辑弹窗时跳转地址输入框为空
+- H5 端宫格 / 胶囊条点击该类按钮，不会跳转，反而以"用户身份"在对话区发出按钮名作为消息（兜底走的 auto_user_message）
+
+**根因**：`admin-web/src/app/(admin)/function-buttons/page.tsx` 的 `handleSave` 中 payload 拼装条件 `external_url: values.button_type === 'external_link' ? ... : null` 只认老枚举 `external_link`，导致新主类型 `page_navigate` 的链接被强制写成 null，PUT/POST 请求把 DB 字段覆盖为 NULL。
+
+**核心变更**：
+- **admin-web**（`src/app/(admin)/function-buttons/page.tsx`）：
+  - F1：放开 `external_url` 类型白名单——`page_navigate` 和老 `external_link` 都允许写入 `external_url`，其它类型仍显式置 null
+  - F2：`pre_card_enabled` 兜底语义对齐——`ai_function` 保持原逻辑、`page_navigate` 对应 `pre_card_for_navigate`、其它老类型默认 true（避免误判为关说明卡片）
+- **h5-web**（`src/app/(ai-chat)/ai-home/page.tsx`）：
+  - F3：H5 端 `handleFunctionButtonClick` 中，`page_navigate` + `pre_card_for_navigate=false` + `external_url` 为空（异常 / 历史脏数据）时，**不再走"把 auto_user_message / 按钮名作为用户消息发出"的兜底**，而是 `Toast.show('该按钮跳转地址异常，请联系管理员')` + `aiHomeFnTrack.cardFail(btn.id, 'page_navigate_empty_url')` 埋点日志
+- **后端**：无任何代码改动（`_validate_navigate_url` 与字段写入逻辑保持原状，满足"非空时校验格式合法、允许 null 写入（兼容老脏数据回滚态）"的 PRD 设计）
+
+**测试**：新增 `backend/tests/test_page_navigate_external_url_fix_v1_20260519.py` 8 个用例，远端 pytest 全部通过（8/8）：
+- TC-01：`page_navigate` + 内部路径 `/health-profile` 保存往返一致
+- TC-02：`page_navigate` + http 外链保存往返一致
+- TC-03：`page_navigate` + 先弹卡片=true 保存往返一致
+- TC-04：老 `external_link` 类型保存不受影响
+- TC-05：公开接口 `/api/function-buttons?position=grid` 返回 `external_url`，H5 端可拿到跳转目标
+- TC-06：PUT 更新 `external_url` 正确生效
+- TC-07：切类型场景（`page_navigate` → `ai_function`）`external_url` 被显式清空
+- TC-08：`page_navigate` + 非法 `external_url`（如 `javascript:alert(1)`）返回 400
+
+**部署**：通过 `_deploy_page_navigate_url_fix_v1.py` —— SFTP 上传 → docker cp 测试文件进 backend 容器 → 重建 admin-web 与 h5-web 镜像 → up -d 重启 → smoke（4 个 URL 全 200/308）→ 远端 pytest 8/8 通过
+
+**数据修复说明**：
+- 历史已被擦写的 `external_url`（如"健康档案"按钮）**不会自动恢复**
+- 运营需要在「功能按钮管理」中把每个 `page_navigate` 按钮重新打开编辑、填回跳转地址、保存一次
+- 涉及按钮数量很少（健康档案等几个），人工处理 1–2 分钟
+
+**关键文件**：
+- `admin-web/src/app/(admin)/function-buttons/page.tsx` — F1 + F2 修复
+- `h5-web/src/app/(ai-chat)/ai-home/page.tsx` — F3 兜底（page_navigate_empty_url）
+- `backend/tests/test_page_navigate_external_url_fix_v1_20260519.py` — 新增 8 个回归测试
+- `_deploy_page_navigate_url_fix_v1.py` — 自动化部署脚本
+
+**用户手册**：`user_docs/功能按钮页面跳转链接保存丢失Bug修复.md`
+
+---
+
 ## Latest Update: PRD-QUESTIONNAIRE-DRAWER-V1｜健康自查"抽屉化"与新版问卷模板体系融合（2026-05-19 21:55）
 
 **任务类型**：架构融合 + 数据迁移（backend + admin-web + h5-web 三端）

@@ -452,7 +452,13 @@ export default function FunctionButtonsPage() {
         prompt_template_id: PROMPT_TEMPLATE_REQUIRED_TYPES.has(values.button_type)
           ? (values.prompt_template_id || null)
           : null,
-        external_url: values.button_type === 'external_link' ? (values.external_url || null) : null,
+        // [PRD-PAGE-NAVIGATE-EXTERNAL-URL-FIX-V1 2026-05-19] Bug 修复 F1：
+        // page_navigate 主类型也允许写入 external_url（之前只认老枚举 external_link，
+        // 导致新类型 page_navigate 在保存时被强制置 null，DB 中链接被擦除）
+        external_url:
+          values.button_type === 'page_navigate' || values.button_type === 'external_link'
+            ? (values.external_url || null)
+            : null,
         preset_prompt: values.button_type === 'quick_ask' ? (values.preset_prompt || null) : null,
         auto_user_message: values.auto_user_message || '',
         card_title: values.card_title || '',
@@ -481,10 +487,16 @@ export default function FunctionButtonsPage() {
           values.button_type === 'ai_function' && values.ai_function_type === 'image_capture'
             ? (values.capture_purpose || null)
             : null,
+        // [PRD-PAGE-NAVIGATE-EXTERNAL-URL-FIX-V1 2026-05-19] Bug 修复 F2：pre_card_enabled 语义对齐
+        //   - ai_function：保持原逻辑（默认 true）
+        //   - page_navigate：对应 pre_card_for_navigate 开关
+        //   - 其它老类型：默认 true，避免误判为关闭说明卡片
         pre_card_enabled:
           values.button_type === 'ai_function'
             ? (values.pre_card_enabled !== undefined ? !!values.pre_card_enabled : true)
-            : !!values.pre_card_for_navigate,
+            : values.button_type === 'page_navigate'
+              ? !!values.pre_card_for_navigate
+              : true,
         // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 问卷展示形态
         questionnaire_display_form:
           values.button_type === 'ai_function' && values.ai_function_type === 'questionnaire'
