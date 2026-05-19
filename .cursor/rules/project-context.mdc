@@ -27,6 +27,71 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-AI-HOME-OPTIM-FINAL-V2｜AI 首页优化最终版（咨询人弹窗 + 输入区视觉锚点统一）（2026-05-19 23:36）
+
+**任务类型**：纯 H5 端 UI 重构（仅 h5-web 改动，后端 / admin-web / 小程序 / Flutter 均无改动）
+
+**核心变更（4 处）**：
+
+1. **「选择咨询人」弹窗**（`h5-web/src/components/ai-chat/ConsultTargetPicker.tsx`）：
+   - 标题：「咨询人」→「**选择咨询人**」
+   - 选中条：统一蓝色渐变 `linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)`（不论本人/家人）
+   - 未选中条：统一浅灰 `#F8FAFC`（本人不再有「天生蓝底」特权）
+   - 主标题：统一「关系 · 姓名」格式（如「儿子 · 张小明」、「本人 · 李雷」）；关系空兜底为姓名
+   - 右侧文字按钮：
+     - 未选中态：**实心蓝底 + 白字「选择」**（`#0284C7` + 白），可点击切换，`data-testid="consult-target-select-btn"`
+     - 选中态：**白底 + 蓝字「已选择」**，置灰禁用 + `pointerEvents:none`，`data-testid="consult-target-selected-btn"`
+   - 删除「（当前）」标注、✓ 勾、「该家庭成员已是当前咨询人」Toast 等冗余反馈
+
+2. **输入框 placeholder 动态化**（`h5-web/src/app/(ai-chat)/ai-home/page.tsx`）：
+   - 文案模板：`问答已结合【XX】的健康档案~`
+   - XX 取选中咨询人的 `relation_type_name || relationship_type`；为空降级为姓名；本人态 XX=「本人」
+   - placeholder 不再使用 `aiHomeConfig.input.placeholder` 配置，改为前端实时从 `selectedConsultant` 计算
+
+3. **麦克风 / 键盘 圆形蓝底图标**（`h5-web/src/app/(ai-chat)/ai-home/page.tsx`）：
+   - 完全复用 `./chat`（`h5-web/src/app/chat/[sessionId]/page.tsx` 第 2704-2720 行）的麦克风 SVG + 键盘 SVG
+   - 描边色改为**白色**（`stroke="#ffffff"`），strokeWidth=2，线性描边、无填充，22×22（viewBox 24×24）
+   - 按钮容器：40×40 圆形 + 渐变蓝底（与选中咨询人卡片同款）+ 轻阴影
+   - `data-testid="ai-home-input-icon-btn"`、`ai-home-mic-icon`、`ai-home-keyboard-icon`
+   - 删除旧版 🎤 / ⌨️ emoji 图标
+
+4. **键盘模式输入区视觉重构**（`h5-web/src/app/(ai-chat)/ai-home/page.tsx`）：
+   - 整条输入栏外层容器 `background: 'transparent'`（删除 `THEME.cardBg` 白底 + `borderTop` 分割线），沿用页面本身底色 `#F0F9FF`
+   - 「按住说话」按钮：复用 `./chat` 真实样式 —— 背景 `#0EA5E9` 实底 + 白字「按住说话」+ 圆角 16px + 高度 40px + `data-testid="ai-home-press-to-talk"`
+   - 滑出取消区时按钮变红 `#d32f2f`，文案动态切换「按住说话 / 松开取消 / 松开结束」
+
+**视觉锚点一致性**：整个页面只有一种主蓝，所有蓝色元素同源
+- 选中咨询人卡片背景、麦克风/键盘 圆形底、"选择"按钮、"按住说话"按钮 —— 全部走 `#38BDF8 → #0284C7` 渐变或 `#0EA5E9` / `#0284C7` 主色系
+
+**测试**：新增 `backend/tests/test_ai_home_optim_final_v2_20260519.py` 12 个用例（纯前端源码字符串/正则校验，路径自适应本地与容器双环境）：
+- TC-01：弹窗标题「选择咨询人」
+- TC-02：选中卡片蓝色渐变
+- TC-03：未选中卡片浅灰底 + 本人卡片不再蓝底特权
+- TC-04：主标题「关系 · 姓名」统一格式
+- TC-05：未选中态「选择」按钮（蓝底白字）
+- TC-06：选中态「已选择」标签（禁用 + pointerEvents:none）
+- TC-07：placeholder 动态绑定 `dynamicPlaceholder` + 取 relation 字段
+- TC-08：麦克风/键盘 SVG 复用 ./chat 资源 + 描边白色
+- TC-09：圆形按钮容器使用 PRIMARY_GRADIENT 渐变
+- TC-10：Input Bar 外层背景 transparent + 无 THEME.cardBg 残留
+- TC-11：「按住说话」按钮 #0EA5E9 + 白字 + 圆角 16 + 高度 40
+- TC-12：输入栏内无 🎤 / ⌨️ emoji 残留
+- **远端容器内 pytest：12/12 全部通过**
+
+**部署**：通过 `deploy/_deploy_ai_home_optim_final_v2_20260519.py`（SFTP 上传 2 个 H5 文件 + 1 个测试 → 重建 h5-web 容器 no-cache → up -d → smoke 3 个 URL 全部 200/308 → docker cp h5-web 源到 backend 容器 /app/h5-web/ → 远端 pytest 12/12 通过）
+
+**关键文件**：
+- `h5-web/src/components/ai-chat/ConsultTargetPicker.tsx` — 弹窗重构
+- `h5-web/src/app/(ai-chat)/ai-home/page.tsx` — 输入区 + placeholder 重构
+- `backend/tests/test_ai_home_optim_final_v2_20260519.py` — 12 个前端源码校验测试
+- `deploy/_deploy_ai_home_optim_final_v2_20260519.py` — 自动化部署脚本
+
+**用户手册**：`user_docs/AI首页优化最终版.md`
+
+**不影响范围**：历史会话列表、顶部胶囊 Tab、底部 Tab Bar、后端接口结构、`/ai`（已归档页）、服务页搜索框、admin-web、小程序、Flutter App 均无变更。
+
+---
+
 ## Latest Update: PRD-PAGE-NAVIGATE-EXTERNAL-URL-FIX-V1｜功能按钮「页面跳转」类型 external_url 保存丢失 Bug 修复（2026-05-19 22:20）
 
 **任务类型**：Bug 修复（admin-web + h5-web 两端，后端无改动）

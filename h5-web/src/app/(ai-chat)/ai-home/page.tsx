@@ -5169,120 +5169,177 @@ export default function AiHomePage() {
       )}
 
       {/* Input Bar */}
+      {/* [PRD-AI-HOME-OPTIM-FINAL-V2 2026-05-19] 整条输入栏外层容器无背景色（透明），
+          沿用页面本身底色，不做任何深底/渐变/灰底处理。 */}
       <div
         className="flex-shrink-0 px-4 py-3"
         style={{
-          background: THEME.cardBg,
-          borderTop: `1px solid ${THEME.divider}`,
+          background: 'transparent',
           paddingBottom: 'calc(12px + env(safe-area-inset-bottom))',
         }}
       >
         {/* [PRD-426] 删除输入框上方"+ 选择咨询人"浮层（含其内嵌的 RecommendCards 推荐题），底部"为(XX)咨询 ⇄"作为唯一咨询人切换入口 */}
 
-        {voiceMode && voiceSupported ? (
-          <div className="flex items-center gap-3">
-            <button
-              className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full"
-              style={{ background: THEME.primaryLight, color: THEME.primary }}
-              onClick={handleMicToggle}
-              aria-label="切换为键盘"
+        {(() => {
+          // [PRD-AI-HOME-OPTIM-FINAL-V2 2026-05-19]
+          // ① placeholder 动态计算：`问答已结合【XX】的健康档案~`
+          //    XX 取已选中咨询人的「关系」段；关系为空时降级为姓名；本人态 XX=「本人」。
+          const consultantRelationOrName = (() => {
+            if (!selectedConsultant) return '本人';
+            const rel = (selectedConsultant.relation_type_name || selectedConsultant.relationship_type || '').trim();
+            if (rel) return rel;
+            const name = (selectedConsultant.nickname || '').trim();
+            return name || '本人';
+          })();
+          const dynamicPlaceholder = `问答已结合【${consultantRelationOrName}】的健康档案~`;
+          // ② 与「选中咨询人卡片」同款渐变（= --gradient-primary 同源）
+          const PRIMARY_GRADIENT = 'linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)';
+          // ③ 麦克风/键盘 圆形按钮统一样式：40x40 + 渐变蓝底 + 白色图标（复用 ./chat 的 SVG 资源，描边改白色）
+          const ROUND_BTN_STYLE: React.CSSProperties = {
+            background: PRIMARY_GRADIENT,
+            border: 'none',
+            boxShadow: '0 2px 8px rgba(2,132,199,0.25)',
+            cursor: 'pointer',
+            flexShrink: 0,
+          };
+          // 麦克风 SVG（复用 chat/[sessionId]/page.tsx 第 2715–2720 行，描边白色）
+          const MicIcon = (
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#ffffff"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              data-testid="ai-home-mic-icon"
             >
-              ⌨️
-            </button>
-            <div
-              className="flex-1 flex items-center justify-center rounded-full py-3 select-none"
-              style={{
-                background: recording ? THEME.primaryLight : THEME.background,
-                border: recording ? `2px solid ${THEME.primary}` : `2px solid transparent`,
-                transition: 'all 0.2s',
-              }}
-              onTouchStart={handleRecordTouchStart}
-              onTouchMove={handleRecordTouchMove}
-              onTouchEnd={handleRecordTouchEnd}
-              onMouseDown={() => startRecording()}
-              onMouseUp={() => { if (recordCancelled) cancelRecording(); else stopRecording(); }}
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              <line x1="8" y1="23" x2="16" y2="23" />
+            </svg>
+          );
+          // 键盘 SVG（复用 chat/[sessionId]/page.tsx 第 2704–2713 行，描边白色）
+          const KeyboardIcon = (
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#ffffff"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              data-testid="ai-home-keyboard-icon"
             >
-              {recording ? (
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-0.5 items-end h-5">
-                    {[0, 1, 2, 3, 4].map(i => (
-                      <div
-                        key={i}
-                        className="w-1 rounded-full transition-all duration-100"
-                        style={{
-                          background: THEME.primary,
-                          height: `${8 + volumeLevel * 12 * (1 + Math.sin(i * 1.2))}px`,
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-sm" style={{ color: recordCancelled ? '#FF4D4F' : THEME.primary }}>
-                    {recordCancelled ? '松开取消' : '松开发送'}
-                  </span>
+              <rect x="2" y="4" width="20" height="16" rx="3" ry="3" />
+              <line x1="6" y1="8" x2="6" y2="8" />
+              <line x1="10" y1="8" x2="10" y2="8" />
+              <line x1="14" y1="8" x2="14" y2="8" />
+              <line x1="18" y1="8" x2="18" y2="8" />
+              <line x1="6" y1="12" x2="6" y2="12" />
+              <line x1="18" y1="12" x2="18" y2="12" />
+              <line x1="8" y1="16" x2="16" y2="16" />
+            </svg>
+          );
+
+          if (voiceMode && voiceSupported) {
+            return (
+              <div className="flex items-center gap-3">
+                <button
+                  className="w-10 h-10 flex items-center justify-center rounded-full"
+                  style={ROUND_BTN_STYLE}
+                  onClick={handleMicToggle}
+                  aria-label="切换为键盘"
+                  data-testid="ai-home-input-icon-btn"
+                >
+                  {KeyboardIcon}
+                </button>
+                <div
+                  className="flex-1 flex items-center justify-center select-none"
+                  style={{
+                    height: 40,
+                    borderRadius: 16,
+                    background: recordCancelled && recording ? '#d32f2f' : '#0EA5E9',
+                    color: '#fff',
+                    fontSize: 14,
+                    fontWeight: 500,
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
+                    touchAction: 'none',
+                    transition: 'background 0.15s',
+                  }}
+                  onTouchStart={handleRecordTouchStart}
+                  onTouchMove={handleRecordTouchMove}
+                  onTouchEnd={handleRecordTouchEnd}
+                  onMouseDown={() => startRecording()}
+                  onMouseUp={() => { if (recordCancelled) cancelRecording(); else stopRecording(); }}
+                  data-testid="ai-home-press-to-talk"
+                >
+                  {recording ? (recordCancelled ? '松开取消' : '松开结束') : '按住说话'}
                 </div>
-              ) : (
-                <span className="text-sm" style={{ color: THEME.textSecondary }}>按住说话</span>
+              </div>
+            );
+          }
+
+          return (
+            <div className="flex items-end gap-2" data-testid="ai-home-keyboard-bar">
+              {voiceSupported && voiceInputVisible && (
+                <button
+                  className="w-10 h-10 flex items-center justify-center rounded-full mb-0"
+                  style={ROUND_BTN_STYLE}
+                  onClick={handleMicToggle}
+                  aria-label="语音输入"
+                  data-testid="ai-home-input-icon-btn"
+                >
+                  {MicIcon}
+                </button>
               )}
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-end gap-2">
-            {voiceSupported && voiceInputVisible && (
-              <button
-                className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full mb-0"
-                style={{ background: THEME.primaryLight, color: THEME.primary }}
-                onClick={handleMicToggle}
-                aria-label="语音输入"
+              <div
+                className="flex-1 flex items-end px-4 py-2"
+                style={{ background: '#F5F7FA', borderRadius: 22, minHeight: 44 }}
               >
-                🎤
-              </button>
-            )}
-            <div
-              className="flex-1 flex items-end px-4 py-2"
-              style={{ background: '#F5F7FA', borderRadius: 22, minHeight: 44 }}
-            >
-              <textarea
-                ref={textareaRef}
-                className="flex-1 bg-transparent outline-none text-sm resize-none leading-6"
-                placeholder={aiHomeConfig.input?.placeholder || '发消息或按住说话...'}
-                value={inputValue}
-                onChange={handleTextareaInput}
-                /* [PRD-AICHAT-CAPSULE-V1 2026-05-15] focus/blur 用于胶囊条键盘联动（PRD §3.1）
-                   focus → 隐藏胶囊条；blur → 恢复显示。仅用于本胶囊条，不影响其它逻辑。 */
-                onFocus={() => setIsInputFocused(true)}
-                onBlur={() => setIsInputFocused(false)}
-                /* [Bug-431] 已彻底移除聚焦时自动收起：欢迎面板的唯一收起触发器 = 用户主动点击发送按钮（见 handleSend） */
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
+                <textarea
+                  ref={textareaRef}
+                  className="flex-1 bg-transparent outline-none text-sm resize-none leading-6"
+                  placeholder={dynamicPlaceholder}
+                  value={inputValue}
+                  onChange={handleTextareaInput}
+                  onFocus={() => setIsInputFocused(true)}
+                  onBlur={() => setIsInputFocused(false)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  rows={1}
+                  style={{ color: THEME.textPrimary, maxHeight: 120, height: 24 }}
+                  data-testid="ai-home-textarea"
+                />
+              </div>
+              <button
+                className="flex-shrink-0 flex items-center justify-center rounded-full text-sm font-medium mb-0"
+                style={{
+                  width: 44,
+                  height: 44,
+                  background: inputValue.trim() ? '#1677FF' : '#D1D5DB',
+                  color: '#fff',
+                  transition: 'background 0.2s',
+                  opacity: inputValue.trim() ? 1 : 0.6,
+                  cursor: inputValue.trim() ? 'pointer' : 'not-allowed',
                 }}
-                rows={1}
-                style={{ color: THEME.textPrimary, maxHeight: 120, height: 24 }}
-              />
+                onClick={() => handleSend()}
+                disabled={!inputValue.trim() || sending}
+                aria-label="发送"
+              >
+                ➤
+              </button>
             </div>
-            {/* v1.0 丁香派智能隐藏：键盘模式 + 输入框为空 → 灰显；有文字 → 亮起 */}
-            {/* [PRD-433 F-12] 发送按钮配色与浅蓝气泡协调（活跃态 #1677FF） */}
-            <button
-              className="flex-shrink-0 flex items-center justify-center rounded-full text-sm font-medium mb-0"
-              style={{
-                width: 44,
-                height: 44,
-                background: inputValue.trim() ? '#1677FF' : '#D1D5DB',
-                color: '#fff',
-                transition: 'background 0.2s',
-                opacity: inputValue.trim() ? 1 : 0.6,
-                cursor: inputValue.trim() ? 'pointer' : 'not-allowed',
-              }}
-              onClick={() => handleSend()}
-              disabled={!inputValue.trim() || sending}
-              aria-label="发送"
-            >
-              ➤
-            </button>
-          </div>
-        )}
+          );
+        })()}
 
         {/* v1.0 第二层：家庭成员快捷栏（家庭成员咨询胶囊 + 查看档案） */}
         {!voiceMode && (familyPillVisible || archiveLinkVisible) && (

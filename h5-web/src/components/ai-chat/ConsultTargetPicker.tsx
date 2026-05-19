@@ -7,6 +7,14 @@
  *   - 副信息显示年龄而非出生日期：`关系 · 性别 · X 岁`
  *   - 顶部 3px 主色描边 + 大投影
  *   - 「新增家庭成员」入口复用 NewFamilyMemberModal（统一表单）
+ *
+ * [PRD-AI-HOME-OPTIM-FINAL-V2 2026-05-19] AI 首页优化最终版：
+ *   - 标题改为「选择咨询人」
+ *   - 选中条统一使用蓝色渐变深色背景（不论本人/家人）
+ *   - 未选中条统一使用浅灰底（本人不再有「天生蓝底」特权）
+ *   - 主标题统一为「关系 · 姓名」格式（本人为「本人 · {姓名}」）
+ *   - 右侧文字按钮：未选中态「选择」实心蓝底白字（醒目，可点击）；
+ *     选中态「已选择」白底蓝字（禁用、置灰、无点击反馈）
  */
 
 import { useEffect, useState } from 'react';
@@ -34,13 +42,10 @@ interface ConsultTargetPickerProps {
   currentMemberId: number | null;
   /** 选中已有成员（is_self=true 的本人 memberId 传 null） */
   onSelect: (member: FamilyMemberItem | null) => void;
-  /**
-   * [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F14 2026-05-18]
-   * 候选列表排除当前咨询人：当前咨询人仍然显示在列表中，但置灰 + 名字后追加「（当前）」标注，
-   * 整行不可点击。本组件内部直接根据 currentMemberId 判断。
-   * 仅当 visible=true 时生效。
-   */
 }
+
+// 与 --gradient-primary 同源的渐变
+const PRIMARY_GRADIENT = 'linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)';
 
 export default function ConsultTargetPicker({
   visible,
@@ -73,12 +78,9 @@ export default function ConsultTargetPicker({
   }, [visible]);
 
   const handleSelectMember = (m: FamilyMemberItem) => {
-    // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F14] 当前咨询人不可点击
+    // 已选中态：右侧「已选择」按钮置灰禁用，不响应点击
     const isCurrent = m.is_self ? currentMemberId == null : m.id === currentMemberId;
     if (isCurrent) {
-      try {
-        Toast.show({ content: '该家庭成员已是当前咨询人', position: 'bottom' });
-      } catch {}
       return;
     }
     onSelect(m.is_self ? null : m);
@@ -119,7 +121,13 @@ export default function ConsultTargetPicker({
           className="flex items-center justify-between py-3"
           style={{ borderBottom: '1px solid #F1F5F9' }}
         >
-          <span className="text-base font-semibold" style={{ color: '#0F172A' }}>咨询人</span>
+          <span
+            className="text-base font-semibold"
+            style={{ color: '#0F172A' }}
+            data-testid="consult-target-title"
+          >
+            选择咨询人
+          </span>
           <button
             onClick={onClose}
             className="text-xl leading-none"
@@ -151,22 +159,20 @@ export default function ConsultTargetPicker({
           <div className="mt-3 space-y-2">
             {members.map((m) => {
               const isCurrent = m.is_self ? currentMemberId == null : m.id === currentMemberId;
-              const relationName = m.relation_type_name || m.relationship_type || '';
+              const relationName = m.relation_type_name || m.relationship_type || (m.is_self ? '本人' : '');
               const age = m.birthday ? calcAge(m.birthday) : null;
-              // 副信息：`{关系名} · {性别} · {年龄} 岁`（本人为 `{性别} · {年龄} 岁`）
+              // 副信息：`{性别} · {年龄} 岁`
               const subParts: string[] = [];
-              if (!m.is_self && relationName) subParts.push(relationName);
               if (m.gender) subParts.push(formatGender(m.gender) || '');
               if (age != null) subParts.push(`${age} 岁`);
               else subParts.push('-');
               const subText = subParts.filter(Boolean).join(' · ');
-              const displayName = m.is_self ? '本人' : m.nickname;
-              // [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F14] 当前咨询人置灰 + (当前) 标注 + 不可点击
-              const itemBg = isCurrent
-                ? '#F1F5F9'
-                : (m.is_self ? 'linear-gradient(135deg, #0EA5E9, #38BDF8)' : '#F8FAFC');
-              const nameColor = isCurrent ? '#94A3B8' : (m.is_self ? '#fff' : '#0F172A');
-              const subColor = isCurrent ? '#CBD5E1' : (m.is_self ? 'rgba(255,255,255,0.85)' : '#64748B');
+              // 主标题：统一「关系 · 姓名」（兜底：关系空则仅姓名）
+              const mainText = relationName ? `${relationName} · ${m.nickname}` : m.nickname;
+              // 选中：蓝色渐变；未选中：浅灰
+              const itemBg = isCurrent ? PRIMARY_GRADIENT : '#F8FAFC';
+              const nameColor = isCurrent ? '#fff' : '#0F172A';
+              const subColor = isCurrent ? 'rgba(255,255,255,0.85)' : '#64748B';
               return (
                 <div
                   key={`${m.id}-${m.is_self ? 'self' : 'mem'}`}
@@ -174,9 +180,8 @@ export default function ConsultTargetPicker({
                   style={{
                     background: itemBg,
                     border: '1.5px solid transparent',
-                    boxShadow: !isCurrent && m.is_self ? '0 4px 14px rgba(2,132,199,0.2)' : 'none',
-                    opacity: isCurrent ? 0.7 : 1,
-                    cursor: isCurrent ? 'not-allowed' : 'pointer',
+                    boxShadow: isCurrent ? '0 4px 14px rgba(2,132,199,0.2)' : 'none',
+                    cursor: isCurrent ? 'default' : 'pointer',
                   }}
                   onClick={() => handleSelectMember(m)}
                   data-testid="consult-target-item"
@@ -192,16 +197,9 @@ export default function ConsultTargetPicker({
                     <div
                       className="text-sm font-semibold truncate"
                       style={{ color: nameColor }}
+                      data-testid="consult-target-main-text"
                     >
-                      {displayName}
-                      {isCurrent && (
-                        <span
-                          style={{ marginLeft: 6, fontSize: 12, fontWeight: 500, color: '#94A3B8' }}
-                          data-testid="consult-target-current-label"
-                        >
-                          （当前）
-                        </span>
-                      )}
+                      {mainText}
                     </div>
                     <div
                       className="text-xs mt-1 truncate"
@@ -210,17 +208,53 @@ export default function ConsultTargetPicker({
                       {subText}
                     </div>
                   </div>
-                  {isCurrent && (
+                  {/*
+                    右侧文字按钮：
+                    - 选中态：白底 + 蓝字「已选择」，置灰禁用、无点击反馈
+                    - 未选中态：实心蓝底 + 白字「选择」，可点击切换
+                  */}
+                  {isCurrent ? (
                     <span
-                      className="text-base"
+                      data-testid="consult-target-selected-btn"
                       style={{
-                        color: '#94A3B8',
-                        fontWeight: 700,
+                        flexShrink: 0,
+                        padding: '6px 14px',
+                        borderRadius: 16,
+                        background: '#FFFFFF',
+                        color: '#0284C7',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        opacity: 0.85,
+                        cursor: 'default',
+                        userSelect: 'none',
+                        pointerEvents: 'none',
                       }}
-                      aria-label="当前选中"
                     >
-                      ✓
+                      已选择
                     </span>
+                  ) : (
+                    <button
+                      type="button"
+                      data-testid="consult-target-select-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectMember(m);
+                      }}
+                      style={{
+                        flexShrink: 0,
+                        padding: '6px 14px',
+                        borderRadius: 16,
+                        background: '#0284C7',
+                        color: '#FFFFFF',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        border: 'none',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 6px rgba(2,132,199,0.25)',
+                      }}
+                    >
+                      选择
+                    </button>
                   )}
                 </div>
               );
