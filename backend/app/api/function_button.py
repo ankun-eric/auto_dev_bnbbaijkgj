@@ -25,6 +25,7 @@ from app.models.models import (
 from app.schemas.function_button import (
     ALLOWED_BUTTON_TYPES,
     ALLOWED_AI_FUNCTION_TYPES,
+    ALLOWED_CAPTURE_PURPOSES,
     ButtonSortActionRequest,
     ButtonSortRequest,
     ChatFunctionButtonCreate,
@@ -406,6 +407,40 @@ def _validate_ai_function_type(btn_type: Optional[str], ai_func_type: Optional[s
             )
 
 
+def _validate_questionnaire_and_capture(
+    btn_type: Optional[str],
+    ai_func_type: Optional[str],
+    questionnaire_template_id: Optional[int],
+    capture_purpose: Optional[str],
+) -> None:
+    """[PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19]
+
+    - ai_function_type=questionnaire 必填 questionnaire_template_id
+    - ai_function_type=image_capture 必填 capture_purpose 且取值合法
+    """
+    if btn_type != "ai_function":
+        return
+    if ai_func_type == "questionnaire" and not questionnaire_template_id:
+        raise HTTPException(
+            status_code=400,
+            detail="ai_function_type=questionnaire 时必须指定 questionnaire_template_id",
+        )
+    if ai_func_type == "image_capture":
+        if not capture_purpose:
+            raise HTTPException(
+                status_code=400,
+                detail="ai_function_type=image_capture 时必须指定 capture_purpose",
+            )
+        if capture_purpose not in ALLOWED_CAPTURE_PURPOSES:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"capture_purpose 取值不合法：{capture_purpose}，"
+                    f"允许值：{sorted(ALLOWED_CAPTURE_PURPOSES)}"
+                ),
+            )
+
+
 def _validate_navigate_url(btn_type: Optional[str], external_url: Optional[str]) -> None:
     """[PRD-AICHAT-FUNCBTN-OPTIM-V1] 页面跳转地址校验：必须 http(s):// 或 / 开头。
 
@@ -467,6 +502,12 @@ async def admin_create_button(
     _validate_button_type(data.button_type)
     _validate_ai_function_type(data.button_type, data.ai_function_type)
     _validate_navigate_url(data.button_type, data.external_url)
+    _validate_questionnaire_and_capture(
+        data.button_type,
+        data.ai_function_type,
+        data.questionnaire_template_id,
+        data.capture_purpose,
+    )
     await _validate_button_prompt_binding(db, data.button_type, data.prompt_template_id)
     btn = ChatFunctionButton(**data.model_dump())
     db.add(btn)
@@ -498,6 +539,13 @@ async def admin_update_button(
     effective_external_url = updates.get("external_url", btn.external_url)
     _validate_ai_function_type(effective_btn_type, effective_ai_fn_type)
     _validate_navigate_url(effective_btn_type, effective_external_url)
+    effective_qt_id = updates.get(
+        "questionnaire_template_id", btn.questionnaire_template_id
+    )
+    effective_cp = updates.get("capture_purpose", btn.capture_purpose)
+    _validate_questionnaire_and_capture(
+        effective_btn_type, effective_ai_fn_type, effective_qt_id, effective_cp
+    )
     await _validate_button_prompt_binding(db, effective_btn_type, effective_pt_id)
     for field, value in updates.items():
         setattr(btn, field, value)

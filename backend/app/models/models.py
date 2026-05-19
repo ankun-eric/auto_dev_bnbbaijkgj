@@ -2583,8 +2583,118 @@ class ChatFunctionButton(Base):
     )
     prompt_override_enabled = mapped_column(Boolean, nullable=True, default=False, comment="是否启用按钮级 Prompt 自定义")
     prompt_override_text = mapped_column(Text, nullable=True, comment="按钮级自定义 Prompt 全文")
+    # ───── [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 通用问卷与图像采集架构重构 ─────
+    # 子类型按"交互形态"抽象，永久稳定 5 个：questionnaire / image_capture / file_upload / ai_dialog_trigger / quick_ask
+    # 业务由"模板 + 用途参数"决定，不再随业务无限新增枚举
+    questionnaire_template_id = mapped_column(Integer, nullable=True, comment="关联问卷模板 ID（ai_function_type=questionnaire 时必填）")
+    capture_purpose = mapped_column(String(32), nullable=True, comment="图像采集用途：identify_medicine / upload / interpret_report")
+    pre_card_enabled = mapped_column(Boolean, nullable=True, default=True, comment="是否启用对话内说明卡片（对所有 ai_function_type 统一可用；覆盖旧 pre_card_for_navigate）")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ════════════════════════════════════════════════════════════
+# [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 通用问卷架构（5 张表）
+# - questionnaire_template       问卷模板
+# - questionnaire_question       问卷题目
+# - questionnaire_classification_rule  分型规则
+# - questionnaire_recommendation 分型→推荐配置
+# - questionnaire_answer         用户答题记录
+# ════════════════════════════════════════════════════════════
+
+
+class QuestionnaireTemplate(Base):
+    """通用问卷模板：所有问卷类业务（健康自查、体质测评、睡眠测评等）共用。"""
+
+    __tablename__ = "questionnaire_template"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code = mapped_column(String(64), unique=True, nullable=False, comment="模板编码（health_self_check / tcm_constitution 等）")
+    name = mapped_column(String(128), nullable=False, comment="模板名称")
+    description = mapped_column(Text, nullable=True, comment="模板说明")
+    cover_image = mapped_column(String(512), nullable=True, comment="封面图")
+    intro_text = mapped_column(Text, nullable=True, comment="问卷开篇引导文")
+    estimated_minutes = mapped_column(Integer, nullable=True, default=3, comment="预计完成分钟数")
+    allow_back = mapped_column(Boolean, nullable=True, default=True, comment="是否允许返回上一题")
+    shuffle_questions = mapped_column(Boolean, nullable=True, default=False, comment="是否打乱题目顺序")
+    ai_prompt_template = mapped_column(Text, nullable=True, comment="AI 解读 Prompt 模板")
+    ai_opening = mapped_column(Text, nullable=True, comment="答完后 AI 开场白")
+    report_layout = mapped_column(String(32), nullable=True, default="standard", comment="报告布局：standard / radar / score_bar")
+    status = mapped_column(Integer, nullable=True, default=1, comment="0-停用 1-启用")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class QuestionnaireQuestion(Base):
+    """问卷题目表"""
+
+    __tablename__ = "questionnaire_question"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    template_id = mapped_column(Integer, nullable=False, index=True)
+    sort_order = mapped_column(Integer, nullable=False, default=0, comment="题目顺序")
+    question_type = mapped_column(String(32), nullable=False, comment="题型：single_choice / multi_choice / text")
+    title = mapped_column(String(512), nullable=False, comment="题干")
+    subtitle = mapped_column(String(512), nullable=True, comment="副说明")
+    required = mapped_column(Boolean, nullable=True, default=True)
+    options = mapped_column(JSON, nullable=True, comment="选项列表 [{label,value,score,tags}]")
+    dimension = mapped_column(String(64), nullable=True, comment="所属维度（阴虚/阳虚等）")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class QuestionnaireClassificationRule(Base):
+    """分型规则：根据答题结果判定用户属于哪种分型（如阴虚/阳虚/头痛等）"""
+
+    __tablename__ = "questionnaire_classification_rule"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    template_id = mapped_column(Integer, nullable=False, index=True)
+    code = mapped_column(String(64), nullable=False, comment="分型编码 yin_xu / yang_xu / headache 等")
+    name = mapped_column(String(128), nullable=False, comment="分型名称")
+    description = mapped_column(Text, nullable=True)
+    rule_type = mapped_column(String(32), nullable=False, comment="score_range / dimension_max / tag_match")
+    rule_config = mapped_column(JSON, nullable=False, comment="规则配置")
+    sort_order = mapped_column(Integer, nullable=True, default=0)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class QuestionnaireRecommendation(Base):
+    """分型 → 推荐配置（商品 / 服务 / 门店 / 优惠券）"""
+
+    __tablename__ = "questionnaire_recommendation"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    classification_id = mapped_column(Integer, nullable=False, index=True)
+    section_type = mapped_column(String(32), nullable=False, comment="product / service / store_service / coupon")
+    section_title = mapped_column(String(128), nullable=True, comment="推荐位标题")
+    sort_order = mapped_column(Integer, nullable=True, default=0)
+    match_mode = mapped_column(String(32), nullable=True, default="sku_list", comment="sku_list / tag_match")
+    sku_ids = mapped_column(JSON, nullable=True, comment="当 match_mode=sku_list 时使用")
+    tag_filters = mapped_column(JSON, nullable=True, comment="当 match_mode=tag_match 时使用")
+    max_items = mapped_column(Integer, nullable=True, default=6)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class QuestionnaireAnswer(Base):
+    """用户答题记录"""
+
+    __tablename__ = "questionnaire_answer"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, nullable=False, index=True)
+    template_id = mapped_column(Integer, nullable=False, index=True)
+    consultant_id = mapped_column(Integer, nullable=True, comment="咨询档案 ID")
+    answers = mapped_column(JSON, nullable=False, comment="完整答题数据")
+    total_score = mapped_column(Numeric(8, 2), nullable=True)
+    dimension_scores = mapped_column(JSON, nullable=True, comment="各维度得分")
+    classification_id = mapped_column(Integer, nullable=True, comment="最终判定分型")
+    ai_summary = mapped_column(Text, nullable=True, comment="AI 流式生成的简要结论")
+    status = mapped_column(String(16), nullable=True, default="completed", comment="draft / completed")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    completed_at = mapped_column(DateTime, nullable=True)
 
 
 # ════════════════════════════════════════════════════════════

@@ -1,0 +1,544 @@
+'use client';
+
+/**
+ * [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19]
+ * 通用问卷模板管理页面 — 最小可用版。
+ *
+ * 功能：
+ * - 列表：搜索 / 分页 / 新建 / 编辑 / 删除 / 启停
+ * - 编辑抽屉：基础信息 + 题目列表（增删改）+ 分型规则（增删改）+ 推荐配置（按分型查看）
+ * - 题目支持 single_choice / multi_choice / text 三种类型
+ *
+ * 注：本页是「最小版」，复杂的可视化分型预览/AI Prompt 试运行等高级能力放后续迭代。
+ */
+
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  Button,
+  Drawer,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Switch,
+  Table,
+  Tabs,
+  Tag,
+  Typography,
+  message,
+} from 'antd';
+import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { del, get, post, put } from '@/lib/api';
+
+const { Title, Text } = Typography;
+const { TextArea } = Input;
+
+interface QuestionnaireTemplate {
+  id: number;
+  code: string;
+  name: string;
+  description?: string | null;
+  cover_image?: string | null;
+  intro_text?: string | null;
+  estimated_minutes?: number;
+  allow_back?: boolean;
+  shuffle_questions?: boolean;
+  ai_prompt_template?: string | null;
+  ai_opening?: string | null;
+  report_layout?: string;
+  status?: number;
+  created_at?: string;
+}
+
+interface QuestionnaireQuestion {
+  id: number;
+  template_id: number;
+  sort_order: number;
+  question_type: 'single_choice' | 'multi_choice' | 'text';
+  title: string;
+  subtitle?: string | null;
+  required?: boolean;
+  options?: Array<{ label: string; value: string; score?: number; tags?: string[] }> | null;
+  dimension?: string | null;
+}
+
+interface ClassificationRule {
+  id: number;
+  template_id: number;
+  code: string;
+  name: string;
+  description?: string | null;
+  rule_type: 'score_range' | 'dimension_max' | 'tag_match';
+  rule_config: Record<string, any>;
+  sort_order?: number;
+}
+
+const QUESTION_TYPE_OPTIONS = [
+  { value: 'single_choice', label: '单选' },
+  { value: 'multi_choice', label: '多选' },
+  { value: 'text', label: '文本填空' },
+];
+
+const RULE_TYPE_OPTIONS = [
+  { value: 'score_range', label: '分数区间（rule_config: {min, max}）' },
+  { value: 'dimension_max', label: '维度最高（rule_config: {dimension}）' },
+  { value: 'tag_match', label: '标签命中（rule_config: {tags, min_hits}）' },
+];
+
+const REPORT_LAYOUT_OPTIONS = [
+  { value: 'standard', label: '标准（分型描述 + 推荐位）' },
+  { value: 'radar', label: '雷达图（多维度可视化）' },
+  { value: 'score_bar', label: '分数条' },
+];
+
+export default function QuestionnaireTemplatesPage() {
+  const [items, setItems] = useState<QuestionnaireTemplate[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [keyword, setKeyword] = useState('');
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editing, setEditing] = useState<QuestionnaireTemplate | null>(null);
+  const [form] = Form.useForm();
+
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerTpl, setDrawerTpl] = useState<QuestionnaireTemplate | null>(null);
+  const [questions, setQuestions] = useState<QuestionnaireQuestion[]>([]);
+  const [classifications, setClassifications] = useState<ClassificationRule[]>([]);
+
+  const fetchList = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await get<any>('/api/admin/questionnaire/templates', {
+        page,
+        page_size: pageSize,
+        ...(keyword ? { keyword } : {}),
+      });
+      setItems(res.items || []);
+      setTotal(res.total || 0);
+    } catch {
+      message.error('获取问卷模板列表失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, pageSize, keyword]);
+
+  useEffect(() => {
+    fetchList();
+  }, [fetchList]);
+
+  const openEdit = (record?: QuestionnaireTemplate) => {
+    setEditing(record || null);
+    form.resetFields();
+    if (record) {
+      form.setFieldsValue({
+        ...record,
+        status: record.status === 1,
+        allow_back: record.allow_back !== false,
+        shuffle_questions: !!record.shuffle_questions,
+      });
+    } else {
+      form.setFieldsValue({
+        estimated_minutes: 3,
+        allow_back: true,
+        shuffle_questions: false,
+        report_layout: 'standard',
+        status: true,
+      });
+    }
+    setEditModalOpen(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      const values = await form.validateFields();
+      const payload = {
+        ...values,
+        status: values.status ? 1 : 0,
+      };
+      if (editing) {
+        await put(`/api/admin/questionnaire/templates/${editing.id}`, payload);
+        message.success('更新成功');
+      } else {
+        await post('/api/admin/questionnaire/templates', payload);
+        message.success('创建成功');
+      }
+      setEditModalOpen(false);
+      fetchList();
+    } catch (e: any) {
+      if (e?.errorFields) return;
+      message.error(e?.response?.data?.detail || '保存失败');
+    }
+  };
+
+  const openDrawer = async (record: QuestionnaireTemplate) => {
+    setDrawerTpl(record);
+    setDrawerOpen(true);
+    try {
+      const detail = await get<any>(`/api/questionnaire/templates/${record.id}`);
+      setQuestions(detail.questions || []);
+      setClassifications(detail.classifications || []);
+    } catch {
+      setQuestions([]);
+      setClassifications([]);
+    }
+  };
+
+  const reloadDrawer = async () => {
+    if (!drawerTpl) return;
+    const detail = await get<any>(`/api/questionnaire/templates/${drawerTpl.id}`);
+    setQuestions(detail.questions || []);
+    setClassifications(detail.classifications || []);
+  };
+
+  // ─── Question CRUD ───
+  const addQuestion = async () => {
+    if (!drawerTpl) return;
+    await post('/api/admin/questionnaire/questions', {
+      template_id: drawerTpl.id,
+      sort_order: (questions.length + 1) * 10,
+      question_type: 'single_choice',
+      title: '新题目',
+      options: [
+        { label: '选项 A', value: 'a', score: 0 },
+        { label: '选项 B', value: 'b', score: 1 },
+      ],
+    });
+    await reloadDrawer();
+  };
+
+  const editQuestion = async (q: QuestionnaireQuestion) => {
+    Modal.confirm({
+      title: `编辑题目 #${q.id}`,
+      width: 640,
+      content: (
+        <div>
+          <Text type="secondary">
+            提示：本最小版直接编辑 JSON。后续会做可视化题目编辑器。
+          </Text>
+          <TextArea
+            id={`q-edit-${q.id}`}
+            rows={12}
+            defaultValue={JSON.stringify(q, null, 2)}
+          />
+        </div>
+      ),
+      onOk: async () => {
+        const ta = document.getElementById(`q-edit-${q.id}`) as HTMLTextAreaElement | null;
+        if (!ta) return;
+        try {
+          const parsed = JSON.parse(ta.value);
+          await put(`/api/admin/questionnaire/questions/${q.id}`, {
+            sort_order: parsed.sort_order,
+            question_type: parsed.question_type,
+            title: parsed.title,
+            subtitle: parsed.subtitle,
+            required: parsed.required,
+            options: parsed.options,
+            dimension: parsed.dimension,
+          });
+          await reloadDrawer();
+          message.success('保存成功');
+        } catch (e: any) {
+          message.error(e?.message || '保存失败');
+        }
+      },
+    });
+  };
+
+  const deleteQuestion = async (q: QuestionnaireQuestion) => {
+    await del(`/api/admin/questionnaire/questions/${q.id}`);
+    await reloadDrawer();
+  };
+
+  // ─── Classification CRUD ───
+  const addClassification = async () => {
+    if (!drawerTpl) return;
+    await post('/api/admin/questionnaire/classifications', {
+      template_id: drawerTpl.id,
+      code: `cls_${Date.now()}`,
+      name: '新分型',
+      rule_type: 'score_range',
+      rule_config: { min: 0, max: 999 },
+      sort_order: classifications.length * 10,
+    });
+    await reloadDrawer();
+  };
+
+  const editClassification = async (c: ClassificationRule) => {
+    Modal.confirm({
+      title: `编辑分型 #${c.id}`,
+      width: 640,
+      content: (
+        <TextArea
+          id={`c-edit-${c.id}`}
+          rows={12}
+          defaultValue={JSON.stringify(c, null, 2)}
+        />
+      ),
+      onOk: async () => {
+        const ta = document.getElementById(`c-edit-${c.id}`) as HTMLTextAreaElement | null;
+        if (!ta) return;
+        try {
+          const parsed = JSON.parse(ta.value);
+          await put(`/api/admin/questionnaire/classifications/${c.id}`, {
+            code: parsed.code,
+            name: parsed.name,
+            description: parsed.description,
+            rule_type: parsed.rule_type,
+            rule_config: parsed.rule_config,
+            sort_order: parsed.sort_order,
+          });
+          await reloadDrawer();
+          message.success('保存成功');
+        } catch (e: any) {
+          message.error(e?.message || '保存失败');
+        }
+      },
+    });
+  };
+
+  const deleteClassification = async (c: ClassificationRule) => {
+    await del(`/api/admin/questionnaire/classifications/${c.id}`);
+    await reloadDrawer();
+  };
+
+  const handleDelete = (record: QuestionnaireTemplate) => {
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定删除问卷模板「${record.name}」吗？该操作不可恢复。`,
+      okType: 'danger',
+      onOk: async () => {
+        await del(`/api/admin/questionnaire/templates/${record.id}`);
+        message.success('删除成功');
+        fetchList();
+      },
+    });
+  };
+
+  return (
+    <div data-testid="questionnaire-templates-page">
+      <Title level={3}>通用问卷模板管理</Title>
+      <Text type="secondary">
+        所有问卷类业务（健康自查 / 体质测评 / 睡眠测评 / 焦虑量表 等）共用本模板表。
+        新增问卷类业务时，运营在此新建模板 + 题目 + 分型，再到「功能按钮管理」绑定，
+        无需开发改代码。
+      </Text>
+
+      <Space style={{ margin: '16px 0', width: '100%', justifyContent: 'space-between' }}>
+        <Space>
+          <Input.Search
+            placeholder="按编码或名称搜索"
+            allowClear
+            style={{ width: 260 }}
+            onSearch={(v) => {
+              setKeyword(v);
+              setPage(1);
+            }}
+          />
+        </Space>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => openEdit()}>
+          新建问卷模板
+        </Button>
+      </Space>
+
+      <Table
+        rowKey="id"
+        loading={loading}
+        dataSource={items}
+        pagination={{
+          current: page,
+          pageSize,
+          total,
+          onChange: (p, s) => {
+            setPage(p);
+            setPageSize(s);
+          },
+        }}
+        columns={[
+          { title: 'ID', dataIndex: 'id', width: 80 },
+          { title: '编码', dataIndex: 'code', width: 200, render: (v) => <Tag color="blue">{v}</Tag> },
+          { title: '名称', dataIndex: 'name' },
+          { title: '预计分钟', dataIndex: 'estimated_minutes', width: 100 },
+          {
+            title: '状态',
+            dataIndex: 'status',
+            width: 100,
+            render: (v) => (v === 1 ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>),
+          },
+          {
+            title: '操作',
+            width: 280,
+            render: (_, record) => (
+              <Space>
+                <Button size="small" onClick={() => openDrawer(record)}>
+                  题目/分型
+                </Button>
+                <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
+                  编辑
+                </Button>
+                <Popconfirm title="确认删除？" onConfirm={() => handleDelete(record)}>
+                  <Button size="small" danger icon={<DeleteOutlined />}>
+                    删除
+                  </Button>
+                </Popconfirm>
+              </Space>
+            ),
+          },
+        ]}
+      />
+
+      {/* 编辑/新建模板 Modal */}
+      <Modal
+        title={editing ? '编辑问卷模板' : '新建问卷模板'}
+        open={editModalOpen}
+        onOk={handleSave}
+        onCancel={() => setEditModalOpen(false)}
+        destroyOnClose
+        width={680}
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item label="编码 code" name="code" rules={[{ required: true, message: '请输入模板编码' }]}>
+            <Input placeholder="如 health_self_check / tcm_constitution / sleep_test_v1" disabled={!!editing} />
+          </Form.Item>
+          <Form.Item label="名称" name="name" rules={[{ required: true, message: '请输入名称' }]}>
+            <Input maxLength={64} />
+          </Form.Item>
+          <Form.Item label="模板说明" name="description">
+            <TextArea rows={2} placeholder="一句话介绍" />
+          </Form.Item>
+          <Form.Item label="开篇引导文" name="intro_text">
+            <TextArea rows={3} placeholder="用户进入问卷时显示的引导文" />
+          </Form.Item>
+          <Space wrap>
+            <Form.Item label="预计分钟" name="estimated_minutes">
+              <InputNumber min={1} max={60} />
+            </Form.Item>
+            <Form.Item label="允许返回" name="allow_back" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+            <Form.Item label="打乱题目顺序" name="shuffle_questions" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+            <Form.Item label="报告布局" name="report_layout">
+              <Select options={REPORT_LAYOUT_OPTIONS} style={{ width: 180 }} />
+            </Form.Item>
+            <Form.Item label="启用" name="status" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+          </Space>
+          <Form.Item label="AI 解读 Prompt 模板" name="ai_prompt_template">
+            <TextArea rows={4} placeholder="支持 {占位符}：分型名称 / 维度 / 得分 / 答题摘要 等" />
+          </Form.Item>
+          <Form.Item label="答完 AI 开场白" name="ai_opening">
+            <Input placeholder="例如：根据您的答题，初步分析如下…" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 题目 / 分型 抽屉 */}
+      <Drawer
+        title={drawerTpl ? `「${drawerTpl.name}」题目与分型` : ''}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        width={920}
+      >
+        <Tabs
+          items={[
+            {
+              key: 'questions',
+              label: `题目（${questions.length}）`,
+              children: (
+                <>
+                  <Space style={{ marginBottom: 12 }}>
+                    <Button icon={<PlusOutlined />} type="primary" onClick={addQuestion}>
+                      新增题目
+                    </Button>
+                  </Space>
+                  <Table
+                    rowKey="id"
+                    dataSource={questions}
+                    pagination={false}
+                    columns={[
+                      { title: '#', dataIndex: 'sort_order', width: 60 },
+                      { title: '类型', dataIndex: 'question_type', width: 100 },
+                      { title: '题干', dataIndex: 'title', ellipsis: true },
+                      { title: '维度', dataIndex: 'dimension', width: 120 },
+                      {
+                        title: '操作',
+                        width: 160,
+                        render: (_, q) => (
+                          <Space>
+                            <Button size="small" onClick={() => editQuestion(q)}>
+                              编辑
+                            </Button>
+                            <Popconfirm
+                              title="确认删除？"
+                              onConfirm={() => deleteQuestion(q)}
+                            >
+                              <Button size="small" danger>
+                                删除
+                              </Button>
+                            </Popconfirm>
+                          </Space>
+                        ),
+                      },
+                    ]}
+                  />
+                </>
+              ),
+            },
+            {
+              key: 'classifications',
+              label: `分型规则（${classifications.length}）`,
+              children: (
+                <>
+                  <Space style={{ marginBottom: 12 }}>
+                    <Button icon={<PlusOutlined />} type="primary" onClick={addClassification}>
+                      新增分型
+                    </Button>
+                  </Space>
+                  <Table
+                    rowKey="id"
+                    dataSource={classifications}
+                    pagination={false}
+                    columns={[
+                      { title: '编码', dataIndex: 'code' },
+                      { title: '名称', dataIndex: 'name' },
+                      { title: '规则类型', dataIndex: 'rule_type', width: 140 },
+                      {
+                        title: '规则配置',
+                        dataIndex: 'rule_config',
+                        render: (v) => <code style={{ fontSize: 12 }}>{JSON.stringify(v)}</code>,
+                      },
+                      {
+                        title: '操作',
+                        width: 160,
+                        render: (_, c) => (
+                          <Space>
+                            <Button size="small" onClick={() => editClassification(c)}>
+                              编辑
+                            </Button>
+                            <Popconfirm title="确认删除？" onConfirm={() => deleteClassification(c)}>
+                              <Button size="small" danger>
+                                删除
+                              </Button>
+                            </Popconfirm>
+                          </Space>
+                        ),
+                      },
+                    ]}
+                  />
+                </>
+              ),
+            },
+          ]}
+        />
+      </Drawer>
+    </div>
+  );
+}

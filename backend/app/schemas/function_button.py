@@ -62,14 +62,37 @@ ALLOWED_BUTTON_TYPES = {
 }
 
 # [PRD-AICHAT-FUNCBTN-OPTIM-V1 2026-05-17] AI 功能子类型枚举
+# [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 子类型按"交互形态"抽象，永久稳定 5 个
+# 新增 questionnaire / image_capture；旧值（health_self_check/report_interpret/photo_upload/
+# medicine_recognize）保留兼容期映射，运营在前端选择时只看到 5 个新选项。
 ALLOWED_AI_FUNCTION_TYPES = {
-    "photo_upload",
+    # 新 5 项稳定子类型（按交互形态划分）
+    "questionnaire",
+    "image_capture",
     "file_upload",
-    "report_interpret",
-    "medicine_recognize",
     "ai_dialog_trigger",
     "quick_ask",
+    # 旧值（兼容期保留，待数据迁移完成后下线）
+    "photo_upload",
+    "report_interpret",
+    "medicine_recognize",
     "health_self_check",
+}
+
+# [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 新 5 项子类型集合（仅前端展示用）
+NEW_AI_FUNCTION_TYPES = {
+    "questionnaire",
+    "image_capture",
+    "file_upload",
+    "ai_dialog_trigger",
+    "quick_ask",
+}
+
+# [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1] 图像采集子用途枚举
+ALLOWED_CAPTURE_PURPOSES = {
+    "identify_medicine",  # 识药（旧 medicine_recognize / photo_recognize_drug）
+    "upload",             # 纯上传（旧 photo_upload）
+    "interpret_report",   # 报告解读（旧 report_interpret）
 }
 
 # [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 未选档案策略枚举
@@ -112,6 +135,13 @@ class ChatFunctionButtonCreate(BaseModel):
     archive_missing_strategy: Optional[str] = "use_default"
     prompt_override_enabled: Optional[bool] = False
     prompt_override_text: Optional[str] = None
+    # [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 3 个新字段
+    # questionnaire_template_id：当 ai_function_type=questionnaire 时关联问卷模板
+    # capture_purpose：当 ai_function_type=image_capture 时区分子用途
+    # pre_card_enabled：是否启用对话内说明卡片（覆盖旧的 pre_card_for_navigate，对所有按钮类型统一可用）
+    questionnaire_template_id: Optional[int] = None
+    capture_purpose: Optional[str] = None
+    pre_card_enabled: Optional[bool] = True
 
 
 class ChatFunctionButtonUpdate(BaseModel):
@@ -149,6 +179,10 @@ class ChatFunctionButtonUpdate(BaseModel):
     archive_missing_strategy: Optional[str] = None
     prompt_override_enabled: Optional[bool] = None
     prompt_override_text: Optional[str] = None
+    # [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 3 个新字段
+    questionnaire_template_id: Optional[int] = None
+    capture_purpose: Optional[str] = None
+    pre_card_enabled: Optional[bool] = None
 
 
 class ChatFunctionButtonResponse(BaseModel):
@@ -187,6 +221,10 @@ class ChatFunctionButtonResponse(BaseModel):
     archive_missing_strategy: Optional[str] = None
     prompt_override_enabled: Optional[bool] = None
     prompt_override_text: Optional[str] = None
+    # [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 3 个新字段
+    questionnaire_template_id: Optional[int] = None
+    capture_purpose: Optional[str] = None
+    pre_card_enabled: Optional[bool] = None
     created_at: datetime
     updated_at: datetime
 

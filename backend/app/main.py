@@ -107,6 +107,7 @@ from app.api import (
     medication_add_optim_v1,
     medication_today_v1,
     health_archive_optim_v1,
+    questionnaire,
 )
 from app.core.database import Base, engine
 from app.core.price_formatter import PriceFormattedJSONResponse
@@ -1792,6 +1793,17 @@ async def lifespan(app: FastAPI):
         import traceback as _tb
         _tb.print_exc()
         print(f"[migrate] prd_health_archive_optim_v1: 迁移失败 err={_e}", flush=True)
+    # [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 通用问卷与图像采集架构重构
+    try:
+        print("[migrate] questionnaire_v1: 启动迁移...", flush=True)
+        from app.core.database import async_session as _async_session6
+        from app.services.prd_questionnaire_v1_migration import run_migration_with_session as _run_questionnaire_v1
+        _stats6 = await _run_questionnaire_v1(_async_session6)
+        print(f"[migrate] questionnaire_v1: 迁移完成 stats={_stats6}", flush=True)
+    except Exception as _e:
+        import traceback as _tb
+        _tb.print_exc()
+        print(f"[migrate] questionnaire_v1: 迁移失败 err={_e}", flush=True)
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities
@@ -1998,6 +2010,9 @@ app.include_router(medication_today_v1.router)
 # [PRD-468 2026-05-12] 健康档案改版 v3
 app.include_router(health_profile_v3.router)
 app.include_router(health_archive_optim_v1.router)  # [PRD-HEALTH-ARCHIVE-OPTIM-V1] 健康档案页面优化 V1
+# [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 通用问卷 API
+app.include_router(questionnaire.router)
+app.include_router(questionnaire.admin_router)
 # [PRD-HEALTH-ARCHIVE-OPTIM-V2 2026-05-18] 健康档案页面优化 V2：成员徽章/Hero角标/设备列表/提醒设置/解绑
 from app.api import health_archive_optim_v2 as _health_archive_optim_v2  # noqa: E402
 app.include_router(_health_archive_optim_v2.router)

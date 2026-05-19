@@ -23,15 +23,28 @@ const MAIN_TYPE_OPTIONS = [
   { value: 'ai_function', label: '🤖 AI 功能' },
 ];
 
-// AI 功能 7 个子类型
+// [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19]
+// AI 功能子类型升级：永久稳定 5 个（按"交互形态"抽象，不再随业务膨胀）
+// - questionnaire   : 对话内问卷（由 questionnaire_template_id 区分业务）
+// - image_capture   : 图像采集（由 capture_purpose 区分识药/上传/报告解读）
+// - file_upload     : 文件上传
+// - ai_dialog_trigger : AI 对话触发
+// - quick_ask       : 快捷提问
+// 旧的 photo_upload / report_interpret / medicine_recognize / health_self_check
+// 由数据迁移自动归类，前端不再展示这些选项（编辑老数据时也会自动映射到新枚举）
 const AI_FUNCTION_TYPE_OPTIONS = [
-  { value: 'photo_upload', label: '📷 拍照上传' },
+  { value: 'questionnaire', label: '📝 对话内问卷（健康自查 / 体质测评 / 睡眠测评等）' },
+  { value: 'image_capture', label: '📷 图像采集（识药 / 上传 / 报告解读）' },
   { value: 'file_upload', label: '📄 文件上传' },
-  { value: 'report_interpret', label: '🩺 报告解读' },
-  { value: 'medicine_recognize', label: '🔍 拍照识药' },
   { value: 'ai_dialog_trigger', label: '💬 AI 对话触发' },
   { value: 'quick_ask', label: '⚡ 快捷提问' },
-  { value: 'health_self_check', label: '🏥 健康自查 / 体质测评' },
+];
+
+// [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1] 图像采集子用途
+const CAPTURE_PURPOSE_OPTIONS = [
+  { value: 'identify_medicine', label: '🔍 识药（相册/拍照 → AI 识药）' },
+  { value: 'upload', label: '📤 纯上传（相册/拍照 → 直接发图）' },
+  { value: 'interpret_report', label: '🩺 报告解读（相册/拍照/历史报告 → AI 解读）' },
 ];
 
 // [PRD-PROMPT-CONFIG-V1 2026-05-14] 老 9 种枚举（保留下拉以兼容编辑老数据；
@@ -76,13 +89,17 @@ const BUTTON_TYPE_MAP: Record<string, { label: string; color: string }> = {
 };
 
 const AI_FUNCTION_TYPE_LABEL: Record<string, string> = {
-  photo_upload: '拍照上传',
+  // [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 新 5 项
+  questionnaire: '对话内问卷',
+  image_capture: '图像采集',
   file_upload: '文件上传',
-  report_interpret: '报告解读',
-  medicine_recognize: '拍照识药',
   ai_dialog_trigger: 'AI 对话触发',
   quick_ask: '快捷提问',
-  health_self_check: '健康自查',
+  // 旧 4 项（运营仅在编辑老数据时短暂看到）
+  photo_upload: '拍照上传(旧)',
+  report_interpret: '报告解读(旧)',
+  medicine_recognize: '拍照识药(旧)',
+  health_self_check: '健康自查(旧)',
 };
 
 // 需要关联 Prompt 模板的按钮类型（PRD §3.2 + PRD-PROMPT-CONFIG-V1）
@@ -127,8 +144,19 @@ interface FunctionButton {
   archive_missing_strategy?: string | null;
   prompt_override_enabled?: boolean | null;
   prompt_override_text?: string | null;
+  // [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 新 3 字段
+  questionnaire_template_id?: number | null;
+  capture_purpose?: string | null;
+  pre_card_enabled?: boolean | null;
   created_at?: string;
   updated_at?: string;
+}
+
+interface QuestionnaireTemplateOption {
+  id: number;
+  code: string;
+  name: string;
+  status?: number;
 }
 
 interface HealthCheckTemplateOption {
@@ -170,6 +198,11 @@ export default function FunctionButtonsPage() {
   const [healthCheckTemplates, setHealthCheckTemplates] = useState<HealthCheckTemplateOption[]>([]);
   const watchedHealthTplId = Form.useWatch('health_check_template_id', form);
   const watchedPromptOverride = Form.useWatch('prompt_override_enabled', form);
+  // [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 通用问卷模板下拉数据
+  const [questionnaireTemplates, setQuestionnaireTemplates] = useState<QuestionnaireTemplateOption[]>([]);
+  const watchedQuestionnaireTplId = Form.useWatch('questionnaire_template_id', form);
+  const watchedCapturePurpose = Form.useWatch('capture_purpose', form);
+  const watchedPreCardEnabled = Form.useWatch('pre_card_enabled', form);
   // [AICHAT-OPTIM-FIX-V1 F-01] Emoji 选择器弹窗状态
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
@@ -229,10 +262,31 @@ export default function FunctionButtonsPage() {
     }
   }, []);
 
+  // [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 拉取通用问卷模板下拉
+  const fetchQuestionnaireTemplates = useCallback(async () => {
+    try {
+      const res = await get<any>('/api/admin/questionnaire/templates', { page: 1, page_size: 200 });
+      const items = Array.isArray(res) ? res : (res?.items || []);
+      setQuestionnaireTemplates(
+        items
+          .filter((t: any) => t && t.id)
+          .map((t: any) => ({
+            id: t.id,
+            code: t.code,
+            name: t.name,
+            status: t.status,
+          })),
+      );
+    } catch {
+      setQuestionnaireTemplates([]);
+    }
+  }, []);
+
   useEffect(() => {
     fetchPromptTemplates();
     fetchHealthCheckTemplates();
-  }, [fetchPromptTemplates, fetchHealthCheckTemplates]);
+    fetchQuestionnaireTemplates();
+  }, [fetchPromptTemplates, fetchHealthCheckTemplates, fetchQuestionnaireTemplates]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -301,6 +355,14 @@ export default function FunctionButtonsPage() {
         archive_missing_strategy: record.archive_missing_strategy || 'use_default',
         prompt_override_enabled: !!record.prompt_override_enabled,
         prompt_override_text: record.prompt_override_text || '',
+        // [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 3 字段回填
+        questionnaire_template_id: record.questionnaire_template_id || undefined,
+        capture_purpose: record.capture_purpose || undefined,
+        // pre_card_enabled 兼容老字段 pre_card_for_navigate：优先用新字段，回退到旧字段，默认 true
+        pre_card_enabled:
+          record.pre_card_enabled !== null && record.pre_card_enabled !== undefined
+            ? !!record.pre_card_enabled
+            : !!record.pre_card_for_navigate || true,
       };
 
       // [PRD-AICHAT-CAPSULE-V2 2026-05-15] 移除 ai_reply_mode 字段回填（统一由「关联 Prompt 模板」承载）；
@@ -325,6 +387,8 @@ export default function FunctionButtonsPage() {
         icon: '📌',
         archive_missing_strategy: 'use_default',
         prompt_override_enabled: false,
+        // [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 默认值
+        pre_card_enabled: true,
       });
     }
     setModalOpen(true);
@@ -392,6 +456,22 @@ export default function FunctionButtonsPage() {
           ? !!values.prompt_override_enabled : null,
         prompt_override_text: values.button_type === 'health_self_check' && values.prompt_override_enabled
           ? (values.prompt_override_text || null) : null,
+        // [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 3 个新字段
+        // - questionnaire_template_id：仅 ai_function_type=questionnaire 时生效
+        // - capture_purpose：仅 ai_function_type=image_capture 时生效
+        // - pre_card_enabled：对所有 ai_function 类按钮统一可用（默认 true）
+        questionnaire_template_id:
+          values.button_type === 'ai_function' && values.ai_function_type === 'questionnaire'
+            ? (values.questionnaire_template_id || null)
+            : null,
+        capture_purpose:
+          values.button_type === 'ai_function' && values.ai_function_type === 'image_capture'
+            ? (values.capture_purpose || null)
+            : null,
+        pre_card_enabled:
+          values.button_type === 'ai_function'
+            ? (values.pre_card_enabled !== undefined ? !!values.pre_card_enabled : true)
+            : !!values.pre_card_for_navigate,
       };
 
       if (editingItem) {
@@ -721,8 +801,58 @@ export default function FunctionButtonsPage() {
               label="AI 功能子类型"
               name="ai_function_type"
               rules={[{ required: true, message: '请选择 AI 功能子类型' }]}
+              extra="新版只剩 5 个永久稳定子类型；选择「对话内问卷」后由问卷模板区分业务，选择「图像采集」后由用途区分识药/上传/报告解读。"
             >
               <Select placeholder="请选择 AI 功能子类型" options={AI_FUNCTION_TYPE_OPTIONS} />
+            </Form.Item>
+          )}
+
+          {/* [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] questionnaire 子类型：关联问卷模板 */}
+          {watchedButtonType === 'ai_function' && watchedAiFunctionType === 'questionnaire' && (
+            <Form.Item
+              label="关联问卷模板"
+              name="questionnaire_template_id"
+              rules={[{ required: true, message: '请选择问卷模板' }]}
+              extra={
+                <span>
+                  问卷模板由「问卷模板管理」页面维护；
+                  <a onClick={() => router.push('/questionnaire-templates')}>前往问卷模板管理</a>
+                </span>
+              }
+            >
+              <Select
+                placeholder="请选择问卷模板"
+                showSearch
+                optionFilterProp="label"
+                options={questionnaireTemplates.map((t) => ({
+                  value: t.id,
+                  label: `${t.name}（${t.code}）`,
+                }))}
+              />
+            </Form.Item>
+          )}
+
+          {/* [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] image_capture 子类型：采集用途 */}
+          {watchedButtonType === 'ai_function' && watchedAiFunctionType === 'image_capture' && (
+            <Form.Item
+              label="采集用途"
+              name="capture_purpose"
+              rules={[{ required: true, message: '请选择采集用途' }]}
+              extra="不同用途决定卡片上展示的按钮：识药/上传 = 相册+拍照；报告解读 = 相册+拍照+历史报告"
+            >
+              <Select placeholder="请选择采集用途" options={CAPTURE_PURPOSE_OPTIONS} />
+            </Form.Item>
+          )}
+
+          {/* [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 说明卡片开关：对所有 ai_function 按钮统一可用 */}
+          {watchedButtonType === 'ai_function' && (
+            <Form.Item
+              label="对话内说明卡片"
+              name="pre_card_enabled"
+              valuePropName="checked"
+              extra="开启后，用户点击按钮先在对话区插入一张说明卡片（标题/封面/描述），用户点卡片按钮再真正开启功能。关闭则直接进入功能流程，无卡片铺垫。"
+            >
+              <Switch checkedChildren="开（默认）" unCheckedChildren="关" />
             </Form.Item>
           )}
 

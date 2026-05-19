@@ -27,7 +27,60 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-AI-HOME-V1｜AI 首页与抽屉入口优化 + (tabs) 路由组清理（2026-05-19 17:00）
+## Latest Update: PRD-QUESTIONNAIRE-V1｜AI 咨询配置 - 通用问卷与图像采集统一架构重构（2026-05-19 18:50）
+
+### 范围（后端 + admin-web）
+- 后端架构层重构 `ai_function_type`：从"按业务"7 个枚举，升级到"按交互形态" **5 个稳定子类型**：
+  - `questionnaire`（对话内问卷，由 `questionnaire_template_id` 区分业务）
+  - `image_capture`（图像采集，由 `capture_purpose` 区分：`identify_medicine`/`upload`/`interpret_report`）
+  - `file_upload` / `ai_dialog_trigger` / `quick_ask`（原值保留不变）
+- 旧值（`health_self_check` / `report_interpret` / `photo_upload` / `medicine_recognize`）在校验集仍保留兼容，老客户端不需要改
+
+### 新增数据库表（5 张，通用问卷引擎）
+- `questionnaire_template`：模板元数据（code/name/description/intro_text/estimated_minutes/allow_back/shuffle_questions/ai_prompt_template/ai_opening/report_layout/status/cover_image）
+- `questionnaire_question`：题目（template_id/sort_order/question_type[single_choice|multi_choice|text]/title/subtitle/required/options(JSON)/dimension）
+- `questionnaire_classification_rule`：分型规则（template_id/code/name/description/rule_type[score_range|dimension_max|tag_match]/rule_config(JSON)/sort_order）
+- `questionnaire_recommendation`：分型 → 推荐配置（classification_id/section_type[product|service|store_service|coupon]/section_title/match_mode[sku_list|tag_match]/sku_ids(JSON)/tag_filters(JSON)/max_items）
+- `questionnaire_answer`：用户答题记录（user_id/template_id/consultant_id/answers(JSON)/total_score/dimension_scores(JSON)/classification_id/ai_summary/status/created_at/completed_at）
+
+### `chat_function_buttons` 新增 3 列
+- `questionnaire_template_id BIGINT NULL`（关联问卷模板，`ai_function_type=questionnaire` 时必填）
+- `capture_purpose VARCHAR(32) NULL`（`identify_medicine`/`upload`/`interpret_report`，`ai_function_type=image_capture` 时必填）
+- `pre_card_enabled BOOLEAN DEFAULT TRUE`（说明卡片开关，从旧字段 `pre_card_for_navigate` 自动回填）
+
+### 后端文件清单
+- 新建 `backend/app/api/questionnaire.py`：
+  - 用户端：`GET /api/questionnaire/templates`、`GET /api/questionnaire/templates/{id}`、`GET /api/questionnaire/templates/by-code/{code}`、`POST /api/questionnaire/answers`、`GET /api/questionnaire/answers/{id}`、`GET /api/questionnaire/answers/{id}/report`
+  - 管理端：`/api/admin/questionnaire/{templates|questions|classifications|recommendations}` 全 CRUD
+- 新建 `backend/app/schemas/questionnaire.py`：所有 Pydantic 模型
+- 新建 `backend/app/services/prd_questionnaire_v1_migration.py`：启动时自动执行的 DDL + 数据迁移（幂等）
+- 修改 `backend/app/models/models.py`：新增 5 个 ORM 模型 + ChatFunctionButton 增 3 列
+- 修改 `backend/app/schemas/function_button.py`：`ALLOWED_AI_FUNCTION_TYPES` 增加新值；新增 `NEW_AI_FUNCTION_TYPES` / `ALLOWED_CAPTURE_PURPOSES`
+- 修改 `backend/app/api/function_button.py`：admin 创建/更新接口加 `_validate_questionnaire_and_capture` 校验（`questionnaire` 必须传模板 ID，`image_capture` 必须传合法 `capture_purpose`）
+- 修改 `backend/app/main.py`：注册 `questionnaire.router` + `questionnaire.admin_router`，启动 lifespan 调用 `_run_questionnaire_v1`
+- 新建 `backend/tests/test_questionnaire_v1_20260519.py`：7 个测试全绿（枚举/ORM/模板 CRUD/答题/校验）
+
+### admin-web 文件清单
+- 修改 `admin-web/src/app/(admin)/function-buttons/page.tsx`：
+  - `AI_FUNCTION_TYPE_OPTIONS` 下拉精简到 5 项（旧值不在下拉但保留 LABEL 用于历史记录展示）
+  - 新增 `CAPTURE_PURPOSE_OPTIONS` 单选
+  - `FunctionButton` 接口新增 `questionnaire_template_id` / `capture_purpose` / `pre_card_enabled`
+  - 新增 `fetchQuestionnaireTemplates()` 加载模板下拉
+  - 条件渲染：选 `questionnaire` 显示「关联问卷模板」、选 `image_capture` 显示「采集用途」；所有 `ai_function` 显示「对话内说明卡片」开关
+- 修改 `admin-web/src/app/(admin)/layout.tsx`：菜单「AI 咨询配置」下新增「通用问卷模板管理」入口
+- 新建 `admin-web/src/app/(admin)/questionnaire-templates/page.tsx`：模板列表 + 模板新建/编辑 Modal + 题目/分型管理 Drawer（最小可用版）
+
+### 部署与验证
+- 新建 `deploy/_deploy_questionnaire_v1_20260519.py`：自动化部署脚本（SFTP 上传 backend/admin-web 改动 → 重启 backend → 等待 ready → DB schema 校验 → admin-web 重建 → smoke test → 服务器端 pytest）
+- 远程部署完成，远端 pytest 7/7 通过；smoke：`/api/openapi.json` 200、`/api/questionnaire/templates` 200、`/admin/questionnaire-templates` 308（Nginx 重写正常）
+- 数据迁移已在生产服执行：`chat_function_buttons` 已加 3 列；2 个内置模板 `health_self_check` / `tcm_constitution` 已 seed
+
+### 用户体验手册
+- `user_docs/通用问卷与图像采集统一架构.md`（含全部公网访问链接）
+
+---
+
+## Previous Update: PRD-AI-HOME-V1｜AI 首页与抽屉入口优化 + (tabs) 路由组清理（2026-05-19 17:00）
 
 ### 范围（仅 H5 端）
 - 砍掉 `(tabs)` 路由组，归档到 `h5-web/src/app/_archived_tabs/`（Next.js App Router 自动忽略 `_` 前缀目录）：
