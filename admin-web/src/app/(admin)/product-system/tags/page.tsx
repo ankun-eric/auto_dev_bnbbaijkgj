@@ -1,10 +1,18 @@
 'use client';
 
 /**
- * [PRD-TAG-RECOMMEND-V1 2026-05-20] 标签管理后台
+ * [商品标签体系重构 v1.0 2026-05-20] 标签管理后台
  *
- * 7 类标签：症状 / 功效 / 适用体质 / 适用人群 / 服务特性 / 使用场景 / 其他
- * 功能：CRUD + 合并 + 启停 + 查看关联商品数
+ * 6 大分类：
+ * - 体质类 constitution（预置 9 体质，锁定不可删除）
+ * - 症状类 symptom（运营自维护）
+ * - 人群类 crowd（运营自维护）
+ * - 功效类 effect（运营自维护）
+ * - 场景类 scene（运营自维护）
+ * - 禁忌类 contraindication（运营自维护）
+ *
+ * 功能：6 Tab + CRUD + 合并 + 启停 + 查看关联商品数；
+ * 体质类标签锁定（is_locked=1）：禁止删除/改名/改分类，仅允许启停。
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -22,6 +30,7 @@ import {
   Typography,
   message,
   Tag as AntTag,
+  Tooltip,
 } from 'antd';
 import {
   PlusOutlined,
@@ -29,6 +38,7 @@ import {
   DeleteOutlined,
   MergeCellsOutlined,
   ReloadOutlined,
+  LockOutlined,
 } from '@ant-design/icons';
 import { get, post, put, del } from '@/lib/api';
 
@@ -40,22 +50,18 @@ interface TagItem {
   category: string;
   status: number;
   goods_count: number;
+  is_locked?: number;
+  sort_order?: number;
 }
 
 const CATEGORY_OPTIONS = [
+  { value: 'constitution', label: '🧬 体质类', color: 'green' },
   { value: 'symptom', label: '🤒 症状类', color: 'red' },
+  { value: 'crowd', label: '👥 人群类', color: 'blue' },
   { value: 'effect', label: '💊 功效类', color: 'orange' },
-  { value: 'constitution', label: '🧬 适用体质', color: 'green' },
-  { value: 'crowd', label: '👥 适用人群', color: 'blue' },
-  { value: 'service', label: '🛎️ 服务特性', color: 'purple' },
-  { value: 'scene', label: '🌅 使用场景', color: 'magenta' },
-  { value: 'other', label: '🔖 其他', color: 'default' },
+  { value: 'scene', label: '🌅 场景类', color: 'magenta' },
+  { value: 'contraindication', label: '⚠️ 禁忌类', color: 'volcano' },
 ];
-
-function categoryLabel(c: string): string {
-  const o = CATEGORY_OPTIONS.find((x) => x.value === c);
-  return o?.label || c;
-}
 
 function categoryColor(c: string): string {
   const o = CATEGORY_OPTIONS.find((x) => x.value === c);
@@ -63,7 +69,7 @@ function categoryColor(c: string): string {
 }
 
 export default function TagsManagementPage() {
-  const [activeCategory, setActiveCategory] = useState<string>('symptom');
+  const [activeCategory, setActiveCategory] = useState<string>('constitution');
   const [items, setItems] = useState<TagItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<TagItem | null>(null);
@@ -93,7 +99,7 @@ export default function TagsManagementPage() {
   const openCreate = () => {
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ category: activeCategory, status: 1 });
+    form.setFieldsValue({ category: activeCategory, status: 1, sort_order: 0 });
     setModalOpen(true);
   };
 
@@ -180,6 +186,11 @@ export default function TagsManagementPage() {
       render: (v: string, r: TagItem) => (
         <Space>
           <AntTag color={categoryColor(r.category)}>{v}</AntTag>
+          {Number(r.is_locked) === 1 && (
+            <Tooltip title="系统预置（仅允许启停，不可删除/改名/合并）">
+              <LockOutlined style={{ color: '#999' }} />
+            </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -187,6 +198,11 @@ export default function TagsManagementPage() {
       title: '关联商品数',
       dataIndex: 'goods_count',
       width: 110,
+    },
+    {
+      title: '排序',
+      dataIndex: 'sort_order',
+      width: 80,
     },
     {
       title: '状态',
@@ -204,15 +220,22 @@ export default function TagsManagementPage() {
     {
       title: '操作',
       width: 240,
-      render: (_: any, r: TagItem) => (
-        <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>编辑</Button>
-          <Button size="small" icon={<MergeCellsOutlined />} onClick={() => openMerge(r)}>合并</Button>
-          <Popconfirm title="确认删除？关联商品的此标签将一并移除" onConfirm={() => handleDelete(r)}>
-            <Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
-          </Popconfirm>
-        </Space>
-      ),
+      render: (_: any, r: TagItem) => {
+        const locked = Number(r.is_locked) === 1;
+        return (
+          <Space>
+            <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>编辑</Button>
+            <Button size="small" icon={<MergeCellsOutlined />} onClick={() => openMerge(r)} disabled={locked}>
+              合并
+            </Button>
+            {!locked && (
+              <Popconfirm title="确认删除？关联商品的此标签将一并移除" onConfirm={() => handleDelete(r)}>
+                <Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
+              </Popconfirm>
+            )}
+          </Space>
+        );
+      },
     },
   ];
 
@@ -220,7 +243,7 @@ export default function TagsManagementPage() {
     <div style={{ padding: 16 }}>
       <Title level={4}>标签管理</Title>
       <div style={{ color: '#666', marginBottom: 16, fontSize: 13 }}>
-        商品属性标签：分 7 大类。运营自维护，用于商品推荐筛选、问卷推荐配置。
+        商品标签体系（6 大类）：体质类、症状类、人群类、功效类、场景类、禁忌类。运营自维护，用于商品筛选、相关推荐、问卷推荐。
       </div>
       <Tabs
         activeKey={activeCategory}
@@ -254,10 +277,16 @@ export default function TagsManagementPage() {
       >
         <Form form={form} layout="vertical" preserve={false}>
           <Form.Item name="category" label="分类" rules={[{ required: true }]}>
-            <Select options={CATEGORY_OPTIONS.map((c) => ({ value: c.value, label: c.label }))} />
+            <Select
+              options={CATEGORY_OPTIONS.map((c) => ({ value: c.value, label: c.label }))}
+              disabled={Number(editing?.is_locked) === 1}
+            />
           </Form.Item>
           <Form.Item name="name" label="标签名" rules={[{ required: true, max: 64 }]}>
-            <Input placeholder="如：补气、气虚质" data-testid="tag-name-input" />
+            <Input placeholder="如：补气、气虚质" data-testid="tag-name-input" disabled={Number(editing?.is_locked) === 1} />
+          </Form.Item>
+          <Form.Item name="sort_order" label="排序" initialValue={0}>
+            <Input type="number" placeholder="数值越小越靠前" />
           </Form.Item>
           <Form.Item name="status" label="状态" initialValue={1}>
             <Select

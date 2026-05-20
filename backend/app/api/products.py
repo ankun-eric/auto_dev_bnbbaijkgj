@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.models.models import (
+    GoodsTag,
     OrderItem,
     OrderReview,
     Product,
@@ -16,6 +17,7 @@ from app.models.models import (
     ProductSku,
     ProductStore,
     MerchantStore,
+    Tag,
     UnifiedOrder,
     UnifiedOrderStatus,
 )
@@ -37,6 +39,42 @@ async def _has_recommend_products(db: AsyncSession) -> bool:
     )
     count = result.scalar() or 0
     return count > 0
+
+
+async def _load_products_tags(db: AsyncSession, goods_ids: list[int]) -> dict[int, dict]:
+    """[商品标签体系重构 v1.0] 批量加载多个商品的标签关联，返回 {goods_id: {tag_ids, tags}}
+
+    tags 按 6 大分类分组，便于 C 端按分类展示。
+    """
+    if not goods_ids:
+        return {}
+    rows = (
+        await db.execute(
+            select(GoodsTag.goods_id, Tag)
+            .join(Tag, Tag.id == GoodsTag.tag_id)
+            .where(GoodsTag.goods_id.in_(goods_ids), Tag.status == 1)
+        )
+    ).all()
+    result: dict[int, dict] = {gid: {"tag_ids": [], "tags": {}} for gid in goods_ids}
+    for gid, t in rows:
+        bucket = result[gid]
+        bucket["tag_ids"].append(t.id)
+        bucket["tags"].setdefault(t.category, []).append({
+            "id": t.id,
+            "name": t.name,
+            "category": t.category,
+        })
+    return result
+
+
+def _attach_tags(item_dict: dict, tag_bucket: dict | None) -> dict:
+    if tag_bucket:
+        item_dict["tag_ids"] = tag_bucket.get("tag_ids", [])
+        item_dict["tags"] = tag_bucket.get("tags", {})
+    else:
+        item_dict.setdefault("tag_ids", [])
+        item_dict.setdefault("tags", {})
+    return item_dict
 
 
 @router.get("/categories")
@@ -122,6 +160,7 @@ async def list_products(
     keyword: Optional[str] = None,
     q: Optional[str] = None,
     constitution_type: Optional[str] = None,
+    tag_ids: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -168,15 +207,43 @@ async def list_products(
     final_kw = (q or keyword or "").strip()
     if final_kw:
         kw = f"%{final_kw}%"
-        # 改造④：name 或 symptom_tags（tags JSON 字符串化模糊匹配）任一命中
-        cond = Product.name.like(kw) | cast(Product.symptom_tags, String).like(kw)
+        # [商品标签体系重构 v1.0] 关键词搜索：name 或 命中任一启用标签的 name
+        tag_match_subq = (
+            select(GoodsTag.goods_id)
+            .join(Tag, Tag.id == GoodsTag.tag_id)
+            .where(Tag.name.like(kw), Tag.status == 1)
+        )
+        cond = Product.name.like(kw) | Product.id.in_(tag_match_subq)
         query = query.where(cond)
         count_query = count_query.where(cond)
     if constitution_type:
-        ct_pattern = f"%{constitution_type}%"
-        filter_cond = cast(Product.symptom_tags, String).like(ct_pattern)
-        query = query.where(filter_cond)
-        count_query = count_query.where(filter_cond)
+        # [商品标签体系重构 v1.0] 体质筛选：找到 constitution 类下名称匹配的 tag.id，
+        # 再用 goods_tags 关联筛出商品；体质名兼容带"质"或不带"质"两种写法
+        ct = (constitution_type or "").strip()
+        ct_variants = {ct, ct + "质", ct.replace("质", "")}
+        const_subq = (
+            select(GoodsTag.goods_id)
+            .join(Tag, Tag.id == GoodsTag.tag_id)
+            .where(
+                Tag.category == "constitution",
+                Tag.status == 1,
+                Tag.name.in_(list(ct_variants)),
+            )
+        )
+        query = query.where(Product.id.in_(const_subq))
+        count_query = count_query.where(Product.id.in_(const_subq))
+    if tag_ids:
+        # [商品标签体系重构 v1.0] 多 tag 命中：逗号分隔
+        try:
+            tid_list = [int(x) for x in str(tag_ids).split(",") if x.strip().isdigit()]
+        except Exception:
+            tid_list = []
+        if tid_list:
+            multi_subq = (
+                select(GoodsTag.goods_id).where(GoodsTag.tag_id.in_(tid_list))
+            )
+            query = query.where(Product.id.in_(multi_subq))
+            count_query = count_query.where(Product.id.in_(multi_subq))
 
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
@@ -197,7 +264,16 @@ async def list_products(
     result = await db.execute(
         order_clause.offset((page - 1) * page_size).limit(page_size)
     )
-    items = [ProductResponse.model_validate(p) for p in result.scalars().all()]
+    prods = result.scalars().all()
+    # [商品标签体系重构 v1.0] 批量加载并注入 tags / tag_ids
+    tag_map = await _load_products_tags(db, [p.id for p in prods])
+    items = []
+    for p in prods:
+        m = ProductResponse.model_validate(p)
+        bucket = tag_map.get(p.id) or {}
+        m.tag_ids = bucket.get("tag_ids", [])
+        m.tags = bucket.get("tags", {})
+        items.append(m)
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
@@ -234,7 +310,15 @@ async def hot_recommendations(
                 seen.add(p.id)
                 if len(items_recent) >= limit:
                     break
-    items = [ProductResponse.model_validate(p) for p in items_recent[:limit]]
+    prods = items_recent[:limit]
+    tag_map = await _load_products_tags(db, [p.id for p in prods])
+    items = []
+    for p in prods:
+        m = ProductResponse.model_validate(p)
+        bucket = tag_map.get(p.id) or {}
+        m.tag_ids = bucket.get("tag_ids", [])
+        m.tags = bucket.get("tags", {})
+        items.append(m)
     return {"items": items}
 
 
@@ -284,7 +368,99 @@ async def get_product(product_id: int, db: AsyncSession = Depends(get_db)):
     data.review_count = review_count
     data.avg_rating = float(avg_rating) if avg_rating else None
     data.category_name = category_name
+    # [商品标签体系重构 v1.0] 注入新标签字段
+    tag_map = await _load_products_tags(db, [product.id])
+    bucket = tag_map.get(product.id) or {}
+    data.tag_ids = bucket.get("tag_ids", [])
+    data.tags = bucket.get("tags", {})
     return data
+
+
+@router.get("/{product_id}/related")
+async def get_related_products(
+    product_id: int,
+    limit: int = Query(6, ge=1, le=20),
+    db: AsyncSession = Depends(get_db),
+):
+    """[商品标签体系重构 v1.0 2026-05-20] 相关商品推荐
+
+    算法：基于「标签命中数」加权
+    1. 取当前商品挂载的所有启用标签 tag_ids
+    2. 找出其它启用商品中也命中这些标签的商品，按命中数倒序排序
+    3. 命中数相同的按销量、上架时间补充排序
+    4. 若该商品无任何标签，回退按同分类销量 Top
+    """
+    base = await db.get(Product, product_id)
+    if not base:
+        raise HTTPException(status_code=404, detail="商品不存在")
+
+    # 当前商品的启用标签
+    cur_tag_ids = (
+        await db.execute(
+            select(GoodsTag.tag_id)
+            .join(Tag, Tag.id == GoodsTag.tag_id)
+            .where(GoodsTag.goods_id == product_id, Tag.status == 1)
+        )
+    ).scalars().all()
+
+    rows: list[tuple[int, int]] = []
+    if cur_tag_ids:
+        rows = list(
+            (
+                await db.execute(
+                    select(GoodsTag.goods_id, func.count(GoodsTag.tag_id))
+                    .where(
+                        GoodsTag.tag_id.in_(list(cur_tag_ids)),
+                        GoodsTag.goods_id != product_id,
+                    )
+                    .group_by(GoodsTag.goods_id)
+                    .order_by(func.count(GoodsTag.tag_id).desc())
+                    .limit(limit * 3)
+                )
+            ).all()
+        )
+
+    candidate_ids = [int(gid) for gid, _ in rows]
+    hit_map = {int(gid): int(cnt) for gid, cnt in rows}
+
+    if not candidate_ids:
+        fallback_q = (
+            select(Product)
+            .options(selectinload(Product.skus))
+            .where(
+                Product.status == "active",
+                Product.id != product_id,
+                Product.category_id == base.category_id,
+            )
+            .order_by(Product.sales_count.desc(), Product.created_at.desc())
+            .limit(limit)
+        )
+        prods = (await db.execute(fallback_q)).scalars().all()
+    else:
+        q = (
+            select(Product)
+            .options(selectinload(Product.skus))
+            .where(Product.id.in_(candidate_ids), Product.status == "active")
+        )
+        prods = list((await db.execute(q)).scalars().all())
+        prods.sort(
+            key=lambda p: (
+                -hit_map.get(p.id, 0),
+                -(p.sales_count or 0),
+                -int((p.created_at or datetime.min).timestamp() if p.created_at else 0),
+            )
+        )
+        prods = prods[:limit]
+
+    tag_map = await _load_products_tags(db, [p.id for p in prods])
+    items = []
+    for p in prods:
+        m = ProductResponse.model_validate(p)
+        bucket = tag_map.get(p.id) or {}
+        m.tag_ids = bucket.get("tag_ids", [])
+        m.tags = bucket.get("tags", {})
+        items.append(m)
+    return {"items": items, "hit_map": hit_map}
 
 
 @router.get("/{product_id}/time-slots/availability")

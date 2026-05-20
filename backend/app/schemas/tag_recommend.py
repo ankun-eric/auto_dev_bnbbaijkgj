@@ -8,8 +8,21 @@ from typing import Any, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
-# 7 类分类枚举
-TAG_CATEGORIES = ("symptom", "effect", "constitution", "crowd", "service", "scene", "other")
+# [商品标签体系重构 v1.0 2026-05-20] 6 类分类枚举（不再包含 service/other）
+TAG_CATEGORIES = (
+    "constitution",      # 体质类（预置 9 体质，锁定）
+    "symptom",           # 症状类
+    "crowd",             # 人群类
+    "effect",            # 功效类
+    "scene",             # 场景类
+    "contraindication",  # 禁忌类
+)
+
+# 9 种体质，统一为 constitution 类下预置标签，is_locked=1
+CONSTITUTION_PRESET_NAMES = (
+    "平和质", "气虚质", "阳虚质", "阴虚质",
+    "痰湿质", "湿热质", "血瘀质", "气郁质", "特禀质",
+)
 
 
 # ──────────────── Tag ────────────────
@@ -19,6 +32,7 @@ class TagBase(BaseModel):
     name: str = Field(..., max_length=64)
     category: str = Field(..., max_length=32)
     status: Optional[int] = 1
+    sort_order: Optional[int] = 0
 
 
 class TagCreate(TagBase):
@@ -29,11 +43,13 @@ class TagUpdate(BaseModel):
     name: Optional[str] = None
     category: Optional[str] = None
     status: Optional[int] = None
+    sort_order: Optional[int] = None
 
 
 class TagResponse(TagBase):
     id: int
     goods_count: Optional[int] = 0
+    is_locked: Optional[int] = 0
     created_at: datetime
     updated_at: datetime
 

@@ -224,6 +224,18 @@ const CONSTITUTION_TYPES = [
   '血瘀质', '气郁质', '特禀质', '平和质',
 ];
 
+// [商品标签体系重构 v1.0 2026-05-20] 6 大标签分类配置
+const TAG_CATEGORY_DEFS: Array<{ key: string; label: string; color: string; hideForPhysical?: boolean }> = [
+  { key: 'constitution', label: '🧬 体质类', color: 'green' },
+  { key: 'symptom', label: '🤒 症状类', color: 'red' },
+  { key: 'crowd', label: '👥 人群类', color: 'blue' },
+  { key: 'effect', label: '💊 功效类', color: 'orange' },
+  { key: 'scene', label: '🌅 场景类', color: 'magenta' },
+  // 履约方式 = 「实物（delivery）」时隐藏与服务履约高度相关的「禁忌类」分类
+  // （按 PRD 4.4：履约方式=实物时，服务相关分类整体不渲染）
+  { key: 'contraindication', label: '⚠️ 禁忌类', color: 'volcano', hideForPhysical: true },
+];
+
 type TabKey = 'base' | 'tags' | 'points' | 'appointment' | 'sort';
 
 const TABS: { key: TabKey; label: string }[] = [
@@ -489,6 +501,12 @@ export default function ProductsPage() {
   const [searchText, setSearchText] = useState('');
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [symptomTags, setSymptomTags] = useState<SymptomTag[]>([]);
+  // [商品标签体系重构 v1.0] 所有可用标签按分类分组（仅 status=1）
+  const [tagsByCategory, setTagsByCategory] = useState<Record<string, Array<{ id: number; name: string }>>>({});
+  // 当前商品已挂载的 tag_ids
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  // 当前在编辑弹窗中所选履约方式（用于判断是否隐藏服务相关分类）
+  const [currentFulfillmentType, setCurrentFulfillmentType] = useState<string>('in_store');
   const [form] = Form.useForm();
 
   // 新增状态
@@ -549,6 +567,36 @@ export default function ProductsPage() {
     } catch {}
   }, []);
 
+  // [商品标签体系重构 v1.0] 加载所有启用标签，按分类分组
+  const fetchAllTagsByCategory = useCallback(async () => {
+    const grouped: Record<string, Array<{ id: number; name: string }>> = {};
+    for (const c of TAG_CATEGORY_DEFS) {
+      try {
+        const res: any = await get('/api/admin/tags', { category: c.key, status: 1, page: 1, page_size: 500 });
+        const items = (res?.items || []) as Array<{ id: number; name: string; status: number }>;
+        grouped[c.key] = items.filter((t) => Number(t.status) === 1).map((t) => ({ id: t.id, name: t.name }));
+      } catch {
+        grouped[c.key] = [];
+      }
+    }
+    setTagsByCategory(grouped);
+  }, []);
+
+  // 加载某商品已挂载的标签关联
+  const fetchGoodsTagIds = useCallback(async (goodsId: number) => {
+    try {
+      const res: any = await get(`/api/admin/goods/${goodsId}/tags`);
+      const ids = Array.isArray(res?.tag_ids) ? res.tag_ids.map((x: any) => Number(x)) : [];
+      setSelectedTagIds(ids);
+    } catch {
+      setSelectedTagIds([]);
+    }
+  }, []);
+
+  const toggleTag = (tagId: number) => {
+    setSelectedTagIds((prev) => (prev.includes(tagId) ? prev.filter((x) => x !== tagId) : [...prev, tagId]));
+  };
+
   const fetchApptForms = useCallback(async () => {
     try {
       const res = await get('/api/admin/appointment-forms', { page: 1, page_size: 200 });
@@ -594,6 +642,7 @@ export default function ProductsPage() {
     (async () => {
       await fetchCategories();
       await fetchSymptomTags();
+      await fetchAllTagsByCategory();
       await fetchApptForms();
       await fetchData(1, 10);
     })();
@@ -615,12 +664,17 @@ export default function ProductsPage() {
     setApptMode('none');
     setTimeSlots([]);
     setBoundStoreCount(0);
+    // [商品标签体系重构 v1.0] 重置标签选中状态
+    setSelectedTagIds([]);
+    setCurrentFulfillmentType('in_store');
   };
 
   const handleAdd = () => {
     setEditingRecord(null);
     form.resetFields();
     resetDialogState();
+    setCurrentFulfillmentType('in_store');
+    setSelectedTagIds([]);
     form.setFieldsValue({
       status: 'draft',
       stock: 100,
@@ -648,8 +702,9 @@ export default function ProductsPage() {
       if (res) detail = mapProduct(res);
     } catch {}
 
-    const existingConstitutions = (detail.symptom_tags || []).filter(t => CONSTITUTION_TYPES.includes(t));
-    const otherTags = (detail.symptom_tags || []).filter(t => !CONSTITUTION_TYPES.includes(t));
+    // [商品标签体系重构 v1.0] 不再使用 symptom_tags / constitution_types
+    setCurrentFulfillmentType(detail.fulfillment_type || 'in_store');
+    await fetchGoodsTagIds(detail.id);
 
     form.setFieldsValue({
       name: detail.name,
@@ -658,8 +713,6 @@ export default function ProductsPage() {
       original_price: detail.original_price ?? undefined,
       sale_price: detail.sale_price,
       selling_point: detail.selling_point || '',
-      symptom_tags: otherTags,
-      constitution_types: existingConstitutions,
       stock: detail.stock,
       points_exchangeable: detail.points_exchangeable,
       points_price: detail.points_price,
@@ -938,7 +991,8 @@ export default function ProductsPage() {
       product_code_list: productCodes,
       spec_mode: specMode,
       skus: specMode === 2 ? skuList : [],
-      symptom_tags: [...(values.symptom_tags || []), ...(values.constitution_types || [])],
+      // [商品标签体系重构 v1.0] 旧 symptom_tags / constitution_types 已废弃，统一用 tag_ids
+      tag_ids: selectedTagIds,
       stock: specMode === 1 ? (values.stock ?? editingRecord?.stock ?? 0) : totalSkuStock,
       points_exchangeable: values.points_exchangeable || false,
       points_price: values.points_price ?? 0,
@@ -1244,7 +1298,11 @@ export default function ProductsPage() {
             </Col>
             <Col span={12}>
               <Form.Item label="履约类型" name="fulfillment_type" rules={[{ required: true, message: '请选择类型' }]}>
-                <Select options={fulfillmentTypes} placeholder="请选择类型" />
+                <Select
+                  options={fulfillmentTypes}
+                  placeholder="请选择类型"
+                  onChange={(v) => setCurrentFulfillmentType(String(v || 'in_store'))}
+                />
               </Form.Item>
             </Col>
           </Row>
@@ -1397,18 +1455,63 @@ export default function ProductsPage() {
           </Form.Item>
         </div>
 
-        {/* ── 标签设置 Tab ── */}
+        {/* ── 标签设置 Tab ──
+            [商品标签体系重构 v1.0 2026-05-20]
+            6 大分类 Chip 池：点击 chip 即选中/取消，挂载数量无上限、所有分类均无必填校验。
+            履约方式=「实物」时，与服务履约相关的分类（如禁忌类）整体隐藏。
+        */}
         <div style={tabStyle('tags')}>
-          <Form.Item label="症状标签" name="symptom_tags">
-            <Select
-              mode="tags"
-              placeholder="输入或选择症状标签"
-              options={symptomTags.map(t => ({ label: `${t.tag} (${t.count})`, value: t.tag }))}
-            />
-          </Form.Item>
-          <Form.Item label="适用体质" name="constitution_types">
-            <Checkbox.Group options={CONSTITUTION_TYPES.map(t => ({ label: t, value: t }))} />
-          </Form.Item>
+          <div style={{ color: '#666', fontSize: 12, marginBottom: 12 }}>
+            点击下方分类中的标签即可选中/取消挂载。所有分类均可不挂载，挂载数量无上限。
+            如需新增标签，请前往「标签管理」菜单维护。
+          </div>
+          {TAG_CATEGORY_DEFS.map((cat) => {
+            const isPhysical = currentFulfillmentType === 'delivery';
+            if (isPhysical && cat.hideForPhysical) return null;
+            const list = tagsByCategory[cat.key] || [];
+            const selectedInThisCat = list.filter((t) => selectedTagIds.includes(t.id)).length;
+            return (
+              <div
+                key={cat.key}
+                data-testid={`tag-chip-category-${cat.key}`}
+                style={{ marginBottom: 16, padding: 12, border: '1px solid #f0f0f0', borderRadius: 6 }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>
+                  <span>{cat.label}</span>
+                  <span style={{ color: '#999', marginLeft: 8, fontWeight: 400 }}>
+                    （已选 {selectedInThisCat}）
+                  </span>
+                </div>
+                {list.length === 0 ? (
+                  <div style={{ color: '#bbb', fontSize: 12 }}>
+                    （该分类暂无可用标签，请前往「标签管理」新增）
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {list.map((t) => {
+                      const active = selectedTagIds.includes(t.id);
+                      return (
+                        <Tag
+                          key={t.id}
+                          data-testid={`tag-chip-${cat.key}-${t.id}`}
+                          color={active ? cat.color : 'default'}
+                          style={{
+                            cursor: 'pointer',
+                            padding: '4px 10px',
+                            fontSize: 13,
+                            borderStyle: active ? 'solid' : 'dashed',
+                          }}
+                          onClick={() => toggleTag(t.id)}
+                        >
+                          {t.name}
+                        </Tag>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* ── 积分设置 Tab ── */}

@@ -196,7 +196,10 @@ class ProductCreate(BaseModel):
     images: Optional[Any] = None
     video_url: Optional[str] = None
     description: Optional[str] = None
+    # [商品标签体系重构 v1.0 2026-05-20] symptom_tags 字段已废弃，但仍保留 schema 兼容
+    # 旧前端可能继续传，这里直接忽略；新前端请使用 tag_ids
     symptom_tags: Optional[Any] = None
+    tag_ids: Optional[list[int]] = None  # 商品挂载的 Tag id 列表（全量覆盖）
     stock: int = 0
     points_exchangeable: bool = False
     points_price: int = 0
@@ -259,7 +262,9 @@ class ProductUpdate(BaseModel):
     images: Optional[Any] = None
     video_url: Optional[str] = None
     description: Optional[str] = None
+    # [商品标签体系重构 v1.0 2026-05-20] symptom_tags 字段已废弃，但仍保留 schema 兼容
     symptom_tags: Optional[Any] = None
+    tag_ids: Optional[list[int]] = None  # 商品挂载的 Tag id 列表（全量覆盖）
     stock: Optional[int] = None
     points_exchangeable: Optional[bool] = None
     points_price: Optional[int] = None
@@ -372,7 +377,10 @@ class ProductResponse(BaseModel):
     images: Optional[Any] = None
     video_url: Optional[str] = None
     description: Optional[str] = None
+    # [商品标签体系重构 v1.0 2026-05-20] symptom_tags 字段保留为空数组用于兼容；新字段为 tag_ids / tags
     symptom_tags: Optional[Any] = None
+    tag_ids: list[int] = []
+    tags: dict[str, list[Any]] = {}
     stock: int
     points_exchangeable: bool
     points_price: int

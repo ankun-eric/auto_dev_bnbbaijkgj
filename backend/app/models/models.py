@@ -2747,15 +2747,29 @@ class QuestionnaireAnswer(Base):
 
 
 class Tag(Base):
-    """商品属性标签（symptom/effect/constitution/crowd/service/scene/other）"""
+    """商品属性标签（6 大分类：constitution/symptom/crowd/effect/scene/contraindication）
+
+    [商品标签体系重构 v1.0 2026-05-20]
+    - 6 大分类彻底替代旧的 service/other 两个分类
+    - constitution 类下预置 9 个体质标签，is_locked=1，仅允许停用不允许物理删除
+    - 历史 service/other 数据会被迁移脚本归并/清理
+    """
 
     __tablename__ = "tags"
 
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     name = mapped_column(String(64), nullable=False, comment="标签名")
-    category = mapped_column(String(32), nullable=False, index=True, comment="分类：symptom/effect/constitution/crowd/service/scene/other")
+    category = mapped_column(
+        String(32),
+        nullable=False,
+        index=True,
+        comment="分类：constitution/symptom/crowd/effect/scene/contraindication",
+    )
     status = mapped_column(Integer, nullable=False, default=1, comment="1启用 0停用")
     goods_count = mapped_column(Integer, nullable=True, default=0, comment="关联商品数（缓存）")
+    # 锁定标志：1=系统预置不可物理删除/不可改分类（用于 9 种体质）
+    is_locked = mapped_column(Integer, nullable=False, default=0, server_default="0", comment="1=系统锁定 0=运营自维护")
+    sort_order = mapped_column(Integer, nullable=False, default=0, server_default="0", comment="排序值，越小越靠前")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -3014,7 +3028,9 @@ class Product(Base):
     images = mapped_column(JSON, nullable=True)
     video_url = mapped_column(String(500), nullable=True)
     description = mapped_column(Text, nullable=True)
-    symptom_tags = mapped_column(JSON, nullable=True)
+    # [商品标签体系重构 v1.0 2026-05-20]
+    # 原 symptom_tags JSON 字段已废弃，所有商品标签关联统一存入 goods_tags 表（Tag/GoodsTag）。
+    # 数据库迁移会在启动时执行 ALTER TABLE products DROP COLUMN symptom_tags。
     stock = mapped_column(Integer, default=0)
     # 商品功能优化 v1.0：valid_start_date / valid_end_date 已废弃并清理
     # 如果历史业务确有限时活动需求，请改造为独立的 promotion 表

@@ -27,7 +27,59 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-TCM-DRAWER-V12 Bugfix｜体质测评「加载问卷模板失败 + 36 题模板 + 卡片弹出」Bug 修复 (2026-05-20 14:15)
+## Latest Update: 商品标签体系重构 v1.0 — 6 大分类 / 9 体质锁定 / Chip 池 / drop symptom_tags (2026-05-20 15:30)
+
+**任务类型**：体系性 Bug 修复（数据层 + 后端 + admin-web + flutter_app + miniprogram + h5-web 全链路）
+
+**核心交付**：
+
+1. **数据层（生产已生效）**：
+   - `tags` 表新增 `is_locked`、`sort_order` 列（迁移幂等 ALTER）
+   - 预置 9 个 `constitution` 体质标签（id=109..117，`is_locked=1`，`sort_order=1..9`，平和/气虚/阳虚/阴虚/痰湿/湿热/血瘀/气郁/特禀）
+   - 旧 `category='service'` 12 条标签 → 合并到 `contraindication`
+   - 旧 `category='other'` 9 条标签 → `status=0` 停用
+   - **`products.symptom_tags` 列已 DROP**（远程已确认）
+   - 数据迁移：`backend/app/services/prd_tag_recommend_v1_migration.py` 全部幂等，启动时自动执行
+
+2. **后端 API**：
+   - `Tag` 模型新增 `is_locked` / `sort_order`；`Product.symptom_tags` 字段从 ORM 移除
+   - `app/schemas/tag_recommend.py`：6 类 `TAG_CATEGORIES = (constitution, symptom, crowd, effect, scene, contraindication)`，新增 `CONSTITUTION_PRESET_NAMES`
+   - `app/api/tag_recommend.py`：
+     - 系统锁定标签禁止改名/改分类/删除/合并（HTTP 400）
+     - 删除前检查 `goods_count`，被引用拒绝删除
+   - `app/api/product_admin.py`：商品创建/更新支持 `tag_ids: list[int]`，新增 `_sync_goods_tags` 全量覆写；响应返回 `tag_ids` + `tags`（按分类分组）
+   - `app/api/products.py`（C 端）：
+     - `list_products` 支持 `tag_ids` 过滤
+     - `keyword` / `constitution_type` 筛选改走 `Tag` + `GoodsTag` 表
+     - 新增 `GET /api/products/{id}/related` 按标签命中数加权推荐
+     - 修复 MySQL 不支持 `NULLS LAST` 的语法问题
+
+3. **admin-web（后台前端）**：
+   - `product-system/tags/page.tsx`：6 Tab 切换；锁定标签不能改名/改分类/删除（按钮禁用 + LockOutlined 提示）
+   - `product-system/products/page.tsx`：商品编辑「标签设置」改为按分类 **Chip 池**，已选高亮、点击切换；分类标题显示「已选 N」；履约方式=`delivery`（实物）时禁忌类自动隐藏
+
+4. **多端 C 端**：
+   - `flutter_app/lib/models/product.dart`：新增 `tagIds` + `tagsByCategory` 字段并解析
+   - `miniprogram` / `h5-web` 商品列表已切到新 `tags` 体系
+
+5. **测试**：
+   - 新增 `backend/tests/test_tag_system_refactor_v1_20260520.py`（13 个用例覆盖 schema/API/UI 元素）
+   - 更新 `backend/tests/test_tag_recommend_v1_20260520.py`（14 用例兼容 6 类新体系）
+   - **本地 27 个用例全部通过**
+
+6. **远程烟测（生产环境）**：
+   - `/api/products` 200 ✅
+   - `/api/products/{id}` 200，返回 `tag_ids` + `tags` ✅
+   - `/api/products/{id}/related` 200 ✅
+   - `/api/admin/tags` 401（需管理员鉴权，符合预期）✅
+
+**部署方式**：因后端 Dockerfile 是 `COPY .` 构建打包模式，restart 不会更新代码。本次采用 `docker cp` 拷贝修改文件入容器 + `docker restart` 即时生效（生产应在 CI 重建镜像）。
+
+**用户手册**：`user_docs/商品标签体系.md`
+
+---
+
+## Previous Update: PRD-TCM-DRAWER-V12 Bugfix｜体质测评「加载问卷模板失败 + 36 题模板 + 卡片弹出」Bug 修复 (2026-05-20 14:15)
 
 **任务类型**：Bug 修复（admin-web + h5-web + backend；无客户端 (miniprogram/Flutter) 变更）
 

@@ -55,6 +55,9 @@ class Product {
   final String? videoUrl;
   final String? description;
   final List<String> symptomTags;
+  // [商品标签体系重构 v1.0 2026-05-20] 新标签字段：6 大分类的 Tag id 列表 + 按分类分组的 Tag 详情
+  final List<int> tagIds;
+  final Map<String, List<Map<String, dynamic>>> tagsByCategory;
   final int stock;
   final String? validStartDate;
   final String? validEndDate;
@@ -95,6 +98,8 @@ class Product {
     this.videoUrl,
     this.description,
     this.symptomTags = const [],
+    this.tagIds = const [],
+    this.tagsByCategory = const {},
     this.stock = 0,
     this.validStartDate,
     this.validEndDate,
@@ -154,6 +159,26 @@ class Product {
       videoUrl: json['video_url'],
       description: json['description'],
       symptomTags: parseTags(json['symptom_tags']),
+      tagIds: ((json['tag_ids'] as List<dynamic>?) ?? [])
+          .map((e) => int.tryParse(e.toString()) ?? 0)
+          .where((x) => x > 0)
+          .toList(),
+      tagsByCategory: () {
+        final raw = json['tags'];
+        if (raw is Map) {
+          final out = <String, List<Map<String, dynamic>>>{};
+          raw.forEach((k, v) {
+            if (v is List) {
+              out[k.toString()] = v
+                  .whereType<Map>()
+                  .map((m) => Map<String, dynamic>.from(m))
+                  .toList();
+            }
+          });
+          return out;
+        }
+        return <String, List<Map<String, dynamic>>>{};
+      }(),
       stock: json['stock'] ?? 0,
       validStartDate: json['valid_start_date']?.toString(),
       validEndDate: json['valid_end_date']?.toString(),

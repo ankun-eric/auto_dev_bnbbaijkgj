@@ -14,6 +14,7 @@ from app.models.models import (
     CheckinRecord,
     Coupon,
     CouponStatus,
+    GoodsTag,
     MerchantStore,
     OrderItem,
     OrderRedemption,
@@ -25,6 +26,7 @@ from app.models.models import (
     RefundRequestStatus,
     RefundStatusEnum,
     SystemConfig,
+    Tag,
     UnifiedOrder,
     UnifiedOrderStatus,
     User,
@@ -121,6 +123,51 @@ async def _get_sku_order_flags(db: AsyncSession, sku_ids: list[int]) -> dict[int
     return {sid: used_ids.get(sid, False) for sid in sku_ids}
 
 
+async def _load_goods_tags_grouped(db: AsyncSession, goods_id: int) -> tuple[list[int], dict[str, list[dict]]]:
+    """[商品标签体系重构 v1.0] 加载某商品的标签关联，按 6 大分类分组返回
+
+    返回 (tag_ids, grouped_dict)；grouped_dict 键为 category，值为 [{id,name,...}, ...]
+    """
+    rows = (
+        await db.execute(
+            select(Tag).join(GoodsTag, GoodsTag.tag_id == Tag.id).where(GoodsTag.goods_id == goods_id)
+        )
+    ).scalars().all()
+    tag_ids: list[int] = []
+    grouped: dict[str, list[dict]] = {}
+    for t in rows:
+        tag_ids.append(t.id)
+        grouped.setdefault(t.category, []).append({
+            "id": t.id,
+            "name": t.name,
+            "category": t.category,
+            "status": int(t.status or 1),
+        })
+    return tag_ids, grouped
+
+
+async def _sync_goods_tags(db: AsyncSession, goods_id: int, tag_ids: list[int] | None) -> None:
+    """[商品标签体系重构 v1.0] 商品标签关联全量覆盖式写入"""
+    if tag_ids is None:
+        return
+    from sqlalchemy import delete as _del
+    # 校验所有 tag 存在并启用
+    valid: list[int] = []
+    if tag_ids:
+        rows = (
+            await db.execute(select(Tag.id).where(Tag.id.in_(tag_ids), Tag.status == 1))
+        ).scalars().all()
+        valid = list(rows)
+    await db.execute(_del(GoodsTag).where(GoodsTag.goods_id == goods_id))
+    seen: set[int] = set()
+    for tid in valid:
+        if tid in seen:
+            continue
+        seen.add(tid)
+        db.add(GoodsTag(goods_id=goods_id, tag_id=tid))
+    await db.flush()
+
+
 async def _build_product_response_dict(db: AsyncSession, product: Product) -> dict:
     """把 Product ORM 对象 + 其 SKUs 组装成响应 dict（含 has_orders 标记）"""
     sku_result = await db.execute(
@@ -130,6 +177,8 @@ async def _build_product_response_dict(db: AsyncSession, product: Product) -> di
     )
     skus = list(sku_result.scalars().all())
     has_orders_map = await _get_sku_order_flags(db, [s.id for s in skus])
+    # [商品标签体系重构 v1.0] 加载关联标签
+    tag_ids, tags_grouped = await _load_goods_tags_grouped(db, product.id)
 
     sku_list: list[dict] = []
     for s in skus:
@@ -180,7 +229,11 @@ async def _build_product_response_dict(db: AsyncSession, product: Product) -> di
         "images": product.images or [],
         "video_url": product.video_url or "",
         "description": product.description or "",
-        "symptom_tags": product.symptom_tags or [],
+        # [商品标签体系重构 v1.0] symptom_tags 字段已 drop；改返回新标签体系字段
+        # 保留 symptom_tags=[] 仅作 schema 兼容（前端会在本期清除该字段使用）
+        "symptom_tags": [],
+        "tag_ids": tag_ids,
+        "tags": tags_grouped,
         "stock": product.stock or 0,
         "points_exchangeable": bool(product.points_exchangeable),
         "points_price": product.points_price or 0,
@@ -538,7 +591,7 @@ async def admin_create_product(
         images=data.images,
         video_url=data.video_url,
         description=data.description,
-        symptom_tags=data.symptom_tags,
+        # [商品标签体系重构 v1.0] symptom_tags 字段已 drop，统一通过 goods_tags 关联
         stock=data.stock,
         points_exchangeable=data.points_exchangeable,
         points_price=data.points_price,
@@ -580,6 +633,11 @@ async def admin_create_product(
     # 多规格模式下：同步 skus
     if int(data.spec_mode or 1) == 2 and data.skus:
         await _sync_skus_for_product(db, product, data.skus)
+
+    # [商品标签体系重构 v1.0] 写入标签关联（新创建商品默认无关联，除非显式传入 tag_ids）
+    tag_ids = getattr(data, "tag_ids", None)
+    if tag_ids is not None:
+        await _sync_goods_tags(db, product.id, list(tag_ids))
 
     await db.refresh(product)
     return await _build_product_response_dict(db, product)
@@ -669,9 +727,15 @@ async def admin_update_product(
     update_data = data.model_dump(exclude_unset=True)
     store_ids = update_data.pop("store_ids", None)
     skus_input = update_data.pop("skus", None)
+    # [商品标签体系重构 v1.0] 抽出 tag_ids 单独处理；并丢弃旧 symptom_tags / constitution_types 字段
+    new_tag_ids = update_data.pop("tag_ids", None)
+    update_data.pop("symptom_tags", None)
+    update_data.pop("constitution_types", None)
     # time_slots 已经在 model_dump 中序列化为 list[dict]；直接赋值即可
 
     for key, value in update_data.items():
+        if not hasattr(product, key):
+            continue
         setattr(product, key, value)
 
     if store_ids is not None:
@@ -691,6 +755,10 @@ async def admin_update_product(
     # 如果切换回统一规格，清空启用中的规格（未被订单引用的删除，被引用的设置停用）
     if int(product.spec_mode or 1) == 1 and skus_input is not None and len(skus_input) == 0:
         pass  # 已在 _sync_skus_for_product 内处理（传空列表时）
+
+    # [商品标签体系重构 v1.0] 同步标签关联
+    if new_tag_ids is not None:
+        await _sync_goods_tags(db, product.id, list(new_tag_ids))
 
     await db.flush()
     await db.refresh(product)
@@ -1915,7 +1983,7 @@ async def admin_set_checkin_config(
     return {"message": "配置已更新"}
 
 
-# ─────────── 症状标签库 ───────────
+# ─────────── 症状标签库（已废弃保留路由兼容） ───────────
 
 
 @router.get("/symptom-tags")
@@ -1923,17 +1991,12 @@ async def admin_list_symptom_tags(
     current_user=Depends(require_role("admin")),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Product.symptom_tags).where(Product.symptom_tags.isnot(None))
-    )
-    all_tags: dict[str, int] = {}
-    for row in result.scalars().all():
-        if isinstance(row, list):
-            for tag in row:
-                all_tags[tag] = all_tags.get(tag, 0) + 1
+    """[商品标签体系重构 v1.0 2026-05-20] 旧接口已废弃。
 
-    items = [SymptomTagResponse(tag=k, count=v) for k, v in sorted(all_tags.items(), key=lambda x: -x[1])]
-    return {"items": items}
+    新体系下，请改用 GET /api/admin/tags?category=symptom 获取症状类标签。
+    此处保留兼容外壳，返回空列表，避免老前端因 404 报错。
+    """
+    return {"items": []}
 
 
 # ─────────── 门店推荐与商品绑定 ───────────

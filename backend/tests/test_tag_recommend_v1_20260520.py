@@ -128,10 +128,10 @@ async def test_tc01_tag_crud(client: AsyncClient, admin_headers, db_session):
     )
     assert r2.status_code == 400
 
-    # 不同分类下同名允许
+    # 不同分类下同名允许（"contraindication" 是体系重构 v1.0 新分类）
     r3 = await client.post(
         "/api/admin/tags",
-        json={"name": "补气", "category": "other"},
+        json={"name": "补气", "category": "contraindication"},
         headers=admin_headers,
     )
     assert r3.status_code == 200
@@ -403,14 +403,19 @@ def test_tc10_constitution_tags_seed_in_migration():
 
 
 def test_tc11_tags_admin_page_exists():
-    """标签管理后台页面文件存在且包含 7 类 Tab"""
+    """标签管理后台页面文件存在且包含 6 类 Tab（体系重构 v1.0）"""
     src = _read_text("admin-web/src/app/(admin)/product-system/tags/page.tsx")
     assert src is not None, "标签管理页文件不存在"
-    # 7 类
-    for cat in ("symptom", "effect", "constitution", "crowd", "service", "scene", "other"):
+    # 6 类（去掉了 service/other，新增 contraindication）
+    for cat in ("symptom", "effect", "constitution", "crowd", "contraindication", "scene"):
         assert f"'{cat}'" in src or f'"{cat}"' in src, f"分类 {cat} 未在页面中"
+    # 旧分类应被移除
+    assert "'service'" not in src and '"service"' not in src, "旧 service 分类应被移除"
+    assert "'other'" not in src and '"other"' not in src, "旧 other 分类应被移除"
     # 合并入口
     assert "合并" in src, "合并入口未找到"
+    # 锁定图标提示
+    assert "LockOutlined" in src, "体质类锁定图标提示缺失"
 
 
 def test_tc12_h5_recommend_components_exist():

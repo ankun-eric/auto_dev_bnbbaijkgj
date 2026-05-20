@@ -39,6 +39,7 @@ from app.schemas.tag_recommend import (
     TagResponse,
     TagUpdate,
     TAG_CATEGORIES,
+    CONSTITUTION_PRESET_NAMES,
 )
 
 router = APIRouter(
@@ -155,6 +156,12 @@ async def update_tag(
     data = payload.model_dump(exclude_unset=True)
     if "category" in data and data["category"] not in TAG_CATEGORIES:
         raise HTTPException(400, f"无效分类，必须是 {TAG_CATEGORIES} 之一")
+    # [体系重构 v1.0] 体质类锁定标签：禁止改名、禁止改分类
+    if int(getattr(t, "is_locked", 0) or 0) == 1:
+        if "name" in data and data["name"] != t.name:
+            raise HTTPException(400, "系统预置体质标签不允许修改名称")
+        if "category" in data and data["category"] != t.category:
+            raise HTTPException(400, "系统预置体质标签不允许修改分类")
     # 重名检查
     new_name = data.get("name", t.name)
     new_cat = data.get("category", t.category)
@@ -186,8 +193,20 @@ async def delete_tag(
     t = await db.get(Tag, tag_id)
     if not t:
         raise HTTPException(404, "标签不存在")
-    # 同时删除关联记录
-    await db.execute(delete(GoodsTag).where(GoodsTag.tag_id == tag_id))
+    # [体系重构 v1.0] 体质类锁定标签禁止物理删除（仅允许停用）
+    if int(getattr(t, "is_locked", 0) or 0) == 1:
+        raise HTTPException(400, "系统预置体质标签不可删除，仅允许停用")
+    # 引用商品数检查：被引用时给出明确提示
+    used = (
+        await db.execute(
+            select(func.count(GoodsTag.goods_id)).where(GoodsTag.tag_id == tag_id)
+        )
+    ).scalar() or 0
+    if used > 0:
+        raise HTTPException(
+            400,
+            f"该标签已被 {int(used)} 个商品使用，请先在商品编辑页解除引用后再删除，或将其停用",
+        )
     await db.delete(t)
     return {"ok": True}
 
@@ -206,6 +225,8 @@ async def merge_tag(
     tgt = await db.get(Tag, payload.target_id)
     if not src or not tgt:
         raise HTTPException(404, "源或目标标签不存在")
+    if int(getattr(src, "is_locked", 0) or 0) == 1:
+        raise HTTPException(400, "系统预置体质标签不可被合并")
     # 找出 src 下所有商品
     src_goods = (
         await db.execute(select(GoodsTag.goods_id).where(GoodsTag.tag_id == tag_id))
