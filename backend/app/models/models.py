@@ -2656,6 +2656,11 @@ class QuestionnaireTemplate(Base):
     recommend_click_mode = mapped_column(String(16), nullable=True, default="drawer", comment="推荐卡点击行为：drawer / external")
     # 推荐展示数量上限（4/5/6）
     recommend_display_count = mapped_column(Integer, nullable=True, default=6, comment="推荐卡展示数量上限")
+    # ───── [PRD-QN-CONTENT-V1 2026-05-20] 后台可配置 chips / CTA ─────
+    # 后台运营可配置的追问 chips（覆盖默认 3 个），格式：[{"code": "...", "label": "..."}, ...]
+    followup_chips_json = mapped_column(JSON, nullable=True, comment="可配置追问 chips（覆盖默认）：[{code,label,prompt_template}]")
+    # 后台运营可配置的 CTA 按钮（1~4 个），格式：[{"label","action","target_url","style"}]
+    cta_list_json = mapped_column(JSON, nullable=True, comment="可配置 CTA 按钮（1~4 个）：[{label,action,target_url,style}]")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

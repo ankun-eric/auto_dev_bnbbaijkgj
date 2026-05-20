@@ -34,6 +34,9 @@ class QuestionnaireTemplateBase(BaseModel):
     ai_followup_enabled: Optional[bool] = True
     recommend_click_mode: Optional[str] = "drawer"
     recommend_display_count: Optional[int] = 6
+    # [PRD-QN-CONTENT-V1 2026-05-20] 后台可配置 chips / CTA
+    followup_chips_json: Optional[list[dict[str, Any]]] = None
+    cta_list_json: Optional[list[dict[str, Any]]] = None
 
 
 class QuestionnaireTemplateCreate(QuestionnaireTemplateBase):
@@ -61,6 +64,9 @@ class QuestionnaireTemplateUpdate(BaseModel):
     ai_followup_enabled: Optional[bool] = None
     recommend_click_mode: Optional[str] = None
     recommend_display_count: Optional[int] = None
+    # [PRD-QN-CONTENT-V1 2026-05-20] 后台可配置 chips / CTA
+    followup_chips_json: Optional[list[dict[str, Any]]] = None
+    cta_list_json: Optional[list[dict[str, Any]]] = None
 
 
 class QuestionnaireTemplateResponse(QuestionnaireTemplateBase):

@@ -1,0 +1,189 @@
+=== Deploy QN-CONTENT-V1 to newbb.test.bangbangvip.com ===
+
+--- Step 1: upload backend files ---
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api'
+[exit=0]
+  UPLOADED backend/app/api/questionnaire.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/schemas'
+[exit=0]
+  UPLOADED backend/app/schemas/questionnaire.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/models'
+[exit=0]
+  UPLOADED backend/app/models/models.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app'
+[exit=0]
+  UPLOADED backend/app/main.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/services'
+[exit=0]
+  UPLOADED backend/app/services/prd_qn_content_v1_migration.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests'
+[exit=0]
+  UPLOADED backend/tests/test_qn_content_v1_20260520.py
+
+--- Step 2: docker cp backend files into running container (no rebuild) ---
+
+>>> docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/questionnaire.py 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/app/api/questionnaire.py
+[exit=0]
+
+>>> docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/schemas/questionnaire.py 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/app/schemas/questionnaire.py
+[exit=0]
+
+>>> docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/models/models.py 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/app/models/models.py
+[exit=0]
+
+>>> docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/main.py 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/app/main.py
+[exit=0]
+
+>>> docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/services/prd_qn_content_v1_migration.py 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/app/services/prd_qn_content_v1_migrati
+[exit=0]
+
+>>> docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_qn_content_v1_20260520.py 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/tests/test_qn_content_v1_20260520.py
+[exit=0]
+
+--- Step 3: restart backend container ---
+
+>>> docker restart 6b099ed3-7175-4a78-91f4-44570c84ed27-backend
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend
+
+[exit=0]
+
+--- Step 4: wait backend healthy ---
+
+>>> docker logs --tail 80 6b099ed3-7175-4a78-91f4-44570c84ed27-backend 2>&1 | tail -80
+stions_updated': 3, 'buttons_upgraded': 0, 'tcm_button_registered': 0, 'reverse_score_marked': 0, 'precard_backfilled': 0}
+[migrate] tcm36_drawer_v12: 鍚姩杩佺Щ...
+[migrate] tcm36_drawer_v12: 鍚姩
+[migrate] tcm36_drawer_v12: 瀹屾垚 stats={"phase": "tcm36_drawer_v12", "columns_added": {"trigger_by_keyword": false, "trigger_by_intent": false, "trigger_keywords": false, "ai_reference_passive": false, "ai_reference_active": false}, "template_action": "updated", "questions_deleted": 36, "questions_inserted": 36, "classifications_inserted": 0, "classifications_existing": 9, "questions_before": 36, "template_id": 2, "trigger_keywords_backfilled": 0}
+[tcm36] template_id=2 question_count: before=36 after=36
+[tcm36] 36 questions OK
+[migrate] tcm36_drawer_v12: 杩佺Щ瀹屾垚 stats={'phase': 'tcm36_drawer_v12', 'columns_added': {'trigger_by_keyword': False, 'trigger_by_intent': False, 'trigger_keywords': False, 'ai_reference_passive': False, 'ai_reference_active': False}, 'template_action': 'updated', 'questions_deleted': 36, 'questions_inserted': 36, 'classifications_inserted': 0, 'classifications_existing': 9, 'questions_before': 36, 'template_id': 2, 'trigger_keywords_backfilled': 0}
+[migrate] prd_tag_recommend_v1: 鍚姩杩佺Щ...
+[migrate] prd_tag_recommend_v1: 杩佺Щ瀹屾垚 stats={'tags_created': 0, 'goods_tags_created': 0, 'recommend_cfg_created': 0, 'template_columns_added': 0, 'tag_columns_added': 0, 'constitution_tags_seeded': 9, 'legacy_service_to_contraindication': 0, 'legacy_other_deactivated': 9, 'tcm_set_triple': 1, 'symptom_tags_migrated': 0, 'symptom_tags_column_missing': 1, 'symptom_tags_column_dropped': 0}
+[migrate] qn_content_v1: 鍚姩杩佺Щ...
+[migrate] qn_content_v1: 鍚姩
+[migrate] qn_content_v1: ADD questionnaire_template.followup_chips_json
+[migrate] qn_content_v1: ADD questionnaire_template.cta_list_json
+[migrate] qn_content_v1: 瀹屾垚 stats={"phase": "qn_content_v1", "columns_added": {"followup_chips_json": true, "cta_list_json": true}, "phq9": {"template_id": 5, "deleted": 0, "inserted": 9, "classifications": 5}, "gad7": {"template_id": 6, "deleted": 0, "inserted": 7, "classifications": 4}, "psqi": {"template_id": 7, "deleted": 0, "inserted": 19, "classifications": 4}, "tcm_chips_cta": {"updated": 1}, "hsc_v2": {"chips_cta_updated": 1, "new_dim_questions_inserted": 3}}
+[qn_content_v1] phq9: tid=5 questions=9 gad7: tid=6 questions=7 psqi: tid=7 questions=19
+[qn_content_v1] PHQ-9/GAD-7/PSQI question counts OK
+[migrate] qn_content_v1: 杩佺Щ瀹屾垚 stats={'phase': 'qn_content_v1', 'columns_added': {'followup_chips_json': True, 'cta_list_json': True}, 'phq9': {'template_id': 5, 'deleted': 0, 'inserted': 9, 'classifications': 5}, 'gad7': {'template_id': 6, 'deleted': 0, 'inserted': 7, 'classifications': 4}, 'psqi': {'template_id': 7, 'deleted': 0, 'inserted': 19, 'classifications': 4}, 'tcm_chips_cta': {'updated': 1}, 'hsc_v2': {'chips_cta_updated': 1, 'new_dim_questions_inserted': 3}}
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+
+[exit=0]
+[backend] startup complete
+
+--- Step 5: check qn_content_v1 migration log ---
+
+>>> docker logs --tail 400 6b099ed3-7175-4a78-91f4-44570c84ed27-backend 2>&1 | grep -i 'qn_content_v1\|qn_content' | tail -30
+[migrate] qn_content_v1: 鍚姩杩佺Щ...
+[migrate] qn_content_v1: 鍚姩
+[migrate] qn_content_v1: ADD questionnaire_template.followup_chips_json
+[migrate] qn_content_v1: ADD questionnaire_template.cta_list_json
+[migrate] qn_content_v1: 瀹屾垚 stats={"phase": "qn_content_v1", "columns_added": {"followup_chips_json": true, "cta_list_json": true}, "phq9": {"template_id": 5, "deleted": 0, "inserted": 9, "classifications": 5}, "gad7": {"template_id": 6, "deleted": 0, "inserted": 7, "classifications": 4}, "psqi": {"template_id": 7, "deleted": 0, "inserted": 19, "classifications": 4}, "tcm_chips_cta": {"updated": 1}, "hsc_v2": {"chips_cta_updated": 1, "new_dim_questions_inserted": 3}}
+[qn_content_v1] phq9: tid=5 questions=9 gad7: tid=6 questions=7 psqi: tid=7 questions=19
+[qn_content_v1] PHQ-9/GAD-7/PSQI question counts OK
+[migrate] qn_content_v1: 杩佺Щ瀹屾垚 stats={'phase': 'qn_content_v1', 'columns_added': {'followup_chips_json': True, 'cta_list_json': True}, 'phq9': {'template_id': 5, 'deleted': 0, 'inserted': 9, 'classifications': 5}, 'gad7': {'template_id': 6, 'deleted': 0, 'inserted': 7, 'classifications': 4}, 'psqi': {'template_id': 7, 'deleted': 0, 'inserted': 19, 'classifications': 4}, 'tcm_chips_cta': {'updated': 1}, 'hsc_v2': {'chips_cta_updated': 1, 'new_dim_questions_inserted': 3}}
+
+[exit=0]
+
+--- Step 6: health check ---
+
+>>> curl -s -o /dev/null -w 'backend_templates:%{http_code}\n' 'http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/questionnaire/templates'
+backend_templates:301
+
+[exit=0]
+
+>>> curl -s 'http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/questionnaire/templates/by-code/phq9' | head -c 500
+<html>
+
+<head><title>301 Moved Permanently</title></head>
+
+<body>
+
+<center><h1>301 Moved Permanently</h1></center>
+
+<hr><center>nginx/1.29.8</center>
+
+</body>
+
+</html>
+
+
+[exit=0]
+
+
+>>> curl -s 'http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/questionnaire/templates/by-code/gad7' | head -c 500
+<html>
+
+<head><title>301 Moved Permanently</title></head>
+
+<body>
+
+<center><h1>301 Moved Permanently</h1></center>
+
+<hr><center>nginx/1.29.8</center>
+
+</body>
+
+</html>
+
+
+[exit=0]
+
+
+>>> curl -s 'http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/questionnaire/templates/by-code/psqi' | head -c 500
+<html>
+
+<head><title>301 Moved Permanently</title></head>
+
+<body>
+
+<center><h1>301 Moved Permanently</h1></center>
+
+<hr><center>nginx/1.29.8</center>
+
+</body>
+
+</html>
+
+
+[exit=0]
+
+
+--- Step 7: run pytest in container ---
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend bash -lc 'python -c "import pytest" 2>/dev/null || pip install --quiet pytest pytest-asyncio aiosqlite httpx 2>&1 | tail -5'
+[exit=0]
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend bash -lc 'cd /app && python -m pytest tests/test_qn_content_v1_20260520.py -v --tb=short -p no:warnings 2>&1 | tail -120'
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /app
+configfile: pytest.ini
+plugins: asyncio-1.3.0, anyio-4.13.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 10 items
+
+tests/test_qn_content_v1_20260520.py::test_phq9_scoring_and_classification PASSED [ 10%]
+tests/test_qn_content_v1_20260520.py::test_phq9_q9_crisis_cta PASSED     [ 20%]
+tests/test_qn_content_v1_20260520.py::test_cta_message_appended_to_chat_messages PASSED [ 30%]
+tests/test_qn_content_v1_20260520.py::test_admin_cta_override PASSED     [ 40%]
+tests/test_qn_content_v1_20260520.py::test_admin_chips_override PASSED   [ 50%]
+tests/test_qn_content_v1_20260520.py::test_cta_list_max_4 PASSED         [ 60%]
+tests/test_qn_content_v1_20260520.py::test_default_chips_count_is_3 PASSED [ 70%]
+tests/test_qn_content_v1_20260520.py::test_chips_no_archive_prefix PASSED [ 80%]
+tests/test_qn_content_v1_20260520.py::test_followup_chip_response_has_archive_prefix PASSED [ 90%]
+tests/test_qn_content_v1_20260520.py::test_health_self_check_v2_new_dimensions PASSED [100%]
+
+============================== 10 passed in 7.57s ==============================
+
+[exit=0]
+=== Deploy done ===

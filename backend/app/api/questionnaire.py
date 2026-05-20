@@ -373,24 +373,24 @@ def _build_followup_chips(tpl_code: Optional[str], tpl=None) -> list[dict[str, s
             {"code": "yundong", "label": "适合运动"},
         ],
         "health_self_check": [
-            {"code": "jianyi", "label": "处理建议"},
-            {"code": "jiuyi", "label": "是否需就医"},
-            {"code": "yufang", "label": "日常预防"},
+            {"code": "jiaju", "label": "居家如何处理"},
+            {"code": "zhuyi", "label": "注意事项"},
+            {"code": "jiuyi", "label": "是否需要就医"},
         ],
         "phq9": [
-            {"code": "shudao", "label": "情绪疏导"},
-            {"code": "jiuyi", "label": "是否就医"},
-            {"code": "ziwo", "label": "自我调节"},
+            {"code": "shudao", "label": "情绪疏导方法"},
+            {"code": "gaishan", "label": "改善建议"},
+            {"code": "jiuyi", "label": "何时该求助"},
         ],
         "gad7": [
-            {"code": "shudao", "label": "情绪疏导"},
-            {"code": "fangsong", "label": "放松练习"},
-            {"code": "jiuyi", "label": "是否就医"},
+            {"code": "shudao", "label": "情绪疏导方法"},
+            {"code": "gaishan", "label": "改善建议"},
+            {"code": "jiuyi", "label": "何时该求助"},
         ],
         "psqi": [
-            {"code": "zhumian", "label": "助眠方法"},
-            {"code": "zuoxi", "label": "作息调整"},
-            {"code": "huanjing", "label": "睡眠环境"},
+            {"code": "zhumian", "label": "改善睡眠方法"},
+            {"code": "yinshi", "label": "助眠饮食"},
+            {"code": "zuoxi", "label": "睡眠习惯调整"},
         ],
     }
     return defaults.get(tpl_code or "", [
@@ -398,6 +398,120 @@ def _build_followup_chips(tpl_code: Optional[str], tpl=None) -> list[dict[str, s
         {"code": "zhuyi", "label": "注意事项"},
         {"code": "fuwu", "label": "相关服务"},
     ])
+
+
+# [PRD-QN-CONTENT-V1 2026-05-20] CTA 配置
+def _build_cta_list(
+    tpl_code: Optional[str],
+    tpl=None,
+    *,
+    main_type: Optional[str] = None,
+    extra_cta: Optional[list[dict[str, Any]]] = None,
+) -> list[dict[str, Any]]:
+    """根据问卷类型返回 CTA 按钮列表（最多 4 个）。
+
+    优先级：
+    1. 强制 CTA（如 PHQ-9 第 9 题 >=1 的心理援助热线）会被插入到列表最前
+    2. template.cta_list_json（运营后台配置）
+    3. 内置默认 CTA（按问卷 code）
+
+    CTA 字段：{label, action, target_url, style}
+    """
+    result: list[dict[str, Any]] = []
+    if extra_cta:
+        for c in extra_cta:
+            if isinstance(c, dict) and c.get("label"):
+                result.append(dict(c))
+
+    # 从 tpl.cta_list_json 读取运营配置
+    cfg_cta: list[dict[str, Any]] = []
+    if tpl is not None:
+        try:
+            cfg = getattr(tpl, "cta_list_json", None)
+            if cfg and isinstance(cfg, list):
+                for c in cfg:
+                    if isinstance(c, dict) and c.get("label"):
+                        cfg_cta.append(dict(c))
+        except Exception:  # noqa: BLE001
+            pass
+
+    if not cfg_cta:
+        defaults: dict[str, list[dict[str, Any]]] = {
+            "tcm_constitution": [
+                {"label": "为我生成体质调理计划", "action": "generate_health_plan",
+                 "target_url": "/health-plan/generate?source=tcm", "style": "primary"},
+                {"label": "推荐：相应体质茶饮/食补套装", "action": "open_shop",
+                 "target_url": "/shop/category/tea?tag={main_type}", "style": "secondary"},
+            ],
+            "phq9": [
+                {"label": "为我生成情绪疏导计划", "action": "generate_health_plan",
+                 "target_url": "/health-plan/generate?source=phq9", "style": "primary"},
+                {"label": "推荐：心理咨询服务 / 冥想课程", "action": "open_service",
+                 "target_url": "/services/category/mental_health", "style": "secondary"},
+            ],
+            "gad7": [
+                {"label": "为我生成情绪疏导计划", "action": "generate_health_plan",
+                 "target_url": "/health-plan/generate?source=gad7", "style": "primary"},
+                {"label": "推荐：放松冥想课程", "action": "open_service",
+                 "target_url": "/services/category/relaxation", "style": "secondary"},
+            ],
+            "psqi": [
+                {"label": "为我生成助眠改善计划", "action": "generate_health_plan",
+                 "target_url": "/health-plan/generate?source=psqi", "style": "primary"},
+                {"label": "推荐：助眠产品 / 睡眠课程", "action": "open_shop",
+                 "target_url": "/shop/category/sleep", "style": "secondary"},
+            ],
+            "health_self_check": [
+                {"label": "为我生成针对性健康计划", "action": "generate_health_plan",
+                 "target_url": "/health-plan/generate?source=health_self_check", "style": "primary"},
+                {"label": "推荐：在线问诊 / 上门体检", "action": "open_service",
+                 "target_url": "/services/category/consult", "style": "secondary"},
+            ],
+        }
+        cfg_cta = defaults.get(tpl_code or "", [
+            {"label": "为我生成健康计划", "action": "generate_health_plan",
+             "target_url": "/health-plan/generate", "style": "primary"},
+        ])
+
+    # 渲染 {main_type} 占位符
+    for c in cfg_cta:
+        tu = c.get("target_url") or ""
+        if "{main_type}" in tu:
+            c = dict(c)
+            c["target_url"] = tu.replace("{main_type}", main_type or "")
+        result.append(c)
+
+    return result[:4]
+
+
+PHQ9_CRISIS_CTA = {
+    "label": "立即拨打心理援助热线 400-161-9995",
+    "action": "external_link",
+    "target_url": "tel:400-161-9995",
+    "style": "danger",
+    "mandatory": True,
+    "trigger": "phq9_q9>=1",
+}
+
+
+def _detect_phq9_crisis_from_qmap(
+    tpl_code: Optional[str],
+    answer_items: list[dict[str, Any]],
+    question_map: dict[int, Any],
+) -> bool:
+    """[PRD-QN-CONTENT-V1] 检测 PHQ-9 第 9 题（自伤念头）是否 >= 1 分（基于题目 sort_order）"""
+    if tpl_code != "phq9":
+        return False
+    for ai in answer_items:
+        q = question_map.get(ai.get("question_id"))
+        if q is None:
+            continue
+        try:
+            if int(getattr(q, "sort_order", 0) or 0) == 9 and float(ai.get("score") or 0) >= 1:
+                return True
+        except Exception:  # noqa: BLE001
+            continue
+    return False
 
 
 def _build_questionnaire_card_payload(
@@ -799,6 +913,34 @@ async def submit_questionnaire(
         ai_followup_enabled=ai_followup_enabled,
     )
 
+    # [PRD-QN-CONTENT-V1 2026-05-20] 构建 CTA 列表（chat_messages 末尾追加 cta_buttons 消息）
+    extra_cta: list[dict[str, Any]] = []
+    crisis_flag = _detect_phq9_crisis_from_qmap(tpl.code, answer_items, question_map)
+    if crisis_flag:
+        # PHQ-9 第 9 题 >=1 → 强制最前面插入心理援助热线 CTA
+        extra_cta.append(dict(PHQ9_CRISIS_CTA))
+    cta_list = _build_cta_list(
+        tpl.code,
+        tpl,
+        main_type=constitution_main_type or classification_name,
+        extra_cta=extra_cta,
+    )
+
+    # 追加 CTA 消息到 chat_messages_seq
+    if cta_list:
+        chat_messages_seq.append({
+            "msg_id": f"qn_cta_{ans.id}",
+            "sender": "ai",
+            "type": "cta_buttons",
+            "cta_list": cta_list,
+            "render_meta": {
+                "include_archive_prefix": False,
+                "questionnaire_result_id": ans.id,
+                "template_code": tpl.code,
+                "crisis": crisis_flag,
+            },
+        })
+
     return {
         "answer_id": ans.id,
         "template_id": tpl.id,
@@ -820,10 +962,13 @@ async def submit_questionnaire(
         "recommend_display_count": recommend_display_count,
         "recommend_goods": recommend_goods,
         # [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 通用卡片消息协议（三端按 type 路由渲染）
-        # 顺序：questionnaire_result_card → text → followup_chips（全部 sender=ai）
+        # 顺序：questionnaire_result_card → text → followup_chips → cta_buttons（全部 sender=ai）
         # 所有业务级占位符已在后端渲染完毕，前端直接消费。
         "chat_messages": chat_messages_seq,
         "result_card_payload": card_payload,
+        # [PRD-QN-CONTENT-V1 2026-05-20] CTA 列表（与 chat_messages 中末条 cta_buttons 一致，便于前端直接消费）
+        "cta_list": cta_list,
+        "phq9_crisis": crisis_flag,
     }
 
 

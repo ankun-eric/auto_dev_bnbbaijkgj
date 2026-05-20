@@ -27,7 +27,50 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: 体质测评 3 大 Bug 修复 + 通用卡片消息协议 + 6 屏沉浸式详情页通用框架 (2026-05-20 17:30)
+## Latest Update: PRD-QN-CONTENT-V1 · 4 个问卷题库 + 健康自查 6 维度 + chips/CTA 后台配置 (2026-05-20 17:45)
+
+**任务类型**：新功能开发（仅后端；无客户端 h5-web/miniprogram/flutter_app 代码变更）
+
+**核心交付**：
+
+1. **数据层**：
+   - `questionnaire_template` 表新增 2 列：`followup_chips_json` (JSON) + `cta_list_json` (JSON)
+   - 全新落地 3 个问卷模板（与 tcm_constitution / health_self_check 并列）：
+     - `phq9` PHQ-9 抑郁筛查（9 题，5 个分型 score_range）— 模板 id=5
+     - `gad7` GAD-7 焦虑筛查（7 题，4 个分型 score_range）— 模板 id=6
+     - `psqi` PSQI 匹兹堡睡眠质量指数（19 题，4 个分型 score_range，分 7 个成分 C1~C7）— 模板 id=7
+   - 升级 `health_self_check` 模板：在原有「部位/症状/持续时间」3 步之外，新增 3 个 `required=False` 题目（sort_order 91/92/93）：症状性质（大白话+表情）、严重程度（VAS 0-10）、症状补充备注（文本+语音）
+
+2. **后端 API**：
+   - `backend/app/api/questionnaire.py` 新增 `_build_cta_list()` / `_detect_phq9_crisis_from_qmap()` 函数；`_build_followup_chips()` 兼容新问卷类型
+   - `POST /api/questionnaire/submit` 响应新增 `cta_list` 字段（最多 4 个）+ `phq9_crisis` 布尔字段
+   - `chat_messages` 序列末尾追加 `cta_buttons` 消息（type=cta_buttons, sender=ai）
+   - **PHQ-9 第 9 题 ≥ 1 分时**强制将「立即拨打心理援助热线 400-161-9995」CTA 置于 cta_list 第一位（mandatory=true，不可被后台覆盖）
+
+3. **Schema**：
+   - `backend/app/schemas/questionnaire.py` `QuestionnaireTemplateBase` / `Update` 增加 `followup_chips_json` + `cta_list_json` 字段
+
+4. **迁移**：`backend/app/services/prd_qn_content_v1_migration.py` 启动时自动跑一次（已注册到 `backend/app/main.py`），上线日志输出 `[qn_content_v1] phq9: tid=5 questions=9 gad7: tid=6 questions=7 psqi: tid=7 questions=19` + `PHQ-9/GAD-7/PSQI question counts OK`
+
+5. **测试**：`backend/tests/test_qn_content_v1_20260520.py`（10 个用例）— 本地 + 远程 docker 容器内 10/10 全绿
+
+6. **部署**：脚本 `_deploy_qn_content_v1.py`；远程已 `docker cp` + `docker restart backend` 完毕；线上 `/api/questionnaire/templates/by-code/phq9|gad7|psqi` HTTPS 200，含 `followup_chips_json` + `cta_list_json`
+
+**chips / CTA 默认配置**（按 template.code 查询，可被运营后台覆盖）：
+
+| 问卷 code | chips | CTA |
+|----------|-------|-----|
+| tcm_constitution | 调理方法 / 饮食禁忌 / 适合运动 | 为我生成体质调理计划 / 推荐相应体质茶饮套装 |
+| health_self_check | 居家如何处理 / 注意事项 / 是否需要就医 | 为我生成针对性健康计划 / 推荐在线问诊 |
+| phq9 | 情绪疏导方法 / 改善建议 / 何时该求助 | 为我生成情绪疏导计划 / 推荐心理咨询服务 |
+| gad7 | 情绪疏导方法 / 改善建议 / 何时该求助 | 为我生成情绪疏导计划 / 推荐放松冥想课程 |
+| psqi | 改善睡眠方法 / 助眠饮食 / 睡眠习惯调整 | 为我生成助眠改善计划 / 推荐助眠产品 |
+
+**用户手册**：`user_docs/4个问卷题库与健康自查6维度升级.md`
+
+---
+
+## Previous Update: 体质测评 3 大 Bug 修复 + 通用卡片消息协议 + 6 屏沉浸式详情页通用框架 (2026-05-20 17:30)
 
 **任务类型**：Bug 修复 + 通用框架（后端 + h5-web + miniprogram + flutter_app 全链路）
 
