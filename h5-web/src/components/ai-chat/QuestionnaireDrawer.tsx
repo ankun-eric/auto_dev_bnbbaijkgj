@@ -173,11 +173,17 @@ function QuestionRenderer({
   const layout = q.layout_hint || 'tag_grid';
 
   if (q.question_type === 'text') {
+    // [BUG-HSC-FIX-V2 2026-05-21] B-1：subtitle 只在题目上方作"小提示文案"展示，
+    // textarea 的 placeholder 改用独立字段 (q as any).placeholder；缺省时用固定文案，
+    // 避免 subtitle 同一段文字在"上方小标题"+"输入框 placeholder"重复出现。
+    const phText =
+      ((q as any).placeholder as string | undefined) ||
+      '请输入您想补充的内容（选填）';
     return (
       <textarea
         value={(value as string) || ''}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={q.subtitle || '请输入'}
+        placeholder={phText}
         maxLength={200}
         rows={3}
         disabled={disabled}

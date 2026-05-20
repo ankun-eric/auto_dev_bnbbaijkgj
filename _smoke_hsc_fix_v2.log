@@ -1,0 +1,27 @@
+============================================================
+[BUG-HSC-FIX-V2] 鐑熼浘娴嬭瘯寮€濮?
+============================================================
+[1] GET /api/health -> 200
+[2] GET /api/questionnaire/placeholder-catalog -> 200
+    items_count=21 unfilled_text=鏈～鍐?
+[3] GET /api/questionnaire/templates -> 200
+[4] GET /admin/ -> 200
+[5] GET /health-self-check/result/9999999 -> 200
+[6] GET / -> 200
+
+[7] 杩滅瀹瑰櫒鍐呮墽琛?prompt_renderer 鍏抽敭鍗曟祴閫昏緫...
+OK placeholder_renderer items= 21
+
+[8] 杩滅瀹瑰櫒鍐呴獙璇?_build_questionnaire_card_payload subject_label 鍒嗘敮...
+OK family_label=濡堝锛堟瘝浜诧級 self_label=鏈汉
+
+[9] 楠岃瘉 admin 鑰侀〉闈㈠凡涓嬬嚎锛?04锛?..
+  GET /admin/health-check-templates -> 404
+  GET /admin/body-part-dict -> 404
+
+[10] /api/questionnaire/placeholder-catalog 鏁版嵁瀹屾暣鎬?..
+  scope_tags={'妗ｆ绫?, '閫氱敤', '浠呭仴搴疯嚜鏌?}
+
+============================================================
+鉁?鎵€鏈夌儫闆炬祴璇曢€氳繃
+============================================================

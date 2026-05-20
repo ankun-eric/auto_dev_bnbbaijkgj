@@ -1881,6 +1881,20 @@ async def lifespan(app: FastAPI):
         import traceback as _tb
         _tb.print_exc()
         print(f"[migrate] health_self_check_fix_v1: 迁移失败 err={_e}", flush=True)
+    # [BUG-HSC-FIX-V2-20260521] B-5 老表合并下线（health_check_template / body_part_dict）
+    # 默认 dry-run（仅校验+备份信息），需 HSC_LEGACY_OFFLINE_DROP=1 才真正 DROP TABLE
+    try:
+        print("[migrate] hsc_legacy_offline_v1: 启动迁移...", flush=True)
+        from app.core.database import async_session as _async_session_hsclegacy
+        from app.services.prd_health_self_check_legacy_offline_v1_migration import (
+            run_migration_with_session as _run_hsc_legacy,
+        )
+        _stats_hsclegacy = await _run_hsc_legacy(_async_session_hsclegacy)
+        print(f"[migrate] hsc_legacy_offline_v1: 迁移完成 stats={_stats_hsclegacy}", flush=True)
+    except Exception as _e:
+        import traceback as _tb
+        _tb.print_exc()
+        print(f"[migrate] hsc_legacy_offline_v1: 迁移失败 err={_e}", flush=True)
     # [BUG-FIX-AI-HOME-ARCHIVE-PATH-404-V1 2026-05-21] AI 对话主页"查看档案"跨端档案路径统一（/health-records|/health-archive → /health-profile）
     try:
         print("[migrate] ai_home_archive_path_fix_v1: 启动迁移...", flush=True)

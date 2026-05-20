@@ -1,0 +1,39 @@
+fix(health-self-check): BUG-HEALTH-SELF-CHECK-FIX-V1 四问题集中修复
+
+变更范围：backend + h5-web + admin-web
+
+1. 卡片协议对齐 + 详情入口路由
+   - 去掉 tcm_constitution 硬编码，新 helper _build_detail_target 按
+     code + result_display_mode 派发 route_h5 / mp_path
+   - HSC 卡片 payload main_type/fields 走通用卡协议（4 字段紧凑展示）
+   - 新增 GET /api/questionnaire/answers/{id}：供详情页消费
+
+2. 数据库新增 2 列（QuestionnaireTemplate.key_field_codes、
+   QuestionnaireAnswer.key_summary）+ 对应 Schema 字段
+
+3. 新迁移脚本 prd_health_self_check_fix_v1_migration.py：
+   - 幂等加列 + 建 migration_flags sentinel
+   - D2 清空 health_self_check 历史 answer/question/template
+   - 重新 seed（result_display_mode='triple' + key_field_codes 默认）
+
+4. 修复 Q5/Q6 文案与选项
+   - HSC_SEVERITY_OPTIONS 改为 5 档单值（轻微/轻度/中度/重度/剧烈）
+   - Q6 题干与 placeholder 拆分，无重复
+
+5. AI 追问结构化：新增 _build_hsc_followup_text，针对 jiaju/jiuyi/zhuyi
+   chip 输出【针对性建议】【何时需就医】【注意事项】三段，并自然引用
+   ans.key_summary，杜绝"请查看上方卡片"空泛话术
+
+6. H5 新页面 /health-self-check/result/[id]：6 区块（答题记录/AI 解读/
+   居家建议/红框就医警示/推荐商品/底部 CTA）
+
+7. Admin 编辑页新增「AI 追问关键字段」表单项，绑定 key_field_codes
+
+8. 测试：tests/test_hsc_fix_v1_20260521.py 7 用例全部通过；远程 HTTP
+   烟雾测试覆盖 result_display_mode/key_field_codes/Q5 五档不重复/
+   Q6 文案分离/详情页路由可达
+
+9. 部署：_deploy_hsc_fix_v1.py 已 2026-05-21 02:04 部署完成；启动日志
+   显示 DDL 已加列、purge 7 答卷 + 6 题目、reseed install_result.ok=true
+
+10. 同步更新 .cursor/rules/project-context.mdc 与用户体验手册

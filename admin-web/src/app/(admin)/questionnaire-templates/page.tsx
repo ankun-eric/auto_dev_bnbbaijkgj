@@ -506,39 +506,20 @@ export default function QuestionnaireTemplatesPage() {
             title: '操作',
             width: 320,
             render: (_, record) => {
-              // [PRD-AI-PAGE-OPTIM-V1 2026-05-21 块D] 健康自查双入口合并：
-              // - 列表保留可见，但编辑按钮变为"前往专属配置页"跳转链接
-              // - 内容字段不允许在此处直接编辑（避免双写打架）
-              // - 删除按钮保留（统一在此处删除）
-              const isHsc = record.code === 'health_self_check';
-              if (isHsc) {
-                return (
-                  <Space>
-                    <Tooltip title="健康自查模板有专属深度配置页（部位、症状持续档位、Prompt 模板等），请前往该页面进行编辑">
-                      <Button
-                        type="primary"
-                        size="small"
-                        icon={<ArrowRightOutlined />}
-                        data-testid="goto-health-check-templates"
-                        onClick={() => router.push('/health-check-templates')}
-                      >
-                        前往健康自查专属配置页
-                      </Button>
-                    </Tooltip>
-                    <Popconfirm title="确认删除？" onConfirm={() => handleDelete(record)}>
-                      <Button size="small" danger icon={<DeleteOutlined />}>
-                        删除
-                      </Button>
-                    </Popconfirm>
-                  </Space>
-                );
-              }
+              // [BUG-HSC-FIX-V2 2026-05-21] B-4 + B-5：健康自查老的「前往专属配置页」入口下线，
+              // 改回与其他问卷一致的标准"题目/分型 + 编辑 + 删除"三按钮，
+              // 老菜单（健康自查问卷模板 / 部位症状字典）也一并移除。
               return (
                 <Space>
                   <Button size="small" onClick={() => openDrawer(record)}>
                     题目/分型
                   </Button>
-                  <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
+                  <Button
+                    size="small"
+                    icon={<EditOutlined />}
+                    onClick={() => openEdit(record)}
+                    data-testid={`edit-btn-${record.code}`}
+                  >
                     编辑
                   </Button>
                   <Popconfirm title="确认删除？" onConfirm={() => handleDelete(record)}>
@@ -593,8 +574,10 @@ export default function QuestionnaireTemplatesPage() {
             </Form.Item>
           </Space>
           <Form.Item label="AI 解读 Prompt 模板" name="ai_prompt_template">
-            <TextArea rows={4} placeholder="支持 {占位符}：分型名称 / 维度 / 得分 / 答题摘要 等" />
+            <TextArea rows={4} placeholder="支持 {占位符}：见下方占位符速查表" />
           </Form.Item>
+          {/* [BUG-HSC-FIX-V2 2026-05-21] B-6 占位符速查表（折叠/展开，只读纯文本，不做一键插入） */}
+          <PlaceholderCatalogPanel />
           <Form.Item label="答完 AI 开场白" name="ai_opening">
             <Input placeholder="例如：根据您的答题，初步分析如下…" />
           </Form.Item>
@@ -981,6 +964,129 @@ export default function QuestionnaireTemplatesPage() {
           />
         )}
       </Modal>
+    </div>
+  );
+}
+
+// ============================================================
+// [BUG-HSC-FIX-V2 2026-05-21] B-6 占位符速查表组件
+// 通用全量清单，不按问卷类型过滤，每项打标签
+// 只读文本（不做一键插入/复制），交互极简
+// ============================================================
+function PlaceholderCatalogPanel() {
+  const [items, setItems] = React.useState<
+    Array<{ key: string; label: string; scope_tag: string; source?: string; example?: string }>
+  >([]);
+  const [expanded, setExpanded] = React.useState(false);
+  const [loaded, setLoaded] = React.useState(false);
+
+  const loadCatalog = React.useCallback(async () => {
+    if (loaded) return;
+    try {
+      const res = await get<{ items: typeof items }>('/api/questionnaire/placeholder-catalog');
+      if (res && Array.isArray((res as any).items)) {
+        setItems((res as any).items);
+      }
+      setLoaded(true);
+    } catch {
+      // 静默失败：后端老版本可能没有此接口，使用本地备份
+      setItems([
+        { key: 'user_name', label: '本人姓名', scope_tag: '通用', example: '张小白' },
+        { key: 'user_gender', label: '本人性别', scope_tag: '通用', example: '男' },
+        { key: 'user_age', label: '本人年龄', scope_tag: '通用', example: '32' },
+        { key: 'family_member_name', label: '家人姓名', scope_tag: '通用', example: '妈妈' },
+        { key: 'family_member_relation', label: '与本人关系', scope_tag: '通用', example: '母亲' },
+        { key: 'family_member_age', label: '家人年龄', scope_tag: '通用', example: '58' },
+        { key: 'family_member_gender', label: '家人性别', scope_tag: '通用', example: '女' },
+        { key: 'chronic_diseases', label: '慢病列表', scope_tag: '档案类', example: '高血压' },
+        { key: 'allergies', label: '过敏史', scope_tag: '档案类', example: '青霉素' },
+        { key: 'medications', label: '长期用药', scope_tag: '档案类', example: '氨氯地平' },
+        { key: 'surgery_history', label: '手术史', scope_tag: '档案类', example: '阑尾切除' },
+        { key: 'family_history', label: '家族病史', scope_tag: '档案类', example: '父亲糖尿病' },
+        { key: 'height', label: '身高 cm', scope_tag: '档案类', example: '175' },
+        { key: 'weight', label: '体重 kg', scope_tag: '档案类', example: '68' },
+        { key: 'bmi', label: 'BMI', scope_tag: '档案类', example: '22.2' },
+        { key: 'blood_type', label: '血型', scope_tag: '档案类', example: 'O 型' },
+        { key: 'health_profile', label: '健康档案摘要', scope_tag: '通用', example: '32岁/男/BMI 22' },
+        { key: 'body_parts', label: '本次自查部位', scope_tag: '仅健康自查', example: '腹部' },
+        { key: 'symptoms', label: '本次自查症状', scope_tag: '仅健康自查', example: '胀痛' },
+        { key: 'duration', label: '持续时间', scope_tag: '仅健康自查', example: '2 天' },
+        { key: 'description', label: '用户补充描述', scope_tag: '仅健康自查', example: '受凉后加重' },
+      ]);
+      setLoaded(true);
+    }
+  }, [loaded]);
+
+  React.useEffect(() => {
+    loadCatalog();
+  }, [loadCatalog]);
+
+  const tagColor = (t: string) => {
+    if (t === '档案类') return 'green';
+    if (t === '仅健康自查') return 'orange';
+    if (t === '仅体质测评') return 'purple';
+    return 'blue';
+  };
+
+  return (
+    <div
+      style={{
+        border: '1px dashed #BAE6FD',
+        background: '#F0F9FF',
+        borderRadius: 8,
+        padding: '8px 12px',
+        marginBottom: 16,
+      }}
+      data-testid="placeholder-catalog-panel"
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          cursor: 'pointer',
+          userSelect: 'none',
+        }}
+        onClick={() => setExpanded((e) => !e)}
+      >
+        <div style={{ fontWeight: 600, color: '#0369A1', fontSize: 13 }}>
+          📋 占位符速查表（共 {items.length} 项）
+        </div>
+        <div style={{ color: '#0369A1', fontSize: 12 }}>{expanded ? '收起 ▲' : '展开 ▼'}</div>
+      </div>
+      {expanded && (
+        <div style={{ marginTop: 8, maxHeight: 320, overflowY: 'auto' }}>
+          <Table
+            size="small"
+            rowKey="key"
+            pagination={false}
+            dataSource={items}
+            columns={[
+              {
+                title: '占位符',
+                dataIndex: 'key',
+                width: 200,
+                render: (k: string) => (
+                  <code style={{ color: '#0EA5E9', background: '#FFF', padding: '1px 4px', borderRadius: 3 }}>
+                    {'{' + k + '}'}
+                  </code>
+                ),
+              },
+              { title: '含义', dataIndex: 'label', width: 130 },
+              {
+                title: '适用范围',
+                dataIndex: 'scope_tag',
+                width: 110,
+                render: (t: string) => <Tag color={tagColor(t)}>{t}</Tag>,
+              },
+              { title: '示例值', dataIndex: 'example' },
+            ]}
+          />
+          <div style={{ fontSize: 11, color: '#64748B', marginTop: 6 }}>
+            说明：取不到值时，占位符会被替换为「未填写」，不会报错。
+          </div>
+        </div>
+      )}
     </div>
   );
 }

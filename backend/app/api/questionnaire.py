@@ -56,6 +56,25 @@ admin_dep = require_role("admin")
 # ════════════════════════════════════════
 
 
+# ─────────────────────────────────────────────────────────────────
+# [BUG-HSC-FIX-V2 2026-05-21] B-6 + B-7：占位符全量目录
+# 供后台编辑抽屉的"占位符速查表"使用，无权鉴权
+# ─────────────────────────────────────────────────────────────────
+@router.get("/placeholder-catalog")
+async def get_placeholder_catalog():
+    """返回 AI Prompt / 结果摘要等模板中支持的全量占位符清单。
+
+    前端在所有问卷模板的编辑抽屉中展示这份"速查表"，便于运营复制粘贴。
+    """
+    from app.services.prompt_renderer import PLACEHOLDER_CATALOG
+
+    return {
+        "items": PLACEHOLDER_CATALOG,
+        "unfilled_text": "未填写",
+        "version": "v2-20260521",
+    }
+
+
 @router.get("/templates", response_model=list[QuestionnaireTemplateResponse])
 async def list_active_templates(db: AsyncSession = Depends(get_db)):
     """C 端获取启用中的问卷模板列表。"""
@@ -579,6 +598,8 @@ def _build_questionnaire_card_payload(
     summary_text: Optional[str],
     fields: list[dict[str, Any]],
     icon: str,
+    subject_kind: str = "self",
+    subject_relation: Optional[str] = None,
 ) -> dict[str, Any]:
     """构建 questionnaire_result_card 的统一 payload（三端共用）。"""
     # 主结论：体质卷优先 main_type；其他卷优先 classification_name
@@ -617,10 +638,22 @@ def _build_questionnaire_card_payload(
                 v = f"{v}/10"
             out_fields.append({"key": f.get("key") or k, "label": k, "value": v})
 
+    # [BUG-HSC-FIX-V2 2026-05-21] B-2：subject 标签 = 本人 / 家人姓名（关系）
+    if subject_kind == "family" and subject_name:
+        if subject_relation:
+            subject_label = f"{subject_name}（{subject_relation}）"
+        else:
+            subject_label = subject_name
+    else:
+        # 本人态：显示"本人"，避免显示登录名/手机号
+        subject_label = "本人"
     return {
         "questionnaire_code": tpl.code,
         "questionnaire_name": tpl.name,
         "subject_name": subject_name or "",
+        "subject_kind": subject_kind,
+        "subject_relation": subject_relation or "",
+        "subject_label": subject_label,
         "completed_at": ans.completed_at.isoformat() if ans.completed_at else None,
         "answer_id": ans.id,
         "result_id": ans.id,  # 用于详情页跳转
@@ -659,6 +692,8 @@ def _build_chat_messages_sequence(
     scores: Optional[dict[str, float]],
     subject_name: Optional[str],
     ai_followup_enabled: bool,
+    subject_kind: str = "self",
+    subject_relation: Optional[str] = None,
 ) -> list[dict[str, Any]]:
     """生成"卡片 → AI 解读 → chips"三条消息（统一协议）。
 
@@ -681,9 +716,15 @@ def _build_chat_messages_sequence(
     )
 
     # 2. AI 解读文字（首条，必带开场白）
-    archive_prefix = (
-        f"本次回答结合 {subject_name} 的档案。" if subject_name else "本次回答结合您的档案。"
-    )
+    # [BUG-HSC-FIX-V2 2026-05-21] B-2：家人档案场景下，明确写"家人姓名（关系）"，
+    # 不再统一兜底成"本人/您的档案"。
+    if subject_kind == "family" and subject_name:
+        _who = f"{subject_name}（{subject_relation}）" if subject_relation else subject_name
+        archive_prefix = f"本次回答结合 {_who} 的健康档案。"
+    elif subject_name and subject_kind == "self":
+        archive_prefix = "本次回答结合本人的健康档案。"
+    else:
+        archive_prefix = "本次回答结合您的健康档案。"
     if ai_opening:
         ai_opening_rendered = _render_business_placeholders(
             ai_opening,
@@ -950,13 +991,27 @@ async def submit_questionnaire(
                 classification_code = crow2.code
         except Exception:  # noqa: BLE001
             pass
+    # [BUG-HSC-FIX-V2 2026-05-21] B-2 修复：原来用 mem.name（字段不存在）导致取不到家人名，
+    # 解读说明里"本次回答结合的对象"统一被兜底成本人 nickname。
+    # 现在改用 FamilyMember.nickname；并区分 subject_kind/subject_relation，供前端展示。
     subject_name: Optional[str] = None
+    subject_kind: str = "self"
+    subject_relation: Optional[str] = None
     try:
         if payload.consultant_id:
             from app.models.models import FamilyMember
             mem = await db.get(FamilyMember, payload.consultant_id)
-            if mem and getattr(mem, "name", None):
-                subject_name = mem.name
+            if mem:
+                # 是否本人档案（is_self FamilyMember 也是 family_members 表的一行）
+                if bool(getattr(mem, "is_self", False)):
+                    subject_kind = "self"
+                else:
+                    subject_kind = "family"
+                # name 字段在 FamilyMember 模型中实际叫 nickname
+                _nick = getattr(mem, "nickname", None)
+                if _nick:
+                    subject_name = _nick
+                subject_relation = getattr(mem, "relationship_type", None)
         if not subject_name and getattr(current_user, "nickname", None):
             subject_name = current_user.nickname
         if not subject_name and getattr(current_user, "username", None):
@@ -990,6 +1045,7 @@ async def submit_questionnaire(
         _l.getLogger(__name__).warning("build key_summary failed: %s", _e)
 
     # [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 卡片 payload + 对话流消息序列
+    # [BUG-HSC-FIX-V2 2026-05-21] B-2：透传 subject_kind / subject_relation
     card_payload = _build_questionnaire_card_payload(
         tpl=tpl,
         ans=ans,
@@ -1002,6 +1058,8 @@ async def submit_questionnaire(
         summary_text=summary_text,
         fields=fields,
         icon=icon,
+        subject_kind=subject_kind,
+        subject_relation=subject_relation,
     )
     chat_messages_seq = _build_chat_messages_sequence(
         tpl=tpl,
@@ -1013,6 +1071,8 @@ async def submit_questionnaire(
         scores=constitution_scores,
         subject_name=subject_name,
         ai_followup_enabled=ai_followup_enabled,
+        subject_kind=subject_kind,
+        subject_relation=subject_relation,
     )
 
     # [PRD-QN-CONTENT-V1 2026-05-20] 构建 CTA 列表（chat_messages 末尾追加 cta_buttons 消息）
@@ -1585,6 +1645,31 @@ async def get_answer_detail(
             classification_name = crow.name
             classification_code = crow.code
 
+    # [BUG-HSC-FIX-V2 2026-05-21] 详情页 subject 信息
+    detail_subject_kind = "self"
+    detail_subject_name: Optional[str] = None
+    detail_subject_relation: Optional[str] = None
+    try:
+        if ans.consultant_id:
+            from app.models.models import FamilyMember as _FM
+            _mem = await db.get(_FM, ans.consultant_id)
+            if _mem:
+                detail_subject_kind = "self" if bool(getattr(_mem, "is_self", False)) else "family"
+                detail_subject_name = getattr(_mem, "nickname", None)
+                detail_subject_relation = getattr(_mem, "relationship_type", None)
+        if not detail_subject_name:
+            detail_subject_name = getattr(current_user, "nickname", None) or getattr(current_user, "username", None)
+    except Exception:  # noqa: BLE001
+        pass
+    if detail_subject_kind == "family" and detail_subject_name:
+        detail_subject_label = (
+            f"{detail_subject_name}（{detail_subject_relation}）"
+            if detail_subject_relation
+            else detail_subject_name
+        )
+    else:
+        detail_subject_label = "本人"
+
     # AI 解读 / 居家建议 / 红线信号（健康自查不依赖大模型；按 key_summary 输出）
     ai_conclusion = ""
     ai_full_interpretation = ""
@@ -1642,6 +1727,11 @@ async def get_answer_detail(
         "home_care_tips": home_care_tips,
         "red_flag_signals": red_flag_signals,
         "recommend_goods": recommend_goods,
+        # [BUG-HSC-FIX-V2 2026-05-21] B-2 详情页 subject 字段
+        "subject_kind": detail_subject_kind,
+        "subject_name": detail_subject_name or "",
+        "subject_relation": detail_subject_relation or "",
+        "subject_label": detail_subject_label,
     }
 
 

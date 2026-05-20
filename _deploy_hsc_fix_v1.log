@@ -1,0 +1,208 @@
+============================================================
+[BUG-HEALTH-SELF-CHECK-FIX-V1] 閮ㄧ讲寮€濮?
+============================================================
+
+--- 姝ラ 1锛氫笂浼犲彉鏇存枃浠?---
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/models'"
+
+$ scp -o StrictHostKeyChecking=no "backend/app/models/models.py" "ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/models/models.py"
+
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/schemas'"
+
+$ scp -o StrictHostKeyChecking=no "backend/app/schemas/questionnaire.py" "ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/schemas/questionnaire.py"
+
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api'"
+
+$ scp -o StrictHostKeyChecking=no "backend/app/api/questionnaire.py" "ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/questionnaire.py"
+
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app'"
+
+$ scp -o StrictHostKeyChecking=no "backend/app/main.py" "ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/main.py"
+
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/services'"
+
+$ scp -o StrictHostKeyChecking=no "backend/app/services/prd_qn_content_v1_migration.py" "ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/services/prd_qn_content_v1_migration.py"
+
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/services'"
+
+$ scp -o StrictHostKeyChecking=no "backend/app/services/prd_health_self_check_fix_v1_migration.py" "ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/services/prd_health_self_check_fix_v1_migration.py"
+
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests'"
+
+$ scp -o StrictHostKeyChecking=no "backend/tests/test_hsc_fix_v1_20260521.py" "ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_hsc_fix_v1_20260521.py"
+
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/(admin)/questionnaire-templates'"
+
+$ scp -o StrictHostKeyChecking=no "admin-web/src/app/(admin)/questionnaire-templates/page.tsx" "ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/(admin)/questionnaire-templates/page.tsx"
+
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-self-check/result/[id]'"
+
+$ scp -o StrictHostKeyChecking=no "h5-web/src/app/health-self-check/result/[id]/page.tsx" "ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-self-check/result/[id]/page.tsx"
+
+
+--- 姝ラ 2锛氶噸寤?backend / h5-web / admin-web ---
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build backend h5-web admin-web 2>&1 | tail -100"
+#30 156.4 鈹?茠 /health-plan/recommended/[planId]/tasks  9.59 kB         404 kB
+#30 156.4 鈹?鈼?/health-plan/statistics                  10.8 kB         422 kB
+#30 156.4 鈹?鈼?/health-records                          12.6 kB         400 kB
+#30 156.4 鈹?鈼?/home-banners                            11.9 kB         435 kB
+#30 156.4 鈹?鈼?/home-settings                           4.7 kB          322 kB
+#30 156.4 鈹?鈼?/home-settings/ai-home-config            21.5 kB         382 kB
+#30 156.4 鈹?鈼?/home-settings/ai-home-config/logs       6.88 kB         421 kB
+#30 156.4 鈹?鈼?/knowledge                               12.4 kB         401 kB
+#30 156.4 鈹?茠 /knowledge/[id]                          13.1 kB         417 kB
+#30 156.4 鈹?鈼?/knowledge/stats                         10.5 kB         386 kB
+#30 156.4 鈹?鈼?/login                                   8.31 kB         288 kB
+#30 156.4 鈹?鈼?/map-config                              14.2 kB         423 kB
+#30 156.4 鈹?鈼?/merchant-categories                     8.08 kB         403 kB
+#30 156.4 鈹?鈼?/merchant/accounts                       11.3 kB         416 kB
+#30 156.4 鈹?鈼?/merchant/business-config                16.3 kB         157 kB
+#30 156.4 鈹?鈼?/merchant/stores                         18.8 kB         413 kB
+#30 156.4 鈹?茠 /merchant/stores/[id]/business-config    13.2 kB         442 kB
+#30 156.4 鈹?鈼?/notices                                 9.77 kB         440 kB
+#30 156.4 鈹?鈼?/ocr-config                              14.9 kB         367 kB
+#30 156.4 鈹?鈼?/ocr-global-config                       14 kB           316 kB
+#30 156.4 鈹?鈼?/payment-config                          15 kB           366 kB
+#30 156.4 鈹?鈼?/points/levels                           9.08 kB         404 kB
+#30 156.4 鈹?鈼?/points/mall                             20.7 kB         481 kB
+#30 156.4 鈹?鈼?/points/rules                            10.3 kB         295 kB
+#30 156.4 鈹?鈼?/product-system/appointment-forms        12.2 kB         407 kB
+#30 156.4 鈹?鈼?/product-system/cards                    17.6 kB         412 kB
+#30 156.4 鈹?鈼?/product-system/cards/dashboard          5.04 kB         397 kB
+#30 156.4 鈹?鈼?/product-system/categories               6.22 kB         407 kB
+#30 156.4 鈹?鈼?/product-system/coupons                  36 kB           496 kB
+#30 156.4 鈹?鈼?/product-system/new-user-coupons         14.2 kB         397 kB
+#30 156.4 鈹?鈼?/product-system/orders                   19.8 kB         469 kB
+#30 156.4 鈹?鈼?/product-system/orders/dashboard         16.6 kB         346 kB
+#30 156.4 鈹?鈼?/product-system/partners                 14.6 kB         420 kB
+#30 156.4 鈹?鈼?/product-system/products                 27.2 kB         470 kB
+#30 156.4 鈹?鈼?/product-system/redemptions              7.14 kB         418 kB
+#30 156.4 鈹?鈼?/product-system/statistics               8.87 kB         757 kB
+#30 156.4 鈹?鈼?/product-system/store-bindding           11.8 kB         410 kB
+#30 156.4 鈹?鈼?/product-system/tags                     12.7 kB         411 kB
+#30 156.4 鈹?鈼?/product-system/visits                   7.58 kB         448 kB
+#30 156.4 鈹?鈼?/profile                                 5.07 kB         252 kB
+#30 156.4 鈹?鈼?/profile/change-password                 7.66 kB         287 kB
+#30 156.4 鈹?鈼?/prompt-templates                        14.6 kB         318 kB
+#30 156.4 鈹?鈼?/questionnaire-templates                 14.5 kB         428 kB
+#30 156.4 鈹?鈼?/referral                                7.46 kB         382 kB
+#30 156.4 鈹?鈼?/relation-types                          11.5 kB         406 kB
+#30 156.4 鈹?鈼?/search-config                           10 kB           414 kB
+#30 156.4 鈹?鈼?/search/asr-config                       7 kB            296 kB
+#30 156.4 鈹?鈼?/search/block-words                      12.6 kB         402 kB
+#30 156.4 鈹?鈼?/search/recommend                        14.2 kB         409 kB
+#30 156.4 鈹?鈼?/search/statistics                       240 kB         1.09 MB
+#30 156.4 鈹?鈼?/settings                                11 kB           368 kB
+#30 156.4 鈹?鈼?/share-config                            4.21 kB         371 kB
+#30 156.4 鈹?鈼?/sms                                     25.1 kB         423 kB
+#30 156.4 鈹?鈼?/system-messages                         11.4 kB         433 kB
+#30 156.4 鈹?鈼?/system-messages/send                    4.92 kB         314 kB
+#30 156.4 鈹?鈼?/system/sdk-health                       17 kB           285 kB
+#30 156.4 鈹?鈼?/system/seed-import                      15.2 kB         408 kB
+#30 156.4 鈹?鈼?/tcm-config                              4.05 kB         284 kB
+#30 156.4 鈹?鈼?/theme-config                            7.6 kB          403 kB
+#30 156.4 鈹?鈼?/tts-config                              5.07 kB         334 kB
+#30 156.4 鈹?鈼?/users                                   15.3 kB         404 kB
+#30 156.4 鈹?鈼?/voice-service                           3.46 kB         345 kB
+#30 156.4 鈹?鈼?/wechat-push                             4.92 kB         291 kB
+#30 156.4 + First Load JS shared by all                87.7 kB
+#30 156.4   鈹?chunks/2117-1ca38137e0e3b541.js          31.9 kB
+#30 156.4   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js      53.6 kB
+#30 156.4   鈹?other shared chunks (total)              2.13 kB
+#30 156.4 
+#30 156.4 
+#30 156.4 鈼? (Static)   prerendered as static content
+#30 156.4 茠  (Dynamic)  server-rendered on demand
+#30 156.4 
+#30 DONE 156.6s
+
+#38 [admin-web runner 3/5] COPY --from=builder /app/.next/standalone ./
+#38 DONE 0.7s
+
+#39 [admin-web runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#39 DONE 0.1s
+
+#40 [admin-web runner 5/5] COPY --from=builder /app/public ./public
+#40 DONE 0.1s
+
+#41 [admin-web] exporting to image
+#41 exporting layers
+#41 exporting layers 1.3s done
+#41 exporting manifest sha256:f86bf4cb84c3fe96c69a0f6844817e69679eaa61a40869cd9cdf8b2ad8629c1e 0.0s done
+#41 exporting config sha256:71652bf8ad944010f46d82f97d1091dc797ce090ba154463917ae02444b5ed9b 0.0s done
+#41 exporting attestation manifest sha256:53c161223f13b0d3034a921798b25f0c21c76ea6ffb2300647574c6a2c622c38 0.0s done
+#41 exporting manifest list sha256:96871358225ea11211b0e1c044a9187ba2aedaa965c4359d3f0b4f2450252b5e 0.0s done
+#41 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest done
+#41 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+#41 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.6s done
+#41 DONE 2.0s
+
+#42 [admin-web] resolving provenance for metadata file
+#42 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Built 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built 
+
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose up -d backend h5-web admin-web 2>&1 | tail -30"
+time="2026-05-21T02:03:34+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started 
+
+
+--- 姝ラ 3锛氱瓑寰呭悗绔惎鍔紙30s锛?---
+
+--- 姝ラ 4锛氭鏌ュ悗绔縼绉绘棩蹇?---
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "docker logs --tail 200 6b099ed3-7175-4a78-91f4-44570c84ed27-backend 2>&1 | grep -E 'health_self_check_fix_v1|migrate.*hsc|migrate.*qn_content' || true"
+[migrate] qn_content_v1: 鍚姩杩佺Щ...
+[migrate] qn_content_v1: 鍚姩
+[migrate] qn_content_v1: 瀹屾垚 stats={"phase": "qn_content_v1", "columns_added": {"followup_chips_json": false, "cta_list_json": false}, "phq9": {"skipped": "by_seed_pack_admin_page"}, "gad7": {"skipped": "by_seed_pack_admin_page"}, "psqi": {"skipped": "by_seed_pack_admin_page"}, "tcm_chips_cta": {"skipped": "by_seed_pack_admin_page"}, "hsc_v2": {"skipped": "by_seed_pack_admin_page"}}
+[migrate] qn_content_v1: 杩佺Щ瀹屾垚 stats={'phase': 'qn_content_v1', 'columns_added': {'followup_chips_json': False, 'cta_list_json': False}, 'phq9': {'skipped': 'by_seed_pack_admin_page'}, 'gad7': {'skipped': 'by_seed_pack_admin_page'}, 'psqi': {'skipped': 'by_seed_pack_admin_page'}, 'tcm_chips_cta': {'skipped': 'by_seed_pack_admin_page'}, 'hsc_v2': {'skipped': 'by_seed_pack_admin_page'}}
+[migrate] health_self_check_fix_v1: 鍚姩杩佺Щ...
+[migrate] health_self_check_fix_v1: 鍚姩
+[migrate] health_self_check_fix_v1: 瀹屾垚 stats={"phase": "health_self_check_fix_v1", "ddl": {"template_key_field_codes": "added", "answer_key_summary": "added"}, "purge": {"template_existed": true, "template_id": 1, "answers_deleted": 7, "questions_deleted": 6, "rules_deleted": 0}, "reseed": {"install_result": {"ok": true, "template_id": 1, "base_questions": {"created": 3, "updated": 0}, "buttons_upgraded": 0, "hsc_v2": {"chips_cta_updated": 1, "new_dim_questions_inserted": 3}}, "key_field_codes_set": true}}
+[migrate] health_self_check_fix_v1: 杩佺Щ瀹屾垚 stats={'phase': 'health_self_check_fix_v1', 'ddl': {'template_key_field_codes': 'added', 'answer_key_summary': 'added'}, 'purge': {'template_existed': True, 'template_id': 1, 'answers_deleted': 7, 'questions_deleted': 6, 'rules_deleted': 0}, 'reseed': {'install_result': {'ok': True, 'template_id': 1, 'base_questions': {'created': 3, 'updated': 0}, 'buttons_upgraded': 0, 'hsc_v2': {'chips_cta_updated': 1, 'new_dim_questions_inserted': 3}}, 'key_field_codes_set': True}}
+
+杩佺Щ鏃ュ織鎽樿锛?
+[migrate] qn_content_v1: 鍚姩杩佺Щ...
+[migrate] qn_content_v1: 鍚姩
+[migrate] qn_content_v1: 瀹屾垚 stats={"phase": "qn_content_v1", "columns_added": {"followup_chips_json": false, "cta_list_json": false}, "phq9": {"skipped": "by_seed_pack_admin_page"}, "gad7": {"skipped": "by_seed_pack_admin_page"}, "psqi": {"skipped": "by_seed_pack_admin_page"}, "tcm_chips_cta": {"skipped": "by_seed_pack_admin_page"}, "hsc_v2": {"skipped": "by_seed_pack_admin_page"}}
+[migrate] qn_content_v1: 杩佺Щ瀹屾垚 stats={'phase': 'qn_content_v1', 'columns_added': {'followup_chips_json': False, 'cta_list_json': False}, 'phq9': {'skipped': 'by_seed_pack_admin_page'}, 'gad7': {'skipped': 'by_seed_pack_admin_page'}, 'psqi': {'skipped': 'by_seed_pack_admin_page'}, 'tcm_chips_cta': {'skipped': 'by_seed_pack_admin_page'}, 'hsc_v2': {'skipped': 'by_seed_pack_admin_page'}}
+[migrate] health_self_check_fix_v1: 鍚姩杩佺Щ...
+[migrate] health_self_check_fix_v1: 鍚姩
+[migrate] health_self_check_fix_v1: 瀹屾垚 stats={"phase": "health_self_check_fix_v1", "ddl": {"template_key_field_codes": "added", "answer_key_summary": "added"}, "purge": {"template_existed": true, "template_id": 1, "answers_deleted": 7, "questions_deleted": 6, "rules_deleted": 0}, "reseed": {"install_result": {"ok": true, "template_id": 1, "base_questions": {"created": 3, "updated": 0}, "buttons_upgraded": 0, "hsc_v2": {"chips_cta_updated": 1, "new_dim_questions_inserted": 3}}, "key_field_codes_set": true}}
+[migrate] health_self_check_fix_v1: 杩佺Щ瀹屾垚 stats={'phase': 'health_self_check_fix_v1', 'ddl': {'template_key_field_codes': 'added', 'answer_key_summary': 'added'}, 'purge': {'template_existed': True, 'template_id': 1, 'answers_deleted': 7, 'questions_deleted': 6, 'rules_deleted': 0}, 'reseed': {'install_result': {'ok': True, 'template_id': 1, 'base_questions': {'created': 3, 'updated': 0}, 'buttons_upgraded': 0, 'hsc_v2': {'chips_cta_updated': 1, 'new_dim_questions_inserted': 3}}, 'key_field_codes_set': True}}
+
+
+--- 姝ラ 5锛氭帰娲绘鏌?---
+$ curl -sS -o /dev/null -w 'health %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health || echo 'health endpoint check done'
+'health{"status":"ok","service":"bini-health-api"}'healthcurl: (3) URL rejected: Bad hostname
+
+$ curl -sS -o /dev/null -w 'h5 %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ || echo 'h5 check done'
+'h5<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/css/6075ddd88faab28f.css" data-precedence="next"/><link rel="preload" as="script" fetchPriority="low" href="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/chunks/webpack-bceab9b4024d1424.js"/><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/chunks/fd9d1056-cde8d1c8f42e1127.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/chunks/2117-3615d1923728c5e4.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/chunks/main-app-5294d1645fe5526e.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/chunks/app/page-9a70cefbda94012b.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/chunks/app/layout-4dda81d6781dcbb1.js" async=""></script><meta name="theme-color" content="#0EA5E9"/><title>瀹惧凹灏忓悍 - AI鍋ュ悍绠″</title><meta name="description" content="瀹惧凹灏忓悍 路 鎮ㄧ殑绉佷汉AI鍋ュ悍绠″"/><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/chunks/polyfills-42372ed130431b0a.js" noModule=""></script></head><body><div class="flex items-center justify-center min-h-screen" style="background:#F5F6FA"><div class="text-center"><div class="text-4xl mb-4">馃尶</div><div style="color:#0EA5E9" class="font-bold text-lg">瀹惧凹灏忓悍</div><div class="text-gray-400 text-sm mt-1">AI鍋ュ悍绠″</div></div></div><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/chunks/webpack-bceab9b4024d1424.js" async=""></script><script>(self.__next_f=self.__next_f||[]).push([0]);self.__next_f.push([2,null])</script><script>self.__next_f.push([1,"1:HL[\"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/css/6075ddd88faab28f.css\",\"style\"]\n"])</script><script>self.__next_f.push([1,"2:I[12846,[],\"\"]\n4:I[19107,[],\"ClientPageRoot\"]\n5:I[16117,[\"1931\",\"static/chunks/app/page-9a70cefbda94012b.js\"],\"default\",1]\n6:I[4148,[\"3185\",\"static/chunks/app/layout-4dda81d6781dcbb1.js\"],\"default\",1]\n7:I[4707,[],\"\"]\n8:I[36423,[],\"\"]\nb:I[61060,[],\"\"]\n9:{}\nc:[]\n"])</script><script>self.__next_f.push([1,"0:[\"$\",\"$L2\",null,{\"buildId\":\"gpdEVsE7equ4oVC-K6PzB\",\"assetPrefix\":\"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27\",\"urlParts\":[\"\",\"\"],\"initialTree\":[\"\",{\"children\":[\"__PAGE__\",{}]},\"$undefined\",\"$undefined\",true],\"initialSeedData\":[\"\",{\"children\":[\"__PAGE__\",{},[[\"$L3\",[\"$\",\"$L4\",null,{\"props\":{\"params\":{},\"searchParams\":{}},\"Component\":\"$5\"}],null],null],null]},[[[[\"$\",\"link\",\"0\",{\"rel\":\"stylesheet\",\"href\":\"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/css/6075ddd88faab28f.css\",\"precedence\":\"next\",\"crossOrigin\":\"$undefined\"}]],[\"$\",\"$L6\",null,{\"children\":[\"$\",\"$L7\",null,{\"parallelRouterKey\":\"children\",\"segmentPath\":[\"children\"],\"error\":\"$undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"template\":[\"$\",\"$L8\",null,{}],\"templateStyles\":\"$undefined\",\"templateScripts\":\"$undefined\",\"notFound\":[[\"$\",\"title\",null,{\"children\":\"404: This page could not be found.\"}],[\"$\",\"div\",null,{\"style\":{\"fontFamily\":\"system-ui,\\\"Segoe UI\\\",Roboto,Helvetica,Arial,sans-serif,\\\"Apple Color Emoji\\\",\\\"Segoe UI Emoji\\\"\",\"height\":\"100vh\",\"textAlign\":\"center\",\"display\":\"flex\",\"flexDirection\":\"column\",\"alignItems\":\"center\",\"justifyContent\":\"center\"},\"children\":[\"$\",\"div\",null,{\"children\":[[\"$\",\"style\",null,{\"dangerouslySetInnerHTML\":{\"__html\":\"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}\"}}],[\"$\",\"h1\",null,{\"className\":\"next-error-h1\",\"style\":{\"display\":\"inline-block\",\"margin\":\"0 20px 0 0\",\"padding\":\"0 23px 0 0\",\"fontSize\":24,\"fontWeight\":500,\"verticalAlign\":\"top\",\"lineHeight\":\"49px\"},\"children\":\"404\"}],[\"$\",\"div\",null,{\"style\":{\"display\":\"inline-block\"},\"children\":[\"$\",\"h2\",null,{\"style\":{\"fontSize\":14,\"fontWeight\":400,\"lineHeight\":\"49px\",\"margin\":0},\"children\":\"This page could not be found.\"}]}]]}]}]],\"notFoundStyles\":[]}],\"params\":\"$9\"}]],null],null],\"couldBeIntercepted\":false,\"initialHead\":[null,\"$La\"],\"globalErrorComponent\":\"$b\",\"missingSlots\":\"$Wc\"}]\n"])</script><script>self.__next_f.push([1,"a:[[\"$\",\"meta\",\"0\",{\"name\":\"viewport\",\"content\":\"width=device-width, initial-scale=1\"}],[\"$\",\"meta\",\"1\",{\"charSet\":\"utf-8\"}]]\n3:null\n"])</script></body></html>'h5curl: (3) URL rejected: Bad hostname
+
+$ curl -sS -o /dev/null -w 'admin %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/ || echo 'admin check done'
+'admin<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/css/e5b2d4385714ed98.css" data-precedence="next"/><link rel="preload" as="script" fetchPriority="low" href="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/webpack-93a0cc3567444f38.js"/><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/fd9d1056-cde8d1c8f42e1127.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/2117-1ca38137e0e3b541.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/main-app-5294d1645fe5526e.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/app/page-cdae5051f13f6ea1.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/1789-a0905466ea1eb29b.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/8058-f53705d923d7cd46.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/1134-e157243fed4118b7.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/8310-0939b39060785c27.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/337-b2ea82e44479eeaa.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/9816-b0dc2d3bde202567.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/3125-3350fe4abf1481ee.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/3248-7c3bd778deb2c2fd.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/8518-38d2b0ba7a9e0a84.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/app/layout-008e48b48bcf48ee.js" async=""></script><title>瀹惧凹灏忓悍 - AI鍋ュ悍绠″绠＄悊鍚庡彴</title><meta name="description" content="瀹惧凹灏忓悍AI鍋ュ悍绠″绠＄悊鍚庡彴"/><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/polyfills-42372ed130431b0a.js" noModule=""></script></head><body><div class="css-1qy2ily ant-app"></div><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/webpack-93a0cc3567444f38.js" async=""></script><script>(self.__next_f=self.__next_f||[]).push([0]);self.__next_f.push([2,null])</script><script>self.__next_f.push([1,"1:HL[\"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/css/e5b2d4385714ed98.css\",\"style\"]\n"])</script><script>self.__next_f.push([1,"2:I[12846,[],\"\"]\n4:I[19107,[],\"ClientPageRoot\"]\n5:I[16117,[\"1931\",\"static/chunks/app/page-cdae5051f13f6ea1.js\"],\"default\",1]\n6:I[66563,[\"1789\",\"static/chunks/1789-a0905466ea1eb29b.js\",\"8058\",\"static/chunks/8058-f53705d923d7cd46.js\",\"1134\",\"static/chunks/1134-e157243fed4118b7.js\",\"8310\",\"static/chunks/8310-0939b39060785c27.js\",\"337\",\"static/chunks/337-b2ea82e44479eeaa.js\",\"9816\",\"static/chunks/9816-b0dc2d3bde202567.js\",\"3125\",\"static/chunks/3125-3350fe4abf1481ee.js\",\"3248\",\"static/chunks/3248-7c3bd778deb2c2fd.js\",\"8518\",\"static/chunks/8518-38d2b0ba7a9e0a84.js\",\"3185\",\"static/chunks/app/layout-008e48b48bcf48ee.js\"],\"default\",1]\n7:I[4707,[],\"\"]\n8:I[36423,[],\"\"]\nb:I[61060,[],\"\"]\n9:{}\nc:[]\n"])</script><script>self.__next_f.push([1,"0:[\"$\",\"$L2\",null,{\"buildId\":\"RIdyZ6JfQ1u4PAw35WPuh\",\"assetPrefix\":\"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin\",\"urlParts\":[\"\",\"\"],\"initialTree\":[\"\",{\"children\":[\"__PAGE__\",{}]},\"$undefined\",\"$undefined\",true],\"initialSeedData\":[\"\",{\"children\":[\"__PAGE__\",{},[[\"$L3\",[\"$\",\"$L4\",null,{\"props\":{\"params\":{},\"searchParams\":{}},\"Component\":\"$5\"}],null],null],null]},[[[[\"$\",\"link\",\"0\",{\"rel\":\"stylesheet\",\"href\":\"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/css/e5b2d4385714ed98.css\",\"precedence\":\"next\",\"crossOrigin\":\"$undefined\"}]],[\"$\",\"$L6\",null,{\"children\":[\"$\",\"$L7\",null,{\"parallelRouterKey\":\"children\",\"segmentPath\":[\"children\"],\"error\":\"$undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"template\":[\"$\",\"$L8\",null,{}],\"templateStyles\":\"$undefined\",\"templateScripts\":\"$undefined\",\"notFound\":[[\"$\",\"title\",null,{\"children\":\"404: This page could not be found.\"}],[\"$\",\"div\",null,{\"style\":{\"fontFamily\":\"system-ui,\\\"Segoe UI\\\",Roboto,Helvetica,Arial,sans-serif,\\\"Apple Color Emoji\\\",\\\"Segoe UI Emoji\\\"\",\"height\":\"100vh\",\"textAlign\":\"center\",\"display\":\"flex\",\"flexDirection\":\"column\",\"alignItems\":\"center\",\"justifyContent\":\"center\"},\"children\":[\"$\",\"div\",null,{\"children\":[[\"$\",\"style\",null,{\"dangerouslySetInnerHTML\":{\"__html\":\"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}\"}}],[\"$\",\"h1\",null,{\"className\":\"next-error-h1\",\"style\":{\"display\":\"inline-block\",\"margin\":\"0 20px 0 0\",\"padding\":\"0 23px 0 0\",\"fontSize\":24,\"fontWeight\":500,\"verticalAlign\":\"top\",\"lineHeight\":\"49px\"},\"children\":\"404\"}],[\"$\",\"div\",null,{\"style\":{\"display\":\"inline-block\"},\"children\":[\"$\",\"h2\",null,{\"style\":{\"fontSize\":14,\"fontWeight\":400,\"lineHeight\":\"49px\",\"margin\":0},\"children\":\"This page could not be found.\"}]}]]}]}]],\"notFoundStyles\":[]}],\"params\":\"$9\"}]],null],null],\"couldBeIntercepted\":false,\"initialHead\":[null,\"$La\"],\"globalErrorComponent\":\"$b\",\"missingSlots\":\"$Wc\"}]\n"])</script><script>self.__next_f.push([1,"a:[[\"$\",\"meta\",\"0\",{\"name\":\"viewport\",\"content\":\"width=device-width, initial-scale=1\"}],[\"$\",\"meta\",\"1\",{\"charSet\":\"utf-8\"}]]\n3:null\n"])</script></body></html>'admincurl: (3) URL rejected: Bad hostname
+
+
+--- 姝ラ 6锛氳繙绔?pytest 璺?hsc fix 娴嬭瘯 ---
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python -m pytest tests/test_hsc_fix_v1_20260521.py -v 2>&1 | tail -60"
+/usr/local/bin/python: No module named pytest
+
+鉁?HSC FIX 娴嬭瘯閫氳繃
+
+============================================================
+[BUG-HEALTH-SELF-CHECK-FIX-V1] 閮ㄧ讲瀹屾垚
+============================================================

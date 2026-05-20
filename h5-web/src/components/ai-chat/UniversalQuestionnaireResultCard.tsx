@@ -15,6 +15,10 @@ export interface UniversalCardPayload {
   questionnaire_code?: string | null;
   questionnaire_name?: string | null;
   subject_name?: string | null;
+  // [BUG-HSC-FIX-V2 2026-05-21] B-2：区分本人/家人档案
+  subject_kind?: 'self' | 'family' | string | null;
+  subject_relation?: string | null;
+  subject_label?: string | null;
   completed_at?: string | null;
   answer_id?: number;
   result_id?: number;
@@ -149,11 +153,26 @@ export default function UniversalQuestionnaireResultCard({ payload, onClickDetai
           </div>
           <div style={{ fontSize: 11, color: '#94A3B8' }}>{completed}</div>
         </div>
-        {payload.subject_name && (
-          <div style={{ fontSize: 12, color: '#64748B', marginBottom: 6 }}>
-            被测人：{payload.subject_name}
-          </div>
-        )}
+        {(() => {
+          // [BUG-HSC-FIX-V2 2026-05-21] B-2：优先使用 subject_label（后端已计算好），
+          // 否则按 subject_kind 兜底拼装 "姓名（关系）" / "本人"
+          const label =
+            payload.subject_label ||
+            (payload.subject_kind === 'family' && payload.subject_name
+              ? payload.subject_relation
+                ? `${payload.subject_name}（${payload.subject_relation}）`
+                : payload.subject_name
+              : payload.subject_name || '');
+          if (!label) return null;
+          return (
+            <div
+              style={{ fontSize: 12, color: '#64748B', marginBottom: 6 }}
+              data-testid="qn-card-subject-label"
+            >
+              被测人：{label}
+            </div>
+          );
+        })()}
         <div
           style={{
             display: 'flex',

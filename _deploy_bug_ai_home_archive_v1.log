@@ -1,0 +1,206 @@
+============================================================
+[BUG-FIX-AI-HOME-ARCHIVE-PATH-404-V1] 閮ㄧ讲寮€濮?
+============================================================
+
+--- 姝ラ 1锛氫笂浼犲彉鏇存枃浠?---
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/schemas'"
+
+$ scp -o StrictHostKeyChecking=no "backend/app/schemas/ai_home_config.py" "ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/schemas/ai_home_config.py"
+
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app'"
+
+$ scp -o StrictHostKeyChecking=no "backend/app/main.py" "ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/main.py"
+
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/services'"
+
+$ scp -o StrictHostKeyChecking=no "backend/app/services/prd_ai_home_archive_path_fix_v1_migration.py" "ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/services/prd_ai_home_archive_path_fix_v1_migration.py"
+
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests'"
+
+$ scp -o StrictHostKeyChecking=no "backend/tests/test_ai_home_config_v1.py" "ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_ai_home_config_v1.py"
+
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests'"
+
+$ scp -o StrictHostKeyChecking=no "backend/tests/test_ai_home_config_tab411.py" "ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_ai_home_config_tab411.py"
+
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home'"
+
+$ scp -o StrictHostKeyChecking=no "h5-web/src/app/(ai-chat)/ai-home/page.tsx" "ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/page.tsx"
+
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/(admin)/home-settings/ai-home-config'"
+
+$ scp -o StrictHostKeyChecking=no "admin-web/src/app/(admin)/home-settings/ai-home-config/page.tsx" "ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/(admin)/home-settings/ai-home-config/page.tsx"
+
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/lib/screens/ai'"
+
+$ scp -o StrictHostKeyChecking=no "flutter_app/lib/screens/ai/chat_screen.dart" "ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/lib/screens/ai/chat_screen.dart"
+
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/components/profile-card'"
+
+$ scp -o StrictHostKeyChecking=no "miniprogram/components/profile-card/index.js" "ubuntu@newbb.test.bangbangvip.com:/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/components/profile-card/index.js"
+
+
+--- 姝ラ 2锛氶噸寤?backend / h5-web / admin-web ---
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build backend h5-web admin-web 2>&1 | tail -100"
+#30 154.1 鈹?茠 /health-plan/recommended/[planId]/tasks  9.59 kB         404 kB
+#30 154.1 鈹?鈼?/health-plan/statistics                  10.8 kB         422 kB
+#30 154.1 鈹?鈼?/health-records                          12.6 kB         400 kB
+#30 154.1 鈹?鈼?/home-banners                            11.9 kB         435 kB
+#30 154.1 鈹?鈼?/home-settings                           4.7 kB          322 kB
+#30 154.1 鈹?鈼?/home-settings/ai-home-config            21.5 kB         382 kB
+#30 154.1 鈹?鈼?/home-settings/ai-home-config/logs       6.88 kB         421 kB
+#30 154.1 鈹?鈼?/knowledge                               12.4 kB         401 kB
+#30 154.1 鈹?茠 /knowledge/[id]                          13.1 kB         417 kB
+#30 154.1 鈹?鈼?/knowledge/stats                         10.5 kB         386 kB
+#30 154.1 鈹?鈼?/login                                   8.31 kB         288 kB
+#30 154.1 鈹?鈼?/map-config                              14.2 kB         423 kB
+#30 154.1 鈹?鈼?/merchant-categories                     8.08 kB         403 kB
+#30 154.1 鈹?鈼?/merchant/accounts                       11.3 kB         416 kB
+#30 154.1 鈹?鈼?/merchant/business-config                16.3 kB         157 kB
+#30 154.1 鈹?鈼?/merchant/stores                         18.8 kB         413 kB
+#30 154.1 鈹?茠 /merchant/stores/[id]/business-config    13.2 kB         442 kB
+#30 154.1 鈹?鈼?/notices                                 9.77 kB         440 kB
+#30 154.1 鈹?鈼?/ocr-config                              14.9 kB         367 kB
+#30 154.1 鈹?鈼?/ocr-global-config                       14 kB           316 kB
+#30 154.1 鈹?鈼?/payment-config                          15 kB           366 kB
+#30 154.1 鈹?鈼?/points/levels                           9.08 kB         404 kB
+#30 154.1 鈹?鈼?/points/mall                             20.7 kB         481 kB
+#30 154.1 鈹?鈼?/points/rules                            10.3 kB         295 kB
+#30 154.1 鈹?鈼?/product-system/appointment-forms        12.2 kB         407 kB
+#30 154.1 鈹?鈼?/product-system/cards                    17.6 kB         412 kB
+#30 154.1 鈹?鈼?/product-system/cards/dashboard          5.04 kB         397 kB
+#30 154.1 鈹?鈼?/product-system/categories               6.22 kB         407 kB
+#30 154.1 鈹?鈼?/product-system/coupons                  36 kB           496 kB
+#30 154.1 鈹?鈼?/product-system/new-user-coupons         14.2 kB         397 kB
+#30 154.1 鈹?鈼?/product-system/orders                   19.8 kB         469 kB
+#30 154.1 鈹?鈼?/product-system/orders/dashboard         16.6 kB         346 kB
+#30 154.1 鈹?鈼?/product-system/partners                 14.6 kB         420 kB
+#30 154.1 鈹?鈼?/product-system/products                 27.2 kB         470 kB
+#30 154.1 鈹?鈼?/product-system/redemptions              7.14 kB         418 kB
+#30 154.1 鈹?鈼?/product-system/statistics               8.87 kB         757 kB
+#30 154.1 鈹?鈼?/product-system/store-bindding           11.8 kB         410 kB
+#30 154.1 鈹?鈼?/product-system/tags                     12.7 kB         411 kB
+#30 154.1 鈹?鈼?/product-system/visits                   7.58 kB         448 kB
+#30 154.1 鈹?鈼?/profile                                 5.07 kB         252 kB
+#30 154.1 鈹?鈼?/profile/change-password                 7.66 kB         287 kB
+#30 154.1 鈹?鈼?/prompt-templates                        14.6 kB         318 kB
+#30 154.1 鈹?鈼?/questionnaire-templates                 14.5 kB         428 kB
+#30 154.1 鈹?鈼?/referral                                7.46 kB         382 kB
+#30 154.1 鈹?鈼?/relation-types                          11.5 kB         406 kB
+#30 154.1 鈹?鈼?/search-config                           10 kB           414 kB
+#30 154.1 鈹?鈼?/search/asr-config                       7 kB            296 kB
+#30 154.1 鈹?鈼?/search/block-words                      12.6 kB         402 kB
+#30 154.1 鈹?鈼?/search/recommend                        14.2 kB         409 kB
+#30 154.1 鈹?鈼?/search/statistics                       240 kB         1.09 MB
+#30 154.1 鈹?鈼?/settings                                11 kB           368 kB
+#30 154.1 鈹?鈼?/share-config                            4.21 kB         371 kB
+#30 154.1 鈹?鈼?/sms                                     25.1 kB         423 kB
+#30 154.1 鈹?鈼?/system-messages                         11.4 kB         433 kB
+#30 154.1 鈹?鈼?/system-messages/send                    4.92 kB         314 kB
+#30 154.1 鈹?鈼?/system/sdk-health                       17 kB           285 kB
+#30 154.1 鈹?鈼?/system/seed-import                      15.2 kB         408 kB
+#30 154.1 鈹?鈼?/tcm-config                              4.05 kB         284 kB
+#30 154.1 鈹?鈼?/theme-config                            7.6 kB          403 kB
+#30 154.1 鈹?鈼?/tts-config                              5.07 kB         334 kB
+#30 154.1 鈹?鈼?/users                                   15.3 kB         404 kB
+#30 154.1 鈹?鈼?/voice-service                           3.46 kB         345 kB
+#30 154.1 鈹?鈼?/wechat-push                             4.92 kB         291 kB
+#30 154.1 + First Load JS shared by all                87.7 kB
+#30 154.1   鈹?chunks/2117-1ca38137e0e3b541.js          31.9 kB
+#30 154.1   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js      53.6 kB
+#30 154.1   鈹?other shared chunks (total)              2.13 kB
+#30 154.1 
+#30 154.1 
+#30 154.1 鈼? (Static)   prerendered as static content
+#30 154.1 茠  (Dynamic)  server-rendered on demand
+#30 154.1 
+#30 DONE 154.7s
+
+#38 [admin-web runner 3/5] COPY --from=builder /app/.next/standalone ./
+#38 DONE 0.6s
+
+#39 [admin-web runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#39 DONE 0.1s
+
+#40 [admin-web runner 5/5] COPY --from=builder /app/public ./public
+#40 DONE 0.1s
+
+#41 [admin-web] exporting to image
+#41 exporting layers
+#41 exporting layers 1.3s done
+#41 exporting manifest sha256:cae34d16578da31ec50bb998c90245d923ef406ca13575c5292adb9e27054ba3 0.0s done
+#41 exporting config sha256:67f6c6ed9dc2bf8f4dfdf0b69f7950b5313b3a8b7fd39f96a8a0bab65148993b 0.0s done
+#41 exporting attestation manifest sha256:f2ebd6ebd2ad8811484d1c5436cf5bc804ab5535e833631d212eb1e68781480a 0.0s done
+#41 exporting manifest list sha256:7965069f0d0e5461c242d4c703aad93bca198a3c4623320e1c1672a938a749c5 0.0s done
+#41 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest done
+#41 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+#41 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.5s done
+#41 DONE 1.9s
+
+#42 [admin-web] resolving provenance for metadata file
+#42 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Built 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose up -d backend h5-web admin-web 2>&1 | tail -30"
+time="2026-05-21T02:26:47+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started 
+
+
+--- 姝ラ 3锛氱瓑寰呭悗绔惎鍔紙35s锛?---
+
+--- 姝ラ 4锛氭鏌ュ悗绔縼绉绘棩蹇?---
+$ ssh -o StrictHostKeyChecking=no -o BatchMode=no ubuntu@newbb.test.bangbangvip.com "docker logs --tail 400 6b099ed3-7175-4a78-91f4-44570c84ed27-backend 2>&1 | grep -E 'ai_home_archive_path_fix_v1' || true"
+[migrate] ai_home_archive_path_fix_v1: 鍚姩杩佺Щ...
+[migrate] ai_home_archive_path_fix_v1: 鍚姩
+[migrate] ai_home_archive_path_fix_v1: 鎵弿 app_settings(key=ai_home_config) 鍏?1 鏉?
+[migrate] ai_home_archive_path_fix_v1: archive_path 淇 1 鏉?
+[migrate] ai_home_archive_path_fix_v1: 瀹牸 target_path 淇 1 鏉?
+[migrate] ai_home_archive_path_fix_v1: done.
+[migrate] ai_home_archive_path_fix_v1: 杩佺Щ瀹屾垚 stats={'phase': 'ai_home_archive_path_fix_v1', 'rows_scanned': 1, 'archive_path_fixed': 1, 'grid_target_fixed': 1, 'rows_updated': 1}
+
+杩佺Щ鏃ュ織鎽樿锛?
+[migrate] ai_home_archive_path_fix_v1: 鍚姩杩佺Щ...
+[migrate] ai_home_archive_path_fix_v1: 鍚姩
+[migrate] ai_home_archive_path_fix_v1: 鎵弿 app_settings(key=ai_home_config) 鍏?1 鏉?
+[migrate] ai_home_archive_path_fix_v1: archive_path 淇 1 鏉?
+[migrate] ai_home_archive_path_fix_v1: 瀹牸 target_path 淇 1 鏉?
+[migrate] ai_home_archive_path_fix_v1: done.
+[migrate] ai_home_archive_path_fix_v1: 杩佺Щ瀹屾垚 stats={'phase': 'ai_home_archive_path_fix_v1', 'rows_scanned': 1, 'archive_path_fixed': 1, 'grid_target_fixed': 1, 'rows_updated': 1}
+
+
+--- 姝ラ 5锛氭帰娲绘鏌?---
+$ curl -sS -o NUL -w 'health %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health
+'health{"status":"ok","service":"bini-health-api"}'healthcurl: (3) URL rejected: Bad hostname
+
+$ curl -sS -o NUL -w 'h5_root %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/
+'h5_root<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/css/6075ddd88faab28f.css" data-precedence="next"/><link rel="preload" as="script" fetchPriority="low" href="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/chunks/webpack-bceab9b4024d1424.js"/><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/chunks/fd9d1056-cde8d1c8f42e1127.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/chunks/2117-3615d1923728c5e4.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/chunks/main-app-5294d1645fe5526e.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/chunks/app/page-9a70cefbda94012b.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/chunks/app/layout-4dda81d6781dcbb1.js" async=""></script><meta name="theme-color" content="#0EA5E9"/><title>瀹惧凹灏忓悍 - AI鍋ュ悍绠″</title><meta name="description" content="瀹惧凹灏忓悍 路 鎮ㄧ殑绉佷汉AI鍋ュ悍绠″"/><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/chunks/polyfills-42372ed130431b0a.js" noModule=""></script></head><body><div class="flex items-center justify-center min-h-screen" style="background:#F5F6FA"><div class="text-center"><div class="text-4xl mb-4">馃尶</div><div style="color:#0EA5E9" class="font-bold text-lg">瀹惧凹灏忓悍</div><div class="text-gray-400 text-sm mt-1">AI鍋ュ悍绠″</div></div></div><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/chunks/webpack-bceab9b4024d1424.js" async=""></script><script>(self.__next_f=self.__next_f||[]).push([0]);self.__next_f.push([2,null])</script><script>self.__next_f.push([1,"1:HL[\"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/css/6075ddd88faab28f.css\",\"style\"]\n"])</script><script>self.__next_f.push([1,"2:I[12846,[],\"\"]\n4:I[19107,[],\"ClientPageRoot\"]\n5:I[16117,[\"1931\",\"static/chunks/app/page-9a70cefbda94012b.js\"],\"default\",1]\n6:I[4148,[\"3185\",\"static/chunks/app/layout-4dda81d6781dcbb1.js\"],\"default\",1]\n7:I[4707,[],\"\"]\n8:I[36423,[],\"\"]\nb:I[61060,[],\"\"]\n9:{}\nc:[]\n"])</script><script>self.__next_f.push([1,"0:[\"$\",\"$L2\",null,{\"buildId\":\"jcR4-0dstkzh8ob5mCt4P\",\"assetPrefix\":\"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27\",\"urlParts\":[\"\",\"\"],\"initialTree\":[\"\",{\"children\":[\"__PAGE__\",{}]},\"$undefined\",\"$undefined\",true],\"initialSeedData\":[\"\",{\"children\":[\"__PAGE__\",{},[[\"$L3\",[\"$\",\"$L4\",null,{\"props\":{\"params\":{},\"searchParams\":{}},\"Component\":\"$5\"}],null],null],null]},[[[[\"$\",\"link\",\"0\",{\"rel\":\"stylesheet\",\"href\":\"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/css/6075ddd88faab28f.css\",\"precedence\":\"next\",\"crossOrigin\":\"$undefined\"}]],[\"$\",\"$L6\",null,{\"children\":[\"$\",\"$L7\",null,{\"parallelRouterKey\":\"children\",\"segmentPath\":[\"children\"],\"error\":\"$undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"template\":[\"$\",\"$L8\",null,{}],\"templateStyles\":\"$undefined\",\"templateScripts\":\"$undefined\",\"notFound\":[[\"$\",\"title\",null,{\"children\":\"404: This page could not be found.\"}],[\"$\",\"div\",null,{\"style\":{\"fontFamily\":\"system-ui,\\\"Segoe UI\\\",Roboto,Helvetica,Arial,sans-serif,\\\"Apple Color Emoji\\\",\\\"Segoe UI Emoji\\\"\",\"height\":\"100vh\",\"textAlign\":\"center\",\"display\":\"flex\",\"flexDirection\":\"column\",\"alignItems\":\"center\",\"justifyContent\":\"center\"},\"children\":[\"$\",\"div\",null,{\"children\":[[\"$\",\"style\",null,{\"dangerouslySetInnerHTML\":{\"__html\":\"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}\"}}],[\"$\",\"h1\",null,{\"className\":\"next-error-h1\",\"style\":{\"display\":\"inline-block\",\"margin\":\"0 20px 0 0\",\"padding\":\"0 23px 0 0\",\"fontSize\":24,\"fontWeight\":500,\"verticalAlign\":\"top\",\"lineHeight\":\"49px\"},\"children\":\"404\"}],[\"$\",\"div\",null,{\"style\":{\"display\":\"inline-block\"},\"children\":[\"$\",\"h2\",null,{\"style\":{\"fontSize\":14,\"fontWeight\":400,\"lineHeight\":\"49px\",\"margin\":0},\"children\":\"This page could not be found.\"}]}]]}]}]],\"notFoundStyles\":[]}],\"params\":\"$9\"}]],null],null],\"couldBeIntercepted\":false,\"initialHead\":[null,\"$La\"],\"globalErrorComponent\":\"$b\",\"missingSlots\":\"$Wc\"}]\n"])</script><script>self.__next_f.push([1,"a:[[\"$\",\"meta\",\"0\",{\"name\":\"viewport\",\"content\":\"width=device-width, initial-scale=1\"}],[\"$\",\"meta\",\"1\",{\"charSet\":\"utf-8\"}]]\n3:null\n"])</script></body></html>'h5_rootcurl: (3) URL rejected: Bad hostname
+
+$ curl -sS -o NUL -w 'h5_ai_home %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home
+'h5_ai_home/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home/'h5_ai_homecurl: (3) URL rejected: Bad hostname
+
+$ curl -sS -o NUL -w 'h5_health_profile %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile
+'h5_health_profile/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/'h5_health_profilecurl: (3) URL rejected: Bad hostname
+
+$ curl -sS -o NUL -w 'admin %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/
+'admin<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/css/e5b2d4385714ed98.css" data-precedence="next"/><link rel="preload" as="script" fetchPriority="low" href="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/webpack-93a0cc3567444f38.js"/><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/fd9d1056-cde8d1c8f42e1127.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/2117-1ca38137e0e3b541.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/main-app-5294d1645fe5526e.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/app/page-cdae5051f13f6ea1.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/1789-a0905466ea1eb29b.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/8058-f53705d923d7cd46.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/1134-e157243fed4118b7.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/8310-0939b39060785c27.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/337-b2ea82e44479eeaa.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/9816-b0dc2d3bde202567.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/3125-3350fe4abf1481ee.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/3248-7c3bd778deb2c2fd.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/8518-38d2b0ba7a9e0a84.js" async=""></script><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/app/layout-008e48b48bcf48ee.js" async=""></script><title>瀹惧凹灏忓悍 - AI鍋ュ悍绠″绠＄悊鍚庡彴</title><meta name="description" content="瀹惧凹灏忓悍AI鍋ュ悍绠″绠＄悊鍚庡彴"/><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/polyfills-42372ed130431b0a.js" noModule=""></script></head><body><div class="css-1qy2ily ant-app"></div><script src="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/chunks/webpack-93a0cc3567444f38.js" async=""></script><script>(self.__next_f=self.__next_f||[]).push([0]);self.__next_f.push([2,null])</script><script>self.__next_f.push([1,"1:HL[\"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/css/e5b2d4385714ed98.css\",\"style\"]\n"])</script><script>self.__next_f.push([1,"2:I[12846,[],\"\"]\n4:I[19107,[],\"ClientPageRoot\"]\n5:I[16117,[\"1931\",\"static/chunks/app/page-cdae5051f13f6ea1.js\"],\"default\",1]\n6:I[66563,[\"1789\",\"static/chunks/1789-a0905466ea1eb29b.js\",\"8058\",\"static/chunks/8058-f53705d923d7cd46.js\",\"1134\",\"static/chunks/1134-e157243fed4118b7.js\",\"8310\",\"static/chunks/8310-0939b39060785c27.js\",\"337\",\"static/chunks/337-b2ea82e44479eeaa.js\",\"9816\",\"static/chunks/9816-b0dc2d3bde202567.js\",\"3125\",\"static/chunks/3125-3350fe4abf1481ee.js\",\"3248\",\"static/chunks/3248-7c3bd778deb2c2fd.js\",\"8518\",\"static/chunks/8518-38d2b0ba7a9e0a84.js\",\"3185\",\"static/chunks/app/layout-008e48b48bcf48ee.js\"],\"default\",1]\n7:I[4707,[],\"\"]\n8:I[36423,[],\"\"]\nb:I[61060,[],\"\"]\n9:{}\nc:[]\n"])</script><script>self.__next_f.push([1,"0:[\"$\",\"$L2\",null,{\"buildId\":\"LiH5L9yG-4DynKN5ONWV6\",\"assetPrefix\":\"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin\",\"urlParts\":[\"\",\"\"],\"initialTree\":[\"\",{\"children\":[\"__PAGE__\",{}]},\"$undefined\",\"$undefined\",true],\"initialSeedData\":[\"\",{\"children\":[\"__PAGE__\",{},[[\"$L3\",[\"$\",\"$L4\",null,{\"props\":{\"params\":{},\"searchParams\":{}},\"Component\":\"$5\"}],null],null],null]},[[[[\"$\",\"link\",\"0\",{\"rel\":\"stylesheet\",\"href\":\"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/static/css/e5b2d4385714ed98.css\",\"precedence\":\"next\",\"crossOrigin\":\"$undefined\"}]],[\"$\",\"$L6\",null,{\"children\":[\"$\",\"$L7\",null,{\"parallelRouterKey\":\"children\",\"segmentPath\":[\"children\"],\"error\":\"$undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"template\":[\"$\",\"$L8\",null,{}],\"templateStyles\":\"$undefined\",\"templateScripts\":\"$undefined\",\"notFound\":[[\"$\",\"title\",null,{\"children\":\"404: This page could not be found.\"}],[\"$\",\"div\",null,{\"style\":{\"fontFamily\":\"system-ui,\\\"Segoe UI\\\",Roboto,Helvetica,Arial,sans-serif,\\\"Apple Color Emoji\\\",\\\"Segoe UI Emoji\\\"\",\"height\":\"100vh\",\"textAlign\":\"center\",\"display\":\"flex\",\"flexDirection\":\"column\",\"alignItems\":\"center\",\"justifyContent\":\"center\"},\"children\":[\"$\",\"div\",null,{\"children\":[[\"$\",\"style\",null,{\"dangerouslySetInnerHTML\":{\"__html\":\"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}\"}}],[\"$\",\"h1\",null,{\"className\":\"next-error-h1\",\"style\":{\"display\":\"inline-block\",\"margin\":\"0 20px 0 0\",\"padding\":\"0 23px 0 0\",\"fontSize\":24,\"fontWeight\":500,\"verticalAlign\":\"top\",\"lineHeight\":\"49px\"},\"children\":\"404\"}],[\"$\",\"div\",null,{\"style\":{\"display\":\"inline-block\"},\"children\":[\"$\",\"h2\",null,{\"style\":{\"fontSize\":14,\"fontWeight\":400,\"lineHeight\":\"49px\",\"margin\":0},\"children\":\"This page could not be found.\"}]}]]}]}]],\"notFoundStyles\":[]}],\"params\":\"$9\"}]],null],null],\"couldBeIntercepted\":false,\"initialHead\":[null,\"$La\"],\"globalErrorComponent\":\"$b\",\"missingSlots\":\"$Wc\"}]\n"])</script><script>self.__next_f.push([1,"a:[[\"$\",\"meta\",\"0\",{\"name\":\"viewport\",\"content\":\"width=device-width, initial-scale=1\"}],[\"$\",\"meta\",\"1\",{\"charSet\":\"utf-8\"}]]\n3:null\n"])</script></body></html>'admincurl: (3) URL rejected: Bad hostname
+
+
+============================================================
+[BUG-FIX-AI-HOME-ARCHIVE-PATH-404-V1] 閮ㄧ讲瀹屾垚
+============================================================

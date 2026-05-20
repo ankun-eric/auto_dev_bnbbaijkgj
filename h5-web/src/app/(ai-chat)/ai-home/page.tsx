@@ -4722,10 +4722,13 @@ export default function AiHomePage() {
                           <UniversalQuestionnaireResultCard
                             payload={qr.universalCard}
                             onClickDetail={(target) => {
-                              const route = (target && target.route_h5) ||
-                                (qr.universalCard?.questionnaire_code === 'tcm_constitution'
-                                  ? `/tcm/result/${qr.answerId}`
-                                  : null);
+                              // [BUG-HSC-FIX-V2 2026-05-21] B-3 配套：route_h5 缺失时按 questionnaire_code 容错降级
+                              const code = qr.universalCard?.questionnaire_code;
+                              const aid = qr.answerId;
+                              let route =
+                                (target && target.route_h5) ||
+                                (code === 'tcm_constitution' ? `/tcm/result/${aid}` : null) ||
+                                (code === 'health_self_check' ? `/health-self-check/result/${aid}` : null);
                               if (route) router.push(route);
                             }}
                           />

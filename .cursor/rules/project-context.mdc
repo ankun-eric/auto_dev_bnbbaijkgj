@@ -27,7 +27,87 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: BUG-FIX-AI-HOME-ARCHIVE-PATH-404-V1 · AI 对话主页"查看档案"跨端档案路径统一 (2026-05-21 02:40)
+## Latest Update: BUG-HSC-FIX-V2-20260521 · 健康自查 V2 集中修复（B-1~B-7 共 7 项） (2026-05-21 03:15)
+
+**任务类型**：Bug 修复（含架构层升级 + 体验升级）；变更范围：backend + h5-web + admin-web（无客户端 APP / 小程序 / 桌面版改动）
+
+**核心交付**：
+
+1. **B-1 H5 备注题 subtitle/placeholder 拆分**：`h5-web/src/components/ai-chat/QuestionnaireDrawer.tsx` text 类型题渲染时，subtitle 只作"上方小提示文案"展示，textarea placeholder 改用独立字段 `(q as any).placeholder`，缺省时用固定文案"请输入您想补充的内容（选填）"
+
+2. **B-2 family 主体文案修复**（`backend/app/api/questionnaire.py`）：
+   - 原代码 `mem.name`（字段不存在）导致家人态被兜底成本人 nickname → 改用 `FamilyMember.nickname`
+   - 新增 `subject_kind: 'self' | 'family'`、`subject_relation`、`subject_label` 三个字段，贯穿 submit 卡片 payload 与 `get_answer_detail` 详情接口
+   - `archive_prefix` 文案分支：family → "本次回答结合 妈妈（母亲）的健康档案"；self → "本次回答结合本人的健康档案"
+   - `UniversalQuestionnaireResultCard.tsx` 适配 `subject_label`，详情页顶部摘要条增加"被测人"渲染
+
+3. **B-3 H5 详情页地毯式加固**（`h5-web/src/app/health-self-check/result/[id]/page.tsx`）：
+   - 所有 `data.xxx.length / .map / .slice` 改 `(data.xxx ?? []).xxx`，杜绝硬解引用崩溃
+   - 新增 `src/components/ErrorBoundary.tsx` 通用 ErrorBoundary，整页 wrap
+   - `<img>` onError 兜底，单张图片失败不影响整页
+   - HTTP 404 / 500 区分友好提示，不白屏
+   - ai-home page `route_h5` 缺失时按 `questionnaire_code` 容错降级（health_self_check 兜底走 `/health-self-check/result/{id}`）
+
+4. **B-4 admin 编辑按钮回归**（`admin-web/src/app/(admin)/questionnaire-templates/page.tsx`）：删除 health_self_check 行的"前往专属配置页"特化分支，恢复为与其他问卷一致的「题目/分型 + 编辑 + 删除」三按钮
+
+5. **B-5 老表合并下线**（架构层升级）：
+   - 新增 `backend/app/services/prd_health_self_check_legacy_offline_v1_migration.py`
+   - 一致性校验 → 备份信息（行数）→ DROP TABLE（仅在 `HSC_LEGACY_OFFLINE_DROP=1` 时执行）
+   - 默认 dry-run，幂等 sentinel `prd_phase_state.hsc_legacy_offline_v1`；启动日志 `[migrate] hsc_legacy_offline_v1: 迁移完成 stats=...`
+   - admin 侧边栏移除「健康自查问卷模板」「部位症状字典」两项
+   - 物理删除 admin 老页面目录：`admin-web/src/app/(admin)/health-check-templates/` 与 `admin-web/src/app/(admin)/body-part-dict/`
+
+6. **B-6 占位符速查表**（`admin-web/src/app/(admin)/questionnaire-templates/page.tsx`）：
+   - 新增 `PlaceholderCatalogPanel` 组件（折叠/展开，21 项统一全量清单）
+   - 每项打"通用 / 档案类 / 仅健康自查"标签
+   - 只读纯文本展示（不做一键插入/复制），数据从 `GET /api/questionnaire/placeholder-catalog` 拉取，后端不可用时使用本地兜底
+
+7. **B-7 占位符渲染器扩充**（`backend/app/services/prompt_renderer.py` 新增）：
+   - 21 项占位符全量清单（PLACEHOLDER_CATALOG 常量）
+   - 新增 10 项：`family_member_age` / `family_member_gender` / `chronic_diseases` / `allergies` / `medications` / `surgery_history` / `family_history` / `height` / `weight` / `bmi` / `blood_type` / `health_profile`（汇总）
+   - `build_placeholder_values()` + `render()` + `render_with_context()` 三个公开 API
+   - 取不到值统一返回 `"未填写"`，永不抛异常
+   - 新增 API：`GET /api/questionnaire/placeholder-catalog` 返回全量清单（21 项 / scope_tag 元数据 / unfilled_text）
+
+**新增/修改文件清单**：
+
+- `backend/app/api/questionnaire.py` — `_build_questionnaire_card_payload` 加 subject_kind/subject_relation/subject_label；`_build_chat_messages_sequence` archive_prefix 分支；`get_answer_detail` 详情接口返回 subject 字段；新增 `get_placeholder_catalog` 接口
+- `backend/app/services/prompt_renderer.py` — 新增（21 项占位符 + 渲染器）
+- `backend/app/services/prd_health_self_check_legacy_offline_v1_migration.py` — 新增（老表 dry-run 下线迁移）
+- `backend/app/main.py` — 在 lifespan 注册老表下线迁移
+- `backend/tests/test_hsc_fix_v2_20260521.py` — 新增（11 个用例覆盖 B-2 / B-5 / B-6 / B-7）
+- `h5-web/src/components/ErrorBoundary.tsx` — 新增
+- `h5-web/src/app/health-self-check/result/[id]/page.tsx` — 全文重写（地毯式加固）
+- `h5-web/src/components/ai-chat/QuestionnaireDrawer.tsx` — text 题 placeholder 拆分
+- `h5-web/src/components/ai-chat/UniversalQuestionnaireResultCard.tsx` — 新增 subject_kind/subject_relation/subject_label 支持
+- `h5-web/src/app/(ai-chat)/ai-home/page.tsx` — `route_h5` 缺失时按 questionnaire_code 容错降级
+- `admin-web/src/app/(admin)/questionnaire-templates/page.tsx` — health_self_check 编辑按钮回归 + PlaceholderCatalogPanel 组件
+- `admin-web/src/app/(admin)/layout.tsx` — 移除老菜单两项
+- `admin-web/src/app/(admin)/health-check-templates/` — 整目录删除
+- `admin-web/src/app/(admin)/body-part-dict/` — 整目录删除
+
+**部署与验证（已通过）**：
+
+- 部署脚本 `_deploy_hsc_fix_v2.py`（paramiko + SFTP 上传 → docker compose build & up）于 2026-05-21 03:14 部署完成
+- 烟雾测试脚本 `_smoke_hsc_fix_v2.py`（10/10 PASS）：
+  - `/api/health` → 200
+  - `/api/questionnaire/placeholder-catalog` → 200，21 项，scope_tags={通用, 档案类, 仅健康自查}
+  - `/api/questionnaire/templates` → 200
+  - `/admin/` → 200
+  - `/health-self-check/result/9999999` → 200（前端可加载，加固生效）
+  - `/` → 200
+  - 远端容器内 prompt_renderer 单测：取不到值返回"未填写"，PLACEHOLDER_CATALOG 含 21 项
+  - 远端容器内 `_build_questionnaire_card_payload` subject_label 分支：family → "妈妈（母亲）"，self → "本人"
+  - admin 老页面 `/admin/health-check-templates`、`/admin/body-part-dict` → 404
+- 后端启动日志显示迁移 stats：`consistency_ok=True, dropped=[], skipped=['dry_run_mode_no_drop'], backup=['health_check_template: rows=1', 'body_part_dict: rows=10']`
+
+**用户手册**：`user_docs/健康自查V2集中修复.md`
+
+**部署唯一标识**：`6b099ed3-7175-4a78-91f4-44570c84ed27`（沿用）
+
+---
+
+## Previous Update: BUG-FIX-AI-HOME-ARCHIVE-PATH-404-V1 · AI 对话主页"查看档案"跨端档案路径统一 (2026-05-21 02:40)
 
 **任务类型**：Bug 修复（跨端老路径残留导致 404）；变更范围：backend + h5-web + admin-web + flutter_app + miniprogram
 

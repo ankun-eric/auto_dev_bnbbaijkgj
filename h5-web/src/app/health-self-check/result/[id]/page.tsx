@@ -2,6 +2,13 @@
 
 /**
  * [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21]
+ * [BUG-HSC-FIX-V2 2026-05-21] B-3 地毯式加固：
+ *   1) 所有 data.xxx.length / .map 加 ?? [] 空值兜底，杜绝硬解引用
+ *   2) 顶层 ErrorBoundary 包裹，单点崩溃不再触发 Next.js 全局白屏
+ *   3) <img> onError 兜底，单张图片失败不影响整页
+ *   4) 接口 404/500 时显示"结果不存在/加载失败"友好页
+ *   5) 渲染 B-2 subject 信息（家人档案场景）
+ *
  * 健康自查结果详情页（6 区块）：
  *   B1 答题记录
  *   B2 AI 解读
@@ -17,6 +24,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button, SpinLoading, Toast } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import api from '@/lib/api';
 
 interface QAItem {
@@ -54,26 +62,46 @@ interface ResultData {
     price?: number | string | null;
     [k: string]: any;
   }>;
+  // [BUG-HSC-FIX-V2 2026-05-21]
+  subject_kind?: 'self' | 'family' | string;
+  subject_name?: string;
+  subject_relation?: string;
+  subject_label?: string;
 }
 
-export default function HealthSelfCheckResultPage() {
+type LoadState = 'loading' | 'ok' | 'notfound' | 'error';
+
+function PageInner() {
   const params = useParams() as { id?: string };
   const id = params?.id;
   const router = useRouter();
   const [data, setData] = useState<ResultData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadState, setLoadState] = useState<LoadState>('loading');
 
   const load = useCallback(async () => {
-    if (!id) return;
-    setLoading(true);
+    if (!id) {
+      setLoadState('notfound');
+      return;
+    }
+    setLoadState('loading');
     try {
       const res = await api.get<ResultData>(`/api/questionnaire/answers/${id}`);
-      setData(res as ResultData);
-    } catch (e) {
+      setData((res as ResultData) || null);
+      setLoadState('ok');
+    } catch (e: any) {
+      // eslint-disable-next-line no-console
       console.warn('[hsc-result] load failed', e);
-      Toast.show({ content: '结果加载失败，请稍后再试' });
-    } finally {
-      setLoading(false);
+      const status = e?.response?.status || e?.status;
+      if (status === 404) {
+        setLoadState('notfound');
+      } else {
+        setLoadState('error');
+        try {
+          Toast.show({ content: '结果加载失败，请稍后再试' });
+        } catch {
+          /* noop */
+        }
+      }
     }
   }, [id]);
 
@@ -81,7 +109,7 @@ export default function HealthSelfCheckResultPage() {
     load();
   }, [load]);
 
-  if (loading) {
+  if (loadState === 'loading') {
     return (
       <div
         style={{
@@ -97,14 +125,38 @@ export default function HealthSelfCheckResultPage() {
     );
   }
 
-  if (!data) {
+  if (loadState === 'notfound' || !data) {
     return (
       <div style={{ minHeight: '100vh', background: '#F5F7FB' }}>
         <GreenNavBar back={() => router.back()}>健康自查结果</GreenNavBar>
-        <div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>结果不存在</div>
+        <div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>📭</div>
+          <div style={{ fontSize: 14 }}>该结果不存在或已被删除</div>
+        </div>
       </div>
     );
   }
+
+  if (loadState === 'error') {
+    return (
+      <div style={{ minHeight: '100vh', background: '#F5F7FB' }}>
+        <GreenNavBar back={() => router.back()}>健康自查结果</GreenNavBar>
+        <div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>⚠️</div>
+          <div style={{ fontSize: 14, marginBottom: 16 }}>结果暂不可查看，请稍后再试</div>
+          <Button color="primary" onClick={load}>
+            重新加载
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // [BUG-HSC-FIX-V2] 全部访问都加 ?? [] 兜底，避免运行时硬解引用崩溃
+  const qaList = Array.isArray(data.qa_list) ? data.qa_list : [];
+  const homeCareTips = Array.isArray(data.home_care_tips) ? data.home_care_tips : [];
+  const redFlagSignals = Array.isArray(data.red_flag_signals) ? data.red_flag_signals : [];
+  const recommendGoods = Array.isArray(data.recommend_goods) ? data.recommend_goods : [];
 
   const completedAt = data.completed_at
     ? new Date(data.completed_at).toLocaleString('zh-CN', {
@@ -115,6 +167,15 @@ export default function HealthSelfCheckResultPage() {
         minute: '2-digit',
       })
     : '';
+
+  // [BUG-HSC-FIX-V2] B-2 subject 标签
+  const subjectLabel = data.subject_label
+    ? data.subject_label
+    : data.subject_kind === 'family' && data.subject_name
+    ? data.subject_relation
+      ? `${data.subject_name}（${data.subject_relation}）`
+      : data.subject_name
+    : '本人';
 
   return (
     <div
@@ -139,21 +200,30 @@ export default function HealthSelfCheckResultPage() {
         <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.5 }}>
           {data.ai_conclusion || '已完成本次健康自查'}
         </div>
+        <div style={{ fontSize: 12, opacity: 0.85, marginTop: 6 }} data-testid="hsc-subject-label">
+          本次回答结合 {subjectLabel} 的健康档案
+        </div>
         {completedAt && (
-          <div style={{ fontSize: 12, opacity: 0.85, marginTop: 6 }}>完成时间：{completedAt}</div>
+          <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>完成时间：{completedAt}</div>
         )}
       </div>
 
       {/* B1 答题记录 */}
       <SectionCard title="📝 您的答题记录" testid="hsc-section-qa">
-        {data.qa_list.length === 0 ? (
+        {qaList.length === 0 ? (
           <div style={{ color: '#94A3B8', fontSize: 13 }}>无答题记录</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {data.qa_list.map((qa, idx) => (
-              <div key={qa.question_id} style={{ borderBottom: idx === data.qa_list.length - 1 ? 'none' : '1px dashed #E2E8F0', paddingBottom: 8 }}>
+            {qaList.map((qa, idx) => (
+              <div
+                key={qa.question_id ?? idx}
+                style={{
+                  borderBottom: idx === qaList.length - 1 ? 'none' : '1px dashed #E2E8F0',
+                  paddingBottom: 8,
+                }}
+              >
                 <div style={{ fontSize: 13, color: '#0F172A', fontWeight: 600, marginBottom: 4 }}>
-                  Q{idx + 1}. {qa.title}
+                  Q{idx + 1}. {qa.title || '—'}
                 </div>
                 <div style={{ fontSize: 13, color: '#334155' }}>
                   答：{qa.value_display || <span style={{ color: '#94A3B8' }}>—</span>}
@@ -188,9 +258,9 @@ export default function HealthSelfCheckResultPage() {
 
       {/* B3 居家处理建议 */}
       <SectionCard title="🏠 居家处理建议" testid="hsc-section-home-care">
-        {data.home_care_tips && data.home_care_tips.length > 0 ? (
+        {homeCareTips.length > 0 ? (
           <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: '#1E293B', lineHeight: 1.7 }}>
-            {data.home_care_tips.map((tip, idx) => (
+            {homeCareTips.map((tip, idx) => (
               <li key={idx}>{tip}</li>
             ))}
           </ol>
@@ -213,9 +283,9 @@ export default function HealthSelfCheckResultPage() {
         <div style={{ fontSize: 15, fontWeight: 700, color: '#DC2626', marginBottom: 8 }}>
           ⚠️ 出现以下情况请立即就医
         </div>
-        {data.red_flag_signals && data.red_flag_signals.length > 0 ? (
+        {redFlagSignals.length > 0 ? (
           <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: '#991B1B', lineHeight: 1.7 }}>
-            {data.red_flag_signals.map((s, idx) => (
+            {redFlagSignals.map((s, idx) => (
               <li key={idx}>{s}</li>
             ))}
           </ul>
@@ -225,7 +295,7 @@ export default function HealthSelfCheckResultPage() {
       </div>
 
       {/* B5 推荐商品 */}
-      {data.recommend_goods && data.recommend_goods.length > 0 && (
+      {recommendGoods.length > 0 && (
         <SectionCard title="🎁 为您推荐" testid="hsc-section-recommend">
           <div
             style={{
@@ -236,13 +306,15 @@ export default function HealthSelfCheckResultPage() {
               WebkitOverflowScrolling: 'touch',
             }}
           >
-            {data.recommend_goods.slice(0, 6).map((g, idx) => {
-              const cover = (g.cover_image || g.image || '') as string;
-              const name = (g.name || g.title || '推荐商品') as string;
-              const price = g.price ?? '';
+            {recommendGoods.slice(0, 6).map((g, idx) => {
+              const cover = (g?.cover_image || g?.image || '') as string;
+              const name = (g?.name || g?.title || '推荐商品') as string;
+              const price = g?.price ?? '';
+              const validCover =
+                typeof cover === 'string' && (cover.startsWith('http') || cover.startsWith('/'));
               return (
                 <div
-                  key={g.sku_id || g.id || idx}
+                  key={g?.sku_id || g?.id || idx}
                   style={{
                     flex: '0 0 auto',
                     width: 140,
@@ -252,10 +324,18 @@ export default function HealthSelfCheckResultPage() {
                     overflow: 'hidden',
                   }}
                 >
-                  {cover ? (
+                  {validCover ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={cover}
                       alt={name}
+                      onError={(e) => {
+                        try {
+                          (e.currentTarget as HTMLImageElement).style.display = 'none';
+                        } catch {
+                          /* noop */
+                        }
+                      }}
                       style={{ width: '100%', height: 100, objectFit: 'cover', display: 'block' }}
                     />
                   ) : (
@@ -289,7 +369,7 @@ export default function HealthSelfCheckResultPage() {
                     >
                       {name}
                     </div>
-                    {price !== '' && (
+                    {price !== '' && price !== null && price !== undefined && (
                       <div style={{ fontSize: 13, color: '#DC2626', fontWeight: 700, marginTop: 4 }}>
                         ¥{price}
                       </div>
@@ -322,7 +402,6 @@ export default function HealthSelfCheckResultPage() {
           block
           color="default"
           onClick={() => {
-            // 返回 AI 对话页（重新填写入口由对话页菜单触发）
             router.push('/ai-home');
           }}
           data-testid="hsc-cta-restart"
@@ -333,7 +412,6 @@ export default function HealthSelfCheckResultPage() {
           block
           color="primary"
           onClick={() => {
-            // 找医生咨询：跳转到服务咨询入口
             router.push('/services/category/consult');
           }}
           data-testid="hsc-cta-consult"
@@ -342,6 +420,14 @@ export default function HealthSelfCheckResultPage() {
         </Button>
       </div>
     </div>
+  );
+}
+
+export default function HealthSelfCheckResultPage() {
+  return (
+    <ErrorBoundary>
+      <PageInner />
+    </ErrorBoundary>
   );
 }
 
