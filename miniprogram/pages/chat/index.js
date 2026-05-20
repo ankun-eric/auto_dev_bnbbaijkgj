@@ -243,6 +243,91 @@ Page({
     if (chatId && !isSymptom) {
       this.restoreSessionMember(chatId);
     }
+
+    // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 消费 globalData.pendingQnChatMessages
+    // 把后端 chat_messages 序列（card → text → followup_chips）按顺序注入到对话流
+    try {
+      const app = getApp();
+      const pending = app && app.globalData && app.globalData.pendingQnChatMessages;
+      if (pending && Array.isArray(pending.chat_messages) && pending.chat_messages.length > 0) {
+        setTimeout(() => {
+          this._injectQnChatMessages(pending);
+          if (app && app.globalData) app.globalData.pendingQnChatMessages = null;
+        }, 200);
+      }
+    } catch (e) {
+      console.warn('[chat] consume pendingQnChatMessages failed', e);
+    }
+  },
+
+  // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 注入问卷结果三连消息
+  _injectQnChatMessages(pending) {
+    const seq = pending.chat_messages || [];
+    const fallbackCard = pending.result_card_payload || null;
+    seq.forEach((m) => {
+      if (m.type === 'questionnaire_result_card') {
+        this.addMessage('assistant', '', {
+          type: 'questionnaire_result_card',
+          qnResultPayload: m.card || fallbackCard,
+          qnAnswerId: pending.answer_id,
+          qnQuestionnaireCode: pending.questionnaire_code,
+        });
+      } else if (m.type === 'text') {
+        this.addMessage('assistant', m.text || '', {
+          type: 'text',
+          mainContent: m.text || '',
+        });
+      } else if (m.type === 'followup_chips') {
+        this.addMessage('assistant', '', {
+          type: 'followup_chips',
+          followupChips: Array.isArray(m.chips) ? m.chips : [],
+          chipsDisabled: false,
+          qnAnswerId: pending.answer_id,
+          qnQuestionnaireCode: pending.questionnaire_code,
+        });
+      }
+    });
+  },
+
+  // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 卡片"查看详情"按钮点击
+  onQnViewDetail(e) {
+    const detail = e && e.detail ? e.detail : {};
+    const payload = detail.payload || {};
+    const target = detail.target || {};
+    let mpPath = target.mp_path;
+    if (!mpPath && payload.questionnaire_code === 'tcm_constitution' && (payload.result_id || payload.answer_id)) {
+      mpPath = `/pages/tcm-constitution-result/index?id=${payload.result_id || payload.answer_id}`;
+    }
+    if (mpPath) {
+      wx.navigateTo({ url: mpPath });
+    }
+  },
+
+  // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] chips 点击 → 调用 followup-chip 接口
+  async onFollowupChipTap(e) {
+    try {
+      const msgId = e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.msgid;
+      const chip = e && e.detail ? e.detail.chip : null;
+      if (!chip) return;
+      const messages = (this.data.messages || []).map((m) => {
+        if (m.id === msgId) return Object.assign({}, m, { chipsDisabled: true });
+        return m;
+      });
+      this.setData({ messages });
+      // 拉到对应 message 上的 answer_id
+      const cur = (this.data.messages || []).find((m) => m.id === msgId);
+      const answerId = cur && cur.qnAnswerId;
+      const r = await post('/api/questionnaire/followup-chip', {
+        answer_id: answerId,
+        chip_code: chip.code,
+        chip_label: chip.label,
+      }, { showLoading: false, suppressErrorToast: true });
+      const aiText = (r && r.ai_text) || `本次回答结合您的档案。${chip.label} 暂无更详细资料。`;
+      this.addMessage('assistant', aiText, { type: 'text', mainContent: aiText });
+    } catch (err) {
+      console.warn('[chat] followup-chip failed', err);
+      wx.showToast({ title: '请求失败', icon: 'none' });
+    }
   },
 
   onUnload() {

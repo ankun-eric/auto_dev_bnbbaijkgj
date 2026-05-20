@@ -269,9 +269,29 @@ Page({
       // 新版：跳转到 6 屏结果页
       const diagnosisId = res && (res.id || res.diagnosis_id);
       if (diagnosisId) {
+        // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 把后端返回的 chat_messages 暂存到 globalData，
+        // 跳转到 AI 对话页后由 chat 页 onLoad 自动注入到对话流
+        try {
+          const app = getApp();
+          if (app && app.globalData) {
+            app.globalData.pendingQnChatMessages = {
+              answer_id: diagnosisId,
+              questionnaire_code: 'tcm_constitution',
+              chat_messages: (res && res.chat_messages) || [],
+              result_card_payload: (res && res.result_card_payload) || null,
+              family_member_id: familyMemberId || null,
+            };
+          }
+        } catch (e) {
+          console.warn('[tcm] cache pending qn messages failed', e);
+        }
         // 重置本页状态，避免从结果页返回时回到答题状态
         this.setData({ showQuiz: false, showResult: false, currentQuestion: 0, quizAnswers: [], currentStep: 0 });
-        wx.navigateTo({ url: `/pages/tcm-constitution-result/index?id=${diagnosisId}` });
+        // 跳转到 AI 对话页（type=constitution_test 让 chat 页知道是体质卷场景）
+        const memberQs = familyMemberId ? `&family_member_id=${familyMemberId}` : '';
+        wx.navigateTo({
+          url: `/pages/chat/index?type=constitution_test${memberQs}&result_id=${diagnosisId}`,
+        });
         this.loadArchiveList();
         return;
       }

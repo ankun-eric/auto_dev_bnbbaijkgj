@@ -26,6 +26,9 @@ class TCMDiagnosisResponse(BaseModel):
     # [PRD-TCM-CONSTITUTION-36Q-V1 2026-05-20] 王琦本地公式 9 项转换分
     constitution_scores: Optional[Dict[str, Any]] = None
     created_at: datetime
+    # [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 通用卡片消息协议（三端按 type 路由渲染）
+    chat_messages: Optional[list] = None
+    result_card_payload: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -106,8 +106,26 @@
         consultant-id="{{currentConsultantId || 0}}"
       />
 
+      <!-- [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] AI 侧问卷结果卡片 -->
+      <view class="ai-msg-wrap" wx:if="{{item.role === 'assistant' && item.type === 'questionnaire_result_card' && item.qnResultPayload}}">
+        <view class="ai-card-header">
+          <view class="ai-header-avatar"><text class="ai-header-avatar-emoji">🤖</text></view>
+          <text class="ai-header-name">小康</text>
+        </view>
+        <questionnaire-result-card payload="{{item.qnResultPayload}}" bind:viewdetail="onQnViewDetail" />
+      </view>
+
+      <!-- [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] AI 侧追问 chips 行 -->
+      <view class="ai-msg-wrap" wx:elif="{{item.role === 'assistant' && item.type === 'followup_chips' && item.followupChips}}">
+        <view class="ai-card-header">
+          <view class="ai-header-avatar"><text class="ai-header-avatar-emoji">🤖</text></view>
+          <text class="ai-header-name">小康</text>
+        </view>
+        <followup-chips-row chips="{{item.followupChips}}" disabled="{{item.chipsDisabled}}" data-msgid="{{item.id}}" bind:chiptap="onFollowupChipTap" />
+      </view>
+
       <!-- [PRD-433] AI 消息：白色卡片 + 卡片外部上方头像名称行 -->
-      <view class="ai-msg-wrap" wx:if="{{item.role === 'assistant'}}">
+      <view class="ai-msg-wrap" wx:elif="{{item.role === 'assistant'}}">
         <view class="ai-card-header">
           <view class="ai-header-avatar">
             <text class="ai-header-avatar-emoji">🤖</text>

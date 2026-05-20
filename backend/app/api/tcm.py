@@ -370,4 +370,77 @@ async def constitution_test(
         except Exception:
             pass
 
+    # [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 注入"卡片消息协议"
+    chat_messages_seq: list = []
+    result_card_payload_out: dict = {}
+    try:
+        # 构造一个伪 tpl/ans 对象供 helper 使用（避免与新版 /api/questionnaire/submit 体系冲突）
+        from app.api.questionnaire import (
+            _build_questionnaire_card_payload,
+            _build_chat_messages_sequence,
+            CONSTITUTION_ONELINE_DESC,
+        )
+        from types import SimpleNamespace
+        from datetime import datetime as _dt
+
+        scores_map: dict = {}
+        secondary_list: list = []
+        if formula_result is not None:
+            scores_map = dict(formula_result.scores or {})
+            secondary_list = list(formula_result.secondary_types or [])
+
+        subject_name_t: str = ""
+        try:
+            if data.family_member_id:
+                fm = await db.get(FamilyMember, data.family_member_id)
+                if fm and getattr(fm, "name", None):
+                    subject_name_t = fm.name
+            if not subject_name_t and getattr(current_user, "nickname", None):
+                subject_name_t = current_user.nickname
+        except Exception:  # noqa: BLE001
+            pass
+
+        # 伪 tpl/ans（仅放 helper 需要的字段）
+        fake_tpl = SimpleNamespace(
+            id=0,
+            code="tcm_constitution",
+            name="中医体质测评（王琦 36 题版）",
+            ai_opening=None,
+            followup_chips_json=None,
+        )
+        fake_ans = SimpleNamespace(
+            id=diagnosis_snapshot["id"],
+            completed_at=_dt.utcnow(),
+        )
+        card_pl = _build_questionnaire_card_payload(
+            tpl=fake_tpl,
+            ans=fake_ans,
+            main_type=constitution_type,
+            secondary_types=secondary_list,
+            scores=scores_map,
+            classification_name=constitution_type,
+            classification_code=None,
+            subject_name=subject_name_t,
+            summary_text=constitution_desc or None,
+            fields=[],
+            icon="🌿",
+        )
+        chat_messages_seq = _build_chat_messages_sequence(
+            tpl=fake_tpl,
+            ans=fake_ans,
+            card_payload=card_pl,
+            ai_opening=None,
+            main_type=constitution_type,
+            secondary_types=secondary_list,
+            scores=scores_map,
+            subject_name=subject_name_t,
+            ai_followup_enabled=True,
+        )
+        result_card_payload_out = card_pl
+    except Exception as _e:  # noqa: BLE001
+        import logging as _l
+        _l.getLogger(__name__).warning("constitution-test chat_messages build failed: %s", _e)
+
+    diagnosis_snapshot["chat_messages"] = chat_messages_seq
+    diagnosis_snapshot["result_card_payload"] = result_card_payload_out
     return TCMDiagnosisResponse.model_validate(diagnosis_snapshot)

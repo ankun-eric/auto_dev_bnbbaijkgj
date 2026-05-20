@@ -4,6 +4,8 @@
   "usingComponents": {
     "chat-drawer": "/components/chat-drawer/chat-drawer",
     "knowledge-card": "/components/knowledge-card/index",
-    "profile-card": "/components/profile-card/index"
+    "profile-card": "/components/profile-card/index",
+    "questionnaire-result-card": "/components/questionnaire-result-card/index",
+    "followup-chips-row": "/components/followup-chips-row/index"
   }
 }

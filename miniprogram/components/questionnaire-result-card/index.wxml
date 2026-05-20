@@ -1,0 +1,47 @@
+<view class="qn-card" wx:if="{{payload}}" data-testid="qn-result-card">
+  <view class="qn-cover" style="background: linear-gradient(90deg, {{payload.cover_color || '#0EA5E9'}} 0%, {{payload.cover_color || '#0EA5E9'}}88 100%);"></view>
+  <view class="qn-body">
+    <view class="qn-head">
+      <text class="qn-head-name">{{payload.icon || '📝'}} {{payload.questionnaire_name || '测评结果'}}</text>
+      <text class="qn-head-time" wx:if="{{payload.completed_at}}">{{payload.completed_at}}</text>
+    </view>
+    <view class="qn-subject" wx:if="{{payload.subject_name}}">被测人：{{payload.subject_name}}</view>
+    <view class="qn-main-row">
+      <view class="qn-main-tag" style="background:{{coverColorBg}}; color:{{payload.cover_color || '#0EA5E9'}};">
+        主：{{payload.main_type || payload.classification_name || '结果'}}
+      </view>
+      <text class="qn-sec" wx:if="{{payload.secondary_types && payload.secondary_types.length}}">
+        兼：{{payload.secondary_types.join('、')}}
+      </text>
+    </view>
+    <view class="qn-desc" wx:if="{{payload.main_type_desc}}">{{payload.main_type_desc}}</view>
+    <view class="qn-radar" wx:if="{{radarPolygonPoints}}">
+      <view class="qn-radar-wrap">
+        <view class="qn-radar-bg"></view>
+        <view class="qn-radar-fill" style="clip-path: polygon({{radarPolygonPoints}}); background:{{payload.cover_color || '#0EA5E9'}}33;"></view>
+        <view class="qn-radar-labels">
+          <text class="qn-radar-label" wx:for="{{radarLabelPoints}}" wx:key="label" style="left:{{item.x}}rpx; top:{{item.y}}rpx;">{{item.label}}</text>
+        </view>
+      </view>
+      <!-- 退化：以柱状条展示 9 项分数（小程序无 SVG 支持，雷达用文字 + 柱状条降级） -->
+      <view class="qn-bars">
+        <view class="qn-bar-row" wx:for="{{radarLabelPoints}}" wx:key="label">
+          <text class="qn-bar-label">{{item.label}}</text>
+          <view class="qn-bar-track">
+            <view class="qn-bar-fill" style="width: {{payload.scores[item.label] || 0}}%; background:{{payload.cover_color || '#0EA5E9'}};"></view>
+          </view>
+          <text class="qn-bar-val">{{payload.scores[item.label] || 0}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="qn-fields" wx:if="{{!radarPolygonPoints && payload.fields && payload.fields.length}}">
+      <view class="qn-field-row" wx:for="{{payload.fields}}" wx:key="key">
+        <text class="qn-field-label">{{item.label}}</text>
+        <text class="qn-field-value">{{item.value || '—'}}</text>
+      </view>
+    </view>
+  </view>
+  <view class="qn-detail-btn" bindtap="onClickDetail" data-testid="qn-result-detail-btn">
+    <text style="color:{{payload.cover_color || '#0EA5E9'}};">查看详情 ›</text>
+  </view>
+</view>

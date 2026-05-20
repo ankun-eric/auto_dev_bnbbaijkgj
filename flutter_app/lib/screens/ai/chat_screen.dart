@@ -24,6 +24,10 @@ import '../../widgets/function_buttons_bar.dart';
 import '../../widgets/ai_profile_card.dart';
 import '../../widgets/health_self_check_drawer.dart';
 import '../../widgets/health_self_check_card.dart';
+// [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] AI 对话页问卷结果卡片 & 追问 chips
+import '../../widgets/ai_chat/questionnaire_result_card.dart';
+import '../../widgets/ai_chat/followup_chips_row.dart';
+import '../health/constitution_result_screen.dart';
 import '../../services/api_service.dart';
 import '../../services/sse_service.dart';
 import '../../services/tts_service.dart';
@@ -206,6 +210,79 @@ class _ChatScreenState extends State<ChatScreen> {
               }
             }
           });
+        }
+      }
+
+      // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 注入"卡片消息协议"序列
+      // 来源：tcm_screen 提交体质测评后跳过来时通过 arguments 传递
+      if (_initialType == 'constitution_test' || _initialType == 'constitution') {
+        setState(() => _isSymptomLocked = true);
+        final pending = args['pending_qn_chat_messages'];
+        final answerId = args['pending_qn_answer_id'];
+        final qnCode = args['pending_qn_code']?.toString() ?? '';
+        final cardPayloadArg = args['pending_qn_result_card_payload'];
+        if (pending is List && pending.isNotEmpty) {
+          final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+          // 确保有 session
+          Future<void> ensureAndInject() async {
+            if (chatProvider.currentSession == null) {
+              await chatProvider.createSession('constitution');
+            }
+            if (!mounted) return;
+            final sessionId = chatProvider.currentSession?.id?.toString() ?? '';
+            final fallbackPayload = cardPayloadArg is Map
+                ? Map<String, dynamic>.from(cardPayloadArg)
+                : <String, dynamic>{};
+            for (int i = 0; i < pending.length; i++) {
+              final m = pending[i];
+              if (m is! Map) continue;
+              final t = (m['type'] ?? '').toString();
+              if (t == 'questionnaire_result_card') {
+                final card = m['card'] is Map
+                    ? Map<String, dynamic>.from(m['card'] as Map)
+                    : fallbackPayload;
+                chatProvider.addMessageExternally(ChatMessage(
+                  id: 'qn-card-$answerId-$i',
+                  sessionId: sessionId,
+                  role: 'assistant',
+                  content: '',
+                  type: 'questionnaire_result_card',
+                  questionnaireResultPayload: card,
+                  questionnaireAnswerId: answerId is int ? answerId : null,
+                  questionnaireCode: qnCode,
+                  createdAt: DateTime.now().toIso8601String(),
+                ));
+              } else if (t == 'text') {
+                final text = (m['text'] ?? '').toString();
+                chatProvider.addMessageExternally(ChatMessage(
+                  id: 'qn-text-$answerId-$i',
+                  sessionId: sessionId,
+                  role: 'assistant',
+                  content: text,
+                  type: 'text',
+                  createdAt: DateTime.now().toIso8601String(),
+                ));
+              } else if (t == 'followup_chips') {
+                final chips = (m['chips'] as List?)
+                        ?.whereType<Map>()
+                        .map((e) => Map<String, dynamic>.from(e))
+                        .toList() ??
+                    <Map<String, dynamic>>[];
+                chatProvider.addMessageExternally(ChatMessage(
+                  id: 'qn-chips-$answerId-$i',
+                  sessionId: sessionId,
+                  role: 'assistant',
+                  content: '',
+                  type: 'followup_chips',
+                  followupChips: chips,
+                  questionnaireAnswerId: answerId is int ? answerId : null,
+                  questionnaireCode: qnCode,
+                  createdAt: DateTime.now().toIso8601String(),
+                ));
+              }
+            }
+          }
+          ensureAndInject();
         }
       }
 
@@ -2210,8 +2287,95 @@ class _ChatScreenState extends State<ChatScreen> {
   // [PRD-433 v1.0] 气泡卡片化：用户右侧浅蓝气泡 + AI 白色卡片
   Widget _buildMessageBubble(ChatMessage message, {bool showActions = false, bool showOcrDetailEntry = false}) {
     if (message.isLoading) return _buildLoadingCard();
+    // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] AI 侧问卷结果卡片（修复 Bug-3）
+    if (!message.isUser &&
+        message.type == 'questionnaire_result_card' &&
+        message.questionnaireResultPayload != null) {
+      return _buildAiSideQuestionnaireResultCard(message);
+    }
+    // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] AI 侧追问 chips 行（修复 Bug-1）
+    if (!message.isUser &&
+        message.type == 'followup_chips' &&
+        message.followupChips != null) {
+      return _buildAiSideFollowupChipsRow(message);
+    }
     if (message.isUser) return _buildUserBubble(message);
     return _buildAiCard(message, showActions: showActions, showOcrDetailEntry: showOcrDetailEntry);
+  }
+
+  // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] AI 侧渲染：问卷结果卡片
+  Widget _buildAiSideQuestionnaireResultCard(ChatMessage message) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 380),
+          child: QuestionnaireResultCard(
+            payload: message.questionnaireResultPayload!,
+            onTapDetail: () {
+              final payload = message.questionnaireResultPayload!;
+              final code = (payload['questionnaire_code'] ?? '').toString();
+              final resultId = payload['result_id'] ?? payload['answer_id'] ?? message.questionnaireAnswerId;
+              if (code == 'tcm_constitution' && resultId is int) {
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => ConstitutionResultScreen(diagnosisId: resultId),
+                ));
+              } else if (resultId is int) {
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => ConstitutionResultScreen(diagnosisId: resultId),
+                ));
+              }
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] AI 侧渲染：追问 chips 行
+  Widget _buildAiSideFollowupChipsRow(ChatMessage message) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: FollowupChipsRow(
+          chips: message.followupChips!,
+          disabled: message.followupChipsDisabled,
+          onTapChip: (chip) async {
+            // 立即置灰
+            final chatProvider = context.read<ChatProvider>();
+            chatProvider.replaceMessageById(
+              message.id,
+              message.copyWith(followupChipsDisabled: true),
+            );
+            try {
+              final api = ApiService();
+              final r = await api.dio.post(
+                '/api/questionnaire/followup-chip',
+                data: {
+                  'answer_id': message.questionnaireAnswerId,
+                  'chip_code': chip['code'],
+                  'chip_label': chip['label'],
+                },
+              );
+              final data = r.data is Map ? r.data as Map : <String, dynamic>{};
+              final aiText = (data['ai_text'] ?? '本次回答结合您的档案。${chip['label']} 暂无更详细资料。').toString();
+              chatProvider.addMessageExternally(ChatMessage(
+                id: 'chip-reply-${DateTime.now().millisecondsSinceEpoch}',
+                sessionId: message.sessionId,
+                role: 'assistant',
+                content: aiText,
+                type: 'text',
+                createdAt: DateTime.now().toIso8601String(),
+              ));
+            } catch (e) {
+              // ignore
+            }
+          },
+        ),
+      ),
+    );
   }
 
   // [PRD-433 F-01/F-04] 用户消息：右侧浅蓝气泡，无头像

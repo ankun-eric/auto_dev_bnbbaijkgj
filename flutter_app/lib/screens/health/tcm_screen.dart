@@ -682,12 +682,33 @@ class _TcmScreenState extends State<TcmScreen> {
 
         _loadDiagnosisList();
 
-        // 新版：直接跳转到 6 屏结果页（融合 M1~M9 模块）
+        // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 跳回 AI 对话页并注入"卡片消息协议"序列
+        // 修复 Bug-1/Bug-2/Bug-3：测评完成后用户应回到对话流看到 card → text → chips 三连消息，
+        // 而非直接进入 6 屏详情页（详情页变为"查看详情"按钮入口）。
         if (diagnosisId is int) {
           if (!mounted) return;
-          Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => ConstitutionResultScreen(diagnosisId: diagnosisId),
-          ));
+          final chatMessages =
+              (resultData is Map && resultData['chat_messages'] is List)
+                  ? List<dynamic>.from(resultData['chat_messages'] as List)
+                  : <dynamic>[];
+          final resultCardPayload =
+              (resultData is Map && resultData['result_card_payload'] is Map)
+                  ? Map<String, dynamic>.from(resultData['result_card_payload'] as Map)
+                  : <String, dynamic>{};
+          final constitutionType = (resultData is Map ? resultData['constitution_type'] : null)?.toString() ?? '平和质';
+          Navigator.pushNamed(
+            context,
+            '/chat',
+            arguments: {
+              'type': 'constitution_test',
+              'family_member_id': familyMemberId,
+              'summary': '体质测评 · $constitutionType',
+              'pending_qn_chat_messages': chatMessages,
+              'pending_qn_result_card_payload': resultCardPayload,
+              'pending_qn_answer_id': diagnosisId,
+              'pending_qn_code': 'tcm_constitution',
+            },
+          );
           return;
         }
 

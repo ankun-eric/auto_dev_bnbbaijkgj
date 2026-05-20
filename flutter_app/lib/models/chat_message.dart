@@ -14,6 +14,13 @@ class ChatMessage {
   final List<Map<String, dynamic>>? references;
   // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查卡片 payload（type=='health_self_check_card' 时使用）
   final Map<String, dynamic>? healthSelfCheckPayload;
+  // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 问卷结果卡片 payload（type=='questionnaire_result_card' 时使用）
+  final Map<String, dynamic>? questionnaireResultPayload;
+  // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 追问 chips 列表 + 是否已置灰 + 关联 answer_id
+  final List<Map<String, dynamic>>? followupChips;
+  final bool followupChipsDisabled;
+  final int? questionnaireAnswerId;
+  final String? questionnaireCode;
 
   ChatMessage({
     required this.id,
@@ -27,7 +34,36 @@ class ChatMessage {
     this.knowledgeHits,
     this.references,
     this.healthSelfCheckPayload,
+    this.questionnaireResultPayload,
+    this.followupChips,
+    this.followupChipsDisabled = false,
+    this.questionnaireAnswerId,
+    this.questionnaireCode,
   });
+
+  /// [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 复制并替换 followupChipsDisabled
+  ChatMessage copyWith({
+    bool? followupChipsDisabled,
+  }) {
+    return ChatMessage(
+      id: id,
+      sessionId: sessionId,
+      role: role,
+      content: content,
+      type: type,
+      imageUrl: imageUrl,
+      isLoading: isLoading,
+      createdAt: createdAt,
+      knowledgeHits: knowledgeHits,
+      references: references,
+      healthSelfCheckPayload: healthSelfCheckPayload,
+      questionnaireResultPayload: questionnaireResultPayload,
+      followupChips: followupChips,
+      followupChipsDisabled: followupChipsDisabled ?? this.followupChipsDisabled,
+      questionnaireAnswerId: questionnaireAnswerId,
+      questionnaireCode: questionnaireCode,
+    );
+  }
 
   bool get isUser => role == 'user';
   bool get isAssistant => role == 'assistant';

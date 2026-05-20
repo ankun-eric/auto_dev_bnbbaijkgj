@@ -43,6 +43,8 @@ import QuestionnaireDrawer, {
 } from '@/components/ai-chat/QuestionnaireDrawer';
 import QuestionnaireResultCard, { type QnResultCardPayload } from '@/components/ai-chat/QuestionnaireResultCard';
 import QuestionnaireRecommendCard, { type RecommendGoodsItem } from '@/components/ai-chat/QuestionnaireRecommendCard';
+import UniversalQuestionnaireResultCard from '@/components/ai-chat/UniversalQuestionnaireResultCard';
+import FollowupChipsRow from '@/components/ai-chat/FollowupChipsRow';
 import RecommendGoodsDrawer from '@/components/ai-chat/RecommendGoodsDrawer';
 import QuestionnairePreCard from '@/components/ai-chat/QuestionnairePreCard';
 // [BUG_FIX_拍照识药三联_20260516] 聊天内嵌识药引擎：识药结果卡片
@@ -144,7 +146,7 @@ interface ChatMessage {
    *  - 'file'  : 用户上传的非图片文件消息（content = 文件名占位，files 字段携带文件元数据）
    *  - 'quick_ask_card' : 可编辑的快捷提问卡片消息（quickAskButton 字段携带按钮元数据）
    */
-  kind?: 'text' | 'image' | 'file' | 'quick_ask_card' | 'health_self_check_card' | 'questionnaire_result_card' | 'questionnaire_pre_card' | 'questionnaire_recommend_card';
+  kind?: 'text' | 'image' | 'file' | 'quick_ask_card' | 'health_self_check_card' | 'questionnaire_result_card' | 'questionnaire_pre_card' | 'questionnaire_recommend_card' | 'followup_chips';
   /**
    * [Bug-471 2026-05-15] 用户消息支持 1~5 张图片：图片 URL 数组（服务器返回）。
    * 当 kind === 'image' 且 images 非空时，气泡渲染为「横向缩略图小图墙」。
@@ -222,6 +224,16 @@ interface ChatMessage {
     buttonId: number;
     card: QnResultCardPayload;
     aiStatusText?: string | null;
+    /** [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 后端通用卡片协议 payload */
+    universalCard?: any;
+  };
+  /** [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 追问 chips 行 payload（AI 侧） */
+  followupChips?: {
+    chips: Array<{ code: string; label: string }>;
+    questionnaireResultId?: number;
+    templateCode?: string;
+    /** 用户点击后置灰收起 */
+    disabled?: boolean;
   };
   /** [PRD-TAG-RECOMMEND-V1 2026-05-20] 问卷完成后推荐商品卡片 payload */
   questionnaireRecommend?: {
@@ -2153,8 +2165,12 @@ export default function AiHomePage() {
     [],
   );
 
-  // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 通用问卷抽屉提交：调用 /api/questionnaire/submit
-  // 把"问卷结果卡片"插入对话流，然后触发 AI 流式回复（直接 reuse handleSend 把摘要文案作为 user 输入）
+  // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 通用问卷抽屉提交 —— 统一消费后端 chat_messages 协议
+  //
+  // 修复以下 3 个 Bug：
+  //   Bug-1：AI 追问位置错 → 强制按 card → text → followup_chips 顺序注入
+  //   Bug-2：总结消息身份发错 + 占位符未渲染 → 全部 sender=ai；占位符在后端渲染
+  //   Bug-3：结果汇总卡片缺失 → AI 侧 questionnaire_result_card 包含主体质 + 雷达 + 查看详情
   const handleQuestionnaireDrawerSubmit = useCallback(
     async (items: QnSubmitAnswerItem[]) => {
       const btn = qnDrawerButton;
@@ -2168,27 +2184,74 @@ export default function AiHomePage() {
         });
         setQnDrawerOpen(false);
         const card = (resp?.card || { fields: [] }) as QnResultCardPayload;
-        const summaryText: string =
-          card.summary_text ||
-          (card.fields || []).map((f) => `${f.label}：${f.value}`).filter(Boolean).join(' | ');
-        // 插入结果卡片消息（用户侧）
-        const cardMsg: ChatMessage = {
-          id: `qn-card-${Date.now()}`,
-          role: 'user',
-          content: summaryText,
-          time: new Date().toISOString(),
-          kind: 'questionnaire_result_card',
-          questionnaireResult: {
-            answerId: resp.answer_id,
-            templateId: tpl.id,
-            buttonId: Number(btn.id),
-            card,
-            aiStatusText: 'AI 正在为你分析…',
-          },
-        };
-        setMessages((prev) => [...prev, cardMsg]);
+        // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 优先消费后端的 chat_messages 序列
+        const chatMessages: Array<any> = Array.isArray(resp?.chat_messages) ? resp.chat_messages : [];
+        const newMsgs: ChatMessage[] = [];
+        const baseTs = Date.now();
+        const universalCard = resp?.result_card_payload || null;
+        if (chatMessages.length > 0) {
+          chatMessages.forEach((m: any, idx: number) => {
+            // 严格执行协议：所有消息 sender=ai
+            if (m.type === 'questionnaire_result_card') {
+              newMsgs.push({
+                id: `qn-card-${baseTs}-${idx}`,
+                role: 'assistant',
+                content: '',
+                time: new Date().toISOString(),
+                kind: 'questionnaire_result_card',
+                questionnaireResult: {
+                  answerId: resp.answer_id,
+                  templateId: tpl.id,
+                  buttonId: Number(btn.id),
+                  card,
+                  aiStatusText: null,
+                  universalCard: m.card || universalCard,
+                },
+              });
+            } else if (m.type === 'text') {
+              newMsgs.push({
+                id: `qn-text-${baseTs}-${idx}`,
+                role: 'assistant',
+                content: m.text || '',
+                time: new Date().toISOString(),
+                kind: 'text',
+              });
+            } else if (m.type === 'followup_chips') {
+              newMsgs.push({
+                id: `qn-chips-${baseTs}-${idx}`,
+                role: 'assistant',
+                content: '',
+                time: new Date().toISOString(),
+                kind: 'followup_chips',
+                followupChips: {
+                  chips: Array.isArray(m.chips) ? m.chips : [],
+                  questionnaireResultId: m?.render_meta?.questionnaire_result_id || resp.answer_id,
+                  templateCode: m?.render_meta?.template_code || tpl.code,
+                  disabled: false,
+                },
+              });
+            }
+          });
+        } else {
+          // 兜底：旧版后端无 chat_messages 时仍以单卡片渲染（也强制 AI 侧）
+          newMsgs.push({
+            id: `qn-card-${baseTs}`,
+            role: 'assistant',
+            content: '',
+            time: new Date().toISOString(),
+            kind: 'questionnaire_result_card',
+            questionnaireResult: {
+              answerId: resp.answer_id,
+              templateId: tpl.id,
+              buttonId: Number(btn.id),
+              card,
+              aiStatusText: null,
+              universalCard,
+            },
+          });
+        }
 
-        // [PRD-TAG-RECOMMEND-V1 2026-05-20] 三段式：在结果卡之后插入推荐卡片消息
+        // [PRD-TAG-RECOMMEND-V1 2026-05-20] 推荐卡片插入到 text 之前 / chips 之前
         const recommendGoods: RecommendGoodsItem[] = Array.isArray(resp?.recommend_goods)
           ? resp.recommend_goods
           : [];
@@ -2196,8 +2259,10 @@ export default function AiHomePage() {
           resp?.recommend_click_mode === 'external' ? 'external' : 'drawer';
         const resultDisplayMode: string = resp?.result_display_mode || 'simple';
         if (resultDisplayMode === 'triple' && recommendGoods.length > 0) {
+          // 紧跟卡片之后、text 之前
+          const insertIdx = newMsgs.findIndex((x) => x.kind === 'text');
           const recMsg: ChatMessage = {
-            id: `qn-rec-${Date.now() + 1}`,
+            id: `qn-rec-${baseTs}`,
             role: 'assistant',
             content: '',
             time: new Date().toISOString(),
@@ -2207,42 +2272,24 @@ export default function AiHomePage() {
               clickMode: recommendClickMode,
             },
           };
-          setMessages((prev) => [...prev, recMsg]);
+          if (insertIdx < 0) {
+            newMsgs.push(recMsg);
+          } else {
+            newMsgs.splice(insertIdx, 0, recMsg);
+          }
         }
 
-        // [PRD-TCM-DRAWER-V12 2026-05-20] 若按钮启用 ai_reference_active 且后端返回 active_followup
-        // 则在对话流追加一条 AI 主动追问消息（默认 true）
-        // [PRD-TAG-RECOMMEND-V1 2026-05-20] 后端如果 ai_followup_enabled=false 已清空 active_followup
-        const refActive = btn.ai_reference_active !== false;
-        const followup: string | null = (resp && typeof resp.active_followup === 'string')
-          ? resp.active_followup
-          : null;
-        if (refActive && followup && followup.trim()) {
-          const followupMsg: ChatMessage = {
-            id: `qn-followup-${Date.now() + 2}`,
-            role: 'assistant',
-            content: followup.trim(),
-            time: new Date().toISOString(),
-          };
-          setMessages((prev) => [...prev, followupMsg]);
-        }
-        // 触发 AI 流式回复：直接复用 handleSend 把摘要发出去（preset 模式不再单独冒泡，已经有卡片）
+        setMessages((prev) => [...prev, ...newMsgs]);
         lastMsgTimeRef.current = Date.now();
-        const aiPrompt =
-          btn.prompt_override_enabled && btn.prompt_override_text
-            ? btn.prompt_override_text
-            : tpl.ai_prompt_template || '';
-        const aiContext =
-          aiPrompt && aiPrompt.includes('{摘要}')
-            ? aiPrompt.replace('{摘要}', summaryText)
-            : `[${tpl.name}] ${summaryText}`;
-        handleSend(aiContext, 'preset');
+        // ⚠️ 不再调用 handleSend(aiContext, 'preset') —— 该路径会生成"用户身份的摘要消息 + 占位符"
+        // 这是 Bug-2 的根本来源（身份发错 + 占位符未渲染）。新协议中所有 AI 侧消息已由后端
+        // chat_messages 完整提供，前端无需再触发额外的"AI 解读"流式回复。
       } catch (e: any) {
         console.warn('[ai-home] qn submit failed', e);
         Toast.show({ content: e?.response?.data?.detail || '问卷提交失败' });
       }
     },
-    [qnDrawerButton, qnDrawerTemplate, selectedConsultant, handleSend],
+    [qnDrawerButton, qnDrawerTemplate, selectedConsultant],
   );
 
   // [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查抽屉提交：插入卡片气泡 → 调用后端 start → 插入 AI 回答
@@ -4649,8 +4696,10 @@ export default function AiHomePage() {
                 );
               }
 
-              // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 通用问卷结果卡片气泡（用户侧）
-              if (isUser && msg.kind === 'questionnaire_result_card' && msg.questionnaireResult) {
+              // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 问卷结果卡片气泡（AI 侧 · 修复 Bug-2/Bug-3）
+              // - 强制 AI 侧（左对齐）：避免再次出现"用户气泡式总结"
+              // - 优先使用 universalCard（含 main_type / 雷达 / 查看详情）
+              if (!isUser && msg.kind === 'questionnaire_result_card' && msg.questionnaireResult) {
                 const qr = msg.questionnaireResult;
                 return (
                   <div
@@ -4665,19 +4714,92 @@ export default function AiHomePage() {
                         </span>
                       </div>
                     )}
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginRight: 16 }}>
-                      <QuestionnaireResultCard
-                        payload={qr.card}
-                        aiStatusText={qr.aiStatusText}
-                        onRetry={() => {
-                          const btn = funcButtons.find(
-                            (b) => Number(b.id) === Number(qr.buttonId),
+                    <div style={{ display: 'flex', justifyContent: 'flex-start', marginLeft: 12, marginRight: 16, gap: 8 }}>
+                      <AiAvatar size={32} />
+                      <div style={{ flex: 1, maxWidth: 'min(92vw, 480px)' }}>
+                        {qr.universalCard ? (
+                          <UniversalQuestionnaireResultCard
+                            payload={qr.universalCard}
+                            onClickDetail={(target) => {
+                              const route = (target && target.route_h5) ||
+                                (qr.universalCard?.questionnaire_code === 'tcm_constitution'
+                                  ? `/tcm/result/${qr.answerId}`
+                                  : null);
+                              if (route) router.push(route);
+                            }}
+                          />
+                        ) : (
+                          <QuestionnaireResultCard
+                            payload={qr.card}
+                            aiStatusText={qr.aiStatusText}
+                            onRetry={() => {
+                              const btn = funcButtons.find(
+                                (b) => Number(b.id) === Number(qr.buttonId),
+                              );
+                              if (btn) {
+                                const df = (btn.questionnaire_display_form || 'DRAWER_SCROLL') as QnDisplayForm;
+                                openQuestionnaireDrawer(btn, df).catch(() => {
+                                  Toast.show({ content: '问卷加载失败' });
+                                });
+                              }
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 追问 chips 行（AI 侧 · 修复 Bug-1）
+              if (!isUser && msg.kind === 'followup_chips' && msg.followupChips) {
+                const fc = msg.followupChips;
+                return (
+                  <div
+                    key={msg.id}
+                    style={{ marginBottom: 24 }}
+                    data-testid="ai-home-followup-chips-message"
+                  >
+                    {showTime && (
+                      <div className="text-center" style={{ padding: '8px 0' }}>
+                        <span style={{ fontSize: 12, color: '#9CA3AF' }}>
+                          {formatWeChatTime(msg.time)}
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'flex-start', marginLeft: 12, marginRight: 16, gap: 8 }}>
+                      <AiAvatar size={32} />
+                      <FollowupChipsRow
+                        chips={fc.chips || []}
+                        disabled={!!fc.disabled}
+                        onClickChip={async (chip) => {
+                          // 立即置灰本行
+                          setMessages((prev) =>
+                            prev.map((x) =>
+                              x.id === msg.id && x.followupChips
+                                ? { ...x, followupChips: { ...x.followupChips, disabled: true } }
+                                : x,
+                            ),
                           );
-                          if (btn) {
-                            const df = (btn.questionnaire_display_form || 'DRAWER_SCROLL') as QnDisplayForm;
-                            openQuestionnaireDrawer(btn, df).catch(() => {
-                              Toast.show({ content: '问卷加载失败' });
+                          try {
+                            const r = await api.post<any>('/api/questionnaire/followup-chip', {
+                              answer_id: fc.questionnaireResultId,
+                              chip_code: chip.code,
+                              chip_label: chip.label,
                             });
+                            const aiText: string =
+                              (r && r.ai_text) || `本次回答结合您的档案。${chip.label} 暂无更详细资料。`;
+                            const aiMsg: ChatMessage = {
+                              id: `qn-chip-reply-${Date.now()}`,
+                              role: 'assistant',
+                              content: aiText,
+                              time: new Date().toISOString(),
+                              kind: 'text',
+                            };
+                            setMessages((prev) => [...prev, aiMsg]);
+                          } catch (e: any) {
+                            console.warn('[ai-home] followup-chip failed', e);
+                            Toast.show({ content: '请求失败，请稍后再试' });
                           }
                         }}
                       />

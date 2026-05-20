@@ -1,0 +1,21 @@
+.chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 8rpx;
+  max-width: 640rpx;
+}
+.chip {
+  padding: 10rpx 28rpx;
+  background: #EFF6FF;
+  color: #0EA5E9;
+  border: 2rpx solid #BAE6FD;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+  font-weight: 500;
+}
+.chip-disabled {
+  background: #F1F5F9;
+  color: #94A3B8;
+  border-color: #E2E8F0;
+}

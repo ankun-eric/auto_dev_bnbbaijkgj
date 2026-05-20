@@ -27,6 +27,49 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: 体质测评 3 大 Bug 修复 + 通用卡片消息协议 + 6 屏沉浸式详情页通用框架 (2026-05-20 17:30)
+
+**任务类型**：Bug 修复 + 通用框架（后端 + h5-web + miniprogram + flutter_app 全链路）
+
+**核心交付**：
+
+1. **后端通用卡片消息协议**：
+   - `backend/app/api/questionnaire.py` 新增 `_render_business_placeholders` / `_build_followup_chips` / `_build_questionnaire_card_payload` / `_build_chat_messages_sequence` 等工具函数；占位符（`{main_type}`/`{secondary_types}`/`{scores}`）一律在后端渲染完毕
+   - `submit_questionnaire` 现在返回 `chat_messages`（顺序写死 card → text → chips，全部 `sender=ai`） + `result_card_payload`
+   - 新增 `POST /api/questionnaire/followup-chip`：处理 chip 点击，二轮回答带"本次回答结合 XX 的档案"开场白
+   - 旧 `POST /api/tcm/constitution-test` 同步返回 `chat_messages` + `result_card_payload`（兼容小程序老链路）
+   - `backend/app/schemas/tcm.py` `TCMDiagnosisResponse` 增加 `chat_messages` / `result_card_payload` 可选字段
+
+2. **H5 端（`h5-web/`）**：
+   - 新增 `src/components/ai-chat/UniversalQuestionnaireResultCard.tsx`（含 SVG `MiniRadar`）和 `FollowupChipsRow.tsx`
+   - `src/app/(ai-chat)/ai-home/page.tsx` 移除旧的"`handleSend(aiContext,'preset')` 注入用户气泡"逻辑，改为遍历 `chat_messages` 注入；按 `kind` 路由到对应 UI；chip 点击调用新接口、整体置灰、追加 AI 二轮回答
+
+3. **小程序（`miniprogram/`）**：
+   - 新增 `components/questionnaire-result-card/`（雷达降级为柱状）和 `components/followup-chips-row/`
+   - `pages/tcm/index.js` 提交后将 `chat_messages` 写入 `globalData.pendingQnChatMessages`，跳转 `pages/chat/index`
+   - `pages/chat/index.{js,wxml,json}` 接力注入；新增 `onQnViewDetail` / `onFollowupChipTap`
+
+4. **Flutter（`flutter_app/`）**：
+   - 新增 `lib/widgets/ai_chat/questionnaire_result_card.dart`（`CustomPaint` 雷达图）和 `followup_chips_row.dart`
+   - `lib/models/chat_message.dart` 增加 `questionnaireResultPayload` / `followupChips` / `followupChipsDisabled` / `questionnaireAnswerId` / `questionnaireCode` 字段 + `copyWith`
+   - `lib/screens/health/tcm_screen.dart` 改为提交后 `Navigator.pushNamed('/chat', arguments: { pending_qn_chat_messages, ... })`
+   - `lib/screens/ai/chat_screen.dart` 处理 route arguments 并按 type 路由渲染
+
+5. **测试**：`backend/tests/test_tcm_card_msg_protocol_v1_20260520.py`（10 个用例，本地 + 远程 docker 容器中 10/10 全绿）
+
+6. **部署**：脚本 `_deploy_tcm_card_msg_protocol_v1.py`；远程已 `docker compose build backend` + `docker compose build h5-web` 完毕；线上 `/`、`/ai-home`、`/api/questionnaire/templates` HTTPS 200
+
+7. **打包**：`packages/miniprogram_tcm_card_v1_20260520*.zip`（小程序 zip 已生成）
+
+**docker-compose 服务命名约定**（避坑记录）：
+- 后端服务名：`backend`（容器名 `<uuid>-backend`）
+- 数据库：`db`（容器名 `<uuid>-db`）
+- H5 服务名：`h5-web`（容器名 `<uuid>-h5`）
+- 后台：`admin-web`（容器名 `<uuid>-admin`）
+- 后端容器测试目录：`/app/tests/`（不是 `/app/backend/tests/`）；首次跑 pytest 需 `pip install pytest pytest-asyncio aiosqlite httpx`
+
+---
+
 ## Latest Update: 商品标签体系重构 v1.0 — 6 大分类 / 9 体质锁定 / Chip 池 / drop symptom_tags (2026-05-20 15:30)
 
 **任务类型**：体系性 Bug 修复（数据层 + 后端 + admin-web + flutter_app + miniprogram + h5-web 全链路）

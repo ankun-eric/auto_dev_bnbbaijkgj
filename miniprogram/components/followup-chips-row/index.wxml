@@ -1,0 +1,12 @@
+<view class="chips-row" data-testid="followup-chips-row">
+  <view
+    class="chip {{disabled ? 'chip-disabled' : ''}}"
+    wx:for="{{chips}}"
+    wx:key="code"
+    data-idx="{{index}}"
+    bindtap="onTap"
+    data-testid="followup-chip-{{item.code}}"
+  >
+    {{item.label}}
+  </view>
+</view>
