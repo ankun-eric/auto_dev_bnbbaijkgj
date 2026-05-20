@@ -16,6 +16,8 @@
 'use client';
 
 import React from 'react';
+// [PRD-AICHAT-FUNCCARD-V2 2026-05-20] 引入统一新版功能卡片渲染器
+import FunctionCardV2, { type FunctionCardV2Data } from './FunctionCardV2';
 
 export type ChatCardType = 'upload' | 'navigate' | 'sdk_call' | 'quick_ask';
 
@@ -226,86 +228,121 @@ function PrimaryButton({
   );
 }
 
-// ─────────────────── A. upload 卡片 ───────────────────
+// [PRD-AICHAT-FUNCCARD-V2 2026-05-20] 把 ChatCardButton 适配到 FunctionCardV2Data
+function buttonToFcv2Data(button: ChatCardButton, override?: Partial<FunctionCardV2Data>): FunctionCardV2Data {
+  const emoji = (button.iconEmoji || '').trim();
+  const iconType: FunctionCardV2Data['iconType'] = emoji
+    ? 'emoji'
+    : isValidImageUrl(button.coverImage)
+    ? 'url'
+    : 'default';
+  return {
+    title: button.title || '',
+    subtitle: button.subtitle || null,
+    coverImage: isValidImageUrl(button.coverImage) ? (button.coverImage as string) : null,
+    icon: emoji || (isValidImageUrl(button.coverImage) ? (button.coverImage as string) : null),
+    iconType,
+    buttonSubDesc: button.buttonSubDesc || null,
+    buttonText: button.title || '立即查看',
+    ...override,
+  };
+}
+
+// ─────────────────── A. upload 卡片（新版样式） ───────────────────
 
 export function UploadCard({ button, disabled, onAction }: ChatCardProps) {
   // [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 1] 入口收口为 2 项：相册 + 拍照
-  // local（本机）和 wechat（微信）在 H5 形同摆设，全端一致移除
   const entries: Array<{ key: 'album' | 'camera'; label: string; icon: string }> = [
     { key: 'album', label: '相册', icon: '🖼️' },
     { key: 'camera', label: '拍照', icon: '📷' },
   ];
+  const data = buttonToFcv2Data(button, {
+    buttonText: button.title || '选择文件',
+    disabled,
+  });
   return (
-    <CardShell disabled={disabled}>
-      <CardHeader button={button} />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+    <FunctionCardV2
+      data={data}
+      hideButton
+      testid="function-card-v2-upload"
+    >
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
         {entries.map((e) => (
           <button
             key={e.key}
             type="button"
-            onClick={() => onAction?.(e.key)}
+            data-fcv2-stop="1"
+            onClick={(ev) => {
+              ev.stopPropagation();
+              onAction?.(e.key);
+            }}
             disabled={disabled}
             style={{
-              padding: '10px 4px',
-              borderRadius: 12,
-              border: `1px solid ${COLORS.border}`,
-              background: '#fff',
-              color: COLORS.textPrimary,
+              padding: '12px 4px',
+              borderRadius: 14,
+              border: '1px solid #E0F2FE',
+              background: '#F0F9FF',
+              color: '#0F172A',
               cursor: disabled ? 'not-allowed' : 'pointer',
-              fontSize: 12,
+              fontSize: 13,
+              fontWeight: 500,
+              transition: 'background .15s',
             }}
             data-testid={`upload-entry-${e.key}`}
           >
-            <div style={{ fontSize: 22 }}>{e.icon}</div>
-            <div style={{ marginTop: 4 }}>{e.label}</div>
+            <div style={{ fontSize: 24, lineHeight: 1 }}>{e.icon}</div>
+            <div style={{ marginTop: 6 }}>{e.label}</div>
           </button>
         ))}
       </div>
       {button.buttonSubDesc ? (
         <div
+          data-testid="fcv2-upload-btn-sub-desc"
           style={{
             fontSize: 12,
-            color: COLORS.textSecondary,
-            marginTop: 12,
+            lineHeight: '18px',
+            color: '#94A3B8',
             textAlign: 'center',
+            marginTop: 12,
           }}
         >
           {button.buttonSubDesc}
         </div>
       ) : null}
-    </CardShell>
+    </FunctionCardV2>
   );
 }
 
-// ─────────────────── B. navigate 卡片 ───────────────────
+// ─────────────────── B. navigate 卡片（新版样式） ───────────────────
 
 export function NavigateCard({ button, disabled, onAction }: ChatCardProps) {
+  const data = buttonToFcv2Data(button, {
+    buttonText: button.title || '立即查看',
+    disabled,
+  });
   return (
-    <CardShell disabled={disabled}>
-      <CardHeader button={button} />
-      <PrimaryButton
-        text={button.title || '前往'}
-        subDesc={button.buttonSubDesc}
-        disabled={disabled}
-        onClick={() => onAction?.('primary')}
-      />
-    </CardShell>
+    <FunctionCardV2
+      data={data}
+      onClick={() => onAction?.('primary')}
+      testid="function-card-v2-navigate"
+    />
   );
 }
 
-// ─────────────────── C. sdk_call 卡片 ───────────────────
+// ─────────────────── C. sdk_call 卡片（新版样式） ───────────────────
 
 export function SdkCallCard({ button, disabled, onAction }: ChatCardProps) {
+  const data = buttonToFcv2Data(button, {
+    buttonText: '发起视频通话',
+    buttonSubDesc: button.buttonSubDesc || 'AI 数字人，24 小时在线',
+    disabled,
+  });
   return (
-    <CardShell disabled={disabled}>
-      <CardHeader button={button} />
-      <PrimaryButton
-        text="发起视频通话"
-        subDesc={button.buttonSubDesc || 'AI 数字人，24 小时在线'}
-        disabled={disabled}
-        onClick={() => onAction?.('primary')}
-      />
-    </CardShell>
+    <FunctionCardV2
+      data={data}
+      onClick={() => onAction?.('primary')}
+      testid="function-card-v2-sdk-call"
+    />
   );
 }
 
@@ -329,6 +366,8 @@ export function QuickAskCard({ button, disabled, onAction }: ChatCardProps) {
 
   const sendDisabled = disabled || !text.trim();
 
+  // [PRD-AICHAT-FUNCCARD-V2 2026-05-20] quick_ask 仍保留旧 CardShell + 自定义 footer，
+  // 但用 FunctionCardV2 同款标题/描述视觉规范覆盖头部色值，以保持品牌一致。
   return (
     <CardShell disabled={disabled}>
       <CardHeader button={button} />

@@ -27,7 +27,59 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-TCM-DRAWER-V12｜体质测评「对话内卡片未弹出 + 36 题模板为空」Bug 修复 (2026-05-20 10:00)
+## Latest Update: PRD-AICHAT-FUNCCARD-V2｜AI 对话页「功能引导卡片」新版样式改造 (2026-05-20 11:20)
+
+**任务类型**：跨端 UI 改造（h5-web + admin-web；backend 仅新增校验测试，无 DB / API 变更；miniprogram / Flutter App 无改动）
+
+**核心目标**：
+- 把 AI 对话页所有内嵌「功能引导卡片」（NavigateCard / SdkCallCard / UploadCard / QuestionnairePreCard）统一升级为新版 V2 样式
+- 完整呈现「按钮副说明文字」字段（位于按钮上方的灰色小字）
+- 后台「功能按钮管理」表单新增「预览效果」浮层，375×667 手机框 1:1 实时还原 H5 真机效果
+- 历史会话回看一刀切刷新为新样式，不引入版本字段
+
+**核心变更（7 处）**：
+
+1. **新建 `h5-web/src/components/ai-chat/FunctionCardV2.tsx`**：统一的新版功能卡片渲染组件
+   - 视觉 token：白底 + 1px `#E0F2FE` 描边 + 16px 圆角 + `0 2px 12px rgba(2,132,199,.10)` 阴影
+   - 主标题 18/26/600/`#0F172A`、副标题 13/20/`#64748B`、按钮副说明 12/18/`#94A3B8`
+   - 主按钮：44 高 + 22 圆角 + 渐变 `#38BDF8 → #0284C7` + 白字 16 600
+   - 圆角图标位 56×56 + 浅蓝渐变底；封面图模式占顶部 140 高横幅
+   - 整卡可点击 + 主按钮 `stopPropagation` 防双触发 + `data-fcv2-stop="1"` 冒泡标记
+2. **改造 `h5-web/src/components/ai-chat/ChatCards.tsx`**：
+   - 引入 `FunctionCardV2`，新增 `buttonToFcv2Data` 适配器
+   - `NavigateCard` / `SdkCallCard` / `UploadCard` 全量切换到 V2 渲染
+   - `QuickAskCard` 因可编辑文本框特殊交互，仍保留 `CardShell` 但跟随 V2 色系
+3. **改造 `h5-web/src/components/ai-chat/QuestionnairePreCard.tsx`**：完全委托 `FunctionCardV2`，新增 `buttonSubDesc` 字段；`description` 作为 subtitle 兜底
+4. **修改 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`**：
+   - `ChatMessage.questionnairePreCard` 类型加 `buttonSubDesc?: string | null`
+   - `insertQuestionnairePreCardMessages` 把 `btn.button_sub_desc` 透传到 `questionnairePreCard.buttonSubDesc`
+5. **新建 `admin-web/src/components/FunctionCardV2Preview.tsx`**：管理后台的 V2 复刻渲染器
+   - 包含 `FunctionCardV2Preview`（视觉 token 与 H5 端严格一致）
+   - 包含 `PhonePreviewFrame`（375×667 手机外框 + 状态栏装饰 + `#F0F9FF` 内容区背景）
+6. **修改 `admin-web/src/app/(admin)/function-buttons/page.tsx`**：
+   - Modal title 右侧新增「预览效果」按钮（`data-testid="function-card-preview-trigger"`）
+   - 新增 5 个 `Form.useWatch`（card_title / card_subtitle / button_sub_desc / pre_card_icon / pre_card_icon_type）
+   - 新增独立预览 Modal（460 宽），内嵌 `PhonePreviewFrame` + `FunctionCardV2Preview`，data 实时绑定表单字段
+7. **新增 `backend/tests/test_funccard_v2_20260520.py`**：11 个前端源码校验 TC，远端容器内 pytest 全绿
+
+**测试**：
+- 本地 pytest：11/11 全部通过
+- 远端容器内 pytest（部署后 docker cp h5-web/admin-web 源进 backend 容器）：11/11 全部通过
+- 服务端 smoke 4 个 URL（`/api/openapi.json` `/ai-home` `/` `/admin/function-buttons`）全部 200/308
+
+**部署脚本**：`deploy/_deploy_funccard_v2_20260520.py`（一次部署成功，重建 h5-web 和 admin-web 镜像 + 校验 + pytest）
+
+**用户手册**：`user_docs/AI对话页功能卡片新版样式改造.md`
+
+**链接**：
+- AI 首页：<https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home>
+- 后台 - 功能按钮管理：<https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/function-buttons>
+
+**不影响范围**：后端业务代码、数据库、API、微信小程序、Flutter App（安卓/iOS）均无变更。
+
+---
+
+## Previous Update: PRD-TCM-DRAWER-V12｜体质测评「对话内卡片未弹出 + 36 题模板为空」Bug 修复 (2026-05-20 10:00)
 
 **任务类型**：跨端 Bug 修复 + 增强（backend + admin-web + h5-web；小程序 / Android / iOS 沿用 v1.2 已打包版本）
 

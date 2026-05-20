@@ -13,6 +13,9 @@ import {
 import { get, post, put, del, patch } from '@/lib/api';
 // [AICHAT-OPTIM-FIX-V1 F-01 2026-05-14] 接入公共 EmojiPicker（与首页菜单管理同一套组件）
 import { EmojiPickerModal } from '@/components/EmojiPicker';
+// [PRD-AICHAT-FUNCCARD-V2 2026-05-20] 卡片预览浮层组件
+import FunctionCardV2Preview, { PhonePreviewFrame } from '@/components/FunctionCardV2Preview';
+import { EyeOutlined } from '@ant-design/icons';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -219,6 +222,14 @@ export default function FunctionButtonsPage() {
   const watchedPreCardEnabled = Form.useWatch('pre_card_enabled', form);
   // [AICHAT-OPTIM-FIX-V1 F-01] Emoji 选择器弹窗状态
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  // [PRD-AICHAT-FUNCCARD-V2 2026-05-20] 卡片预览浮层（375x667 手机框 1:1 还原 H5 真机效果）
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const watchedCardTitle = Form.useWatch('card_title', form);
+  const watchedCardSubtitle = Form.useWatch('card_subtitle', form);
+  const watchedCardCoverImage = Form.useWatch('card_cover_image', form);
+  const watchedButtonSubDesc = Form.useWatch('button_sub_desc', form);
+  const watchedPreCardIcon = Form.useWatch('pre_card_icon', form);
+  const watchedPreCardIconType = Form.useWatch('pre_card_icon_type', form);
 
   // [PRD-PROMPT-CONFIG-V1 2026-05-14] 修复"下拉永远为空" Bug：
   // 后端返回的是 GroupResponse 列表 [{prompt_type, display_name, active_template:{id,name,...}, business_group, allowed_button_types}]
@@ -813,7 +824,22 @@ export default function FunctionButtonsPage() {
         scroll={{ x: 800 }}
       />
       <Modal
-        title={editingItem ? '编辑功能按钮' : '新增功能按钮'}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: 24 }}>
+            <span>{editingItem ? '编辑功能按钮' : '新增功能按钮'}</span>
+            {/* [PRD-AICHAT-FUNCCARD-V2 2026-05-20] 卡片预览入口 */}
+            <Button
+              type="primary"
+              ghost
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => setPreviewOpen(true)}
+              data-testid="function-card-preview-trigger"
+            >
+              预览效果
+            </Button>
+          </div>
+        }
         open={modalOpen}
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}
@@ -1336,6 +1362,45 @@ export default function FunctionButtonsPage() {
         }}
         onCancel={() => setEmojiPickerOpen(false)}
       />
+
+      {/* [PRD-AICHAT-FUNCCARD-V2 2026-05-20] 卡片预览浮层
+          - 375x667 手机框 1:1 还原 H5 真机效果
+          - 表单字段（主标题/副标题/封面图/按钮副说明/图标）实时联动
+          - 关闭：点击遮罩或 ✕ */}
+      <Modal
+        title="卡片预览（375 × 667 手机真机效果）"
+        open={previewOpen}
+        onCancel={() => setPreviewOpen(false)}
+        footer={null}
+        width={460}
+        destroyOnClose
+        styles={{ body: { padding: '20px 24px 24px', background: '#F1F5F9' } }}
+        data-testid="function-card-preview-modal"
+      >
+        <div data-testid="function-card-preview-modal-body">
+          <PhonePreviewFrame>
+            <FunctionCardV2Preview
+              data={{
+                title: watchedCardTitle || watchedName || '功能引导',
+                subtitle: watchedCardSubtitle || null,
+                coverImage: watchedCardCoverImage || null,
+                icon:
+                  watchedPreCardIconType === 'emoji'
+                    ? watchedPreCardIcon || watchedIcon || null
+                    : watchedPreCardIconType === 'url'
+                    ? watchedPreCardIcon || null
+                    : watchedIcon || null,
+                iconType: watchedPreCardIconType || (watchedIcon ? 'emoji' : 'default'),
+                buttonSubDesc: watchedButtonSubDesc || null,
+                buttonText: '立即查看',
+              }}
+            />
+          </PhonePreviewFrame>
+          <div style={{ marginTop: 12, color: '#64748B', fontSize: 12, textAlign: 'center' }}>
+            预览实时联动表单字段修改，无需保存即可查看效果
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

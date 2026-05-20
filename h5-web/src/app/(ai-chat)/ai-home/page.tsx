@@ -233,6 +233,8 @@ interface ChatMessage {
     buttonText?: string;
     icon?: string | null;
     iconType?: string | null;
+    // [PRD-AICHAT-FUNCCARD-V2 2026-05-20] 按钮副说明文字
+    buttonSubDesc?: string | null;
   };
 }
 
@@ -2037,8 +2039,12 @@ export default function AiHomePage() {
     (btn: FunctionButton) => {
       const userText = (btn.auto_user_message && btn.auto_user_message.trim()) || `我想做${btn.name || '健康测评'}`;
       const titleText = (btn.card_title && btn.card_title.trim()) || btn.name || '健康测评';
-      const subtitleText = btn.card_subtitle || null;
+      const subtitleText = (btn.card_subtitle && btn.card_subtitle.trim()) || null;
+      // [PRD-AICHAT-FUNCCARD-V2 2026-05-20] description / buttonSubDesc 分离：
+      //   - description: 兼容旧字段（继续作为副标题兜底，FunctionCardV2 内部已 fallback）
+      //   - buttonSubDesc: 新版样式中"按钮上方的灰色小字"，单独取 button_sub_desc 字段
       const descText = btn.button_sub_desc || null;
+      const btnSubDescText = btn.button_sub_desc || null;
       const cover = (btn.card_cover_image && btn.card_cover_image.trim()) || null;
       // 1) 用户气泡：模拟用户主动发起测评
       const userMsg: ChatMessage = {
@@ -2066,6 +2072,8 @@ export default function AiHomePage() {
           buttonText: '开始测评',
           icon: btn.pre_card_icon || null,
           iconType: btn.pre_card_icon_type || 'default',
+          // [PRD-AICHAT-FUNCCARD-V2 2026-05-20] 按钮副说明文字（v2 卡片"按钮上方灰小字"展示位）
+          buttonSubDesc: btnSubDescText,
         },
       };
       setMessages((prev) => [...prev, userMsg, cardMsg]);
