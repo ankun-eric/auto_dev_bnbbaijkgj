@@ -66,6 +66,18 @@ interface Props {
   displayForm: DisplayForm;
   /** 提交回调：用户在抽屉中点完所有题目并点提交后触发 */
   onSubmit: (answers: QnSubmitAnswerItem[]) => void | Promise<void>;
+  /**
+   * [PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20] 自动下一步
+   * 仅在 displayForm=DRAWER_STEPPED 时生效；
+   * 选中单选题选项后立即跳下一题（无 delay），最后一题不自动提交。
+   * 多选/文本题仍显示「下一题/提交」按钮。
+   */
+  autoNextEnabled?: boolean;
+  /**
+   * [PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20] DRAWER_SCROLL 形态下每页显示的题数（>=1）
+   * 默认 999（一屏全部题目），>1 时按分页方式渲染（PRD：每页一组、底部下一页按钮）。
+   */
+  questionsPerPage?: number;
 }
 
 /** 判断题目"显示条件"是否满足 */
@@ -276,15 +288,20 @@ export default function QuestionnaireDrawer({
   questions,
   displayForm,
   onSubmit,
+  autoNextEnabled = false,
+  questionsPerPage = 999,
 }: Props) {
   const [answers, setAnswers] = useState<Record<number, any>>({});
   const [stepIdx, setStepIdx] = useState(0);
+  // [PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20] DRAWER_SCROLL 分页模式下的当前页索引
+  const [pageIdx, setPageIdx] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) {
       setAnswers({});
       setStepIdx(0);
+      setPageIdx(0);
     }
   }, [open, template?.id]);
 
@@ -422,6 +439,19 @@ export default function QuestionnaireDrawer({
     const q = visibleQuestions[safeIdx];
     const opts = q ? visibleOptions(q, answers, questionsByDim) : [];
     const isLast = safeIdx === visibleQuestions.length - 1;
+    // [PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20] 单选题选中后自动跳下一题
+    //   - 多选题/文本题：保留「下一步」按钮（混合模式）
+    //   - 最后一题：不自动提交，停留显示「提交」按钮
+    const handleSteppedChange = (v: any) => {
+      if (!q) return;
+      setAnswers((p) => ({ ...p, [q.id]: v }));
+      if (autoNextEnabled && q.question_type === 'single_choice' && !isLast) {
+        // 用 setTimeout 触发下一帧，让 UI 先体现"选中态"再翻页
+        setTimeout(() => {
+          setStepIdx((i) => Math.min(i + 1, visibleQuestions.length - 1));
+        }, 0);
+      }
+    };
     return (
       <>
         <div style={maskStyle} onClick={onClose} data-testid="qn-drawer-mask" />
@@ -446,7 +476,7 @@ export default function QuestionnaireDrawer({
                   q={q}
                   options={opts}
                   value={answers[q.id]}
-                  onChange={(v) => setAnswers((p) => ({ ...p, [q.id]: v }))}
+                  onChange={handleSteppedChange}
                 />
               </>
             ) : (
@@ -507,18 +537,45 @@ export default function QuestionnaireDrawer({
   }
 
   // 默认 DRAWER_SCROLL
+  // [PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20] 分页模式：questionsPerPage > 0 且 < 题目数时启用分页
+  const qpp = Math.max(1, Math.min(999, questionsPerPage || 999));
+  const totalPages = Math.max(1, Math.ceil(visibleQuestions.length / qpp));
+  const safePage = Math.min(pageIdx, totalPages - 1);
+  const pageQuestions =
+    qpp >= visibleQuestions.length
+      ? visibleQuestions
+      : visibleQuestions.slice(safePage * qpp, (safePage + 1) * qpp);
+  const isLastPage = safePage >= totalPages - 1;
+  // 当前页题目是否全部已答（必填校验）
+  const currentPageFilled = pageQuestions.every((q) => {
+    if (!q.required) return true;
+    const v = answers[q.id];
+    if (v === undefined || v === null) return false;
+    if (Array.isArray(v) && v.length === 0) return false;
+    if (typeof v === 'string' && !v.trim()) return false;
+    return true;
+  });
   return (
     <>
       <div style={maskStyle} onClick={onClose} data-testid="qn-drawer-mask" />
       <div style={drawerStyle} data-testid="qn-drawer-scroll">
         {renderHeader()}
         <div style={{ padding: 16, flex: 1, overflowY: 'auto' }}>
-          {visibleQuestions.map((q, idx) => {
+          {totalPages > 1 && (
+            <div
+              style={{ fontSize: 12, color: '#999', marginBottom: 8 }}
+              data-testid="qn-scroll-page-info"
+            >
+              第 {safePage + 1} / {totalPages} 页（共 {visibleQuestions.length} 题）
+            </div>
+          )}
+          {pageQuestions.map((q, idx) => {
             const opts = visibleOptions(q, answers, questionsByDim);
+            const globalIdx = safePage * qpp + idx;
             return (
               <div key={q.id} style={{ marginBottom: 18 }}>
                 <div style={{ fontSize: 14, color: '#999', marginBottom: 4 }}>
-                  Q{idx + 1}
+                  Q{globalIdx + 1}
                 </div>
                 <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>
                   {q.title}
@@ -539,25 +596,65 @@ export default function QuestionnaireDrawer({
             );
           })}
         </div>
-        <div style={{ padding: 12, borderTop: '1px solid #F0F0F0' }}>
-          <button
-            type="button"
-            disabled={!canSubmit || submitting}
-            onClick={doSubmit}
-            data-testid="qn-scroll-submit-btn"
-            style={{
-              width: '100%',
-              background: canSubmit ? '#2BB6A8' : '#CFCFCF',
-              border: 'none',
-              borderRadius: 22,
-              padding: 12,
-              fontSize: 15,
-              color: '#fff',
-              cursor: canSubmit ? 'pointer' : 'not-allowed',
-            }}
-          >
-            {submitting ? '提交中…' : '提交'}
-          </button>
+        <div style={{ padding: 12, borderTop: '1px solid #F0F0F0', display: 'flex', gap: 8 }}>
+          {totalPages > 1 && safePage > 0 && (
+            <button
+              type="button"
+              onClick={() => setPageIdx((i) => Math.max(0, i - 1))}
+              data-testid="qn-scroll-prev-page-btn"
+              style={{
+                flex: 1,
+                background: '#F5F5F5',
+                border: 'none',
+                borderRadius: 22,
+                padding: 12,
+                fontSize: 14,
+                color: '#666',
+                cursor: 'pointer',
+              }}
+            >
+              上一页
+            </button>
+          )}
+          {!isLastPage ? (
+            <button
+              type="button"
+              disabled={!currentPageFilled}
+              onClick={() => setPageIdx((i) => Math.min(totalPages - 1, i + 1))}
+              data-testid="qn-scroll-next-page-btn"
+              style={{
+                flex: 2,
+                background: currentPageFilled ? '#2BB6A8' : '#CFCFCF',
+                border: 'none',
+                borderRadius: 22,
+                padding: 12,
+                fontSize: 15,
+                color: '#fff',
+                cursor: currentPageFilled ? 'pointer' : 'not-allowed',
+              }}
+            >
+              下一页
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={!canSubmit || submitting}
+              onClick={doSubmit}
+              data-testid="qn-scroll-submit-btn"
+              style={{
+                flex: 2,
+                background: canSubmit ? '#2BB6A8' : '#CFCFCF',
+                border: 'none',
+                borderRadius: 22,
+                padding: 12,
+                fontSize: 15,
+                color: '#fff',
+                cursor: canSubmit ? 'pointer' : 'not-allowed',
+              }}
+            >
+              {submitting ? '提交中…' : '提交'}
+            </button>
+          )}
         </div>
       </div>
       <style jsx>{`

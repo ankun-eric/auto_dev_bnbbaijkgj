@@ -5443,7 +5443,8 @@ export default function AiHomePage() {
         }}
       />
 
-      {/* [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 通用问卷抽屉 */}
+      {/* [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 通用问卷抽屉
+          [PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20] 透传按钮上的「自动下一步 / 每页题数」 */}
       <QuestionnaireDrawer
         open={qnDrawerOpen && !qnDrawerLoading && !!qnDrawerTemplate}
         onClose={() => setQnDrawerOpen(false)}
@@ -5451,6 +5452,16 @@ export default function AiHomePage() {
         questions={qnDrawerQuestions}
         displayForm={qnDrawerDisplayForm}
         onSubmit={handleQuestionnaireDrawerSubmit}
+        autoNextEnabled={
+          qnDrawerButton
+            ? (qnDrawerButton as any).auto_next_enabled === true
+            : false
+        }
+        questionsPerPage={
+          qnDrawerButton
+            ? Math.max(1, Math.min(999, Number((qnDrawerButton as any).questions_per_page || 1)))
+            : 1
+        }
       />
 
       {/* [PRD-TAG-RECOMMEND-V1 2026-05-20] 推荐商品详情抽屉（drawer 模式） */}

@@ -165,6 +165,10 @@ interface FunctionButton {
   ai_reference_active?: boolean | null;
   // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 问卷展示形态
   questionnaire_display_form?: string | null;
+  // [PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20] 呈现配置三件套
+  presentation_container?: string | null;
+  questions_per_page?: number | null;
+  auto_next_enabled?: boolean | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -230,6 +234,10 @@ export default function FunctionButtonsPage() {
   const watchedButtonSubDesc = Form.useWatch('button_sub_desc', form);
   const watchedPreCardIcon = Form.useWatch('pre_card_icon', form);
   const watchedPreCardIconType = Form.useWatch('pre_card_icon_type', form);
+  // [PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20] 呈现配置三件套监听
+  const watchedPresentationContainer = Form.useWatch('presentation_container', form);
+  const watchedQuestionsPerPage = Form.useWatch('questions_per_page', form);
+  const watchedAutoNextEnabled = Form.useWatch('auto_next_enabled', form);
 
   // [PRD-PROMPT-CONFIG-V1 2026-05-14] 修复"下拉永远为空" Bug：
   // 后端返回的是 GroupResponse 列表 [{prompt_type, display_name, active_template:{id,name,...}, business_group, allowed_button_types}]
@@ -409,6 +417,15 @@ export default function FunctionButtonsPage() {
             : !!record.pre_card_for_navigate || true,
         // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 问卷展示形态回填
         questionnaire_display_form: record.questionnaire_display_form || 'DRAWER_SCROLL',
+        // [PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20] 呈现配置三件套回填
+        presentation_container:
+          (record as any).presentation_container ||
+          (record.questionnaire_display_form === 'INLINE_CHAT' ? 'INLINE_CHAT' : 'DRAWER'),
+        questions_per_page:
+          (record as any).questions_per_page ??
+          (record.questionnaire_display_form === 'DRAWER_SCROLL' ? 10 : 1),
+        auto_next_enabled:
+          (record as any).auto_next_enabled === true,
         // [PRD-QUESTIONNAIRE-DRAWER-V1.2 2026-05-20] 引导卡片图标三选一回填
         pre_card_icon: (record as any).pre_card_icon || '',
         pre_card_icon_type: (record as any).pre_card_icon_type || 'default',
@@ -446,6 +463,10 @@ export default function FunctionButtonsPage() {
         pre_card_enabled: true,
         // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 默认抽屉-一屏多题
         questionnaire_display_form: 'DRAWER_SCROLL',
+        // [PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20] 呈现配置三件套：新建按钮默认 容器=DRAWER、每页 1 题、自动下一步=开
+        presentation_container: 'DRAWER',
+        questions_per_page: 1,
+        auto_next_enabled: true,
         // [PRD-QUESTIONNAIRE-DRAWER-V1.2 2026-05-20] 引导卡片图标默认走默认 SVG
         pre_card_icon: '',
         pre_card_icon_type: 'default',
@@ -554,6 +575,24 @@ export default function FunctionButtonsPage() {
         questionnaire_display_form:
           values.button_type === 'ai_function' && values.ai_function_type === 'questionnaire'
             ? (values.questionnaire_display_form || 'DRAWER_SCROLL')
+            : null,
+        // [PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20] 呈现配置三件套
+        presentation_container:
+          values.button_type === 'ai_function' && values.ai_function_type === 'questionnaire'
+            ? (values.presentation_container || 'DRAWER')
+            : null,
+        questions_per_page:
+          values.button_type === 'ai_function' && values.ai_function_type === 'questionnaire'
+            ? (() => {
+                const v = Number(values.questions_per_page);
+                if (!Number.isFinite(v) || v < 1) return 1;
+                if (v > 999) return 999;
+                return Math.floor(v);
+              })()
+            : null,
+        auto_next_enabled:
+          values.button_type === 'ai_function' && values.ai_function_type === 'questionnaire'
+            ? !!values.auto_next_enabled
             : null,
         // [PRD-QUESTIONNAIRE-DRAWER-V1.2 2026-05-20] 引导卡片图标三选一
         // - ai_function 时才生效；其他类型置空
@@ -971,24 +1010,121 @@ export default function FunctionButtonsPage() {
                   }))}
                 />
               </Form.Item>
-              {/* [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 问卷展示形态：三选一 */}
+              {/* [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 问卷展示形态：三选一（保留兼容） */}
               <Form.Item
-                label="问卷展示形态"
+                label="问卷展示形态（兼容字段）"
                 name="questionnaire_display_form"
                 initialValue="DRAWER_SCROLL"
-                rules={[{ required: true, message: '请选择问卷展示形态' }]}
-                extra={
-                  <span>
-                    决定用户点击按钮后问卷以何种形态出现：
-                    <b>抽屉-一屏多题</b>（健康自查推荐）/ <b>抽屉-一题一屏</b>（沉浸式体质测评）/ <b>对话内插入</b>（轻量级）
-                  </span>
-                }
+                hidden
               >
-                <Select
-                  placeholder="请选择问卷展示形态"
-                  options={QUESTIONNAIRE_DISPLAY_FORM_OPTIONS}
-                />
+                <Select options={QUESTIONNAIRE_DISPLAY_FORM_OPTIONS} />
               </Form.Item>
+
+              {/* [PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20] 呈现配置组：容器 / 每页题数 / 自动下一步 */}
+              <div
+                style={{
+                  border: '1px solid #BFD4FF',
+                  borderRadius: 8,
+                  padding: '12px 14px',
+                  marginBottom: 16,
+                  background: '#F5F9FF',
+                }}
+                data-testid="fn-btn-presentation-block"
+              >
+                <div style={{ fontWeight: 600, marginBottom: 10, color: '#1F2937' }}>
+                  呈现配置
+                </div>
+                <Form.Item
+                  label="呈现容器"
+                  name="presentation_container"
+                  initialValue="DRAWER"
+                  rules={[{ required: true, message: '请选择呈现容器' }]}
+                  extra="抽屉：在底部以抽屉形式弹出问卷；对话内插入：以聊天气泡形式插入问卷"
+                >
+                  <Select
+                    data-testid="fn-btn-presentation-container"
+                    options={[
+                      { value: 'DRAWER', label: '🪟 抽屉' },
+                      { value: 'INLINE_CHAT', label: '💬 对话内插入' },
+                    ]}
+                    onChange={(v) => {
+                      // 切换为对话内插入时：隐藏「每页题数」、强制关闭自动下一步
+                      if (v === 'INLINE_CHAT') {
+                        form.setFieldsValue({ auto_next_enabled: false });
+                      }
+                    }}
+                  />
+                </Form.Item>
+                {watchedPresentationContainer !== 'INLINE_CHAT' && (
+                  <Form.Item
+                    label="每页题数"
+                    name="questions_per_page"
+                    initialValue={1}
+                    rules={[
+                      {
+                        validator: (_: any, value: any) => {
+                          if (value === undefined || value === null || value === '') {
+                            return Promise.reject(new Error('请输入 1~999 之间的整数'));
+                          }
+                          const n = Number(value);
+                          if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1 || n > 999) {
+                            return Promise.reject(new Error('请输入 1~999 之间的整数'));
+                          }
+                          return Promise.resolve();
+                        },
+                      },
+                    ]}
+                    extra="1~999 的整数；当容器为「对话内插入」时无意义"
+                  >
+                    <InputNumber
+                      min={1}
+                      max={999}
+                      step={1}
+                      precision={0}
+                      style={{ width: 200 }}
+                      data-testid="fn-btn-questions-per-page"
+                      onChange={(v) => {
+                        // 每页题数 > 1 时弹窗确认关闭自动下一步
+                        if (typeof v === 'number' && v > 1 && form.getFieldValue('auto_next_enabled')) {
+                          Modal.confirm({
+                            title: '切换确认',
+                            content: '切换后「自动下一步」将失效，是否继续？',
+                            okText: '继续',
+                            cancelText: '取消',
+                            onOk: () => {
+                              form.setFieldsValue({ auto_next_enabled: false });
+                            },
+                            onCancel: () => {
+                              form.setFieldsValue({ questions_per_page: 1 });
+                            },
+                          });
+                        }
+                      }}
+                    />
+                  </Form.Item>
+                )}
+                <Form.Item
+                  label="自动下一步"
+                  name="auto_next_enabled"
+                  valuePropName="checked"
+                  initialValue={true}
+                  extra={
+                    <span>
+                      仅当 容器=抽屉 且 每页题数=1 时可启用。开启后单选题点选即跳下一题，多选/填空题仍显示「下一步」按钮，最后一题不自动提交。
+                    </span>
+                  }
+                >
+                  <Switch
+                    checkedChildren="开"
+                    unCheckedChildren="关"
+                    disabled={
+                      watchedPresentationContainer === 'INLINE_CHAT' ||
+                      (Number(watchedQuestionsPerPage) || 0) > 1
+                    }
+                    data-testid="fn-btn-auto-next-enabled"
+                  />
+                </Form.Item>
+              </div>
             </>
           )}
 

@@ -259,10 +259,28 @@ async def constitution_test(
         pass
 
     # ── 3. 调用 AI 模型（含整体兜底，AI 异常不影响入库）──
+    # [BUG-2 修复 2026-05-20] 对 AI 调用追加 45 秒强超时上限：
+    #   ai_service 默认 httpx 超时 180 秒，碰到模型卡顿时整个请求会长时间挂起，
+    #   前端用户会一直在 /tcm/loading 转圈直至浏览器侧自身超时。
+    #   这里用 asyncio.wait_for 强制 45s 上限，超时后立刻走 fallback，
+    #   保证 /api/tcm/constitution-test 在 60s 前端阈值内返回。
+    import asyncio as _asyncio
     try:
-        ai_result = await tcm_analysis(None, None, constitution_data, db)
+        ai_result = await _asyncio.wait_for(
+            tcm_analysis(None, None, constitution_data, db),
+            timeout=45.0,
+        )
         if not isinstance(ai_result, dict):
             ai_result = {}
+    except _asyncio.TimeoutError:
+        ai_result = {
+            "constitution_type": "",  # 让下面用本地公式判定填充
+            "syndrome_analysis": (
+                "AI 分析当前响应较慢，已优先使用王琦本地公式为您出具初步体质判定，"
+                "您可稍后到「测评记录」中重新进入详情查看完整 AI 解读。"
+            ),
+            "health_plan": "建议保持规律作息、合理饮食和适量运动。",
+        }
     except Exception as e:  # noqa: BLE001
         ai_result = {
             "constitution_type": "平和质",

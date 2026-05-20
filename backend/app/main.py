@@ -1859,6 +1859,17 @@ async def lifespan(app: FastAPI):
         import traceback as _tb
         _tb.print_exc()
         print(f"[migrate] qn_content_v1: 迁移失败 err={_e}", flush=True)
+    # [PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20] 自动下一步呈现配置三件套
+    try:
+        print("[migrate] questionnaire_autonext_v1: 启动迁移...", flush=True)
+        from app.core.database import async_session as _async_session12
+        from app.services.prd_questionnaire_autonext_v1_migration import run_migration_with_session as _run_qn_autonext
+        _stats12 = await _run_qn_autonext(_async_session12)
+        print(f"[migrate] questionnaire_autonext_v1: 迁移完成 stats={_stats12}", flush=True)
+    except Exception as _e:
+        import traceback as _tb
+        _tb.print_exc()
+        print(f"[migrate] questionnaire_autonext_v1: 迁移失败 err={_e}", flush=True)
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities

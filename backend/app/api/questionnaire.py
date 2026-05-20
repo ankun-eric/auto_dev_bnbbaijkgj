@@ -196,8 +196,16 @@ async def get_button_render_meta(
             "pre_card_enabled": bool(btn.pre_card_enabled) if btn.pre_card_enabled is not None else True,
             "pre_card_icon": btn.pre_card_icon,
             "pre_card_icon_type": btn.pre_card_icon_type or "default",
+            # [PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20] 呈现配置三件套
+            "presentation_container": btn.presentation_container or "DRAWER",
+            "questions_per_page": int(btn.questions_per_page or 1),
+            "auto_next_enabled": bool(btn.auto_next_enabled),
         },
         "display_form": btn.questionnaire_display_form or "DRAWER_SCROLL",
+        # [PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20] 呈现配置在顶层也暴露一份，方便前端直接读
+        "presentation_container": btn.presentation_container or "DRAWER",
+        "questions_per_page": int(btn.questions_per_page or 1),
+        "auto_next_enabled": bool(btn.auto_next_enabled),
         "template": None,
         "questions": [],
     }

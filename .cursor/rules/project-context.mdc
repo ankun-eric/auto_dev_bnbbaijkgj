@@ -27,7 +27,46 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-QN-CONTENT-V1 · 4 个问卷题库 + 健康自查 6 维度 + chips/CTA 后台配置 (2026-05-20 17:45)
+## Latest Update: PRD-QUESTIONNAIRE-AUTONEXT-V1 · 体质测评自动下一步 + 生成失败修复 (2026-05-20 22:10)
+
+**任务类型**：Bug 修复（BUG-1 P2 体验 + BUG-2 P0 阻断）；变更范围：后端 + admin-web + h5-web（小程序 / flutter_app 暂未触动，下版本同步）
+
+**核心交付**：
+
+1. **数据层**：`chat_function_buttons` 新增 3 列（旧 `questionnaire_display_form` 保留兜底）
+   - `presentation_container VARCHAR(16)`（DRAWER / INLINE_CHAT，默认 DRAWER）
+   - `questions_per_page INT`（1~999，默认 1）
+   - `auto_next_enabled TINYINT(1)`（存量默认 0，新建默认 1；TCM 王琦 36 题按钮迁移时主动置 1）
+   - 迁移脚本：`backend/app/services/prd_questionnaire_autonext_v1_migration.py`（已注册到 `backend/app/main.py` 启动 lifespan）；迁移日志 key=`questionnaire_autonext_v1`
+
+2. **后端 API**：
+   - `backend/app/api/function_button.py` 新增 `_validate_presentation_config()` + `ALLOWED_PRESENTATION_CONTAINERS`，在 admin_create_button / admin_update_button 中强校验（INLINE_CHAT 不可开自动下一步、每页题数 >1 不可开、范围 1~999）
+   - `backend/app/api/questionnaire.py` `get_button_render_meta` 顶层与 `button` 内同时返回 `presentation_container / questions_per_page / auto_next_enabled`
+   - `backend/app/api/tcm.py` 用 `asyncio.wait_for(..., timeout=45.0)` 包裹 `tcm_analysis()` AI 调用，TimeoutError/Exception 回退到本地公式 + 友好文案，杜绝 BUG-2 的"死转圈"
+   - `backend/app/schemas/function_button.py` Create/Update/Response 新增 3 字段；Create 默认 `auto_next_enabled=True`，Response 兼容 None
+
+3. **Admin Web**（`admin-web/src/app/(admin)/function-buttons/page.tsx`）：
+   - 编辑抽屉新增「呈现配置」分组（位置在 AI 解读 Prompt 模板之前）
+   - `Form.useWatch` 监听三字段，实现：容器=INLINE_CHAT 时隐藏每页题数 + 禁用自动下一步；每页题数 1→>1 弹确认；每页题数范围 1~999 校验
+   - 旧 `questionnaire_display_form` 隐藏字段保留兜底
+
+4. **H5**：
+   - `h5-web/src/components/ai-chat/QuestionnaireDrawer.tsx` 增加 `autoNextEnabled` / `questionsPerPage` props；DRAWER_STEPPED 模式下单选题自动跳下一题、非最后一题、多选/填空保留下一步、最后一题永不自动提交；DRAWER_SCROLL 模式按 `questionsPerPage` 分页
+   - `h5-web/src/app/(ai-chat)/ai-home/page.tsx` 将 render-meta 的 `auto_next_enabled` / `questions_per_page` 透传到 QuestionnaireDrawer
+   - `h5-web/src/app/tcm/page.tsx` 对 `submitConstitutionTest` 做 60s `Promise.race` 超时；超时后 `antd-mobile Modal.confirm` 提供「重试 / 返回」；`lastSubmitRef` 保存重试参数
+
+5. **测试**：`backend/tests/test_questionnaire_autonext_v1_20260520.py`（6 类用例：ORM 字段读写 / Admin API 往返 / INLINE_CHAT 不可开自动下一步 / questions_per_page 1~999 范围 / render-meta 返回新字段 / 迁移幂等）
+
+6. **部署 & 验证**：脚本 `_deploy_qn_autonext_v1.py` + 重新部署 `_redeploy_backend2.py`；
+   - 远程线上 `GET /api/questionnaire/buttons/13/render-meta` 返回 `{display_form:"DRAWER_STEPPED", presentation_container:"DRAWER", questions_per_page:1, auto_next_enabled:true}` ✅
+   - DB 验证：模板 8 = `tcm_constitution_wangqi_36`（按钮 id=13）`auto_next_enabled=1`；其余存量按钮 `auto_next_enabled=0`，保守迁移
+   - smoke：`/api/openapi.json` `/api/questionnaire/templates` 均 HTTP 200
+
+**用户手册**：`user_docs/体质测评-自动下一步与生成失败修复.md`
+
+---
+
+## Previous Update: PRD-QN-CONTENT-V1 · 4 个问卷题库 + 健康自查 6 维度 + chips/CTA 后台配置 (2026-05-20 17:45)
 
 **任务类型**：新功能开发（仅后端；无客户端 h5-web/miniprogram/flutter_app 代码变更）
 

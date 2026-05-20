@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, Button, Radio, Space, ProgressBar, Toast, Result, SpinLoading, Empty, Popup, ImageUploader, Tag, DatePicker } from 'antd-mobile';
+import { Card, Button, Radio, Space, ProgressBar, Toast, Result, SpinLoading, Empty, Popup, ImageUploader, Tag, DatePicker, Modal } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import type { ImageUploadItem } from 'antd-mobile/es/components/image-uploader';
 import api from '@/lib/api';
@@ -348,6 +348,9 @@ export default function TcmPage() {
     }
   };
 
+  // 上次提交所用参数缓存（用于「重试」按钮）
+  const lastSubmitRef = useRef<{ answers: Record<number, string>; memberId: number | null } | null>(null);
+
   const submitConstitutionTest = async (
     finalAnswers: Record<number, string>,
     memberId: number | null,
@@ -365,14 +368,25 @@ export default function TcmPage() {
       return;
     }
     setSubmittingTest(true);
+    lastSubmitRef.current = { answers: finalAnswers, memberId };
     // 先跳转到"AI 分析中"加载页，营造专业仪式感（M9）
     router.push('/tcm/loading');
+    // [BUG-2 修复 2026-05-20] 60 秒前端超时兜底：避免请求卡死导致用户在 loading 页转圈无限等待
+    let timedOut = false;
+    const timeoutTimer = setTimeout(() => {
+      timedOut = true;
+    }, 60000);
     try {
       const payload: any = { answers: answersArr };
       if (memberId !== null && memberId !== -1) {
         payload.family_member_id = memberId;
       }
-      const res: any = await api.post('/api/tcm/constitution-test', payload);
+      // 用 Promise.race 进一步保证最多等 60s（即使 axios 没有超时配置）
+      const apiPromise = api.post('/api/tcm/constitution-test', payload);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('TCM_SUBMIT_TIMEOUT')), 60000),
+      );
+      const res: any = await Promise.race([apiPromise, timeoutPromise]);
       const data = res.data || res;
       // 新版：跳转到 6 屏结果页（复用后端 /api/constitution/result/{id}）
       if (data?.id) {
@@ -394,11 +408,12 @@ export default function TcmPage() {
       fetchArchive();
     } catch (err: any) {
       router.replace('/tcm');
-      // 真实错误透传到 Toast
+      // 真实错误透传到 Toast；超时显示「生成失败」+ 引导重试
+      const isTimeout = timedOut || err?.message === 'TCM_SUBMIT_TIMEOUT';
       const resp = err?.response;
       const data = resp?.data;
-      let detail: string = '提交测评失败，请重试';
-      if (data) {
+      let detail: string = isTimeout ? '生成超时，请重试' : '提交测评失败，请重试';
+      if (!isTimeout && data) {
         if (typeof data === 'string') {
           detail = data;
         } else if (typeof data?.detail === 'string') {
@@ -410,12 +425,29 @@ export default function TcmPage() {
         } else {
           try { detail = JSON.stringify(data); } catch {}
         }
-      } else if (err?.message) {
+      } else if (!isTimeout && err?.message) {
         detail = err.message;
       }
-      const status = resp?.status ? `[${resp.status}] ` : '';
-      Toast.show({ content: `${status}${detail}`, icon: 'fail', duration: 4000 });
+      if (isTimeout) {
+        // 显示一个含「重试」操作的弹窗
+        Modal.confirm({
+          title: '生成失败',
+          content: '体质测评生成超时，是否重新生成？',
+          confirmText: '重试',
+          cancelText: '返回',
+          onConfirm: () => {
+            const last = lastSubmitRef.current;
+            if (last) {
+              submitConstitutionTest(last.answers, last.memberId);
+            }
+          },
+        });
+      } else {
+        const status = resp?.status ? `[${resp.status}] ` : '';
+        Toast.show({ content: `${status}${detail}`, icon: 'fail', duration: 4000 });
+      }
     } finally {
+      clearTimeout(timeoutTimer);
       setSubmittingTest(false);
     }
   };

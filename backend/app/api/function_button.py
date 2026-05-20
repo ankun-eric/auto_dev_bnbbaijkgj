@@ -468,6 +468,62 @@ def _validate_questionnaire_display_form(
         )
 
 
+# [PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20] 呈现配置三件套校验
+ALLOWED_PRESENTATION_CONTAINERS = {"DRAWER", "INLINE_CHAT"}
+
+
+def _validate_presentation_config(
+    ai_func_type: Optional[str],
+    presentation_container: Optional[str],
+    questions_per_page: Optional[int],
+    auto_next_enabled: Optional[bool],
+) -> None:
+    """[PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20]
+
+    校验呈现配置三件套：
+    - presentation_container 取值合法：DRAWER / INLINE_CHAT
+    - questions_per_page 1~999 整数
+    - auto_next_enabled 与容器、每页题数的联动规则：
+      · 容器=INLINE_CHAT 时 auto_next_enabled 必须为 false（前端隐藏，后端兜底）
+      · 每页题数>1 时 auto_next_enabled 必须为 false
+    其他按钮类型该字段忽略。
+    """
+    if ai_func_type != "questionnaire":
+        return
+    if presentation_container is not None:
+        if presentation_container not in ALLOWED_PRESENTATION_CONTAINERS:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"presentation_container 取值不合法：{presentation_container}，"
+                    f"允许值：{sorted(ALLOWED_PRESENTATION_CONTAINERS)}"
+                ),
+            )
+    if questions_per_page is not None:
+        try:
+            qpp = int(questions_per_page)
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=400, detail="questions_per_page 必须是 1~999 之间的整数"
+            )
+        if qpp < 1 or qpp > 999:
+            raise HTTPException(
+                status_code=400, detail="questions_per_page 必须是 1~999 之间的整数"
+            )
+    # 联动规则校验
+    if auto_next_enabled:
+        if presentation_container == "INLINE_CHAT":
+            raise HTTPException(
+                status_code=400,
+                detail="对话内插入容器下不能启用「自动下一步」",
+            )
+        if (questions_per_page or 1) > 1:
+            raise HTTPException(
+                status_code=400,
+                detail="每页题数>1 时不能启用「自动下一步」",
+            )
+
+
 def _validate_navigate_url(btn_type: Optional[str], external_url: Optional[str]) -> None:
     """[PRD-AICHAT-FUNCBTN-OPTIM-V1] 页面跳转地址校验：必须 http(s):// 或 / 开头。
 
@@ -538,6 +594,13 @@ async def admin_create_button(
     _validate_questionnaire_display_form(
         data.ai_function_type, data.questionnaire_display_form,
     )
+    # [PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20] 呈现配置三件套校验
+    _validate_presentation_config(
+        data.ai_function_type,
+        data.presentation_container,
+        data.questions_per_page,
+        data.auto_next_enabled,
+    )
     await _validate_button_prompt_binding(db, data.button_type, data.prompt_template_id)
     btn = ChatFunctionButton(**data.model_dump())
     db.add(btn)
@@ -580,6 +643,15 @@ async def admin_update_button(
         "questionnaire_display_form", btn.questionnaire_display_form
     )
     _validate_questionnaire_display_form(effective_ai_fn_type, effective_display_form)
+    # [PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20] 呈现配置三件套校验
+    effective_container = updates.get(
+        "presentation_container", btn.presentation_container
+    )
+    effective_qpp = updates.get("questions_per_page", btn.questions_per_page)
+    effective_auto_next = updates.get("auto_next_enabled", btn.auto_next_enabled)
+    _validate_presentation_config(
+        effective_ai_fn_type, effective_container, effective_qpp, effective_auto_next,
+    )
     await _validate_button_prompt_binding(db, effective_btn_type, effective_pt_id)
     for field, value in updates.items():
         setattr(btn, field, value)

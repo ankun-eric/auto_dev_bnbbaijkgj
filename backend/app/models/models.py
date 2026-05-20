@@ -2602,6 +2602,21 @@ class ChatFunctionButton(Base):
         String(32), nullable=True, default="DRAWER_SCROLL",
         comment="问卷展示形态：DRAWER_SCROLL / DRAWER_STEPPED / INLINE_CHAT"
     )
+    # ───── [PRD-QUESTIONNAIRE-AUTONEXT-V1 2026-05-20] 呈现配置三件套 ─────
+    # 把旧三选一 questionnaire_display_form 拆为「呈现容器 + 每页题数 + 自动下一步」三个独立参数
+    # 旧字段保留兜底；前端按新字段渲染，后端启动迁移把旧值映射到新字段。
+    presentation_container = mapped_column(
+        String(16), nullable=True, default="DRAWER",
+        comment="呈现容器：DRAWER（抽屉）/ INLINE_CHAT（对话内插入）"
+    )
+    questions_per_page = mapped_column(
+        Integer, nullable=True, default=1,
+        comment="每页题数（1~999），容器=INLINE_CHAT 时无意义"
+    )
+    auto_next_enabled = mapped_column(
+        Boolean, nullable=True, default=False,
+        comment="是否启用「自动下一步」：单选题选中后立即跳下一题；仅在 容器=DRAWER 且 每页题数=1 且 问卷全为单选题 时可开"
+    )
     # ───── [PRD-TCM-DRAWER-V12 2026-05-20] 双触发开关 + AI 引用双开关 + 关键词列表 ─────
     trigger_by_keyword = mapped_column(Boolean, nullable=True, default=True, comment="是否启用关键词触发本按钮（默认 true）")
     trigger_by_intent = mapped_column(Boolean, nullable=True, default=True, comment="是否启用 AI 意图识别触发本按钮（默认 true）")
