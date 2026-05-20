@@ -1,0 +1,232 @@
+Local base: C:\auto_output\bnbbaijkgj
+Connecting to ubuntu@newbb.test.bangbangvip.com:22...
+Connected.
+  upload: backend/app/api/questionnaire.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/questionnaire.py
+  upload: backend/app/api/chat.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/chat.py
+  upload: backend/app/services/prd_tcm36_drawer_v12_migration.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/services/prd_tcm36_drawer_v12_migration.py
+  upload: backend/scripts/_seed_tcm36.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/scripts/_seed_tcm36.py
+  upload: backend/tests/test_tcm36_drawer_v12_20260520.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_tcm36_drawer_v12_20260520.py
+  upload: admin-web/src/app/(admin)/function-buttons/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/(admin)/function-buttons/page.tsx
+  upload: h5-web/src/app/(ai-chat)/ai-home/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/page.tsx
+compose files: /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.prod.yml
+/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml
+
+--- docker cp backend 鏂囦欢鍒?backend 瀹瑰櫒 ---
+
+$ docker cp '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_tcm36_drawer_v12_20260520.py' '6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/tests/test_tcm36_drawer_v12_20260520.py' 2>&1
+
+--- 閲嶅惎 backend 瀹瑰櫒锛堣Е鍙戝惎鍔ㄨ縼绉伙級 ---
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml restart backend 2>&1 | tail -10
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Restarting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+
+
+--- 绛夊緟 backend 灏辩华 ---
+  [3s] backend openapi.json -> 502
+  [6s] backend openapi.json -> 502
+  [9s] backend openapi.json -> 200
+
+--- 鎶?backend 鍚姩鏃ュ織锛岀‘璁?seed ---
+
+$ docker logs --tail 400 6b099ed3-7175-4a78-91f4-44570c84ed27-backend 2>&1 | grep -E 'tcm36|seed tcm_constitution|36 questions' | tail -40
+[migrate] tcm36_drawer_v12: 鍚姩杩佺Щ...
+[migrate] tcm36_drawer_v12: 鍚姩
+[migrate] tcm36_drawer_v12: 瀹屾垚 stats={"phase": "tcm36_drawer_v12", "columns_added": {"trigger_by_keyword": false, "trigger_by_intent": false, "trigger_keywords": false, "ai_reference_passive": false, "ai_reference_active": false}, "template_action": "updated", "questions_deleted": 36, "questions_inserted": 36, "classifications_inserted": 0, "classifications_existing": 9, "questions_before": 36, "template_id": 2, "trigger_keywords_backfilled": 0}
+[tcm36] template_id=2 question_count: before=36 after=36
+[tcm36] 36 questions OK
+[migrate] tcm36_drawer_v12: 杩佺Щ瀹屾垚 stats={'phase': 'tcm36_drawer_v12', 'columns_added': {'trigger_by_keyword': False, 'trigger_by_intent': False, 'trigger_keywords': False, 'ai_reference_passive': False, 'ai_reference_active': False}, 'template_action': 'updated', 'questions_deleted': 36, 'questions_inserted': 36, 'classifications_inserted': 0, 'classifications_existing': 9, 'questions_before': 36, 'template_id': 2, 'trigger_keywords_backfilled': 0}
+
+
+--- DB 鏍￠獙 questionnaire_question 棰樻暟 ---
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python -c "import asyncio; from sqlalchemy import text; from app.core.database import async_session
+async def main():
+  async with async_session() as db:
+    r = await db.execute(text...
+tcm_constitution question count: 36
+Exception ignored in: <function Connection.__del__ at 0x7b8d38e8a020>
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/aiomysql/connection.py", line 1131, in __del__
+  File "/usr/local/lib/python3.11/site-packages/aiomysql/connection.py", line 339, in close
+  File "/usr/local/lib/python3.11/asyncio/selector_events.py", line 864, in close
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 762, in call_soon
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 520, in _check_closed
+RuntimeError: Event loop is closed
+
+
+--- rebuild admin-web ---
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml stop admin-web 2>&1 | tail -3
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Stopping 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Stopped 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml rm -f admin-web 2>&1 | tail -3
+Going to remove 6b099ed3-7175-4a78-91f4-44570c84ed27-admin
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Removing 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Removed 
+
+Building admin-web (5-10 min)...
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build admin-web 2>&1 | tail -120
+fig                           10 kB           414 kB
+#12 125.0 鈹?鈼?/search/asr-config                       7 kB            296 kB
+#12 125.0 鈹?鈼?/search/block-words                      12.6 kB         402 kB
+#12 125.0 鈹?鈼?/search/recommend                        14.2 kB         409 kB
+#12 125.0 鈹?鈼?/search/statistics                       240 kB         1.09 MB
+#12 125.0 鈹?鈼?/settings                                11 kB           368 kB
+#12 125.0 鈹?鈼?/share-config                            4.21 kB         371 kB
+#12 125.0 鈹?鈼?/sms                                     25.1 kB         423 kB
+#12 125.0 鈹?鈼?/system-messages                         11.4 kB         433 kB
+#12 125.0 鈹?鈼?/system-messages/send                    4.92 kB         314 kB
+#12 125.0 鈹?鈼?/system/sdk-health                       17 kB           285 kB
+#12 125.0 鈹?鈼?/tcm-config                              4.05 kB         284 kB
+#12 125.0 鈹?鈼?/theme-config                            7.6 kB          403 kB
+#12 125.0 鈹?鈼?/tts-config                              5.07 kB         334 kB
+#12 125.0 鈹?鈼?/users                                   15.3 kB         404 kB
+#12 125.0 鈹?鈼?/voice-service                           3.46 kB         345 kB
+#12 125.0 鈹?鈼?/wechat-push                             4.92 kB         291 kB
+#12 125.0 + First Load JS shared by all                87.7 kB
+#12 125.0   鈹?chunks/2117-1ca38137e0e3b541.js          31.9 kB
+#12 125.0   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js      53.6 kB
+#12 125.0   鈹?other shared chunks (total)              2.13 kB
+#12 125.0 
+#12 125.0 
+#12 125.0 鈼? (Static)   prerendered as static content
+#12 125.0 茠  (Dynamic)  server-rendered on demand
+#12 125.0 
+#12 DONE 125.2s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.5s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.1s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 1.3s done
+#16 exporting manifest sha256:ecfd255365b01fa479af16197400fa63dc0e79cc0aea0dab3d5a78276f1edfd5
+#16 exporting manifest sha256:ecfd255365b01fa479af16197400fa63dc0e79cc0aea0dab3d5a78276f1edfd5 0.0s done
+#16 exporting config sha256:e2b4d9a16360f436aaaeff8d283270235ebfbd3f48e2d17382538999cd18a579 0.0s done
+#16 exporting attestation manifest sha256:4b62cc2d82de3ac63dd43483ff36ba7baa52a32cb6d0dfe2c886f8bc0baa8003 0.0s done
+#16 exporting manifest list sha256:788f3d7b4fba41300d7b2e6c4eee202954f5531d0c46bbc1fbec120b9f6b05aa 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.5s done
+#16 DONE 1.9s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.2s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d admin-web 2>&1 | tail -10
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Creating 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Created 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started 
+
+
+--- rebuild h5-web ---
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml stop h5-web 2>&1 | tail -3
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Stopping 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Stopped 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml rm -f h5-web 2>&1 | tail -3
+Going to remove 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Removing 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Removed 
+
+Building h5-web (5-10 min)...
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build h5-web 2>&1 | tail -120
+                 2.15 kB         234 kB
+#12 92.81 鈹?鈼?/sandbox-pay                               2.15 kB         234 kB
+#12 92.81 鈹?鈼?/scan                                      109 kB          319 kB
+#12 92.81 鈹?鈼?/search                                    6.37 kB         238 kB
+#12 92.81 鈹?鈼?/search/result                             7.33 kB         239 kB
+#12 92.81 鈹?鈼?/services                                  5.5 kB          238 kB
+#12 92.81 鈹?鈼?/settings                                  6.06 kB         238 kB
+#12 92.81 鈹?茠 /shared/chat/[token]                       2.51 kB         235 kB
+#12 92.81 鈹?茠 /shared/drug/[token]                       2.52 kB         235 kB
+#12 92.81 鈹?茠 /shared/report/[token]                     2.72 kB         235 kB
+#12 92.81 鈹?鈼?/symptom                                   9.96 kB         247 kB
+#12 92.81 鈹?鈼?/tcm                                       12.5 kB         245 kB
+#12 92.81 鈹?鈼?/tcm/archive                               510 B           210 kB
+#12 92.81 鈹?茠 /tcm/diagnosis/[id]                        549 B           210 kB
+#12 92.81 鈹?鈼?/tcm/loading                               958 B           211 kB
+#12 92.81 鈹?茠 /tcm/result/[id]                           9.37 kB         241 kB
+#12 92.81 鈹?茠 /unified-order/[id]                        9.95 kB         248 kB
+#12 92.81 鈹?鈼?/unified-orders                            4.05 kB         242 kB
+#12 92.81 + First Load JS shared by all                  87.6 kB
+#12 92.81   鈹?chunks/2117-3615d1923728c5e4.js            31.9 kB
+#12 92.81   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js        53.6 kB
+#12 92.81   鈹?other shared chunks (total)                2.1 kB
+#12 92.81 
+#12 92.81 
+#12 92.81 鈼? (Static)   prerendered as static content
+#12 92.81 茠  (Dynamic)  server-rendered on demand
+#12 92.81 
+#12 DONE 93.0s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.5s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 10.7s done
+#16 exporting manifest sha256:394d73b1cfb6a01bd39fcced3249a15ad2b55f97633f97725ca4e288e17c09f7 0.0s done
+#16 exporting config sha256:0c404564e048d33f74bb8c1c52a45ca5db28dab5693e5aba128339a968c987bc 0.0s done
+#16 exporting attestation manifest sha256:8c954aa38beedaf063c6fa5c036eaf3469a4869c8ee76fab90400bf0fb4c81d0 0.0s done
+#16 exporting manifest list sha256:a34e8b6dee6c321840b75600039c42f41d0af6326e6970468cef0d5ca80942a2 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 1.9s done
+#16 DONE 12.7s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.3s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d h5-web 2>&1 | tail -10
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Creating 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Created 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+
+
+--- 绛夊緟 h5-web 灏辩华 ---
+  [3s] h5 / -> 200
+
+--- 绛夊緟 admin-web 灏辩华 ---
+  [3s] admin / -> 301
+
+DEPLOY DONE.

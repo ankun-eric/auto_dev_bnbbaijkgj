@@ -1,0 +1,234 @@
+
+========== A) 瀹瑰櫒鍐?pytest tcm36 ==========
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend bash -lc 'cd /app && python -m pytest tests/test_tcm36_drawer_v12_20260520.py -v --tb=short 2>&1 | tail -200' 
+============================= test session starts ==============================
+platform linux -- Python 3.11.15, pytest-9.0.3, pluggy-1.6.0 -- /usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /app
+configfile: pytest.ini
+plugins: asyncio-1.3.0, anyio-4.13.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 8 items
+
+tests/test_tcm36_drawer_v12_20260520.py::test_tc01_reverse_score_for_pinghe PASSED [ 12%]
+tests/test_tcm36_drawer_v12_20260520.py::test_tc02_seed_tcm36_creates_36_questions PASSED [ 25%]
+tests/test_tcm36_drawer_v12_20260520.py::test_tc03_button_new_fields_orm PASSED [ 37%]
+tests/test_tcm36_drawer_v12_20260520.py::test_tc04_admin_button_roundtrip PASSED [ 50%]
+tests/test_tcm36_drawer_v12_20260520.py::test_tc05_intent_detect_hit PASSED [ 62%]
+tests/test_tcm36_drawer_v12_20260520.py::test_tc06_intent_detect_miss PASSED [ 75%]
+tests/test_tcm36_drawer_v12_20260520.py::test_tc07_submit_returns_main_type PASSED [ 87%]
+tests/test_tcm36_drawer_v12_20260520.py::test_tc08_build_constitution_prompt_within_80_chars PASSED [100%]
+
+=============================== warnings summary ===============================
+../usr/local/lib/python3.11/site-packages/passlib/utils/__init__.py:854
+  /usr/local/lib/python3.11/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
+    from crypt import crypt as _crypt
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelConfigCreate has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelConfigUpdate has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelConfigResponse has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelConfigTestRequest has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelTemplateCreate has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelTemplateUpdate has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AIModelTemplateResponse has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+app/api/admin_news.py:322
+  /app/app/api/admin_news.py:322: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    target_status: str = Query("published", regex="^(published|archived|draft)$"),
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AdminChatSessionItem has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_name" in AdminChatSessionDetail has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+app/api/chat_history.py:236
+  /app/app/api/chat_history.py:236: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    format: str = Query("xlsx", regex="^(xlsx|csv)$"),
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:291
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:291
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:291
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:291
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:291: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+../usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:341
+  /usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:341: UserWarning: Valid config keys have changed in V2:
+  * 'orm_mode' has been renamed to 'from_attributes'
+    warnings.warn(message, UserWarning)
+
+app/api/ocr.py:159
+  /app/app/api/ocr.py:159: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    period: str = Query("today", regex="^(today|7d|30d|all)$"),
+
+app/api/merchant_v1.py:771
+  /app/app/api/merchant_v1.py:771: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    period: str = Query("day", regex="^(day|week|month)$"),
+
+app/api/merchant_v1.py:772
+  /app/app/api/merchant_v1.py:772: DeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    dim: str = Query("merchant", regex="^(merchant|store)$"),
+
+../usr/local/lib/python3.11/site-packages/pydantic/fields.py:795
+  /usr/local/lib/python3.11/site-packages/pydantic/fields.py:795: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warn('`min_items` is deprecated and will be removed, use `min_length` instead', DeprecationWarning)
+
+../usr/local/lib/python3.11/site-packages/pydantic/fields.py:801
+  /usr/local/lib/python3.11/site-packages/pydantic/fields.py:801: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warn('`max_items` is deprecated and will be removed, use `max_length` instead', DeprecationWarning)
+
+app/main.py:2074
+  /app/app/main.py:2074: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+  /usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+app/main.py:2081
+  /app/app/main.py:2081: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+app/main.py:2111
+  /app/app/main.py:2111: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+app/main.py:2130
+  /app/app/main.py:2130: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 8 passed, 30 warnings in 3.47s ========================
+
+[rc=0]
+
+========== B) 瀹瑰櫒鍐呴獙璇?page_size=500 涓嶅啀 422 ==========
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend bash -lc 'echo CmltcG9ydCBhc3luY2lvCmZyb20gc3FsYWxjaGVteSBpbXBvcnQgdGV4dApmcm9tIGFwcC5jb3JlLmRhdGFiYXNlIGltcG9ydCBhc3luY19zZXNzaW9uCgphc3luYyBk...
+tpl: {'id': 2, 'code': 'tcm_constitution', 'name': '涓尰浣撹川娴嬭瘎锛堢帇鐞?36 棰樼増锛?}
+question_count: 36
+button_5fields_ok: True sample: (1, 1, None, 1, 1)
+Exception ignored in: <function Connection.__del__ at 0x7ff89f412020>
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/aiomysql/connection.py", line 1131, in __del__
+  File "/usr/local/lib/python3.11/site-packages/aiomysql/connection.py", line 339, in close
+  File "/usr/local/lib/python3.11/asyncio/selector_events.py", line 864, in close
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 762, in call_soon
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 520, in _check_closed
+RuntimeError: Event loop is closed
+
+[rc=0]
+
+========== C) 楠岃瘉 questionnaire.py le=500 宸茶惤鍒板鍣?==========
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend grep -n 'le=500' /app/app/api/questionnaire.py 2>&1 | head -5
+741:    # 鐢?le=100 鏀惧鑷?le=500锛岄伩鍏嶅墠绔媺鍙栧叏閲忔ā鏉挎椂琚?422 鎷︽埅
+
+742:    page_size: int = Query(20, ge=1, le=500),
+
+
+[rc=0]
+
+========== D) 楠岃瘉 admin-web 缂栬瘧浜х墿 page_size=100 ==========
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-admin sh -lc 'grep -rE "page_size.{0,8}(100|200)" .next/standalone/.next/server/app/'"(admin)"'/function-buttons/ 2>&1 | head -5 || true' 
+STDERR: sh: syntax error: unexpected "("
+
+[rc=2]
+
+========== E) follow-up 鎺ュ彛璺敱宸叉敞鍐?==========
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python -c "from app.main import app;print([r.path for r in app.routes if 'follow-up' in r.path])" 2>&1 | tail -5
+  warnings.warn(
+/usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:341: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+['/api/questionnaire/answers/{answer_id}/follow-up']
+
+[rc=0]
+
+========== F) 涓€娆℃€цˉ鏁拌剼鏈彲鐙珛杩愯 ==========
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend bash -lc 'cd /app && python scripts/_seed_tcm36.py 2>&1 | tail -10'
+[tcm36] 36 questions OK
+[_seed_tcm36] done stats={"phase": "tcm36_drawer_v12", "columns_added": {"trigger_by_keyword": false, "trigger_by_intent": false, "trigger_keywords": false, "ai_reference_passive": false, "ai_reference_active": false}, "template_action": "updated", "questions_deleted": 36, "questions_inserted": 36, "classifications_inserted": 0, "classifications_existing": 9, "questions_before": 36, "template_id": 2, "trigger_keywords_backfilled": 0}
+Exception ignored in: <function Connection.__del__ at 0x7df143e7e660>
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/aiomysql/connection.py", line 1131, in __del__
+  File "/usr/local/lib/python3.11/site-packages/aiomysql/connection.py", line 339, in close
+  File "/usr/local/lib/python3.11/asyncio/selector_events.py", line 864, in close
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 762, in call_soon
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 520, in _check_closed
+RuntimeError: Event loop is closed
+
+[rc=0]

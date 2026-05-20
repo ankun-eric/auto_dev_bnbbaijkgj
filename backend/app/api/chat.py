@@ -647,6 +647,21 @@ async def send_message(
         except Exception:
             pass
 
+    # [PRD-TCM-DRAWER-V12 2026-05-20] 注入用户最近一次中医体质（被动引用，≤80 字）
+    try:
+        from app.services.tcm_context import (
+            build_constitution_system_prompt,
+            get_user_latest_constitution,
+            is_passive_reference_enabled,
+        )
+        if await is_passive_reference_enabled(db):
+            _latest_tcm = await get_user_latest_constitution(db, current_user.id)
+            _tcm_prompt = build_constitution_system_prompt(_latest_tcm)
+            if _tcm_prompt:
+                system_prompt += f"\n\n{_tcm_prompt}"
+    except Exception:
+        pass
+
     knowledge_hits = []
     try:
         kb_result = await search_knowledge(
@@ -1087,6 +1102,21 @@ async def stream_message(
             )
         except Exception:
             pass
+
+    # [PRD-TCM-DRAWER-V12 2026-05-20] 流式版本：注入用户最近一次中医体质（被动引用，≤80 字）
+    try:
+        from app.services.tcm_context import (
+            build_constitution_system_prompt,
+            get_user_latest_constitution,
+            is_passive_reference_enabled,
+        )
+        if await is_passive_reference_enabled(db):
+            _latest_tcm = await get_user_latest_constitution(db, current_user.id)
+            _tcm_prompt = build_constitution_system_prompt(_latest_tcm)
+            if _tcm_prompt:
+                system_prompt += f"\n\n{_tcm_prompt}"
+    except Exception:
+        pass
 
     # [BUG_FIX_拍照识药三联_20260516] 隐式药品上下文注入：
     # 检测最近 3 条 assistant 消息是否含 drug_identify_card meta，

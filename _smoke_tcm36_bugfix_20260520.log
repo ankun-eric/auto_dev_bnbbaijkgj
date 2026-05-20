@@ -1,0 +1,16 @@
+==== smoke: TCM36 Bugfix v12 ====
+BASE=https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27
+[PASS] openapi.json 鍙揪  status=200
+WARN: 绠＄悊鍛樼櫥褰曞け璐ワ紝admin 鎺ュ彛灏嗕互鍖垮悕璋冪敤锛岄鏈?401
+[PASS] admin list templates page_size=50锛堟棤 token 璧伴壌鏉冩嫤鎴級  status=401
+[PASS] admin list templates page_size=100锛堟棤 token 璧伴壌鏉冩嫤鎴級  status=401
+[PASS] admin list templates page_size=200锛堟棤 token 璧伴壌鏉冩嫤鎴級  status=401
+[PASS] admin list templates page_size=500锛堟棤 token 璧伴壌鏉冩嫤鎴級  status=401
+[PASS] admin list templates page_size=600锛堟棤 token 璧伴壌鏉冩嫤鎴級  status=401
+[PASS] tcm_constitution 妯℃澘瀛樺湪  id=2
+[PASS] tcm_constitution 棰樻暟 = 36  count=36
+[PASS] intent-detect 鍏抽敭璇嶅懡涓紙浣撹川娴嬭瘎锛? source=intent intent=questionnaire_tcm_constitution_wangqi_36
+[PASS] intent-detect 鏃犲叧閿瘝鈫?none  source=none
+
+==== Summary ====
+total=10 pass=10 fail=0

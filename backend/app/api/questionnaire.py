@@ -668,6 +668,68 @@ async def get_answer_report(
 
 
 # ════════════════════════════════════════
+#  [PRD-TCM-DRAWER-V12 2026-05-20] AI 主动追问接口
+# ════════════════════════════════════════
+
+
+@router.get("/answers/{answer_id}/follow-up")
+async def get_answer_follow_up(
+    answer_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """返回完成问卷后的 AI 主动追问文案（供 h5 在结果页关闭后插入消息流使用）。
+
+    - 受按钮配置 `ai_reference_active` 控制（默认 true）
+    - 仅 questionnaire 类按钮关联此模板时才返回文案，否则 enabled=false
+    """
+    ans = await db.get(QuestionnaireAnswer, answer_id)
+    if not ans or ans.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="答题记录不存在")
+    tpl = await db.get(QuestionnaireTemplate, ans.template_id)
+    main_type: Optional[str] = None
+    if ans.classification_id:
+        cls = await db.get(QuestionnaireClassificationRule, ans.classification_id)
+        if cls:
+            main_type = cls.name
+    if not main_type and isinstance(ans.dimension_scores, dict) and ans.dimension_scores:
+        try:
+            main_type = max(
+                ans.dimension_scores.items(),
+                key=lambda x: float(x[1] or 0),
+            )[0]
+        except Exception:  # noqa: BLE001
+            main_type = None
+
+    # 查关联按钮的 ai_reference_active 开关
+    enabled = True
+    try:
+        btn_rows = (
+            await db.execute(
+                select(ChatFunctionButton).where(
+                    ChatFunctionButton.questionnaire_template_id == ans.template_id,
+                )
+            )
+        ).scalars().all()
+        if btn_rows:
+            enabled = any(b.ai_reference_active is not False for b in btn_rows)
+    except Exception:  # noqa: BLE001
+        enabled = True
+
+    if not enabled or not main_type:
+        return {"enabled": False, "message": "", "main_type": main_type}
+
+    msg = f"您想了解 {main_type} 的具体调理方法吗？"
+    return {
+        "enabled": True,
+        "message": msg,
+        "main_type": main_type,
+        "template_id": ans.template_id,
+        "template_code": tpl.code if tpl else None,
+    }
+
+
+# ════════════════════════════════════════
 #  管理端 API（模板/题目/分型/推荐 CRUD）
 # ════════════════════════════════════════
 
@@ -675,7 +737,9 @@ async def get_answer_report(
 @admin_router.get("/templates")
 async def admin_list_templates(
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    # [PRD-TCM-DRAWER-V12-BUG1 2026-05-20] 下拉选项类场景需要更大上限，
+    # 由 le=100 放宽至 le=500，避免前端拉取全量模板时被 422 拦截
+    page_size: int = Query(20, ge=1, le=500),
     keyword: Optional[str] = None,
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),

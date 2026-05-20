@@ -294,7 +294,9 @@ export default function FunctionButtonsPage() {
   const fetchQuestionnaireTemplates = useCallback(async () => {
     try {
       setQuestionnaireTplLoadError(null);
-      const res = await get<any>('/api/admin/questionnaire/templates', { page: 1, page_size: 200 });
+      // [PRD-TCM-DRAWER-V12-BUG1 2026-05-20] page_size 由 200 改为 100，
+      // 与后端 Query(le=100) 上限对齐，避免 422 校验失败导致下拉空 + 红字
+      const res = await get<any>('/api/admin/questionnaire/templates', { page: 1, page_size: 100 });
       const items = Array.isArray(res) ? res : (res?.items || []);
       const mapped = items
         .filter((t: any) => t && t.id)
@@ -312,7 +314,15 @@ export default function FunctionButtonsPage() {
       // eslint-disable-next-line no-console
       console.error('[questionnaire/templates] load failed:', e);
       setQuestionnaireTemplates([]);
-      setQuestionnaireTplLoadError('加载问卷模板失败，请重试');
+      // [PRD-TCM-DRAWER-V12-BUG1 2026-05-20] 按 HTTP 状态码细化提示文案
+      const status = e?.response?.status ?? e?.status;
+      if (status === 422) {
+        setQuestionnaireTplLoadError('请求参数超出限制（page_size 上限），请联系运维');
+      } else if (status === 401 || status === 403) {
+        setQuestionnaireTplLoadError('登录态失效或无管理员权限，请重新登录');
+      } else {
+        setQuestionnaireTplLoadError(`加载问卷模板失败（${status || '网络异常'}），请重试`);
+      }
     }
   }, []);
 

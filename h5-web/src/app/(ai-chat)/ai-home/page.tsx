@@ -2459,6 +2459,16 @@ export default function AiHomePage() {
       //   DRAWER_SCROLL  → 弹通用问卷抽屉（一屏多题）
       //   DRAWER_STEPPED → 弹通用问卷抽屉（一题一屏）
       //   INLINE_CHAT    → 在对话流中插入问卷气泡（轻量级）—— 复用现有 ai-chat-card 走原流程
+      // [PRD-TCM-DRAWER-V12-BUG3 2026-05-20] 当按钮配置为问卷类型但未保存 template_id 时
+      // （通常因 Bug 1 加载问卷模板失败导致运营未能选模板），显式提示运营，避免点击静默无反应
+      if (
+        btn.button_type === 'ai_function' &&
+        btn.ai_function_type === 'questionnaire' &&
+        !btn.questionnaire_template_id
+      ) {
+        Toast.show({ content: '该功能按钮未关联问卷模板，请联系管理员前往「功能按钮管理」补充配置' });
+        return;
+      }
       if (
         btn.button_type === 'ai_function' &&
         btn.ai_function_type === 'questionnaire' &&

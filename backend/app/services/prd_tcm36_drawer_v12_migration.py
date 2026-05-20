@@ -231,6 +231,16 @@ async def _seed_tcm36_template_and_questions(db) -> dict[str, Any]:
     await db.commit()
 
     # 2. 重建 questions（先删后插）—— questionnaire_answer 表用 JSON 存答案不直接外键，可安全删
+    # [PRD-TCM-DRAWER-V12-BUG2 2026-05-20] 先采集 before 题数，便于运维 grep tcm36 看到 before/after
+    try:
+        cnt_before = await db.execute(
+            text("SELECT COUNT(*) FROM questionnaire_question WHERE template_id = :tid"),
+            {"tid": tpl_id},
+        )
+        stats["questions_before"] = int(cnt_before.scalar() or 0)
+    except Exception:  # noqa: BLE001
+        stats["questions_before"] = -1
+
     try:
         delr = await db.execute(
             text("DELETE FROM questionnaire_question WHERE template_id = :tid"),
@@ -350,7 +360,18 @@ async def run_migration_with_session(async_session_factory):
             f"[migrate] tcm36_drawer_v12: 完成 stats={json.dumps(stats, ensure_ascii=False)}",
             flush=True,
         )
-        print("[seed] tcm_constitution 36 questions OK", flush=True)
+        # [PRD-TCM-DRAWER-V12-BUG2 2026-05-20] 输出标准化运维日志
+        _tid = stats.get("template_id")
+        _before = stats.get("questions_before", "?")
+        _after = stats.get("questions_inserted", 0)
+        print(
+            f"[tcm36] template_id={_tid} question_count: before={_before} after={_after}",
+            flush=True,
+        )
+        if _after == 36:
+            print("[tcm36] 36 questions OK", flush=True)
+        else:
+            print(f"[tcm36] WARNING question_count={_after} (expected 36)", flush=True)
         return stats
     except Exception as e:  # noqa: BLE001
         print(f"[migrate] tcm36_drawer_v12: 异常（不影响启动）: {e}", flush=True)

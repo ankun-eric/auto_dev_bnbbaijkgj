@@ -27,7 +27,57 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-AICHAT-FUNCCARD-V2-DESIGN-D｜AI 对话页「功能卡片」方案 D · v1.2 视觉升级 (2026-05-20 13:30)
+## Latest Update: PRD-TCM-DRAWER-V12 Bugfix｜体质测评「加载问卷模板失败 + 36 题模板 + 卡片弹出」Bug 修复 (2026-05-20 14:15)
+
+**任务类型**：Bug 修复（admin-web + h5-web + backend；无客户端 (miniprogram/Flutter) 变更）
+
+**核心交付**：修复三个相互关联的 Bug，并附带完善若干增强：
+
+1. **Bug 1（最关键）—— 加载问卷模板失败 422 → 200**
+   - 根因：admin-web `function-buttons/page.tsx:297` 传 `page_size=200`，后端 `questionnaire.py:678` `Query(le=100)` 校验失败返回 422
+   - 修复：
+     - 前端 `page_size: 200 → 100`（与后端上限对齐）
+     - 后端 `le=100 → le=500`（放宽到合理上限，避免下次再被绊倒）
+     - admin-web 错误提示按 HTTP 状态码细化（422 → "请求参数超出限制"；401/403 → "登录态失效"；其他 → 含状态码的通用提示）
+
+2. **Bug 2 —— 36 题模板真正落库**
+   - 修复：`prd_tcm36_drawer_v12_migration.py` 增强幂等性，启动时先采集 `questions_before` 题数，再删后插 36 题，启动日志输出 `[tcm36] template_id=X question_count: before=Y after=36` 与 `36 questions OK`，便于运维 `grep tcm36` 确认
+   - 新增 `backend/scripts/_seed_tcm36.py` 一次性手动补数脚本（docker exec 内独立可运行）
+
+3. **Bug 3 —— 卡片正常弹出（与 Bug 1 强关联）**
+   - h5-web `ai-home/page.tsx` 增加兜底：当按钮为 questionnaire 类型但 `questionnaire_template_id` 为空时，显式 Toast 提示「该功能按钮未关联问卷模板，请联系管理员前往「功能按钮管理」补充配置」，避免静默无反应
+
+4. **附带增强**：
+   - `backend/app/api/chat.py` 同步注入 TCM 上下文：在两处 system_prompt 构造点（非流 + 流式）调用 `tcm_context.get_user_latest_constitution + build_constitution_system_prompt`，受 `ai_reference_passive` 开关控制
+   - `backend/app/api/questionnaire.py` 新增 `GET /answers/{id}/follow-up`：返回 AI 主动追问文案 `您想了解 {主体质} 的具体调理方法吗？`，受 `ai_reference_active` 开关控制
+
+**改动文件清单**：
+
+- `backend/app/api/questionnaire.py` — `le=100 → le=500` + 新增 follow-up 接口
+- `backend/app/api/chat.py` — 两处 system_prompt 注入 TCM 上下文
+- `backend/app/services/prd_tcm36_drawer_v12_migration.py` — questions_before 采集 + 标准化运维日志
+- `backend/scripts/_seed_tcm36.py` — 新增一次性补数脚本
+- `admin-web/src/app/(admin)/function-buttons/page.tsx` — `page_size: 200 → 100` + 错误提示细化
+- `h5-web/src/app/(ai-chat)/ai-home/page.tsx` — `questionnaire_template_id` 为空时 Toast 兜底
+
+**验收（已通过）**：
+
+- 后端启动日志：`[tcm36] template_id=2 question_count: before=36 after=36` + `[tcm36] 36 questions OK` ✅
+- DB 校验：`SELECT COUNT(*) FROM questionnaire_question WHERE template_id=2` = 36 ✅
+- 容器内 pytest：`tests/test_tcm36_drawer_v12_20260520.py` 8/8 全部 PASS ✅
+- 远程 smoke：10/10 全部 PASS（openapi、admin list templates 各 size、tcm 模板存在、36 题数、intent-detect 命中/未命中）✅
+- 一次性脚本：`docker exec ... python scripts/_seed_tcm36.py` 输出 `inserted=36 questions OK` ✅
+
+**部署脚本**：`deploy/_deploy_tcm36_bugfix_20260520.py`（已在 2026-05-20 14:00 一次部署成功）
+
+**部署影响**：
+- 已 docker cp + restart backend（触发幂等迁移）
+- 已 rebuild + redeploy admin-web 和 h5-web
+- 无 miniprogram / Flutter app 变更，无需重新打包客户端
+
+---
+
+## Previous Update: PRD-AICHAT-FUNCCARD-V2-DESIGN-D｜AI 对话页「功能卡片」方案 D · v1.2 视觉升级 (2026-05-20 13:30)
 
 **任务类型**：纯 UI 改造（h5-web + admin-web；backend 仅升级源码校验测试；无 DB / API / 客户端 (miniprogram/Flutter) 变更）
 
