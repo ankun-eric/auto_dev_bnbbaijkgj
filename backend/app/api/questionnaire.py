@@ -522,6 +522,50 @@ def _detect_phq9_crisis_from_qmap(
     return False
 
 
+# ─────────────────────────────────────────────────────────────────
+# [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21]
+# 详情入口路由按 template.code + result_display_mode 派发，去掉硬编码
+# ─────────────────────────────────────────────────────────────────
+
+
+_ROUTE_H5_MAP = {
+    "tcm_constitution": lambda ans_id: f"/tcm/result/{ans_id}",
+    "health_self_check": lambda ans_id: f"/health-self-check/result/{ans_id}",
+}
+_MP_PATH_MAP = {
+    "tcm_constitution": lambda ans_id: (
+        f"/pages/tcm-constitution-result/index?id={ans_id}"
+    ),
+    "health_self_check": lambda ans_id: (
+        f"/pages/health-self-check-result/index?id={ans_id}"
+    ),
+}
+
+
+def _build_detail_target(tpl, ans) -> dict[str, Any]:
+    """根据模板 code 与 result_display_mode 决定详情跳转目标。
+
+    仅当 `result_display_mode == 'triple'` 时返回 route_h5 / mp_path；否则返回 None。
+    """
+    route_h5 = None
+    mp_path = None
+    mode = (getattr(tpl, "result_display_mode", None) or "simple").lower()
+    if mode == "triple":
+        code = tpl.code or ""
+        fn = _ROUTE_H5_MAP.get(code)
+        if fn:
+            route_h5 = fn(ans.id)
+        fnp = _MP_PATH_MAP.get(code)
+        if fnp:
+            mp_path = fnp(ans.id)
+    return {
+        "kind": "immersive_detail",
+        "result_id": ans.id,
+        "route_h5": route_h5,
+        "mp_path": mp_path,
+    }
+
+
 def _build_questionnaire_card_payload(
     *,
     tpl,
@@ -541,6 +585,38 @@ def _build_questionnaire_card_payload(
     main_label = main_type or classification_name or ""
     main_desc = CONSTITUTION_ONELINE_DESC.get(main_label or "", "")
     cover_color = CONSTITUTION_COVER_COLOR.get(main_label or "", "#0EA5E9")
+
+    # [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21] 健康自查无分型/雷达，
+    # main_type / main_type_desc 用首条主症状或 summary_text 兜底
+    out_fields = fields
+    if (tpl.code or "") == "health_self_check":
+        # 优先把"主症状/部位"作为主类型
+        field_map = {(f.get("label") or ""): f.get("value") or "" for f in fields}
+        symptom_val = field_map.get("症状") or field_map.get("主症状") or ""
+        part_val = field_map.get("部位") or ""
+        if symptom_val and part_val:
+            main_label = f"{part_val}·{symptom_val}".split("、")[0]
+        elif symptom_val:
+            main_label = str(symptom_val).split("、")[0]
+        elif part_val:
+            main_label = str(part_val).split("、")[0]
+        else:
+            main_label = "健康自查"
+        main_desc = (summary_text or "").strip() or "完成本次自查，下方为关键症状信息与建议。"
+        cover_color = "#0EA5E9"
+        # 限制为 4 个关键字段，并标准化严重程度后缀
+        preferred_keys = ["部位", "症状", "持续时间", "严重程度"]
+        idx_map = {f.get("label") or "": f for f in fields}
+        out_fields = []
+        for k in preferred_keys:
+            f = idx_map.get(k)
+            if not f:
+                continue
+            v = f.get("value") or ""
+            if k == "严重程度" and v and "/" not in str(v) and str(v).strip().isdigit():
+                v = f"{v}/10"
+            out_fields.append({"key": f.get("key") or k, "label": k, "value": v})
+
     return {
         "questionnaire_code": tpl.code,
         "questionnaire_name": tpl.name,
@@ -560,20 +636,13 @@ def _build_questionnaire_card_payload(
         # 兜底文本（已完成业务级 placeholder 渲染）
         "summary_text": summary_text,
         # 字段明细（兼容旧版用户气泡里的字段块）
-        "fields": fields,
+        "fields": out_fields,
         "icon": icon,
         # 详情跳转目标
-        "detail_target": {
-            "kind": "immersive_detail",
-            "result_id": ans.id,
-            # 体质卷专用：旧路由仍可用，新统一推荐 /tcm/result/{id}
-            "route_h5": f"/tcm/result/{ans.id}" if tpl.code == "tcm_constitution" else None,
-            "mp_path": (
-                f"/pages/tcm-constitution-result/index?id={ans.id}"
-                if tpl.code == "tcm_constitution"
-                else None
-            ),
-        },
+        # [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21] 去掉 tcm_constitution 硬编码：
+        #   - 按 result_display_mode=='triple' 才生成 route_h5
+        #   - 按 code 查 ROUTE_H5_MAP / MP_PATH_MAP
+        "detail_target": _build_detail_target(tpl, ans),
         "cover_style": "universal_v1",
         "cover_color": cover_color,
     }
@@ -895,6 +964,31 @@ async def submit_questionnaire(
     except Exception:  # noqa: BLE001
         pass
 
+    # [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21] 生成 AI 追问关键摘要
+    # 仅注入模板配置的 key_field_codes 对应的字段，避免长问卷爆 token
+    try:
+        key_codes = list(getattr(tpl, "key_field_codes", None) or [])
+        if key_codes:
+            field_map = {(f.get("label") or ""): (f.get("value") or "") for f in fields}
+            parts: list[str] = []
+            for code in key_codes:
+                v = field_map.get(code) or ""
+                if not v:
+                    continue
+                if code == "严重程度" and "/" not in str(v) and str(v).strip().isdigit():
+                    v = f"{v}/10"
+                parts.append(f"{code}：{v}")
+            if parts:
+                ans.key_summary = "；".join(parts)[:200]
+            else:
+                ans.key_summary = (summary_text or "")[:200] or None
+        else:
+            ans.key_summary = (summary_text or "")[:200] or None
+        await db.flush()
+    except Exception as _e:  # noqa: BLE001
+        import logging as _l
+        _l.getLogger(__name__).warning("build key_summary failed: %s", _e)
+
     # [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 卡片 payload + 对话流消息序列
     card_payload = _build_questionnaire_card_payload(
         tpl=tpl,
@@ -983,6 +1077,91 @@ async def submit_questionnaire(
 # [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 追问 chip 接口：用户点击 chip 后触发二轮回答
 class FollowupChipRequest(QuestionnaireAnswerSubmit.__base__ if False else object):
     """占位声明（实际使用 dict 接收，避免引入新 schema 文件）。"""
+
+
+# ─────────────────────────────────────────────────────────────────
+# [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21]
+# 健康自查 AI 追问结构化回答（基于 key_summary）
+# ─────────────────────────────────────────────────────────────────
+
+
+def _build_hsc_followup_text(
+    *,
+    archive_prefix: str,
+    chip_code: str,
+    chip_label: str,
+    key_summary: str,
+) -> str:
+    """根据 chip 类型 + 关键症状摘要，生成三段式回答。
+
+    - 不依赖外部大模型（保持确定性、避免网络抖动）
+    - 自然引用 key_summary 中的关键症状字段
+    """
+    ks = key_summary or "本次自查关键症状信息（未获取到）"
+    label = (chip_label or "").strip() or "针对性建议"
+    code = (chip_code or "").lower()
+
+    # 居家处理（jiaju）/ 注意事项（zhuyi）/ 是否需就医（jiuyi）三种主流向
+    if code in ("jiuyi", "jiu_yi"):
+        suggest_block = (
+            "1. 立即评估：先安静休息，观察症状是否在 30 分钟内自行缓解；\n"
+            "2. 自我量化：用 0-10 分给当前严重程度打分，若 ≥7 分建议尽快就诊；\n"
+            "3. 资料准备：记录本次发作时间、诱因、伴随症状，便于医生快速判断。"
+        )
+        warn_block = (
+            "- 出现意识改变、剧烈胸痛、呼吸困难、剧烈头痛伴呕吐 → 立即拨打 120；\n"
+            "- 症状持续 ≥ 2 周仍无改善 → 尽快线下就诊；\n"
+            "- 服药后无效或加重 → 停药并咨询医生。"
+        )
+        notice_block = (
+            "- 就医前避免自行服用未经医生指导的处方药；\n"
+            "- 携带过往体检报告与正在服用的药品清单；\n"
+            "- 老年人、孕妇、慢病患者标准应放宽，建议尽早就诊。"
+        )
+    elif code in ("zhuyi", "zhu_yi"):
+        suggest_block = (
+            "1. 充分休息：保证 7-8 小时睡眠，避免熬夜与过度劳累；\n"
+            "2. 饮食清淡：减少辛辣、油炸、过咸食物，多饮温水；\n"
+            "3. 适度活动：每日 30 分钟低强度活动，避免剧烈运动加重不适。"
+        )
+        warn_block = (
+            "- 症状每日加重 / 持续超过 1 周未缓解 → 建议就诊；\n"
+            "- 出现新症状（发热、呕吐、剧痛、肢体麻木等）→ 立即就医；\n"
+            "- 服药后出现皮疹、心悸、严重胃肠道反应 → 立即停药并就诊。"
+        )
+        notice_block = (
+            "- 避免自行混合服用多种止痛/消炎药；\n"
+            "- 慢病患者请按既往医嘱执行，勿自行停药；\n"
+            "- 记录症状变化（频次、强度、诱因），下次问诊更高效。"
+        )
+    else:
+        # 默认 jiaju / 居家如何处理
+        suggest_block = (
+            "1. 缓解症状：根据症状性质选择对应方式（如热敷/冷敷、休息、抬高患处）；\n"
+            "2. 调整作息：今日先减少高强度活动，保证充足睡眠；\n"
+            "3. 简单饮食干预：多饮温水、清淡饮食，避免酒精与咖啡因；\n"
+            "4. 监测变化：每 2-4 小时给症状重新打分（0-10），观察变化趋势；\n"
+            "5. 必要药物：在医生既往建议范围内可选择常用 OTC 药品，剂量勿超说明书。"
+        )
+        warn_block = (
+            "- 居家观察 24-48 小时无改善或反而加重 → 建议就诊；\n"
+            "- 出现剧烈疼痛、意识模糊、持续呕吐、明显出血等急性表现 → 立即就医；\n"
+            "- 老人 / 儿童 / 孕妇 / 慢病患者出现新症状 → 不要拖延，尽早就诊。"
+        )
+        notice_block = (
+            "- 不要自行联合多种处方药，避免相互作用；\n"
+            "- 居家期间避免独居高风险行为（如开车、操作机械）；\n"
+            "- 如确诊基础病，请按医嘱继续既有治疗方案；\n"
+            "- 自查结果仅供参考，不能替代医生诊断。"
+        )
+
+    return (
+        f"{archive_prefix}关于您关心的「{label}」，结合本次自查关键信息：\n"
+        f"📌 {ks}\n\n"
+        f"【针对性建议】\n{suggest_block}\n\n"
+        f"【何时需就医】\n{warn_block}\n\n"
+        f"【注意事项】\n{notice_block}"
+    )
 
 
 @router.post("/followup-chip")
@@ -1124,6 +1303,26 @@ async def followup_chip(
             "body": "请按医嘱执行；如出现不适请及时停止并咨询专业人士。",
         },
     }
+    # [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21] 健康自查走结构化追问
+    # 基于 ans.key_summary 输出【针对性建议】【何时需就医】【注意事项】三段
+    if tpl and (tpl.code or "") == "health_self_check":
+        ai_text = _build_hsc_followup_text(
+            archive_prefix=archive_prefix,
+            chip_code=chip_code,
+            chip_label=chip_label,
+            key_summary=(ans.key_summary or "").strip(),
+        )
+        return {
+            "ok": True,
+            "ai_text": ai_text,
+            "include_archive_prefix": True,
+            "chip_code": chip_code,
+            "chip_label": chip_label or chip_code,
+            "answer_id": int(answer_id),
+            "main_type": main_label,
+            "key_summary": ans.key_summary or "",
+        }
+
     chip_info = chip_text_map.get(chip_code) or {
         "label": chip_label or chip_code,
         "body": "您可结合卡片中的主结论与详情页内容进一步了解。",
@@ -1319,6 +1518,131 @@ async def get_answer_report(
 # ════════════════════════════════════════
 #  [PRD-TCM-DRAWER-V12 2026-05-20] AI 主动追问接口
 # ════════════════════════════════════════
+
+
+# ─────────────────────────────────────────────────────────────────
+# [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21]
+# 单个答卷详情：供 H5 详情页（健康自查结果页）拉取
+# ─────────────────────────────────────────────────────────────────
+
+
+@router.get("/answers/{answer_id}")
+async def get_answer_detail(
+    answer_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """返回单次答卷的完整详情：题目 Q&A、AI 摘要、关键字段、模板基本信息等。
+
+    用于健康自查 / 体质测评等三段式问卷的「查看详情」页面。
+    """
+    ans = await db.get(QuestionnaireAnswer, answer_id)
+    if not ans or ans.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="答题记录不存在或无权限")
+    tpl = await db.get(QuestionnaireTemplate, ans.template_id)
+    if tpl is None:
+        raise HTTPException(status_code=404, detail="模板不存在")
+
+    # 题目映射（用于把题号映射成题干）
+    qrows = (
+        await db.execute(
+            select(QuestionnaireQuestion)
+            .where(QuestionnaireQuestion.template_id == tpl.id)
+            .order_by(QuestionnaireQuestion.sort_order.asc())
+        )
+    ).scalars().all()
+    qmap = {q.id: q for q in qrows}
+
+    # 整理 Q&A 列表
+    qa_list: list[dict[str, Any]] = []
+    for item in (ans.answers or []):
+        qid = item.get("question_id")
+        q = qmap.get(qid)
+        v = item.get("value")
+        if isinstance(v, list):
+            display = "、".join(str(x) for x in v if x is not None and str(x) != "")
+        else:
+            display = "" if v is None else str(v)
+        qa_list.append(
+            {
+                "question_id": qid,
+                "sort_order": getattr(q, "sort_order", 0) if q else 0,
+                "title": getattr(q, "title", "") if q else (item.get("title") or ""),
+                "subtitle": getattr(q, "subtitle", None) if q else None,
+                "dimension": item.get("dimension") or (getattr(q, "dimension", None) if q else None),
+                "value": v,
+                "value_display": display,
+            }
+        )
+    qa_list.sort(key=lambda x: int(x.get("sort_order") or 0))
+
+    # 分型
+    classification_name: Optional[str] = None
+    classification_code: Optional[str] = None
+    if ans.classification_id:
+        crow = await db.get(QuestionnaireClassificationRule, ans.classification_id)
+        if crow:
+            classification_name = crow.name
+            classification_code = crow.code
+
+    # AI 解读 / 居家建议 / 红线信号（健康自查不依赖大模型；按 key_summary 输出）
+    ai_conclusion = ""
+    ai_full_interpretation = ""
+    home_care_tips: list[str] = []
+    red_flag_signals: list[str] = []
+    if (tpl.code or "") == "health_self_check":
+        ks = (ans.key_summary or "").strip()
+        ai_conclusion = (
+            f"已完成本次健康自查。{('关键症状：' + ks) if ks else ''}"
+        ).strip()
+        ai_full_interpretation = (
+            "本次结果由您主诉的部位、症状、严重程度、持续时间综合得出。"
+            "请结合「居家处理建议」尝试自我调节，并关注「就医警示」中的红线信号。"
+            "如症状持续或加重，请尽快前往正规医疗机构就诊。"
+        )
+        home_care_tips = [
+            "今日起减少高强度活动，保证 7-8 小时充足睡眠",
+            "饮食清淡，避免辛辣、油炸、酒精与咖啡因",
+            "根据症状性质选择对应方式：热敷/冷敷、休息、抬高患处",
+            "每 2-4 小时给症状重新打分（0-10），观察趋势",
+            "如确诊基础病，请按既往医嘱继续治疗",
+        ]
+        red_flag_signals = [
+            "症状持续 2 周以上无改善",
+            "症状明显影响日常工作、学习、睡眠",
+            "出现剧烈疼痛、意识模糊、持续呕吐、剧烈头痛等急性表现",
+            "服药后无效或出现皮疹/心悸/严重胃肠道反应",
+            "老人 / 儿童 / 孕妇 / 慢病患者出现新症状",
+        ]
+
+    # 推荐商品（复用既有逻辑）
+    recommend_goods: list[dict[str, Any]] = []
+    try:
+        from app.api.tag_recommend import compute_recommend_for_submit
+
+        recommend_goods, _click_mode, _count = await compute_recommend_for_submit(
+            db, tpl.id, classification_code
+        )
+    except Exception:  # noqa: BLE001
+        recommend_goods = []
+
+    return {
+        "answer_id": ans.id,
+        "template_id": tpl.id,
+        "template_code": tpl.code,
+        "template_name": tpl.name,
+        "created_at": ans.created_at.isoformat() if ans.created_at else None,
+        "completed_at": ans.completed_at.isoformat() if ans.completed_at else None,
+        "qa_list": qa_list,
+        "classification_name": classification_name,
+        "classification_code": classification_code,
+        "key_summary": ans.key_summary or "",
+        "ai_conclusion": ai_conclusion,
+        "ai_full_interpretation": ai_full_interpretation,
+        "home_care_tips": home_care_tips,
+        "red_flag_signals": red_flag_signals,
+        "recommend_goods": recommend_goods,
+    }
 
 
 @router.get("/answers/{answer_id}/follow-up")

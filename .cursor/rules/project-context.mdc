@@ -27,7 +27,51 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-AI-PAGE-OPTIM-V1 · AI 页面优化 + 种子数据导入 (2026-05-21 01:30)
+## Latest Update: BUG-HEALTH-SELF-CHECK-FIX-V1 · 健康自查四问题集中修复 (2026-05-21 02:05)
+
+**任务类型**：Bug 修复（4 个集中问题）；变更范围：backend + h5-web + admin-web
+
+**核心交付**：
+
+1. **新增 2 个数据库列**（`backend/app/models/models.py`）：
+   - `QuestionnaireTemplate.key_field_codes`（JSON）：AI 追问注入摘要时保留的关键字段 code 列表
+   - `QuestionnaireAnswer.key_summary`（TEXT）：≤200 字关键症状摘要，AI 追问 prompt 注入用
+
+2. **新增迁移脚本** `backend/app/services/prd_health_self_check_fix_v1_migration.py`：
+   - 加列（幂等）+ 建 `migration_flags` sentinel 表
+   - D2 方案：删除旧 health_self_check 模板/题目/答卷/规则
+   - 重新 seed 健康自查模板，写入 `result_display_mode='triple'` + `key_field_codes=['部位','症状','严重程度','持续时间']`
+   - 由 sentinel 标记保证只执行一次
+
+3. **修改 Q5/Q6 选项与文案**（`prd_qn_content_v1_migration.py`）：
+   - `HSC_SEVERITY_OPTIONS` 改为 5 档单值（1 轻微 / 3 轻度 / 5 中度 / 7 重度 / 10 剧烈 + skip）
+   - Q6 题干 "还有什么想补充告诉小白的吗？（选填）" / subtitle "例如：受凉后加重 / 每天下午 3 点准时出现 / 服用布洛芬后缓解"
+
+4. **API 重构**（`backend/app/api/questionnaire.py`）：
+   - 新 helper `_build_detail_target`：去掉 `tcm_constitution` 硬编码，按 `result_display_mode=='triple'` + code map 派发 `route_h5` / `mp_path`
+   - HSC 卡片 payload：`main_type` 用「部位·主症状」、`fields` 限制为 4 个关键字段且 `严重程度` 自动补 `/10` 后缀
+   - 答卷 finalize 时按 `tpl.key_field_codes` 生成 `ans.key_summary`
+   - 新增 `_build_hsc_followup_text`：HSC AI 追问结构化输出【针对性建议】【何时需就医】【注意事项】三段
+   - 新增 `GET /api/questionnaire/answers/{id}`：返回完整 Q&A + AI 解读 + 居家建议 + 红线信号 + 推荐商品，供详情页消费
+
+5. **H5 新页面** `h5-web/src/app/health-self-check/result/[id]/page.tsx`：
+   - 6 区块：顶部摘要条 / B1 答题记录 / B2 AI 解读 / B3 居家建议 / B4 ⚠️ 就医警示（红框） / B5 推荐商品 / B6 底部固定 CTA
+
+6. **Admin 表单项**（`admin-web/src/app/(admin)/questionnaire-templates/page.tsx`）：
+   - 「问卷完成后体验配置」区块新增「AI 追问关键字段」多选/输入项（绑定 `key_field_codes`）
+
+7. **新增测试**：`backend/tests/test_hsc_fix_v1_20260521.py`（7 个用例，覆盖 Q5/Q6 文案、路由派发、追问三段式回答）；远端 HTTP 烟雾测试 `_smoke_hsc_fix_v1.py` 全部通过
+
+**部署**：`_deploy_hsc_fix_v1.py`（已 2026-05-21 02:04 部署完成）；启动日志显示 DDL 已加列、purge 7 答卷 + 6 题目、reseed install_result.ok=true
+
+**遗留 TODO**：
+- TODO-1：Q6 语音输入（按住说话 → 识别填入）—— P2
+- TODO-2：详情入口"抽屉 vs 新页面"开关字段 `detail_display_mode` —— P3
+- TODO-3：AI 追问改造为 function calling —— P3 长期重构
+
+---
+
+## Previous Update: PRD-AI-PAGE-OPTIM-V1 · AI 页面优化 + 种子数据导入 (2026-05-21 01:30)
 
 **任务类型**：Bug 修复 + 配套新功能（"种子数据导入"管理后台）；变更范围：H5 + admin-web + backend
 

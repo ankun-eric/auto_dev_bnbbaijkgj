@@ -2676,6 +2676,10 @@ class QuestionnaireTemplate(Base):
     followup_chips_json = mapped_column(JSON, nullable=True, comment="可配置追问 chips（覆盖默认）：[{code,label,prompt_template}]")
     # 后台运营可配置的 CTA 按钮（1~4 个），格式：[{"label","action","target_url","style"}]
     cta_list_json = mapped_column(JSON, nullable=True, comment="可配置 CTA 按钮（1~4 个）：[{label,action,target_url,style}]")
+    # ───── [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21] AI 追问关键字段配置 ─────
+    # AI 追问注入摘要时保留的关键字段 code 列表，如 ['part','symptom','severity','duration']
+    # 用于裁剪长问卷答案，避免 prompt 爆 token；为空时退化为全部字段
+    key_field_codes = mapped_column(JSON, nullable=True, comment="AI 追问注入摘要时保留的关键字段 code 列表")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -2757,6 +2761,9 @@ class QuestionnaireAnswer(Base):
     classification_id = mapped_column(Integer, nullable=True, comment="最终判定分型")
     ai_summary = mapped_column(Text, nullable=True, comment="AI 流式生成的简要结论")
     status = mapped_column(String(16), nullable=True, default="completed", comment="draft / completed")
+    # ───── [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21] AI 追问关键摘要 ─────
+    # ≤200 字的关键症状摘要，由后端按模板的 key_field_codes 在 finalize 时生成，供 AI 追问 prompt 注入
+    key_summary = mapped_column(Text, nullable=True, comment="AI 追问关键摘要（≤200 字）")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     completed_at = mapped_column(DateTime, nullable=True)
 

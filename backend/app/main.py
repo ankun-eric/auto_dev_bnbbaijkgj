@@ -1870,6 +1870,17 @@ async def lifespan(app: FastAPI):
         import traceback as _tb
         _tb.print_exc()
         print(f"[migrate] questionnaire_autonext_v1: 迁移失败 err={_e}", flush=True)
+    # [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21] 健康自查四问题修复（卡片协议 + 三段式 + Q5/Q6 文案 + AI 追问摘要字段）
+    try:
+        print("[migrate] health_self_check_fix_v1: 启动迁移...", flush=True)
+        from app.core.database import async_session as _async_session_hscfix
+        from app.services.prd_health_self_check_fix_v1_migration import run_migration_with_session as _run_hsc_fix
+        _stats_hscfix = await _run_hsc_fix(_async_session_hscfix)
+        print(f"[migrate] health_self_check_fix_v1: 迁移完成 stats={_stats_hscfix}", flush=True)
+    except Exception as _e:
+        import traceback as _tb
+        _tb.print_exc()
+        print(f"[migrate] health_self_check_fix_v1: 迁移失败 err={_e}", flush=True)
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities

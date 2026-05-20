@@ -60,6 +60,8 @@ interface QuestionnaireTemplate {
   ai_followup_enabled?: boolean | null;
   recommend_click_mode?: 'drawer' | 'external' | null;
   recommend_display_count?: number | null;
+  // [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21] AI 追问关键字段 code 列表
+  key_field_codes?: string[] | null;
   created_at?: string;
 }
 
@@ -179,6 +181,7 @@ export default function QuestionnaireTemplatesPage() {
         ai_followup_enabled: record.ai_followup_enabled !== false,
         recommend_click_mode: record.recommend_click_mode || 'drawer',
         recommend_display_count: record.recommend_display_count || 6,
+        key_field_codes: Array.isArray(record.key_field_codes) ? record.key_field_codes : [],
       });
     } else {
       form.setFieldsValue({
@@ -191,6 +194,7 @@ export default function QuestionnaireTemplatesPage() {
         ai_followup_enabled: true,
         recommend_click_mode: 'drawer',
         recommend_display_count: 6,
+        key_field_codes: [],
       });
     }
     setEditModalOpen(true);
@@ -680,6 +684,29 @@ export default function QuestionnaireTemplatesPage() {
                     { value: 4, label: '4 个' },
                     { value: 5, label: '5 个' },
                     { value: 6, label: '6 个（默认）' },
+                  ]}
+                />
+              </Form.Item>
+              {/* [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21] AI 追问关键字段 */}
+              <Form.Item
+                label="AI 追问关键字段"
+                name="key_field_codes"
+                extra="供 AI 追问 prompt 使用的关键字段名（按题目维度名填写，如 部位/症状/严重程度/持续时间）。空表示用全部摘要。"
+                style={{ minWidth: 360 }}
+              >
+                <Select
+                  mode="tags"
+                  style={{ width: 360 }}
+                  data-testid="qn-key-field-codes-select"
+                  placeholder="按回车输入字段名，如「部位」「症状」「严重程度」「持续时间」"
+                  tokenSeparators={[',', ' ']}
+                  options={[
+                    { value: '部位', label: '部位' },
+                    { value: '症状', label: '症状' },
+                    { value: '严重程度', label: '严重程度' },
+                    { value: '持续时间', label: '持续时间' },
+                    { value: '症状性质', label: '症状性质' },
+                    { value: '症状备注', label: '症状备注' },
                   ]}
                 />
               </Form.Item>

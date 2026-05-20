@@ -266,19 +266,14 @@ HSC_QUALITY_OPTIONS = [
     {"label": "❓ 说不清楚 / 跳过", "value": "skip", "score": 0},
 ]
 
-# 步骤 5：严重程度（VAS 0-10）—— 这里用 single_choice + 11 个 0..10 选项，前端可改用滑块控件
+# 步骤 5：严重程度 5 档单值（VAS 0-10 简化版）
+# [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21] 改为 5 档单值（每档不重复），前端滑块刻度同步
 HSC_SEVERITY_OPTIONS: list[dict[str, Any]] = [
-    {"label": "0  😀 没感觉", "value": "0", "score": 0},
     {"label": "1  🙂 轻微", "value": "1", "score": 1},
-    {"label": "2  🙂 轻微", "value": "2", "score": 2},
-    {"label": "3  😐 有点影响", "value": "3", "score": 3},
-    {"label": "4  😐 有点影响", "value": "4", "score": 4},
-    {"label": "5  😣 影响日常", "value": "5", "score": 5},
-    {"label": "6  😣 影响日常", "value": "6", "score": 6},
-    {"label": "7  😫 难以忍受", "value": "7", "score": 7},
-    {"label": "8  😫 难以忍受", "value": "8", "score": 8},
-    {"label": "9  😱 剧痛", "value": "9", "score": 9},
-    {"label": "10 😱 剧痛", "value": "10", "score": 10},
+    {"label": "3  😐 轻度", "value": "3", "score": 3},
+    {"label": "5  😣 中度", "value": "5", "score": 5},
+    {"label": "7  😫 重度", "value": "7", "score": 7},
+    {"label": "10 😱 剧烈", "value": "10", "score": 10},
     {"label": "❓ 说不清楚 / 跳过", "value": "skip", "score": 0},
 ]
 
@@ -305,8 +300,9 @@ HSC_NEW_QUESTIONS: list[dict[str, Any]] = [
     },
     {
         "order": 93,
-        "title": "症状补充备注（可选）",
-        "subtitle": "💡 说不清楚？直接告诉小白你的感觉 👇（可以用打字，也可以按住麦克风说话）",
+        # [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21] 题干与 placeholder 分离，不再复制
+        "title": "还有什么想补充告诉小白的吗？（选填）",
+        "subtitle": "例如：受凉后加重 / 每天下午 3 点准时出现 / 服用布洛芬后缓解",
         "type": "text",
         "options": None,
         "dimension": "症状备注",

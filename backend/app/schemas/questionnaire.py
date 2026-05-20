@@ -37,6 +37,8 @@ class QuestionnaireTemplateBase(BaseModel):
     # [PRD-QN-CONTENT-V1 2026-05-20] 后台可配置 chips / CTA
     followup_chips_json: Optional[list[dict[str, Any]]] = None
     cta_list_json: Optional[list[dict[str, Any]]] = None
+    # [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21] AI 追问关键字段
+    key_field_codes: Optional[list[str]] = None
 
 
 class QuestionnaireTemplateCreate(QuestionnaireTemplateBase):
@@ -67,6 +69,8 @@ class QuestionnaireTemplateUpdate(BaseModel):
     # [PRD-QN-CONTENT-V1 2026-05-20] 后台可配置 chips / CTA
     followup_chips_json: Optional[list[dict[str, Any]]] = None
     cta_list_json: Optional[list[dict[str, Any]]] = None
+    # [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21] AI 追问关键字段
+    key_field_codes: Optional[list[str]] = None
 
 
 class QuestionnaireTemplateResponse(QuestionnaireTemplateBase):
