@@ -49,7 +49,8 @@ export default function QuestionnairePreCard({ data, onStart }: QuestionnairePre
           icon: data.icon || null,
           iconType: data.iconType || 'default',
           buttonSubDesc: data.buttonSubDesc || null,
-          buttonText: data.buttonText || '开始测评',
+          // [PRD-AICHAT-FUNCCARD-V2-DESIGN-D 2026-05-20 v1.2] 决策 12：固定「开始」
+          buttonText: '开始',
         }}
         onClick={() => onStart(data)}
       />

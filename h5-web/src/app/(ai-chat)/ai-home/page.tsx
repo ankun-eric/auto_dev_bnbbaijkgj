@@ -2088,7 +2088,8 @@ export default function AiHomePage() {
           subtitle: subtitleText,
           coverImage: cover,
           description: descText,
-          buttonText: '开始测评',
+          // [PRD-AICHAT-FUNCCARD-V2-DESIGN-D 2026-05-20 v1.2] 决策 12：按钮固定「开始」
+          buttonText: '开始',
           icon: btn.pre_card_icon || null,
           iconType: btn.pre_card_icon_type || 'default',
           // [PRD-AICHAT-FUNCCARD-V2 2026-05-20] 按钮副说明文字（v2 卡片"按钮上方灰小字"展示位）

@@ -27,7 +27,47 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-TAG-RECOMMEND-V1｜功能按钮管理 / 体质测评 / 问卷推荐与标签体系优化 (2026-05-20 13:20)
+## Latest Update: PRD-AICHAT-FUNCCARD-V2-DESIGN-D｜AI 对话页「功能卡片」方案 D · v1.2 视觉升级 (2026-05-20 13:30)
+
+**任务类型**：纯 UI 改造（h5-web + admin-web；backend 仅升级源码校验测试；无 DB / API / 客户端 (miniprogram/Flutter) 变更）
+
+**核心交付**：基于 v1.0 在此之上做方案 D · v1.2 升级，把内嵌「功能引导卡片」从 v1.0 的「图标顶部 + 标题左对齐」改为参考稿『方案 D · 图标左 + 标题右 · 宾尼天蓝』，与参考稿做到像素级一致。
+
+**v1.2 关键变更**：
+
+1. **顶部 4px 渐变色条**（全卡片必须存在）：`linear-gradient(90deg, #0EA5E9 0%, #38BDF8 100%)`，作为品牌锚点
+2. **头部排版改方案 D**：横向 flex，图标 48×48 在左 + 主标题 20px/700 在右，`align-items:center / gap:14px`；图标不再有圆形背景框，纯 emoji（28px）；主标题单行省略号 + `flex:1 / min-width:0`
+3. **副标题色块化**：bg `#F0F9FF` + 左 3px `#0EA5E9` 竖线 + 圆角 `0 8px 8px 0` + padding `12px 14px` + 14px / 行高 1.6 / `#334155`（v1.0 的灰字方案作废）
+4. **按钮副说明位置**：从按钮下方改为按钮上方居中（12px / `#64748B` / mb 10）
+5. **主按钮方案 D**：从 44 高 22 圆角渐变改为 **48 高 12 圆角 纯色 `#0EA5E9`**，白字 16/600 letter-spacing:1px
+6. **按钮文案固定「开始」**（决策 12）：前端硬编码，`button_text` 字段保留兼容但前端忽略
+7. **取消封面图模式**（决策 13）：所有卡片走「图标 + 标题」头部；`cover_img` 字段保留兼容但前端忽略
+8. **主标题过长策略**：单行省略号（`overflow:hidden / text-overflow:ellipsis / white-space:nowrap`），避免图标位被挤压
+
+**核心改动（7 处）**：
+
+- `h5-web/src/components/ai-chat/FunctionCardV2.tsx`：方案 D 重写（顶部色条 + 横向头部 + 副标题色块 + 「开始」按钮）；保留 v1.0 token 在 COLORS 常量中作为追溯
+- `h5-web/src/components/ai-chat/ChatCards.tsx`：`buttonToFcv2Data` 中 `buttonText` 统一为「开始」；UploadCard/NavigateCard/SdkCallCard override 同步
+- `h5-web/src/components/ai-chat/QuestionnairePreCard.tsx`：`buttonText` 固定「开始」
+- `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：`questionnairePreCard.buttonText` 从「开始测评」改为「开始」
+- `admin-web/src/components/FunctionCardV2Preview.tsx`：方案 D 复刻渲染（顶部色条 + 48 高按钮 + 「开始」 + 副标题色块）
+- `admin-web/src/app/(admin)/function-buttons/page.tsx`：新增 `fcv2-v12-field-hint-cover` 提示块（封面图停用 + button_text 固定「开始」说明）；预览 buttonText 透传「开始」
+- `backend/tests/test_funccard_v2_20260520.py`：从 11 个 TC 升级到 **16 个方案 D 校验 TC**（顶部色条 / 头部 flex / 副标题色块 / 按钮 48 高 12 圆角 / 按钮文案硬编码「开始」/ 标题单行省略号 / 字段提示等）
+
+**测试 & 部署**：
+
+- 本地 pytest：16/16 全部通过
+- 部署脚本：`deploy/_deploy_funccard_v2_design_d_20260520.py`（重建 h5-web + admin-web 镜像 + docker cp 源码到 backend 容器 + 远端 pytest）
+- 远端容器内 pytest：**16 passed**
+- staging smoke：openapi.json 200 / `/ai-home` 308→200 / `/admin/function-buttons` 308→200 全部通过
+
+**用户手册**：`user_docs/AI对话页功能卡片新版样式_方案D_v1.2.md`
+
+**不影响范围**：backend 业务代码、数据库、API、微信小程序、Flutter App（安卓/iOS）均无变更。
+
+---
+
+## Previous Update: PRD-TAG-RECOMMEND-V1｜功能按钮管理 / 体质测评 / 问卷推荐与标签体系优化 (2026-05-20 13:20)
 
 **任务类型**：全链路功能新增 + 1 个 Bug 修复（backend + admin-web + h5-web）
 

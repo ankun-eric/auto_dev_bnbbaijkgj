@@ -229,6 +229,9 @@ function PrimaryButton({
 }
 
 // [PRD-AICHAT-FUNCCARD-V2 2026-05-20] 把 ChatCardButton 适配到 FunctionCardV2Data
+// [PRD-AICHAT-FUNCCARD-V2-DESIGN-D 2026-05-20 v1.2] 按方案 D 决策 12：
+//   - 主按钮文案前端硬编码「开始」，组件内部忽略 buttonText
+//   - 此处 buttonText 字段保留供旧逻辑/类型兼容（不会被渲染）
 function buttonToFcv2Data(button: ChatCardButton, override?: Partial<FunctionCardV2Data>): FunctionCardV2Data {
   const emoji = (button.iconEmoji || '').trim();
   const iconType: FunctionCardV2Data['iconType'] = emoji
@@ -243,7 +246,8 @@ function buttonToFcv2Data(button: ChatCardButton, override?: Partial<FunctionCar
     icon: emoji || (isValidImageUrl(button.coverImage) ? (button.coverImage as string) : null),
     iconType,
     buttonSubDesc: button.buttonSubDesc || null,
-    buttonText: button.title || '立即查看',
+    // v1.2 方案 D：按钮固定显示「开始」，此处 buttonText 仅用于旧逻辑兼容，组件内部忽略
+    buttonText: '开始',
     ...override,
   };
 }
@@ -257,7 +261,8 @@ export function UploadCard({ button, disabled, onAction }: ChatCardProps) {
     { key: 'camera', label: '拍照', icon: '📷' },
   ];
   const data = buttonToFcv2Data(button, {
-    buttonText: button.title || '选择文件',
+    // v1.2 方案 D：按钮文案统一为「开始」（虽然 upload 卡因 hideButton 不渲染按钮）
+    buttonText: '开始',
     disabled,
   });
   return (
@@ -317,7 +322,7 @@ export function UploadCard({ button, disabled, onAction }: ChatCardProps) {
 
 export function NavigateCard({ button, disabled, onAction }: ChatCardProps) {
   const data = buttonToFcv2Data(button, {
-    buttonText: button.title || '立即查看',
+    buttonText: '开始',
     disabled,
   });
   return (
@@ -333,7 +338,7 @@ export function NavigateCard({ button, disabled, onAction }: ChatCardProps) {
 
 export function SdkCallCard({ button, disabled, onAction }: ChatCardProps) {
   const data = buttonToFcv2Data(button, {
-    buttonText: '发起视频通话',
+    buttonText: '开始',
     buttonSubDesc: button.buttonSubDesc || 'AI 数字人，24 小时在线',
     disabled,
   });

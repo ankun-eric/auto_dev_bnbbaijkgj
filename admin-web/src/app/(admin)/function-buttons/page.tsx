@@ -1341,7 +1341,31 @@ export default function FunctionButtonsPage() {
             <Input placeholder="卡片头部副标题（可选）" maxLength={100} />
           </Form.Item>
           {/* [PRD-AICHAT-CAPSULE-V2 2026-05-15] 移除「卡片封面图 URL」字段（用户端统一改为 Emoji + 主题色背景渲染） */}
-          <Form.Item label="按钮副说明文字" name="button_sub_desc" extra="显示在卡片主按钮下方，例：约 6 道题，2 分钟完成">
+          {/* [PRD-AICHAT-FUNCCARD-V2-DESIGN-D 2026-05-20 v1.2] 隐藏字段 + 灰色提示：
+              - card_cover_image：方案 D 取消封面图模式，字段保留兼容，前端忽略
+              - button_text 等价于 card_title 中的按钮文案：方案 D 固定显示「开始」 */}
+          <div
+            data-testid="fcv2-v12-field-hint-cover"
+            style={{
+              padding: '8px 12px',
+              marginBottom: 12,
+              background: '#F8FAFC',
+              border: '1px dashed #CBD5E1',
+              borderRadius: 6,
+              color: '#64748B',
+              fontSize: 12,
+              lineHeight: 1.6,
+            }}
+          >
+            <div>📝 新版卡片样式（方案 D · v1.2）说明：</div>
+            <div>· 卡片封面图（cover_img）字段已停用，新版样式不再展示封面图</div>
+            <div>· 卡片主按钮文案已统一硬编码为「开始」，无需在此处配置 button_text</div>
+          </div>
+          <Form.Item
+            label="按钮副说明文字"
+            name="button_sub_desc"
+            extra="显示在卡片主按钮上方居中位置（12px 灰字），例：预计耗时 3-5 分钟 · 数据加密保护"
+          >
             <Input placeholder="按钮副说明（可选）" maxLength={100} />
           </Form.Item>
           <Form.Item label="排序权重" name="sort_weight">
@@ -1415,7 +1439,8 @@ export default function FunctionButtonsPage() {
                     : watchedIcon || null,
                 iconType: watchedPreCardIconType || (watchedIcon ? 'emoji' : 'default'),
                 buttonSubDesc: watchedButtonSubDesc || null,
-                buttonText: '立即查看',
+                // [PRD-AICHAT-FUNCCARD-V2-DESIGN-D 2026-05-20 v1.2] 决策 12：预览也固定显示「开始」
+                buttonText: '开始',
               }}
             />
           </PhonePreviewFrame>
