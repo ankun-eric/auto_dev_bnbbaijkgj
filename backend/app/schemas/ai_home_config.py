@@ -96,7 +96,7 @@ class FamilyConsultPill(BaseModel):
     enabled: bool = True
     template: str = "为({name})咨询"  # 必须含 {name} 占位符
     show_archive_link: bool = True
-    archive_path: str = "/health-records"
+    archive_path: str = "/health-profile"
 
 
 class InputConfig(BaseModel):
@@ -199,7 +199,7 @@ class FuncGridConfig(BaseModel):
                 icon="📋", gradient_start="#FF7E5F", gradient_end="#FEB47B", sort=2,
             ),
             FuncGridItem(
-                id="g3", main_text="健康档案", sub_text="查看个人档案", target_path="/health-archive",
+                id="g3", main_text="健康档案", sub_text="查看个人档案", target_path="/health-profile",
                 icon="📁", gradient_start="#43E97B", gradient_end="#38F9D7", sort=3,
             ),
         ]

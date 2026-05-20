@@ -176,7 +176,7 @@ const DEFAULT_CFG: Cfg = {
       enabled: true,
       template: '为({name})咨询',
       show_archive_link: true,
-      archive_path: '/health-records',
+      archive_path: '/health-profile',
     },
   },
   session: {
@@ -210,7 +210,7 @@ const DEFAULT_CFG: Cfg = {
     items: [
       { id: 'g1', main_text: 'AI诊室', sub_text: '智能问诊', target_path: '/ai-doctor', icon: '🩺', gradient_start: '#5B6CFF', gradient_end: '#8B9AFF', badge: '', enabled: true, sort: 1 },
       { id: 'g2', main_text: '看报告', sub_text: '解读体检报告', target_path: '/checkup', icon: '📋', gradient_start: '#FF7E5F', gradient_end: '#FEB47B', badge: '', enabled: true, sort: 2 },
-      { id: 'g3', main_text: '健康档案', sub_text: '查看个人档案', target_path: '/health-archive', icon: '📁', gradient_start: '#43E97B', gradient_end: '#38F9D7', badge: '', enabled: true, sort: 3 },
+      { id: 'g3', main_text: '健康档案', sub_text: '查看个人档案', target_path: '/health-profile', icon: '📁', gradient_start: '#43E97B', gradient_end: '#38F9D7', badge: '', enabled: true, sort: 3 },
     ],
   },
   quick_tags: { visible: true, max_count: 8 },
@@ -1234,7 +1234,7 @@ export default function AIHomeConfigPage() {
           <Input
             value={draft.input.family_consult.archive_path}
             onChange={(e) => update((d) => { d.input.family_consult.archive_path = e.target.value; })}
-            placeholder="/health-records"
+            placeholder="/health-profile"
           />
         </Form.Item>
       </Form>

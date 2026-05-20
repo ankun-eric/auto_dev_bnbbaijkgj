@@ -2434,10 +2434,7 @@ class _ChatScreenState extends State<ChatScreen> {
           AiProfileCard(
             consultantId: _initialFamilyMemberId ?? 0,
             onGoCompleteProfile: () {
-              Navigator.of(context).pushNamed('/health-archive', arguments: {
-                'target': _initialFamilyMemberId ?? 0,
-                'from': 'ai-chat',
-              });
+              Navigator.pushNamed(context, '/health-profile');
             },
             onGoMedicationManage: (cid, autoCreate) {
               Navigator.of(context).pushNamed('/health-plan/medications', arguments: {

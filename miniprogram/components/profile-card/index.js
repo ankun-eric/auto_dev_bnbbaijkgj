@@ -148,7 +148,7 @@ Component({
       const profile = this.data.profile;
       if (!profile || profile.is_complete) return;
       const cid = profile.consultant_id;
-      wx.navigateTo({ url: `/pages/health-archive/index?target=${cid}&from=ai-chat` }).catch(() => {});
+      wx.navigateTo({ url: '/pages/health-profile/index' }).catch(() => {});
     },
 
     onMedsClick() {

@@ -541,7 +541,7 @@ const FALLBACK_CONFIG: AIHomeConfig = {
       enabled: true,
       template: '为({name})咨询',
       show_archive_link: true,
-      archive_path: '/health-records',
+      archive_path: '/health-profile',
     },
   },
   session: {
@@ -5818,7 +5818,7 @@ export default function AiHomePage() {
                 className="flex-shrink-0 text-xs"
                 style={{ color: THEME.textSecondary }}
                 onClick={() => {
-                  const p = aiHomeConfig.input?.family_consult?.archive_path || '/health-records';
+                  const p = aiHomeConfig.input?.family_consult?.archive_path || '/health-profile';
                   if (p.startsWith('/')) router.push(p);
                 }}
                 aria-label="查看档案"

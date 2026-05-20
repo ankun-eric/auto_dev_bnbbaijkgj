@@ -164,7 +164,7 @@ async def test_tab04_input_isolation(client: AsyncClient, admin_headers):
             "enabled": True,
             "template": "为({name})咨询 - TAB04",
             "show_archive_link": False,
-            "archive_path": "/health-records",
+            "archive_path": "/health-profile",
         },
     }
     cfg = await _patch(client, admin_headers, "input", new_input)
@@ -293,7 +293,7 @@ async def test_tab07_cross_tab_save_finalstate(client: AsyncClient, admin_header
         "enable_voice": True,
         "enable_tts": True,
         "tts_provider": "auto",
-        "family_consult": {"enabled": True, "template": "为({name})咨询", "show_archive_link": True, "archive_path": "/health-records"},
+        "family_consult": {"enabled": True, "template": "为({name})咨询", "show_archive_link": True, "archive_path": "/health-profile"},
     })
     # Tab 5 → session
     await _patch(client, admin_headers, "session", {

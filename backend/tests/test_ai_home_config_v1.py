@@ -199,7 +199,7 @@ async def test_t16_family_consult_template_no_placeholder(client: AsyncClient, a
                 "enabled": True,
                 "template": "为本人咨询",  # 缺 {name} 占位符
                 "show_archive_link": True,
-                "archive_path": "/health-records",
+                "archive_path": "/health-profile",
             },
         }
     }

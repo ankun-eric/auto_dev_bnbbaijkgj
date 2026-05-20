@@ -1881,6 +1881,17 @@ async def lifespan(app: FastAPI):
         import traceback as _tb
         _tb.print_exc()
         print(f"[migrate] health_self_check_fix_v1: 迁移失败 err={_e}", flush=True)
+    # [BUG-FIX-AI-HOME-ARCHIVE-PATH-404-V1 2026-05-21] AI 对话主页"查看档案"跨端档案路径统一（/health-records|/health-archive → /health-profile）
+    try:
+        print("[migrate] ai_home_archive_path_fix_v1: 启动迁移...", flush=True)
+        from app.core.database import async_session as _async_session_aihome_arch
+        from app.services.prd_ai_home_archive_path_fix_v1_migration import run_migration_with_session as _run_aihome_arch
+        _stats_aihome_arch = await _run_aihome_arch(_async_session_aihome_arch)
+        print(f"[migrate] ai_home_archive_path_fix_v1: 迁移完成 stats={_stats_aihome_arch}", flush=True)
+    except Exception as _e:
+        import traceback as _tb
+        _tb.print_exc()
+        print(f"[migrate] ai_home_archive_path_fix_v1: 迁移失败 err={_e}", flush=True)
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities
