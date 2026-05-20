@@ -53,6 +53,11 @@ interface QuestionnaireTemplate {
   // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19]
   result_summary_template?: string | null;
   source?: string | null;
+  // [PRD-TAG-RECOMMEND-V1 2026-05-20]
+  result_display_mode?: 'simple' | 'triple' | null;
+  ai_followup_enabled?: boolean | null;
+  recommend_click_mode?: 'drawer' | 'external' | null;
+  recommend_display_count?: number | null;
   created_at?: string;
 }
 
@@ -113,6 +118,30 @@ export default function QuestionnaireTemplatesPage() {
   const [questions, setQuestions] = useState<QuestionnaireQuestion[]>([]);
   const [classifications, setClassifications] = useState<ClassificationRule[]>([]);
 
+  // [PRD-TAG-RECOMMEND-V1 2026-05-20] 推荐配置
+  const [recommendConfigs, setRecommendConfigs] = useState<Record<string, any>>({});
+  const [allTags, setAllTags] = useState<any[]>([]);
+  const [allCategories, setAllCategories] = useState<any[]>([]);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [recActiveKey, setRecActiveKey] = useState<string>('');
+  const [previewItems, setPreviewItems] = useState<any[]>([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  const loadRecommendMeta = useCallback(async () => {
+    try {
+      const [tagsRes, catsRes, prodsRes] = await Promise.all([
+        get<any>('/api/admin/tags', { page: 1, page_size: 500 }),
+        get<any>('/api/admin/product/categories').catch(() => ({ items: [] })),
+        get<any>('/api/admin/products', { page: 1, page_size: 200 }).catch(() => ({ items: [] })),
+      ]);
+      setAllTags(tagsRes.items || []);
+      setAllCategories(catsRes?.items || catsRes || []);
+      setAllProducts(prodsRes?.items || prodsRes || []);
+    } catch {
+      // 静默
+    }
+  }, []);
+
   const fetchList = useCallback(async () => {
     setLoading(true);
     try {
@@ -143,6 +172,10 @@ export default function QuestionnaireTemplatesPage() {
         status: record.status === 1,
         allow_back: record.allow_back !== false,
         shuffle_questions: !!record.shuffle_questions,
+        result_display_mode: record.result_display_mode || 'simple',
+        ai_followup_enabled: record.ai_followup_enabled !== false,
+        recommend_click_mode: record.recommend_click_mode || 'drawer',
+        recommend_display_count: record.recommend_display_count || 6,
       });
     } else {
       form.setFieldsValue({
@@ -151,6 +184,10 @@ export default function QuestionnaireTemplatesPage() {
         shuffle_questions: false,
         report_layout: 'standard',
         status: true,
+        result_display_mode: 'simple',
+        ai_followup_enabled: true,
+        recommend_click_mode: 'drawer',
+        recommend_display_count: 6,
       });
     }
     setEditModalOpen(true);
@@ -159,9 +196,27 @@ export default function QuestionnaireTemplatesPage() {
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
+      // 推荐卡点击行为：若选 external 需二次确认
+      if (values.recommend_click_mode === 'external') {
+        const ok = await new Promise<boolean>((resolve) => {
+          Modal.confirm({
+            title: '确认选择"跳商城"？',
+            content: '⚠️ 选择"跳商城"会让用户离开 AI 对话页，仅建议在【商品需大量展示评价/参数】等极少数场景使用。是否继续？',
+            okText: '确认',
+            cancelText: '改回抽屉',
+            onOk: () => resolve(true),
+            onCancel: () => resolve(false),
+          });
+        });
+        if (!ok) {
+          form.setFieldsValue({ recommend_click_mode: 'drawer' });
+          return;
+        }
+      }
       const payload = {
         ...values,
         status: values.status ? 1 : 0,
+        ai_followup_enabled: !!values.ai_followup_enabled,
       };
       if (editing) {
         await put(`/api/admin/questionnaire/templates/${editing.id}`, payload);
@@ -181,10 +236,24 @@ export default function QuestionnaireTemplatesPage() {
   const openDrawer = async (record: QuestionnaireTemplate) => {
     setDrawerTpl(record);
     setDrawerOpen(true);
+    setRecommendConfigs({});
     try {
       const detail = await get<any>(`/api/questionnaire/templates/${record.id}`);
       setQuestions(detail.questions || []);
       setClassifications(detail.classifications || []);
+      if ((detail.classifications || []).length) {
+        setRecActiveKey(detail.classifications[0].code);
+      }
+      // 加载推荐配置 + 元数据
+      const [recRes] = await Promise.all([
+        get<any>(`/api/admin/questionnaire/templates/${record.id}/recommend`).catch(() => ({ configs: [] })),
+      ]);
+      const cfgMap: Record<string, any> = {};
+      (recRes.configs || []).forEach((c: any) => {
+        cfgMap[c.result_key] = c;
+      });
+      setRecommendConfigs(cfgMap);
+      await loadRecommendMeta();
     } catch {
       setQuestions([]);
       setClassifications([]);
@@ -308,6 +377,50 @@ export default function QuestionnaireTemplatesPage() {
   const deleteClassification = async (c: ClassificationRule) => {
     await del(`/api/admin/questionnaire/classifications/${c.id}`);
     await reloadDrawer();
+  };
+
+  // ─── [PRD-TAG-RECOMMEND-V1 2026-05-20] 推荐配置保存 / 预览 ───
+  const updateRecConfig = (resultKey: string, patch: any) => {
+    setRecommendConfigs((prev) => ({
+      ...prev,
+      [resultKey]: { ...(prev[resultKey] || { result_key: resultKey, mode: 1 }), ...patch },
+    }));
+  };
+
+  const saveRecommendConfigs = async () => {
+    if (!drawerTpl) return;
+    const items = Object.values(recommendConfigs).filter((c: any) => c && c.result_key && c.mode);
+    try {
+      await put(`/api/admin/questionnaire/templates/${drawerTpl.id}/recommend`, { items });
+      message.success('推荐配置已保存');
+    } catch (e: any) {
+      message.error(e?.response?.data?.detail || '保存失败');
+    }
+  };
+
+  const previewRecommend = async (resultKey: string) => {
+    if (!drawerTpl) return;
+    const cfg = recommendConfigs[resultKey];
+    if (!cfg) {
+      message.warning('请先配置该分型的推荐');
+      return;
+    }
+    try {
+      const res = await post<any>(
+        `/api/admin/questionnaire/templates/${drawerTpl.id}/recommend/preview`,
+        {
+          result_key: resultKey,
+          mode: cfg.mode,
+          filter_json: cfg.filter_json || null,
+          manual_goods_ids: cfg.manual_goods_ids || null,
+          limit: drawerTpl.recommend_display_count || 6,
+        },
+      );
+      setPreviewItems(res.items || []);
+      setPreviewOpen(true);
+    } catch (e: any) {
+      message.error(e?.response?.data?.detail || '预览失败');
+    }
   };
 
   const handleDelete = (record: QuestionnaireTemplate) => {
@@ -468,6 +581,78 @@ export default function QuestionnaireTemplatesPage() {
               showCount
             />
           </Form.Item>
+
+          {/* [PRD-TAG-RECOMMEND-V1 2026-05-20] 问卷完成后体验 4 配置项 */}
+          <div
+            style={{
+              border: '1px solid #E0F2FE',
+              borderRadius: 8,
+              padding: '12px 14px',
+              marginBottom: 16,
+              background: '#F0F9FF',
+            }}
+            data-testid="qn-tpl-result-config-block"
+          >
+            <div style={{ fontWeight: 600, marginBottom: 10, color: '#0F172A' }}>
+              问卷完成后体验配置
+            </div>
+            <Space wrap size="large">
+              <Form.Item
+                label="结果呈现形态"
+                name="result_display_mode"
+                extra="体质测评推荐选「三段式」"
+              >
+                <Select
+                  style={{ width: 220 }}
+                  data-testid="qn-result-display-mode"
+                  options={[
+                    { value: 'simple', label: '简单结果卡' },
+                    { value: 'triple', label: '三段式（汇总+详情+推荐）' },
+                  ]}
+                />
+              </Form.Item>
+              <Form.Item
+                label="AI 追问开关"
+                name="ai_followup_enabled"
+                valuePropName="checked"
+                extra="完成问卷后 AI 主动接续"
+              >
+                <Switch checkedChildren="开" unCheckedChildren="关" data-testid="qn-ai-followup-switch" />
+              </Form.Item>
+              <Form.Item
+                label="推荐卡点击行为"
+                name="recommend_click_mode"
+                extra="默认抽屉打开（强烈建议）"
+              >
+                <Select
+                  style={{ width: 220 }}
+                  data-testid="qn-click-mode-select"
+                  options={[
+                    { value: 'drawer', label: '抽屉打开（推荐）' },
+                    {
+                      value: 'external',
+                      label: '⚠️ 跳商城（会离开 AI 对话页）',
+                    },
+                  ]}
+                />
+              </Form.Item>
+              <Form.Item
+                label="推荐展示数量"
+                name="recommend_display_count"
+                extra="横滑商品卡上限"
+              >
+                <Select
+                  style={{ width: 120 }}
+                  data-testid="qn-display-count-select"
+                  options={[
+                    { value: 4, label: '4 个' },
+                    { value: 5, label: '5 个' },
+                    { value: 6, label: '6 个（默认）' },
+                  ]}
+                />
+              </Form.Item>
+            </Space>
+          </div>
         </Form>
       </Modal>
 
@@ -567,9 +752,176 @@ export default function QuestionnaireTemplatesPage() {
                 </>
               ),
             },
+            {
+              key: 'recommend',
+              label: `关联推荐（${classifications.length} 分型）`,
+              children: (
+                <div data-testid="recommend-config-block">
+                  <div style={{ color: '#666', marginBottom: 8, fontSize: 13 }}>
+                    为每个分型独立配置推荐商品。三种模式：
+                    <b>①标签智能匹配</b>（按类目+履约+标签筛选）/{' '}
+                    <b>②按标签固定推荐</b>（仅按标签）/ <b>③手动挑商品</b>。
+                    每个分型可选择其一。
+                  </div>
+                  {classifications.length === 0 ? (
+                    <div style={{ padding: 24, color: '#999', textAlign: 'center' }}>
+                      请先到「分型规则」Tab 创建分型
+                    </div>
+                  ) : (
+                    <>
+                      <Space style={{ marginBottom: 12 }}>
+                        <Button type="primary" onClick={saveRecommendConfigs} data-testid="rec-save-btn">
+                          保存全部分型推荐配置
+                        </Button>
+                      </Space>
+                      <Tabs
+                        activeKey={recActiveKey}
+                        onChange={setRecActiveKey}
+                        items={classifications.map((c) => {
+                          const cfg = recommendConfigs[c.code] || { mode: 1, filter_json: {}, manual_goods_ids: [] };
+                          const mode = cfg.mode || 1;
+                          const fj = cfg.filter_json || {};
+                          return {
+                            key: c.code,
+                            label: c.name,
+                            children: (
+                              <div style={{ padding: '8px 0' }}>
+                                <Form layout="vertical">
+                                  <Form.Item label="推荐模式">
+                                    <Select
+                                      style={{ width: 320 }}
+                                      value={mode}
+                                      onChange={(v) => updateRecConfig(c.code, { mode: v })}
+                                      data-testid={`rec-mode-${c.code}`}
+                                      options={[
+                                        { value: 1, label: '① 标签智能匹配（类目+履约+标签）' },
+                                        { value: 2, label: '② 按标签固定推荐（仅标签）' },
+                                        { value: 3, label: '③ 手动挑商品' },
+                                      ]}
+                                    />
+                                  </Form.Item>
+
+                                  {(mode === 1 || mode === 2) && (
+                                    <>
+                                      {mode === 1 && (
+                                        <>
+                                          <Form.Item label="商品类目（可多选）">
+                                            <Select
+                                              mode="multiple"
+                                              allowClear
+                                              style={{ width: '100%' }}
+                                              value={fj.category_ids || []}
+                                              onChange={(v) => updateRecConfig(c.code, { filter_json: { ...fj, category_ids: v } })}
+                                              options={(allCategories || []).map((ct: any) => ({
+                                                value: ct.id,
+                                                label: ct.name,
+                                              }))}
+                                              placeholder="不选则不限"
+                                            />
+                                          </Form.Item>
+                                          <Form.Item label="履约方式（可多选）">
+                                            <Select
+                                              mode="multiple"
+                                              allowClear
+                                              style={{ width: '100%' }}
+                                              value={fj.fulfillment_types || []}
+                                              onChange={(v) => updateRecConfig(c.code, { filter_json: { ...fj, fulfillment_types: v } })}
+                                              options={[
+                                                { value: 'delivery', label: '实物配送' },
+                                                { value: 'in_store', label: '到店服务' },
+                                                { value: 'on_site', label: '上门服务' },
+                                                { value: 'virtual', label: '权益服务' },
+                                              ]}
+                                              placeholder="不选则不限"
+                                            />
+                                          </Form.Item>
+                                        </>
+                                      )}
+                                      <Form.Item label="属性标签（可多选）">
+                                        <Select
+                                          mode="multiple"
+                                          allowClear
+                                          showSearch
+                                          optionFilterProp="label"
+                                          style={{ width: '100%' }}
+                                          value={fj.tag_ids || []}
+                                          onChange={(v) => updateRecConfig(c.code, { filter_json: { ...fj, tag_ids: v } })}
+                                          options={(allTags || []).map((t: any) => ({
+                                            value: t.id,
+                                            label: `${t.name}（${t.category}）`,
+                                          }))}
+                                          placeholder="按标签精准匹配"
+                                        />
+                                      </Form.Item>
+                                    </>
+                                  )}
+
+                                  {mode === 3 && (
+                                    <Form.Item label="手动挑商品（1~10 个）">
+                                      <Select
+                                        mode="multiple"
+                                        allowClear
+                                        showSearch
+                                        optionFilterProp="label"
+                                        style={{ width: '100%' }}
+                                        value={cfg.manual_goods_ids || []}
+                                        onChange={(v) => updateRecConfig(c.code, { manual_goods_ids: v })}
+                                        options={(allProducts || []).map((p: any) => ({
+                                          value: p.id,
+                                          label: `${p.name}（¥${p.sale_price}）`,
+                                        }))}
+                                      />
+                                    </Form.Item>
+                                  )}
+
+                                  <Space>
+                                    <Button onClick={() => previewRecommend(c.code)} data-testid={`rec-preview-${c.code}`}>
+                                      预览推荐
+                                    </Button>
+                                  </Space>
+                                </Form>
+                              </div>
+                            ),
+                          };
+                        })}
+                      />
+                    </>
+                  )}
+                </div>
+              ),
+            },
           ]}
         />
       </Drawer>
+
+      {/* 预览弹窗 */}
+      <Modal
+        title="推荐预览"
+        open={previewOpen}
+        onCancel={() => setPreviewOpen(false)}
+        footer={null}
+        width={720}
+      >
+        {previewItems.length === 0 ? (
+          <div style={{ padding: 24, textAlign: 'center', color: '#999' }}>
+            根据当前配置，无匹配商品
+          </div>
+        ) : (
+          <Table
+            rowKey="id"
+            dataSource={previewItems}
+            pagination={false}
+            columns={[
+              { title: 'ID', dataIndex: 'id', width: 80 },
+              { title: '商品名', dataIndex: 'name' },
+              { title: '价格', dataIndex: 'sale_price', width: 100, render: (v) => `¥${v}` },
+              { title: '履约', dataIndex: 'fulfillment_label', width: 100 },
+              { title: '销量', dataIndex: 'sales_count', width: 80 },
+              { title: '命中标签', dataIndex: 'hit_tags', width: 90 },
+            ]}
+          />
+        )}
+      </Modal>
     </div>
   );
 }

@@ -447,6 +447,31 @@ async def submit_questionnaire(
             import logging as _l
             _l.getLogger(__name__).warning("tcm constitution active followup failed: %s", e)
 
+    # [PRD-TAG-RECOMMEND-V1 2026-05-20] 三段式：返回推荐商品 + 配置开关
+    recommend_goods: list[dict[str, Any]] = []
+    result_display_mode = tpl.result_display_mode or "simple"
+    recommend_click_mode = tpl.recommend_click_mode or "drawer"
+    recommend_display_count = tpl.recommend_display_count or 6
+    ai_followup_enabled = bool(tpl.ai_followup_enabled) if tpl.ai_followup_enabled is not None else True
+    try:
+        # 获取分型 code 供推荐计算
+        cls_code: Optional[str] = None
+        if ans.classification_id:
+            crow = await db.get(QuestionnaireClassificationRule, ans.classification_id)
+            if crow:
+                cls_code = crow.code
+        from app.api.tag_recommend import compute_recommend_for_submit
+        recommend_goods, recommend_click_mode, recommend_display_count = await compute_recommend_for_submit(
+            db, tpl.id, cls_code
+        )
+    except Exception as e:  # noqa: BLE001
+        import logging as _l
+        _l.getLogger(__name__).warning("recommend compute failed: %s", e)
+
+    # 当 AI 追问开关关闭时，清空 active_followup
+    if not ai_followup_enabled:
+        active_followup = None
+
     return {
         "answer_id": ans.id,
         "template_id": tpl.id,
@@ -461,6 +486,12 @@ async def submit_questionnaire(
         "classification_id": classification_id,
         # [PRD-TCM-DRAWER-V12 2026-05-20] 主动追问内容（前端在结果页关闭后追加到对话流）
         "active_followup": active_followup,
+        # [PRD-TAG-RECOMMEND-V1 2026-05-20] 三段式结果呈现配置 + 推荐数据
+        "result_display_mode": result_display_mode,
+        "ai_followup_enabled": ai_followup_enabled,
+        "recommend_click_mode": recommend_click_mode,
+        "recommend_display_count": recommend_display_count,
+        "recommend_goods": recommend_goods,
     }
 
 

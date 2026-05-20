@@ -15,11 +15,15 @@
  * 兜底：未登记的新枚举值统一显示"其他服务"，避免回显英文原文。
  */
 
+// [PRD-TAG-RECOMMEND-V1 2026-05-20] 履约方式正名：
+// - delivery：快递配送 → 实物配送
+// - virtual：虚拟商品 → 权益服务
+// （key 不变，仅正名文案，零兼容性影响）
 export const FULFILLMENT_LABEL_MAP: Record<string, string> = {
-  delivery: '快递配送',
+  delivery: '实物配送',
   in_store: '到店服务',
   on_site: '上门服务',
-  virtual: '虚拟商品',
+  virtual: '权益服务',
 };
 
 /** 把后端履约方式枚举值转换为中文标签。 */

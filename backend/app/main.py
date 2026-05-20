@@ -1837,6 +1837,17 @@ async def lifespan(app: FastAPI):
         import traceback as _tb
         _tb.print_exc()
         print(f"[migrate] tcm36_drawer_v12: 迁移失败 err={_e}", flush=True)
+    # [PRD-TAG-RECOMMEND-V1 2026-05-20] 标签管理 + 商品标签关联 + 问卷推荐配置
+    try:
+        print("[migrate] prd_tag_recommend_v1: 启动迁移...", flush=True)
+        from app.core.database import async_session as _async_session10
+        from app.services.prd_tag_recommend_v1_migration import run_migration_with_session as _run_tag_recommend
+        _stats10 = await _run_tag_recommend(_async_session10)
+        print(f"[migrate] prd_tag_recommend_v1: 迁移完成 stats={_stats10}", flush=True)
+    except Exception as _e:
+        import traceback as _tb
+        _tb.print_exc()
+        print(f"[migrate] prd_tag_recommend_v1: 迁移失败 err={_e}", flush=True)
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities
@@ -2049,6 +2060,11 @@ app.include_router(questionnaire.admin_router)
 # [PRD-TCM-DRAWER-V12 2026-05-20] 聊天意图识别接口
 from app.api import chat_intent as _chat_intent  # noqa: E402
 app.include_router(_chat_intent.router)
+# [PRD-TAG-RECOMMEND-V1 2026-05-20] 标签管理 + 商品标签关联 + 问卷推荐配置
+from app.api import tag_recommend as _tag_recommend  # noqa: E402
+app.include_router(_tag_recommend.router)
+app.include_router(_tag_recommend.goods_tags_router)
+app.include_router(_tag_recommend.recommend_router)
 # [PRD-HEALTH-ARCHIVE-OPTIM-V2 2026-05-18] 健康档案页面优化 V2：成员徽章/Hero角标/设备列表/提醒设置/解绑
 from app.api import health_archive_optim_v2 as _health_archive_optim_v2  # noqa: E402
 app.include_router(_health_archive_optim_v2.router)

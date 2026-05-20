@@ -79,7 +79,7 @@ interface CouponOption {
 
 const TYPE_LABELS: Record<string, string> = {
   coupon: '优惠券',
-  virtual: '虚拟商品',
+  virtual: '权益服务',
   physical: '实物商品',
   service: '体验服务',
   third_party: '第三方商品',
@@ -95,7 +95,7 @@ const categoryOptions = [
   { label: '优惠券', value: 'coupon' },
   { label: '体验服务', value: 'service' },
   { label: '实物商品', value: 'physical' },
-  { label: '虚拟商品（开发中）', value: 'virtual', disabled: true },
+  { label: '权益服务（开发中）', value: 'virtual', disabled: true },
   { label: '第三方商品（开发中）', value: 'third_party', disabled: true },
 ];
 

@@ -42,6 +42,8 @@ import QuestionnaireDrawer, {
   type QnSubmitAnswerItem,
 } from '@/components/ai-chat/QuestionnaireDrawer';
 import QuestionnaireResultCard, { type QnResultCardPayload } from '@/components/ai-chat/QuestionnaireResultCard';
+import QuestionnaireRecommendCard, { type RecommendGoodsItem } from '@/components/ai-chat/QuestionnaireRecommendCard';
+import RecommendGoodsDrawer from '@/components/ai-chat/RecommendGoodsDrawer';
 import QuestionnairePreCard from '@/components/ai-chat/QuestionnairePreCard';
 // [BUG_FIX_拍照识药三联_20260516] 聊天内嵌识药引擎：识药结果卡片
 import DrugIdentifyCard from './components/DrugIdentifyCard';
@@ -142,7 +144,7 @@ interface ChatMessage {
    *  - 'file'  : 用户上传的非图片文件消息（content = 文件名占位，files 字段携带文件元数据）
    *  - 'quick_ask_card' : 可编辑的快捷提问卡片消息（quickAskButton 字段携带按钮元数据）
    */
-  kind?: 'text' | 'image' | 'file' | 'quick_ask_card' | 'health_self_check_card' | 'questionnaire_result_card' | 'questionnaire_pre_card';
+  kind?: 'text' | 'image' | 'file' | 'quick_ask_card' | 'health_self_check_card' | 'questionnaire_result_card' | 'questionnaire_pre_card' | 'questionnaire_recommend_card';
   /**
    * [Bug-471 2026-05-15] 用户消息支持 1~5 张图片：图片 URL 数组（服务器返回）。
    * 当 kind === 'image' 且 images 非空时，气泡渲染为「横向缩略图小图墙」。
@@ -220,6 +222,20 @@ interface ChatMessage {
     buttonId: number;
     card: QnResultCardPayload;
     aiStatusText?: string | null;
+  };
+  /** [PRD-TAG-RECOMMEND-V1 2026-05-20] 问卷完成后推荐商品卡片 payload */
+  questionnaireRecommend?: {
+    goods: Array<{
+      id: number;
+      name: string;
+      sale_price: number;
+      original_price?: number | null;
+      image?: string | null;
+      fulfillment_type?: string | null;
+      fulfillment_label?: string | null;
+      sales_count?: number;
+    }>;
+    clickMode: 'drawer' | 'external';
   };
   /** [PRD-TCM-DRAWER-V12 2026-05-20] 通用问卷"对话内说明卡片" payload */
   questionnairePreCard?: {
@@ -799,6 +815,9 @@ export default function AiHomePage() {
   const [qnDrawerTemplate, setQnDrawerTemplate] = useState<QnTemplate | null>(null);
   const [qnDrawerQuestions, setQnDrawerQuestions] = useState<QnQuestion[]>([]);
   const [qnDrawerDisplayForm, setQnDrawerDisplayForm] = useState<QnDisplayForm>('DRAWER_SCROLL');
+  // [PRD-TAG-RECOMMEND-V1 2026-05-20] 推荐商品详情抽屉
+  const [recommendDrawerOpen, setRecommendDrawerOpen] = useState(false);
+  const [recommendDrawerGoods, setRecommendDrawerGoods] = useState<RecommendGoodsItem | null>(null);
   // [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517] 会话空闲超时由 30 → 60 分钟
   const [idleTimeout, setIdleTimeout] = useState<number>(60 * 60 * 1000);
   // [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] AI 流式结束的时刻，是 60min 倒计时的起点。
@@ -2167,8 +2186,32 @@ export default function AiHomePage() {
           },
         };
         setMessages((prev) => [...prev, cardMsg]);
+
+        // [PRD-TAG-RECOMMEND-V1 2026-05-20] 三段式：在结果卡之后插入推荐卡片消息
+        const recommendGoods: RecommendGoodsItem[] = Array.isArray(resp?.recommend_goods)
+          ? resp.recommend_goods
+          : [];
+        const recommendClickMode: 'drawer' | 'external' =
+          resp?.recommend_click_mode === 'external' ? 'external' : 'drawer';
+        const resultDisplayMode: string = resp?.result_display_mode || 'simple';
+        if (resultDisplayMode === 'triple' && recommendGoods.length > 0) {
+          const recMsg: ChatMessage = {
+            id: `qn-rec-${Date.now() + 1}`,
+            role: 'assistant',
+            content: '',
+            time: new Date().toISOString(),
+            kind: 'questionnaire_recommend_card',
+            questionnaireRecommend: {
+              goods: recommendGoods,
+              clickMode: recommendClickMode,
+            },
+          };
+          setMessages((prev) => [...prev, recMsg]);
+        }
+
         // [PRD-TCM-DRAWER-V12 2026-05-20] 若按钮启用 ai_reference_active 且后端返回 active_followup
         // 则在对话流追加一条 AI 主动追问消息（默认 true）
+        // [PRD-TAG-RECOMMEND-V1 2026-05-20] 后端如果 ai_followup_enabled=false 已清空 active_followup
         const refActive = btn.ai_reference_active !== false;
         const followup: string | null = (resp && typeof resp.active_followup === 'string')
           ? resp.active_followup
@@ -4558,6 +4601,43 @@ export default function AiHomePage() {
                 );
               }
 
+              // [PRD-TAG-RECOMMEND-V1 2026-05-20] 推荐商品卡片气泡（AI 侧）
+              if (msg.kind === 'questionnaire_recommend_card' && msg.questionnaireRecommend) {
+                const rec = msg.questionnaireRecommend;
+                return (
+                  <div
+                    key={msg.id}
+                    style={{ marginBottom: 24 }}
+                    data-testid="ai-home-qn-recommend-card-message"
+                  >
+                    {showTime && (
+                      <div className="text-center" style={{ padding: '8px 0' }}>
+                        <span style={{ fontSize: 12, color: '#9CA3AF' }}>
+                          {formatWeChatTime(msg.time)}
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'flex-start', marginLeft: 12, marginRight: 16, gap: 8 }}>
+                      <AiAvatar size={32} />
+                      <div style={{ flex: 1, maxWidth: 'min(92vw, 480px)' }}>
+                        <QuestionnaireRecommendCard
+                          goods={rec.goods}
+                          clickMode={rec.clickMode}
+                          onClickGoods={(g) => {
+                            if (rec.clickMode === 'external') {
+                              router.push(`/product/${g.id}`);
+                            } else {
+                              setRecommendDrawerGoods(g);
+                              setRecommendDrawerOpen(true);
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
               // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 通用问卷结果卡片气泡（用户侧）
               if (isUser && msg.kind === 'questionnaire_result_card' && msg.questionnaireResult) {
                 const qr = msg.questionnaireResult;
@@ -5238,6 +5318,13 @@ export default function AiHomePage() {
         questions={qnDrawerQuestions}
         displayForm={qnDrawerDisplayForm}
         onSubmit={handleQuestionnaireDrawerSubmit}
+      />
+
+      {/* [PRD-TAG-RECOMMEND-V1 2026-05-20] 推荐商品详情抽屉（drawer 模式） */}
+      <RecommendGoodsDrawer
+        open={recommendDrawerOpen}
+        goods={recommendDrawerGoods}
+        onClose={() => setRecommendDrawerOpen(false)}
       />
 
       {/* [PRD-HEALTH-SELF-CHECK-V1 2026-05-15] 健康自查抽屉 */}

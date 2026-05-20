@@ -141,6 +141,7 @@ const menuItems: MenuItem[] = [
     label: '商品体系',
     children: [
       { key: '/product-system/categories', label: '商品分类' },
+      { key: '/product-system/tags', label: '标签管理' },
       { key: '/product-system/products', label: '商品管理' },
       { key: '/product-system/cards', label: '卡管理' },
       { key: '/product-system/store-bindding', label: '适用门店' },

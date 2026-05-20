@@ -27,6 +27,64 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: PRD-TAG-RECOMMEND-V1｜功能按钮管理 / 体质测评 / 问卷推荐与标签体系优化 (2026-05-20 13:20)
+
+**任务类型**：全链路功能新增 + 1 个 Bug 修复（backend + admin-web + h5-web）
+
+**核心交付**：
+
+1. **Bug 修复**：`admin/function-buttons` 关联问卷模板下拉 — label 改为「名称（编码）」，接口失败/为空时显示「点击重试」入口，catch 不再静默吞错。
+2. **三段式问卷完成体验**：H5 AI 对话页内"汇总卡 → 详情抽屉 → 推荐卡 → AI 追问"四步串联，全程不离开对话页；体质测评模板默认 `result_display_mode='triple'`。
+3. **标签管理后台**：新菜单 `/admin/product-system/tags`，7 类标签（symptom/effect/constitution/crowd/service/scene/other）CRUD + 合并 + 启停。
+4. **履约方式正名**（仅文案，key/DB 不动）：`virtual` → 「权益服务」，`delivery` → 「实物配送」。
+5. **问卷推荐配置**：问卷模板「关联推荐」Tab，9 体质分型逐个配，支持 3 种模式（标签智能匹配/标签固定/手动挑商品），含「预览推荐」按钮，推荐计算去重 + 排序（命中标签数 > 销量 > 上架时间）+ 限量（4/5/6）。
+
+**数据模型变更**：
+
+- 新表：`tags`、`goods_tags`、`questionnaire_recommend_config`
+- `questionnaire_templates` 表 +4 列：`result_display_mode` / `ai_followup_enabled` / `recommend_click_mode` / `recommend_display_count`
+- 一次性 seed 9 种体质标签到 `constitution` 分类
+
+**新增/改动文件**（精选）：
+
+- backend：
+  - 新 `backend/app/api/tag_recommend.py`（标签 / 商品-标签 / 推荐配置 / `_compute_recommend_goods` 推荐排序去重核心）
+  - 新 `backend/app/schemas/tag_recommend.py`
+  - 新 `backend/app/services/prd_tag_recommend_v1_migration.py`（启动迁移 + 体质 seed + 默认 `triple`）
+  - 改 `backend/app/models/models.py`（`QuestionnaireTemplate` +4 字段；新增 Tag / GoodsTag / QuestionnaireRecommendConfig；`FulfillmentType` 注释正名）
+  - 改 `backend/app/schemas/questionnaire.py`（透出 4 个新字段）
+  - 改 `backend/app/api/questionnaire.py`（`/api/questionnaire/submit` 响应增加 `recommend_goods` 等 5 个字段）
+  - 改 `backend/app/main.py`（注册迁移 + 3 个新 router）
+  - 新 `backend/tests/test_tag_recommend_v1_20260520.py`（14 例自动化测试）
+- admin-web：
+  - 新 `admin-web/src/app/(admin)/product-system/tags/page.tsx`（标签管理后台）
+  - 改 `admin-web/src/app/(admin)/layout.tsx`（侧栏新增「标签管理」入口）
+  - 改 `admin-web/src/app/(admin)/function-buttons/page.tsx`（Bug 1 修复：label + 重试 + 不吞错）
+  - 改 `admin-web/src/app/(admin)/questionnaire-templates/page.tsx`（4 项新配置 + 「关联推荐」Tab + 预览弹窗 + external 二次确认）
+  - 改 `admin-web/src/utils/fulfillmentLabel.ts`（履约文案正名）
+  - 改 `admin-web/src/app/(admin)/points/mall/page.tsx`、`admin-web/src/components/coupon/ProductPickerModal.tsx`（历史文案更新）
+- h5-web：
+  - 新 `h5-web/src/components/ai-chat/QuestionnaireRecommendCard.tsx`（横滑推荐卡 + 履约角标）
+  - 新 `h5-web/src/components/ai-chat/RecommendGoodsDrawer.tsx`（商品详情抽屉 + 「前往商城」弱入口）
+  - 改 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`（消息 kind 增加 `questionnaire_recommend_card`、抽屉状态、推荐插入逻辑）
+  - 改 `h5-web/src/utils/fulfillmentLabel.ts`、`h5-web/src/app/product/[id]/page.tsx`（履约正名）
+
+**部署 & 测试**：
+
+- 部署脚本：`deploy/_deploy_tag_recommend_v1_20260520.py`（SFTP 上传 + backend docker cp + 迁移触发 + h5/admin 镜像重建 + smoke + 远端 pytest）
+- staging smoke：openapi.json 200 / admin 与 h5 路径 200/308
+- 远端 pytest：**14 passed**（标签 CRUD/合并、推荐配置保存读取、推荐预览过滤排序去重、`/submit` 新字段、4 个新模板字段、各端源码完整性、9 体质 seed 等全部通过）
+- 用户手册：`user_docs/问卷推荐与标签体系优化_PRD_v1.md`
+
+**未来二期可选**（PRD 列入二期）：
+
+- 标签近义词合并/热度分析
+- 推荐通用层 / 复制配置到其他分型 / 排除标签
+- 跨问卷重复推荐降权
+- 基于用户行为的智能推荐
+
+---
+
 ## Latest Update: PRD-AICHAT-FUNCCARD-V2｜AI 对话页「功能引导卡片」新版样式改造 (2026-05-20 11:20)
 
 **任务类型**：跨端 UI 改造（h5-web + admin-web；backend 仅新增校验测试，无 DB / API 变更；miniprogram / Flutter App 无改动）

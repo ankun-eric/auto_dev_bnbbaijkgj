@@ -288,22 +288,31 @@ export default function FunctionButtonsPage() {
   }, []);
 
   // [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 拉取通用问卷模板下拉
+  // [PRD-TAG-RECOMMEND-V1 2026-05-20 Bug1 修复] 加载失败/为空时给明确提示，
+  // 不再静默吞错；保留 console.error；提供 loadError 状态供 UI 渲染重试按钮
+  const [questionnaireTplLoadError, setQuestionnaireTplLoadError] = useState<string | null>(null);
   const fetchQuestionnaireTemplates = useCallback(async () => {
     try {
+      setQuestionnaireTplLoadError(null);
       const res = await get<any>('/api/admin/questionnaire/templates', { page: 1, page_size: 200 });
       const items = Array.isArray(res) ? res : (res?.items || []);
-      setQuestionnaireTemplates(
-        items
-          .filter((t: any) => t && t.id)
-          .map((t: any) => ({
-            id: t.id,
-            code: t.code,
-            name: t.name,
-            status: t.status,
-          })),
-      );
-    } catch {
+      const mapped = items
+        .filter((t: any) => t && t.id)
+        .map((t: any) => ({
+          id: t.id,
+          code: t.code,
+          name: t.name,
+          status: t.status,
+        }));
+      setQuestionnaireTemplates(mapped);
+      if (mapped.length === 0) {
+        setQuestionnaireTplLoadError('暂无可用问卷模板，请先到「问卷模板管理」新建');
+      }
+    } catch (e: any) {
+      // eslint-disable-next-line no-console
+      console.error('[questionnaire/templates] load failed:', e);
       setQuestionnaireTemplates([]);
+      setQuestionnaireTplLoadError('加载问卷模板失败，请重试');
     }
   }, []);
 
@@ -923,15 +932,29 @@ export default function FunctionButtonsPage() {
                 rules={[{ required: true, message: '请选择问卷模板' }]}
                 extra={
                   <span>
+                    {questionnaireTplLoadError && (
+                      <span style={{ color: '#ff4d4f', marginRight: 8 }} data-testid="qn-tpl-load-error">
+                        {questionnaireTplLoadError}{' '}
+                        <a onClick={() => fetchQuestionnaireTemplates()} data-testid="qn-tpl-reload-btn">点击重试</a>
+                      </span>
+                    )}
                     问卷模板由「问卷模板管理」页面维护；
                     <a onClick={() => router.push('/questionnaire-templates')}>前往问卷模板管理</a>
                   </span>
                 }
               >
                 <Select
-                  placeholder="请选择问卷模板"
+                  placeholder={questionnaireTemplates.length ? '请选择问卷模板' : (questionnaireTplLoadError || '加载中...')}
                   showSearch
                   optionFilterProp="label"
+                  notFoundContent={
+                    questionnaireTplLoadError ? (
+                      <span>
+                        {questionnaireTplLoadError} <a onClick={() => fetchQuestionnaireTemplates()}>点击重试</a>
+                      </span>
+                    ) : '无匹配数据'
+                  }
+                  data-testid="qn-tpl-select"
                   options={questionnaireTemplates.map((t) => ({
                     value: t.id,
                     label: `${t.name}（${t.code}）`,

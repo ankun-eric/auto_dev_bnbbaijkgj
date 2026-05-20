@@ -29,6 +29,11 @@ class QuestionnaireTemplateBase(BaseModel):
     # [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19]
     result_summary_template: Optional[str] = None
     source: Optional[str] = "operator_created"
+    # [PRD-TAG-RECOMMEND-V1 2026-05-20]
+    result_display_mode: Optional[str] = "simple"
+    ai_followup_enabled: Optional[bool] = True
+    recommend_click_mode: Optional[str] = "drawer"
+    recommend_display_count: Optional[int] = 6
 
 
 class QuestionnaireTemplateCreate(QuestionnaireTemplateBase):
@@ -51,6 +56,11 @@ class QuestionnaireTemplateUpdate(BaseModel):
     # [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19]
     result_summary_template: Optional[str] = None
     source: Optional[str] = None
+    # [PRD-TAG-RECOMMEND-V1 2026-05-20]
+    result_display_mode: Optional[str] = None
+    ai_followup_enabled: Optional[bool] = None
+    recommend_click_mode: Optional[str] = None
+    recommend_display_count: Optional[int] = None
 
 
 class QuestionnaireTemplateResponse(QuestionnaireTemplateBase):

@@ -141,7 +141,7 @@ function ProductDetailPage() {
   };
 
   const fulfillmentLabel = (type: string) => {
-    const map: Record<string, string> = { in_store: '到店服务', delivery: '快递配送', virtual: '虚拟商品' };
+    const map: Record<string, string> = { in_store: '到店服务', delivery: '实物配送', virtual: '权益服务', on_site: '上门服务' };
     return map[type] || type;
   };
 

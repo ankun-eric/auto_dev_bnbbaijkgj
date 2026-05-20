@@ -140,8 +140,8 @@ class ContentTypeEnum(str, enum.Enum):
 
 class FulfillmentType(str, enum.Enum):
     in_store = "in_store"  # 到店服务（暖橙角标）
-    delivery = "delivery"  # 快递配送（科技蓝角标）
-    virtual = "virtual"    # 改造④：虚拟商品（尊贵紫角标，如在线问诊咨询券、电子券码等）
+    delivery = "delivery"  # 实物配送（科技蓝角标）[PRD-TAG-RECOMMEND-V1 2026-05-20 正名]
+    virtual = "virtual"    # 权益服务（尊贵紫角标，如在线问诊咨询券、电子券码等）[PRD-TAG-RECOMMEND-V1 2026-05-20 正名]
     on_site = "on_site"    # 上门服务（家政/维修/上门按摩等，由师傅/技师上门提供服务）
 
 
@@ -2647,6 +2647,15 @@ class QuestionnaireTemplate(Base):
     # ───── [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 来源标记 ─────
     # system_migrated=系统迁移；operator_created=运营新建
     source = mapped_column(String(32), nullable=True, default="operator_created", comment="模板来源 system_migrated / operator_created")
+    # ───── [PRD-TAG-RECOMMEND-V1 2026-05-20] 问卷完成后体验配置 ─────
+    # 结果呈现形态：simple=简单结果卡 / triple=三段式
+    result_display_mode = mapped_column(String(16), nullable=True, default="simple", comment="结果呈现形态：simple / triple")
+    # AI 追问开关
+    ai_followup_enabled = mapped_column(Boolean, nullable=True, default=True, comment="是否启用 AI 追问")
+    # 推荐卡点击行为：drawer=抽屉打开 / external=跳商城
+    recommend_click_mode = mapped_column(String(16), nullable=True, default="drawer", comment="推荐卡点击行为：drawer / external")
+    # 推荐展示数量上限（4/5/6）
+    recommend_display_count = mapped_column(Integer, nullable=True, default=6, comment="推荐卡展示数量上限")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -2730,6 +2739,50 @@ class QuestionnaireAnswer(Base):
     status = mapped_column(String(16), nullable=True, default="completed", comment="draft / completed")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     completed_at = mapped_column(DateTime, nullable=True)
+
+
+# ════════════════════════════════════════════════════════════
+# [PRD-TAG-RECOMMEND-V1 2026-05-20] 标签管理 + 商品标签关联 + 问卷推荐配置
+# ════════════════════════════════════════════════════════════
+
+
+class Tag(Base):
+    """商品属性标签（symptom/effect/constitution/crowd/service/scene/other）"""
+
+    __tablename__ = "tags"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(64), nullable=False, comment="标签名")
+    category = mapped_column(String(32), nullable=False, index=True, comment="分类：symptom/effect/constitution/crowd/service/scene/other")
+    status = mapped_column(Integer, nullable=False, default=1, comment="1启用 0停用")
+    goods_count = mapped_column(Integer, nullable=True, default=0, comment="关联商品数（缓存）")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class GoodsTag(Base):
+    """商品-标签关联表"""
+
+    __tablename__ = "goods_tags"
+
+    goods_id = mapped_column(Integer, primary_key=True)
+    tag_id = mapped_column(Integer, primary_key=True, index=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class QuestionnaireRecommendConfig(Base):
+    """问卷推荐配置：按分型配置三种模式之一"""
+
+    __tablename__ = "questionnaire_recommend_config"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    template_id = mapped_column(Integer, nullable=False, index=True)
+    result_key = mapped_column(String(64), nullable=False, comment="体质分型 key（对应 classification.code），如 qi_xu")
+    mode = mapped_column(Integer, nullable=False, comment="1=标签智能匹配 2=按标签固定推荐 3=手动挑商品")
+    filter_json = mapped_column(JSON, nullable=True, comment="模式1/2 的筛选条件 {category_ids, fulfillment_types, tag_ids}")
+    manual_goods_ids = mapped_column(JSON, nullable=True, comment="模式3 手动选的商品ID列表")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 # ════════════════════════════════════════════════════════════

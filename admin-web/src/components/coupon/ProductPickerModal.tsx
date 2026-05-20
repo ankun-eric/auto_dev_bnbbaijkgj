@@ -303,7 +303,7 @@ export default function ProductPickerModal({
         onChange={(k) => { setTab(k as TabKey); setPage(1); }}
         items={[
           { key: 'all', label: '全部' },
-          { key: 'delivery', label: '快递配送' },
+          { key: 'delivery', label: '实物配送' },
           { key: 'in_store', label: '到店服务' },
         ]}
       />
