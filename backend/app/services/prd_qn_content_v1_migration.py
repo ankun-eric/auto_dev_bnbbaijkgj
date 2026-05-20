@@ -754,36 +754,36 @@ async def _upgrade_health_self_check_v2(db) -> dict[str, Any]:
 
 
 async def run_migration_with_session(async_session_factory):
-    """主入口：每次启动自动跑一次"""
+    """主入口：每次启动自动跑一次
+
+    [PRD-AI-PAGE-OPTIM-V1 2026-05-21] 关闭自动种子插入：
+    - 保留 DDL（questionnaire_template 加 followup_chips_json / cta_list_json 两列）
+    - 关闭 PHQ-9 / GAD-7 / PSQI 三套模板 + 题目 + 分型规则的自动插入
+    - 关闭健康自查 6 维度新题目的自动插入
+    - 数据改由「管理后台 → 系统设置 → 种子数据导入」按需触发
+    """
     stats: dict[str, Any] = {"phase": "qn_content_v1"}
     print("[migrate] qn_content_v1: 启动", flush=True)
     try:
         async with async_session_factory() as db:
             stats["columns_added"] = await _add_template_chips_cta_columns(db)
-            stats["phq9"] = await _seed_phq9(db)
-            stats["gad7"] = await _seed_gad7(db)
-            stats["psqi"] = await _seed_psqi(db)
-            stats["tcm_chips_cta"] = await _upgrade_tcm_chips_cta(db)
-            stats["hsc_v2"] = await _upgrade_health_self_check_v2(db)
+            # [PRD-AI-PAGE-OPTIM-V1 2026-05-21] PHQ-9 / GAD-7 / PSQI / 健康自查 6 维度
+            # 全部交由种子导入页按需触发，启动迁移不再自动写入
+            stats["phq9"] = {"skipped": "by_seed_pack_admin_page"}
+            stats["gad7"] = {"skipped": "by_seed_pack_admin_page"}
+            stats["psqi"] = {"skipped": "by_seed_pack_admin_page"}
+            stats["tcm_chips_cta"] = {"skipped": "by_seed_pack_admin_page"}
+            stats["hsc_v2"] = {"skipped": "by_seed_pack_admin_page"}
             await db.commit()
         print(
             f"[migrate] qn_content_v1: 完成 stats={json.dumps(stats, ensure_ascii=False)}",
             flush=True,
         )
-        # 标准化运维日志
-        phq9 = stats.get("phq9") or {}
-        gad7 = stats.get("gad7") or {}
-        psqi = stats.get("psqi") or {}
         print(
-            f"[qn_content_v1] phq9: tid={phq9.get('template_id')} questions={phq9.get('inserted')} "
-            f"gad7: tid={gad7.get('template_id')} questions={gad7.get('inserted')} "
-            f"psqi: tid={psqi.get('template_id')} questions={psqi.get('inserted')}",
+            "[qn_content_v1] DDL OK, seed data (PHQ-9/GAD-7/PSQI/hsc_v2) "
+            "delegated to seed pack admin page",
             flush=True,
         )
-        if phq9.get("inserted") == 9 and gad7.get("inserted") == 7 and psqi.get("inserted") == 19:
-            print("[qn_content_v1] PHQ-9/GAD-7/PSQI question counts OK", flush=True)
-        else:
-            print("[qn_content_v1] WARNING question counts mismatch", flush=True)
         return stats
     except Exception as e:  # noqa: BLE001
         print(f"[migrate] qn_content_v1: 异常（不影响启动）: {e}", flush=True)

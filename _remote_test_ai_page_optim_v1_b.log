@@ -1,0 +1,45 @@
+======== HTTP follow-redirect 鏈€缁堢姸鎬?========
+  /health-profile (鏂伴〉闈?: 200
+  /health-archive (鏃ч〉闈紝鏈熸湜404): 200
+  /admin/system/seed-import: 404
+
+======== 瀹瑰櫒鍐?pytest锛堝湪绾?pip install锛?========
+  File "/usr/local/lib/python3.11/site-packages/pip/_vendor/urllib3/response.py", line 443, in _error_catcher
+    raise ReadTimeoutError(self._pool, None, "Read timed out.")
+pip._vendor.urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='files.pythonhosted.org', port=443): Read timed out.
+/usr/local/bin/python: No module named pytest
+
+[exit] 0
+
+======== backend 鍚姩 log锛氭槸鍚﹁烦杩囩瀛愭彃鍏?========
+  File "/app/app/services/prd_med_plan_interact_optim_v1_migration.py", line 63, in run_migration_with_session
+[parameters: ('_migration_done.prd_health_archive_optim_v1',)]
+[migrate] questionnaire_v1: 瀹屾垚 stats={"columns_added": 0, "pre_card_backfilled": 0, "questionnaire_mapped": 0, "image_capture_mapped": 0, "templates_seeded": 2}
+[migrate] questionnaire_v1: 杩佺Щ瀹屾垚 stats={'columns_added': 0, 'pre_card_backfilled': 0, 'questionnaire_mapped': 0, 'image_capture_mapped': 0, 'templates_seeded': 2}
+[migrate] questionnaire_drawer_v1: 瀹屾垚 stats={"columns_added": 0, "template_seeded": 0, "questions_created": 0, "questions_updated": 0, "buttons_upgraded": 0, "tcm_button_registered": 0, "reverse_score_marked": 0, "precard_backfilled": 0, "health_self_check_seed_skipped": "by_seed_pack_admin_page", "tcm_button_seed_skipped": "by_seed_pack_admin_page"}
+[migrate] questionnaire_drawer_v1: 杩佺Щ瀹屾垚 stats={'columns_added': 0, 'template_seeded': 0, 'questions_created': 0, 'questions_updated': 0, 'buttons_upgraded': 0, 'tcm_button_registered': 0, 'reverse_score_marked': 0, 'precard_backfilled': 0, 'health_self_check_seed_skipped': 'by_seed_pack_admin_page', 'tcm_button_seed_skipped': 'by_seed_pack_admin_page'}
+[migrate] tcm36_drawer_v12: 鍚姩杩佺Щ...
+[migrate] tcm36_drawer_v12: 鍚姩
+[migrate] tcm36_drawer_v12: 璺宠繃绉嶅瓙鎻掑叆 (tcm_constitution 妯℃澘/36棰?9鍒嗗瀷瑙勫垯)锛岀敱绉嶅瓙瀵煎叆椤佃礋璐?
+[migrate] tcm36_drawer_v12: 瀹屾垚 stats={"phase": "tcm36_drawer_v12", "columns_added": {"trigger_by_keyword": false, "trigger_by_intent": false, "trigger_keywords": false, "ai_reference_passive": false, "ai_reference_active": false}, "seed_skipped": "by_seed_pack_admin_page", "trigger_keywords_backfilled": 0}
+[tcm36] DDL OK, seed data delegated to seed pack admin page
+[migrate] tcm36_drawer_v12: 杩佺Щ瀹屾垚 stats={'phase': 'tcm36_drawer_v12', 'columns_added': {'trigger_by_keyword': False, 'trigger_by_intent': False, 'trigger_keywords': False, 'ai_reference_passive': False, 'ai_reference_active': False}, 'seed_skipped': 'by_seed_pack_admin_page', 'trigger_keywords_backfilled': 0}
+[migrate] prd_tag_recommend_v1: 杩佺Щ瀹屾垚 stats={'tags_created': 0, 'goods_tags_created': 0, 'recommend_cfg_created': 0, 'template_columns_added': 0, 'tag_columns_added': 0, 'constitution_tags_seeded': 0, 'constitution_tags_skipped': 'by_seed_pack_admin_page', 'constitution_tags_unlocked': 72, 'legacy_service_to_contraindication': 0, 'legacy_other_deactivated': 9, 'tcm_set_triple': 1, 'symptom_tags_migrated': 0, 'symptom_tags_column_missing': 1, 'symptom_tags_column_dropped': 0}
+[migrate] qn_content_v1: 瀹屾垚 stats={"phase": "qn_content_v1", "columns_added": {"followup_chips_json": false, "cta_list_json": false}, "phq9": {"skipped": "by_seed_pack_admin_page"}, "gad7": {"skipped": "by_seed_pack_admin_page"}, "psqi": {"skipped": "by_seed_pack_admin_page"}, "tcm_chips_cta": {"skipped": "by_seed_pack_admin_page"}, "hsc_v2": {"skipped": "by_seed_pack_admin_page"}}
+[qn_content_v1] DDL OK, seed data (PHQ-9/GAD-7/PSQI/hsc_v2) delegated to seed pack admin page
+[migrate] qn_content_v1: 杩佺Щ瀹屾垚 stats={'phase': 'qn_content_v1', 'columns_added': {'followup_chips_json': False, 'cta_list_json': False}, 'phq9': {'skipped': 'by_seed_pack_admin_page'}, 'gad7': {'skipped': 'by_seed_pack_admin_page'}, 'psqi': {'skipped': 'by_seed_pack_admin_page'}, 'tcm_chips_cta': {'skipped': 'by_seed_pack_admin_page'}, 'hsc_v2': {'skipped': 'by_seed_pack_admin_page'}}
+INFO:     172.20.0.2:59624 - "GET /api/admin/seed-packs HTTP/1.1" 401 Unauthorized
+
+
+======== 瀛ゅ効妯℃澘娓呯悊 ========
+2026-05-20 17:11:23,847 [INFO] [cleanup] 鏈彂鐜板鍎挎ā鏉?tcm_constitution_wangqi_36锛岃烦杩?
+{'orphan_code': 'tcm_constitution_wangqi_36', 'target_code': 'tcm_constitution', 'orphan_template_id': None, 'target_template_id': None, 'buttons_redirected': 0, 'questions_deleted': 0, 'classification_rules_deleted': 0, 'recommend_configs_deleted': 0, 'template_deleted': False, 'warnings': ["鏈彂鐜板鍎挎ā鏉?code='tcm_constitution_wangqi_36'锛屾棤闇€娓呯悊"]}
+Exception ignored in: <function Connection.__del__ at 0x75f91edbaca0>
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/aiomysql/connection.py", line 1131, in __del__
+  File "/usr/local/lib/python3.11/site-packages/aiomysql/connection.py", line 339, in close
+  File "/usr/local/lib/python3.11/asyncio/selector_events.py", line 864, in close
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 762, in call_soon
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 520, in _check_closed
+RuntimeError: Event loop is closed
+

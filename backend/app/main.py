@@ -2090,6 +2090,9 @@ app.include_router(_tag_recommend.recommend_router)
 # [PRD-HEALTH-ARCHIVE-OPTIM-V2 2026-05-18] 健康档案页面优化 V2：成员徽章/Hero角标/设备列表/提醒设置/解绑
 from app.api import health_archive_optim_v2 as _health_archive_optim_v2  # noqa: E402
 app.include_router(_health_archive_optim_v2.router)
+# [PRD-AI-PAGE-OPTIM-V1 2026-05-21] 种子数据导入管理后台 API
+from app.api import seed_import as _seed_import  # noqa: E402
+app.include_router(_seed_import.router)
 
 
 # [2026-05-05 SDK 健康看板] 启动期 SDK 分级自检：核心缺失 → 容器退出；可选缺失 → CRITICAL 告警

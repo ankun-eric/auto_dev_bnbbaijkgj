@@ -1,0 +1,69 @@
+[skip] 璺宠繃 backend 閮ㄧ讲 (SKIP_BE=1)
+
+========== 閮ㄧ讲 admin-web ==========
+[upload] _ai_page_optim_v1_admin.tar.gz 鍖呭ぇ灏?17.1 KiB (3 鏂囦欢)
+extracted
+ 
+cp admin-web/src/app/(admin)/layout.tsx -> exit=0 err=''
+cp admin-web/src/app/(admin)/questionnaire-templates/page.tsx -> exit=0 err=''
+cp admin-web/src/app/(admin)/system/seed-import/page.tsx -> exit=0 err=''
+[restart] admin (next dev 鐑洿鏂颁竴鑸锛宺estart 鍏滃簳) ...
+  鈻?Next.js 14.2.15
+  - Local:        http://12682c828995:3000
+  - Network:      http://172.20.0.5:3000
+
+ 鉁?Starting...
+ 鉁?Ready in 93ms
+  鈻?Next.js 14.2.15
+  - Local:        http://12682c828995:3000
+  - Network:      http://172.20.0.5:3000
+
+ 鉁?Starting...
+ 鉁?Ready in 83ms
+  鈻?Next.js 14.2.15
+  - Local:        http://12682c828995:3000
+  - Network:      http://172.20.0.5:3000
+
+ 鉁?Starting...
+ 鉁?Ready in 84ms
+
+
+========== 閮ㄧ讲 h5-web ==========
+[upload] _ai_page_optim_v1_h5.tar.gz 鍖呭ぇ灏?127.1 KiB (4 鏂囦欢)
+extracted
+ 
+cp h5-web/src/app/(ai-chat)/ai-home/page.tsx -> exit=0 err=''
+cp h5-web/src/components/ai-chat/Sidebar.tsx -> exit=0 err=''
+cp h5-web/src/components/ai-chat/ProfileCard.tsx -> exit=0 err=''
+cp h5-web/src/app/chat/[sessionId]/page.tsx -> exit=0 err=''
+rm h5-web/src/app/(ai-chat)/health-archive/page.tsx -> exit=0
+[restart] h5 ...
+  鈻?Next.js 14.2.15
+  - Local:        http://80cd8f888f68:3001
+  - Network:      http://172.20.0.6:3001
+
+ 鉁?Starting...
+ 鉁?Ready in 97ms
+  鈻?Next.js 14.2.15
+  - Local:        http://80cd8f888f68:3001
+  - Network:      http://172.20.0.6:3001
+
+ 鉁?Starting...
+ 鉁?Ready in 89ms
+  鈻?Next.js 14.2.15
+  - Local:        http://80cd8f888f68:3001
+  - Network:      http://172.20.0.6:3001
+
+ 鉁?Starting...
+ 鉁?Ready in 89ms
+
+
+========== 鐑熸祴 ==========
+[smoke] seed_import.py seed-packs 鍑虹幇娆℃暟: 8
+[smoke] tcm36 鍏抽棴鑷姩鎻掑叆鏍囪瘑娆℃暟: 1
+[smoke] h5 鏃?health-archive 鐩綍: ls: /app/src/app/(ai-chat)/health-archive: No such file or directory
+__missing__
+[smoke] h5 ai-home /health-profile 鍑虹幇娆℃暟: 5
+[smoke] admin layout 绉嶅瓙鏁版嵁瀵煎叆 鍑虹幇娆℃暟: 2
+
+=========== DONE ===========

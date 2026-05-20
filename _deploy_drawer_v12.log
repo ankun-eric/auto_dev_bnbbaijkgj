@@ -1,0 +1,214 @@
+[deploy] connecting newbb.test.bangbangvip.com ...
+[deploy] connected.
+
+=== Phase 1: Backend ===
+backend tar size = 59.9 KiB
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && tar -xzf _drawer_v12_backend.tar.gz
+$ docker restart 6b099ed3-7175-4a78-91f4-44570c84ed27-backend
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend
+
+[deploy] waiting backend ready ...
+[deploy] backend ready after 6s
+         ON DUPLICATE KEY UPDATE `value` = '1', `updated_at` = NOW()
+                    ]
+[parameters: ('_migration_done.prd_health_archive_optim_v1',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+[migrate] prd_health_archive_optim_v1: 杩佺Щ瀹屾垚 stats={'users_seen': 117, 'self_settings_inserted': 0, 'guardian_settings_inserted': 0, 'skipped': False}
+[migrate] questionnaire_v1: 鍚姩杩佺Щ...
+[migrate] questionnaire_v1: 鍚姩
+[migrate] questionnaire_v1: 瀹屾垚 stats={"columns_added": 0, "pre_card_backfilled": 0, "questionnaire_mapped": 0, "image_capture_mapped": 0, "templates_seeded": 2}
+[migrate] questionnaire_v1: 杩佺Щ瀹屾垚 stats={'columns_added': 0, 'pre_card_backfilled': 0, 'questionnaire_mapped': 0, 'image_capture_mapped': 0, 'templates_seeded': 2}
+[migrate] prd_legacy_home_cleanup_v11: 鍚姩杩佺Щ...
+[migrate] prd_legacy_home_cleanup_v11: 杩佺Щ瀹屾垚 stats={'page_style_deleted': 0, 'home_config_kv_deleted': 0, 'banner_link_url_migrated': 0, 'banner_hidden_for_legacy_path': 0, 'audit_rows_inserted': 0, 'skipped': True}
+[migrate] questionnaire_drawer_v1: 鍚姩杩佺Щ...
+[migrate] questionnaire_drawer_v1: 鍚姩
+[migrate] questionnaire_drawer_v1: chat_function_buttons.pre_card_icon 鍒楀凡娣诲姞
+[migrate] questionnaire_drawer_v1: chat_function_buttons.pre_card_icon_type 鍒楀凡娣诲姞
+[migrate] questionnaire_drawer_v1: constitution_questions.is_reverse_score 鍒楀凡娣诲姞
+[migrate] questionnaire_drawer_v1: tcm_diagnoses.constitution_scores 鍒楀凡娣诲姞
+[migrate] questionnaire_drawer_v1: 瀹屾垚 stats={"columns_added": 0, "template_seeded": 1, "questions_created": 0, "questions_updated": 3, "buttons_upgraded": 0, "tcm_button_registered": 1, "reverse_score_marked": 3, "precard_backfilled": 0}
+[migrate] questionnaire_drawer_v1: 杩佺Щ瀹屾垚 stats={'columns_added': 0, 'template_seeded': 1, 'questions_created': 0, 'questions_updated': 3, 'buttons_upgraded': 0, 'tcm_button_registered': 1, 'reverse_score_marked': 3, 'precard_backfilled': 0}
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+
+[deploy] migration log tail:
+$ docker logs 6b099ed3-7175-4a78-91f4-44570c84ed27-backend 2>&1 | grep -E 'questionnaire_drawer|migrate' | tail -n 30
+[migrate] bug470_cleanup_placeholder: cleaned chat_function_buttons.card_cover_image rows=0
+[migrate] bug470_cleanup_placeholder: cleaned chat_function_buttons.external_url rows=0
+[migrate] bug470_cleanup_placeholder: total cleaned rows=0
+[migrate] bug470_cleanup_placeholder: 杩佺Щ瀹屾垚
+[migrate] health_self_check_v1: 鍚姩杩佺Щ...
+[migrate] health_self_check_v1: 杩佺Щ瀹屾垚
+[migrate] prd_aichat_capsule_v2: 鍚姩杩佺Щ...
+[migrate] prd_aichat_capsule_v2: 杩佺Щ瀹屾垚 stats={'builtin_inserted': 3, 'buttons_migrated': 0, 'templates': {'MED_RECOG_FULL': 10, 'MED_RECOG_ADVICE_ONLY': 11, 'MED_RECOG_AUTO': 12}}
+[migrate] prd_aichat_home_grid_v1: 鍚姩杩佺Щ...
+[migrate] prd_aichat_home_grid_v1: 杩佺Щ瀹屾垚 stats={'migrated_enabled': 0, 'migrated_disabled': 0, 'skipped': True}
+[migrate] prd_aichat_funcbtn_optim_v1: 鍚姩杩佺Щ...
+[migrate] prd_aichat_funcbtn_optim_v1: 杩佺Щ瀹屾垚 stats={'sort_filled': 0, 'type_remapped': 0, 'fallback_count': 0, 'skipped': True}
+[migrate] prd_med_plan_interact_optim_v1: 鍚姩杩佺Щ...
+[migrate] prd_med_plan_interact_optim_v1: 杩佺Щ瀹屾垚 stats={'groups_scanned': 0, 'duplicates_soft_deleted': 0, 'names_normalized': 0, 'skipped': False}
+[migrate] prd_health_archive_optim_v1: 鍚姩杩佺Щ...
+[migrate] prd_health_archive_optim_v1: 杩佺Щ瀹屾垚 stats={'users_seen': 117, 'self_settings_inserted': 0, 'guardian_settings_inserted': 0, 'skipped': False}
+[migrate] questionnaire_v1: 鍚姩杩佺Щ...
+[migrate] questionnaire_v1: 鍚姩
+[migrate] questionnaire_v1: 瀹屾垚 stats={"columns_added": 0, "pre_card_backfilled": 0, "questionnaire_mapped": 0, "image_capture_mapped": 0, "templates_seeded": 2}
+[migrate] questionnaire_v1: 杩佺Щ瀹屾垚 stats={'columns_added': 0, 'pre_card_backfilled': 0, 'questionnaire_mapped': 0, 'image_capture_mapped': 0, 'templates_seeded': 2}
+[migrate] prd_legacy_home_cleanup_v11: 鍚姩杩佺Щ...
+[migrate] prd_legacy_home_cleanup_v11: 杩佺Щ瀹屾垚 stats={'page_style_deleted': 0, 'home_config_kv_deleted': 0, 'banner_link_url_migrated': 0, 'banner_hidden_for_legacy_path': 0, 'audit_rows_inserted': 0, 'skipped': True}
+[migrate] questionnaire_drawer_v1: 鍚姩杩佺Щ...
+[migrate] questionnaire_drawer_v1: 鍚姩
+[migrate] questionnaire_drawer_v1: chat_function_buttons.pre_card_icon 鍒楀凡娣诲姞
+[migrate] questionnaire_drawer_v1: chat_function_buttons.pre_card_icon_type 鍒楀凡娣诲姞
+[migrate] questionnaire_drawer_v1: constitution_questions.is_reverse_score 鍒楀凡娣诲姞
+[migrate] questionnaire_drawer_v1: tcm_diagnoses.constitution_scores 鍒楀凡娣诲姞
+[migrate] questionnaire_drawer_v1: 瀹屾垚 stats={"columns_added": 0, "template_seeded": 1, "questions_created": 0, "questions_updated": 3, "buttons_upgraded": 0, "tcm_button_registered": 1, "reverse_score_marked": 3, "precard_backfilled": 0}
+[migrate] questionnaire_drawer_v1: 杩佺Щ瀹屾垚 stats={'columns_added': 0, 'template_seeded': 1, 'questions_created': 0, 'questions_updated': 3, 'buttons_upgraded': 0, 'tcm_button_registered': 1, 'reverse_score_marked': 3, 'precard_backfilled': 0}
+
+
+=== Phase 2: Admin-web ===
+admin tar size = 13.8 KiB
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && tar -xzf _drawer_v12_admin.tar.gz
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build admin-web 2>&1 | tail -n 30
+#12 111.6 
+#12 DONE 111.8s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.1s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 1.4s done
+#16 exporting manifest sha256:4098b3ba7d6d75a8e87ae65f11a1698a3a6aaf17d0f5728a6acb11fdc0469d88 0.0s done
+#16 exporting config sha256:6f71d47111d997aa6dd467fe776ad519be000feaf5cd371f774081644b1fb441 0.0s done
+#16 exporting attestation manifest sha256:b36f1b733c9c06e34290bf04a896110dd562499472b6f2d7188727de6ad94684 0.0s done
+#16 exporting manifest list sha256:051f3f4158ad69c820e1d033fbd7b4d3e555ae3d7e6e230754cb73399683de54 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.5s done
+#16 DONE 2.1s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built 
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d admin-web 2>&1 | tail -n 30
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started 
+
+
+=== Phase 3: H5-web ===
+h5 tar size = 10.2 KiB
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && tar -xzf _drawer_v12_h5.tar.gz
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build h5-web 2>&1 | tail -n 30
+#12 90.24 
+#12 DONE 90.8s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.4s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 10.5s done
+#16 exporting manifest sha256:391a69aaff2adca94b7bf96d56d1854f3182e50f7f595b4e007b0aed8026c91f 0.0s done
+#16 exporting config sha256:9cafb4effb2eb56063f7866e437f9b20c82975df5f028bea26182cf6dc6fa2d8 0.0s done
+#16 exporting attestation manifest sha256:aacc7598a5e94c7f48ec765ebbe5e5905ad207abb6eb0675dd0c3874c801ca61 0.0s done
+#16 exporting manifest list sha256:d1a67e11ab4f62d45e15d010ff01113541cedd73e1ceb8ad347e7513e01fc45b 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 2.0s done
+#16 DONE 12.7s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d h5-web 2>&1 | tail -n 30
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+
+
+=== Phase 4: Smoke ===
+  GET https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/openapi.json => HTTP 200
+  GET https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/tcm/questions => HTTP 200
+  GET https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/questionnaire/templates => HTTP 200
+$ curl -sk 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/tcm/questions' | python3 -c "import json,sys;d=json.load(sys.stdin);items=d.get('items',[]);print('count=', len(items));rev=[i for i in items if i.get('is_reverse_score')];print('reverse_count=', len(rev));print('reverse_order_nums=', sorted([i.get('order_num') for i in rev]))"
+count= 36
+reverse_count= 3
+reverse_order_nums= [34, 35, 36]
+
+
+=== Phase 5: Remote pytest (constitution_score) ===
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend bash -lc 'cd /app && python -m pytest tests/test_constitution_score.py -v 2>&1 | tail -n 40'
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+  /usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+app/main.py:2051
+  /app/app/main.py:2051: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+app/main.py:2081
+  /app/app/main.py:2081: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+app/main.py:2100
+  /app/app/main.py:2100: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 6 passed, 30 warnings in 1.00s ========================
+
+
+[deploy] done.

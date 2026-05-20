@@ -396,7 +396,8 @@ const FONT_TOAST_MAP: Record<FontSizeLevel, string> = {
 const FUNCTION_ROUTES: Record<string, string> = {
   'view_report': '/checkup',
   'check_drug': '/drug',
-  'view_archive': '/health-archive',
+  // [PRD-AI-PAGE-OPTIM-V1 2026-05-21 Bug-1/2] 健康档案入口统一指向 /health-profile，旧 /health-archive 已下线
+  'view_archive': '/health-profile',
   'check_order': '/unified-orders',
   'find_expert': '/service',
   'find_service': '/service',
@@ -574,7 +575,7 @@ const FALLBACK_CONFIG: AIHomeConfig = {
     items: [
       { id: 'g1', main_text: 'AI诊室', sub_text: '智能问诊', target_path: '/ai-doctor', icon: '🩺', gradient_start: '#0EA5E9', gradient_end: '#8B9AFF', badge: '', enabled: true, sort: 1 },
       { id: 'g2', main_text: '看报告', sub_text: '解读体检报告', target_path: '/checkup', icon: '📋', gradient_start: '#FF7E5F', gradient_end: '#FEB47B', badge: '', enabled: true, sort: 2 },
-      { id: 'g3', main_text: '健康档案', sub_text: '查看个人档案', target_path: '/health-archive', icon: '📁', gradient_start: '#43E97B', gradient_end: '#38F9D7', badge: '', enabled: true, sort: 3 },
+      { id: 'g3', main_text: '健康档案', sub_text: '查看个人档案', target_path: '/health-profile', icon: '📁', gradient_start: '#43E97B', gradient_end: '#38F9D7', badge: '', enabled: true, sort: 3 },
     ],
   },
   quick_tags: { visible: true, max_count: 8 },
@@ -3408,7 +3409,7 @@ export default function AiHomePage() {
   // [PRD-423 T-08 EVT-09] 「先完善本人档案」轻提示点击
   const handleNoSelfTipClick = useCallback(() => {
     aiChatTrack.noSelfProfileTipClick();
-    router.push('/health-archive?target=self&from=ai-chat');
+    router.push('/health-profile?target=self&from=ai-chat');
   }, [router]);
 
   // [PRD-467 FR-05] 进入页面拉取一次用户字号设置（与会话页打通）
@@ -4993,7 +4994,7 @@ export default function AiHomePage() {
                             ? '本人'
                             : (selectedConsultant?.nickname || undefined)
                         }
-                        onGoComplete={(cid) => router.push(`/health-archive?target=${cid || 'self'}&from=ai-chat`)}
+                        onGoComplete={(cid) => router.push(`/health-profile?target=${cid || 'self'}&from=ai-chat`)}
                         onGoMedicationManage={(cid, autoCreate) =>
                           router.push(`/ai-home/medication-plans${autoCreate ? '/new' : ''}?target=${cid || 'self'}`)
                         }

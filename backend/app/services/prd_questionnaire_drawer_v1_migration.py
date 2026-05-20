@@ -551,52 +551,33 @@ async def run_migration_with_session(async_session_factory):
             )
             await db.commit()
 
-            # 2. 模板
-            tpl_id = await _ensure_hsc_template(db)
+            # 2~4. [PRD-AI-PAGE-OPTIM-V1 2026-05-21] 健康自查模板/题目种子改由种子导入页负责
+            # - 只在模板已存在时升级按钮指向（避免破坏运营已有数据）
+            # - 模板/题目本身不再自动插入
+            tpl_row = await db.execute(
+                text("SELECT id FROM questionnaire_template WHERE code = 'health_self_check' LIMIT 1")
+            )
+            tpl_rec = tpl_row.fetchone()
+            tpl_id = int(tpl_rec[0]) if tpl_rec else None
+            stats["template_seeded"] = 0
+            stats["health_self_check_seed_skipped"] = "by_seed_pack_admin_page"
+
+            # 5. 升级按钮（仅在模板已存在时执行）
             if tpl_id:
-                stats["template_seeded"] = 1
-            await db.commit()
-
-            if not tpl_id:
-                print("[migrate] questionnaire_drawer_v1: 健康自查模板创建失败，跳过后续", flush=True)
-                return stats
-
-            # 3. 老 HealthCheckTemplate 数据 → 模板顶层字段
-            default_prompt = await _load_first_hsc_default_prompt(db)
-            if default_prompt:
-                await db.execute(
-                    text(
-                        "UPDATE questionnaire_template "
-                        "SET ai_prompt_template = COALESCE(NULLIF(ai_prompt_template,''), :p) "
-                        "WHERE id = :id"
-                    ),
-                    {"id": tpl_id, "p": default_prompt},
-                )
+                stats["buttons_upgraded"] = await _upgrade_buttons(db, tpl_id)
                 await db.commit()
-
-            # 4. 部位+症状+持续时间 → 题目
-            parts = await _load_body_part_dicts(db)
-            durations = await _load_first_hsc_duration_options(db)
-            qstats = await _upsert_questions(db, tpl_id, parts, durations)
-            stats["questions_created"] = qstats["created"]
-            stats["questions_updated"] = qstats["updated"]
-            await db.commit()
-
-            # 5. 升级按钮
-            stats["buttons_upgraded"] = await _upgrade_buttons(db, tpl_id)
-            await db.commit()
+            else:
+                stats["buttons_upgraded"] = 0
 
             # 6. [v1.2 新增] 反向计分题标记
             stats["reverse_score_marked"] = await _mark_reverse_score_questions(db)
             await db.commit()
 
-            # 7. [v1.2 新增] 中医体质测评模板 + 按钮自动登记
-            tcm_tpl_id = await _ensure_tcm_template(db)
-            if tcm_tpl_id:
-                stats["tcm_button_registered"] = await _register_tcm_constitution_button(
-                    db, tcm_tpl_id
-                )
-            await db.commit()
+            # 7. [PRD-AI-PAGE-OPTIM-V1 2026-05-21] 关闭中医体质测评模板 + 按钮的自动登记
+            # - 旧版会自动插入「空壳模板 tcm_constitution_wangqi_36」+「中医体质测评 按钮」
+            # - 由「管理后台 → 系统设置 → 种子数据导入」按需触发
+            stats["tcm_button_registered"] = 0
+            stats["tcm_button_seed_skipped"] = "by_seed_pack_admin_page"
 
             # 8. [v1.2 新增] pre_card_enabled 默认值回填
             stats["precard_backfilled"] = await _backfill_precard_defaults(db)

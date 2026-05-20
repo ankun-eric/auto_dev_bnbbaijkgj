@@ -1,0 +1,190 @@
+Local base: C:\auto_output\bnbbaijkgj
+Connecting to ubuntu@newbb.test.bangbangvip.com:22...
+Connected.
+  upload: h5-web/src/app/(ai-chat)/ai-home/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/page.tsx
+  upload: h5-web/src/components/ai-chat/ConsultTargetPicker.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/components/ai-chat/ConsultTargetPicker.tsx
+  upload: backend/tests/test_ai_home_optim_final_v2_20260519.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_ai_home_optim_final_v2_20260519.py
+compose files: /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.prod.yml
+/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml
+
+--- 鍚屾 backend 娴嬭瘯鍒板鍣?---
+
+$ docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_ai_home_optim_final_v2_20260519.py 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/tests/test_ai_home_optim_final_v2_20260519.py 2>&1
+
+--- rebuild h5-web ---
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml stop h5-web 2>&1 | tail -3
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Stopping 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Stopped 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml rm -f h5-web 2>&1 | tail -3
+Going to remove 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Removing 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Removed 
+
+Building h5-web (5-10 min)...
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build h5-web 2>&1 | tail -120
+                 2.15 kB         234 kB
+#12 90.01 鈹?鈼?/sandbox-pay                               2.15 kB         234 kB
+#12 90.01 鈹?鈼?/scan                                      109 kB          319 kB
+#12 90.01 鈹?鈼?/search                                    6.37 kB         238 kB
+#12 90.01 鈹?鈼?/search/result                             7.33 kB         239 kB
+#12 90.01 鈹?鈼?/services                                  5.5 kB          238 kB
+#12 90.01 鈹?鈼?/settings                                  6.06 kB         238 kB
+#12 90.01 鈹?茠 /shared/chat/[token]                       2.51 kB         235 kB
+#12 90.01 鈹?茠 /shared/drug/[token]                       2.52 kB         235 kB
+#12 90.01 鈹?茠 /shared/report/[token]                     2.72 kB         235 kB
+#12 90.01 鈹?鈼?/symptom                                   9.96 kB         247 kB
+#12 90.01 鈹?鈼?/tcm                                       12.4 kB         244 kB
+#12 90.01 鈹?鈼?/tcm/archive                               510 B           210 kB
+#12 90.01 鈹?茠 /tcm/diagnosis/[id]                        549 B           210 kB
+#12 90.01 鈹?鈼?/tcm/loading                               958 B           211 kB
+#12 90.01 鈹?茠 /tcm/result/[id]                           9.37 kB         241 kB
+#12 90.01 鈹?茠 /unified-order/[id]                        9.95 kB         248 kB
+#12 90.01 鈹?鈼?/unified-orders                            4.05 kB         242 kB
+#12 90.01 + First Load JS shared by all                  87.6 kB
+#12 90.01   鈹?chunks/2117-3615d1923728c5e4.js            31.9 kB
+#12 90.01   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js        53.6 kB
+#12 90.01   鈹?other shared chunks (total)                2.1 kB
+#12 90.01 
+#12 90.01 
+#12 90.01 鈼? (Static)   prerendered as static content
+#12 90.01 茠  (Dynamic)  server-rendered on demand
+#12 90.01 
+#12 DONE 90.4s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.3s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.3s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 10.6s done
+#16 exporting manifest sha256:e134380994e4e8ae30525689c160b50557c8b54c89e7207130ee3a854814acab 0.0s done
+#16 exporting config sha256:192dfa4c9da5c5016bb798048dca9c978ed0046600248abdb00cb9602876a678 0.0s done
+#16 exporting attestation manifest sha256:e22f56af9fec2ebdde8a8c4c412de1bbeeba1cd28cf5f7b7fa2fc64886a2348a 0.0s done
+#16 exporting manifest list sha256:57b15b40609a4490ebafaba17725dd8c01efd4fe2e61f1d37bc1cda72c309db7 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 1.9s done
+#16 DONE 12.6s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.2s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d h5-web 2>&1 | tail -10
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Creating 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Created 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+
+
+--- 绛夊緟 h5-web 灏辩华 ---
+  [5s] h5-web: running
+  h5-web ready.
+
+--- smoke 娴嬭瘯 ---
+  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/openapi.json -> 200
+  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home -> 308
+  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ -> 200
+
+--- 瀹瑰櫒鍐呬唬鐮佹牎楠?---
+  [MISS] 鏍囬鏀瑰悕 | marker='閫夋嫨鍜ㄨ浜? -> (none)
+  [MISS] 銆岄€夋嫨銆嶆寜閽?| marker='consult-target-select-btn' -> (none)
+  [MISS] 銆屽凡閫夋嫨銆嶆爣绛?| marker='consult-target-selected-btn' -> (none)
+  [MISS] 鍔ㄦ€?placeholder | marker='闂瓟宸茬粨鍚? -> (none)
+  [MISS] 銆屾寜浣忚璇濄€嶆寜閽?| marker='ai-home-press-to-talk' -> (none)
+  [MISS] 楹﹀厠椋?閿洏 鍦嗗簳鎸夐挳 | marker='ai-home-input-icon-btn' -> (none)
+
+--- 杩滅鍓嶇婧愮爜 pytest锛堝熀浜庢湇鍔″櫒浠撳簱 h5-web/ 婧愭枃浠讹級 ---
+
+--- backend 瀹瑰櫒鍐?pytest 鎵ц ---
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python -m pytest tests/test_ai_home_optim_final_v2_20260519.py -v --tb=short --no-header 2>&1 | tail -100
+tr = Query("merchant", regex="^(merchant|store)$"),
+
+../usr/local/lib/python3.11/site-packages/pydantic/fields.py:795
+  /usr/local/lib/python3.11/site-packages/pydantic/fields.py:795: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warn('`min_items` is deprecated and will be removed, use `min_length` instead', DeprecationWarning)
+
+../usr/local/lib/python3.11/site-packages/pydantic/fields.py:801
+  /usr/local/lib/python3.11/site-packages/pydantic/fields.py:801: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warn('`max_items` is deprecated and will be removed, use `max_length` instead', DeprecationWarning)
+
+app/main.py:2044
+  /app/app/main.py:2044: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+  /usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+app/main.py:2051
+  /app/app/main.py:2051: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+app/main.py:2081
+  /app/app/main.py:2081: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+app/main.py:2100
+  /app/app/main.py:2100: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 12 skipped, 30 warnings in 0.06s =======================
+
+
+========== 閮ㄧ讲鎽樿 ==========
+鍩虹 URL: https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27
+smoke:
+  200  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/openapi.json
+  308  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home
+  200  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/
+pytest: (see above)
+==============================
+Done.

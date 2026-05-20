@@ -1,0 +1,118 @@
+=== Deploy 鏍囩浣撶郴閲嶆瀯 v1.0 to newbb.test.bangbangvip.com ===
+
+--- Step 1: upload files ---
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/models'
+[exit=0]
+  UPLOADED backend/app/models/models.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api'
+[exit=0]
+  UPLOADED backend/app/api/product_admin.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api'
+[exit=0]
+  UPLOADED backend/app/api/products.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api'
+[exit=0]
+  UPLOADED backend/app/api/tag_recommend.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/schemas'
+[exit=0]
+  UPLOADED backend/app/schemas/products.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/schemas'
+[exit=0]
+  UPLOADED backend/app/schemas/tag_recommend.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/services'
+[exit=0]
+  UPLOADED backend/app/services/prd_tag_recommend_v1_migration.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests'
+[exit=0]
+  UPLOADED backend/tests/test_tag_recommend_v1_20260520.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests'
+[exit=0]
+  UPLOADED backend/tests/test_tag_system_refactor_v1_20260520.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/(admin)/product-system/tags'
+[exit=0]
+  UPLOADED admin-web/src/app/(admin)/product-system/tags/page.tsx
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/(admin)/product-system/products'
+[exit=0]
+  UPLOADED admin-web/src/app/(admin)/product-system/products/page.tsx
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/lib/models'
+[exit=0]
+  UPLOADED flutter_app/lib/models/product.dart
+
+--- Step 2: restart backend ---
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker restart 6b099ed3-7175-4a78-91f4-44570c84ed27-backend
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend
+
+[exit=0]
+
+>>> docker logs --tail 60 6b099ed3-7175-4a78-91f4-44570c84ed27-backend 2>&1 | tail -60
+kipped': True}
+[migrate] questionnaire_drawer_v1: 鍚姩杩佺Щ...
+[migrate] questionnaire_drawer_v1: 鍚姩
+[migrate] questionnaire_drawer_v1: 瀹屾垚 stats={"columns_added": 0, "template_seeded": 1, "questions_created": 0, "questions_updated": 3, "buttons_upgraded": 0, "tcm_button_registered": 1, "reverse_score_marked": 0, "precard_backfilled": 0}
+[migrate] questionnaire_drawer_v1: 杩佺Щ瀹屾垚 stats={'columns_added': 0, 'template_seeded': 1, 'questions_created': 0, 'questions_updated': 3, 'buttons_upgraded': 0, 'tcm_button_registered': 1, 'reverse_score_marked': 0, 'precard_backfilled': 0}
+[migrate] tcm36_drawer_v12: 鍚姩杩佺Щ...
+[migrate] tcm36_drawer_v12: 鍚姩
+[migrate] tcm36_drawer_v12: 瀹屾垚 stats={"phase": "tcm36_drawer_v12", "columns_added": {"trigger_by_keyword": false, "trigger_by_intent": false, "trigger_keywords": false, "ai_reference_passive": false, "ai_reference_active": false}, "template_action": "updated", "questions_deleted": 36, "questions_inserted": 36, "classifications_inserted": 0, "classifications_existing": 9, "questions_before": 36, "template_id": 2, "trigger_keywords_backfilled": 1}
+[tcm36] template_id=2 question_count: before=36 after=36
+[tcm36] 36 questions OK
+[migrate] tcm36_drawer_v12: 杩佺Щ瀹屾垚 stats={'phase': 'tcm36_drawer_v12', 'columns_added': {'trigger_by_keyword': False, 'trigger_by_intent': False, 'trigger_keywords': False, 'ai_reference_passive': False, 'ai_reference_active': False}, 'template_action': 'updated', 'questions_deleted': 36, 'questions_inserted': 36, 'classifications_inserted': 0, 'classifications_existing': 9, 'questions_before': 36, 'template_id': 2, 'trigger_keywords_backfilled': 1}
+[migrate] prd_tag_recommend_v1: 鍚姩杩佺Щ...
+[migrate] prd_tag_recommend_v1: 杩佺Щ瀹屾垚 stats={'tags_created': 0, 'goods_tags_created': 0, 'recommend_cfg_created': 0, 'template_columns_added': 0, 'constitution_tags_seeded': 9, 'initial_tags_seeded': 27, 'tcm_set_triple': 1}
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+
+[exit=0]
+[backend] startup complete
+
+--- Step 3: check migration logs ---
+
+>>> docker logs 6b099ed3-7175-4a78-91f4-44570c84ed27-backend 2>&1 | grep -E 'prd_tag_recommend_v1|symptom_tags|tag_columns|constitution' | tail -50
+ts.images, products.video_url, products.description, products.symptom_tags, products.stock, products.points_exchangeable, products.points_price, products.points_deductible, products.redeem_count, products.appointment_mode, products.purchase_appointment_mode, products.custom_form_id, products.advance_days, products.daily_quota, products.time_slots, products.include_today, products.faq, products.recommend_weight, products.sales_count, products.status, products.sort_order, products.product_code_list, products.spec_mode, products.main_video_url, products.selling_point, products.description_rich, products.marketing_badges, products.max_concurrent_override, products.service_duration_minutes, products.booking_cutoff_minutes, products.allow_reschedule, products.created_at, products.updated_at 
+[SQL: SELECT products.id, products.name, products.category_id, products.fulfillment_type, products.original_price, products.sale_price, products.images, products.video_url, products.description, products.symptom_tags, products.stock, products.points_exchangeable, products.points_price, products.points_deductible, products.redeem_count, products.appointment_mode, products.purchase_appointment_mode, products.custom_form_id, products.advance_days, products.daily_quota, products.time_slots, products.include_today, products.faq, products.recommend_weight, products.sales_count, products.status, products.sort_order, products.product_code_list, products.spec_mode, products.main_video_url, products.selling_point, products.description_rich, products.marketing_badges, products.max_concurrent_override, products.service_duration_minutes, products.booking_cutoff_minutes, products.allow_reschedule, products.created_at, products.updated_at 
+[migrate] prd_tag_recommend_v1: 鍚姩杩佺Щ...
+[migrate] prd_tag_recommend_v1: 杩佺Щ瀹屾垚 stats={'tags_created': 0, 'goods_tags_created': 0, 'recommend_cfg_created': 0, 'template_columns_added': 0, 'constitution_tags_seeded': 9, 'initial_tags_seeded': 27, 'tcm_set_triple': 1}
+
+[exit=0]
+
+--- Step 4: rebuild & restart admin-web ---
+
+>>> docker inspect -f '{{.Config.Cmd}}' 6b099ed3-7175-4a78-91f4-44570c84ed27-admin 2>&1 | head -3
+[node server.js]
+
+[exit=0]
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && (docker compose build admin 2>&1 || docker-compose build admin 2>&1) | tail -40 && (docker compose up -d admin 2>&1 || docker-compose up -d admi
+time="2026-05-20T15:01:23+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+no such service: admin
+bash: line 1: docker-compose: command not found
+time="2026-05-20T15:01:23+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+no such service: admin
+bash: line 1: docker-compose: command not found
+
+[exit=0]
+
+--- Step 5: health check ---
+
+>>> curl -s -o /dev/null -w 'backend:%{http_code}\n' http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/products?page=1\&page_size=1
+backend:301
+
+[exit=0]
+
+>>> curl -s -o /dev/null -w 'admin:%{http_code}\n' http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/
+admin:301
+
+[exit=0]
+=== Deploy done ===

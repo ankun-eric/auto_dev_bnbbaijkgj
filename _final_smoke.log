@@ -1,0 +1,30 @@
+=========== AI 椤甸潰浼樺寲 v1 - 鏈€缁堥獙鏀?===========
+  鉁?[200] (鏈熸湜200) Bug1+Bug2 / H5 鍋ュ悍妗ｆ鏂伴〉闈?
+  鉁?[404] (鏈熸湜404) Bug2 / H5 鏃?/health-archive 鏈熸湜 404
+  鉁?[200] (鏈熸湜200) E / Admin 绉嶅瓙鏁版嵁瀵煎叆椤甸潰
+  鉁?[200] (鏈熸湜200) D / Admin 閫氱敤闂嵎妯℃澘椤?
+  鉁?[200] (鏈熸湜200) D / Admin 鍋ュ悍鑷煡涓撳睘閰嶇疆椤?
+  鉁?[401] (鏈熸湜401) E / API 绉嶅瓙鍖呭垪琛?(鏃?token=401)
+  鉁?[200] (鏈熸湜200) 鍩虹 / H5 棣栭〉
+  鉁?[200] (鏈熸湜200) 鍩虹 / Admin 棣栭〉
+  鉁?[200] (鏈熸湜200) 鍩虹 / openapi.json
+
+閫氳繃: 9/9
+
+绉嶅瓙鍖?API 璺緞宸叉敞鍐? ['/api/admin/seed-packs', '/api/admin/seed-packs/{code}', '/api/admin/seed-packs/{code}/install', '/api/admin/seed-packs/{code}/uninstall']
+
+--- backend 杩佺Щ skip 鏃ュ織锛堥獙璇?Bug3 鍏抽棴鑷姩鎻掑叆锛?--
+[migrate] questionnaire_drawer_v1: 瀹屾垚 stats={"columns_added": 0, "template_seeded": 0, "questions_created": 0, "questions_updated": 0, "buttons_upgraded": 0, "tcm_button_registered": 0, "reverse_score_marked": 0, "precard_backfilled": 0, "health_self_check_seed_skipped": "by_seed_pack_admin_page", "tcm_button_seed_skipped": "by_seed_pack_admin_page"}
+[migrate] questionnaire_drawer_v1: 杩佺Щ瀹屾垚 stats={'columns_added': 0, 'template_seeded': 0, 'questions_created': 0, 'questions_updated': 0, 'buttons_upgraded': 0, 'tcm_button_registered': 0, 'reverse_score_marked': 0, 'precard_backfilled': 0, 'health_self_check_seed_skipped': 'by_seed_pack_admin_page', 'tcm_button_seed_skipped': 'by_seed_pack_admin_page'}
+[migrate] tcm36_drawer_v12: 瀹屾垚 stats={"phase": "tcm36_drawer_v12", "columns_added": {"trigger_by_keyword": false, "trigger_by_intent": false, "trigger_keywords": false, "ai_reference_passive": false, "ai_reference_active": false}, "seed_skipped": "by_seed_pack_admin_page", "trigger_keywords_backfilled": 0}
+[migrate] tcm36_drawer_v12: 杩佺Щ瀹屾垚 stats={'phase': 'tcm36_drawer_v12', 'columns_added': {'trigger_by_keyword': False, 'trigger_by_intent': False, 'trigger_keywords': False, 'ai_reference_passive': False, 'ai_reference_active': False}, 'seed_skipped': 'by_seed_pack_admin_page', 'trigger_keywords_backfilled': 0}
+[migrate] prd_tag_recommend_v1: 杩佺Щ瀹屾垚 stats={'tags_created': 0, 'goods_tags_created': 0, 'recommend_cfg_created': 0, 'template_columns_added': 0, 'tag_columns_added': 0, 'constitution_tags_seeded': 0, 'constitution_tags_skipped': 'by_seed_pack_admin_page', 'constitution_tags_unlocked': 9, 'legacy_service_to_contraindication': 0, 'legacy_other_deactivated': 9, 'tcm_set_triple': 1, 'symptom_tags_migrated': 0, 'symptom_tags_column_missing': 1, 'symptom_tags_column_dropped': 0}
+[migrate] qn_content_v1: 瀹屾垚 stats={"phase": "qn_content_v1", "columns_added": {"followup_chips_json": false, "cta_list_json": false}, "phq9": {"skipped": "by_seed_pack_admin_page"}, "gad7": {"skipped": "by_seed_pack_admin_page"}, "psqi": {"skipped": "by_seed_pack_admin_page"}, "tcm_chips_cta": {"skipped": "by_seed_pack_admin_page"}, "hsc_v2": {"skipped": "by_seed_pack_admin_page"}}
+[migrate] qn_content_v1: 杩佺Щ瀹屾垚 stats={'phase': 'qn_content_v1', 'columns_added': {'followup_chips_json': False, 'cta_list_json': False}, 'phq9': {'skipped': 'by_seed_pack_admin_page'}, 'gad7': {'skipped': 'by_seed_pack_admin_page'}, 'psqi': {'skipped': 'by_seed_pack_admin_page'}, 'tcm_chips_cta': {'skipped': 'by_seed_pack_admin_page'}, 'hsc_v2': {'skipped': 'by_seed_pack_admin_page'}}
+
+--- 鍧?C 楠岃瘉: 瀛ゅ効妯℃澘娓呯悊 ---
+File "/usr/local/lib/python3.11/site-packages/aiomysql/connection.py", line 339, in close
+  File "/usr/local/lib/python3.11/asyncio/selector_events.py", line 864, in close
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 762, in call_soon
+  File "/usr/local/lib/python3.11/asyncio/base_events.py", line 520, in _check_closed
+RuntimeError: Event loop is closed

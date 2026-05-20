@@ -1,0 +1,208 @@
+=== Deploy TCM-CARD-MSG-PROTOCOL-V1 to newbb.test.bangbangvip.com ===
+
+--- Step 1: upload backend files ---
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api'
+[exit=0]
+  UPLOADED backend/app/api/questionnaire.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api'
+[exit=0]
+  UPLOADED backend/app/api/tcm.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/schemas'
+[exit=0]
+  UPLOADED backend/app/schemas/tcm.py
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests'
+[exit=0]
+  UPLOADED backend/tests/test_tcm_card_msg_protocol_v1_20260520.py
+
+--- Step 2: upload h5-web files ---
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home'
+[exit=0]
+  UPLOADED h5-web/src/app/(ai-chat)/ai-home/page.tsx
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/components/ai-chat'
+[exit=0]
+  UPLOADED h5-web/src/components/ai-chat/UniversalQuestionnaireResultCard.tsx
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/components/ai-chat'
+[exit=0]
+  UPLOADED h5-web/src/components/ai-chat/FollowupChipsRow.tsx
+
+--- Step 3: upload miniprogram files ---
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/pages/chat'
+[exit=0]
+  UPLOADED miniprogram/pages/chat/index.json
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/pages/chat'
+[exit=0]
+  UPLOADED miniprogram/pages/chat/index.wxml
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/pages/chat'
+[exit=0]
+  UPLOADED miniprogram/pages/chat/index.js
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/pages/tcm'
+[exit=0]
+  UPLOADED miniprogram/pages/tcm/index.js
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/components/questionnaire-result-card'
+[exit=0]
+  UPLOADED miniprogram/components/questionnaire-result-card/index.json
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/components/questionnaire-result-card'
+[exit=0]
+  UPLOADED miniprogram/components/questionnaire-result-card/index.js
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/components/questionnaire-result-card'
+[exit=0]
+  UPLOADED miniprogram/components/questionnaire-result-card/index.wxml
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/components/questionnaire-result-card'
+[exit=0]
+  UPLOADED miniprogram/components/questionnaire-result-card/index.wxss
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/components/followup-chips-row'
+[exit=0]
+  UPLOADED miniprogram/components/followup-chips-row/index.json
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/components/followup-chips-row'
+[exit=0]
+  UPLOADED miniprogram/components/followup-chips-row/index.js
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/components/followup-chips-row'
+[exit=0]
+  UPLOADED miniprogram/components/followup-chips-row/index.wxml
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/components/followup-chips-row'
+[exit=0]
+  UPLOADED miniprogram/components/followup-chips-row/index.wxss
+
+--- Step 4: upload flutter_app files (for source-of-truth, no build here) ---
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/lib/models'
+[exit=0]
+  UPLOADED flutter_app/lib/models/chat_message.dart
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/lib/widgets/ai_chat'
+[exit=0]
+  UPLOADED flutter_app/lib/widgets/ai_chat/questionnaire_result_card.dart
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/lib/widgets/ai_chat'
+[exit=0]
+  UPLOADED flutter_app/lib/widgets/ai_chat/followup_chips_row.dart
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/lib/screens/ai'
+[exit=0]
+  UPLOADED flutter_app/lib/screens/ai/chat_screen.dart
+
+>>> mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/lib/screens/health'
+[exit=0]
+  UPLOADED flutter_app/lib/screens/health/tcm_screen.dart
+
+--- Step 5: rebuild backend image (source mounted via image build) ---
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build backend 2>&1 | tail -30 && docker compose up -d backend 2>&1 | tail -10
+pyOpenSSL-25.1.0 pyasn1-0.6.3 pycparser-3.0 pycryptodomex-3.23.0 pydantic-2.9.0 pydantic-core-2.23.2 pydantic-settings-2.5.0 pymysql-1.1.1 python-alipay-sdk-3.3.0 python-dotenv-1.0.1 python-jose-3.3.0 python-multipart-0.0.9 pytz-2026.2 pyyaml-6.0.3 requests-2.34.2 rsa-4.9.1 six-1.17.0 sniffio-1.3.1 sqlalchemy-2.0.35 starlette-0.38.6 tencentcloud-sdk-python-3.0.1200 typing-extensions-4.15.0 tzdata-2026.2 tzlocal-5.3.1 urllib3-2.7.0 uvicorn-0.30.0 uvloop-0.22.1 watchfiles-1.2.0 websockets-12.0
+#9 36.28 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+#9 36.37 
+#9 36.37 [notice] A new release of pip is available: 24.0 -> 26.1.1
+#9 36.37 [notice] To update, run: pip install --upgrade pip
+#9 DONE 37.4s
+
+#10 [5/6] COPY . .
+#10 DONE 0.3s
+
+#11 [6/6] RUN mkdir -p uploads
+#11 DONE 0.2s
+
+#12 exporting to image
+#12 exporting layers
+#12 exporting layers 10.1s done
+#12 exporting manifest sha256:41350ad55036c9aca7afa7f7571ef294df77f4431a9bcc3a0acba2eab41d15d7 0.0s done
+#12 exporting config sha256:8e0d357cb9fc711d61f8940d6cc20e1c3978b8ed899fa00977f2225c8cabf043 done
+#12 exporting attestation manifest sha256:989fd2b9137dc83eadcc5b7701f704e935aceb4da17dcf5ab427ba31c2513ed8 0.0s done
+#12 exporting manifest list sha256:a591df0a747e284d650d3c92609f77f9971632acb211b79b662e4f12e61e2a2d 0.0s done
+#12 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest done
+#12 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest
+#12 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest 2.8s done
+#12 DONE 13.1s
+
+#13 resolving provenance for metadata file
+#13 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Built 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+
+[exit=0]
+
+--- Step 6: wait backend healthy ---
+
+>>> docker logs --tail 60 6b099ed3-7175-4a78-91f4-44570c84ed27-backend 2>&1 | tail -60
+illed': 0, 'questionnaire_mapped': 0, 'image_capture_mapped': 0, 'templates_seeded': 2}
+[migrate] prd_legacy_home_cleanup_v11: 鍚姩杩佺Щ...
+[migrate] prd_legacy_home_cleanup_v11: 杩佺Щ瀹屾垚 stats={'page_style_deleted': 0, 'home_config_kv_deleted': 0, 'banner_link_url_migrated': 0, 'banner_hidden_for_legacy_path': 0, 'audit_rows_inserted': 0, 'skipped': True}
+[migrate] questionnaire_drawer_v1: 鍚姩杩佺Щ...
+[migrate] questionnaire_drawer_v1: 鍚姩
+[migrate] questionnaire_drawer_v1: 瀹屾垚 stats={"columns_added": 0, "template_seeded": 1, "questions_created": 0, "questions_updated": 3, "buttons_upgraded": 0, "tcm_button_registered": 0, "reverse_score_marked": 0, "precard_backfilled": 0}
+[migrate] questionnaire_drawer_v1: 杩佺Щ瀹屾垚 stats={'columns_added': 0, 'template_seeded': 1, 'questions_created': 0, 'questions_updated': 3, 'buttons_upgraded': 0, 'tcm_button_registered': 0, 'reverse_score_marked': 0, 'precard_backfilled': 0}
+[migrate] tcm36_drawer_v12: 鍚姩杩佺Щ...
+[migrate] tcm36_drawer_v12: 鍚姩
+[migrate] tcm36_drawer_v12: 瀹屾垚 stats={"phase": "tcm36_drawer_v12", "columns_added": {"trigger_by_keyword": false, "trigger_by_intent": false, "trigger_keywords": false, "ai_reference_passive": false, "ai_reference_active": false}, "template_action": "updated", "questions_deleted": 36, "questions_inserted": 36, "classifications_inserted": 0, "classifications_existing": 9, "questions_before": 36, "template_id": 2, "trigger_keywords_backfilled": 0}
+[tcm36] template_id=2 question_count: before=36 after=36
+[tcm36] 36 questions OK
+[migrate] tcm36_drawer_v12: 杩佺Щ瀹屾垚 stats={'phase': 'tcm36_drawer_v12', 'columns_added': {'trigger_by_keyword': False, 'trigger_by_intent': False, 'trigger_keywords': False, 'ai_reference_passive': False, 'ai_reference_active': False}, 'template_action': 'updated', 'questions_deleted': 36, 'questions_inserted': 36, 'classifications_inserted': 0, 'classifications_existing': 9, 'questions_before': 36, 'template_id': 2, 'trigger_keywords_backfilled': 0}
+[migrate] prd_tag_recommend_v1: 鍚姩杩佺Щ...
+[migrate] prd_tag_recommend_v1: 杩佺Щ瀹屾垚 stats={'tags_created': 0, 'goods_tags_created': 0, 'recommend_cfg_created': 0, 'template_columns_added': 0, 'tag_columns_added': 0, 'constitution_tags_seeded': 9, 'legacy_service_to_contraindication': 0, 'legacy_other_deactivated': 9, 'tcm_set_triple': 1, 'symptom_tags_migrated': 0, 'symptom_tags_column_missing': 1, 'symptom_tags_column_dropped': 0}
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+
+[exit=0]
+[backend] startup complete
+
+--- Step 7: rebuild & restart h5 (service name = h5) ---
+
+>>> cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build h5 2>&1 | tail -30 && docker compose up -d h5 2>&1 | tail -10
+time="2026-05-20T17:19:26+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+no such service: h5
+time="2026-05-20T17:19:26+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+no such service: h5
+
+[exit=0]
+
+--- Step 8: health check ---
+
+>>> curl -s -o /dev/null -w 'backend_templates:%{http_code}\n' 'http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/questionnaire/templates'
+backend_templates:301
+
+[exit=0]
+
+>>> curl -s -o /dev/null -w 'h5_root:%{http_code}\n' 'http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/'
+h5_root:301
+
+[exit=0]
+
+--- Step 9: ensure pytest file is inside backend container ---
+
+>>> docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_tcm_card_msg_protocol_v1_20260520.py 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/tests/test_tcm_card_msg_protocol_v
+[exit=0]
+
+--- Step 10: run pytest on server ---
+
+>>> docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend bash -lc 'cd /app && python -m pytest tests/test_tcm_card_msg_protocol_v1_20260520.py tests/test_tcm36_drawer_v12_20260520.py -v --tb=short -p 
+/usr/local/bin/python: No module named pytest
+
+[exit=0]
+=== Deploy done ===

@@ -118,22 +118,27 @@ async def _add_tag_columns(db: AsyncSession) -> dict[str, int]:
 
 
 async def _seed_constitution_tags(db: AsyncSession) -> dict[str, int]:
-    """把 9 种体质作为 constitution 类标签写入（幂等），并锁定 is_locked=1"""
-    created = 0
-    for idx, name in enumerate(CONSTITUTION_TAGS):
-        try:
-            await db.execute(
-                text(
-                    "INSERT INTO tags (name, category, status, goods_count, is_locked, sort_order, created_at, updated_at) "
-                    "VALUES (:n, 'constitution', 1, 0, 1, :so, NOW(), NOW()) "
-                    "ON DUPLICATE KEY UPDATE is_locked=1, status=COALESCE(status,1), sort_order=:so"
-                ),
-                {"n": name, "so": idx + 1},
+    """[PRD-AI-PAGE-OPTIM-V1 2026-05-21] 关闭 9 体质标签的自动插入。
+
+    - 改由「管理后台 → 系统设置 → 种子数据导入」按需触发
+    - 同时解锁现有 9 体质标签（is_locked: 1 → 0），允许运营管理
+    """
+    unlocked = 0
+    try:
+        r = await db.execute(
+            text(
+                "UPDATE tags SET is_locked = 0 "
+                "WHERE category = 'constitution' AND is_locked = 1"
             )
-            created += 1
-        except Exception:
-            pass
-    return {"constitution_tags_seeded": created}
+        )
+        unlocked = r.rowcount or 0
+    except Exception:
+        pass
+    return {
+        "constitution_tags_seeded": 0,
+        "constitution_tags_skipped": "by_seed_pack_admin_page",
+        "constitution_tags_unlocked": int(unlocked or 0),
+    }
 
 
 async def _migrate_legacy_tag_categories(db: AsyncSession) -> dict[str, int]:

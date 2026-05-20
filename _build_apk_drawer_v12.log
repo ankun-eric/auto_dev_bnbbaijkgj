@@ -1,0 +1,36 @@
+[01:17:28] === Android APK drawer-v1.2 pipeline start ===
+[01:17:28] tag = android-v20260520-011728-b076
+[01:17:28] trigger android-build.yml version=android-v20260520-011728-b076
+[01:17:38] waiting for new run ...
+[01:17:39]   new run: id=26113332073 created=2026-05-19T17:17:30Z
+[01:17:40]   run 26113332073 status=in_progress conclusion=
+[01:26:51]   run 26113332073 status=completed conclusion=success
+[01:26:51] build OK run=26113332073
+[01:26:58] local: app_20260520_011728_b076.apk size=85173719
+[01:26:58] SFTP upload -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/app_20260520_011728_b076.apk
+[01:28:56] HTTPS verify HEAD: https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/app_20260520_011728_b076.apk
+[01:28:56]   try1 err: HTTP Error 404: Not Found
+[01:29:03]   try2 err: HTTP Error 404: Not Found
+[01:29:09]   try3 err: HTTP Error 404: Not Found
+[01:29:16]   try4 err: HTTP Error 404: Not Found
+[01:29:22]   try5 err: HTTP Error 404: Not Found
+[01:29:29]   try6 err: HTTP Error 404: Not Found
+[01:29:35]   try7 err: HTTP Error 404: Not Found
+[01:29:42]   try8 err: HTTP Error 404: Not Found
+[01:29:48] FATAL: HEAD failed (code= err=HTTP Error 404: Not Found)
+Traceback (most recent call last):
+  File "C:\auto_output\bnbbaijkgj\_build_apk_drawer_v12.py", line 269, in main
+    url, size, http_code = upload_and_verify(renamed, new_name)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\auto_output\bnbbaijkgj\_build_apk_drawer_v12.py", line 230, in upload_and_verify
+    raise RuntimeError(
+RuntimeError: HEAD failed (code= err=HTTP Error 404: Not Found)
+
+================ RESULT ================
+{
+  "success": false,
+  "reason": "exception",
+  "error": "HEAD failed (code= err=HTTP Error 404: Not Found)",
+  "tag": "android-v20260520-011728-b076",
+  "release_page": "https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/android-v20260520-011728-b076"
+}

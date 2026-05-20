@@ -1,0 +1,9 @@
+[admin] cache cleanup: ok
+[admin] restart: 6b099ed3-7175-4a78-91f4-44570c84ed27-admin
+[h5] cache cleanup: ok
+[h5] restart: 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+绛夊緟 25 绉掕 next dev 鍚姩...
+  /health-profile (鏂?: 200
+  /health-archive (鏃?鏈熸湜404): 500
+  /admin/system/seed-import: 404
+  /admin/questionnaire-templates: 200

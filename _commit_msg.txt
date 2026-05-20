@@ -1,0 +1,18 @@
+fix(questionnaire): autonext v1 配置 + 体质测评生成失败兜底
+
+BUG-1（P2 体验）：把功能按钮的 questionnaire_display_form 三选一拆为
+presentation_container + questions_per_page + auto_next_enabled 三件套；
+后端 Schema/API 校验 + 数据迁移 + render-meta 暴露；
+admin-web 编辑表单新增「呈现配置」分组并实现联动校验；
+H5 QuestionnaireDrawer 单选自动跳题、多选保留下一步、最后一题不自动提交。
+
+BUG-2（P0 生成失败）：tcm.py 用 asyncio.wait_for 给 AI 调用加 45s 兜底，
+超时回退本地公式 + 友好文案；h5-web/tcm 提交侧 60s 超时弹「重试/返回」
+Modal，杜绝结果页死转圈。
+
+测试：新增 backend/tests/test_questionnaire_autonext_v1_20260520.py
+覆盖 ORM、Admin API、校验规则、render-meta、迁移幂等。
+
+部署验证：远程 /api/questionnaire/buttons/13/render-meta 返回
+{presentation_container:DRAWER, questions_per_page:1, auto_next_enabled:true}；
+TCM 王琦 36 题按钮迁移后默认开启自动下一步。

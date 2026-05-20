@@ -227,6 +227,8 @@ const menuItems: MenuItem[] = [
       { key: '/audit/center', label: '审核中心' },
       // [2026-05-05 SDK 健康看板] 环境健康检查（运维侧 SDK 红绿灯）
       { key: '/system/sdk-health', label: '环境健康检查' },
+      // [PRD-AI-PAGE-OPTIM-V1 2026-05-21] 种子数据导入：6 个问卷/标签种子包按需导入
+      { key: '/system/seed-import', label: '种子数据导入' },
     ],
   },
 ];
@@ -274,7 +276,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/home-settings') || pathname.startsWith('/home-banners') || pathname.startsWith('/notices') || pathname.startsWith('/bottom-nav') || pathname.startsWith('/home-settings/ai-home-config') || pathname.startsWith('/function-buttons')) return ['home-config'];
   if (pathname.startsWith('/search')) return ['search-manage'];
   if (pathname.startsWith('/system-messages') || pathname.startsWith('/alert-templates') || pathname.startsWith('/abnormal-thresholds') || pathname.startsWith('/alert-logs')) return ['messages'];
-  if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config') || pathname.startsWith('/map-config')) return ['system'];
+  if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config') || pathname.startsWith('/map-config') || pathname.startsWith('/system/')) return ['system'];
   if (pathname.startsWith('/health-plan')) return ['health-plan'];
   if (pathname.startsWith('/health-records') || pathname.startsWith('/relation-types') || pathname.startsWith('/disease-presets') || pathname.startsWith('/family-management')) return ['health'];
   if (pathname.startsWith('/product-system')) return ['product-system'];

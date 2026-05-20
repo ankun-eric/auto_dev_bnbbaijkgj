@@ -27,7 +27,61 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-QUESTIONNAIRE-AUTONEXT-V1 · 体质测评自动下一步 + 生成失败修复 (2026-05-20 22:10)
+## Latest Update: PRD-AI-PAGE-OPTIM-V1 · AI 页面优化 + 种子数据导入 (2026-05-21 01:30)
+
+**任务类型**：Bug 修复 + 配套新功能（"种子数据导入"管理后台）；变更范围：H5 + admin-web + backend
+
+**核心交付**：
+
+1. **H5 端两处健康档案入口归一**（块 A）：
+   - `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：ai-home 左下角「健康档案」卡片跳转改为 `/health-profile`
+   - `h5-web/src/components/ai-chat/Sidebar.tsx`：左上角三横菜单「健康档案」改为 `/health-profile`
+   - `h5-web/src/app/chat/[sessionId]/page.tsx`、`h5-web/src/components/ai-chat/ProfileCard.tsx`：所有指向 `/health-archive` 的入口统一改为 `/health-profile`
+   - **物理删除** `h5-web/src/app/(ai-chat)/health-archive/page.tsx`（旧版健康档案页），访问返回 404
+
+2. **关闭 4 个迁移脚本的自动种子插入**（块 B）：
+   - `prd_tcm36_drawer_v12_migration.py`：跳过 `_seed_tcm36_template_and_questions`，保留 DDL（5 个新字段）
+   - `prd_questionnaire_drawer_v1_migration.py`：跳过 TCM 按钮注册和空壳模板插入；健康自查模板只升级不创建
+   - `prd_qn_content_v1_migration.py`：跳过 PHQ-9 / GAD-7 / PSQI / hsc_v2 / tcm_chips_cta 全部种子插入，保留 DDL（`followup_chips_json`、`cta_list_json` 字段）
+   - `prd_tag_recommend_v1_migration.py`：跳过 9 体质标签 INSERT；改为对存量体质标签做 `is_locked=1→0` 解锁
+   - 启动日志显示 `*_seed_skipped: by_seed_pack_admin_page` 标识
+
+3. **孤儿模板清理脚本**（块 C）：`backend/scripts/cleanup_tcm_orphan_template.py`
+   - 找出 `tcm_constitution_wangqi_36` 空壳 + `tcm_constitution` 目标
+   - `chat_function_buttons.questionnaire_template_id` 重定向到目标，无目标则置 NULL
+   - 删除孤儿模板关联的 questions / classifications / recommend_configs
+   - 物理删除孤儿模板，事务包裹，输出清理报告
+
+4. **健康自查双入口合并**（块 D）：`admin-web/src/app/(admin)/questionnaire-templates/page.tsx`
+   - `code='health_self_check'` 行的「编辑」「题目/分型」按钮替换为「👉 前往健康自查专属配置页」单按钮，跳转 `/admin/health-check-templates`
+   - 删除按钮保留（统一在通用列表删）
+
+5. **种子数据导入管理后台**（块 E，新功能）：
+   - 后端：
+     - `backend/app/services/seed_packs/__init__.py` + `registry.py`：6 个 SeedPackDefinition（tcm_constitution / phq9 / gad7 / psqi / health_self_check / constitution_tags），每个定义 detect/install/uninstall（复用原迁移脚本里的种子函数）
+     - `backend/app/api/seed_import.py`：4 个 API
+       - `GET /api/admin/seed-packs` 列表 + 状态
+       - `GET /api/admin/seed-packs/{code}` 详情
+       - `POST /api/admin/seed-packs/{code}/install?strategy=skip|overwrite`
+       - `POST /api/admin/seed-packs/{code}/uninstall`
+     - 权限：`require_role("admin","super_admin")`，路由已注册到 `backend/app/main.py`
+   - 前端：
+     - `admin-web/src/app/(admin)/system/seed-import/page.tsx`：列表 / 状态徽章 / 详情 Drawer / 安装-卸载确认弹窗 / 冲突时三选（覆盖/跳过/取消）
+     - `admin-web/src/app/(admin)/layout.tsx`：新增菜单【系统管理 → 种子数据导入】 key=`/system/seed-import`
+
+6. **测试**：
+   - 新增 `backend/tests/test_ai_page_optim_v1_20260521.py`（10 case，本地 10/10 PASS）
+   - 远程烟测 9/9 PASS（含 `/health-profile`=200、`/health-archive`=404、admin seed-import 页=200、`/api/admin/seed-packs` 无 token=401）
+
+7. **部署**：
+   - 远程服务器（`/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`）通过 `docker compose build && up -d` 重建 backend + admin-web + h5-web 三个镜像
+   - 部署脚本：`_deploy_ai_page_optim_v1.py` + `_rebuild_compose.py` + `_rebuild_backend2.py`
+
+**用户手册**：`user_docs/AI页面优化与种子数据导入.md`
+
+---
+
+## Previous Update: PRD-QUESTIONNAIRE-AUTONEXT-V1 · 体质测评自动下一步 + 生成失败修复 (2026-05-20 22:10)
 
 **任务类型**：Bug 修复（BUG-1 P2 体验 + BUG-2 P0 阻断）；变更范围：后端 + admin-web + h5-web（小程序 / flutter_app 暂未触动，下版本同步）
 

@@ -1,0 +1,149 @@
+host file: total 24
+drwxrwxr-x 2 ubuntu ubuntu  4096 May 21 01:04 .
+drwxrwxr-x 4 ubuntu ubuntu  4096 May 21 01:02 ..
+-rw-rw-r-- 1 ubuntu ubuntu 12815 May 21 00:58 page.tsx
+
+h5 old dir (鏈熸湜涓嶅瓨鍦?: total 24
+drwxrwxr-x 2 ubuntu ubuntu  4096 May 17 14:40 .
+drwxrwxr-x 8 ubuntu ubuntu  4096 May 17 01:08 ..
+-rw-rw-r-- 1 ubuntu ubuntu 14812 May 17 14:40 page.tsx
+
+=== rebuild admin-web ===
+#12 113.9 鈹?鈼?/share-config                            4.21 kB         371 kB
+#12 113.9 鈹?鈼?/sms                                     25.1 kB         423 kB
+#12 113.9 鈹?鈼?/system-messages                         11.4 kB         433 kB
+#12 113.9 鈹?鈼?/system-messages/send                    4.92 kB         314 kB
+#12 113.9 鈹?鈼?/system/sdk-health                       17 kB           285 kB
+#12 113.9 鈹?鈼?/system/seed-import                      15.2 kB         408 kB
+#12 113.9 鈹?鈼?/tcm-config                              4.05 kB         284 kB
+#12 113.9 鈹?鈼?/theme-config                            7.6 kB          403 kB
+#12 113.9 鈹?鈼?/tts-config                              5.07 kB         334 kB
+#12 113.9 鈹?鈼?/users                                   15.3 kB         404 kB
+#12 113.9 鈹?鈼?/voice-service                           3.46 kB         345 kB
+#12 113.9 鈹?鈼?/wechat-push                             4.92 kB         291 kB
+#12 113.9 + First Load JS shared by all                87.7 kB
+#12 113.9   鈹?chunks/2117-1ca38137e0e3b541.js          31.9 kB
+#12 113.9   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js      53.6 kB
+#12 113.9   鈹?other shared chunks (total)              2.13 kB
+#12 113.9 
+#12 113.9 
+#12 113.9 鈼? (Static)   prerendered as static content
+#12 113.9 茠  (Dynamic)  server-rendered on demand
+#12 113.9 
+#12 DONE 114.0s
+
+#8 [builder 2/7] WORKDIR /app
+#8 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.1s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 6.5s done
+#16 exporting manifest sha256:7de4b692d41bb0c9d6b6920e906db5a9a8800aa91347148bb9e0f6fd363d7742 0.0s done
+#16 exporting config sha256:0229ba5292de7b78e8470bb89800752ec1a8f993558346e831d841af804ab062 0.0s done
+#16 exporting attestation manifest sha256:7d7d363f33b85d18b4926c56f7121a1614f5d72b54493368b3197637198926a6 0.0s done
+#16 exporting manifest list sha256:f797110d6b01a989b4d41c335a783189e1f6e0527127faf35e739cac426e61c1 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.5s done
+#16 DONE 7.1s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.6s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built 
+[exit] 0
+
+=== 鍒犻櫎 h5 鏃?health-archive 鐩綍 (host) ===
+deleted_ok
+
+
+=== rebuild h5-web ===
+#12 92.73 鈹?鈼?/settings                                  6.06 kB         238 kB
+#12 92.73 鈹?茠 /shared/chat/[token]                       2.51 kB         235 kB
+#12 92.73 鈹?茠 /shared/drug/[token]                       2.52 kB         235 kB
+#12 92.73 鈹?茠 /shared/report/[token]                     2.72 kB         235 kB
+#12 92.73 鈹?鈼?/symptom                                   9.96 kB         247 kB
+#12 92.73 鈹?鈼?/tcm                                       12.7 kB         245 kB
+#12 92.73 鈹?鈼?/tcm/archive                               510 B           210 kB
+#12 92.73 鈹?茠 /tcm/diagnosis/[id]                        549 B           210 kB
+#12 92.73 鈹?鈼?/tcm/loading                               958 B           211 kB
+#12 92.73 鈹?茠 /tcm/result/[id]                           9.37 kB         241 kB
+#12 92.73 鈹?茠 /unified-order/[id]                        9.95 kB         248 kB
+#12 92.73 鈹?鈼?/unified-orders                            4.05 kB         242 kB
+#12 92.73 + First Load JS shared by all                  87.6 kB
+#12 92.73   鈹?chunks/2117-3615d1923728c5e4.js            31.9 kB
+#12 92.73   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js        53.6 kB
+#12 92.73   鈹?other shared chunks (total)                2.1 kB
+#12 92.73 
+#12 92.73 
+#12 92.73 鈼? (Static)   prerendered as static content
+#12 92.73 茠  (Dynamic)  server-rendered on demand
+#12 92.73 
+#12 DONE 92.9s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.5s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.2s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.4s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 10.6s done
+#16 exporting manifest sha256:b011b6ccf62cd8a45369317924184af539f5dd640a6c1fb3cdbdb42b9333355f 0.0s done
+#16 exporting config sha256:c4ec9af74bab43e145b64231207d2e88ac416dee88383b5c8e491e746c3a416e 0.0s done
+#16 exporting attestation manifest sha256:065bf04e0b2d62268e44e229e48abf4de029e75db4433091c6271be06f52d40c 0.0s done
+#16 exporting manifest list sha256:21c31b205ac7649a94f837311a7a828289a1e22ed53463b011452bafae63f7f6 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 2.0s done
+#16 DONE 12.8s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.4s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+[exit] 0
+
+=== up -d admin-web h5-web ===
+time="2026-05-21T01:21:08+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+[exit] 0
+绛夊緟 15 绉?...
+
+=== HTTP smoke ===
+  /health-profile: 200
+  /health-archive (鏈熸湜404): 404
+  /admin/system/seed-import: 200
+  /admin/questionnaire-templates: 200
+  /api/admin/seed-packs (no auth): 404

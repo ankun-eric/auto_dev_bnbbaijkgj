@@ -1,0 +1,278 @@
+Local base: C:\auto_output\bnbbaijkgj
+Connecting to ubuntu@newbb.test.bangbangvip.com:22...
+Connected.
+  upload: h5-web/src/components/ai-chat/FunctionCardV2.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/components/ai-chat/FunctionCardV2.tsx
+  upload: h5-web/src/components/ai-chat/ChatCards.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/components/ai-chat/ChatCards.tsx
+  upload: h5-web/src/components/ai-chat/QuestionnairePreCard.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/components/ai-chat/QuestionnairePreCard.tsx
+  upload: h5-web/src/app/(ai-chat)/ai-home/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/page.tsx
+  upload: admin-web/src/components/FunctionCardV2Preview.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/components/FunctionCardV2Preview.tsx
+  upload: admin-web/src/app/(admin)/function-buttons/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/(admin)/function-buttons/page.tsx
+  upload: backend/tests/test_funccard_v2_20260520.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_funccard_v2_20260520.py
+compose files: /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.prod.yml
+/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml
+
+--- rebuild h5-web ---
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml stop h5-web 2>&1 | tail -3
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Stopping 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Stopped 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml rm -f h5-web 2>&1 | tail -3
+Going to remove 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Removing 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Removed 
+
+Building h5-web (5-10 min)...
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build h5-web 2>&1 | tail -120
+                      2.15 kB         234 kB
+#12 91.44 鈹?鈼?/sandbox-pay                               2.15 kB         234 kB
+#12 91.44 鈹?鈼?/scan                                      109 kB          319 kB
+#12 91.44 鈹?鈼?/search                                    6.37 kB         238 kB
+#12 91.44 鈹?鈼?/search/result                             7.33 kB         239 kB
+#12 91.44 鈹?鈼?/services                                  5.5 kB          238 kB
+#12 91.44 鈹?鈼?/settings                                  6.06 kB         238 kB
+#12 91.44 鈹?茠 /shared/chat/[token]                       2.51 kB         235 kB
+#12 91.44 鈹?茠 /shared/drug/[token]                       2.52 kB         235 kB
+#12 91.44 鈹?茠 /shared/report/[token]                     2.72 kB         235 kB
+#12 91.44 鈹?鈼?/symptom                                   9.96 kB         247 kB
+#12 91.44 鈹?鈼?/tcm                                       12.5 kB         245 kB
+#12 91.44 鈹?鈼?/tcm/archive                               510 B           210 kB
+#12 91.44 鈹?茠 /tcm/diagnosis/[id]                        549 B           210 kB
+#12 91.44 鈹?鈼?/tcm/loading                               958 B           211 kB
+#12 91.44 鈹?茠 /tcm/result/[id]                           9.37 kB         241 kB
+#12 91.44 鈹?茠 /unified-order/[id]                        9.95 kB         248 kB
+#12 91.44 鈹?鈼?/unified-orders                            4.05 kB         242 kB
+#12 91.44 + First Load JS shared by all                  87.6 kB
+#12 91.44   鈹?chunks/2117-3615d1923728c5e4.js            31.9 kB
+#12 91.44   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js        53.6 kB
+#12 91.44   鈹?other shared chunks (total)                2.1 kB
+#12 91.44 
+#12 91.44 
+#12 91.44 鈼? (Static)   prerendered as static content
+#12 91.44 茠  (Dynamic)  server-rendered on demand
+#12 91.44 
+#12 DONE 91.6s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.4s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 10.6s done
+#16 exporting manifest sha256:e886032efd806ae981207e6d3e8a1dedf3fd631614a54770e97d7373728f4e4b 0.0s done
+#16 exporting config sha256:08569b33f472ad9338467925e25caa2aab7ec0d72ffb41d304762c2730329c51 done
+#16 exporting attestation manifest sha256:032919b73a935e268b76876d6d1502fc75d70ac9d720b98186f9cc90f2f166fb 0.0s done
+#16 exporting manifest list sha256:88407caab00c3c7989f8beaec4531cfcf25eb9027d99470b5c56d2ca6d04a9b7 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 1.9s done
+#16 DONE 12.6s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d h5-web 2>&1 | tail -10
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Creating 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Created 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+
+--- 绛夊緟 h5-web 灏辩华 ---
+  h5-web ready.
+
+--- rebuild admin-web ---
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml stop admin-web 2>&1 | tail -3
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Stopping 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Stopped 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml rm -f admin-web 2>&1 | tail -3
+Going to remove 6b099ed3-7175-4a78-91f4-44570c84ed27-admin
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Removing 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Removed 
+
+Building admin-web (5-10 min)...
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build admin-web 2>&1 | tail -120
+ 113.2 鈹?鈼?/relation-types                          11.5 kB         406 kB
+#12 113.2 鈹?鈼?/search-config                           10 kB           414 kB
+#12 113.2 鈹?鈼?/search/asr-config                       7 kB            296 kB
+#12 113.2 鈹?鈼?/search/block-words                      12.6 kB         402 kB
+#12 113.2 鈹?鈼?/search/recommend                        14.2 kB         409 kB
+#12 113.2 鈹?鈼?/search/statistics                       240 kB         1.09 MB
+#12 113.2 鈹?鈼?/settings                                11 kB           368 kB
+#12 113.2 鈹?鈼?/share-config                            4.21 kB         371 kB
+#12 113.2 鈹?鈼?/sms                                     25.1 kB         423 kB
+#12 113.2 鈹?鈼?/system-messages                         11.4 kB         433 kB
+#12 113.2 鈹?鈼?/system-messages/send                    4.92 kB         314 kB
+#12 113.2 鈹?鈼?/system/sdk-health                       17 kB           285 kB
+#12 113.2 鈹?鈼?/tcm-config                              4.05 kB         284 kB
+#12 113.2 鈹?鈼?/theme-config                            7.6 kB          403 kB
+#12 113.2 鈹?鈼?/tts-config                              5.07 kB         334 kB
+#12 113.2 鈹?鈼?/users                                   15.3 kB         404 kB
+#12 113.2 鈹?鈼?/voice-service                           3.46 kB         345 kB
+#12 113.2 鈹?鈼?/wechat-push                             4.92 kB         291 kB
+#12 113.2 + First Load JS shared by all                87.7 kB
+#12 113.2   鈹?chunks/2117-1ca38137e0e3b541.js          31.9 kB
+#12 113.2   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js      53.6 kB
+#12 113.2   鈹?other shared chunks (total)              2.13 kB
+#12 113.2 
+#12 113.2 
+#12 113.2 鈼? (Static)   prerendered as static content
+#12 113.2 茠  (Dynamic)  server-rendered on demand
+#12 113.2 
+#12 DONE 113.4s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.1s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 1.3s done
+#16 exporting manifest sha256:92e822426302d77a1b9e1059e3cb6af04306b47bdcbea7588099047183be7e93 0.0s done
+#16 exporting config sha256:c79a57ce88e25e992f86ea38fc63e70534c4a5be0c0cab91af5ca00a381a444d done
+#16 exporting attestation manifest sha256:5f48ed504656643ed802721ba0d577cb80b89dc19cf413a10d886e87e5d4b859 0.0s done
+#16 exporting manifest list sha256:301a449f8b03a3f9097f053b6c58f446c673f1a4d7f8ab211519f069c6e06657 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.5s done
+#16 DONE 2.0s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built 
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d admin-web 2>&1 | tail -10
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Creating 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Created 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started 
+
+--- 绛夊緟 admin-web 灏辩华 ---
+  admin-web ready.
+
+--- smoke 娴嬭瘯 ---
+  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/openapi.json -> 200
+  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home -> 308
+  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ -> 200
+  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/function-buttons -> 308
+
+--- 瀹瑰櫒鍐呬唬鐮佹牎楠岋紙鏂规 D 路 v1.2锛?---
+  [MISS] H5 V2 椤堕儴鑹叉潯 | marker='fcv2-top-bar' -> (none)
+  [MISS] H5 V2 鍓爣棰樿壊鍧?| marker='fcv2-subtitle-block' -> (none)
+  [MISS] H5 ChatCards 鎺ュ叆 V2 | marker='FunctionCardV2' -> (none)
+  [MISS] H5 QnPreCard 鎺ュ叆 V2 | marker='FunctionCardV2' -> (none)
+  [MISS] Admin 棰勮椤堕儴鑹叉潯 | marker='fcv2-preview-top-bar' -> (none)
+  [MISS] Admin v1.2 瀛楁鎻愮ず | marker='fcv2-v12-field-hint-cover' -> (none)
+
+--- 鍚屾鍓嶇婧愮爜鍒?backend 瀹瑰櫒 ---
+
+$ docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_funccard_v2_20260520.py 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/tests/test_funccard_v2_20260520.py 2>&1
+
+--- backend 瀹瑰櫒鍐?pytest 鎵ц锛堟柟妗?D 路 16 鐢ㄤ緥锛?---
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python -m pytest tests/test_funccard_v2_20260520.py -v --tb=short --no-header 2>&1 | tail -80
+tr = Query("merchant", regex="^(merchant|store)$"),
+
+../usr/local/lib/python3.11/site-packages/pydantic/fields.py:795
+  /usr/local/lib/python3.11/site-packages/pydantic/fields.py:795: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warn('`min_items` is deprecated and will be removed, use `min_length` instead', DeprecationWarning)
+
+../usr/local/lib/python3.11/site-packages/pydantic/fields.py:801
+  /usr/local/lib/python3.11/site-packages/pydantic/fields.py:801: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warn('`max_items` is deprecated and will be removed, use `max_length` instead', DeprecationWarning)
+
+app/main.py:2074
+  /app/app/main.py:2074: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+  /usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+app/main.py:2081
+  /app/app/main.py:2081: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+app/main.py:2111
+  /app/app/main.py:2111: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+app/main.py:2130
+  /app/app/main.py:2130: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 16 passed, 30 warnings in 1.68s ========================
+
+
+========== 閮ㄧ讲鎽樿锛堟柟妗?D 路 v1.2锛?==========
+鍩虹 URL: https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27
+smoke:
+  200  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/openapi.json
+  308  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home
+  200  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/
+  308  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/function-buttons
+pytest: ======================= 16 passed, 30 warnings in 1.68s ========================
+=============================================
+Done.

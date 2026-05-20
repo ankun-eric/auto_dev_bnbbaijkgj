@@ -27,10 +27,12 @@ import {
   Table,
   Tabs,
   Tag,
+  Tooltip,
   Typography,
   message,
 } from 'antd';
-import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, PlusOutlined, ArrowRightOutlined } from '@ant-design/icons';
+import { useRouter } from 'next/navigation';
 import { del, get, post, put } from '@/lib/api';
 
 const { Title, Text } = Typography;
@@ -113,6 +115,7 @@ export default function QuestionnaireTemplatesPage() {
   const [editing, setEditing] = useState<QuestionnaireTemplate | null>(null);
   const [form] = Form.useForm();
 
+  const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerTpl, setDrawerTpl] = useState<QuestionnaireTemplate | null>(null);
   const [questions, setQuestions] = useState<QuestionnaireQuestion[]>([]);
@@ -497,22 +500,51 @@ export default function QuestionnaireTemplatesPage() {
           },
           {
             title: '操作',
-            width: 280,
-            render: (_, record) => (
-              <Space>
-                <Button size="small" onClick={() => openDrawer(record)}>
-                  题目/分型
-                </Button>
-                <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
-                  编辑
-                </Button>
-                <Popconfirm title="确认删除？" onConfirm={() => handleDelete(record)}>
-                  <Button size="small" danger icon={<DeleteOutlined />}>
-                    删除
+            width: 320,
+            render: (_, record) => {
+              // [PRD-AI-PAGE-OPTIM-V1 2026-05-21 块D] 健康自查双入口合并：
+              // - 列表保留可见，但编辑按钮变为"前往专属配置页"跳转链接
+              // - 内容字段不允许在此处直接编辑（避免双写打架）
+              // - 删除按钮保留（统一在此处删除）
+              const isHsc = record.code === 'health_self_check';
+              if (isHsc) {
+                return (
+                  <Space>
+                    <Tooltip title="健康自查模板有专属深度配置页（部位、症状持续档位、Prompt 模板等），请前往该页面进行编辑">
+                      <Button
+                        type="primary"
+                        size="small"
+                        icon={<ArrowRightOutlined />}
+                        data-testid="goto-health-check-templates"
+                        onClick={() => router.push('/health-check-templates')}
+                      >
+                        前往健康自查专属配置页
+                      </Button>
+                    </Tooltip>
+                    <Popconfirm title="确认删除？" onConfirm={() => handleDelete(record)}>
+                      <Button size="small" danger icon={<DeleteOutlined />}>
+                        删除
+                      </Button>
+                    </Popconfirm>
+                  </Space>
+                );
+              }
+              return (
+                <Space>
+                  <Button size="small" onClick={() => openDrawer(record)}>
+                    题目/分型
                   </Button>
-                </Popconfirm>
-              </Space>
-            ),
+                  <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
+                    编辑
+                  </Button>
+                  <Popconfirm title="确认删除？" onConfirm={() => handleDelete(record)}>
+                    <Button size="small" danger icon={<DeleteOutlined />}>
+                      删除
+                    </Button>
+                  </Popconfirm>
+                </Space>
+              );
+            },
           },
         ]}
       />

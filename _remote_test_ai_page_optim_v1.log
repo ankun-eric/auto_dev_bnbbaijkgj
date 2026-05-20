@@ -1,0 +1,21 @@
+======== pytest test_ai_page_optim_v1_20260521 ========
+/usr/local/bin/python: No module named pytest
+
+---stderr--- 
+[exit] 1
+
+======== HTTP smoke ========
+https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/: 200
+https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile: 308
+https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/: 200
+https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/system/seed-import: 308
+https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/openapi.json: 200
+
+======== API: /api/admin/seed-packs锛堟棤 token锛?========
+/api/admin/seed-packs (no auth): 401 (鏈熸湜 401/403)
+
+======== openapi.json 鍖呭惈 seed-packs ========
+['/api/admin/seed-packs', '/api/admin/seed-packs/{code}', '/api/admin/seed-packs/{code}/install', '/api/admin/seed-packs/{code}/uninstall']
+
+======== H5 鏃?/health-archive 璺敱 ========
+/health-archive: 308 (鏈熸湜 404)

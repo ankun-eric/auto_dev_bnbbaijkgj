@@ -1,0 +1,62 @@
+upload C:\auto_output\bnbbaijkgj\backend\tests\test_ai_home_optim_final_v2_20260519.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_ai_home_optim_final_v2_20260519.py
+$ docker cp /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_ai_home_optim_final_v2_20260519.py 6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/tests/test_ai_home_optim_final_v2_20
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend mkdir -p '/app/h5-web/src/app/(ai-chat)/ai-home'
+$ docker cp '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/page.tsx' '6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/h5-web/src/app/(ai-chat)/ai-home/page.tsx'
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend mkdir -p '/app/h5-web/src/components/ai-chat'
+$ docker cp '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/components/ai-chat/ConsultTargetPicker.tsx' '6b099ed3-7175-4a78-91f4-44570c84ed27-backend:/app/h5-web/src/components/ai-chat/Con
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend ls '/app/h5-web/src/app/(ai-chat)/ai-home/page.tsx' '/app/h5-web/src/components/ai-chat/ConsultTargetPicker.tsx' 2>&1
+/app/h5-web/src/app/(ai-chat)/ai-home/page.tsx
+/app/h5-web/src/components/ai-chat/ConsultTargetPicker.tsx
+
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python -m pytest tests/test_ai_home_optim_final_v2_20260519.py -v --tb=long --no-header 2>&1 | tail -80
+  /app/app/main.py:2044: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+../usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495
+  /usr/local/lib/python3.11/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+app/main.py:2051
+  /app/app/main.py:2051: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+app/main.py:2081
+  /app/app/main.py:2081: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+app/main.py:2100
+  /app/app/main.py:2100: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 12 passed, 30 warnings in 1.44s ========================
+
+=== pytest done ===

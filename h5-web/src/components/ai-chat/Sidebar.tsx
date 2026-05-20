@@ -1300,7 +1300,7 @@ export default function Sidebar({
             {/* ─── F-07 健康档案 + 我的设备 高频入口 ─── */}
             <div style={{ display: 'flex', gap: 12, marginTop: 12 }} data-testid="bh-quick-entry-row">
               <button
-                onClick={() => navigateTo('/health-archive')}
+                onClick={() => navigateTo('/health-profile')}
                 style={{
                   flex: 1,
                   background: COLOR.cardBg,

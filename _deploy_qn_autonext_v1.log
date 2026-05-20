@@ -1,0 +1,151 @@
+[deploy] connecting newbb.test.bangbangvip.com ...
+[deploy] connected.
+
+=== Phase 1: Backend ===
+backend tar size = 95.4 KiB
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && tar -xzf _autonext_backend.tar.gz
+$ docker restart 6b099ed3-7175-4a78-91f4-44570c84ed27-backend
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend
+
+[deploy] waiting backend ready ...
+[deploy] backend ready after 9s
+ion': 'updated', 'questions_deleted': 36, 'questions_inserted': 36, 'classifications_inserted': 0, 'classifications_existing': 9, 'questions_before': 36, 'template_id': 2, 'trigger_keywords_backfilled': 0}
+[migrate] prd_tag_recommend_v1: 鍚姩杩佺Щ...
+[migrate] prd_tag_recommend_v1: 杩佺Щ瀹屾垚 stats={'tags_created': 0, 'goods_tags_created': 0, 'recommend_cfg_created': 0, 'template_columns_added': 0, 'tag_columns_added': 0, 'constitution_tags_seeded': 9, 'legacy_service_to_contraindication': 0, 'legacy_other_deactivated': 9, 'tcm_set_triple': 1, 'symptom_tags_migrated': 0, 'symptom_tags_column_missing': 1, 'symptom_tags_column_dropped': 0}
+[migrate] qn_content_v1: 鍚姩杩佺Щ...
+[migrate] qn_content_v1: 鍚姩
+[migrate] qn_content_v1: 瀹屾垚 stats={"phase": "qn_content_v1", "columns_added": {"followup_chips_json": false, "cta_list_json": false}, "phq9": {"template_id": 5, "deleted": 9, "inserted": 9, "classifications": 5}, "gad7": {"template_id": 6, "deleted": 7, "inserted": 7, "classifications": 4}, "psqi": {"template_id": 7, "deleted": 19, "inserted": 19, "classifications": 4}, "tcm_chips_cta": {"updated": 1}, "hsc_v2": {"chips_cta_updated": 1, "new_dim_questions_inserted": 3}}
+[qn_content_v1] phq9: tid=5 questions=9 gad7: tid=6 questions=7 psqi: tid=7 questions=19
+[qn_content_v1] PHQ-9/GAD-7/PSQI question counts OK
+[migrate] qn_content_v1: 杩佺Щ瀹屾垚 stats={'phase': 'qn_content_v1', 'columns_added': {'followup_chips_json': False, 'cta_list_json': False}, 'phq9': {'template_id': 5, 'deleted': 9, 'inserted': 9, 'classifications': 5}, 'gad7': {'template_id': 6, 'deleted': 7, 'inserted': 7, 'classifications': 4}, 'psqi': {'template_id': 7, 'deleted': 19, 'inserted': 19, 'classifications': 4}, 'tcm_chips_cta': {'updated': 1}, 'hsc_v2': {'chips_cta_updated': 1, 'new_dim_questions_inserted': 3}}
+[migrate] questionnaire_autonext_v1: 鍚姩杩佺Щ...
+[migrate] questionnaire_autonext_v1: 鍚姩
+[migrate] questionnaire_autonext_v1: chat_function_buttons.presentation_container 鍒楀凡娣诲姞
+[migrate] questionnaire_autonext_v1: chat_function_buttons.questions_per_page 鍒楀凡娣诲姞
+[migrate] questionnaire_autonext_v1: chat_function_buttons.auto_next_enabled 鍒楀凡娣诲姞
+[migrate] questionnaire_autonext_v1: 瀹屾垚 stats={"columns_added": 3, "container_filled": 0, "qpp_filled": 0, "auto_next_filled": 1}
+[migrate] questionnaire_autonext_v1: 杩佺Щ瀹屾垚 stats={'columns_added': 3, 'container_filled': 0, 'qpp_filled': 0, 'auto_next_filled': 1}
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+
+
+=== 杩佺Щ鏃ュ織 ===
+[migrate] questionnaire_autonext_v1: 鍚姩杩佺Щ...
+[migrate] questionnaire_autonext_v1: 鍚姩
+[migrate] questionnaire_autonext_v1: chat_function_buttons.presentation_container 鍒楀凡娣诲姞
+[migrate] questionnaire_autonext_v1: chat_function_buttons.questions_per_page 鍒楀凡娣诲姞
+[migrate] questionnaire_autonext_v1: chat_function_buttons.auto_next_enabled 鍒楀凡娣诲姞
+[migrate] questionnaire_autonext_v1: 瀹屾垚 stats={"columns_added": 3, "container_filled": 0, "qpp_filled": 0, "auto_next_filled": 1}
+[migrate] questionnaire_autonext_v1: 杩佺Щ瀹屾垚 stats={'columns_added': 3, 'container_filled': 0, 'qpp_filled': 0, 'auto_next_filled': 1}
+
+
+=== Phase 2: Admin-web ===
+admin tar size = 18.1 KiB
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && tar -xzf _autonext_admin.tar.gz
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build admin-web 2>&1 | tail -n 30
+#12 114.8 茠  (Dynamic)  server-rendered on demand
+#12 114.8 
+#12 DONE 114.9s
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.5s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.1s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 1.4s done
+#16 exporting manifest sha256:d0b2a5d083f259595f4d7f6fae17d30ab4f5abebf7d1451ad553efe93941f5a3 0.0s done
+#16 exporting config sha256:1faad82010307e24cb045eae2933c59b289695e518e5e8f9bdbf09b67906a7b3 0.0s done
+#16 exporting attestation manifest sha256:2aaeaec34027050f37c65942e35ed3d6b057fab6c9de81cb82aaff9da71e6f59 0.0s done
+#16 exporting manifest list sha256:d15a980f515a147249c2882271a62fab7ed64299dfe4386468306424afd350a7
+#16 exporting manifest list sha256:d15a980f515a147249c2882271a62fab7ed64299dfe4386468306424afd350a7 3.5s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.6s done
+#16 DONE 5.5s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built 
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d admin-web 2>&1 | tail -n 20
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started 
+
+
+=== Phase 3: H5-web ===
+h5 tar size = 89.1 KiB
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && tar -xzf _autonext_h5.tar.gz
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml build h5-web 2>&1 | tail -n 30
+#12 92.07 
+#12 DONE 92.3s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.4s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.2s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.4s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 10.7s done
+#16 exporting manifest sha256:979734dd2c98988bb20c6d736097c1852b2fd7bbe3dbb24e82ed9c2545703ef1 0.0s done
+#16 exporting config sha256:a0784cb7326da0283ff611171fd0a4488ecd08b7f069e820908e0a4a66de3e19 0.0s done
+#16 exporting attestation manifest sha256:014f58d952f67fa2be8b889abc61177d5392232a19263bd85a98288b2d3b1b34 0.0s done
+#16 exporting manifest list sha256:801d3e8900d67a4c6a1ade2cd21eba941ea7397ee73683ae3e590c3de9016ba7 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 1.9s done
+#16 DONE 12.7s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.3s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose -f docker-compose.prod.yml up -d h5-web 2>&1 | tail -n 20
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+
+
+=== Phase 4: Smoke ===
+[deploy] waiting 10s for nginx ...
+  GET https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/openapi.json => HTTP 200
+  GET https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/questionnaire/templates => HTTP 200
+  no questionnaire button found
+
+=== Phase 5: Remote pytest ===
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend sh -c 'cd /app && PYTHONPATH=/app python -m pytest -v tests/test_questionnaire_autonext_v1_20260520.py 2>&1 | tail -n 120'
+/usr/local/bin/python: No module named pytest
+
+
+[deploy] DONE.

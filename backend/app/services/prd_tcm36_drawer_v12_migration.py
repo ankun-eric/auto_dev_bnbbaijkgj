@@ -345,33 +345,36 @@ async def _backfill_default_trigger_keywords(db, added_cols: dict[str, bool]) ->
 
 
 async def run_migration_with_session(async_session_factory):
-    """主入口：每次启动自动跑一次"""
+    """主入口：每次启动自动跑一次
+
+    [PRD-AI-PAGE-OPTIM-V1 2026-05-21] 关闭自动种子插入：
+    - 保留 DDL（chat_function_buttons 加 5 个新字段）
+    - 关闭 `_seed_tcm36_template_and_questions`（模板/36 题/9 分型规则）的自动写入
+    - 数据改由「管理后台 → 系统设置 → 种子数据导入」按需触发
+    - 默认关键词回填逻辑保留，仅对运营已存在按钮起作用，不会重新插入数据
+    """
     stats: dict[str, Any] = {"phase": "tcm36_drawer_v12"}
     print("[migrate] tcm36_drawer_v12: 启动", flush=True)
     try:
         async with async_session_factory() as db:
             added = await _add_button_trigger_columns(db)
             stats["columns_added"] = added
-            tcm_stats = await _seed_tcm36_template_and_questions(db)
-            stats.update(tcm_stats)
+            # [PRD-AI-PAGE-OPTIM-V1 2026-05-21] 跳过 36 题种子数据插入，改由种子导入页负责
+            stats["seed_skipped"] = "by_seed_pack_admin_page"
+            print(
+                "[migrate] tcm36_drawer_v12: 跳过种子插入 (tcm_constitution 模板/36题/9分型规则)，"
+                "由种子导入页负责",
+                flush=True,
+            )
             stats["trigger_keywords_backfilled"] = await _backfill_default_trigger_keywords(db, added)
             await db.commit()
         print(
             f"[migrate] tcm36_drawer_v12: 完成 stats={json.dumps(stats, ensure_ascii=False)}",
             flush=True,
         )
-        # [PRD-TCM-DRAWER-V12-BUG2 2026-05-20] 输出标准化运维日志
-        _tid = stats.get("template_id")
-        _before = stats.get("questions_before", "?")
-        _after = stats.get("questions_inserted", 0)
-        print(
-            f"[tcm36] template_id={_tid} question_count: before={_before} after={_after}",
-            flush=True,
-        )
-        if _after == 36:
-            print("[tcm36] 36 questions OK", flush=True)
-        else:
-            print(f"[tcm36] WARNING question_count={_after} (expected 36)", flush=True)
+        # [PRD-AI-PAGE-OPTIM-V1 2026-05-21] 种子插入已由种子导入页托管，
+        # 此处只输出 DDL 完成日志，不再校验 36 题数量。
+        print("[tcm36] DDL OK, seed data delegated to seed pack admin page", flush=True)
         return stats
     except Exception as e:  # noqa: BLE001
         print(f"[migrate] tcm36_drawer_v12: 异常（不影响启动）: {e}", flush=True)

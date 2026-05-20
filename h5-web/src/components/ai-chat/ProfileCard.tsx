@@ -23,7 +23,7 @@ export interface ProfileCardProps {
   /** 当 consultantId 不可用时（未选对象/兜底）显示的引导卡片 */
   fallbackText?: string;
   onFallbackClick?: () => void;
-  /** 跳转到当前咨询对象的「档案完善页」，默认为 /health-archive?target=<id> */
+  /** 跳转到当前咨询对象的「档案完善页」，默认为 /health-profile?target=<id> */
   onGoComplete?: (consultantId: number) => void;
   /** 跳转到「用药管理设置页」 */
   onGoMedicationManage?: (consultantId: number, autoCreate: boolean) => void;
