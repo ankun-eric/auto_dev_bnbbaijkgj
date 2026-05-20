@@ -27,7 +27,72 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: BUG-HSC-FIX-V2-20260521 · 健康自查 V2 集中修复（B-1~B-7 共 7 项） (2026-05-21 03:15)
+## Latest Update: PRD-MY-DEVICES-V1 · 健康档案「我的设备」页面优化 (2026-05-21 03:55)
+
+**任务类型**：新功能开发（页面全量重做 + 新表 + 新接口）；变更范围：backend + h5-web（无 admin / 小程序 / Flutter APP / 桌面端改动）
+
+**核心交付**：
+
+1. **修复 AI-home 抽屉 404**：`h5-web/src/components/ai-chat/Sidebar.tsx` 第 1337 行 `navigateTo('/my-devices')` → `navigateTo('/devices')`，旧路径不复存在
+2. **后端新增 2 张表 + 5 个接口**（`backend/app/api/devices_v2.py` + `backend/app/models/devices_v2.py`）：
+   - 表 `device_catalog`（17 项品牌目录，启动时幂等 seed，stats={'inserted': 17}）
+   - 表 `device_user_bindings`（用户绑定关系，支持软删除 + 同 SN 多账户共享）
+   - `GET  /api/devices/catalog`：按 5 品牌（宾尼/华为/小米/苹果/其他）分组返回，每条 catalog 自动附带当前用户的 `bound_count`
+   - `GET  /api/devices/my`：当前用户已绑定设备列表（绑定时间倒序、SN 脱敏 `BNW****1234`）
+   - `POST /api/devices/bind`：含 catalog 是否 active、is_unique 重复绑定校验、家庭成员归属校验
+   - `POST /api/devices/unbind`：软删除（`is_active=False` + `unbound_at`）
+   - `PATCH /api/devices/binding/{id}`：只允许改 alias / member_id，SN / catalog 不可改
+3. **H5 页面完全重写**（`h5-web/src/app/devices/page.tsx`）：
+   - 区域一：我的设备（已绑定卡片网格，空状态显示蓝色渐变引导卡片 + 「立即绑定 ↓」平滑滚动到区域二）
+   - 区域二：5 品牌平铺，按钮 4 态（绑定 / 继续绑定 / 已绑定 / 敬请期待），由 `is_active` + `is_unique` + `bound_count` 三字段推导
+   - 绑定抽屉、编辑抽屉、二次确认 Modal、扫码按钮（微信内 wx.scanQRCode / 普通浏览器 getUserMedia 兜底）
+   - 使用人选择**完全复用** `ConsultTargetPicker` 组件，默认本人
+   - 全量配色采用 AI-home 同款 11 级天蓝色阶（主色 `#0EA5E9`，渐变 `#38BDF8 → #0284C7`）
+4. **新增前端 API 封装** `h5-web/src/lib/api/devices.ts`（fetchCatalog/fetchMyDevices/bindDevice/unbindDevice/editBinding）
+5. **新增组件目录** `h5-web/src/app/devices/components/`：
+   - `theme.ts`：色板 token + 品牌徽章配色
+   - `MyDeviceCard.tsx`：已绑定卡片
+   - `BrandSection.tsx`：品牌分组容器 + 4 态按钮
+   - `BindDeviceDrawer.tsx`：绑定抽屉
+   - `EditDeviceDrawer.tsx`：编辑抽屉
+   - `UnbindConfirmModal.tsx`：解绑二次确认
+   - `ScanQRButton.tsx`：扫码按钮（微信 + H5 双适配）
+6. **后端测试** `backend/tests/test_my_devices_v1_20260521.py`（11 个用例：catalog 结构、首次空、绑定/重复/未接通/多绑/空 SN/解绑/编辑/同 SN 共享/解绑后重绑/未授权）
+7. **远端启动迁移**：`main.py` 启动时 CREATE TABLE IF NOT EXISTS 两张表 + seed 17 项目录；启动日志 `[migrate] my_devices_v1: 迁移完成 stats={'inserted': 17, 'updated': 0, 'total': 17}`
+
+**新增/修改文件清单**：
+
+- `backend/app/api/devices_v2.py` — 新增（5 个接口 + seed 函数 + SN 脱敏工具）
+- `backend/app/models/devices_v2.py` — 新增（DeviceCatalog / DeviceUserBinding）
+- `backend/app/main.py` — import devices_v2 + 注册 router + 启动 lifespan 加 CREATE TABLE + seed
+- `backend/tests/test_my_devices_v1_20260521.py` — 新增（11 用例）
+- `h5-web/src/components/ai-chat/Sidebar.tsx` — 1337 行 `/my-devices` → `/devices`
+- `h5-web/src/app/devices/page.tsx` — 全文重写（PRD-HEALTH-OPT-V1 旧 10 项混合列表 → 本 PRD 新版）
+- `h5-web/src/app/devices/components/` — 新增整个目录（7 个组件）
+- `h5-web/src/lib/api/devices.ts` — 新增 API 封装
+
+**部署与验证（已通过）**：
+
+- 部署脚本 `_deploy_my_devices_v1.py`（paramiko + SFTP）2026-05-21 03:55 部署完成
+- HTTP 烟雾测试 `_smoke_my_devices_v1.py`（失败 0 项）：
+  - `/api/health` → 200，`/devices/` → 200，`/api/devices/catalog` 未授权 → 401（符合预期）
+  - 鉴权后 catalog 包含 5 品牌 / 宾尼 7 项 / 烟雾报警器 is_unique=False / 苹果敬请期待 / 华为手环已接通
+  - 绑定宾尼智能手表成功（SN 自动脱敏 `SMO****5-01`）
+  - 重复绑定唯一类 → 409
+  - 绑定 Apple Watch（未接通）→ 400
+  - 烟雾报警器多绑 3 台均成功
+  - PATCH 别名生效
+  - 解绑后 `bound_count` 回到 0、再次绑定成功
+  - 同 SN 跨账户共享允许
+- 后端启动日志：`[migrate] my_devices_v1: 迁移完成 stats={'inserted': 17, 'updated': 0, 'total': 17}`
+
+**用户手册**：`user_docs/我的设备页面优化.md`
+
+**部署唯一标识**：`6b099ed3-7175-4a78-91f4-44570c84ed27`（沿用）
+
+---
+
+## Previous Update: BUG-HSC-FIX-V2-20260521 · 健康自查 V2 集中修复（B-1~B-7 共 7 项） (2026-05-21 03:15)
 
 **任务类型**：Bug 修复（含架构层升级 + 体验升级）；变更范围：backend + h5-web + admin-web（无客户端 APP / 小程序 / 桌面版改动）
 

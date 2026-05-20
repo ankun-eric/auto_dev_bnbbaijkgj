@@ -1334,7 +1334,7 @@ export default function Sidebar({
                 </span>
               </button>
               <button
-                onClick={() => navigateTo('/my-devices')}
+                onClick={() => navigateTo('/devices')}
                 style={{
                   flex: 1,
                   background: COLOR.cardBg,

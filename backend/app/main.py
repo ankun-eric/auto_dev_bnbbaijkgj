@@ -108,6 +108,7 @@ from app.api import (
     medication_today_v1,
     health_archive_optim_v1,
     questionnaire,
+    devices_v2,
 )
 from app.core.database import Base, engine
 from app.core.price_formatter import PriceFormattedJSONResponse
@@ -1906,6 +1907,60 @@ async def lifespan(app: FastAPI):
         import traceback as _tb
         _tb.print_exc()
         print(f"[migrate] ai_home_archive_path_fix_v1: 迁移失败 err={_e}", flush=True)
+    # [PRD-MY-DEVICES-V1 2026-05-21] 「我的设备」V2：建表 + 幂等 seed 品牌目录
+    try:
+        print("[migrate] my_devices_v1: 启动迁移...", flush=True)
+        from app.core.database import async_session as _async_session_mydev
+        from sqlalchemy import text as _sql_text_mydev
+        async with _async_session_mydev() as _db_mydev:
+            await _db_mydev.execute(_sql_text_mydev(
+                "CREATE TABLE IF NOT EXISTS device_catalog ("
+                " id INT NOT NULL AUTO_INCREMENT,"
+                " brand_code VARCHAR(32) NOT NULL,"
+                " brand_name VARCHAR(64) NOT NULL,"
+                " category_code VARCHAR(64) NOT NULL,"
+                " device_name VARCHAR(128) NOT NULL,"
+                " icon VARCHAR(16) NULL,"
+                " is_active TINYINT(1) NOT NULL DEFAULT 0,"
+                " is_unique TINYINT(1) NOT NULL DEFAULT 1,"
+                " sort_order INT NOT NULL DEFAULT 0,"
+                " created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+                " updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,"
+                " PRIMARY KEY (id),"
+                " KEY idx_dc_brand (brand_code),"
+                " KEY idx_dc_category (category_code)"
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            ))
+            await _db_mydev.execute(_sql_text_mydev(
+                "CREATE TABLE IF NOT EXISTS device_user_bindings ("
+                " id INT NOT NULL AUTO_INCREMENT,"
+                " user_id INT NOT NULL,"
+                " catalog_id INT NOT NULL,"
+                " sn VARCHAR(128) NOT NULL,"
+                " alias VARCHAR(64) NULL,"
+                " member_id INT NULL,"
+                " bound_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+                " unbound_at DATETIME NULL,"
+                " is_active TINYINT(1) NOT NULL DEFAULT 1,"
+                " created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+                " updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,"
+                " PRIMARY KEY (id),"
+                " KEY idx_dub_user (user_id),"
+                " KEY idx_dub_catalog (catalog_id),"
+                " KEY idx_dub_sn (sn),"
+                " KEY idx_dub_member (member_id),"
+                " KEY idx_dub_active (is_active)"
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            ))
+            await _db_mydev.commit()
+            from app.api.devices_v2 import seed_device_catalog as _seed_dc
+            _stats_mydev = await _seed_dc(_db_mydev)
+            await _db_mydev.commit()
+        print(f"[migrate] my_devices_v1: 迁移完成 stats={_stats_mydev}", flush=True)
+    except Exception as _e:
+        import traceback as _tb
+        _tb.print_exc()
+        print(f"[migrate] my_devices_v1: 迁移失败 err={_e}", flush=True)
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities
@@ -2100,6 +2155,7 @@ app.include_router(_analytics.router)
 # [PRD-439 2026-05-10] H5 健康打卡升级为用药提醒：用药计划/打卡/徽标/待核销预约
 app.include_router(medication_reminder.router)
 app.include_router(prd469_health_v5.router)  # [PRD-469] 健康档案 v2 优化（v5 设计稿对齐）
+app.include_router(devices_v2.router)  # [PRD-MY-DEVICES-V1 2026-05-21] 我的设备 V2（/api/devices/*）
 # [PRD-DRUG-CARD-V3 2026-05-16] AI 对话拍照识药 v3：权威库匹配 + 待审池 + 医疗咨询热线
 app.include_router(medication_library_v3.router)
 app.include_router(medication_library_v3.admin_router)
