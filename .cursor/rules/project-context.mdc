@@ -27,7 +27,36 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: BUG-HEALTH-SELF-CHECK-FIX-V1 · 健康自查四问题集中修复 (2026-05-21 02:05)
+## Latest Update: BUG-FIX-AI-HOME-ARCHIVE-PATH-404-V1 · AI 对话主页"查看档案"跨端档案路径统一 (2026-05-21 02:40)
+
+**任务类型**：Bug 修复（跨端老路径残留导致 404）；变更范围：backend + h5-web + admin-web + flutter_app + miniprogram
+
+**核心交付**：
+
+1. **统一所有端的健康档案入口为 `/health-profile`**（旧 `/health-records` 与 `/health-archive` 仅作为 API 路径或管理后台独立模块继续保留）：
+   - H5 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：state 默认值与 onClick 兜底改为 `/health-profile`
+   - 后端 `backend/app/schemas/ai_home_config.py`：`archive_path` 与功能宫格 g3 `target_path` 默认值改为 `/health-profile`
+   - admin-web `admin-web/src/app/(admin)/home-settings/ai-home-config/page.tsx`：默认配置、宫格默认 g3、输入框 placeholder 全部改为 `/health-profile`
+   - Flutter App `flutter_app/lib/screens/ai/chat_screen.dart`：`onGoCompleteProfile` 改为 `Navigator.pushNamed(context, '/health-profile')`
+   - 小程序 `miniprogram/components/profile-card/index.js`：`wx.navigateTo` 改为 `/pages/health-profile/index`
+
+2. **新增数据迁移脚本** `backend/app/services/prd_ai_home_archive_path_fix_v1_migration.py`：
+   - 扫描 `app_settings(key='ai_home_config')` JSON 配置
+   - 精准修正 `input.family_consult.archive_path == '/health-records' → '/health-profile'`
+   - 精准修正 `func_grid.items[*].target_path == '/health-archive' → '/health-profile'`
+   - 幂等（已是新值则跳过），脚本可重复执行
+   - 已接入 `backend/app/main.py` startup，实际运行结果：扫描 1 条 / archive_path 修正 1 条 / 宫格 target_path 修正 1 条
+
+3. **后端测试用例**（`backend/tests/test_ai_home_config_v1.py` + `backend/tests/test_ai_home_config_tab411.py`）字面值同步更新；服务器端 pytest 全部 20 用例通过
+
+4. **多端打包产物**：
+   - 小程序 zip：`miniprogram/miniprogram_archive_path_fix_20260521_023817_jijl.zip`
+   - 安卓 APK：`app_archive_path_fix_20260521-023804_1d18.apk`（GitHub Actions 远程构建 → 上传到服务器）
+   - iOS IPA：GitHub Release tag `ios-archive-path-fix-v20260521-023843-iut4`（macos-latest Runner 构建）
+
+5. **用户手册**：`user_docs/AI对话主页查看档案404修复.md`
+
+## 历史变更：BUG-HEALTH-SELF-CHECK-FIX-V1 · 健康自查四问题集中修复 (2026-05-21 02:05)
 
 **任务类型**：Bug 修复（4 个集中问题）；变更范围：backend + h5-web + admin-web
 
