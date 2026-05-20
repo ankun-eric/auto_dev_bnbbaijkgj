@@ -27,7 +27,45 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-AI-HOME-OPTIM-FINAL-V2｜AI 首页优化最终版（咨询人弹窗 + 输入区视觉锚点统一）（2026-05-19 23:36）
+## Latest Update: PRD-TCM-DRAWER-V12｜体质测评「对话内卡片未弹出 + 36 题模板为空」Bug 修复 (2026-05-20 10:00)
+
+**任务类型**：跨端 Bug 修复 + 增强（backend + admin-web + h5-web；小程序 / Android / iOS 沿用 v1.2 已打包版本）
+
+**核心变更（7 处）**：
+
+1. **`backend/app/services/prd_tcm36_drawer_v12_migration.py`** — 新增启动迁移：
+   - 给 `chat_function_buttons` 加 5 列：`trigger_by_keyword`/`trigger_by_intent`/`trigger_keywords(JSON)`/`ai_reference_passive`/`ai_reference_active`
+   - 强制重建 `tcm_constitution` 模板的 36 题（王琦国标 ZYYXH/T157-2009）；34/35/36 标记 `is_reverse_score=true`
+   - 写入 9 条 `dimension_max` 分型规则
+   - 回填关联按钮的默认关键词列表
+2. **`backend/app/api/chat_intent.py`** — 新增 `POST /api/chat/intent-detect`：关键词命中优先，未命中走兜底（按钮名匹配），返回 `intent / button_id / questionnaire_template_code / source`
+3. **`backend/app/services/tcm_context.py`** — 新增 `build_constitution_system_prompt()`：把用户最近一次主体质拼成 ≤80 字 system prompt，供 AI 对话注入
+4. **`backend/app/api/questionnaire.py`** — 提交体质问卷后，按 `constitution_score.py` 算分并在响应里附加 `active_followup` 主动追问文案（受 `ai_reference_active` 控制）
+5. **`backend/app/models/models.py` + `backend/app/schemas/function_button.py`** — `ChatFunctionButton` ORM + Pydantic schema 增加 5 个新字段
+6. **`admin-web/src/app/(admin)/function-buttons/page.tsx`** — 编辑表单增加 4 个开关 + 关键词标签编辑器（仅 `ai_function` 类型可见）
+7. **`h5-web/src/components/ai-chat/QuestionnairePreCard.tsx` + `h5-web/src/app/(ai-chat)/ai-home/page.tsx`**：
+   - 新增 `QuestionnairePreCard` 卡片组件（封面 + 标题 + 副标题 + 描述 + 主按钮）
+   - 点击「体质测评」按钮 + `pre_card_enabled` + `INLINE_CHAT` → 插入「用户气泡 + AI 卡片气泡」而非直接开抽屉
+   - `handleSend` 在文字/语音消息发送前调 `/api/chat/intent-detect`，命中即插入卡片并阻断常规 AI 回复
+   - 抽屉提交后若返回 `active_followup` 则自动追加 AI 消息
+
+**测试**：
+- `backend/tests/test_tcm36_drawer_v12_20260520.py` 8 个用例，本地 + 容器内均全绿
+- 线上 smoke：`/api/openapi.json`/`/api/questionnaire/templates/2`/`/ai-home`/`/` 全 200
+- 线上验证：`templates/2` 返回 36 题、9 分型、34/35/36 reverse=true；`intent-detect` 命中「体质测评」→ `source=intent`
+
+**部署脚本**：`deploy/_deploy_tcm36_drawer_v12_20260520.py`（已在 2026-05-20 一次部署成功）
+
+**用户手册**：`user_docs/中医体质测评对话内卡片与36题模板.md`
+
+**链接**：
+- AI 首页（H5）：<https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home>
+- 后台 - 功能按钮：<https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/function-buttons>
+- 后台 - 问卷模板：<https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/questionnaire-templates>
+
+---
+
+## Previous Update: PRD-AI-HOME-OPTIM-FINAL-V2｜AI 首页优化最终版（咨询人弹窗 + 输入区视觉锚点统一）（2026-05-19 23:36）
 
 **任务类型**：纯 H5 端 UI 重构（仅 h5-web 改动，后端 / admin-web / 小程序 / Flutter 均无改动）
 

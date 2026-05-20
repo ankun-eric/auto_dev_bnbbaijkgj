@@ -155,6 +155,11 @@ interface FunctionButton {
   questionnaire_template_id?: number | null;
   capture_purpose?: string | null;
   pre_card_enabled?: boolean | null;
+  trigger_by_keyword?: boolean | null;
+  trigger_by_intent?: boolean | null;
+  trigger_keywords?: string[] | null;
+  ai_reference_passive?: boolean | null;
+  ai_reference_active?: boolean | null;
   // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 问卷展示形态
   questionnaire_display_form?: string | null;
   created_at?: string;
@@ -377,6 +382,12 @@ export default function FunctionButtonsPage() {
         // [PRD-QUESTIONNAIRE-DRAWER-V1.2 2026-05-20] 引导卡片图标三选一回填
         pre_card_icon: (record as any).pre_card_icon || '',
         pre_card_icon_type: (record as any).pre_card_icon_type || 'default',
+        // [PRD-TCM-DRAWER-V12 2026-05-20] 触发开关 / AI 引用 回填（NULL 视为 true）
+        trigger_by_keyword: (record as any).trigger_by_keyword !== false,
+        trigger_by_intent: (record as any).trigger_by_intent !== false,
+        trigger_keywords: Array.isArray((record as any).trigger_keywords) ? (record as any).trigger_keywords : [],
+        ai_reference_passive: (record as any).ai_reference_passive !== false,
+        ai_reference_active: (record as any).ai_reference_active !== false,
       };
 
       // [PRD-AICHAT-CAPSULE-V2 2026-05-15] 移除 ai_reply_mode 字段回填（统一由「关联 Prompt 模板」承载）；
@@ -408,6 +419,12 @@ export default function FunctionButtonsPage() {
         // [PRD-QUESTIONNAIRE-DRAWER-V1.2 2026-05-20] 引导卡片图标默认走默认 SVG
         pre_card_icon: '',
         pre_card_icon_type: 'default',
+        // [PRD-TCM-DRAWER-V12 2026-05-20] 触发开关 / AI 引用 默认两个都开启
+        trigger_by_keyword: true,
+        trigger_by_intent: true,
+        trigger_keywords: [],
+        ai_reference_passive: true,
+        ai_reference_active: true,
       });
     }
     setModalOpen(true);
@@ -519,6 +536,23 @@ export default function FunctionButtonsPage() {
           values.button_type === 'ai_function' && (values.pre_card_icon_type === 'url' || values.pre_card_icon_type === 'emoji')
             ? (values.pre_card_icon || null)
             : null,
+        // [PRD-TCM-DRAWER-V12 2026-05-20] 双触发开关 + AI 引用双开关 + 关键词列表
+        // 仅 ai_function 类按钮才有意义；其它类型按 null 传，后端忽略
+        trigger_by_keyword: values.button_type === 'ai_function'
+          ? (values.trigger_by_keyword !== undefined ? !!values.trigger_by_keyword : true)
+          : null,
+        trigger_by_intent: values.button_type === 'ai_function'
+          ? (values.trigger_by_intent !== undefined ? !!values.trigger_by_intent : true)
+          : null,
+        trigger_keywords: values.button_type === 'ai_function'
+          ? (Array.isArray(values.trigger_keywords) ? values.trigger_keywords : null)
+          : null,
+        ai_reference_passive: values.button_type === 'ai_function'
+          ? (values.ai_reference_passive !== undefined ? !!values.ai_reference_passive : true)
+          : null,
+        ai_reference_active: values.button_type === 'ai_function'
+          ? (values.ai_reference_active !== undefined ? !!values.ai_reference_active : true)
+          : null,
       };
 
       if (editingItem) {
@@ -921,6 +955,68 @@ export default function FunctionButtonsPage() {
             >
               <Switch checkedChildren="开（默认）" unCheckedChildren="关" />
             </Form.Item>
+          )}
+
+          {/* [PRD-TCM-DRAWER-V12 2026-05-20] AI 功能按钮 - 双触发开关 + AI 引用双开关 + 关键词列表 */}
+          {watchedButtonType === 'ai_function' && (
+            <div
+              style={{
+                border: '1px solid #E0E7FF',
+                borderRadius: 8,
+                padding: '12px 14px',
+                marginBottom: 16,
+                background: '#F8FAFF',
+              }}
+              data-testid="fn-btn-tcm-trigger-block"
+            >
+              <div style={{ fontWeight: 600, marginBottom: 10, color: '#1F2937' }}>
+                聊天触发与 AI 引用（默认全部开启）
+              </div>
+              <Form.Item
+                label="启用关键词触发"
+                name="trigger_by_keyword"
+                valuePropName="checked"
+                extra="开启后，用户在聊天输入命中关键词时，自动弹出说明卡片，引导用户进入本功能"
+              >
+                <Switch checkedChildren="开（默认）" unCheckedChildren="关" />
+              </Form.Item>
+              <Form.Item
+                label="启用 AI 意图识别触发"
+                name="trigger_by_intent"
+                valuePropName="checked"
+                extra="关键词未命中时，再用 AI 意图识别兜底，仍命中则弹出说明卡片"
+              >
+                <Switch checkedChildren="开（默认）" unCheckedChildren="关" />
+              </Form.Item>
+              <Form.Item
+                label="触发关键词列表"
+                name="trigger_keywords"
+                extra="输入后回车，命中任一关键词即触发。默认体质测评关键词；其它按钮可自定义"
+              >
+                <Select
+                  mode="tags"
+                  placeholder="输入关键词后回车，可添加多个"
+                  tokenSeparators={[',', '，']}
+                  style={{ width: '100%' }}
+                />
+              </Form.Item>
+              <Form.Item
+                label="AI 对话被动引用本功能结果"
+                name="ai_reference_passive"
+                valuePropName="checked"
+                extra="开启后，AI 在回答健康相关问题时，会把用户最近一次本功能的结果作为上下文"
+              >
+                <Switch checkedChildren="开（默认）" unCheckedChildren="关" />
+              </Form.Item>
+              <Form.Item
+                label="完成后 AI 主动追问"
+                name="ai_reference_active"
+                valuePropName="checked"
+                extra="开启后，用户完成本功能后，AI 在对话流中主动追加一条引导追问"
+              >
+                <Switch checkedChildren="开（默认）" unCheckedChildren="关" />
+              </Form.Item>
+            </div>
           )}
 
           {/* [PRD-QUESTIONNAIRE-DRAWER-V1.2 2026-05-20] 引导卡片图标三选一 */}

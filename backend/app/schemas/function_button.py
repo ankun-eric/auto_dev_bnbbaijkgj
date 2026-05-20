@@ -147,6 +147,12 @@ class ChatFunctionButtonCreate(BaseModel):
     # [PRD-QUESTIONNAIRE-DRAWER-V1.2 2026-05-20] 引导卡片图标三选一
     pre_card_icon: Optional[str] = None
     pre_card_icon_type: Optional[str] = "default"
+    # [PRD-TCM-DRAWER-V12 2026-05-20] 双触发开关 + AI 引用双开关 + 关键词列表
+    trigger_by_keyword: Optional[bool] = True
+    trigger_by_intent: Optional[bool] = True
+    trigger_keywords: Optional[list] = None
+    ai_reference_passive: Optional[bool] = True
+    ai_reference_active: Optional[bool] = True
 
 
 class ChatFunctionButtonUpdate(BaseModel):
@@ -193,6 +199,12 @@ class ChatFunctionButtonUpdate(BaseModel):
     # [PRD-QUESTIONNAIRE-DRAWER-V1.2 2026-05-20] 引导卡片图标三选一
     pre_card_icon: Optional[str] = None
     pre_card_icon_type: Optional[str] = None
+    # [PRD-TCM-DRAWER-V12 2026-05-20] 双触发开关 + AI 引用双开关 + 关键词列表
+    trigger_by_keyword: Optional[bool] = None
+    trigger_by_intent: Optional[bool] = None
+    trigger_keywords: Optional[list] = None
+    ai_reference_passive: Optional[bool] = None
+    ai_reference_active: Optional[bool] = None
 
 
 class ChatFunctionButtonResponse(BaseModel):
@@ -240,6 +252,12 @@ class ChatFunctionButtonResponse(BaseModel):
     # [PRD-QUESTIONNAIRE-DRAWER-V1.2 2026-05-20] 引导卡片图标三选一
     pre_card_icon: Optional[str] = None
     pre_card_icon_type: Optional[str] = "default"
+    # [PRD-TCM-DRAWER-V12 2026-05-20] 双触发开关 + AI 引用双开关 + 关键词列表
+    trigger_by_keyword: Optional[bool] = True
+    trigger_by_intent: Optional[bool] = True
+    trigger_keywords: Optional[list] = None
+    ai_reference_passive: Optional[bool] = True
+    ai_reference_active: Optional[bool] = True
     created_at: datetime
     updated_at: datetime
 

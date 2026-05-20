@@ -403,6 +403,50 @@ async def submit_questionnaire(
     }
     icon = icon_map.get(tpl.code or "", "📝")
 
+    # [PRD-TCM-DRAWER-V12 2026-05-20] 中医体质：主动追问消息
+    active_followup: Optional[str] = None
+    if tpl.code == "tcm_constitution":
+        try:
+            from app.services.constitution_score import calculate_constitution
+            # 把 answer_items 改造成 constitution_score 期望的输入
+            cs_items: list[dict[str, Any]] = []
+            for ai in answer_items:
+                # 找到对应 question 的 dimension（即 group）和 sort_order（即 order_num）
+                q = question_map.get(ai.get("question_id"))
+                if not q:
+                    continue
+                # 反向题：display_condition_json 里存了 is_reverse_score
+                meta = q.display_condition_json or {}
+                cs_items.append({
+                    "group": q.dimension,
+                    "order_num": meta.get("order_num") or q.sort_order,
+                    "is_reverse_score": bool(meta.get("is_reverse_score")),
+                    "answer_value": ai.get("value"),
+                })
+            res = calculate_constitution(cs_items)
+            main_type = res.main_type
+            # 用 main_type 覆盖默认 classification（如果尚未命中）
+            if not classification_id:
+                cls_row = (
+                    await db.execute(
+                        select(QuestionnaireClassificationRule).where(
+                            QuestionnaireClassificationRule.template_id == tpl.id,
+                            QuestionnaireClassificationRule.name == main_type,
+                        )
+                    )
+                ).scalar_one_or_none()
+                if cls_row:
+                    ans.classification_id = cls_row.id
+                    classification_id = cls_row.id
+            # 把 9 项转换分写回 dimension_scores
+            ans.dimension_scores = res.scores
+            # 写回 answers 中的 group/order_num（便于后续回溯）
+            active_followup = f"您的体质属于「{main_type}」，需要我详细介绍「{main_type}」的具体调理方法吗？"
+            await db.flush()
+        except Exception as e:  # noqa: BLE001
+            import logging as _l
+            _l.getLogger(__name__).warning("tcm constitution active followup failed: %s", e)
+
     return {
         "answer_id": ans.id,
         "template_id": tpl.id,
@@ -415,6 +459,8 @@ async def submit_questionnaire(
         },
         "ai_prompt_hint": tpl.ai_opening,
         "classification_id": classification_id,
+        # [PRD-TCM-DRAWER-V12 2026-05-20] 主动追问内容（前端在结果页关闭后追加到对话流）
+        "active_followup": active_followup,
     }
 
 

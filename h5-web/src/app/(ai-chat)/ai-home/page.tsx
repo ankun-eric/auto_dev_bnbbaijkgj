@@ -42,6 +42,7 @@ import QuestionnaireDrawer, {
   type QnSubmitAnswerItem,
 } from '@/components/ai-chat/QuestionnaireDrawer';
 import QuestionnaireResultCard, { type QnResultCardPayload } from '@/components/ai-chat/QuestionnaireResultCard';
+import QuestionnairePreCard from '@/components/ai-chat/QuestionnairePreCard';
 // [BUG_FIX_拍照识药三联_20260516] 聊天内嵌识药引擎：识药结果卡片
 import DrugIdentifyCard from './components/DrugIdentifyCard';
 // [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 加入 / 查看用药计划抽屉
@@ -141,7 +142,7 @@ interface ChatMessage {
    *  - 'file'  : 用户上传的非图片文件消息（content = 文件名占位，files 字段携带文件元数据）
    *  - 'quick_ask_card' : 可编辑的快捷提问卡片消息（quickAskButton 字段携带按钮元数据）
    */
-  kind?: 'text' | 'image' | 'file' | 'quick_ask_card' | 'health_self_check_card' | 'questionnaire_result_card';
+  kind?: 'text' | 'image' | 'file' | 'quick_ask_card' | 'health_self_check_card' | 'questionnaire_result_card' | 'questionnaire_pre_card';
   /**
    * [Bug-471 2026-05-15] 用户消息支持 1~5 张图片：图片 URL 数组（服务器返回）。
    * 当 kind === 'image' 且 images 非空时，气泡渲染为「横向缩略图小图墙」。
@@ -220,6 +221,19 @@ interface ChatMessage {
     card: QnResultCardPayload;
     aiStatusText?: string | null;
   };
+  /** [PRD-TCM-DRAWER-V12 2026-05-20] 通用问卷"对话内说明卡片" payload */
+  questionnairePreCard?: {
+    buttonId: number;
+    templateId?: number | null;
+    templateCode?: string | null;
+    title: string;
+    subtitle?: string | null;
+    coverImage?: string | null;
+    description?: string | null;
+    buttonText?: string;
+    icon?: string | null;
+    iconType?: string | null;
+  };
 }
 
 interface Banner {
@@ -267,6 +281,15 @@ interface FunctionButton {
   capture_purpose?: string | null;
   pre_card_enabled?: boolean | null;
   questionnaire_display_form?: string | null;
+  // [PRD-QUESTIONNAIRE-DRAWER-V1.2 2026-05-20] 引导卡片三字段
+  pre_card_icon?: string | null;
+  pre_card_icon_type?: string | null;
+  // [PRD-TCM-DRAWER-V12 2026-05-20] 触发开关 + AI 引用开关 + 关键词
+  trigger_by_keyword?: boolean | null;
+  trigger_by_intent?: boolean | null;
+  trigger_keywords?: string[] | null;
+  ai_reference_passive?: boolean | null;
+  ai_reference_active?: boolean | null;
 }
 
 // [PRD-AICHAT-HOME-GRID-V1 2026-05-16] AI 对话首页功能宫格专属 5 色循环配色池（去玫红版方案 A）
@@ -784,6 +807,8 @@ export default function AiHomePage() {
   // 任何写入 setLastMsgTime() 的位置都同步更新此 ref，保证语音/预设按钮等异步入口
   // 在闭包中也能读到最新时间戳。
   const lastMsgTimeRef = useRef<number>(0);
+  // [PRD-TCM-DRAWER-V12 2026-05-20] handleSend → insertQuestionnairePreCardMessages 的 ref 桥接
+  const insertPreCardRef = useRef<((btn: FunctionButton) => void) | null>(null);
   const [lastMsgTime, setLastMsgTimeState] = useState<number>(0);
   const setLastMsgTime = useCallback((t: number) => {
     lastMsgTimeRef.current = t;
@@ -1500,6 +1525,37 @@ export default function AiHomePage() {
       textareaRef.current.style.height = '24px';
     }
 
+    // [PRD-TCM-DRAWER-V12 2026-05-20] 用户文本意图识别（仅 source=text/voice 时拦截）：
+    //   命中 questionnaire 类按钮 → 插入用户气泡 + AI 说明卡片，不再走 LLM 流式回复
+    if (source !== 'preset') {
+      try {
+        const detect = await api.post<any>('/api/chat/intent-detect', {
+          text: msg,
+          consultant_id: selectedConsultant?.id ?? null,
+        });
+        if (detect && detect.intent && String(detect.intent).startsWith('questionnaire_') && detect.button_id) {
+          const btn = funcButtons.find((b) => Number(b.id) === Number(detect.button_id));
+          const insertFn = insertPreCardRef.current;
+          if (btn && typeof insertFn === 'function') {
+            // 先插入用户气泡
+            setMessages((prev) => [...prev, {
+              id: `u-intent-${Date.now()}`,
+              role: 'user',
+              content: msg,
+              time: new Date().toISOString(),
+              kind: 'text',
+            }]);
+            insertFn(btn);
+            setSending(false);
+            return;
+          }
+        }
+      } catch (e) {
+        // 意图识别失败不影响主流程，继续走 AI 回复
+        if (typeof console !== 'undefined') console.warn('[ai-home] intent-detect failed', e);
+      }
+    }
+
     setSending(true);
     // [Bug-433] 立即更新 ref，确保后续异步入口读取到最新值
     const sendAt = Date.now();
@@ -1975,6 +2031,73 @@ export default function AiHomePage() {
     );
   }, []);
 
+  // [PRD-TCM-DRAWER-V12 2026-05-20] 在对话流插入「用户气泡 + AI 说明卡片气泡」
+  // 通过 ref 桥接，让 handleSend（定义更早）能调用本函数（定义更晚）
+  const insertQuestionnairePreCardMessages = useCallback(
+    (btn: FunctionButton) => {
+      const userText = (btn.auto_user_message && btn.auto_user_message.trim()) || `我想做${btn.name || '健康测评'}`;
+      const titleText = (btn.card_title && btn.card_title.trim()) || btn.name || '健康测评';
+      const subtitleText = btn.card_subtitle || null;
+      const descText = btn.button_sub_desc || null;
+      const cover = (btn.card_cover_image && btn.card_cover_image.trim()) || null;
+      // 1) 用户气泡：模拟用户主动发起测评
+      const userMsg: ChatMessage = {
+        id: `qn-pre-user-${Date.now()}`,
+        role: 'user',
+        content: userText,
+        time: new Date().toISOString(),
+        kind: 'text',
+      };
+      // 2) AI 气泡：说明卡片
+      const cardMsg: ChatMessage = {
+        id: `qn-pre-card-${Date.now() + 1}`,
+        role: 'assistant',
+        content: titleText,
+        time: new Date().toISOString(),
+        kind: 'questionnaire_pre_card',
+        questionnairePreCard: {
+          buttonId: Number(btn.id),
+          templateId: btn.questionnaire_template_id || null,
+          templateCode: null,
+          title: titleText,
+          subtitle: subtitleText,
+          coverImage: cover,
+          description: descText,
+          buttonText: '开始测评',
+          icon: btn.pre_card_icon || null,
+          iconType: btn.pre_card_icon_type || 'default',
+        },
+      };
+      setMessages((prev) => [...prev, userMsg, cardMsg]);
+      try { aiHomeFnTrack.cardExposure(Number(btn.id), 'questionnaire_pre_card' as any); } catch {}
+    },
+    [],
+  );
+  // ref 桥接：handleSend 通过 ref 调用本函数
+  useEffect(() => {
+    insertPreCardRef.current = insertQuestionnairePreCardMessages;
+  }, [insertQuestionnairePreCardMessages]);
+
+  // [PRD-TCM-DRAWER-V12 2026-05-20] 点击说明卡片「开始测评」→ 打开对应问卷抽屉
+  const handlePreCardStart = useCallback(
+    (data: NonNullable<ChatMessage['questionnairePreCard']>) => {
+      const btn = funcButtons.find((b) => Number(b.id) === data.buttonId);
+      if (!btn) {
+        Toast.show({ content: '按钮已不存在，请刷新页面' });
+        return;
+      }
+      const displayForm = (btn.questionnaire_display_form || 'DRAWER_SCROLL') as QnDisplayForm;
+      // INLINE_CHAT 形态时也用 DRAWER_STEPPED（题量大、一题一屏更友好）
+      const effForm: QnDisplayForm =
+        displayForm === 'INLINE_CHAT' ? 'DRAWER_STEPPED' : displayForm;
+      openQuestionnaireDrawer(btn, effForm).catch((e) => {
+        console.warn('[ai-home] open questionnaire drawer (from pre-card) failed', e);
+        Toast.show({ content: '问卷加载失败，请重试' });
+      });
+    },
+    [funcButtons],
+  );
+
   // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 打开通用问卷抽屉：调 render-meta 拿模板与题目
   const openQuestionnaireDrawer = useCallback(
     async (btn: FunctionButton, displayForm: QnDisplayForm) => {
@@ -2036,6 +2159,21 @@ export default function AiHomePage() {
           },
         };
         setMessages((prev) => [...prev, cardMsg]);
+        // [PRD-TCM-DRAWER-V12 2026-05-20] 若按钮启用 ai_reference_active 且后端返回 active_followup
+        // 则在对话流追加一条 AI 主动追问消息（默认 true）
+        const refActive = btn.ai_reference_active !== false;
+        const followup: string | null = (resp && typeof resp.active_followup === 'string')
+          ? resp.active_followup
+          : null;
+        if (refActive && followup && followup.trim()) {
+          const followupMsg: ChatMessage = {
+            id: `qn-followup-${Date.now() + 2}`,
+            role: 'assistant',
+            content: followup.trim(),
+            time: new Date().toISOString(),
+          };
+          setMessages((prev) => [...prev, followupMsg]);
+        }
         // 触发 AI 流式回复：直接复用 handleSend 把摘要发出去（preset 模式不再单独冒泡，已经有卡片）
         lastMsgTimeRef.current = Date.now();
         const aiPrompt =
@@ -2276,13 +2414,23 @@ export default function AiHomePage() {
       ) {
         const displayForm = (btn.questionnaire_display_form || 'DRAWER_SCROLL') as QnDisplayForm;
         if (displayForm === 'DRAWER_SCROLL' || displayForm === 'DRAWER_STEPPED') {
+          // [PRD-TCM-DRAWER-V12 2026-05-20] 若 pre_card_enabled 则先弹"对话内说明卡片"，再由用户点击进抽屉
+          const preCardEnabled = btn.pre_card_enabled !== false;
+          if (preCardEnabled) {
+            insertQuestionnairePreCardMessages(btn);
+            return;
+          }
           openQuestionnaireDrawer(btn, displayForm).catch((e) => {
             console.warn('[ai-home] open questionnaire drawer failed', e);
             Toast.show({ content: '问卷加载失败，请重试' });
           });
           return;
         }
-        // INLINE_CHAT 走兜底（弹卡片到对话流）继续后续逻辑
+        // [PRD-TCM-DRAWER-V12 2026-05-20] INLINE_CHAT 形态：插入对话内说明卡片（用户气泡 + AI 气泡卡片）
+        if (displayForm === 'INLINE_CHAT') {
+          insertQuestionnairePreCardMessages(btn);
+          return;
+        }
       }
 
       // [BUG-FIX 2026-05-16] health_self_check 类型：与胶囊行为完全一致，直接弹出健康自查抽屉
@@ -4368,6 +4516,35 @@ export default function AiHomePage() {
                           📎 {f.name}
                         </div>
                       ))}
+                    </div>
+                  </div>
+                );
+              }
+
+              // [PRD-TCM-DRAWER-V12 2026-05-20] 通用问卷"对话内说明卡片"气泡（AI 侧）
+              if (!isUser && msg.kind === 'questionnaire_pre_card' && msg.questionnairePreCard) {
+                const pre = msg.questionnairePreCard;
+                return (
+                  <div
+                    key={msg.id}
+                    style={{ marginBottom: 24 }}
+                    data-testid="ai-home-qn-pre-card-message"
+                  >
+                    {showTime && (
+                      <div className="text-center" style={{ padding: '8px 0' }}>
+                        <span style={{ fontSize: 12, color: '#9CA3AF' }}>
+                          {formatWeChatTime(msg.time)}
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'flex-start', marginLeft: 12, marginRight: 16, gap: 8 }}>
+                      <AiAvatar size={32} />
+                      <div style={{ flex: 1, maxWidth: 'min(80vw, 360px)' }}>
+                        <QuestionnairePreCard
+                          data={pre}
+                          onStart={(d) => handlePreCardStart(d)}
+                        />
+                      </div>
                     </div>
                   </div>
                 );

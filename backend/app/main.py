@@ -1826,6 +1826,17 @@ async def lifespan(app: FastAPI):
         import traceback as _tb
         _tb.print_exc()
         print(f"[migrate] questionnaire_drawer_v1: 迁移失败 err={_e}", flush=True)
+    # [PRD-TCM-DRAWER-V12 2026-05-20] 中医体质 36 题 seed + 触发词/AI 引用 5 字段
+    try:
+        print("[migrate] tcm36_drawer_v12: 启动迁移...", flush=True)
+        from app.core.database import async_session as _async_session9
+        from app.services.prd_tcm36_drawer_v12_migration import run_migration_with_session as _run_tcm36_drawer_v12
+        _stats9 = await _run_tcm36_drawer_v12(_async_session9)
+        print(f"[migrate] tcm36_drawer_v12: 迁移完成 stats={_stats9}", flush=True)
+    except Exception as _e:
+        import traceback as _tb
+        _tb.print_exc()
+        print(f"[migrate] tcm36_drawer_v12: 迁移失败 err={_e}", flush=True)
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities
@@ -2035,6 +2046,9 @@ app.include_router(health_archive_optim_v1.router)  # [PRD-HEALTH-ARCHIVE-OPTIM-
 # [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 通用问卷 API
 app.include_router(questionnaire.router)
 app.include_router(questionnaire.admin_router)
+# [PRD-TCM-DRAWER-V12 2026-05-20] 聊天意图识别接口
+from app.api import chat_intent as _chat_intent  # noqa: E402
+app.include_router(_chat_intent.router)
 # [PRD-HEALTH-ARCHIVE-OPTIM-V2 2026-05-18] 健康档案页面优化 V2：成员徽章/Hero角标/设备列表/提醒设置/解绑
 from app.api import health_archive_optim_v2 as _health_archive_optim_v2  # noqa: E402
 app.include_router(_health_archive_optim_v2.router)

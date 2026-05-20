@@ -2602,6 +2602,12 @@ class ChatFunctionButton(Base):
         String(32), nullable=True, default="DRAWER_SCROLL",
         comment="问卷展示形态：DRAWER_SCROLL / DRAWER_STEPPED / INLINE_CHAT"
     )
+    # ───── [PRD-TCM-DRAWER-V12 2026-05-20] 双触发开关 + AI 引用双开关 + 关键词列表 ─────
+    trigger_by_keyword = mapped_column(Boolean, nullable=True, default=True, comment="是否启用关键词触发本按钮（默认 true）")
+    trigger_by_intent = mapped_column(Boolean, nullable=True, default=True, comment="是否启用 AI 意图识别触发本按钮（默认 true）")
+    trigger_keywords = mapped_column(JSON, nullable=True, comment="触发关键词列表（JSON 数组）")
+    ai_reference_passive = mapped_column(Boolean, nullable=True, default=True, comment="AI 对话被动引用本功能结果（默认 true）")
+    ai_reference_active = mapped_column(Boolean, nullable=True, default=True, comment="完成后 AI 主动追问（默认 true）")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
