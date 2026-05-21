@@ -1123,8 +1123,14 @@ function HealthProfileV2PageInner() {
       </div>
 
       {renderHero()}
-      <HeroQuickEntriesV2 memberId={selectedMemberId} router={router} />
-      {renderGuardianSection()}
+      {/* [PRD-HEALTH-ARCHIVE-V5-20260521] 预警横幅 + 4 卡片 + 就医资料 */}
+      <HealthArchiveV5Inject
+        memberId={selectedMemberId}
+        consultantId={consultantIdParam}
+        isSelf={!!selectedMember?.is_self}
+        router={router}
+      />
+      {/* {renderGuardianSection()} —— [PRD-HEALTH-ARCHIVE-V5 F06/F07] 区域已移除 */}
 
       {renderStickyTabs()}
       {renderTodayMetrics()}
@@ -1139,7 +1145,8 @@ function HealthProfileV2PageInner() {
       />
       <HealthEventsBlock profileId={profile?.id} token={T} />
 
-      {renderReminderEntry()}
+      {/* [PRD-HEALTH-ARCHIVE-V5-20260521 F08] 「打开提醒设置」入口移除：统一在「家庭成员→提醒设置」管理 */}
+      {/* {renderReminderEntry()} */}
 
       {showAddMember && (
         <NewFamilyMemberModal
@@ -1296,8 +1303,172 @@ function HeroQuickEntriesV2({ memberId, router }: { memberId: number | null; rou
     <div data-testid="hero-quick-entries-v2" style={{ padding: '0 16px', marginTop: 10 }}>
       <div style={{ display: 'flex', gap: 10 }}>
         {entry('💊', '今日用药', counts.medication_today_count, () => router.push('/medication-plan/today'), 'qe-medication')}
-        {entry('🩺', '我的设备', counts.device_count, () => router.push(`/devices/member?member_id=${memberId ?? ''}`), 'qe-devices')}
+        {entry('🩺', '我的设备', counts.device_count, () => router.push('/devices'), 'qe-devices')}
         {entry('👨‍👩‍👧', '家庭成员', counts.family_member_count, () => router.push('/family'), 'qe-family')}
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// [PRD-HEALTH-ARCHIVE-V5-20260521] 4 卡片 + 预警横幅 + 就医资料 注入区
+// ────────────────────────────────────────────────────────────
+const V5_CARD_COLORS = {
+  alerts: '#FF6B35',       // 健康预警 橙红
+  medication: '#3B82F6',   // 用药计划 蓝
+  family: '#10B981',       // 家庭成员 绿
+  devices: '#8B5CF6',      // 我的设备 紫
+};
+
+const V5_RECORD_CATS = [
+  { key: 'case_note', label: '病例单', emoji: '📋', color: '#3B82F6' },
+  { key: 'checkup_report', label: '体检报告', emoji: '🔬', color: '#10B981' },
+  { key: 'drug', label: '药物', emoji: '💊', color: '#8B5CF6' },
+  { key: 'other', label: '其他', emoji: '📦', color: '#6B7280' },
+] as const;
+
+function HealthArchiveV5Inject({
+  memberId,
+  consultantId,
+  isSelf,
+  router,
+}: {
+  memberId: number | null;
+  consultantId: number;
+  isSelf: boolean;
+  router: any;
+}) {
+  const [overview, setOverview] = useState<{
+    alerts_unresolved: number;
+    medication_plan_count: number;
+    family_member_count: number;
+    device_count: number;
+    medical_records_by_category: Record<string, number>;
+    trash_count: number;
+    show_alert_banner: boolean;
+    banner_text: string;
+  }>({
+    alerts_unresolved: 0,
+    medication_plan_count: 0,
+    family_member_count: 0,
+    device_count: 0,
+    medical_records_by_category: { case_note: 0, checkup_report: 0, drug: 0, other: 0 },
+    trash_count: 0,
+    show_alert_banner: false,
+    banner_text: '',
+  });
+
+  const reload = useCallback(async () => {
+    try {
+      const mid = consultantId > 0 ? consultantId : (memberId ?? 0);
+      const url = mid > 0 ? `/api/health-archive-v5/overview?member_id=${mid}` : '/api/health-archive-v5/overview';
+      const res: any = await api.get(url);
+      const d = res?.data || res || {};
+      setOverview({
+        alerts_unresolved: Number(d.alerts_unresolved || 0),
+        medication_plan_count: Number(d.medication_plan_count || 0),
+        family_member_count: Number(d.family_member_count || 0),
+        device_count: Number(d.device_count || 0),
+        medical_records_by_category: d.medical_records_by_category || { case_note: 0, checkup_report: 0, drug: 0, other: 0 },
+        trash_count: Number(d.trash_count || 0),
+        show_alert_banner: !!d.show_alert_banner,
+        banner_text: String(d.banner_text || ''),
+      });
+    } catch {
+      // 静默兜底
+    }
+  }, [consultantId, memberId]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const memberQs = memberId && memberId > 0 ? `?member_id=${memberId}` : '';
+
+  const card = (label: string, count: number, color: string, onClick: () => void, locked = false) => (
+    <div
+      onClick={onClick}
+      style={{
+        flex: 1, background: '#fff', borderRadius: 12, padding: '14px 8px',
+        textAlign: 'center', cursor: 'pointer', position: 'relative',
+        borderTop: `3px solid ${color}`,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+      }}
+    >
+      {locked && (
+        <span style={{ position: 'absolute', top: 4, right: 6, fontSize: 12 }}>🔒</span>
+      )}
+      <div style={{ color, fontSize: 22, fontWeight: 700, lineHeight: 1.1 }}>{count}</div>
+      <div style={{ fontSize: 12, color: '#374151', marginTop: 4 }}>{label}</div>
+    </div>
+  );
+
+  return (
+    <div style={{ padding: '12px 16px 0' }}>
+      {/* F11 预警横幅 */}
+      {overview.show_alert_banner && (
+        <div
+          onClick={() => router.push(`/health-alerts${memberQs}`)}
+          style={{
+            background: 'linear-gradient(90deg, #FF6B35 0%, #F97316 100%)',
+            color: '#fff', borderRadius: 10, padding: '10px 14px',
+            marginBottom: 12, display: 'flex', alignItems: 'center',
+            fontSize: 14, cursor: 'pointer',
+          }}
+        >
+          <span style={{ marginRight: 8, fontSize: 18 }}>⚠️</span>
+          <span style={{ flex: 1, fontWeight: 500 }}>{overview.banner_text}</span>
+          <span style={{ marginLeft: 8 }}>›</span>
+        </div>
+      )}
+
+      {/* F04 4 卡片 */}
+      <div style={{ display: 'flex', gap: 10 }}>
+        {card('健康预警', overview.alerts_unresolved, V5_CARD_COLORS.alerts, () => router.push(`/health-alerts${memberQs}`))}
+        {card('用药计划', overview.medication_plan_count, V5_CARD_COLORS.medication, () => router.push('/ai-home/medication-plans'))}
+        {card('家庭成员', overview.family_member_count, V5_CARD_COLORS.family, () => router.push('/family'), !isSelf)}
+        {card('我的设备', overview.device_count, V5_CARD_COLORS.devices, () => router.push('/devices'), !isSelf)}
+      </div>
+
+      {/* F18-F23 就医资料 4 分组 */}
+      <div style={{ marginTop: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+          <span style={{ fontWeight: 600, color: '#111827', flex: 1 }}>就医资料</span>
+          <button
+            onClick={() => router.push(`/medical-records${memberQs}`)}
+            style={{ background: '#10B981', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 12px', fontSize: 12 }}
+          >+ 上传</button>
+        </div>
+        <div style={{ background: '#fff', borderRadius: 12, padding: 4 }}>
+          {V5_RECORD_CATS.map((c) => (
+            <div
+              key={c.key}
+              onClick={() => router.push(`/medical-records${memberQs}`)}
+              style={{
+                display: 'flex', alignItems: 'center', padding: '12px 12px',
+                borderBottom: '1px solid #F3F4F6', cursor: 'pointer',
+              }}
+            >
+              <span style={{ fontSize: 18, marginRight: 8 }}>{c.emoji}</span>
+              <span style={{ flex: 1, color: '#374151' }}>{c.label}</span>
+              <span style={{ color: c.color, fontWeight: 600, marginRight: 6 }}>
+                {overview.medical_records_by_category?.[c.key] || 0}
+              </span>
+              <span style={{ color: '#9CA3AF' }}>›</span>
+            </div>
+          ))}
+          <div
+            onClick={() => router.push(`/medical-records/trash${memberQs}`)}
+            style={{ display: 'flex', alignItems: 'center', padding: '12px 12px', cursor: 'pointer' }}
+          >
+            <span style={{ fontSize: 18, marginRight: 8 }}>🗑️</span>
+            <span style={{ flex: 1, color: '#6B7280' }}>回收站</span>
+            {overview.trash_count > 0 && (
+              <span style={{ color: '#9CA3AF', fontSize: 12, marginRight: 6 }}>
+                {overview.trash_count} 项
+              </span>
+            )}
+            <span style={{ color: '#9CA3AF' }}>›</span>
+          </div>
+        </div>
       </div>
     </div>
   );

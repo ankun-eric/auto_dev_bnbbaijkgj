@@ -161,15 +161,25 @@ async def hero_count(
     remaining = max(total_today - done_today, 0)
 
     # [PRD-HEALTH-ARCHIVE-OPTIM-V1 2026-05-18 F4-3] 文案统一为「今日用药 · N」
+    # [PRD-HEALTH-ARCHIVE-V5-20260521 F01] AI 首页今日用药数字修正：
+    #   - 剩余 > 0  → 显示数字 N
+    #   - 剩余 = 0 且有计划 → 显示 0 + "今日已完成"
+    #   - 无任何计划 → 显示 0 + "今日无用药"
     if total_today == 0:
         status = "none"
         text = "今日用药 · 0"
+        ai_home_label = "今日无用药"
+        ai_home_number = 0
     elif remaining == 0:
         status = "all_done"
         text = f"今日用药 · {total_today} ✓"
+        ai_home_label = "今日已完成"
+        ai_home_number = 0
     else:
         status = "has_remaining"
         text = f"今日用药 · {total_today}"
+        ai_home_label = ""
+        ai_home_number = remaining
 
     return {
         "total_today": total_today,
@@ -177,6 +187,9 @@ async def hero_count(
         "remaining_today": remaining,
         "status": status,
         "display_text": text,
+        # [PRD-HEALTH-ARCHIVE-V5-20260521 F01] AI 首页用药数字 + 兜底文案
+        "ai_home_number": ai_home_number,
+        "ai_home_label": ai_home_label,
     }
 
 

@@ -22,6 +22,7 @@ from app.api import (
     admin_search,
     ai_center,
     ai_home_optim_v4,
+    health_archive_v5,
     app_settings,
     appointment_form_admin,
     audit,
@@ -1978,6 +1979,18 @@ async def lifespan(app: FastAPI):
         import traceback as _tb
         _tb.print_exc()
         print(f"[migrate] my_devices_v1: 迁移失败 err={_e}", flush=True)
+    # [PRD-HEALTH-ARCHIVE-V5-20260521] 健康档案与就医资料：新增 3 张表
+    try:
+        print("[migrate] health_archive_v5: 启动迁移...", flush=True)
+        from app.core.database import async_session as _async_session_hav5
+        from app.services.prd_health_archive_v5_migration import run_migration_with_session as _run_hav5
+        async with _async_session_hav5() as _db_hav5:
+            _stats_hav5 = await _run_hav5(_db_hav5)
+        print(f"[migrate] health_archive_v5: 迁移完成 stats={_stats_hav5}", flush=True)
+    except Exception as _e:
+        import traceback as _tb
+        _tb.print_exc()
+        print(f"[migrate] health_archive_v5: 迁移失败 err={_e}", flush=True)
     from app.init_data import init_default_data
     await init_default_data()
     from app.init_cities import init_cities
@@ -2023,6 +2036,7 @@ app.include_router(chat.router)
 app.include_router(chat_history.router)
 # [PRD-AI-HOME-OPTIM-V4 2026-05-21] AI 首页 60min 刷新 + 埋点接口
 app.include_router(ai_home_optim_v4.router)
+app.include_router(health_archive_v5.router)
 app.include_router(tcm.router)
 app.include_router(constitution.router)
 app.include_router(service.router)

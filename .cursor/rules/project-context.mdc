@@ -27,7 +27,49 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-HSC-OPTIM-V3 · 健康自查功能优化 V3（4 大 Bug 集中修复）(2026-05-21 14:00)
+## Latest Update: PRD-HEALTH-ARCHIVE-V5 · 健康档案与就医资料优化 (2026-05-21 17:15)
+
+**任务类型**：新功能开发（健康档案重构 + 健康预警体系 + 就医资料模块新增）；变更范围：backend + h5-web（小程序 / Flutter 本期未改）
+
+**核心交付**：
+
+1. **后端 3 张新表**（`backend/app/services/prd_health_archive_v5_migration.py` 幂等 + lifespan 注册）：
+   - `health_alerts` — 健康预警条目（4 类来源：checkup/medication/device/manual + 24h 合并键 `user_id+member_id+alert_type+indicator`）
+   - `medical_records` — 就医资料主表（4 分类 case_note/checkup_report/drug/other + 软删 is_deleted + deleted_at + 30 天回收站）
+   - `medical_record_files` — 单份资料的文件附件（≤9 文件 / 份）
+2. **后端 API**（`backend/app/api/health_archive_v5.py`）：
+   - `GET /api/health-archive-v5/overview` 4 卡片 + 预警横幅一次拉取（alerts_unresolved / medication_plan_count / family_member_count / device_count / medical_records_by_category / trash_count / show_alert_banner）
+   - `GET /api/health-alerts` + `POST /api/health-alerts/{id}/resolve` + `POST /api/health-alerts/resolve-all` + `POST /api/health-alerts/_seed`（含 24h 合并）
+   - `GET/POST /api/medical-records` + `GET/PATCH/DELETE /api/medical-records/{id}` + `/restore` + `/permanent` + `/trash` + `/_purge-expired`
+3. **后端 hero-count 增强**（`backend/app/api/medication_plans_v1.py`）：返回新增 `ai_home_number / ai_home_label`，三态文案严格按 PRD（"今日已完成"/"今日无用药"/数字）
+4. **H5 健康档案页**（`h5-web/src/app/health-profile/page.tsx`）：
+   - 移除 `renderGuardianSection()` 与 `renderReminderEntry()`（F06/F07/F08）
+   - 引入 `HealthArchiveV5Inject` 组件：4 卡片（橙红/蓝/绿/紫）+ 预警红色横幅 + 就医资料 4 分组卡片 + 回收站入口
+   - "我的设备"卡片跳转 `/devices`（原 `/devices/member` 已废）；非本人 Tab 下家庭成员/我的设备卡片右上角带 🔒
+5. **H5 新增路由**：
+   - `/health-alerts` — 健康预警列表（双 Tab + 类型筛选 + 抽屉关联原始数据 + 全部标记按钮）
+   - `/medical-records` — 就医资料分组列表 + 多文件上传抽屉（图片≤10MB / PDF≤20MB / ≤9 文件）
+   - `/medical-records/[id]` — 详情（标题/备注可编辑 + AI 解读区 + 全屏预览左右滑切换）
+   - `/medical-records/trash` — 回收站（恢复 + 立即彻底删除 + 剩余天数）
+   - `/devices/member` — 改为重定向桩，自动跳转 `/devices`（F17）
+6. **新增前端 API 封装**：`h5-web/src/lib/api/health-archive-v5.ts`
+7. **测试**（`backend/tests/test_health_archive_v5_20260521.py` 10 个用例，本地全绿）：
+   - overview empty / 预警 24h 合并 / 标记单条与全部已处理 / 类型筛选 / 就医资料创建+列表+分组统计 / 9 文件上限 / PATCH+软删+回收站+恢复 / permanent delete / 非法 category / hero-count 三态文案
+8. **部署脚本**：`_deploy_health_archive_v5.py`（13 个文件上传 + backend + h5-web 镜像重建 + HTTP 探活 + 烟雾）
+
+**部署验证（已通过）**：
+
+- 部署时间：2026-05-21 17:10
+- 服务器：newbb.test.bangbangvip.com，backend + h5 容器 Recreate 启动正常
+- 迁移日志：`[migrate] health_archive_v5: 迁移完成 stats={'health_alerts': ..., 'medical_records': ..., 'medical_record_files': ...}`
+- HTTP 探活：`/api/health` 200 / `/` 200 / `/health-profile` 308 / `/health-alerts` 308 / `/medical-records` 308 / `/api/health-archive-v5/overview` 401（未鉴权符合预期）
+- 远端烟雾测试 `_smoke_health_archive_v5.py` 全部通过：overview / 预警 24h 合并 (created→merged) / resolve / 就医资料 CRUD / hero-count `ai_home_label="今日无用药"`
+
+**用户体验手册**：`user_docs/健康档案与就医资料优化.md`
+
+---
+
+## Previous Update: PRD-HSC-OPTIM-V3 · 健康自查功能优化 V3（4 大 Bug 集中修复）(2026-05-21 14:00)
 
 **任务类型**：Bug 修复 + 体验优化；变更范围：backend + admin-web + h5-web + miniprogram + flutter_app（5 端联动）
 
