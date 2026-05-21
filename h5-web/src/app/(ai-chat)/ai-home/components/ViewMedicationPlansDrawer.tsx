@@ -12,7 +12,8 @@
  * 全程不跳路由、不开新页面，所有操作均在抽屉内完成。
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { Toast, Dialog } from 'antd-mobile';
+import { Dialog } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 import MedicationFormPanel from '@/components/medication/MedicationFormPanel';
 // [BUG-MED-V1 2026-05-21 Bug1-附] 删除后广播 badge:refresh，让铃铛/今日用药胶囊/Hero 同步刷新
@@ -91,7 +92,7 @@ export default function ViewMedicationPlansDrawer({
       const body = res.data || res;
       setItems(Array.isArray(body.items) ? body.items : []);
     } catch {
-      Toast.show({ content: '加载失败', icon: 'fail' });
+      showToast('加载失败', 'fail');
       setItems([]);
     } finally {
       setLoading(false);
@@ -113,13 +114,13 @@ export default function ViewMedicationPlansDrawer({
     if (!ok) return;
     try {
       await api.delete(`/api/health-plan/medications/${it.id}`);
-      Toast.show({ content: '已删除', icon: 'success' });
+      showToast('已删除');
       setItems((prev) => prev.filter((x) => x.id !== it.id));
       onChanged?.();
       // [BUG-MED-V1 2026-05-21 Bug1-附] 通知铃铛/胶囊/Hero 立即刷新
       publishBellEvent('badge:refresh', { source: 'medication:plan:deleted', plan_id: it.id });
     } catch {
-      Toast.show({ content: '删除失败', icon: 'fail' });
+      showToast('删除失败', 'fail');
     }
   };
 

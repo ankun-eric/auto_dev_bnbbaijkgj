@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Toast } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import {
   AlertItem,
@@ -80,7 +80,7 @@ function HealthAlertsInner() {
       });
       setItems(res.items || []);
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: '加载预警失败' });
+      showToast('加载预警失败', 'fail');
     } finally {
       setLoading(false);
     }
@@ -91,20 +91,20 @@ function HealthAlertsInner() {
   const handleResolve = useCallback(async (id: number) => {
     try {
       await resolveAlert(id);
-      Toast.show({ icon: 'success', content: '已标记已处理' });
+      showToast('已标记已处理');
       await load();
     } catch {
-      Toast.show({ icon: 'fail', content: '操作失败，请重试' });
+      showToast('操作失败，请重试', 'fail');
     }
   }, [load]);
 
   const handleResolveAll = useCallback(async () => {
     try {
       await resolveAllAlerts(memberId);
-      Toast.show({ icon: 'success', content: '已全部标记已处理' });
+      showToast('已全部标记已处理');
       await load();
     } catch {
-      Toast.show({ icon: 'fail', content: '操作失败，请重试' });
+      showToast('操作失败，请重试', 'fail');
     }
   }, [load, memberId]);
 

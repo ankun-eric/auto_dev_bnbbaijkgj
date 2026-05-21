@@ -613,13 +613,13 @@ html, body {
   flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
-  padding: 20px 16px !important;
-  min-width: 120px !important;
-  min-height: 100px !important;
-  background-color: rgba(0, 0, 0, 0.75) !important;
-  border-radius: 12px !important;
+  padding: 12px 16px !important;
+  min-width: auto !important;
+  min-height: auto !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  border-radius: 8px !important;
   box-sizing: border-box;
-  gap: 8px;
+  gap: 6px;
 }
 .adm-toast-mask .adm-toast-main-icon .adm-toast-icon {
   display: flex !important;

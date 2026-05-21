@@ -13,7 +13,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Toast, Dialog } from 'antd-mobile';
+import { Dialog } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 import MedicalAdviceTip from './MedicalAdviceTip';
 import CycleDrawer, { CycleValue } from './CycleDrawer';
@@ -234,7 +235,7 @@ export default function MedicationFormPanel(props: MedicationFormPanelProps) {
           notes: (d.notes || '').slice(0, NOTES_MAX),
         });
       } catch {
-        Toast.show({ content: '加载失败', icon: 'fail' });
+        showToast('加载失败', 'fail');
       } finally {
         setLoaded(true);
       }
@@ -334,7 +335,7 @@ export default function MedicationFormPanel(props: MedicationFormPanelProps) {
   const handleSubmit = async () => {
     const errs = validateRequired();
     if (errs.length > 0) {
-      Toast.show({ content: '请填写带 * 号的必填项' });
+      showToast('请填写带 * 号的必填项', 'warning');
       return;
     }
 
@@ -420,7 +421,7 @@ export default function MedicationFormPanel(props: MedicationFormPanelProps) {
         const res: any = await api.post('/api/health-plan/medications', payload);
         newId = (res?.data?.id ?? res?.id ?? null) as number | null;
       }
-      Toast.show({ content: editing ? '保存成功' : '已加入用药计划', icon: 'success' });
+      showToast(editing ? '保存成功' : '已加入用药计划');
       if (isDrawer) {
         onSaved?.(newId);
       } else {
@@ -455,7 +456,7 @@ export default function MedicationFormPanel(props: MedicationFormPanelProps) {
         }
       } else {
         const msg = typeof detail === 'object' ? detail?.message || JSON.stringify(detail) : detail || '保存失败';
-        Toast.show({ content: msg, icon: 'fail' });
+        showToast(msg, 'fail');
       }
     } finally {
       setSubmitting(false);
@@ -468,12 +469,12 @@ export default function MedicationFormPanel(props: MedicationFormPanelProps) {
     if (!ok) return;
     try {
       await api.delete(`/api/health-plan/medications/${planId}`);
-      Toast.show({ content: '已删除', icon: 'success' });
+      showToast('已删除');
       // [BUG-MED-V1 2026-05-21 Bug1-附] 通知铃铛/胶囊/Hero 立即刷新
       publishBellEvent('badge:refresh', { source: 'medication:plan:deleted', plan_id: planId });
       router.push('/ai-home/medication-plans');
     } catch {
-      Toast.show({ content: '删除失败', icon: 'fail' });
+      showToast('删除失败', 'fail');
     }
   };
 

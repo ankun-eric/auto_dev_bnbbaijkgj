@@ -27,7 +27,39 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: BUG-MED-V1 · 健康档案用药模块 Bug 修复 (2026-05-21 22:40)
+## Latest Update: PRD-MED-OPTIM-V2 · 用药提醒页面优化 (2026-05-21 23:50)
+
+**任务类型**：体验优化 + Bug 修复复现；变更范围：h5-web
+
+**核心交付**：
+
+1. **优化点 1 — 超时文字精简**：用药提醒页超时状态文案从"已超时，请尽快补打卡"精简为"⚠️ 已超时"
+2. **优化点 2 — 全局 Toast 统一**：全站操作提示统一为微信风格居中轻量 Toast（1.5s、居中、半透明深色、圆角 8px），封装 `showToast()` 工具函数替换原生 `Toast.show()`
+3. **优化点 3 — 数据一致性修复**：用药提醒页不再从 sessionStorage 获取 consultant_id（仅从 URL 参数获取），与首页 badge 接口口径完全一致，解决"首页 N 条待服用 vs 今日页 0 条"的复现 Bug
+
+**变更文件**：
+- `h5-web/src/lib/toast-unified.ts` — 重构为微信风格居中 Toast（position:center, 1.5s, rgba(0,0,0,0.7)）
+- `h5-web/src/app/globals.css` — Toast 全局样式更新（缩小尺寸、圆角 8px）
+- `h5-web/src/app/(ai-chat)/ai-home/medication-reminder/page.tsx` — 超时文字精简 + Toast 替换 + consultant_id 取值修复
+- `h5-web/src/components/medication/MedicationFormPanel.tsx` — Toast 替换
+- `h5-web/src/app/(ai-chat)/ai-home/components/ViewMedicationPlansDrawer.tsx` — Toast 替换
+- `h5-web/src/app/health-profile/page.tsx` — Toast 替换
+- `h5-web/src/app/health-self-check/result/[id]/page.tsx` — Toast 替换
+- `h5-web/src/app/medical-records/page.tsx` — Toast 替换
+- `h5-web/src/app/health-alerts/page.tsx` — Toast 替换
+- `h5-web/src/app/devices/page.tsx` — Toast 替换
+
+**部署验证（已通过）**：
+- 部署时间：2026-05-21 23:50
+- 服务器 H5 容器 Recreate 启动正常
+- HTTP 探活：`/` 200、`/api/health` 200
+- 后端测试：_apply_consultant_filter 一致性 6 项全通过
+
+**用户体验手册**：`user_docs/用药提醒页面优化.md`
+
+---
+
+## Previous Update: BUG-MED-V1 · 健康档案用药模块 Bug 修复 (2026-05-21 22:40)
 
 **任务类型**：Bug 修复（7 个 Bug）；变更范围：backend + h5-web + miniprogram
 

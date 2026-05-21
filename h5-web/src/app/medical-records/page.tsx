@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Toast } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import {
   MedicalRecordItem,
@@ -63,7 +63,7 @@ function MedicalRecordsInner() {
       setItems(res.items || []);
       setGrouped(res.grouped || { case_note: 0, checkup_report: 0, drug: 0, other: 0 });
     } catch {
-      Toast.show({ icon: 'fail', content: '加载失败' });
+      showToast('加载失败', 'fail');
     } finally {
       setLoading(false);
     }
@@ -217,7 +217,7 @@ function UploadSheet({
     if (!fileList || fileList.length === 0) return;
     const all = Array.from(fileList);
     if (files.length + all.length > 9) {
-      Toast.show({ icon: 'fail', content: '一份资料最多 9 个文件' });
+      showToast('一份资料最多 9 个文件', 'fail');
       return;
     }
     setUploading(true);
@@ -226,7 +226,7 @@ function UploadSheet({
       const isPdf = f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf');
       const maxSize = isPdf ? 20 * 1024 * 1024 : 10 * 1024 * 1024;
       if (f.size > maxSize) {
-        Toast.show({ icon: 'fail', content: isPdf ? 'PDF 不能超过 20MB' : '单文件不能超过 10MB' });
+        showToast(isPdf ? 'PDF 不能超过 20MB' : '单文件不能超过 10MB', 'fail');
         continue;
       }
       try {
@@ -245,7 +245,7 @@ function UploadSheet({
           file_size: f.size,
         });
       } catch (e) {
-        Toast.show({ icon: 'fail', content: `上传失败: ${f.name}` });
+        showToast(`上传失败: ${f.name}`, 'fail');
       }
     }
     if (newFiles.length) setFiles((prev) => [...prev, ...newFiles]);
@@ -254,11 +254,11 @@ function UploadSheet({
 
   const submit = useCallback(async () => {
     if (!title.trim()) {
-      Toast.show({ icon: 'fail', content: '请填写标题' });
+      showToast('请填写标题', 'fail');
       return;
     }
     if (files.length === 0) {
-      Toast.show({ icon: 'fail', content: '请至少上传 1 个文件' });
+      showToast('请至少上传 1 个文件', 'fail');
       return;
     }
     try {
@@ -270,10 +270,10 @@ function UploadSheet({
         source: 'manual',
         files,
       });
-      Toast.show({ icon: 'success', content: '已保存' });
+      showToast('已保存');
       onSuccess();
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: e?.message || '保存失败' });
+      showToast(e?.message || '保存失败', 'fail');
     }
   }, [title, files, memberId, category, recordDate, onSuccess]);
 

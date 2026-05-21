@@ -15,7 +15,7 @@
  * 全量样式遵循 AI-home 11 级天蓝色阶（#0EA5E9 系）。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Toast } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import {
   bindDevice,
@@ -81,12 +81,12 @@ export default function DevicesPage() {
   const handleBindSubmit = async (payload: BindPayload) => {
     try {
       await bindDevice(payload);
-      Toast.show({ icon: 'success', content: '绑定成功' });
+      showToast('绑定成功');
       setBindTarget(null);
       await loadAll();
     } catch (e: any) {
       const msg = e?.response?.data?.detail || e?.response?.data?.message || e?.message || '绑定失败';
-      Toast.show({ icon: 'fail', content: String(msg) });
+      showToast(String(msg), 'fail');
     }
   };
 
@@ -94,12 +94,12 @@ export default function DevicesPage() {
     if (!editTarget) return;
     try {
       await editBinding(editTarget.id, payload);
-      Toast.show({ icon: 'success', content: '已保存' });
+      showToast('已保存');
       setEditTarget(null);
       await loadAll();
     } catch (e: any) {
       const msg = e?.response?.data?.detail || e?.message || '保存失败';
-      Toast.show({ icon: 'fail', content: String(msg) });
+      showToast(String(msg), 'fail');
     }
   };
 
@@ -108,12 +108,12 @@ export default function DevicesPage() {
     setUnbindSubmitting(true);
     try {
       await unbindDevice(unbindTarget.id);
-      Toast.show({ icon: 'success', content: '已解绑' });
+      showToast('已解绑');
       setUnbindTarget(null);
       await loadAll();
     } catch (e: any) {
       const msg = e?.response?.data?.detail || e?.message || '解绑失败';
-      Toast.show({ icon: 'fail', content: String(msg) });
+      showToast(String(msg), 'fail');
     } finally {
       setUnbindSubmitting(false);
     }

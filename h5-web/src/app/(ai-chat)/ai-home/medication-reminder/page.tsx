@@ -16,7 +16,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Toast, Dialog } from 'antd-mobile';
+import { Dialog } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 
 interface TimelineItem {
@@ -75,14 +76,16 @@ export default function MedicationReminderPage() {
     if (reloadingRef.current) return;
     reloadingRef.current = true;
     try {
-      // [BUG-MED-V1 2026-05-21 Bug1] 携带 consultant_id 与 hero-count 口径一致
-      let consultantId: string | number = '';
+      // [PRD-MED-OPTIM-V2 2026-05-21 优化点3] consultant_id 仅从 URL 参数获取，不从 sessionStorage 读取。
+      // 首页 badge 接口不传 patient_id → 全量查询，此处保持一致口径。
+      // 只有从首页带参跳转（如 ?consultant_id=5）时才按指定成员过滤，避免数据不一致。
+      let consultantId: string = '';
       try {
         if (typeof window !== 'undefined') {
-          const cid = window.sessionStorage?.getItem('current_consultant_id')
-            ?? window.localStorage?.getItem('current_consultant_id');
-          if (cid !== null && cid !== undefined && cid !== '') {
-            consultantId = cid;
+          const urlParams = new URLSearchParams(window.location.search);
+          const urlCid = urlParams.get('consultant_id');
+          if (urlCid !== null && urlCid !== '') {
+            consultantId = urlCid;
           }
         }
       } catch {
@@ -92,7 +95,7 @@ export default function MedicationReminderPage() {
       const res: any = await api.get(`/api/medication-plans/today${qs}`);
       setData(res.data || res);
     } catch (e: any) {
-      Toast.show({ content: '加载失败，请稍后重试', icon: 'fail' });
+      showToast('加载失败，请稍后重试', 'fail');
     } finally {
       setLoading(false);
       reloadingRef.current = false;
@@ -108,10 +111,10 @@ export default function MedicationReminderPage() {
   const handleCheckIn = async (planId: number, scheduledTime: string) => {
     try {
       await api.post('/api/medication-check-in', { plan_id: planId, scheduled_time: scheduledTime });
-      Toast.show({ content: '已打卡', icon: 'success' });
+      showToast('已打卡');
       load();
     } catch (e: any) {
-      Toast.show({ content: e?.response?.data?.detail || '打卡失败', icon: 'fail' });
+      showToast(e?.response?.data?.detail || '打卡失败', 'fail');
     }
   };
 
@@ -123,15 +126,12 @@ export default function MedicationReminderPage() {
     if (!confirmed) return;
     try {
       await api.post(`/api/medication-check-in/${item.check_in_id}/revoke`);
-      Toast.show({ content: '已撤销', icon: 'success' });
+      showToast('已撤销');
       load();
     } catch (e: any) {
       const detail = e?.response?.data?.detail;
       const code = typeof detail === 'object' ? detail?.code : '';
-      Toast.show({
-        content: code === 'REVOKE_TIMEOUT' ? '超过 5 分钟，无法撤销' : '撤销失败',
-        icon: 'fail',
-      });
+      showToast(code === 'REVOKE_TIMEOUT' ? '超过 5 分钟，无法撤销' : '撤销失败', 'fail');
     }
   };
 
@@ -361,7 +361,7 @@ function TimelineRow({
       : item.status === 'upcoming'
       ? '即将服用'
       : item.status === 'overdue'
-      ? '已超时，请尽快补打卡'
+      ? '⚠️ 已超时'
       : '未到时间';
   return (
     <div

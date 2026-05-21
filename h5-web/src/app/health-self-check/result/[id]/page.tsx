@@ -23,7 +23,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Button, SpinLoading, Toast } from 'antd-mobile';
+import { Button, SpinLoading } from 'antd-mobile';
+import { showToast as globalToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import api from '@/lib/api';
@@ -117,7 +118,7 @@ function PageInner() {
       } else {
         setLoadState('error');
         try {
-          Toast.show({ content: '结果加载失败，请稍后再试' });
+          globalToast('结果加载失败，请稍后再试');
         } catch {
           /* noop */
         }
@@ -213,10 +214,10 @@ function PageInner() {
   const triggerRetryAi = async (showToast: boolean = true) => {
     try {
       await api.post(`/api/questionnaire/answers/${id}/retry-ai`, {});
-      if (showToast) Toast.show({ content: '已重新触发 AI 解读' });
+      if (showToast) globalToast('已重新触发 AI 解读');
       setData((d) => (d ? { ...d, ai_status: 'pending', profile_outdated: false } : d));
     } catch {
-      if (showToast) Toast.show({ content: '触发失败，请稍后再试' });
+      if (showToast) globalToast('触发失败，请稍后再试');
     }
   };
 

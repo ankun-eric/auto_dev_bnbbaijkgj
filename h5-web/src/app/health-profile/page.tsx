@@ -22,7 +22,7 @@ export const dynamicParams = true;
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Toast } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMemberModal';
@@ -839,10 +839,10 @@ function HealthProfileV2PageInner() {
         });
         setProfile(heroEditDraft);
         setShowHeroEdit(false);
-        Toast.show({ content: '已保存', icon: 'success' });
+        showToast('已保存');
         if (selectedMemberId) await fetchProfile(selectedMemberId);
       } catch {
-        Toast.show({ content: '保存失败', icon: 'fail' });
+        showToast('保存失败', 'fail');
       }
     };
 
@@ -1154,7 +1154,7 @@ function HealthProfileV2PageInner() {
           onSuccess={() => {
             setShowAddMember(false);
             fetchMembers();
-            Toast.show({ content: '已添加家庭成员', icon: 'success' });
+            showToast('已添加家庭成员');
           }}
         />
       )}
