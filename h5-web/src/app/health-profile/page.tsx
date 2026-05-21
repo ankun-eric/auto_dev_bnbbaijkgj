@@ -528,7 +528,7 @@ function HealthProfileV2PageInner() {
                     whiteSpace: 'nowrap',
                     lineHeight: 1.2,
                   }}
-                >被守护</span>
+                >守护中</span>
               )}
             </div>
             <div
@@ -669,7 +669,7 @@ function HealthProfileV2PageInner() {
                     boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
                     border: '1px solid #fff',
                   }}
-                >被守护</span>
+                >守护中</span>
               )}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -1123,6 +1123,44 @@ function HealthProfileV2PageInner() {
       </div>
 
       {renderHero()}
+      {/* [PRD-FAMILY-MEMBER-OPTIM 2026-05-22 F1+F2] 邀请家人共管区域 */}
+      {(() => {
+        if (!selectedMember) return null;
+        const flag = guardedFlags.get(selectedMember.id);
+        const memberGuarded = !!flag?.guarded;
+        if (memberGuarded && !selectedMember.is_self) return null;
+
+        return (
+          <div
+            data-testid="bh-invite-area"
+            style={{
+              padding: '0 16px 8px',
+              transition: 'opacity 0.3s ease, max-height 0.3s ease',
+            }}
+          >
+            <div
+              onClick={() => router.push('/family-invite')}
+              style={{
+                background: 'linear-gradient(135deg, #E8F4FD, #F0F8FF)',
+                borderRadius: 12,
+                padding: '14px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                cursor: 'pointer',
+                borderLeft: '4px solid #0EA5E9',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 18 }}>💙</span>
+                <span style={{ fontSize: 15, fontWeight: 600, color: '#0369A1' }}>邀请家人共管</span>
+              </div>
+              <span style={{ fontSize: 14, color: '#0EA5E9', fontWeight: 500 }}>去邀请 ›</span>
+            </div>
+          </div>
+        );
+      })()}
       {/* [PRD-HEALTH-ARCHIVE-V5-20260521] 预警横幅 + 4 卡片 + 就医资料 */}
       <HealthArchiveV5Inject
         memberId={selectedMemberId}

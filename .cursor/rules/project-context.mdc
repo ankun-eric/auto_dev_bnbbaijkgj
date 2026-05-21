@@ -27,7 +27,33 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-MED-OPTIM-V2 · 用药提醒页面优化 (2026-05-21 23:50)
+## Latest Update: PRD-FAMILY-MEMBER-OPTIM · 家庭成员页面优化 (2026-05-22 00:20)
+
+**任务类型**：体验优化；变更范围：h5-web
+
+**核心交付**：
+
+1. **F1 — 邀请区域移植**：健康档案页 Hero 卡下方新增「邀请家人共管」浅蓝色渐变卡片入口（左侧天蓝竖条 + 💙 图标 + "去邀请 ›" 文字链），点击跳转 `/family-invite`
+2. **F2 — 邀请区域条件隐藏**：切换到已守护成员时自动隐藏邀请区域，切换到本人或未守护成员时恢复显示，300ms 过渡动画
+3. **F3 — 角标文案更新**：成员 Tab 头像角标和 Hero 大头像角标从「被守护」改为「守护中」，背景色保持天蓝色 `#0EA5E9`
+4. **F4 — 成员信息补充**：家庭成员卡片新增性别 + 年龄行（格式：`男 · 35岁`），未填写时显示"未填写"
+5. **F5 — 编辑按钮修正**：编辑按钮改为打开个人信息编辑 Popup 面板（姓名/性别/生日/身高/体重/关系），替代错误的新增成员 Modal
+6. **F6 — 提醒设置重设计**：全新仪表盘式天蓝色主调（渐变顶部状态卡 + Switch 开关 + 胶囊标签选择 + 分组卡片），替代原生 checkbox/radio 表单
+
+**变更文件**：
+- `h5-web/src/app/health-profile/page.tsx` — F1 邀请区域 + F2 条件隐藏 + F3 角标文案"守护中"
+- `h5-web/src/app/family/page.tsx` — F4 性别年龄 + F5 EditMemberDrawer + F6 AlertSettingsDrawer 重设计
+
+**部署验证（已通过）**：
+- 部署时间：2026-05-22 00:20
+- 服务器 H5 容器 Recreate 启动正常
+- HTTP 探活：`/` 200、`/api/health` 200、`/health-profile` 308、`/family` 308
+
+**用户体验手册**：`user_docs/家庭成员页面优化.md`
+
+---
+
+## Previous Update: PRD-MED-OPTIM-V2 · 用药提醒页面优化 (2026-05-21 23:50)
 
 **任务类型**：体验优化 + Bug 修复复现；变更范围：h5-web
 

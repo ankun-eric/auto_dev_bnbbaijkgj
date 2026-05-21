@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Input, Popup, Toast } from 'antd-mobile';
+import { Button, Input, Popup, Toast, Switch } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMemberModal';
@@ -27,6 +27,20 @@ interface MemberItem {
   avatar_color_index: number;
   relation_badge_char: string;
   guard_status: 'self' | 'guarded' | 'unguarded';
+  gender?: string;
+  birthday?: string;
+}
+
+function calcAge(birthday: string): number | null {
+  try {
+    const b = new Date(birthday);
+    if (isNaN(b.getTime())) return null;
+    const now = new Date();
+    let age = now.getFullYear() - b.getFullYear();
+    const m = now.getMonth() - b.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age--;
+    return age;
+  } catch { return null; }
 }
 
 const COLOR_PALETTE = [
@@ -86,6 +100,8 @@ export default function FamilyListPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [alertMember, setAlertMember] = useState<MemberItem | null>(null);
   const [unbindMember, setUnbindMember] = useState<MemberItem | null>(null);
+  const [editMember, setEditMember] = useState<MemberItem | null>(null);
+  const [editDraft, setEditDraft] = useState<{ name: string; gender: string; birthday: string; height: string; weight: string; relationship_type: string }>({ name: '', gender: '', birthday: '', height: '', weight: '', relationship_type: '' });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -104,9 +120,16 @@ export default function FamilyListPage() {
     load();
   }, [load]);
 
-  const onEdit = (_m: MemberItem) => {
-    // [PRD-HEALTH-ARCHIVE-OPTIM-V2] NewFamilyMemberModal 当前仅支持新增；编辑暂走相同 Modal 让用户完善
-    setShowAdd(true);
+  const onEdit = (m: MemberItem) => {
+    setEditDraft({
+      name: m.nickname || '',
+      gender: m.gender || '',
+      birthday: m.birthday || '',
+      height: '',
+      weight: '',
+      relationship_type: m.relationship_type || '',
+    });
+    setEditMember(m);
   };
 
   const onInvite = (m: MemberItem) => {
@@ -163,6 +186,14 @@ export default function FamilyListPage() {
                 <div style={{ marginTop: 4, color: '#666', fontSize: 13 }}>
                   {m.is_self ? '本人' : m.relationship_type || '未设置关系'}
                 </div>
+                <div style={{ marginTop: 2, color: '#999', fontSize: 12 }}>
+                  {(() => {
+                    const g = m.gender || '未填写';
+                    const age = m.birthday ? calcAge(m.birthday) : null;
+                    const ageStr = age != null ? `${age}岁` : '未填写';
+                    return `${g} · ${ageStr}`;
+                  })()}
+                </div>
               </div>
             </div>
             <div style={{ height: 1, background: '#F0F2F5', margin: '12px 0 8px' }} />
@@ -210,7 +241,186 @@ export default function FamilyListPage() {
           load();
         }}
       />
+
+      <EditMemberDrawer
+        member={editMember}
+        draft={editDraft}
+        onDraftChange={setEditDraft}
+        onClose={() => setEditMember(null)}
+        onSaved={() => {
+          setEditMember(null);
+          load();
+        }}
+      />
     </div>
+  );
+}
+
+// ───────────────── 编辑成员抽屉 ─────────────────
+
+interface EditDraft {
+  name: string;
+  gender: string;
+  birthday: string;
+  height: string;
+  weight: string;
+  relationship_type: string;
+}
+
+const GENDER_OPTIONS = ['男', '女', '其他'];
+
+function EditMemberDrawer({
+  member,
+  draft,
+  onDraftChange,
+  onClose,
+  onSaved,
+}: {
+  member: MemberItem | null;
+  draft: EditDraft;
+  onDraftChange: (d: EditDraft) => void;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  const onSave = async () => {
+    if (!member) return;
+    setSaving(true);
+    try {
+      const body: Record<string, any> = {
+        name: draft.name || undefined,
+        gender: draft.gender || undefined,
+        birthday: draft.birthday || undefined,
+        height: draft.height ? Number(draft.height) : undefined,
+        weight: draft.weight ? Number(draft.weight) : undefined,
+      };
+      if (!member.is_self) {
+        body.relationship_type = draft.relationship_type || undefined;
+      }
+      await api.put(`/api/health/profile/member/${member.id}`, body);
+      Toast.show({ icon: 'success', content: '已保存' });
+      onSaved();
+    } catch (e: any) {
+      Toast.show(e?.message || '保存失败');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const fieldLabel = (text: string) => (
+    <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>{text}</div>
+  );
+
+  return (
+    <Popup
+      visible={!!member}
+      onMaskClick={onClose}
+      bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, maxHeight: '85vh', overflowY: 'auto' }}
+    >
+      {member && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <strong style={{ fontSize: 18 }}>编辑个人信息</strong>
+            <span onClick={onClose} style={{ fontSize: 22, color: '#999', cursor: 'pointer', padding: '0 8px' }}>×</span>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            {fieldLabel('姓名')}
+            <Input
+              placeholder="请输入姓名"
+              value={draft.name}
+              onChange={(v) => onDraftChange({ ...draft, name: v })}
+              style={{ background: '#F8F9FC', borderRadius: 8, padding: '0 12px', height: 40, '--font-size': '15px' } as any}
+            />
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            {fieldLabel('性别')}
+            <div style={{ display: 'flex', gap: 10 }}>
+              {GENDER_OPTIONS.map((g) => (
+                <div
+                  key={g}
+                  onClick={() => onDraftChange({ ...draft, gender: g })}
+                  style={{
+                    padding: '6px 20px',
+                    borderRadius: 20,
+                    fontSize: 14,
+                    cursor: 'pointer',
+                    fontWeight: 500,
+                    background: draft.gender === g ? '#1F6FE6' : '#F1F5F9',
+                    color: draft.gender === g ? '#fff' : '#64748B',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {g}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            {fieldLabel('生日')}
+            <input
+              type="date"
+              value={draft.birthday}
+              onChange={(e) => onDraftChange({ ...draft, birthday: e.target.value })}
+              style={{
+                width: '100%',
+                background: '#F8F9FC',
+                borderRadius: 8,
+                padding: '0 12px',
+                height: 40,
+                border: 'none',
+                fontSize: 15,
+                color: '#333',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
+            <div style={{ flex: 1 }}>
+              {fieldLabel('身高 (cm)')}
+              <Input
+                type="number"
+                placeholder="如 170"
+                value={draft.height}
+                onChange={(v) => onDraftChange({ ...draft, height: v })}
+                style={{ background: '#F8F9FC', borderRadius: 8, padding: '0 12px', height: 40, '--font-size': '15px' } as any}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              {fieldLabel('体重 (kg)')}
+              <Input
+                type="number"
+                placeholder="如 65"
+                value={draft.weight}
+                onChange={(v) => onDraftChange({ ...draft, weight: v })}
+                style={{ background: '#F8F9FC', borderRadius: 8, padding: '0 12px', height: 40, '--font-size': '15px' } as any}
+              />
+            </div>
+          </div>
+
+          {!member.is_self && (
+            <div style={{ marginBottom: 14 }}>
+              {fieldLabel('关系')}
+              <Input
+                placeholder="如 父亲、母亲"
+                value={draft.relationship_type}
+                onChange={(v) => onDraftChange({ ...draft, relationship_type: v })}
+                style={{ background: '#F8F9FC', borderRadius: 8, padding: '0 12px', height: 40, '--font-size': '15px' } as any}
+              />
+            </div>
+          )}
+
+          <Button block color="primary" loading={saving} onClick={onSave} style={{ marginTop: 8 }}>
+            保存
+          </Button>
+        </div>
+      )}
+    </Popup>
   );
 }
 
@@ -225,6 +435,41 @@ interface AlertSettings {
   ai_call_timing: string;
   guardian_alert_minutes: number;
   show_guardian_alert: boolean;
+}
+
+function CapsuleTag({
+  label,
+  selected,
+  onTap,
+}: {
+  label: string;
+  selected: boolean;
+  onTap: () => void;
+}) {
+  const [pressed, setPressed] = useState(false);
+  return (
+    <div
+      onClick={() => {
+        setPressed(true);
+        onTap();
+        setTimeout(() => setPressed(false), 200);
+      }}
+      style={{
+        padding: '6px 14px',
+        borderRadius: 20,
+        fontSize: 13,
+        fontWeight: 500,
+        cursor: 'pointer',
+        background: selected ? '#0EA5E9' : '#F1F5F9',
+        color: selected ? '#fff' : '#64748B',
+        transform: pressed ? 'scale(0.95)' : 'scale(1)',
+        transition: 'all 0.2s',
+        userSelect: 'none',
+      }}
+    >
+      {label}
+    </div>
+  );
 }
 
 function AlertSettingsDrawer({ member, onClose }: { member: MemberItem | null; onClose: () => void }) {
@@ -265,99 +510,220 @@ function AlertSettingsDrawer({ member, onClose }: { member: MemberItem | null; o
     }
   };
 
+  const TIMING_OPTIONS: { value: string; label: string }[] = [
+    { value: 'on_time', label: '准时拨打' },
+    { value: 'delay_5', label: '延迟5分钟' },
+    { value: 'delay_10', label: '延迟10分钟' },
+    { value: 'delay_15', label: '延迟15分钟' },
+  ];
+
+  const GUARDIAN_MINUTES: { value: number; label: string }[] = [
+    { value: 5, label: '5分钟' },
+    { value: 10, label: '10分钟' },
+    { value: 15, label: '15分钟' },
+  ];
+
   return (
-    <Popup visible={!!member} onMaskClick={onClose} bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, maxHeight: '85vh', overflowY: 'auto' }}>
+    <Popup
+      visible={!!member}
+      onMaskClick={onClose}
+      bodyStyle={{
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        background: '#fff',
+      }}
+    >
       {settings && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <strong style={{ fontSize: 18 }}>提醒设置</strong>
-            <span onClick={onClose} style={{ fontSize: 22, color: '#999', cursor: 'pointer', padding: '0 8px' }}>×</span>
+        <div style={{ padding: '16px 16px 24px' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <strong style={{ fontSize: 18, color: '#1E293B' }}>提醒设置</strong>
+            <span onClick={onClose} style={{ fontSize: 22, color: '#94A3B8', cursor: 'pointer', padding: '0 8px' }}>×</span>
           </div>
 
-          {/* 手机号 */}
-          <div style={{ background: '#F8F9FC', borderRadius: 8, padding: 12, marginBottom: 12 }}>
-            <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>对方手机号</div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: '#222' }}>{settings.masked_phone || '未填写'}</div>
-            <div style={{ marginTop: 6, fontSize: 12, color: '#888' }}>
-              💡 这里显示的是对方的注册手机号，若需换号码，请联系对方修改
-            </div>
-          </div>
-
-          {/* AI 外呼 */}
-          <div style={{ background: '#F8F9FC', borderRadius: 8, padding: 12, marginBottom: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          {/* 顶部状态卡片 */}
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
+              borderRadius: 14,
+              padding: '18px 16px',
+              marginBottom: 16,
+              color: '#fff',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 28 }}>📱</span>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 600 }}>AI 外呼提醒</div>
-                <div style={{ fontSize: 12, color: '#888' }}>提醒 TA 打卡</div>
+                <div style={{ fontSize: 16, fontWeight: 700 }}>
+                  {settings.ai_call_enabled ? 'AI外呼已开启' : 'AI外呼未开启'}
+                </div>
+                <div style={{ fontSize: 13, opacity: 0.85, marginTop: 2 }}>
+                  {settings.masked_phone ? `通知号码 ${settings.masked_phone}` : '暂未绑定号码'}
+                </div>
               </div>
-              <label style={{ cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={settings.ai_call_enabled}
-                  onChange={(e) => setSettings({ ...settings, ai_call_enabled: e.target.checked })}
-                />
-                <span style={{ marginLeft: 4 }}>{settings.ai_call_enabled ? '开' : '关'}</span>
-              </label>
-            </div>
-            <div style={{ opacity: settings.ai_call_enabled ? 1 : 0.45, pointerEvents: settings.ai_call_enabled ? 'auto' : 'none' }}>
-              <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>呼叫时机</div>
-              {(['on_time', 'delay_5', 'delay_10', 'delay_15'] as const).map((opt) => (
-                <label key={opt} style={{ display: 'block', padding: '6px 0', cursor: 'pointer' }}>
-                  <input
-                    type="radio"
-                    name="ai_call_timing"
-                    checked={settings.ai_call_timing === opt}
-                    onChange={() => setSettings({ ...settings, ai_call_timing: opt })}
-                  />
-                  <span style={{ marginLeft: 8 }}>
-                    {opt === 'on_time' ? '准时拨打' : opt === 'delay_5' ? '延迟 5 分钟' : opt === 'delay_10' ? '延迟 10 分钟' : '延迟 15 分钟'}
-                  </span>
-                </label>
-              ))}
             </div>
           </div>
 
-          {/* 超时通知守护者（本人不显示） */}
-          {settings.show_guardian_alert && (
-            <div style={{ background: '#F8F9FC', borderRadius: 8, padding: 12, marginBottom: 12 }}>
-              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>超时通知守护者</div>
-              <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
-                📩 若 TA 到点未打卡，将以站内推送方式通知您
+          {/* AI 外呼提醒 */}
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 14,
+              padding: 16,
+              marginBottom: 12,
+              boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    background: '#E0F2FE',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 18,
+                    flexShrink: 0,
+                  }}
+                >
+                  📞
+                </span>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: '#1E293B' }}>AI 外呼提醒</div>
+                  <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 1 }}>到点提醒 TA 打卡</div>
+                </div>
               </div>
-              <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>触发时长</div>
-              {([5, 10, 15] as const).map((opt) => (
-                <label key={opt} style={{ display: 'block', padding: '6px 0', cursor: 'pointer' }}>
-                  <input
-                    type="radio"
-                    name="guardian_alert_minutes"
-                    checked={settings.guardian_alert_minutes === opt}
-                    onChange={() => setSettings({ ...settings, guardian_alert_minutes: opt })}
+              <Switch
+                checked={settings.ai_call_enabled}
+                onChange={(checked) => setSettings({ ...settings, ai_call_enabled: checked })}
+                style={{ '--checked-color': '#0EA5E9' } as any}
+              />
+            </div>
+            <div
+              style={{
+                opacity: settings.ai_call_enabled ? 1 : 0.4,
+                pointerEvents: settings.ai_call_enabled ? 'auto' : 'none',
+                transition: 'opacity 0.25s',
+              }}
+            >
+              <div style={{ fontSize: 13, color: '#64748B', marginBottom: 8 }}>呼叫时机</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {TIMING_OPTIONS.map((opt) => (
+                  <CapsuleTag
+                    key={opt.value}
+                    label={opt.label}
+                    selected={settings.ai_call_timing === opt.value}
+                    onTap={() => setSettings({ ...settings, ai_call_timing: opt.value })}
                   />
-                  <span style={{ marginLeft: 8 }}>{opt} 分钟{opt === 5 ? '（默认）' : ''}</span>
-                </label>
-              ))}
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 超时通知守护者 */}
+          {settings.show_guardian_alert && (
+            <div
+              style={{
+                background: '#fff',
+                borderRadius: 14,
+                padding: 16,
+                marginBottom: 12,
+                boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <span
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    background: '#FFF7ED',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 18,
+                    flexShrink: 0,
+                  }}
+                >
+                  🔔
+                </span>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: '#1E293B' }}>超时通知守护者</div>
+                  <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 1 }}>若 TA 到点未打卡，将推送通知您</div>
+                </div>
+              </div>
+              <div style={{ fontSize: 13, color: '#64748B', marginBottom: 8 }}>触发时长</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {GUARDIAN_MINUTES.map((opt) => (
+                  <CapsuleTag
+                    key={opt.value}
+                    label={opt.label}
+                    selected={settings.guardian_alert_minutes === opt.value}
+                    onTap={() => setSettings({ ...settings, guardian_alert_minutes: opt.value })}
+                  />
+                ))}
+              </div>
             </div>
           )}
 
+          {/* 查看提醒历史 */}
           <div
             onClick={() => setHistoryOpen(true)}
             style={{
-              background: '#F8F9FC',
-              borderRadius: 8,
-              padding: 14,
-              marginBottom: 16,
+              background: '#fff',
+              borderRadius: 14,
+              padding: 16,
+              marginBottom: 20,
+              boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
               display: 'flex',
               justifyContent: 'space-between',
+              alignItems: 'center',
               cursor: 'pointer',
             }}
           >
-            <span>查看提醒历史</span>
-            <span style={{ color: '#999' }}>›</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: '#F3E8FF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 18,
+                  flexShrink: 0,
+                }}
+              >
+                📋
+              </span>
+              <span style={{ fontSize: 15, fontWeight: 600, color: '#1E293B' }}>查看提醒历史</span>
+            </div>
+            <span style={{ color: '#94A3B8', fontSize: 18, fontWeight: 600 }}>›</span>
           </div>
 
-          <Button block color="primary" loading={saving} onClick={onSave}>
-            保存
-          </Button>
+          {/* 保存按钮 */}
+          <div
+            onClick={saving ? undefined : onSave}
+            style={{
+              background: saving ? '#94A3B8' : 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
+              borderRadius: 24,
+              padding: '14px 0',
+              textAlign: 'center',
+              color: '#fff',
+              fontSize: 16,
+              fontWeight: 600,
+              cursor: saving ? 'not-allowed' : 'pointer',
+              userSelect: 'none',
+            }}
+          >
+            {saving ? '保存中...' : '保存设置'}
+          </div>
         </div>
       )}
 
@@ -365,7 +731,7 @@ function AlertSettingsDrawer({ member, onClose }: { member: MemberItem | null; o
       <Popup
         visible={historyOpen}
         onMaskClick={() => setHistoryOpen(false)}
-        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, maxHeight: '85vh', overflowY: 'auto' }}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, maxHeight: '85vh', overflowY: 'auto', background: '#fff' }}
       >
         {member && historyOpen && <AlertHistoryList memberId={member.id} onBack={() => setHistoryOpen(false)} />}
       </Popup>
@@ -392,20 +758,50 @@ function AlertHistoryList({ memberId, onBack }: { memberId: number; onBack: () =
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-        <span onClick={onBack} style={{ cursor: 'pointer', fontSize: 18, marginRight: 8 }}>‹</span>
-        <strong style={{ fontSize: 18 }}>提醒历史</strong>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+        <span onClick={onBack} style={{ cursor: 'pointer', fontSize: 20, marginRight: 8, color: '#0EA5E9', fontWeight: 600 }}>‹</span>
+        <strong style={{ fontSize: 18, color: '#1E293B' }}>提醒历史</strong>
       </div>
-      {loading && <div style={{ color: '#999', textAlign: 'center', padding: 24 }}>加载中...</div>}
+      {loading && <div style={{ color: '#94A3B8', textAlign: 'center', padding: 24 }}>加载中...</div>}
       {!loading && items.length === 0 && (
-        <div style={{ color: '#999', textAlign: 'center', padding: 24 }}>暂无提醒记录</div>
+        <div style={{ color: '#94A3B8', textAlign: 'center', padding: 24 }}>暂无提醒记录</div>
       )}
       {items.map((it) => (
-        <div key={it.id} style={{ background: '#F8F9FC', borderRadius: 8, padding: 12, marginBottom: 8 }}>
-          <div style={{ fontSize: 13, color: '#666' }}>{it.pushed_at}</div>
-          <div style={{ fontSize: 14, marginTop: 4 }}>
-            类型：{it.type === 'guardian_alert' ? '超时通知' : 'AI 外呼'} · 结果：{it.delivery_status}
+        <div
+          key={it.id}
+          style={{
+            background: '#fff',
+            borderRadius: 12,
+            padding: 14,
+            marginBottom: 10,
+            boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          <span
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              background: it.type === 'guardian_alert' ? '#FFF7ED' : '#E0F2FE',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 16,
+              flexShrink: 0,
+            }}
+          >
+            {it.type === 'guardian_alert' ? '🔔' : '📞'}
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 500, color: '#1E293B' }}>
+              {it.type === 'guardian_alert' ? '超时通知' : 'AI 外呼'}
+            </div>
+            <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 2 }}>{it.pushed_at}</div>
           </div>
+          <span style={{ fontSize: 12, color: '#64748B', flexShrink: 0 }}>{it.delivery_status}</span>
         </div>
       ))}
     </div>
