@@ -287,16 +287,38 @@ async def _monthly_compliance(
 
 @router.get("/medication-plans/today")
 async def reminder_today(
+    consultant_id: Optional[int] = Query(
+        None,
+        description=(
+            "[BUG-MED-V1 2026-05-21] 咨询人 family_member id；"
+            "None/-1=不过滤(本人兼容)；0=本人；>0=家庭成员。"
+            "口径与 /medication-plans/hero-count 完全一致。"
+        ),
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """用药提醒页一次性返回 banner / upcoming / timeline。"""
+    """用药提醒页一次性返回 banner / upcoming / timeline。
+
+    [BUG-MED-V1 2026-05-21] 修复：
+      - Bug 1：加入 consultant_id 过滤，口径与 hero-count 一致，避免 Hero 7 vs 列表 9 的差异
+      - Bug 2：banner 新增 today_completion_rate（今日完成率）字段
+      - Bug 3：timeline 状态新增 "overdue"（已超时未打卡）
+    """
     today = date.today()
     now = datetime.now()
     await auto_flow_medication_status(db, user_id=current_user.id)
 
-    reminders = await _list_today_active_reminders(db, current_user.id, today)
-    checkins = await _today_checkins(db, current_user.id, today)
+    reminders = await _list_today_active_reminders(
+        db, current_user.id, today, consultant_id=consultant_id,
+    )
+    # 已打卡：先按 reminder 集合（已 consultant 过滤）筛今天 checkins
+    reminder_ids = {r.id for r in reminders}
+    all_today_checkins = await _today_checkins(db, current_user.id, today)
+    if consultant_id is None or consultant_id == -1:
+        checkins = all_today_checkins
+    else:
+        checkins = [c for c in all_today_checkins if c.reminder_id in reminder_ids]
     # 已打卡 (plan_id, scheduled_time) 集合：按打卡顺序与 schedule 顺序匹配
     done_pairs: set[tuple[int, str]] = set()
     checkin_lookup: dict[tuple[int, str], MedicationCheckIn] = {}
@@ -339,9 +361,8 @@ async def reminder_today(
             elif upcoming_key == (r.id, t):
                 status = "upcoming"
             elif t <= cur_hm:
-                # 已过点但未打卡 —— 仍按 pending（未到时间）
-                # （此处按 PRD 标准只有三个状态，过点未打卡仍标记为 pending）
-                status = "pending"
+                # [BUG-MED-V1 Bug3] 已过点但未打卡 → overdue（已超时）
+                status = "overdue"
             else:
                 status = "pending"
             c = checkin_lookup.get((r.id, t))
@@ -360,6 +381,11 @@ async def reminder_today(
 
     monthly = await _monthly_compliance(db, current_user.id, today)
 
+    # [BUG-MED-V1 Bug2] 今日完成率
+    today_completion_rate = (
+        int(round(done_count / total_today * 100)) if total_today > 0 else 0
+    )
+
     banner = {
         "date_str": _format_date_str(today),
         "total_remaining": remaining_count,
@@ -368,6 +394,10 @@ async def reminder_today(
         ),
         "done_count": done_count,
         "remaining_count": remaining_count,
+        "total_today": total_today,
+        # [BUG-MED-V1 Bug2] 新增「今日完成率」字段，前端用此替代 monthly_compliance
+        "today_completion_rate": today_completion_rate,
+        # 保留 monthly_compliance 字段以向后兼容
         "monthly_compliance": monthly["rate_percent"],
     }
 

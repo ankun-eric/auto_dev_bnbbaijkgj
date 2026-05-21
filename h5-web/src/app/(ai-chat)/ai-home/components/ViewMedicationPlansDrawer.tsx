@@ -15,6 +15,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Toast, Dialog } from 'antd-mobile';
 import api from '@/lib/api';
 import MedicationFormPanel from '@/components/medication/MedicationFormPanel';
+// [BUG-MED-V1 2026-05-21 Bug1-附] 删除后广播 badge:refresh，让铃铛/今日用药胶囊/Hero 同步刷新
+import { publishBellEvent } from '@/lib/bell-event-bus';
 
 interface PlanItem {
   id: number;
@@ -114,6 +116,8 @@ export default function ViewMedicationPlansDrawer({
       Toast.show({ content: '已删除', icon: 'success' });
       setItems((prev) => prev.filter((x) => x.id !== it.id));
       onChanged?.();
+      // [BUG-MED-V1 2026-05-21 Bug1-附] 通知铃铛/胶囊/Hero 立即刷新
+      publishBellEvent('badge:refresh', { source: 'medication:plan:deleted', plan_id: it.id });
     } catch {
       Toast.show({ content: '删除失败', icon: 'fail' });
     }

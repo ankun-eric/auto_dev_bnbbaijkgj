@@ -209,15 +209,21 @@ async def get_overview(
     alerts_unresolved = int(res.scalar() or 0)
 
     # 2. 用药计划数（有效期未结束）
+    # [BUG-MED-V1 2026-05-21 Bug5/6] 修复：原代码使用了不存在的字段 is_active / consultant_id
+    #   实际模型字段是 status / family_member_id；以前每次都抛 AttributeError 被吞掉，
+    #   导致 medication_plan_count 永远为 0。
     medication_plan_count = 0
     try:
         from app.models.models import MedicationReminder
         today = date.today()
-        cond = [MedicationReminder.user_id == current_user.id, MedicationReminder.is_active == True]  # noqa: E712
+        cond = [
+            MedicationReminder.user_id == current_user.id,
+            MedicationReminder.status == "active",
+        ]
         if mid is None:
-            cond.append(or_(MedicationReminder.consultant_id.is_(None), MedicationReminder.consultant_id == 0))
+            cond.append(MedicationReminder.family_member_id.is_(None))
         else:
-            cond.append(MedicationReminder.consultant_id == mid)
+            cond.append(MedicationReminder.family_member_id == mid)
         cond.append(or_(
             MedicationReminder.long_term == True,  # noqa: E712
             MedicationReminder.end_date.is_(None),
@@ -226,7 +232,8 @@ async def get_overview(
         r2 = await db.execute(select(func.count(MedicationReminder.id)).where(and_(*cond)))
         medication_plan_count = int(r2.scalar() or 0)
     except Exception as e:  # noqa: BLE001
-        logger.debug("[overview] medication_plan_count fallback 0: %s", e)
+        # 异常应当不会发生；用 exception 级别便于排错
+        logger.exception("[overview] medication_plan_count query failed: %s", e)
 
     # 3. 家庭成员数（含本人）
     family_member_count = 0

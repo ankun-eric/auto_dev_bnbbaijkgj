@@ -17,6 +17,8 @@ import { Toast, Dialog } from 'antd-mobile';
 import api from '@/lib/api';
 import MedicalAdviceTip from './MedicalAdviceTip';
 import CycleDrawer, { CycleValue } from './CycleDrawer';
+// [BUG-MED-V1 2026-05-21 Bug1-附] 删除后通知铃铛/今日用药胶囊/Hero 刷新
+import { publishBellEvent } from '@/lib/bell-event-bus';
 
 const DOSAGE_VALUES = [
   '¼', '½', '1', '2', '3', '4', '5', '6', '8', '10',
@@ -168,7 +170,7 @@ export default function MedicationFormPanel(props: MedicationFormPanelProps) {
       custom_times: [...FREQ_DEFAULTS[2]],
       guidance: '',
       startDate: toISO(t),
-      endDate: toISO(addDays(t, 29)),
+      endDate: toISO(addDays(t, 4)),
       isLongTerm: false,
       notes: '',
     };
@@ -467,6 +469,8 @@ export default function MedicationFormPanel(props: MedicationFormPanelProps) {
     try {
       await api.delete(`/api/health-plan/medications/${planId}`);
       Toast.show({ content: '已删除', icon: 'success' });
+      // [BUG-MED-V1 2026-05-21 Bug1-附] 通知铃铛/胶囊/Hero 立即刷新
+      publishBellEvent('badge:refresh', { source: 'medication:plan:deleted', plan_id: planId });
       router.push('/ai-home/medication-plans');
     } catch {
       Toast.show({ content: '删除失败', icon: 'fail' });
@@ -648,7 +652,7 @@ export default function MedicationFormPanel(props: MedicationFormPanelProps) {
           last
           right={
             <span style={{ color: form.notes ? TEXT : '#9CA3AF', fontSize: 14, maxWidth: 180, textAlign: 'right' }}>
-              {form.notes || '可填写服用提醒、注意事项等（选填）'}
+              {form.notes || '可填补充说明'}
             </span>
           }
           testid="row-notes"
@@ -1119,7 +1123,7 @@ function NotesDrawer({
           maxLength={NOTES_MAX}
           rows={3}
           onChange={(e) => setVal(e.target.value.slice(0, NOTES_MAX))}
-          placeholder="可填写服用提醒、注意事项等（选填）"
+          placeholder="可填补充说明"
           style={{
             width: '100%',
             padding: '10px 12px',

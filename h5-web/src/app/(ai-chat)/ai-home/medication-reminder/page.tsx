@@ -22,7 +22,8 @@ import api from '@/lib/api';
 interface TimelineItem {
   plan_id: number;
   scheduled_time: string;
-  status: 'done' | 'upcoming' | 'pending';
+  // [BUG-MED-V1 2026-05-21 Bug3] 新增 overdue 状态（已超时未打卡）
+  status: 'done' | 'upcoming' | 'pending' | 'overdue';
   actual_time?: string | null;
   name: string;
   dosage?: string;
@@ -36,6 +37,9 @@ interface BannerData {
   next_reminder: { time: string; name: string } | null;
   done_count: number;
   remaining_count: number;
+  total_today?: number;
+  // [BUG-MED-V1 2026-05-21 Bug2] 新增「今日完成率」，前端展示此字段替代 monthly_compliance
+  today_completion_rate?: number;
   monthly_compliance: number;
 }
 
@@ -54,6 +58,9 @@ interface TodayResponse {
 const ORANGE = '#FF8A3D';
 const GREEN = '#22c55e';
 const BLUE = '#4A9EE0';
+const GRAY = '#94A3B8';
+// [BUG-MED-V1 2026-05-21 Bug3] 已超时颜色
+const RED = '#EF4444';
 const TEXT = '#111827';
 const SUB = '#6B7280';
 
@@ -68,7 +75,21 @@ export default function MedicationReminderPage() {
     if (reloadingRef.current) return;
     reloadingRef.current = true;
     try {
-      const res: any = await api.get('/api/medication-plans/today');
+      // [BUG-MED-V1 2026-05-21 Bug1] 携带 consultant_id 与 hero-count 口径一致
+      let consultantId: string | number = '';
+      try {
+        if (typeof window !== 'undefined') {
+          const cid = window.sessionStorage?.getItem('current_consultant_id')
+            ?? window.localStorage?.getItem('current_consultant_id');
+          if (cid !== null && cid !== undefined && cid !== '') {
+            consultantId = cid;
+          }
+        }
+      } catch {
+        consultantId = '';
+      }
+      const qs = consultantId !== '' ? `?consultant_id=${encodeURIComponent(consultantId)}` : '';
+      const res: any = await api.get(`/api/medication-plans/today${qs}`);
       setData(res.data || res);
     } catch (e: any) {
       Toast.show({ content: '加载失败，请稍后重试', icon: 'fail' });
@@ -189,7 +210,11 @@ export default function MedicationReminderPage() {
         >
           <Stat label="已服用" value={banner.done_count} />
           <Stat label="待服用" value={banner.remaining_count} />
-          <Stat label="本月依从" value={`${banner.monthly_compliance}%`} />
+          {/* [BUG-MED-V1 2026-05-21 Bug2] 「本月依从」改为「今日完成率」 */}
+          <Stat
+            label="今日完成率"
+            value={`${banner.today_completion_rate ?? 0}%`}
+          />
         </div>
       </div>
 
@@ -321,10 +346,23 @@ function TimelineRow({
   onCheckIn: () => void;
   onRevoke: () => void;
 }) {
+  // [BUG-MED-V1 2026-05-21 Bug3] 状态颜色 + 文案 + 已超时
   const dot =
-    item.status === 'done' ? GREEN : item.status === 'upcoming' ? ORANGE : BLUE;
+    item.status === 'done'
+      ? GREEN
+      : item.status === 'upcoming'
+      ? ORANGE
+      : item.status === 'overdue'
+      ? RED
+      : GRAY;
   const badgeText =
-    item.status === 'done' ? '已服用' : item.status === 'upcoming' ? '即将服用' : '未到时间';
+    item.status === 'done'
+      ? '已服用'
+      : item.status === 'upcoming'
+      ? '即将服用'
+      : item.status === 'overdue'
+      ? '已超时，请尽快补打卡'
+      : '未到时间';
   return (
     <div
       data-testid={`med-timeline-${item.plan_id}-${item.scheduled_time}`}
@@ -392,9 +430,15 @@ function TimelineRow({
         ) : (
           <button
             onClick={onCheckIn}
+            data-testid={`med-checkin-${item.plan_id}-${item.scheduled_time}`}
             style={{
               padding: '6px 12px',
-              background: item.status === 'upcoming' ? ORANGE : BLUE,
+              background:
+                item.status === 'overdue'
+                  ? RED
+                  : item.status === 'upcoming'
+                  ? ORANGE
+                  : BLUE,
               color: '#fff',
               border: 'none',
               borderRadius: 14,
@@ -402,7 +446,7 @@ function TimelineRow({
               cursor: 'pointer',
             }}
           >
-            打卡
+            {item.status === 'overdue' ? '补打卡' : '打卡'}
           </button>
         )}
       </div>

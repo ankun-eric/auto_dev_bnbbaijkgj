@@ -27,7 +27,34 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-HSC-AI-REAL-V1 · 健康自查 AI 解读真接入大模型 (2026-05-21 21:40)
+## Latest Update: BUG-MED-V1 · 健康档案用药模块 Bug 修复 (2026-05-21 22:40)
+
+**任务类型**：Bug 修复（7 个 Bug）；变更范围：backend + h5-web + miniprogram
+
+**核心交付**：
+
+1. **Bug 1 — 今日用药口径统一**：`reminder_today` 接口新增 `consultant_id` 参数，与 `hero-count` 使用相同过滤逻辑（`_apply_consultant_filter`），H5 调用处补传 consultant_id
+2. **Bug 1-附 — 删除后刷新**：H5 删除用药计划后发布 `badge:refresh` 事件总线，各页面立即刷新
+3. **Bug 2 — 今日完成率**：后端 `reminder_today` 返回新增 `today_completion_rate` 字段，H5 文案"本月依从"改为"今日完成率"
+4. **Bug 3 — 超时状态**：后端 timeline 新增 `overdue` 状态（已过时间未打卡），H5 映射为红色"已超时，请尽快补打卡" + 补打卡按钮
+5. **Bug 4 — 默认周期+占位符**：新增用药计划默认周期从 30 天改为 5 天，备注占位符改为"可填补充说明"（H5 + 小程序同步）
+6. **Bug 5/6 — 用药计划卡片**：`health_archive_v5.py` overview 查询修复（`is_active` → `status == 'active'`、`consultant_id` → `family_member_id`），标题颜色改为天蓝 `#0EA5E9`
+7. **Bug 7 — AI首页铃铛+胶囊**：`medication_reminder.py` badge 接口数据源从旧表（MedicationPlan/MedicationLog）切换到新表（MedicationReminder/MedicationCheckIn）
+
+**变更文件**：
+- `backend/app/api/medication_plans_v1.py` — consultant_id 过滤 + overdue 状态 + today_completion_rate
+- `backend/app/api/health_archive_v5.py` — overview medication_plan_count 字段修复
+- `backend/app/api/medication_reminder.py` — badge 数据源切换新表
+- `backend/tests/test_bug_med_v1_20260521.py` — 7 个回归测试（全部通过）
+- `h5-web/src/app/(ai-chat)/ai-home/medication-reminder/page.tsx` — 今日完成率 + consultant_id + overdue 状态
+- `h5-web/src/app/health-profile/page.tsx` — 用药计划卡片标题天蓝色
+- `h5-web/src/components/medication/MedicationFormPanel.tsx` — 默认 5 天 + 占位符 + 删除事件刷新
+- `miniprogram/pages/health-plan/medication-form/index.js` — 默认 5 天
+- `miniprogram/pages/health-plan/medication-form/index.wxml` — 占位符"可填补充说明"
+
+---
+
+## Previous Update: PRD-HSC-AI-REAL-V1 · 健康自查 AI 解读真接入大模型 (2026-05-21 21:40)
 
 **任务类型**：Bug 修复 + 体验优化；变更范围：backend + h5-web（admin / 小程序 / Flutter 本期未改）
 

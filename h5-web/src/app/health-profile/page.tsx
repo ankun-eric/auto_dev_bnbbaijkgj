@@ -1315,7 +1315,7 @@ function HeroQuickEntriesV2({ memberId, router }: { memberId: number | null; rou
 // ────────────────────────────────────────────────────────────
 const V5_CARD_COLORS = {
   alerts: '#FF6B35',       // 健康预警 橙红
-  medication: '#3B82F6',   // 用药计划 蓝
+  medication: '#0EA5E9',   // 用药计划 天蓝 [BUG-MED-V1 2026-05-21 Bug6]
   family: '#10B981',       // 家庭成员 绿
   devices: '#8B5CF6',      // 我的设备 紫
 };

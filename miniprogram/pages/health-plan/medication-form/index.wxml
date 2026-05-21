@@ -81,7 +81,7 @@
     <view class="row last" bindtap="openNotesDrawer">
       <text class="row-title">备注</text>
       <view class="row-right">
-        <text class="row-value {{!notes ? 'placeholder' : ''}}">{{notes || '可填写服用提醒、注意事项等（选填）'}}</text>
+        <text class="row-value {{!notes ? 'placeholder' : ''}}">{{notes || '可填补充说明'}}</text>
         <text class="row-arrow">›</text>
       </view>
     </view>
@@ -233,7 +233,7 @@
       <view class="notes-wrap">
         <input
           class="text-input"
-          placeholder="可填写服用提醒、注意事项等（选填）"
+          placeholder="可填补充说明"
           value="{{notesDraft}}"
           maxlength="200"
           focus="{{notesDrawerOpen}}"

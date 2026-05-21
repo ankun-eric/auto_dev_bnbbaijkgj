@@ -25,8 +25,10 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.models import (
+    MedicationCheckIn,
     MedicationLog,
     MedicationPlan,
+    MedicationReminder,
     MerchantStore,
     OrderItem,
     UnifiedOrder,
@@ -311,36 +313,54 @@ async def badge(
         medication.has_urgent → 存在已过点（scheduled_time < 当前时间）但未打卡的条目
         order.has_urgent → 存在 pending_payment 订单（口径：30 分钟内即将超时也算紧急；这里简化为有任意待支付即视为紧急，前端可再细化）
     旧字段 medication_unchecked / appointment_pending / total 保留，保障旧客户端向后兼容。
+
+    [BUG-MED-V1 2026-05-21 Bug7] 数据源切换：
+      原代码查询旧表 MedicationPlan + MedicationLog，但「用药计划入口改造（PRD-MED-PLAN-ENTRY-V1）」
+      之后新增计划写入的是新表 MedicationReminder + MedicationCheckIn。两张表完全独立，导致
+      bell badge 永远为 0。本次将查询切换到新表（方案 A）。
     """
     today = date.today()
     now_dt = datetime.now()
     now_hhmm = now_dt.strftime("%H:%M")
-    plan_stmt = (
-        select(MedicationPlan)
-        .where(MedicationPlan.user_id == current_user.id)
-        .where(MedicationPlan.enabled == True)  # noqa: E712
-    )
-    if patient_id is not None:
-        plan_stmt = plan_stmt.where(MedicationPlan.patient_id == patient_id)
-    plans = (await db.execute(plan_stmt)).scalars().all()
 
-    plan_ids = [p.id for p in plans]
+    # [BUG-MED-V1 Bug7] 数据源切换：MedicationReminder + MedicationCheckIn
+    # 复用 medication_plans_v1 中的工具函数避免重复逻辑
+    from app.api.medication_plans_v1 import (
+        _list_today_active_reminders,
+        _schedule_of,
+        _today_checkins,
+    )
+
+    # 兼容 patient_id：作为 consultant_id（family_member_id）传入
+    reminders = await _list_today_active_reminders(
+        db, current_user.id, today, consultant_id=patient_id,
+    )
+    checkins = await _today_checkins(db, current_user.id, today)
+    if patient_id is not None:
+        reminder_ids = {r.id for r in reminders}
+        checkins = [c for c in checkins if c.reminder_id in reminder_ids]
+
+    # 计算每个 reminder 已打卡的时间点（按打卡顺序映射 schedule 顺序）
+    by_plan: dict[int, list] = {}
+    for c in checkins:
+        by_plan.setdefault(c.reminder_id, []).append(c)
     checked_keys: set[tuple[int, str]] = set()
-    if plan_ids:
-        log_stmt = select(MedicationLog.plan_id, MedicationLog.scheduled_time).where(
-            MedicationLog.plan_id.in_(plan_ids),
-            MedicationLog.log_date == today,
-            MedicationLog.user_id == current_user.id,
-            MedicationLog.revoked == False,  # noqa: E712
+    for r in reminders:
+        schedule = _schedule_of(r)
+        used = sorted(
+            by_plan.get(r.id, []),
+            key=lambda x: x.check_in_time or x.created_at or datetime.min,
         )
-        for plan_id, st in (await db.execute(log_stmt)).all():
-            checked_keys.add((plan_id, st))
+        for i, _c in enumerate(used):
+            if i >= len(schedule):
+                break
+            checked_keys.add((r.id, schedule[i]))
 
     medication_unchecked = 0
     medication_has_urgent = False
-    for p in plans:
-        for t in (p.schedule or []):
-            if (p.id, t) not in checked_keys:
+    for r in reminders:
+        for t in _schedule_of(r):
+            if (r.id, t) not in checked_keys:
                 medication_unchecked += 1
                 if t < now_hhmm:
                     medication_has_urgent = True

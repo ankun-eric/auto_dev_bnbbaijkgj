@@ -140,7 +140,7 @@ Page({
   onLoad: function (options) {
     var t = new Date(); t.setHours(0, 0, 0, 0);
     var start = toISO(t);
-    var end = toISO(addDays(t, 29));
+    var end = toISO(addDays(t, 4));
     var cd = buildCycleDisplay(start, end, false);
     var min = toISO(addDays(t, -90));
     var max = toISO(addDays(t, 365 * 3));
