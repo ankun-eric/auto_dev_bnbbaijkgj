@@ -2,20 +2,21 @@
 
 /**
  * [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21]
- * [BUG-HSC-FIX-V2 2026-05-21] B-3 地毯式加固：
- *   1) 所有 data.xxx.length / .map 加 ?? [] 空值兜底，杜绝硬解引用
- *   2) 顶层 ErrorBoundary 包裹，单点崩溃不再触发 Next.js 全局白屏
- *   3) <img> onError 兜底，单张图片失败不影响整页
- *   4) 接口 404/500 时显示"结果不存在/加载失败"友好页
- *   5) 渲染 B-2 subject 信息（家人档案场景）
+ * [BUG-HSC-FIX-V2 2026-05-21] B-3 地毯式加固
+ * [PRD-HSC-AI-REAL-V1 2026-05-21] 健康自查结果页优化：
+ *   ① 删除「答题记录」整块区域 —— 用户填的部位/症状 数十个问题列出来意义不大；
+ *   ② AI 解读 / 居家建议 / 就医警示 三块统一来自后端 AI（接 LLM + 兜底模板），
+ *      不再展示后端写死的常量；
+ *   ③ 新增「档案已更新」黄色提示条 + 「刷新 AI 解读」按钮（A+++ 缓存失效策略）。
  *
- * 健康自查结果详情页（6 区块）：
- *   B1 答题记录
- *   B2 AI 解读
- *   B3 居家处理建议
- *   B4 就医警示（红色框）
- *   B5 推荐商品
- *   B6 底部 CTA（找医生咨询 / 重新填写）
+ * 当前结果页区块（精简后）：
+ *   - 顶部摘要条（subject_label + 完成时间）
+ *   - 档案不足 / pending / failed / profile_outdated 状态条（按需展示）
+ *   - AI 解读（Markdown 友好展示）
+ *   - 居家处理建议（数组循环）
+ *   - 出现以下情况请立即就医（数组循环，红色框）
+ *   - 推荐商品（保留）
+ *   - 底部 CTA（返回 / 找医生咨询）
  *
  * 数据源：GET /api/questionnaire/answers/{id}
  */
@@ -73,6 +74,9 @@ interface ResultData {
   ai_failed_reason?: string;
   archive_insufficient?: boolean;
   result_cta?: ResultCta | null;
+  // [PRD-HSC-AI-REAL-V1 2026-05-21] A+++ 缓存失效：档案关键字段已变更
+  profile_outdated?: boolean;
+  ai_generated_at?: string | null;
 }
 
 type LoadState = 'loading' | 'ok' | 'notfound' | 'error';
@@ -200,10 +204,21 @@ function PageInner() {
   }
 
   // [BUG-HSC-FIX-V2] 全部访问都加 ?? [] 兜底，避免运行时硬解引用崩溃
-  const qaList = Array.isArray(data.qa_list) ? data.qa_list : [];
+  // [PRD-HSC-AI-REAL-V1 2026-05-21] 健康自查结果页不再展示「答题记录」整块区域，qaList 仅做兜底引用
   const homeCareTips = Array.isArray(data.home_care_tips) ? data.home_care_tips : [];
   const redFlagSignals = Array.isArray(data.red_flag_signals) ? data.red_flag_signals : [];
   const recommendGoods = Array.isArray(data.recommend_goods) ? data.recommend_goods : [];
+
+  // [PRD-HSC-AI-REAL-V1 2026-05-21] 触发服务端重新生成 AI 解读
+  const triggerRetryAi = async (showToast: boolean = true) => {
+    try {
+      await api.post(`/api/questionnaire/answers/${id}/retry-ai`, {});
+      if (showToast) Toast.show({ content: '已重新触发 AI 解读' });
+      setData((d) => (d ? { ...d, ai_status: 'pending', profile_outdated: false } : d));
+    } catch {
+      if (showToast) Toast.show({ content: '触发失败，请稍后再试' });
+    }
+  };
 
   const completedAt = data.completed_at
     ? new Date(data.completed_at).toLocaleString('zh-CN', {
@@ -324,55 +339,56 @@ function PageInner() {
           data-testid="hsc-ai-failed"
         >
           <span>AI 解读暂时失败：{data.ai_failed_reason || '请稍后重试'}</span>
-          <Button
-            size="mini"
-            color="primary"
-            onClick={async () => {
-              try {
-                await api.post(`/api/questionnaire/answers/${id}/retry-ai`, {});
-                Toast.show({ content: '已重新触发分析' });
-                setData((d) => (d ? { ...d, ai_status: 'pending' } : d));
-              } catch {
-                Toast.show({ content: '重试失败' });
-              }
-            }}
-          >
+          <Button size="mini" color="primary" onClick={() => triggerRetryAi(true)}>
             重试解读
           </Button>
         </div>
       )}
 
-      {/* B1 答题记录 */}
-      <SectionCard title="📝 您的答题记录" testid="hsc-section-qa">
-        {qaList.length === 0 ? (
-          <div style={{ color: '#94A3B8', fontSize: 13 }}>无答题记录</div>
+      {/* [PRD-HSC-AI-REAL-V1 2026-05-21] A+++ 缓存失效：档案已更新提示条 */}
+      {data.profile_outdated && data.ai_status !== 'pending' && (
+        <div
+          style={{
+            margin: '8px 14px 0',
+            padding: '10px 12px',
+            background: '#FEFCE8',
+            border: '1px solid #FDE68A',
+            borderRadius: 10,
+            fontSize: 12,
+            color: '#92400E',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+          }}
+          data-testid="hsc-profile-outdated"
+        >
+          <span>您的健康档案已更新，AI 解读基于旧档案生成</span>
+          <Button size="mini" color="warning" onClick={() => triggerRetryAi(true)}>
+            刷新 AI 解读
+          </Button>
+        </div>
+      )}
+
+      {/* [PRD-HSC-AI-REAL-V1 2026-05-21] AI 解读区块（保留段落空行，简单 Markdown 友好展示） */}
+      <SectionCard title="🤖 AI 解读" testid="hsc-section-ai">
+        {(data.ai_full_interpretation || '').trim() ? (
+          <div
+            style={{
+              fontSize: 13,
+              color: '#1E293B',
+              lineHeight: 1.75,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+            }}
+          >
+            {data.ai_full_interpretation}
+          </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {qaList.map((qa, idx) => (
-              <div
-                key={qa.question_id ?? idx}
-                style={{
-                  borderBottom: idx === qaList.length - 1 ? 'none' : '1px dashed #E2E8F0',
-                  paddingBottom: 8,
-                }}
-              >
-                <div style={{ fontSize: 13, color: '#0F172A', fontWeight: 600, marginBottom: 4 }}>
-                  Q{idx + 1}. {qa.title || '—'}
-                </div>
-                <div style={{ fontSize: 13, color: '#334155' }}>
-                  答：{qa.value_display || <span style={{ color: '#94A3B8' }}>—</span>}
-                </div>
-              </div>
-            ))}
+          <div style={{ color: '#94A3B8', fontSize: 13 }}>
+            {data.ai_status === 'pending' ? 'AI 正在为您生成个性化解读…' : '暂无 AI 解读'}
           </div>
         )}
-      </SectionCard>
-
-      {/* B2 AI 解读 */}
-      <SectionCard title="🤖 AI 解读" testid="hsc-section-ai">
-        <div style={{ fontSize: 13, color: '#1E293B', lineHeight: 1.7 }}>
-          {data.ai_full_interpretation || '—'}
-        </div>
         {data.key_summary && (
           <div
             style={{

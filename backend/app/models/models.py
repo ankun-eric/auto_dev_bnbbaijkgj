@@ -2784,6 +2784,11 @@ class QuestionnaireAnswer(Base):
     home_care_tips_json = mapped_column(JSON, nullable=True, comment="居家建议列表")
     red_flag_signals_json = mapped_column(JSON, nullable=True, comment="红线信号列表")
     archive_insufficient = mapped_column(Boolean, nullable=True, default=False, comment="档案不足标志")
+    # ───── [PRD-HSC-AI-REAL-V1 2026-05-21] AI 解读时的档案关键字段快照 + 生成时间 ─────
+    # 用于 A+++ 缓存失效策略：仅当快照与当前档案的关键字段（年龄/性别/既往病史/过敏史/在用药物/家族病史）
+    # 不一致时，才提示「档案已更新，刷新 AI 解读」；改头像 / 改昵称不打扰、不重算。
+    ai_profile_snapshot = mapped_column(JSON, nullable=True, comment="AI 解读时档案关键字段快照")
+    ai_generated_at = mapped_column(DateTime, nullable=True, comment="最近一次 AI 生成时间")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     completed_at = mapped_column(DateTime, nullable=True)
 

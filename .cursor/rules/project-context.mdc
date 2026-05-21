@@ -27,7 +27,54 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-HEALTH-ARCHIVE-V5 · 健康档案与就医资料优化 (2026-05-21 17:15)
+## Latest Update: PRD-HSC-AI-REAL-V1 · 健康自查 AI 解读真接入大模型 (2026-05-21 21:40)
+
+**任务类型**：Bug 修复 + 体验优化；变更范围：backend + h5-web（admin / 小程序 / Flutter 本期未改）
+
+**核心交付**：
+
+1. **后端迁移**（`backend/app/services/prd_hsc_ai_real_v1_migration.py`，幂等 + 注册在 `main.py` lifespan）：
+   - `questionnaire_answer` 新增 2 列：`ai_profile_snapshot JSON` / `ai_generated_at DATETIME`
+   - 检测并更新 `questionnaire_template.health_self_check` 的 `ai_prompt_template`：当前值为空 / 含旧版错误占位符（`{scores}` / `{main_type}` / `{body_parts}` 等英文 / 错误占位符）才覆盖为正式中文版；运营自维护版本受保护
+2. **后端服务**（`backend/app/services/health_self_check_ai.py` 新增）：
+   - `render_zh_placeholders()` 中文占位符替换器，未找到 key 保留原样便于排查
+   - `build_context()` 组装 prompt 上下文（档案信息 / 年龄 / 性别 / 既往病史 / 过敏史 / 在用药物 / 家族病史 / 部位 / 症状列表 / 持续时间）+ 关键字段快照
+   - `call_ai_for_interpretation()` 调 `ai_service.call_ai_model()`（与 AI 对话首页同一套模型配置）+ JSON 容错解析
+   - `build_fallback_template()` 兜底模板，按用户填写的部位 / 症状做关键词替换，避免完全无关
+   - `is_profile_outdated()` A+++ 比对：仅 6 个关键字段（age/gender/chronic_diseases/allergies/medications/family_history）变化才返回 True；改头像 / 改昵称不打扰
+3. **后端 API**（`backend/app/api/questionnaire.py`）：
+   - `_run_hsc_ai_interpretation()` 真接入大模型：装载答卷 + 档案 → 组装上下文 → 替换中文占位符 → 调 LLM → 解析 JSON → 失败回退兜底；同步写入 `ai_profile_snapshot` + `ai_generated_at`
+   - `GET /api/questionnaire/answers/{id}` 详情接口新增 `profile_outdated` / `ai_generated_at` 字段；当快照与当前档案关键字段不一致时 `profile_outdated=true`
+   - `POST /api/questionnaire/answers/{id}/retry-ai` 复用既有接口，但底层走完整 AI 流程（含快照更新）
+4. **H5 结果页**（`h5-web/src/app/health-self-check/result/[id]/page.tsx`）：
+   - 删除「📝 您的答题记录」整块 SectionCard（per PRD 需求 Q1）
+   - 新增「档案已更新」黄色提示条（per A+++ 策略 Q10）+ 「刷新 AI 解读」按钮
+   - AI 解读用 `white-space: pre-wrap` 保留段落空行，Markdown 友好展示
+   - 抽取 `triggerRetryAi()` 公共函数，failed 状态条 + profile_outdated 提示条复用
+5. **测试**（`backend/tests/test_hsc_ai_real_v1_20260521.py`，7 个 pytest 用例，本地全绿）：
+   - T1 迁移幂等性
+   - T2 HSC_AI_PROMPT_TEMPLATE_V1 含必备中文占位符、严禁旧错误占位符、含 JSON 输出协议字段
+   - T3 `render_zh_placeholders` 中文 + 缺失 key 行为
+   - T4 `build_fallback_template` 个性化（包含用户填写的部位）
+   - T5 `is_profile_outdated` A+++ 关键字段比对策略
+   - T6+T7+T8 完整提交流程：异步任务完成 + 详情字段齐全 + 新字段持久化（含 `_patch_async_session_for_hsc_task` fixture，让异步任务在 SQLite 测试环境也能跑）
+   - T9 retry-ai 触发后 ai_generated_at 时间被刷新
+6. **部署脚本**：`_deploy_hsc_ai_real_v1.py`（7 个文件上传 + backend + h5-web 镜像重建 + 迁移日志验证 + HTTP 探活）
+7. **远端烟雾测试**：`_smoke_hsc_ai_real_v1.py`（容器内验证两列已加 + 模板 prompt 不含旧错误占位符 + 历史答卷 ai_status 分布）
+
+**部署验证（已通过）**：
+
+- 部署时间：2026-05-21 21:39
+- 服务器：newbb.test.bangbangvip.com，backend + h5 容器 Recreate 启动正常
+- 迁移日志：`[migrate] hsc_ai_real_v1: 迁移完成 stats={'answer_added': 2, 'prompt_updated': 0}`（2 列已加；prompt_updated=0 因线上已有运营自维护版本受保护）
+- HTTP 探活：`/api/health` 200 / `/` 200 / `/health-self-check/result/9999999` 308 / `/admin/` 200
+- 远端烟雾：`ai_profile_snapshot_exists=True` / `ai_generated_at_exists=True` / `has_zh_body_part=True` / `has_legacy_scores=False` / `has_legacy_main_type=False` / `has_legacy_en_body_parts=False`，历史答卷 `ai_status=done × 25`
+
+**用户体验手册**：`user_docs/健康自查功能优化_AI解读真接入.md`
+
+---
+
+## Previous Update: PRD-HEALTH-ARCHIVE-V5 · 健康档案与就医资料优化 (2026-05-21 17:15)
 
 **任务类型**：新功能开发（健康档案重构 + 健康预警体系 + 就医资料模块新增）；变更范围：backend + h5-web（小程序 / Flutter 本期未改）
 

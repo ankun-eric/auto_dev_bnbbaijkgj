@@ -1925,6 +1925,24 @@ async def lifespan(app: FastAPI):
         import traceback as _tb
         _tb.print_exc()
         print(f"[migrate] hsc_optim_v3: 迁移失败 err={_e}", flush=True)
+
+    # [PRD-HSC-AI-REAL-V1 2026-05-21] 健康自查 AI 解读真接入大模型：
+    # questionnaire_answer 新增 ai_profile_snapshot / ai_generated_at；
+    # 同步更新 health_self_check 模板 ai_prompt_template 为正式版（中文占位符）。
+    try:
+        print("[migrate] hsc_ai_real_v1: 启动迁移...", flush=True)
+        from app.core.database import async_session as _async_session_hsc_ai
+        from app.services.prd_hsc_ai_real_v1_migration import (
+            run_migration_with_session as _run_hsc_ai_real,
+        )
+        async with _async_session_hsc_ai() as _db_hsc_ai:
+            _stats_hsc_ai = await _run_hsc_ai_real(_db_hsc_ai)
+        print(f"[migrate] hsc_ai_real_v1: 迁移完成 stats={_stats_hsc_ai}", flush=True)
+    except Exception as _e:
+        import traceback as _tb
+        _tb.print_exc()
+        print(f"[migrate] hsc_ai_real_v1: 迁移失败 err={_e}", flush=True)
+
     # [PRD-MY-DEVICES-V1 2026-05-21] 「我的设备」V2：建表 + 幂等 seed 品牌目录
     try:
         print("[migrate] my_devices_v1: 启动迁移...", flush=True)

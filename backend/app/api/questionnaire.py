@@ -1244,66 +1244,124 @@ def _hsc_archive_insufficient(member) -> bool:
 
 
 async def _run_hsc_ai_interpretation(answer_id: int) -> None:
-    """健康自查 AI 解读异步任务：填充 ai_full_interpretation / home_care_tips_json /
-    red_flag_signals_json，并把 ai_status 置为 done / failed。
+    """[PRD-HSC-AI-REAL-V1 2026-05-21] 健康自查 AI 解读异步任务（真接入大模型）。
 
-    现版采用确定性模板（不调用外网 LLM），保证服务器无外网时也能稳定完成。
-    后续可在此处接入真实 LLM。
+    流程：
+    1. 装载答卷、模板、家人 / 本人档案
+    2. 调用 `health_self_check_ai.build_context()` 组装上下文 + 关键字段快照
+    3. 用模板 `ai_prompt_template` 中文占位符替换得到最终 prompt
+    4. 调用 `ai_service.call_ai_model()` —— 与 AI 对话首页同一套模型配置
+    5. JSON 解析 → 落库 success；失败回退到 `build_fallback_template()` 落库 degraded
+    6. 写入 `ai_profile_snapshot` + `ai_generated_at`，供 A+++ 缓存失效比对
     """
+    from app.services.health_self_check_ai import (
+        build_context,
+        call_ai_for_interpretation,
+        render_zh_placeholders,
+        build_fallback_template,
+    )
+    from app.services.prd_hsc_ai_real_v1_migration import HSC_AI_PROMPT_TEMPLATE_V1
+
     try:
         # 模拟少量耗时让前端体验"分析中"
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.2)
         from app.core.database import async_session as _async_session_hsc_task
         async with _async_session_hsc_task() as db2:
             ans = await db2.get(QuestionnaireAnswer, answer_id)
             if not ans:
                 return
             tpl = await db2.get(QuestionnaireTemplate, ans.template_id)
-            ks = (ans.key_summary or "").strip()
 
-            # 档案不足判定
-            arch_insuff = False
+            # 装载咨询对象（家人 / 本人）+ 当前用户
+            subj_member = None
             try:
                 if (ans.subject_kind or "") == "family" and ans.subject_member_id:
                     from app.models.models import FamilyMember as _FM3
-                    _m3 = await db2.get(_FM3, ans.subject_member_id)
-                    arch_insuff = _hsc_archive_insufficient(_m3)
+                    subj_member = await db2.get(_FM3, ans.subject_member_id)
+                elif ans.consultant_id:
+                    from app.models.models import FamilyMember as _FM3b
+                    subj_member = await db2.get(_FM3b, ans.consultant_id)
+            except Exception:  # noqa: BLE001
+                subj_member = None
+            try:
+                from app.models.models import User as _U
+                cur_user = await db2.get(_U, ans.user_id)
+            except Exception:  # noqa: BLE001
+                cur_user = None
+
+            # 档案不足判定（与旧逻辑一致）
+            arch_insuff = False
+            try:
+                if (ans.subject_kind or "") == "family" and ans.subject_member_id:
+                    arch_insuff = _hsc_archive_insufficient(subj_member)
             except Exception:  # noqa: BLE001
                 pass
 
-            # [BUG-HSC-V31 2026-05-21] B-2 修复：标签格式「{relation}（{name}）」
+            # 标签格式「{relation}（{name}）」/「本人」
             subj_label = ans.subject_name or ""
             if (ans.subject_kind or "") == "family" and ans.subject_relation:
                 subj_label = f"{ans.subject_relation}（{ans.subject_name or ''}）"
             elif (ans.subject_kind or "") == "self":
                 subj_label = "本人"
 
-            interp = (
-                f"本次结果由{('您' if (ans.subject_kind or 'self') == 'self' else subj_label + '的')}主诉的部位、症状、严重程度、持续时间综合得出。"
-                + (f"关键症状：{ks}。" if ks else "")
-                + "请结合「居家处理建议」尝试自我调节，并关注「就医警示」中的红线信号。"
-                + "如症状持续或加重，请尽快前往正规医疗机构就诊。"
-            )
+            # 组装上下文 + 关键字段快照
+            try:
+                context, snapshot = await build_context(
+                    db2,
+                    user_id=ans.user_id,
+                    answer=ans,
+                    subject_name=subj_label or (ans.subject_name or ""),
+                    subject_member=subj_member,
+                    current_user=cur_user,
+                )
+            except Exception as e:  # noqa: BLE001
+                _hsc_v3_logger.warning("[hsc-ai-task] build_context failed: %s", e)
+                context, snapshot = ({}, {})
 
-            ans.ai_full_interpretation = interp
-            ans.home_care_tips_json = list(_HSC_DEFAULT_HOME_CARE_TIPS)
-            ans.red_flag_signals_json = list(_HSC_DEFAULT_RED_FLAGS)
-            ans.archive_insufficient = arch_insuff
-            # [BUG-HSC-V31 2026-05-21] 2-A 防护：写库前校验三大字段非空，
-            # 防止"ai_status=done 但内容空"造成的"假 done"
-            if not (
-                (ans.ai_full_interpretation or "").strip()
-                and ans.home_care_tips_json
-                and ans.red_flag_signals_json
-            ):
-                ans.ai_status = "failed"
-                ans.ai_failed_reason = "AI 解读关键字段为空"
-            else:
+            # 取 prompt 模板：模板未配则用代码内置默认
+            prompt_tpl = (tpl.ai_prompt_template if tpl and tpl.ai_prompt_template else "") or HSC_AI_PROMPT_TEMPLATE_V1
+            prompt = render_zh_placeholders(prompt_tpl, context)
+
+            ai_data = None
+            err_msg: Optional[str] = None
+            try:
+                ai_data, err_msg = await call_ai_for_interpretation(db2, prompt=prompt)
+            except Exception as e:  # noqa: BLE001
+                _hsc_v3_logger.warning("[hsc-ai-task] call_ai_for_interpretation raised: %s", e)
+                ai_data = None
+                err_msg = f"AI 调用异常：{str(e)[:120]}"
+
+            if ai_data:
+                ans.ai_full_interpretation = ai_data["interpretation"]
+                ans.home_care_tips_json = ai_data["home_care_tips"]
+                ans.red_flag_signals_json = ai_data["red_flags"]
                 ans.ai_status = "done"
                 ans.ai_failed_reason = None
+            else:
+                # 兜底模板（degraded）
+                fallback = build_fallback_template(context or {})
+                ans.ai_full_interpretation = fallback["interpretation"]
+                ans.home_care_tips_json = fallback["home_care_tips"]
+                ans.red_flag_signals_json = fallback["red_flags"]
+                # ai_status 仍写 'done'（前端把 done 当成可用状态），
+                # 但 ai_failed_reason 记录原因，便于排查；前端不弹失败横幅。
+                # 若需更严格区分，可加 'degraded' 状态码；现阶段保持兼容。
+                ans.ai_status = "done"
+                ans.ai_failed_reason = (err_msg or "AI 解读失败，已使用兜底模板")[:255]
+
+            ans.archive_insufficient = arch_insuff
+            try:
+                ans.ai_profile_snapshot = snapshot
+                ans.ai_generated_at = datetime.utcnow()
+            except Exception:  # noqa: BLE001
+                pass
             await db2.commit()
             _hsc_v3_logger.info(
-                "[hsc-ai-task] answer_id=%s status=done arch_insuff=%s", answer_id, arch_insuff
+                "[hsc-ai-task] answer_id=%s status=%s degraded=%s arch_insuff=%s",
+                answer_id,
+                ans.ai_status,
+                bool(err_msg),
+                arch_insuff,
             )
     except Exception as e:  # noqa: BLE001
         _hsc_v3_logger.exception("[hsc-ai-task] failed answer_id=%s err=%s", answer_id, e)
@@ -1970,6 +2028,42 @@ async def get_answer_detail(
     except Exception:  # noqa: BLE001
         pass
 
+    # [PRD-HSC-AI-REAL-V1 2026-05-21] A+++ 缓存失效：对比快照与当前档案关键字段
+    profile_outdated = False
+    if (tpl.code or "") == "health_self_check":
+        try:
+            from app.services.health_self_check_ai import (
+                build_context as _hsc_build_context,
+                is_profile_outdated as _hsc_is_outdated,
+            )
+            _snap = getattr(ans, "ai_profile_snapshot", None)
+            if _snap and isinstance(_snap, dict):
+                # 重新计算"当前"快照（不修改 DB）
+                subj_member_now = None
+                try:
+                    if (ans.subject_kind or "") == "family" and ans.subject_member_id:
+                        from app.models.models import FamilyMember as _FMnow
+                        subj_member_now = await db.get(_FMnow, ans.subject_member_id)
+                    elif ans.consultant_id:
+                        from app.models.models import FamilyMember as _FMnow2
+                        subj_member_now = await db.get(_FMnow2, ans.consultant_id)
+                except Exception:  # noqa: BLE001
+                    subj_member_now = None
+                try:
+                    _ctx_now, _snap_now = await _hsc_build_context(
+                        db,
+                        user_id=ans.user_id,
+                        answer=ans,
+                        subject_name=detail_subject_label or "",
+                        subject_member=subj_member_now,
+                        current_user=current_user,
+                    )
+                    profile_outdated = _hsc_is_outdated(_snap_now, _snap)
+                except Exception:  # noqa: BLE001
+                    profile_outdated = False
+        except Exception:  # noqa: BLE001
+            profile_outdated = False
+
     return {
         "answer_id": ans.id,
         "template_id": tpl.id,
@@ -1977,6 +2071,8 @@ async def get_answer_detail(
         "template_name": tpl.name,
         "created_at": ans.created_at.isoformat() if ans.created_at else None,
         "completed_at": ans.completed_at.isoformat() if ans.completed_at else None,
+        # [PRD-HSC-AI-REAL-V1 2026-05-21] 健康自查结果页不再展示「答题记录」整块区域，
+        # 但保留 qa_list 字段供其他模板（如体质测评）使用；前端按 template_code 自行决定是否渲染。
         "qa_list": qa_list,
         "classification_name": classification_name,
         "classification_code": classification_code,
@@ -1996,6 +2092,11 @@ async def get_answer_detail(
         "ai_failed_reason": ans.ai_failed_reason or "",
         "archive_insufficient": bool(getattr(ans, "archive_insufficient", False)),
         "result_cta": result_cta_payload,
+        # [PRD-HSC-AI-REAL-V1 2026-05-21] A+++ 缓存失效：档案关键字段变化时提示
+        "profile_outdated": profile_outdated,
+        "ai_generated_at": (
+            ans.ai_generated_at.isoformat() if getattr(ans, "ai_generated_at", None) else None
+        ),
     }
 
 
