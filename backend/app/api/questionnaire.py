@@ -1271,9 +1271,10 @@ async def _run_hsc_ai_interpretation(answer_id: int) -> None:
             except Exception:  # noqa: BLE001
                 pass
 
+            # [BUG-HSC-V31 2026-05-21] B-2 修复：标签格式「{relation}（{name}）」
             subj_label = ans.subject_name or ""
             if (ans.subject_kind or "") == "family" and ans.subject_relation:
-                subj_label = f"{ans.subject_name or ''}（{ans.subject_relation}）"
+                subj_label = f"{ans.subject_relation}（{ans.subject_name or ''}）"
             elif (ans.subject_kind or "") == "self":
                 subj_label = "本人"
 
@@ -1288,8 +1289,18 @@ async def _run_hsc_ai_interpretation(answer_id: int) -> None:
             ans.home_care_tips_json = list(_HSC_DEFAULT_HOME_CARE_TIPS)
             ans.red_flag_signals_json = list(_HSC_DEFAULT_RED_FLAGS)
             ans.archive_insufficient = arch_insuff
-            ans.ai_status = "done"
-            ans.ai_failed_reason = None
+            # [BUG-HSC-V31 2026-05-21] 2-A 防护：写库前校验三大字段非空，
+            # 防止"ai_status=done 但内容空"造成的"假 done"
+            if not (
+                (ans.ai_full_interpretation or "").strip()
+                and ans.home_care_tips_json
+                and ans.red_flag_signals_json
+            ):
+                ans.ai_status = "failed"
+                ans.ai_failed_reason = "AI 解读关键字段为空"
+            else:
+                ans.ai_status = "done"
+                ans.ai_failed_reason = None
             await db2.commit()
             _hsc_v3_logger.info(
                 "[hsc-ai-task] answer_id=%s status=done arch_insuff=%s", answer_id, arch_insuff
@@ -1701,11 +1712,19 @@ async def submit_answer(
     return QuestionnaireAnswerResponse.model_validate(ans)
 
 
+# [BUG-HSC-V31 2026-05-21] Bug 2-A 真正根因修复：
+#   原 GET /answers/{answer_id} 与下方 get_answer_detail 路径完全冲突，
+#   FastAPI 按"先注册先匹配"，导致下方丰富版（含 ai_full_interpretation /
+#   home_care_tips / red_flag_signals / subject_label 的详情接口）永远走不到，
+#   前端拿到的是这个简版 ORM 序列化结果——这就是用户实测「6 大区块全空」
+#   和「咨询人识别为本人」的真正根因。
+#   将简版 endpoint 改为 /answers/{answer_id}/raw，保留向下兼容；
+#   让 /answers/{answer_id} 唯一指向 get_answer_detail。
 @router.get(
-    "/answers/{answer_id}",
+    "/answers/{answer_id}/raw",
     response_model=QuestionnaireAnswerResponse,
 )
-async def get_answer(
+async def get_answer_raw(
     answer_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -1876,8 +1895,10 @@ async def get_answer_detail(
     except Exception:  # noqa: BLE001
         pass
     if detail_subject_kind == "family" and detail_subject_name:
+        # [BUG-HSC-V31 2026-05-21] B-2 修复：按需求文档显示「{relation}（{name}）」
+        # 例：妈妈（张红）。relation 缺失时仅显示 name。
         detail_subject_label = (
-            f"{detail_subject_name}（{detail_subject_relation}）"
+            f"{detail_subject_relation}（{detail_subject_name}）"
             if detail_subject_relation
             else detail_subject_name
         )

@@ -2229,6 +2229,23 @@ export default function AiHomePage() {
           // 顶层 result_cta 也透传一份（详情页可直接消费）
           mergedBtn.result_cta = meta?.result_cta ?? mergedBtn.result_cta ?? null;
           setQnDrawerButton(mergedBtn);
+          // [BUG-HSC-V31 2026-05-21] Bug1 真正根因修复：
+          //   当后台开启「自动下一步」+「每页 1 题」时，必须升级到 DRAWER_STEPPED 一题一屏模式，
+          //   因为 autoNext 逻辑仅在 stepped 模式生效（DRAWER_SCROLL 一屏多题模式无 autoNext）。
+          //   之前 displayForm 直接取自按钮配置，常常落到 DRAWER_SCROLL，导致 autoNext 形同虚设。
+          try {
+            const _autoNext = !!mergedBtn.auto_next_enabled;
+            const _perPage = Number(mergedBtn.questions_per_page || 1);
+            if (_autoNext && _perPage === 1) {
+              setQnDrawerDisplayForm('DRAWER_STEPPED');
+              if (typeof console !== 'undefined') {
+                // eslint-disable-next-line no-console
+                console.debug('[ai-home] force DRAWER_STEPPED due to autoNext+per_page=1');
+              }
+            }
+          } catch {
+            // 忽略
+          }
           if (typeof console !== 'undefined') {
             // eslint-disable-next-line no-console
             console.debug('[ai-home] render-meta merged', {
@@ -2265,10 +2282,28 @@ export default function AiHomePage() {
       const tpl = qnDrawerTemplate;
       if (!btn || !tpl) return;
       try {
+        // [BUG-HSC-V31 2026-05-21] B-2 修复：必须把 subject_* 4 字段从胶囊上下文塞到 payload，
+        // 否则后端只能按 consultant_id 反查兜底，老/虚拟成员场景下会丢 name/relation，
+        // 详情页就会回落到"本人"。
+        // 注意：selectedConsultant 也可能是"本人成员"（is_self=true），此时按 self 处理。
+        const _isFamily = !!selectedConsultant && !selectedConsultant.is_self;
+        const _subjectKind: 'self' | 'family' = _isFamily ? 'family' : 'self';
+        const _subjectName: string | null = _isFamily
+          ? (selectedConsultant?.nickname || null)
+          : null;
+        const _subjectRelation: string | null = _isFamily
+          ? ((selectedConsultant?.relation_type_name as string | undefined) ||
+              (selectedConsultant?.relationship_type as string | undefined) ||
+              null)
+          : null;
         const resp = await api.post<any>('/api/questionnaire/submit', {
           template_id: tpl.id,
           consultant_id: selectedConsultant?.id ?? null,
           answers: items,
+          subject_kind: _subjectKind,
+          subject_member_id: selectedConsultant?.id ?? null,
+          subject_name: _subjectName,
+          subject_relation: _subjectRelation,
         });
         setQnDrawerOpen(false);
         const card = (resp?.card || { fields: [] }) as QnResultCardPayload;
