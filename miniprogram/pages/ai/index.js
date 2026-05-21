@@ -37,6 +37,49 @@ Page({
       return;
     }
     this.loadChatHistory();
+    // [PRD-AI-HOME-OPTIM-V4 M1 · 2026-05-21] 60 分钟定时自动刷新机制
+    // 进入页面时根据距上次会话 updated_at 是否 ≥ 阈值，决定是否清空"最近会话"展示并触发埋点
+    this.runV4RefreshCheck();
+  },
+
+  // [PRD-AI-HOME-OPTIM-V4 M1] 60 分钟刷新检测
+  // - 拉后端阈值（失败兜底 60min）
+  // - 取最近一条会话的 updated_at，若距今 >= 阈值 → 清空 chatHistory 展示 + 上报 refresh_triggered
+  // - 否则 → 上报 refresh_skipped
+  async runV4RefreshCheck() {
+    let thresholdMs = 60 * 60 * 1000;
+    try {
+      const cfg = await get('/api/ai-home/refresh-config', {}, { showLoading: false, suppressErrorToast: true });
+      if (cfg && typeof cfg.session_refresh_ms === 'number' && cfg.session_refresh_ms > 0) {
+        thresholdMs = cfg.session_refresh_ms;
+      }
+    } catch (e) { /* 静默 */ }
+    try {
+      const list = this.data.allSessions || [];
+      if (list.length === 0) return;
+      const latest = list[0];
+      const ts = parseServerTime(latest.updated_at || latest.created_at);
+      if (!ts) return;
+      const idleMs = Date.now() - ts.getTime();
+      if (idleMs >= thresholdMs) {
+        this.setData({ chatHistory: [] });
+        this.reportV4Track('refresh_triggered', {
+          trigger_source: 'onShow',
+          idle_minutes: Math.round(idleMs / 60000),
+        });
+      } else {
+        this.reportV4Track('refresh_skipped', {
+          last_active_minutes: Math.round(idleMs / 60000),
+        });
+      }
+    } catch (e) { /* 静默 */ }
+  },
+
+  reportV4Track(event, payload) {
+    try {
+      post('/api/ai-home/track', { event, platform: 'miniprogram', payload: payload || {} },
+        { showLoading: false, suppressErrorToast: true }).catch(() => {});
+    } catch (e) { /* 静默 */ }
   },
 
   async loadChatHistory() {

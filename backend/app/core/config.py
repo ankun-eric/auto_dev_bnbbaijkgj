@@ -40,7 +40,14 @@ class Settings(BaseSettings):
     # [BUG-461 (2026-05-11)] AI 对话「旧会话 X 小时无活动 → 自动开新会话」阈值
     # 默认 6 小时，运营可通过 .env 覆盖为 4 / 8 / 12 等。
     # 判定字段：ChatSession.updated_at（最后一次消息往返时间）
+    # [PRD-AI-HOME-OPTIM-V4 2026-05-21] v4 已废除 6 小时切片机制，统一为下方 60 分钟刷新阈值
     AI_CHAT_AUTO_NEW_SESSION_HOURS: int = 6
+
+    # [PRD-AI-HOME-OPTIM-V4 2026-05-21] AI 首页 60 分钟定时自动刷新机制阈值
+    # 默认 60 分钟（与蚂蚁阿福 / 晓医对标），运营可通过 .env 覆盖为 30 / 90 / 120 等
+    # 进入 AI 首页时若 (now - 上次会话 updated_at) >= SESSION_REFRESH_MINUTES，
+    # 则不加载旧会话，直接进入空欢迎页（清空旧会话）
+    SESSION_REFRESH_MINUTES: int = 60
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

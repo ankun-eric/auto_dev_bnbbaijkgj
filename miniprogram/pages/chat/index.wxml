@@ -100,14 +100,19 @@
         <text class="time-divider-text">{{item.timeDividerText || item.time}}</text>
       </view>
 
+      <!-- [PRD-AI-HOME-OPTIM-V4 M2 · F-切人-02] 系统切换通知（永久留痕，居中灰色） -->
+      <view wx:if="{{item.role === 'assistant' && item.type === 'system_switch_notice'}}" class="v4-system-switch">
+        <text class="v4-system-switch-text">{{item.content}}</text>
+      </view>
+
       <!-- [PRD-432] AI 回答顶部「咨询对象档案」折叠卡片（保留在 AI 卡片外部上方） -->
       <profile-card
-        wx:if="{{item.role === 'assistant'}}"
+        wx:if="{{item.role === 'assistant' && item.type !== 'system_switch_notice'}}"
         consultant-id="{{currentConsultantId || 0}}"
       />
 
       <!-- [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] AI 侧问卷结果卡片 -->
-      <view class="ai-msg-wrap" wx:if="{{item.role === 'assistant' && item.type === 'questionnaire_result_card' && item.qnResultPayload}}">
+      <view class="ai-msg-wrap" wx:if="{{item.role === 'assistant' && item.type === 'questionnaire_result_card' && item.qnResultPayload && item.type !== 'system_switch_notice'}}">
         <view class="ai-card-header">
           <view class="ai-header-avatar"><text class="ai-header-avatar-emoji">🤖</text></view>
           <text class="ai-header-name">小康</text>
@@ -125,7 +130,7 @@
       </view>
 
       <!-- [PRD-433] AI 消息：白色卡片 + 卡片外部上方头像名称行 -->
-      <view class="ai-msg-wrap" wx:elif="{{item.role === 'assistant'}}">
+      <view class="ai-msg-wrap" wx:elif="{{item.role === 'assistant' && item.type !== 'system_switch_notice'}}">
         <view class="ai-card-header">
           <view class="ai-header-avatar">
             <text class="ai-header-avatar-emoji">🤖</text>
@@ -489,6 +494,41 @@
       </view>
 
       <button class="add-save-btn {{canSaveMember ? '' : 'add-save-btn-disabled'}}" disabled="{{!canSaveMember}}" bindtap="onSaveNewMember">{{addLoading ? '保存中...' : '保存'}}</button>
+    </view>
+  </view>
+
+  <!-- [PRD-AI-HOME-OPTIM-V4 M2 · F-切人-03] 5 秒撤销横条 -->
+  <view wx:if="{{v4SwitchUndoVisible}}" class="v4-switch-undo-bar">
+    <text class="v4-switch-undo-text">{{v4SwitchUndoText}}</text>
+    <view class="v4-switch-undo-btn" catchtap="onV4SwitchUndoTap">
+      <text class="v4-switch-undo-btn-text">返回上一会话</text>
+    </view>
+  </view>
+
+  <!-- [PRD-AI-HOME-OPTIM-V4 M3 · F-悬浮-01] 右下角小康头像悬浮球 + 引导气泡 -->
+  <view class="v4-floating-ball-wrap">
+    <view wx:if="{{v4FloatingFirstGuideVisible}}" class="v4-floating-ball-guide">健康服务入口在这里，随时点开</view>
+    <cover-view class="v4-floating-ball" bindtap="onV4FloatingBallTap">
+      <text class="v4-floating-ball-text">康</text>
+    </cover-view>
+  </view>
+
+  <!-- [PRD-AI-HOME-OPTIM-V4 M3 · F-悬浮-03] 展开面板（复刻 4 入口 + 今日用药入口） -->
+  <view wx:if="{{v4FloatingPanelOpen}}" class="v4-panel-mask" catchtap="closeV4FloatingPanel">
+    <view class="v4-panel" catchtap="">
+      <view class="v4-panel-header">
+        <text class="v4-panel-title">{{consultTarget && consultTarget.name ? '现在为 ' + consultTarget.name + ' 服务' : '欢迎您！我是 AI 健康顾问小康'}}</text>
+        <text class="v4-panel-close" catchtap="closeV4FloatingPanel">×</text>
+      </view>
+      <view class="v4-panel-subtitle">健康服务入口，随时为您和家人提供专业的健康咨询</view>
+      <view class="v4-panel-grid">
+        <view class="v4-panel-grid-item" wx:for="{{functionButtons}}" wx:for-item="fb" wx:key="id" wx:if="{{index < 4}}" catchtap="onV4PanelEntryTap" data-button="{{fb}}">
+          <image wx:if="{{fb.icon_url}}" src="{{fb.icon_url}}" class="v4-panel-grid-icon" mode="aspectFit" />
+          <text wx:else class="v4-panel-grid-emoji">🩺</text>
+          <text class="v4-panel-grid-label">{{fb.name}}</text>
+        </view>
+        <view wx:if="{{!functionButtons || functionButtons.length === 0}}" class="v4-panel-empty">健康服务正在加载…</view>
+      </view>
     </view>
   </view>
 

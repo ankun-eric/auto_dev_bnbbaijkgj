@@ -82,6 +82,13 @@ class _ChatScreenState extends State<ChatScreen> {
   String _currentConsultTarget = '本人';
   bool _isSymptomLocked = false;
   List<Map<String, dynamic>> _familyMembers = [];
+
+  // [PRD-AI-HOME-OPTIM-V4 2026-05-21] 切换咨询人三重提示
+  bool _v4UndoBarVisible = false;
+  String _v4UndoBarText = '';
+  String? _v4SwitchSystemMsgText; // 永久留痕的系统消息（在消息列表上方常驻显示）
+  String? _v4PrevTargetForUndo;
+  Timer? _v4UndoTimer;
   
   // Route arguments for drug_identify / constitution flows
   String? _initialType;
@@ -1474,8 +1481,123 @@ class _ChatScreenState extends State<ChatScreen> {
     _sseSubscription?.cancel();
     _interpretSseSub?.cancel();
     _cursorTimer?.cancel();
+    _v4UndoTimer?.cancel();
     _ttsService.stop();
     super.dispose();
+  }
+
+  // [PRD-AI-HOME-OPTIM-V4 M2 · 2026-05-21] 切换咨询人三重提示
+  // 1. 中央 Toast（SnackBar 居上 floating）2 秒
+  // 2. 系统消息文案（_v4SwitchSystemMsgText）插入到消息流上方常驻
+  // 3. 5 秒撤销横条（_v4UndoBarVisible）+ 「返回上一会话」按钮
+  void _v4ShowSwitchTripleHints(String prevTarget, String newTarget) {
+    // F-切人-01：中央 Toast（顶部 floating，2 秒）
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('已切换为 $newTarget 咨询', textAlign: TextAlign.center),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xCC2E2E2E),
+          margin: const EdgeInsets.fromLTRB(40, 20, 40, 0),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        ),
+      );
+    } catch (_) {}
+    // F-切人-02：系统消息（永久留痕——本会话期间常驻显示）
+    setState(() {
+      _v4SwitchSystemMsgText = '—— 现在开始为 $newTarget 提供健康咨询 ——';
+      // F-切人-03：5 秒撤销横条
+      _v4UndoBarVisible = true;
+      _v4UndoBarText = '已切换为 $newTarget 咨询，已为您开启新对话';
+      _v4PrevTargetForUndo = prevTarget;
+    });
+    _v4UndoTimer?.cancel();
+    _v4UndoTimer = Timer(const Duration(seconds: 5), () {
+      if (!mounted) return;
+      setState(() {
+        _v4UndoBarVisible = false;
+        _v4PrevTargetForUndo = null;
+      });
+      _v4ReportTrack('switch_undo_expired', {});
+    });
+    _v4ReportTrack('switch_consultant', {
+      'from_name': prevTarget,
+      'to_name': newTarget,
+    });
+  }
+
+  void _v4UndoSwitch() {
+    if (_v4PrevTargetForUndo == null) return;
+    final prev = _v4PrevTargetForUndo!;
+    setState(() {
+      _currentConsultTarget = prev;
+      _v4UndoBarVisible = false;
+      _v4SwitchSystemMsgText = null;
+      _v4PrevTargetForUndo = null;
+    });
+    _v4UndoTimer?.cancel();
+    _v4ReportTrack('switch_undo_clicked', {});
+  }
+
+  void _v4ReportTrack(String event, Map<String, dynamic> payload) {
+    try {
+      _apiService.dio.post('/api/ai-home/track', data: {
+        'event': event,
+        'platform': 'flutter',
+        'payload': payload,
+      }).catchError((_) => null);
+    } catch (_) {}
+  }
+
+  // [PRD-AI-HOME-OPTIM-V4 M2] 5 秒撤销横条 widget（在 build 顶部叠加显示）
+  Widget _v4BuildUndoBar() {
+    if (!_v4UndoBarVisible) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      height: 36,
+      color: const Color(0xFFEAF4FF),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              _v4UndoBarText,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF2E2E2E)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: _v4UndoSwitch,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFF1677FF)),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Text('返回上一会话',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF1677FF))),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // [PRD-AI-HOME-OPTIM-V4 M2 · F-切人-02] 系统消息常驻气泡（居中、灰色）
+  Widget _v4BuildSystemMsgBanner() {
+    if (_v4SwitchSystemMsgText == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      child: Center(
+        child: Text(
+          _v4SwitchSystemMsgText!,
+          style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+        ),
+      ),
+    );
   }
 
   // ── Voice Input ──
@@ -1933,31 +2055,47 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
             ),
+          // [PRD-AI-HOME-OPTIM-V4 M2 · F-切人-03] 5 秒撤销横条
+          _v4BuildUndoBar(),
           Expanded(
             child: Consumer<ChatProvider>(
               builder: (context, chatProvider, child) {
                 final messages = chatProvider.messages;
-                if (messages.isEmpty && !_isStreaming) return _buildWelcome();
+                if (messages.isEmpty && !_isStreaming) {
+                  return Column(
+                    children: [
+                      _v4BuildSystemMsgBanner(),
+                      Expanded(child: _buildWelcome()),
+                    ],
+                  );
+                }
 
                 final extra = (_isStreaming ? 1 : 0) + (_interpretFailed ? 1 : 0);
-                final itemCount = messages.length + extra;
+                // [PRD-AI-HOME-OPTIM-V4 M2 · F-切人-02] 系统切换通知作为列表第一项常驻
+                final hasSystemBanner = _v4SwitchSystemMsgText != null;
+                final headerOffset = hasSystemBanner ? 1 : 0;
+                final itemCount = messages.length + extra + headerOffset;
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   itemCount: itemCount,
                   itemBuilder: (context, index) {
-                    if (index == messages.length && _isStreaming) {
+                    if (hasSystemBanner && index == 0) {
+                      return _v4BuildSystemMsgBanner();
+                    }
+                    final realIndex = index - headerOffset;
+                    if (realIndex == messages.length && _isStreaming) {
                       return _buildStreamingBubble();
                     }
-                    if (index == messages.length + (_isStreaming ? 1 : 0) && _interpretFailed) {
+                    if (realIndex == messages.length + (_isStreaming ? 1 : 0) && _interpretFailed) {
                       return _buildInterpretFailedBar();
                     }
-                    final message = messages[index];
-                    final isLastAi = !message.isUser && _findLastAiIndex(messages) == index;
+                    final message = messages[realIndex];
+                    final isLastAi = !message.isUser && _findLastAiIndex(messages) == realIndex;
                     final isReportSession = _initialType == 'report_interpret' || _initialType == 'report_compare';
-                    final isFirstAi = isReportSession && !message.isUser && _findFirstAiIndex(messages) == index;
+                    final isFirstAi = isReportSession && !message.isUser && _findFirstAiIndex(messages) == realIndex;
                     // [PRD-433 F-09] 与上一条消息间隔 > 5 分钟时插入时间分隔条
-                    final divider = _buildTimeDividerIfNeeded(messages, index);
+                    final divider = _buildTimeDividerIfNeeded(messages, realIndex);
                     final bubble = _buildMessageBubble(
                       message,
                       showActions: isLastAi && !_isStreaming,
@@ -2622,7 +2760,14 @@ class _ChatScreenState extends State<ChatScreen> {
                   final color = _relationColor(name);
                   final isSelected = _currentConsultTarget == name;
                   return GestureDetector(
-                    onTap: () { setState(() => _currentConsultTarget = name); Navigator.pop(ctx); },
+                    onTap: () {
+                      final prevTarget = _currentConsultTarget;
+                      setState(() => _currentConsultTarget = name);
+                      Navigator.pop(ctx);
+                      if (prevTarget != name) {
+                        _v4ShowSwitchTripleHints(prevTarget, name);
+                      }
+                    },
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [

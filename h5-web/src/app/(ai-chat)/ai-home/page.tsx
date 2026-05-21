@@ -146,7 +146,7 @@ interface ChatMessage {
    *  - 'file'  : 用户上传的非图片文件消息（content = 文件名占位，files 字段携带文件元数据）
    *  - 'quick_ask_card' : 可编辑的快捷提问卡片消息（quickAskButton 字段携带按钮元数据）
    */
-  kind?: 'text' | 'image' | 'file' | 'quick_ask_card' | 'health_self_check_card' | 'questionnaire_result_card' | 'questionnaire_pre_card' | 'questionnaire_recommend_card' | 'followup_chips';
+  kind?: 'text' | 'image' | 'file' | 'quick_ask_card' | 'health_self_check_card' | 'questionnaire_result_card' | 'questionnaire_pre_card' | 'questionnaire_recommend_card' | 'followup_chips' | 'system_switch_notice';
   /**
    * [Bug-471 2026-05-15] 用户消息支持 1~5 张图片：图片 URL 数组（服务器返回）。
    * 当 kind === 'image' 且 images 非空时，气泡渲染为「横向缩略图小图墙」。
@@ -832,7 +832,10 @@ export default function AiHomePage() {
   const [recommendDrawerOpen, setRecommendDrawerOpen] = useState(false);
   const [recommendDrawerGoods, setRecommendDrawerGoods] = useState<RecommendGoodsItem | null>(null);
   // [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517] 会话空闲超时由 30 → 60 分钟
+  // [PRD-AI-HOME-OPTIM-V4 2026-05-21] 进入页面后会异步从 /api/ai-home/refresh-config 拉取最新阈值
   const [idleTimeout, setIdleTimeout] = useState<number>(60 * 60 * 1000);
+  // [PRD-AI-HOME-OPTIM-V4 2026-05-21] 切换咨询人 5 秒撤销期内暂停 60 分钟计时
+  const [refreshPaused, setRefreshPaused] = useState<boolean>(false);
   // [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] AI 流式结束的时刻，是 60min 倒计时的起点。
   // 流式输出中不计时（值为 0 时代表当前不应被超时归档）。
   const lastAiDoneAtRef = useRef<number>(0);
@@ -885,6 +888,18 @@ export default function AiHomePage() {
   const [undoToastVisible, setUndoToastVisible] = useState(false);
   const [undoToastText, setUndoToastText] = useState('');
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // [PRD-AI-HOME-OPTIM-V4 M2 · F-切人-01] 中央 Toast 浮层（2 秒消失）
+  // 文案："已切换为 妈妈 咨询"
+  const [centerToastVisible, setCenterToastVisible] = useState(false);
+  const [centerToastText, setCenterToastText] = useState('');
+  const centerToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // [PRD-AI-HOME-OPTIM-V4 M3] 右下角小康头像悬浮球状态
+  // - floatingPanelOpen：展开面板可见
+  // - floatingFirstGuideVisible：首次引导气泡可见（仅展示一次）
+  const [floatingPanelOpen, setFloatingPanelOpen] = useState(false);
+  const [floatingFirstGuideVisible, setFloatingFirstGuideVisible] = useState(false);
 
   const recommendQuestions = (aiHomeConfig.recommended_questions || [])
     .filter((q) => q.enabled)
@@ -1169,45 +1184,90 @@ export default function AiHomePage() {
     }
   }, [messages.length]);
 
+  // [PRD-AI-HOME-OPTIM-V4 2026-05-21] M1 · 60 分钟定时刷新机制
+  //
+  // F-刷新-01：进入页面时根据 (now - updated_at) 是否 ≥ 阈值决定是否清空旧会话
+  // F-刷新-02：加载到旧会话后立即把 lastAiDoneAtRef 初始化为 updated_at（修复 R2，
+  //           原本仅在 SSE 完成时赋值，新挂载页面始终为 0 导致后续 idleArchiveCheck 短路）
+  // F-刷新-03：阈值统一使用 idleTimeout（来自后端 /api/ai-home/refresh-config，默认 60min）
   const loadLastSession = async () => {
     try {
       const res: any = await api.get('/api/chat/sessions', { params: { limit: 1, sort: '-updated_at' } });
       const data = res.data || res;
       const list = Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : []);
-      if (list.length > 0) {
-        const session = list[0];
-        const sid = String(session.id);
-        setSidAndRef(sid);
-        setLastMsgTime(parseServerTime(session.updated_at || session.created_at)?.getTime() ?? 0);
-        await loadSessionMessages(sid);
+      if (list.length === 0) {
+        // 用户从未发起会话 → 走默认欢迎页
+        return;
+      }
+      const session = list[0];
+      const sid = String(session.id);
+      const updatedAtMs = parseServerTime(session.updated_at || session.created_at)?.getTime() ?? 0;
 
-        // [BUG_FIX_AI_HOME_3BUGS_20260517 · Bug B/C]
-        // 自动回到上次会话时也要从权威源回填咨询人（family_member_id）
+      // [PRD-AI-HOME-OPTIM-V4 F-刷新-01] 关键修复：进入页面时先做时效判断
+      // 距上次活跃 ≥ 60min → 不加载旧会话，直接展示空欢迎页
+      if (updatedAtMs > 0 && Date.now() - updatedAtMs >= idleTimeout) {
+        // 触发埋点：refresh_triggered（mounted 入口）
         try {
-          const detailRes: any = await api.get(`/api/chat/sessions/${sid}`);
-          const detail = detailRes?.data ?? detailRes;
-          const fmBrief = detail?.family_member;
-          const fmId: number | null | undefined = detail?.family_member_id;
-          if (!fmBrief || !fmId) {
+          api.post('/api/ai-home/track', {
+            event: 'refresh_triggered',
+            platform: 'h5',
+            payload: {
+              trigger_source: 'mounted',
+              idle_minutes: Math.round((Date.now() - updatedAtMs) / 60000),
+            },
+          }).catch(() => {});
+        } catch {}
+        // 不加载旧会话；保持空 messages + 空 sessionId
+        return;
+      }
+
+      // 距上次活跃 < 60min → 加载旧会话
+      try {
+        api.post('/api/ai-home/track', {
+          event: 'refresh_skipped',
+          platform: 'h5',
+          payload: {
+            last_active_minutes: updatedAtMs > 0 ? Math.round((Date.now() - updatedAtMs) / 60000) : 0,
+          },
+        }).catch(() => {});
+      } catch {}
+
+      setSidAndRef(sid);
+      setLastMsgTime(updatedAtMs);
+      await loadSessionMessages(sid);
+
+      // [PRD-AI-HOME-OPTIM-V4 F-刷新-02] 关键修复 R2：用服务端 updated_at 初始化倒计时基准
+      // 这样即便用户后续切回页面 / 切回 Tab，idleArchiveCheck 也能正确判断超时
+      if (updatedAtMs > 0) {
+        lastAiDoneAtRef.current = updatedAtMs;
+      }
+
+      // [BUG_FIX_AI_HOME_3BUGS_20260517 · Bug B/C]
+      // 自动回到上次会话时也要从权威源回填咨询人（family_member_id）
+      try {
+        const detailRes: any = await api.get(`/api/chat/sessions/${sid}`);
+        const detail = detailRes?.data ?? detailRes;
+        const fmBrief = detail?.family_member;
+        const fmId: number | null | undefined = detail?.family_member_id;
+        if (!fmBrief || !fmId) {
+          setSelectedConsultant(null);
+        } else {
+          const isSelf = !!(fmBrief.is_self || fmBrief.relationship === '本人');
+          if (isSelf) {
             setSelectedConsultant(null);
           } else {
-            const isSelf = !!(fmBrief.is_self || fmBrief.relationship === '本人');
-            if (isSelf) {
-              setSelectedConsultant(null);
-            } else {
-              setSelectedConsultant({
-                id: fmBrief.id,
-                nickname: fmBrief.nickname || '家庭成员',
-                relationship_type: fmBrief.relationship,
-                relation_type_name: fmBrief.relationship,
-                avatar: fmBrief.avatar,
-                is_self: false,
-              });
-            }
+            setSelectedConsultant({
+              id: fmBrief.id,
+              nickname: fmBrief.nickname || '家庭成员',
+              relationship_type: fmBrief.relationship,
+              relation_type_name: fmBrief.relationship,
+              avatar: fmBrief.avatar,
+              is_self: false,
+            });
           }
-        } catch {
-          // 详情拉取失败不阻塞
         }
+      } catch {
+        // 详情拉取失败不阻塞
       }
     } catch {}
   };
@@ -3013,6 +3073,8 @@ export default function AiHomePage() {
     } catch {
       /* ignore */
     }
+    // [PRD-AI-HOME-OPTIM-V4 F-切人-03] 撤销期内（5 秒内）暂停 60 分钟计时
+    if (refreshPaused) return;
     if (Date.now() - lastDone < idleTimeout) return;
 
     // 触发自动归档
@@ -3031,9 +3093,14 @@ export default function AiHomePage() {
     } catch {
       /* ignore */
     }
-  }, [idleTimeout, messages, setLastMsgTime]);
+  }, [idleTimeout, messages, setLastMsgTime, refreshPaused]);
 
-  // [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 5 分钟轮询 + visibilitychange 兜底
+  // [PRD-AI-HOME-OPTIM-V4 F-刷新-04] 进入时机全端覆盖：
+  //   - 5 分钟轮询（既有）
+  //   - visibilitychange（既有）
+  //   - pageshow（含 bfcache 回退；浏览器后退/前进时恢复页面）
+  //   - focus（窗口聚焦）
+  // 任何一个时机被触发 → 立即调用 idleArchiveCheck，保证 60min 阈值过线后第一时间清空旧会话
   useEffect(() => {
     const POLL_INTERVAL = 5 * 60 * 1000;
     const timer = setInterval(idleArchiveCheck, POLL_INTERVAL);
@@ -3043,16 +3110,116 @@ export default function AiHomePage() {
         idleArchiveCheck();
       }
     };
+    const onPageShow = (_e: PageTransitionEvent) => {
+      // pageshow 含 bfcache 回退（persisted=true）；都需要立即复检
+      idleArchiveCheck();
+    };
+    const onFocus = () => {
+      idleArchiveCheck();
+    };
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', onVisibility);
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pageshow', onPageShow);
+      window.addEventListener('focus', onFocus);
     }
     return () => {
       clearInterval(timer);
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', onVisibility);
       }
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('pageshow', onPageShow);
+        window.removeEventListener('focus', onFocus);
+      }
     };
   }, [idleArchiveCheck]);
+
+  // [PRD-AI-HOME-OPTIM-V4 M3 · F-悬浮-02] 首次进入展示引导气泡（3 秒消失，仅一次）
+  // 使用 localStorage 'aihome_v4_floating_ball_guide_shown' 标记，已展示过的用户不再展示
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const STORAGE_KEY = 'aihome_v4_floating_ball_guide_shown';
+    try {
+      const shown = window.localStorage.getItem(STORAGE_KEY);
+      if (shown === '1') return;
+    } catch {
+      return;
+    }
+    // 延迟 800ms 出现（让首屏先稳定）
+    const showTimer = setTimeout(() => {
+      setFloatingFirstGuideVisible(true);
+      try {
+        api.post('/api/ai-home/track', {
+          event: 'first_guide_shown',
+          platform: 'h5',
+          payload: {},
+        }).catch(() => {});
+      } catch {}
+      // 3 秒后自动消失，并记录已展示
+      const hideTimer = setTimeout(() => {
+        setFloatingFirstGuideVisible(false);
+        try {
+          window.localStorage.setItem(STORAGE_KEY, '1');
+        } catch {}
+      }, 3000);
+      // 把 hideTimer 也保存以便清理
+      (showTimer as any)._hide = hideTimer;
+    }, 800);
+    return () => {
+      clearTimeout(showTimer);
+      const ht = (showTimer as any)?._hide;
+      if (ht) clearTimeout(ht);
+    };
+  }, []);
+
+  // [PRD-AI-HOME-OPTIM-V4 M3 · F-悬浮-03] 点击悬浮球：展开/收起面板
+  const handleFloatingBallClick = useCallback(() => {
+    setFloatingPanelOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        try {
+          api.post('/api/ai-home/track', {
+            event: 'floating_ball_clicked',
+            platform: 'h5',
+            payload: {
+              session_minutes: lastMsgTime ? Math.round((Date.now() - lastMsgTime) / 60000) : 0,
+            },
+          }).catch(() => {});
+        } catch {}
+      }
+      return next;
+    });
+    // 点击悬浮球同时关掉首次引导气泡
+    setFloatingFirstGuideVisible(false);
+  }, [lastMsgTime]);
+
+  // [PRD-AI-HOME-OPTIM-V4 F-刷新-05] 进入页面拉取最新刷新阈值（后端 settings.SESSION_REFRESH_MINUTES）
+  // 失败静默：使用既有默认值 60min
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res: any = await api.get('/api/ai-home/refresh-config');
+        const data = res?.data ?? res;
+        const ms = typeof data?.session_refresh_ms === 'number' && data.session_refresh_ms > 0
+          ? data.session_refresh_ms
+          : (typeof data?.session_refresh_minutes === 'number' && data.session_refresh_minutes > 0
+            ? data.session_refresh_minutes * 60 * 1000
+            : null);
+        if (!cancelled && ms && ms !== idleTimeout) {
+          setIdleTimeout(ms);
+        }
+      } catch {
+        // 静默
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // [PRD-420 F5 / BUG-466 (2026-05-11)] 切换咨询对象后的会话处理
   // 总策略：自动新建会话 + 用户体验增强（含 5 秒「返回上一会话」撤销栈）
@@ -3156,6 +3323,18 @@ export default function AiHomePage() {
       setSessionId(newSid);
     }
 
+    // [PRD-AI-HOME-OPTIM-V4 M2 · F-切人-02] 系统消息气泡：永久留痕
+    // 在新会话第一条系统消息（在 AI 欢迎语之前），文案"—— 现在开始为 妈妈 提供健康咨询 ——"
+    const systemMsg: ChatMessage = {
+      id: `sys-switch-${Date.now()}`,
+      role: 'assistant',
+      content: `—— 现在开始为 ${targetName} 提供健康咨询 ——`,
+      time: new Date().toISOString(),
+      // 自定义标记：消息类型为系统切换通知
+      kind: 'system_switch_notice' as any,
+    } as any;
+    setMessages([systemMsg]);
+
     // [BUG-466 根因 A 修复] 派发 history 刷新事件，
     // 左侧抽屉 Sidebar 监听到后会立刻重新拉取 /api/chat-sessions 列表，
     // 让原会话被归档到顶部 + 新会话作为占位条目立刻可见。
@@ -3165,7 +3344,15 @@ export default function AiHomePage() {
       /* ignore */
     }
 
-    // F5-2：弹出 Toast + 「返回上一会话」轻按钮（5 秒）
+    // [PRD-AI-HOME-OPTIM-V4 M2 · F-切人-01] Toast 浮层（中央偏上，2 秒消失）
+    setCenterToastText(`已切换为 ${targetName} 咨询`);
+    setCenterToastVisible(true);
+    if (centerToastTimerRef.current) clearTimeout(centerToastTimerRef.current);
+    centerToastTimerRef.current = setTimeout(() => {
+      setCenterToastVisible(false);
+    }, 2000);
+
+    // [PRD-AI-HOME-OPTIM-V4 M2 · F-切人-03] 5 秒撤销横条 + 撤销期暂停 60min 计时
     const expiresAt = Date.now() + 5000;
     setUndoSnapshot({
       sessionId: prevSessionId,
@@ -3173,14 +3360,36 @@ export default function AiHomePage() {
       messages: prevMessages,
       expiresAt,
     });
-    // [PRD-423 T-05] 切换提示横条文案严格对齐 PRD §5
     setUndoToastText(`已切换为 ${displayLabel} 咨询，已为您开启新对话`);
     setUndoToastVisible(true);
+    setRefreshPaused(true);
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     undoTimerRef.current = setTimeout(() => {
       setUndoToastVisible(false);
       setUndoSnapshot(null);
+      setRefreshPaused(false);
+      // 触发埋点：5 秒未撤销 → 切换永久生效
+      try {
+        api.post('/api/ai-home/track', {
+          event: 'switch_undo_expired',
+          platform: 'h5',
+          payload: {},
+        }).catch(() => {});
+      } catch {}
     }, 5000);
+
+    // 切换咨询人埋点
+    try {
+      api.post('/api/ai-home/track', {
+        event: 'switch_consultant',
+        platform: 'h5',
+        payload: {
+          from_id: prevConsultant?.id ?? null,
+          to_id: member?.id ?? null,
+          relation: relationLabel,
+        },
+      }).catch(() => {});
+    } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedConsultant, messages]);
 
@@ -3280,21 +3489,37 @@ export default function AiHomePage() {
   //   2. 派发 bh-history-refresh，让抽屉同步回滚显示原会话条目
   const handleUndoSwitch = useCallback(() => {
     if (!undoSnapshot || Date.now() > undoSnapshot.expiresAt) return;
+    const secondsSinceSwitch = Math.max(0, Math.round((5000 - (undoSnapshot.expiresAt - Date.now())) / 1000));
     currentSidRef.current = undoSnapshot.sessionId;
     setSessionId(undoSnapshot.sessionId);
     setSelectedConsultant(undoSnapshot.consultant);
     setMessages(undoSnapshot.messages);
     setUndoToastVisible(false);
     setUndoSnapshot(null);
+    // [PRD-AI-HOME-OPTIM-V4 M2] 撤销时三处提示同时消失（Toast、横条、系统消息气泡）
+    setCenterToastVisible(false);
+    if (centerToastTimerRef.current) {
+      clearTimeout(centerToastTimerRef.current);
+      centerToastTimerRef.current = null;
+    }
     if (undoTimerRef.current) {
       clearTimeout(undoTimerRef.current);
       undoTimerRef.current = null;
     }
+    // 撤销期结束 → 恢复 60min 计时
+    setRefreshPaused(false);
     try {
       window.dispatchEvent(new Event('bh-history-refresh'));
     } catch {
       /* ignore */
     }
+    try {
+      api.post('/api/ai-home/track', {
+        event: 'switch_undo_clicked',
+        platform: 'h5',
+        payload: { seconds_since_switch: secondsSinceSwitch },
+      }).catch(() => {});
+    } catch {}
   }, [undoSnapshot]);
 
   // [PRD-420 F6] 进入页面默认咨询对象为「本人」（不读取上次选择，不与菜单模式联动）
@@ -3303,6 +3528,9 @@ export default function AiHomePage() {
     return () => {
       if (undoTimerRef.current) {
         clearTimeout(undoTimerRef.current);
+      }
+      if (centerToastTimerRef.current) {
+        clearTimeout(centerToastTimerRef.current);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3316,72 +3544,15 @@ export default function AiHomePage() {
     aiChatTrack.pageView('self');
   }, []);
 
-  // [BUG-461 业务规则② / BUG-466 (2026-05-11)] 旧会话 6 小时无活动 → 自动开新会话
+  // [PRD-AI-HOME-OPTIM-V4 F-刷新-03] 关键修复 R3：废除 6 小时切片机制
   //
-  // BUG-466 修复：原来只有挂载时检查一次（依赖 []），用户长期常驻页面或切回 Tab
-  // 都不会再检查，导致 6 小时自动切片在用户感知上"失效"（根因 B）。
-  // 现在改为统一函数 runActiveCheck(reason)，在以下 4 个时机全部调用：
-  //   1. 页面挂载（与现状一致）
-  //   2. document.visibilitychange → 变为可见时（切回 Tab）
-  //   3. window.focus（窗口聚焦）
-  //   4. pageshow（含 bfcache 回退；浏览器后退/前进时恢复页面）
-  // 发送消息前的"最后一道兜底"在 checkIdleAndMaybeNewSession 内单独处理。
-  const runActiveCheck = useCallback(async (reason: string) => {
-    try {
-      const res: any = await api.get('/api/chat-sessions/active-check');
-      const data = res?.data ?? res;
-      if (data?.should_new_session === true) {
-        // 命中阈值：原会话立刻"沉"到抽屉，清空当前活跃 sid，让下一条消息触发新会话创建
-        currentSidRef.current = null;
-        setSessionId(null);
-        setMessages([]);
-        setLastMsgTime(0);
-        try {
-          window.dispatchEvent(new Event('bh-history-refresh'));
-        } catch {
-          /* ignore */
-        }
-        if (typeof console !== 'undefined') {
-          // eslint-disable-next-line no-console
-          console.info(
-            `[BUG-466] active-check sliced session (reason=${reason}); inactive_hours=`,
-            data?.inactive_hours,
-          );
-        }
-      }
-    } catch {
-      // 静默失败：不影响主流程，沿用既有会话上下文
-    }
-  }, []);
-
-  useEffect(() => {
-    // 挂载即检查一次
-    runActiveCheck('mount');
-
-    if (typeof window === 'undefined' || typeof document === 'undefined') return;
-
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        runActiveCheck('visibilitychange');
-      }
-    };
-    const onFocus = () => {
-      runActiveCheck('focus');
-    };
-    const onPageShow = (e: PageTransitionEvent) => {
-      // bfcache 回退时 persisted=true；任何 pageshow 都复检一次
-      runActiveCheck(e?.persisted ? 'pageshow-bfcache' : 'pageshow');
-    };
-
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    window.addEventListener('focus', onFocus);
-    window.addEventListener('pageshow', onPageShow);
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      window.removeEventListener('focus', onFocus);
-      window.removeEventListener('pageshow', onPageShow);
-    };
-  }, [runActiveCheck]);
+  // 旧版逻辑（BUG-461）：进入页面 / 切回 Tab / focus / pageshow 时调用 /api/chat-sessions/active-check，
+  //                     若距上次活动 ≥ 6 小时则切片到新会话。
+  // v4 已改为统一的 60 分钟刷新机制（loadLastSession + idleArchiveCheck），
+  // 并且时间口径统一使用 updated_at（不再混用 lastDoneTimeRef / Ref / inactive_hours），
+  // 因此本处的 6 小时切片机制已废除，避免与新机制相互干扰。
+  //
+  // 后端 /api/chat-sessions/active-check 接口保留以备老客户端调用，但 v4 H5 端不再使用。
 
   // [PRD-423 T-03] 冷启动「无本人档案」检测：fallback 到「未选择档案」并展示轻提示
   // 规则：进入页面后拉取家庭成员，若不存在 is_self=true 的档案 → 显示提示
@@ -4405,6 +4576,33 @@ export default function AiHomePage() {
               const prevTime = idx > 0 ? messages[idx - 1].time : null;
               const showTime = shouldShowTime(prevTime, msg.time);
               const isUser = msg.role === 'user';
+
+              // [PRD-AI-HOME-OPTIM-V4 M2 · F-切人-02] 系统切换通知：居中、灰色细文字、两侧短破折号、永久留痕
+              if ((msg as any).kind === 'system_switch_notice') {
+                return (
+                  <div
+                    key={msg.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      margin: '16px 0',
+                    }}
+                    data-testid="system-switch-notice"
+                  >
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: '#9CA3AF',
+                        lineHeight: 1.4,
+                        textAlign: 'center',
+                        padding: '0 16px',
+                      }}
+                    >
+                      {msg.content}
+                    </span>
+                  </div>
+                );
+              }
               // [PRD-433 F-06] 操作按钮行：所有非流式 AI 消息都显示（不仅 lastAiMsg）
               const showAiActions = !isUser && !msg.isStreaming;
               const senderName = '小康';
@@ -5949,6 +6147,256 @@ export default function AiHomePage() {
           </button>
         </div>
       )}
+
+      {/* [PRD-AI-HOME-OPTIM-V4 M2 · F-切人-01] 中央 Toast 浮层（屏幕中央偏上 20%，2 秒自动消失） */}
+      {centerToastVisible && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '20%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1100,
+            background: 'rgba(46, 46, 46, 0.85)',
+            color: '#fff',
+            padding: '10px 18px',
+            borderRadius: 22,
+            fontSize: 14,
+            lineHeight: 1.4,
+            maxWidth: '80%',
+            textAlign: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            pointerEvents: 'none',
+            animation: 'aihomev4-toast-fade 200ms ease-out',
+          }}
+          data-testid="consult-switch-center-toast"
+        >
+          {centerToastText}
+        </div>
+      )}
+
+      {/* [PRD-AI-HOME-OPTIM-V4 M3 · F-悬浮-01] 右下角小康头像悬浮球（F 款） */}
+      <div
+        style={{
+          position: 'fixed',
+          right: 16,
+          bottom: 96,
+          zIndex: 1050,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+          pointerEvents: 'none',
+        }}
+      >
+        {/* 首次引导气泡 */}
+        {floatingFirstGuideVisible && (
+          <div
+            style={{
+              marginBottom: 8,
+              marginRight: 4,
+              background: '#fff',
+              color: '#2E2E2E',
+              fontSize: 12,
+              padding: '6px 10px',
+              borderRadius: 12,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+              border: '1px solid #E5F4FF',
+              pointerEvents: 'auto',
+              maxWidth: 200,
+              animation: 'aihomev4-toast-fade 200ms ease-out',
+            }}
+            data-testid="floating-ball-first-guide"
+          >
+            健康服务入口在这里，随时点开
+          </div>
+        )}
+        {/* 悬浮球本体 */}
+        <button
+          type="button"
+          onClick={handleFloatingBallClick}
+          aria-label="健康服务入口"
+          data-testid="floating-ball"
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: '50%',
+            border: '2px solid #0EA5E9',
+            background: 'linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.16)',
+            padding: 0,
+            pointerEvents: 'auto',
+            animation: floatingPanelOpen ? 'none' : 'aihomev4-floating-ball-breath 2.4s ease-in-out infinite',
+            color: '#fff',
+            fontSize: 22,
+            fontWeight: 700,
+            lineHeight: 1,
+            fontFamily: 'system-ui, -apple-system, "PingFang SC", "Helvetica Neue", sans-serif',
+          }}
+        >
+          <span aria-hidden="true">康</span>
+        </button>
+      </div>
+
+      {/* [PRD-AI-HOME-OPTIM-V4 M3 · F-悬浮-03] 展开面板（复刻顶部欢迎语 + 4 入口 + 今日用药） */}
+      {floatingPanelOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1080,
+            background: 'rgba(0,0,0,0.35)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            animation: 'aihomev4-toast-fade 200ms ease-out',
+          }}
+          onClick={() => setFloatingPanelOpen(false)}
+          data-testid="floating-ball-panel-mask"
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 480,
+              background: '#fff',
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              padding: '20px 16px 24px',
+              maxHeight: '70vh',
+              overflowY: 'auto',
+              transformOrigin: 'bottom right',
+              animation: 'aihomev4-panel-zoom-in 200ms ease-out',
+            }}
+            onClick={(e) => e.stopPropagation()}
+            data-testid="floating-ball-panel"
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ fontWeight: 600, fontSize: 16, color: '#1F2937' }}>
+                {selectedConsultant
+                  ? `现在为 ${selectedConsultant.nickname} 服务`
+                  : '欢迎您！我是您的 AI 健康顾问小康'}
+              </div>
+              <button
+                type="button"
+                onClick={() => setFloatingPanelOpen(false)}
+                aria-label="关闭"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: 22,
+                  color: '#9CA3AF',
+                  cursor: 'pointer',
+                  padding: 4,
+                  lineHeight: 1,
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>
+              健康服务入口，随时为您和家人提供专业的健康咨询
+            </div>
+
+            {/* 4 个功能入口（复刻顶部宫格的前 4 个） */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: 8,
+                marginBottom: 16,
+              }}
+              data-testid="floating-ball-panel-grid"
+            >
+              {(funcButtons || []).slice(0, 4).map((btn) => (
+                <button
+                  type="button"
+                  key={btn.id}
+                  onClick={() => {
+                    try {
+                      api.post('/api/ai-home/track', {
+                        event: 'floating_ball_panel_action',
+                        platform: 'h5',
+                        payload: { entry_name: btn.name || String(btn.id) },
+                      }).catch(() => {});
+                    } catch {}
+                    setFloatingPanelOpen(false);
+                    handleFunctionButtonClick(btn);
+                  }}
+                  style={{
+                    background: '#F0F9FF',
+                    border: '1px solid #E0F2FE',
+                    borderRadius: 12,
+                    padding: '10px 4px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 4,
+                    minHeight: 70,
+                  }}
+                >
+                  <span style={{ fontSize: 24, lineHeight: 1 }} aria-hidden="true">
+                    {btn.icon || '🩺'}
+                  </span>
+                  <span style={{ fontSize: 12, color: '#0F172A', textAlign: 'center', lineHeight: 1.2 }}>
+                    {btn.name || '健康服务'}
+                  </span>
+                </button>
+              ))}
+              {(!funcButtons || funcButtons.length === 0) && (
+                <div style={{ gridColumn: '1 / -1', textAlign: 'center', fontSize: 12, color: '#94A3B8' }}>
+                  健康服务正在加载…
+                </div>
+              )}
+            </div>
+
+            {/* 今日用药卡片（轻量化展示） */}
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%)',
+                borderRadius: 12,
+                padding: '14px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+              }}
+              onClick={() => {
+                setFloatingPanelOpen(false);
+                router.push('/ai-home/medication-reminder');
+              }}
+              data-testid="floating-ball-panel-medication"
+            >
+              <div>
+                <div style={{ fontSize: 14, color: '#0F172A', fontWeight: 500 }}>今日用药</div>
+                <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>
+                  查看{selectedConsultant ? selectedConsultant.nickname : '本人'}的今日用药提醒
+                </div>
+              </div>
+              <span style={{ color: '#0284C7', fontSize: 20 }} aria-hidden="true">›</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* [PRD-AI-HOME-OPTIM-V4] 全局动画 */}
+      <style jsx global>{`
+        @keyframes aihomev4-toast-fade {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes aihomev4-floating-ball-breath {
+          0%, 100% { box-shadow: 0 4px 12px rgba(0,0,0,0.16), 0 0 0 0 rgba(14, 165, 233, 0.45); }
+          50% { box-shadow: 0 4px 12px rgba(0,0,0,0.16), 0 0 0 8px rgba(14, 165, 233, 0); }
+        }
+        @keyframes aihomev4-panel-zoom-in {
+          from { transform: scale(0.92); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+      `}</style>
 
       {/* [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 加入用药计划抽屉 */}
       <AddMedicationDrawer

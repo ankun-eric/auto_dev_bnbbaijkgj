@@ -21,6 +21,7 @@ from app.api import (
     admin_news,
     admin_search,
     ai_center,
+    ai_home_optim_v4,
     app_settings,
     appointment_form_admin,
     audit,
@@ -2004,6 +2005,8 @@ app.include_router(font_setting.router)
 app.include_router(health_profile.router)
 app.include_router(chat.router)
 app.include_router(chat_history.router)
+# [PRD-AI-HOME-OPTIM-V4 2026-05-21] AI 首页 60min 刷新 + 埋点接口
+app.include_router(ai_home_optim_v4.router)
 app.include_router(tcm.router)
 app.include_router(constitution.router)
 app.include_router(service.router)

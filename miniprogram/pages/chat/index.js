@@ -139,7 +139,15 @@ Page({
     aiSignature: '小康',                // 顶栏标题（取 ai_chat.signature，默认"小康"）
     aiSignatureDisplay: '小康',         // 显示用（超 8 字截断）
     unreadCount: -1,                    // -1=不显示徽标；0=小红点；1~99=数字；>=100="99+"
-    unreadDisplay: ''                   // 已格式化的徽标文本（如"5"、"99+"）
+    unreadDisplay: '',                  // 已格式化的徽标文本（如"5"、"99+"）
+
+    // [PRD-AI-HOME-OPTIM-V4 2026-05-21]
+    v4SwitchUndoVisible: false,         // 5 秒撤销横条可见
+    v4SwitchUndoText: '',
+    v4SwitchUndoSnapshot: null,         // 切换前快照
+    v4RefreshPaused: false,             // 撤销期内暂停 60min 计时
+    v4FloatingPanelOpen: false,         // 右下角小康头像悬浮球展开面板
+    v4FloatingFirstGuideVisible: false, // 首次引导气泡
   },
 
   _recognizeManager: null,
@@ -244,6 +252,9 @@ Page({
       this.restoreSessionMember(chatId);
     }
 
+    // [PRD-AI-HOME-OPTIM-V4 M3] 进入页面 800ms 后展示一次悬浮球引导气泡（仅首次）
+    this.showV4FloatingFirstGuide();
+
     // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 消费 globalData.pendingQnChatMessages
     // 把后端 chat_messages 序列（card → text → followup_chips）按顺序注入到对话流
     try {
@@ -337,6 +348,11 @@ Page({
     }
     this._recognizeManager = null;
     this._stopTts();
+    // [PRD-AI-HOME-OPTIM-V4 2026-05-21] 清理撤销计时器
+    if (this._v4UndoTimer) {
+      clearTimeout(this._v4UndoTimer);
+      this._v4UndoTimer = null;
+    }
     if (this._cursorTimer) {
       clearInterval(this._cursorTimer);
       this._cursorTimer = null;
@@ -1937,10 +1953,165 @@ Page({
 
   onSelectTarget(e) {
     const member = e.currentTarget.dataset.member;
+    const prevName = (this.data.consultTarget && this.data.consultTarget.name) || '本人';
+    const targetName = member.name || '本人';
+    // 保存撤销快照
+    const snapshot = {
+      consultTarget: this.data.consultTarget,
+      messages: (this.data.messages || []).slice(),
+      chatId: this.data.chatId,
+      currentConsultantId: this.data.currentConsultantId,
+      expiresAt: Date.now() + 5000,
+    };
     this.setData({
-      consultTarget: { name: member.name, color: member.color },
-      showTargetPicker: false
+      consultTarget: { name: targetName, color: member.color },
+      showTargetPicker: false,
     });
+    // 仅当确实切换了人才显示三重提示
+    if (prevName === targetName) return;
+    this.showV4SwitchTripleHints(targetName, snapshot);
+    // 切换咨询人埋点
+    try {
+      post('/api/ai-home/track', {
+        event: 'switch_consultant',
+        platform: 'miniprogram',
+        payload: { from_name: prevName, to_name: targetName },
+      }, { showLoading: false, suppressErrorToast: true }).catch(() => {});
+    } catch (e) { /* 静默 */ }
+  },
+
+  // [PRD-AI-HOME-OPTIM-V4 M2 · 2026-05-21] 切换咨询人三重提示（小程序）
+  // 1. 中央 Toast（wx.showToast 中央位置）2 秒
+  // 2. 系统消息气泡（永久留痕）插入到 messages
+  // 3. 顶部撤销横条 5 秒（v4SwitchUndoVisible），点击恢复
+  showV4SwitchTripleHints(targetName, snapshot) {
+    // F-切人-01：Toast 浮层（小程序原生 Toast 居中）
+    try {
+      wx.showToast({
+        title: `已切换为 ${targetName} 咨询`,
+        icon: 'none',
+        duration: 2000,
+      });
+    } catch (e) { /* 静默 */ }
+    // F-切人-02：系统消息气泡（永久留痕）
+    const sysMsg = {
+      id: `sys-switch-${Date.now()}`,
+      role: 'assistant',
+      type: 'system_switch_notice',
+      content: `—— 现在开始为 ${targetName} 提供健康咨询 ——`,
+      time: '',
+      _ts: Date.now(),
+    };
+    this.setData({
+      messages: [...(this.data.messages || []), sysMsg],
+      // F-切人-03：撤销横条状态
+      v4SwitchUndoVisible: true,
+      v4SwitchUndoText: `已切换为 ${targetName} 咨询，已为您开启新对话`,
+      v4SwitchUndoSnapshot: snapshot,
+      v4RefreshPaused: true,
+    });
+    // 5 秒后自动消失
+    if (this._v4UndoTimer) clearTimeout(this._v4UndoTimer);
+    this._v4UndoTimer = setTimeout(() => {
+      this.setData({
+        v4SwitchUndoVisible: false,
+        v4SwitchUndoSnapshot: null,
+        v4RefreshPaused: false,
+      });
+      try {
+        post('/api/ai-home/track', {
+          event: 'switch_undo_expired',
+          platform: 'miniprogram',
+          payload: {},
+        }, { showLoading: false, suppressErrorToast: true }).catch(() => {});
+      } catch (e) { /* 静默 */ }
+    }, 5000);
+  },
+
+  // [PRD-AI-HOME-OPTIM-V4 M2] 5 秒撤销点击：恢复切换前快照
+  onV4SwitchUndoTap() {
+    const snap = this.data.v4SwitchUndoSnapshot;
+    if (!snap || Date.now() > snap.expiresAt) return;
+    if (this._v4UndoTimer) {
+      clearTimeout(this._v4UndoTimer);
+      this._v4UndoTimer = null;
+    }
+    this.setData({
+      consultTarget: snap.consultTarget,
+      messages: snap.messages,
+      chatId: snap.chatId,
+      currentConsultantId: snap.currentConsultantId,
+      v4SwitchUndoVisible: false,
+      v4SwitchUndoSnapshot: null,
+      v4RefreshPaused: false,
+    });
+    try {
+      post('/api/ai-home/track', {
+        event: 'switch_undo_clicked',
+        platform: 'miniprogram',
+        payload: {},
+      }, { showLoading: false, suppressErrorToast: true }).catch(() => {});
+    } catch (e) { /* 静默 */ }
+  },
+
+  // [PRD-AI-HOME-OPTIM-V4 M3] 悬浮球点击：toggle 展开面板
+  onV4FloatingBallTap() {
+    const next = !this.data.v4FloatingPanelOpen;
+    this.setData({ v4FloatingPanelOpen: next, v4FloatingFirstGuideVisible: false });
+    if (next) {
+      try {
+        post('/api/ai-home/track', {
+          event: 'floating_ball_clicked',
+          platform: 'miniprogram',
+          payload: {},
+        }, { showLoading: false, suppressErrorToast: true }).catch(() => {});
+      } catch (e) { /* 静默 */ }
+    }
+  },
+
+  closeV4FloatingPanel() {
+    this.setData({ v4FloatingPanelOpen: false });
+  },
+
+  // [PRD-AI-HOME-OPTIM-V4 M3] 悬浮球面板内功能入口点击：复用顶部功能按钮处理
+  onV4PanelEntryTap(e) {
+    const btn = e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.button;
+    this.setData({ v4FloatingPanelOpen: false });
+    if (!btn) return;
+    try {
+      post('/api/ai-home/track', {
+        event: 'floating_ball_panel_action',
+        platform: 'miniprogram',
+        payload: { entry_name: btn.name || String(btn.id || '') },
+      }, { showLoading: false, suppressErrorToast: true }).catch(() => {});
+    } catch (e) { /* 静默 */ }
+    // 复用既有的功能按钮点击入口
+    try {
+      this.onFunctionButtonTap({ currentTarget: { dataset: { button: btn } } });
+    } catch (err) { /* 静默 */ }
+  },
+
+  // [PRD-AI-HOME-OPTIM-V4 M3] 首次引导气泡（onLoad 内调用一次）
+  showV4FloatingFirstGuide() {
+    try {
+      const SHOWN_KEY = 'aihome_v4_floating_ball_guide_shown';
+      const shown = wx.getStorageSync(SHOWN_KEY);
+      if (shown === '1') return;
+      setTimeout(() => {
+        this.setData({ v4FloatingFirstGuideVisible: true });
+        try {
+          post('/api/ai-home/track', {
+            event: 'first_guide_shown',
+            platform: 'miniprogram',
+            payload: {},
+          }, { showLoading: false, suppressErrorToast: true }).catch(() => {});
+        } catch (e) { /* 静默 */ }
+        setTimeout(() => {
+          this.setData({ v4FloatingFirstGuideVisible: false });
+          try { wx.setStorageSync(SHOWN_KEY, '1'); } catch (e) { /* 静默 */ }
+        }, 3000);
+      }, 800);
+    } catch (e) { /* 静默 */ }
   },
 
   // ============================================================

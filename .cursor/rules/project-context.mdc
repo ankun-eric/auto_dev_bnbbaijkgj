@@ -27,7 +27,44 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-MY-DEVICES-V1 · 健康档案「我的设备」页面优化 (2026-05-21 03:55)
+## Latest Update: PRD-AI-HOME-OPTIM-V4 · AI 首页体验优化 v4 (2026-05-21 13:25)
+
+**任务类型**：Bug 修复 + 体验优化；变更范围：backend + h5-web + miniprogram + flutter_app（4 端联动）
+
+**核心交付**：
+
+1. **后端**（`backend/app/api/ai_home_optim_v4.py` 新增 + `app/main.py` 注册 + `app/core/config.py` 增 `SESSION_REFRESH_MINUTES=60`）：
+   - `GET /api/ai-home/refresh-config` 返回 `{session_refresh_minutes:60, session_refresh_ms:3600000, enabled:true}`，匿名可用
+   - `POST /api/ai-home/track` 通用埋点接口，受理 PRD §8 共 11 个事件名（refresh_triggered / refresh_skipped / switch_consultant / switch_undo_clicked / switch_undo_expired / floating_ball_shown / floating_ball_clicked / floating_ball_panel_action / first_guide_shown / refresh_anomaly / system_message_visible），匿名可用（自行 jose 解 token，失败回 None，不抛 401）
+   - 旧 `AI_CHAT_AUTO_NEW_SESSION_HOURS=6` 标注为「v4 已废除 6 小时切片」，实际不再被前端调用
+2. **H5（`h5-web/src/app/(ai-chat)/ai-home/page.tsx`）**：
+   - **M1 60 分钟刷新**：`loadLastSession` 改造：进入页时 `(now - lastSession.updated_at) >= idleTimeout` 则不加载旧会话直接进欢迎页；`loadSessionMessages` 末尾用服务端 `updated_at` 初始化 `lastAiDoneAtRef`；废除 `runActiveCheck`（6h 切片）调用；新增 `pageshow` + `focus` 事件触发 `idleArchiveCheck`；启动时调 `/api/ai-home/refresh-config` 拉阈值
+   - **M2 切人三重提示**：`centerToastVisible/Text` 中央 Toast（2s）+ 聊天流插入 `kind:'system_switch_notice'` 系统消息（永久留痕）+ 复用原 5 秒撤销横条（4 项一起回滚）；`refreshPaused` 标志使撤销期内 60 分钟计时暂停
+   - **M3 小康头像悬浮球（F 款）**：`floatingPanelOpen` + `floatingFirstGuideVisible`；首次进入 localStorage 控制引导气泡 3 秒（`v4_floating_ball_first_guide_shown`）；点击悬浮球展开面板（欢迎语 + 4 入口卡片 + 今日用药）；右下 16px / 距底 96px / 48×48 / 主题绿描边 / 呼吸光晕 2.4s 动画
+3. **微信小程序（M1+M2+M3 全套）**：
+   - `pages/ai/index.js` `onShow` 调 `runV4RefreshCheck`：拉阈值 → 比 `chatHistory[0].updated_at` → 超时清空 + reportV4Track
+   - `pages/chat/index.js`：`onSelectTarget` → `showV4SwitchTripleHints`（`wx.showToast` 2s + 插入系统消息 + 撤销横条 5s + `v4RefreshPaused`）；`onV4SwitchUndoTap` 回滚 + 上报；`onV4FloatingBallTap`/`closeV4FloatingPanel`/`onV4PanelEntryTap` 悬浮球面板交互；`showV4FloatingFirstGuide` 用 `wx.getStorageSync('v4_floating_ball_first_guide_shown')` 控制只出现一次；`onUnload` 清 `_v4UndoTimer`
+   - `pages/chat/index.wxml`：新增 `v4-system-switch` 消息类型分支 + `v4-switch-undo-bar` + `v4-floating-ball-wrap`（cover-view 防遮挡）+ `v4-panel-mask`（展开面板）
+   - `pages/chat/index.wxss`：追加全套 v4 样式 + `v4BreathPulse` 呼吸动画
+4. **Flutter APP（`flutter_app/lib/screens/ai/ai_home_screen.dart` + `chat_screen.dart`）**：
+   - `AiHomeScreen` 实现 `WidgetsBindingObserver`：`AppLifecycleState.resumed` 触发 `_runV4RefreshCheck`；`initState` 启动 `_loadV4RefreshConfig` + `_runV4RefreshCheck` + 调度 `_maybeShowV4FirstGuide`（用 static flag 防重复展示）；`floatingActionButton` 渲染 `_buildV4FloatingBall`；`_onV4FloatingBallTap` 通过 `showModalBottomSheet` 展开 `_buildV4FloatingPanel`；`_reportV4Track` 上报埋点
+   - `ChatScreen` 实现 M2：`_v4ShowSwitchTripleHints` 用 `ScaffoldMessenger.showSnackBar` 中央 Toast + `_v4SwitchSystemMsgText` 聊天首条 banner + `_v4UndoBarVisible` + `_v4UndoTimer` 5 秒；`_v4UndoSwitch` 回滚；`_v4BuildUndoBar` / `_v4BuildSystemMsgBanner` 渲染
+5. **测试**：`backend/tests/test_ai_home_optim_v4_20260521.py` 7 个用例（默认阈值 / 匿名访问 / 11 个合法事件名参数化 / unknown 事件名仍 200 / payload 可选 / platform 可选 / 响应字段完整性）
+6. **部署**：脚本 `_deploy_aihome_optim_v4.py`（13 个文件上传 + backend + h5-web 镜像重建 + HTTP 探活 + 11 个 track 事件冒烟），全部 HTTP 200，refresh-config 返回 `{60, 3600000, true}` 与 PRD 完全一致
+
+**部署验证**：
+
+- 服务器：newbb.test.bangbangvip.com
+- 容器：`6b099ed3-7175-4a78-91f4-44570c84ed27-backend` / `-h5` 重建并 Recreate 启动正常
+- `GET /api/ai-home/refresh-config` → 200 `{"session_refresh_minutes":60,"session_refresh_ms":3600000,"enabled":true}`
+- 11 个埋点事件 POST 全部 200 ok=true
+- H5 入口：[https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home)
+
+**用户手册**：`user_docs/AI首页体验优化v4.md`
+
+---
+
+## Previous Update: PRD-MY-DEVICES-V1 · 健康档案「我的设备」页面优化 (2026-05-21 03:55)
 
 **任务类型**：新功能开发（页面全量重做 + 新表 + 新接口）；变更范围：backend + h5-web（无 admin / 小程序 / Flutter APP / 桌面端改动）
 

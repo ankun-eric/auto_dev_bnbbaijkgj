@@ -1490,3 +1490,30 @@
 .hsc-card-value { color: #333; }
 .hsc-card-tags { display: flex; flex-wrap: wrap; flex: 1; }
 .hsc-card-tag { background: #fff; border: 1rpx solid #91caff; color: #1677ff; border-radius: 20rpx; padding: 4rpx 16rpx; margin: 4rpx 8rpx 4rpx 0; font-size: 24rpx; }
+
+/* ========= [PRD-AI-HOME-OPTIM-V4 2026-05-21] AI 首页体验优化 v4 样式 ========== */
+.v4-system-switch { display: flex; justify-content: center; margin: 16rpx 0; padding: 0 32rpx; }
+.v4-system-switch-text { font-size: 24rpx; color: #9CA3AF; text-align: center; line-height: 1.4; }
+
+.v4-switch-undo-bar { position: fixed; top: 96rpx; left: 0; right: 0; height: 72rpx; background: #EAF4FF; display: flex; align-items: center; justify-content: space-between; padding: 0 24rpx; z-index: 1000; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.05); }
+.v4-switch-undo-text { flex: 1; font-size: 26rpx; color: #2E2E2E; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.v4-switch-undo-btn { flex-shrink: 0; margin-left: 16rpx; border: 2rpx solid #1677FF; border-radius: 32rpx; padding: 6rpx 20rpx; background: transparent; }
+.v4-switch-undo-btn-text { font-size: 24rpx; color: #1677FF; }
+
+.v4-floating-ball-wrap { position: fixed; right: 32rpx; bottom: 192rpx; z-index: 1050; display: flex; flex-direction: column; align-items: flex-end; }
+.v4-floating-ball-guide { margin-bottom: 16rpx; background: #fff; color: #2E2E2E; font-size: 24rpx; padding: 12rpx 20rpx; border-radius: 24rpx; box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.12); border: 2rpx solid #E5F4FF; max-width: 400rpx; }
+.v4-floating-ball { width: 96rpx; height: 96rpx; border-radius: 50%; border: 4rpx solid #0EA5E9; background: linear-gradient(135deg, #38BDF8 0%, #0284C7 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.16); }
+.v4-floating-ball-text { color: #fff; font-size: 44rpx; font-weight: 700; }
+
+.v4-panel-mask { position: fixed; left: 0; right: 0; top: 0; bottom: 0; background: rgba(0,0,0,0.35); z-index: 1080; display: flex; align-items: flex-end; justify-content: center; }
+.v4-panel { width: 100%; background: #fff; border-top-left-radius: 32rpx; border-top-right-radius: 32rpx; padding: 32rpx 24rpx 48rpx; max-height: 70vh; }
+.v4-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16rpx; }
+.v4-panel-title { font-weight: 600; font-size: 30rpx; color: #1F2937; }
+.v4-panel-close { font-size: 44rpx; color: #9CA3AF; padding: 8rpx; }
+.v4-panel-subtitle { font-size: 24rpx; color: #6B7280; margin-bottom: 24rpx; }
+.v4-panel-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16rpx; }
+.v4-panel-grid-item { background: #F0F9FF; border: 2rpx solid #E0F2FE; border-radius: 24rpx; padding: 20rpx 8rpx; display: flex; flex-direction: column; align-items: center; min-height: 140rpx; }
+.v4-panel-grid-icon { width: 48rpx; height: 48rpx; }
+.v4-panel-grid-emoji { font-size: 44rpx; }
+.v4-panel-grid-label { font-size: 22rpx; color: #0F172A; text-align: center; margin-top: 8rpx; }
+.v4-panel-empty { grid-column: 1 / -1; text-align: center; font-size: 24rpx; color: #94A3B8; padding: 24rpx 0; }
