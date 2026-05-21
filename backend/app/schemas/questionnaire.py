@@ -209,6 +209,11 @@ class QuestionnaireAnswerSubmit(BaseModel):
     template_id: int
     consultant_id: Optional[int] = None
     answers: list[QuestionnaireAnswerItem]
+    # [PRD-HSC-OPTIM-V3 2026-05-21] 前端从「咨询人胶囊」当前值取，落库 + 详情页直接展示
+    subject_kind: Optional[str] = None  # 'self' | 'family'
+    subject_member_id: Optional[int] = None
+    subject_name: Optional[str] = None
+    subject_relation: Optional[str] = None
 
 
 class QuestionnaireAnswerResponse(BaseModel):

@@ -1,0 +1,21 @@
+
+=== 1) 鎵句竴涓?questionnaire 绫诲瀷鎸夐挳 ID ===
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-db sh -lc 'echo $MYSQL_DATABASE'
+bini_health
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-db sh -lc "mysql -uroot -p\$MYSQL_ROOT_PASSWORD -Dbini_health -N -B -e 'SELECT id FROM chat_function_buttons WHERE ai_function_type=\"questionnaire\" ORDER BY id ASC LIMIT 1'" 2>/dev/null
+5
+  鈫?button_id=5
+
+=== A) GET render-meta锛堥粯璁ゅ簲鏈?result_cta 鑺傜偣锛?===
+$ curl -sk https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/questionnaire/buttons/5/render-meta
+,"鑵规郴","渚跨"],"鑰抽蓟鍠?:["鑰抽福","榧诲","鍜界棝","鍜冲椊","鎵佹浣撹偪澶?],"鍏ㄨ韩鐥囩姸":["鍙戠儹","涔忓姏","鐩楁睏","浣撻噸涓嬮檷","澶辩湢"],"娉屽翱鐢熸畺":["灏块","灏挎€?,"灏跨棝","澶滃翱澧炲"]}},"layout_hint":"tag_list"},{"id":587,"sort_order":3,"question_type":"single_choice","title":"鎸佺画浜嗗涔咃紵","subtitle":null,"required":true,"options":[{"label":"浠婂ぉ","value":"浠婂ぉ"},{"label":"1-3 澶?,"value":"1-3 澶?},{"label":"4-7 澶?,"value":"4-7 澶?},{"label":"1-4 鍛?,"value":"1-4 鍛?},{"label":"1 涓湀浠ヤ笂","value":"1 涓湀浠ヤ笂"}],"dimension":"鎸佺画鏃堕棿","display_condition_json":null,"option_filter_json":null,"layout_hint":"tag_grid"},{"id":588,"sort_order":91,"question_type":"single_choice","title":"鐥囩姸鏄粈涔堟劅瑙夛紵锛堝彲璺宠繃锛?,"subtitle":"閫変竴涓渶璐磋繎鎮ㄧ殑鎻忚堪锛屼笉鐭ラ亾鎬庝箞褰㈠灏辫烦杩?,"required":false,"options":[{"label":"馃珋 鍍忓績璺充竴鏍蜂竴璺充竴璺崇殑鐤?,"score":0,"value":"鎼忓姩鎬х柤鐥?},{"label":"鈽侊笍 闂烽椃鐨勩€佽涓嶆竻鐨勭柤","score":0,"value":"閽濈棝"},{"label":"馃敟 鍍忕伀鐑т竴鏍风殑鐤?,"score":0,"value":"鐑х伡鎰?},{"label":"馃搷 閽堟墡涓€鏍风殑鐤?,"score":0,"value":"鍒虹棝"},{"label":"鉃?楹婚夯鐨勬病鐭ヨ","score":0,"value":"楹绘湪"},{"label":"馃挭 閰搁吀鐨勫儚杩愬姩鍚?,"score":0,"value":"閰哥棝"},{"label":"馃 绱х揣鐨勫儚琚崋鐫€","score":0,"value":"绱х环鎰?},{"label":"馃暦锔?鐥掔棐鐨?,"score":0,"value":"鐦欑棐"},{"label":"鉂?璇翠笉娓呮 / 璺宠繃","score":0,"value":"skip"}],"dimension":"鐥囩姸鎬ц川","display_condition_json":{"order_num":91},"option_filter_json":null,"layout_hint":"tag_grid"},{"id":589,"sort_order":92,"question_type":"single_choice","title":"鐥囩姸涓ラ噸绋嬪害锛?=娌℃劅瑙夛紝10=鍓х棝锛屽彲璺宠繃锛?,"subtitle":"鎷栧姩婊戝潡鎴栭€夋暟瀛楋紝瓒婂ぇ瓒婁弗閲?,"required":false,"options":[{"label":"1  馃檪 杞诲井","score":1,"value":"1"},{"label":"3  馃槓 杞诲害","score":3,"value":"3"},{"label":"5  馃槪 涓害","score":5,"value":"5"},{"label":"7  馃槴 閲嶅害","score":7,"value":"7"},{"label":"10 馃槺 鍓х儓","score":10,"value":"10"},{"label":"鉂?璇翠笉娓呮 / 璺宠繃","score":0,"value":"skip"}],"dimension":"涓ラ噸绋嬪害","display_condition_json":{"order_num":92},"option_filter_json":null,"layout_hint":"vas_slider"},{"id":590,"sort_order":93,"question_type":"text","title":"杩樻湁浠€涔堟兂琛ュ厖鍛婅瘔灏忕櫧鐨勫悧锛燂紙閫夊～锛?,"subtitle":"渚嬪锛氬彈鍑夊悗鍔犻噸 / 姣忓ぉ涓嬪崍 3 鐐瑰噯鏃跺嚭鐜?/ 鏈嶇敤甯冩礇鑺悗缂撹В","required":false,"options":[],"dimension":"鐥囩姸澶囨敞","display_condition_json":{"order_num":93},"option_filter_json":null,"layout_hint":"voice_text"}]}
+  auto_next_enabled=True
+  result_cta=None
+
+=== B) admin 鐧诲綍 ===
+$ curl -sk https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/login -H 'Content-Type: application/json' -d '{"phone":"13800138000","password":"admin123"}'
+{"detail":{"code":40121,"msg":"璐﹀彿鎴栧瘑鐮侀敊璇?,"remaining_attempts":4}}
+鈿狅笍 admin 鐧诲綍澶辫触锛堥粯璁よ处鍙蜂笉瀛樺湪锛夛紝璺宠繃 CTA 閰嶇疆鍐欏叆娴嬭瘯
+
+=== 鐑熼浘娴嬭瘯缁撴灉 ===
+鉁?鎵€鏈夊叧閿帴鍙ｇ儫闆炬祴璇曢€氳繃

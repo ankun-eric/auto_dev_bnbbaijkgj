@@ -9,7 +9,8 @@
  * 视觉风格统一为「报告卡片化稿 2」：白底圆角 + 顶部色块 + 主结论 + 9 维迷你雷达。
  */
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import api from '@/lib/api';
 
 export interface UniversalCardPayload {
   questionnaire_code?: string | null;
@@ -109,6 +110,80 @@ export default function UniversalQuestionnaireResultCard({ payload, onClickDetai
   const mainType =
     payload.main_type || payload.classification_name || payload.questionnaire_name || '结果';
   const secondary = (payload.secondary_types || []).filter(Boolean);
+
+  // [PRD-HSC-OPTIM-V3 2026-05-21] AI 解读状态：仅对健康自查（answer_id 存在）轮询
+  const answerId = payload.answer_id || payload.result_id;
+  const isHsc = (payload.questionnaire_code || '') === 'health_self_check';
+  const [aiStatus, setAiStatus] = useState<'pending' | 'done' | 'failed' | 'unknown'>(
+    isHsc ? 'pending' : 'done',
+  );
+  const pollRef = useRef<any>(null);
+  const startedAtRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (!isHsc || !answerId) {
+      setAiStatus('done');
+      return;
+    }
+    let cancelled = false;
+    const stop = () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+    const poll = async () => {
+      try {
+        const st = await api.get<any>(`/api/questionnaire/answers/${answerId}/ai-status`);
+        if (cancelled) return;
+        const s = (st?.ai_status || 'done') as any;
+        setAiStatus(s);
+        if (s !== 'pending') stop();
+        if (Date.now() - startedAtRef.current > 60000) {
+          stop();
+          if (s === 'pending') setAiStatus('failed');
+        }
+      } catch {
+        // 静默忽略
+      }
+    };
+    // 立即查一次，再以 3s 轮询
+    startedAtRef.current = Date.now();
+    poll();
+    pollRef.current = setInterval(poll, 3000);
+    return () => {
+      cancelled = true;
+      stop();
+    };
+  }, [isHsc, answerId]);
+
+  const handleRetry = async () => {
+    if (!answerId) return;
+    try {
+      await api.post(`/api/questionnaire/answers/${answerId}/retry-ai`, {});
+      setAiStatus('pending');
+      // 重启轮询
+      if (pollRef.current) clearInterval(pollRef.current);
+      startedAtRef.current = Date.now();
+      const poll = async () => {
+        try {
+          const st = await api.get<any>(`/api/questionnaire/answers/${answerId}/ai-status`);
+          const s = (st?.ai_status || 'done') as any;
+          setAiStatus(s);
+          if (s !== 'pending' && pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
+        } catch {
+          /* noop */
+        }
+      };
+      pollRef.current = setInterval(poll, 3000);
+    } catch {
+      /* noop */
+    }
+  };
+
   const completed = payload.completed_at
     ? new Date(payload.completed_at).toLocaleString('zh-CN', {
         month: '2-digit',
@@ -225,24 +300,76 @@ export default function UniversalQuestionnaireResultCard({ payload, onClickDetai
           </div>
         )}
       </div>
-      <button
-        type="button"
-        data-testid="universal-qn-result-detail-btn"
-        onClick={() => onClickDetail && onClickDetail(payload.detail_target || {})}
-        style={{
-          width: '100%',
-          border: 'none',
-          borderTop: '1px solid #EEF2F7',
-          background: '#F8FAFC',
-          color: coverColor,
-          padding: '10px 0',
-          fontSize: 13,
-          fontWeight: 600,
-          cursor: 'pointer',
-        }}
-      >
-        查看详情 ›
-      </button>
+      {(() => {
+        // [PRD-HSC-OPTIM-V3 2026-05-21] 按 ai_status 联动「查看详情」按钮：
+        //  - pending → 灰色 + 文案「分析中...」+ 禁用
+        //  - done    → 主题色 + 文案「查看详情」+ 可点
+        //  - failed  → 红色 + 文案「重试解读」+ 可点
+        if (aiStatus === 'pending') {
+          return (
+            <button
+              type="button"
+              data-testid="universal-qn-result-detail-btn"
+              disabled
+              style={{
+                width: '100%',
+                border: 'none',
+                borderTop: '1px solid #EEF2F7',
+                background: '#F1F5F9',
+                color: '#94A3B8',
+                padding: '10px 0',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'not-allowed',
+              }}
+            >
+              分析中...
+            </button>
+          );
+        }
+        if (aiStatus === 'failed') {
+          return (
+            <button
+              type="button"
+              data-testid="universal-qn-result-detail-btn"
+              onClick={handleRetry}
+              style={{
+                width: '100%',
+                border: 'none',
+                borderTop: '1px solid #EEF2F7',
+                background: '#FEF2F2',
+                color: '#DC2626',
+                padding: '10px 0',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              重试解读
+            </button>
+          );
+        }
+        return (
+          <button
+            type="button"
+            data-testid="universal-qn-result-detail-btn"
+            onClick={() => onClickDetail && onClickDetail(payload.detail_target || {})}
+            style={{
+              width: '100%',
+              border: 'none',
+              borderTop: '1px solid #EEF2F7',
+              background: '#F8FAFC',
+              color: coverColor,
+              padding: '10px 0',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            查看详情 ›
+          </button>
+        );
+      })()}
     </div>
   );
 }

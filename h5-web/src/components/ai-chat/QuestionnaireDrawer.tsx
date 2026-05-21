@@ -452,6 +452,11 @@ export default function QuestionnaireDrawer({
       if (!q) return;
       setAnswers((p) => ({ ...p, [q.id]: v }));
       if (autoNextEnabled && q.question_type === 'single_choice' && !isLast) {
+        // [PRD-HSC-OPTIM-V3 2026-05-21] 排查日志，便于线上确认自动跳题是否触发
+        if (typeof console !== 'undefined') {
+          // eslint-disable-next-line no-console
+          console.debug('[qn-drawer] autoNext fired', { idx: safeIdx, q_id: q.id });
+        }
         // 用 setTimeout 触发下一帧，让 UI 先体现"选中态"再翻页
         setTimeout(() => {
           setStepIdx((i) => Math.min(i + 1, visibleQuestions.length - 1));

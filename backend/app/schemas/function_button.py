@@ -157,6 +157,11 @@ class ChatFunctionButtonCreate(BaseModel):
     trigger_keywords: Optional[list] = None
     ai_reference_passive: Optional[bool] = True
     ai_reference_active: Optional[bool] = True
+    # [PRD-HSC-OPTIM-V3 2026-05-21] 结果详情页 CTA 按钮（按钮级配置）
+    result_cta_enabled: Optional[bool] = False
+    result_cta_text: Optional[str] = None
+    result_cta_target_type: Optional[str] = None
+    result_cta_target_value: Optional[str] = None
 
 
 class ChatFunctionButtonUpdate(BaseModel):
@@ -213,6 +218,11 @@ class ChatFunctionButtonUpdate(BaseModel):
     trigger_keywords: Optional[list] = None
     ai_reference_passive: Optional[bool] = None
     ai_reference_active: Optional[bool] = None
+    # [PRD-HSC-OPTIM-V3 2026-05-21] 结果详情页 CTA 按钮（按钮级配置）
+    result_cta_enabled: Optional[bool] = None
+    result_cta_text: Optional[str] = None
+    result_cta_target_type: Optional[str] = None
+    result_cta_target_value: Optional[str] = None
 
 
 class ChatFunctionButtonResponse(BaseModel):
@@ -270,6 +280,11 @@ class ChatFunctionButtonResponse(BaseModel):
     trigger_keywords: Optional[list] = None
     ai_reference_passive: Optional[bool] = True
     ai_reference_active: Optional[bool] = True
+    # [PRD-HSC-OPTIM-V3 2026-05-21] 结果详情页 CTA 按钮（按钮级配置）
+    result_cta_enabled: Optional[bool] = False
+    result_cta_text: Optional[str] = None
+    result_cta_target_type: Optional[str] = None
+    result_cta_target_value: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

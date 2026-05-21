@@ -2623,6 +2623,15 @@ class ChatFunctionButton(Base):
     trigger_keywords = mapped_column(JSON, nullable=True, comment="触发关键词列表（JSON 数组）")
     ai_reference_passive = mapped_column(Boolean, nullable=True, default=True, comment="AI 对话被动引用本功能结果（默认 true）")
     ai_reference_active = mapped_column(Boolean, nullable=True, default=True, comment="完成后 AI 主动追问（默认 true）")
+    # ───── [PRD-HSC-OPTIM-V3 2026-05-21] 结果详情页 CTA 按钮（按钮级配置） ─────
+    # 仅当 ai_function_type=questionnaire 类按钮使用；其他按钮置空
+    result_cta_enabled = mapped_column(Boolean, nullable=True, default=False, comment="是否在结果详情页显示 CTA")
+    result_cta_text = mapped_column(String(32), nullable=True, comment="按钮文案，未配置时回显「找医生咨询」")
+    result_cta_target_type = mapped_column(
+        String(16), nullable=True,
+        comment="跳转类型：H5_PATH / EXTERNAL_URL / MINIPROGRAM_PATH / DOCTOR_ID / DEPARTMENT_ID"
+    )
+    result_cta_target_value = mapped_column(String(255), nullable=True, comment="跳转值（路径 / URL / ID）")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -2764,6 +2773,17 @@ class QuestionnaireAnswer(Base):
     # ───── [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21] AI 追问关键摘要 ─────
     # ≤200 字的关键症状摘要，由后端按模板的 key_field_codes 在 finalize 时生成，供 AI 追问 prompt 注入
     key_summary = mapped_column(Text, nullable=True, comment="AI 追问关键摘要（≤200 字）")
+    # ───── [PRD-HSC-OPTIM-V3 2026-05-21] subject 落库 + 异步 AI 解读字段 ─────
+    subject_kind = mapped_column(String(16), nullable=True, comment="本人/家人 self/family")
+    subject_member_id = mapped_column(Integer, nullable=True, comment="家人 ID")
+    subject_name = mapped_column(String(64), nullable=True, comment="被测人姓名")
+    subject_relation = mapped_column(String(32), nullable=True, comment="亲属关系")
+    ai_status = mapped_column(String(16), nullable=True, default="done", comment="pending/done/failed")
+    ai_failed_reason = mapped_column(String(255), nullable=True, comment="AI 解读失败原因")
+    ai_full_interpretation = mapped_column(Text, nullable=True, comment="异步生成的解读")
+    home_care_tips_json = mapped_column(JSON, nullable=True, comment="居家建议列表")
+    red_flag_signals_json = mapped_column(JSON, nullable=True, comment="红线信号列表")
+    archive_insufficient = mapped_column(Boolean, nullable=True, default=False, comment="档案不足标志")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     completed_at = mapped_column(DateTime, nullable=True)
 

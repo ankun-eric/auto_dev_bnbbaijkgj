@@ -1,0 +1,152 @@
+============================================================
+[PRD-HSC-OPTIM-V3] 閮ㄧ讲寮€濮?
+  Host:       newbb.test.bangbangvip.com
+  DeployDir:  /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27
+  BaseURL:    https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27
+============================================================
+
+--- 姝ラ 1锛氫笂浼犲彉鏇存枃浠?---
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app'
+  鉁?uploaded backend/app/main.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/main.py
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/models'
+  鉁?uploaded backend/app/models/models.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/models/models.py
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api'
+  鉁?uploaded backend/app/api/questionnaire.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/questionnaire.py
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/schemas'
+  鉁?uploaded backend/app/schemas/questionnaire.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/schemas/questionnaire.py
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/schemas'
+  鉁?uploaded backend/app/schemas/function_button.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/schemas/function_button.py
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/services'
+  鉁?uploaded backend/app/services/prd_hsc_optim_v3_migration.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/services/prd_hsc_optim_v3_migration.py
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests'
+  鉁?uploaded backend/tests/test_hsc_optim_v3_20260521.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_hsc_optim_v3_20260521.py
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/(admin)/function-buttons'
+  鉁?uploaded admin-web/src/app/(admin)/function-buttons/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/(admin)/function-buttons/page.tsx
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home'
+  鉁?uploaded h5-web/src/app/(ai-chat)/ai-home/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/(ai-chat)/ai-home/page.tsx
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/components/ai-chat'
+  鉁?uploaded h5-web/src/components/ai-chat/QuestionnaireDrawer.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/components/ai-chat/QuestionnaireDrawer.tsx
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/components/ai-chat'
+  鉁?uploaded h5-web/src/components/ai-chat/UniversalQuestionnaireResultCard.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/components/ai-chat/UniversalQuestionnaireResultCard.tsx
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-self-check/result/[id]'
+  鉁?uploaded h5-web/src/app/health-self-check/result/[id]/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-self-check/result/[id]/page.tsx
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/lib'
+  鉁?uploaded h5-web/src/lib/cta-router.ts -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/lib/cta-router.ts
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/components/questionnaire-result-card'
+  鉁?uploaded miniprogram/components/questionnaire-result-card/index.js -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/components/questionnaire-result-card/index.js
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/components/questionnaire-result-card'
+  鉁?uploaded miniprogram/components/questionnaire-result-card/index.wxml -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/components/questionnaire-result-card/index.wxml
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/components/questionnaire-result-card'
+  鉁?uploaded miniprogram/components/questionnaire-result-card/index.wxss -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/components/questionnaire-result-card/index.wxss
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/lib/widgets/ai_chat'
+  鉁?uploaded flutter_app/lib/widgets/ai_chat/questionnaire_result_card.dart -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/flutter_app/lib/widgets/ai_chat/questionnaire_result_card.dart
+
+--- 姝ラ 2锛歞ocker compose build & up backend + admin-web + h5-web ---
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build backend admin-web h5-web 2>&1 | tail -150
+70 kB
+#30 156.6 鈹?鈼?/product-system/redemptions              7.14 kB         418 kB
+#30 156.6 鈹?鈼?/product-system/statistics               8.87 kB         757 kB
+#30 156.6 鈹?鈼?/product-system/store-bindding           11.8 kB         410 kB
+#30 156.6 鈹?鈼?/product-system/tags                     12.7 kB         411 kB
+#30 156.6 鈹?鈼?/product-system/visits                   7.58 kB         448 kB
+#30 156.6 鈹?鈼?/profile                                 5.07 kB         252 kB
+#30 156.6 鈹?鈼?/profile/change-password                 7.66 kB         287 kB
+#30 156.6 鈹?鈼?/prompt-templates                        14.6 kB         318 kB
+#30 156.6 鈹?鈼?/questionnaire-templates                 15.3 kB         429 kB
+#30 156.6 鈹?鈼?/referral                                7.46 kB         382 kB
+#30 156.6 鈹?鈼?/relation-types                          11.5 kB         406 kB
+#30 156.6 鈹?鈼?/search-config                           10 kB           414 kB
+#30 156.6 鈹?鈼?/search/asr-config                       7 kB            296 kB
+#30 156.6 鈹?鈼?/search/block-words                      12.6 kB         402 kB
+#30 156.6 鈹?鈼?/search/recommend                        14.2 kB         409 kB
+#30 156.6 鈹?鈼?/search/statistics                       240 kB         1.09 MB
+#30 156.6 鈹?鈼?/settings                                11 kB           368 kB
+#30 156.6 鈹?鈼?/share-config                            4.21 kB         371 kB
+#30 156.6 鈹?鈼?/sms                                     25.1 kB         423 kB
+#30 156.6 鈹?鈼?/system-messages                         11.4 kB         433 kB
+#30 156.6 鈹?鈼?/system-messages/send                    4.92 kB         314 kB
+#30 156.6 鈹?鈼?/system/sdk-health                       17 kB           285 kB
+#30 156.6 鈹?鈼?/system/seed-import                      15.2 kB         408 kB
+#30 156.6 鈹?鈼?/tcm-config                              4.05 kB         284 kB
+#30 156.6 鈹?鈼?/theme-config                            7.6 kB          403 kB
+#30 156.6 鈹?鈼?/tts-config                              5.07 kB         334 kB
+#30 156.6 鈹?鈼?/users                                   15.3 kB         404 kB
+#30 156.6 鈹?鈼?/voice-service                           3.46 kB         345 kB
+#30 156.6 鈹?鈼?/wechat-push                             4.92 kB         291 kB
+#30 156.6 + First Load JS shared by all                87.7 kB
+#30 156.6   鈹?chunks/2117-1ca38137e0e3b541.js          31.9 kB
+#30 156.6   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js      53.6 kB
+#30 156.6   鈹?other shared chunks (total)              2.13 kB
+#30 156.6 
+#30 156.6 
+#30 156.6 鈼? (Static)   prerendered as static content
+#30 156.6 茠  (Dynamic)  server-rendered on demand
+#30 156.6 
+#30 DONE 157.2s
+
+#38 [admin-web runner 3/5] COPY --from=builder /app/.next/standalone ./
+#38 DONE 0.4s
+
+#39 [admin-web runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#39 DONE 0.1s
+
+#40 [admin-web runner 5/5] COPY --from=builder /app/public ./public
+#40 DONE 0.1s
+
+#41 [admin-web] exporting to image
+#41 exporting layers
+#41 exporting layers 1.3s done
+#41 exporting manifest sha256:06bbc41a571558d2c2725f880f44117d1302422591237ab216ded204fe2f093b 0.0s done
+#41 exporting config sha256:df0baf8561d6487ea8b2a3ba6c652d929b18309ade647a3790bd53b3bccd37ac 0.0s done
+#41 exporting attestation manifest sha256:c1a1876854500368811284a7ddd400ab93f28986165b6bb2d93e32040c4be53c 0.0s done
+#41 exporting manifest list sha256:3d554d6e716f0f178c0bb404a77d380bd256cc9dc79be5efd7cafb9d46791fcc 0.0s done
+#41 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest done
+#41 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+#41 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.6s done
+#41 DONE 2.0s
+
+#42 [admin-web] resolving provenance for metadata file
+#42 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Built 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose up -d backend admin-web h5-web 2>&1 | tail -30
+time="2026-05-21T13:46:15+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started
+
+--- 姝ラ 3锛氱瓑寰?25s 鍚庢鏌ヨ縼绉绘棩蹇?---
+$ docker logs --tail 600 6b099ed3-7175-4a78-91f4-44570c84ed27-backend 2>&1 | grep -E 'hsc_optim_v3|render-meta|hsc-ai-task' || true
+[migrate] hsc_optim_v3: 鍚姩杩佺Щ...
+[migrate] hsc_optim_v3: 杩佺Щ瀹屾垚 stats={'answer_added': 10, 'button_added': 4, 'backfilled': 0}
+
+--- 姝ラ 4锛欻TTP 鎺㈡椿 ---
+$ curl -sk -o /dev/null -w '/api/health HTTP_%{http_code}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health'
+/api/health HTTP_200
+$ curl -sk -o /dev/null -w '/ HTTP_%{http_code}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/'
+/ HTTP_200
+$ curl -sk -o /dev/null -w '/admin/ HTTP_%{http_code}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/'
+/admin/ HTTP_200
+$ curl -sk -o /dev/null -w '/health-self-check/result/9999999 HTTP_%{http_code}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-self-check/result/9999999'
+/health-self-check/result/9999999 HTTP_308
+
+--- 姝ラ 5锛氳繙绔?pytest锛坱est_hsc_optim_v3_20260521.py锛?---
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python -m pytest tests/test_hsc_optim_v3_20260521.py -v --no-header 2>&1 | tail -200
+/usr/local/bin/python: No module named pytest
+
+============================================================
+[PRD-HSC-OPTIM-V3] 閮ㄧ讲瀹屾垚
+============================================================

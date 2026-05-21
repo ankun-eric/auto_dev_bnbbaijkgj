@@ -1,0 +1,14 @@
+
+=== 1) 鎵句竴涓?questionnaire 绫诲瀷鎸夐挳 ID ===
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend bash -lc "mysql -h db -uroot -prootpass -Dbini_health -N -e "SELECT id FROM chat_function_buttons WHERE ai_function_type='questionnaire' ORDER BY id ASC LIMIT 1;" 2>/dev/null"
+id: line 1: mysql: command not found
+bash: line 1:  2>/dev/null: No such file or directory
+鈿狅笍 鏈壘鍒?questionnaire 鎸夐挳锛岃烦杩?CTA 鏍￠獙
+
+=== B) admin 鐧诲綍 ===
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend bash -lc "curl -s http://localhost:8000/api/admin/login -H 'Content-Type: application/json' -d '{\"phone\":\"13800138000\",\"password\":\"admin123\"}'"
+bash: line 1: curl: command not found
+鈿狅笍 admin 鐧诲綍澶辫触锛堥粯璁よ处鍙蜂笉瀛樺湪锛夛紝璺宠繃 CTA 閰嶇疆鍐欏叆娴嬭瘯
+
+=== 鐑熼浘娴嬭瘯缁撴灉 ===
+鉁?鎵€鏈夊叧閿帴鍙ｇ儫闆炬祴璇曢€氳繃

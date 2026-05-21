@@ -1,7 +1,10 @@
 // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 通用问卷结果卡片（AI 侧）
+// [PRD-HSC-OPTIM-V3 2026-05-21] 新增 AI 解读状态轮询 + 按钮置灰联动
 //
 // 接收后端通用卡片协议 payload，渲染 AI 侧"测评结果汇总卡片"。
 // 视觉风格：报告卡片化稿 2 —— 白底 + 顶部色条 + 主结论 + 雷达图 + 查看详情
+const { get, post } = require('../../utils/request.js');
+
 Component({
   properties: {
     payload: {
@@ -14,6 +17,10 @@ Component({
     radarAxisPoints: [],
     radarLabelPoints: [],
     coverColorBg: '#0EA5E91A',
+    // [PRD-HSC-OPTIM-V3 2026-05-21] AI 解读状态
+    aiStatus: 'done',
+    _pollTimer: null,
+    _pollStartedAt: 0,
   },
   observers: {
     'payload': function (payload) {
@@ -21,7 +28,12 @@ Component({
       const color = payload.cover_color || '#0EA5E9';
       this.setData({ coverColorBg: color + '1A' });
       this._renderRadar(payload.scores || {});
+      // 仅健康自查启动轮询
+      this._maybeStartAiPoll(payload);
     },
+  },
+  detached() {
+    this._stopAiPoll();
   },
   methods: {
     _renderRadar(scores) {
@@ -60,9 +72,54 @@ Component({
       });
     },
     onClickDetail() {
+      // 分析中状态禁止点击
+      if ((this.data.aiStatus || 'done') === 'pending') return;
+      if ((this.data.aiStatus || 'done') === 'failed') {
+        this._retryAi();
+        return;
+      }
       const payload = this.data.payload || {};
       const target = payload.detail_target || {};
       this.triggerEvent('viewdetail', { target, payload });
+    },
+    _maybeStartAiPoll(payload) {
+      const code = (payload && payload.questionnaire_code) || '';
+      const aid = (payload && (payload.answer_id || payload.result_id)) || null;
+      if (code !== 'health_self_check' || !aid) {
+        this.setData({ aiStatus: 'done' });
+        return;
+      }
+      this._stopAiPoll();
+      this.setData({ aiStatus: 'pending', _pollStartedAt: Date.now() });
+      const pollOnce = () => {
+        get(`/api/questionnaire/answers/${aid}/ai-status`).then((res) => {
+          const s = (res && (res.ai_status || (res.data && res.data.ai_status))) || 'done';
+          this.setData({ aiStatus: s });
+          if (s !== 'pending') this._stopAiPoll();
+          if (Date.now() - (this.data._pollStartedAt || 0) > 60000) {
+            this._stopAiPoll();
+            if ((this.data.aiStatus || 'done') === 'pending') {
+              this.setData({ aiStatus: 'failed' });
+            }
+          }
+        }).catch(() => {});
+      };
+      pollOnce();
+      const t = setInterval(pollOnce, 3000);
+      this.setData({ _pollTimer: t });
+    },
+    _stopAiPoll() {
+      if (this.data._pollTimer) {
+        clearInterval(this.data._pollTimer);
+        this.setData({ _pollTimer: null });
+      }
+    },
+    _retryAi() {
+      const aid = (this.data.payload && (this.data.payload.answer_id || this.data.payload.result_id)) || null;
+      if (!aid) return;
+      post(`/api/questionnaire/answers/${aid}/retry-ai`, {}).then(() => {
+        this._maybeStartAiPoll(this.data.payload);
+      }).catch(() => {});
     },
   },
 });

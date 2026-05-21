@@ -41,7 +41,14 @@
       </view>
     </view>
   </view>
-  <view class="qn-detail-btn" bindtap="onClickDetail" data-testid="qn-result-detail-btn">
+  <!-- [PRD-HSC-OPTIM-V3 2026-05-21] 按 aiStatus 联动按钮：pending 灰禁用 / failed 红重试 / done 主题色 -->
+  <view wx:if="{{aiStatus === 'pending'}}" class="qn-detail-btn qn-detail-btn--pending" data-testid="qn-result-detail-btn">
+    <text style="color:#94A3B8;">分析中...</text>
+  </view>
+  <view wx:elif="{{aiStatus === 'failed'}}" class="qn-detail-btn qn-detail-btn--failed" bindtap="onClickDetail" data-testid="qn-result-detail-btn">
+    <text style="color:#DC2626;">重试解读</text>
+  </view>
+  <view wx:else class="qn-detail-btn" bindtap="onClickDetail" data-testid="qn-result-detail-btn">
     <text style="color:{{payload.cover_color || '#0EA5E9'}};">查看详情 ›</text>
   </view>
 </view>

@@ -2200,6 +2200,9 @@ export default function AiHomePage() {
   );
 
   // [PRD-QUESTIONNAIRE-DRAWER-V1 2026-05-19] 打开通用问卷抽屉：调 render-meta 拿模板与题目
+  // [PRD-HSC-OPTIM-V3 2026-05-21] Bug1 修复：进入抽屉前强制再拉一次 render-meta（即便按钮列表已有缓存），
+  //   并把 auto_next_enabled / questions_per_page / presentation_container 三个字段
+  //   用最新值"覆盖"到 qnDrawerButton，避免使用「按钮列表接口」的老数据。
   const openQuestionnaireDrawer = useCallback(
     async (btn: FunctionButton, displayForm: QnDisplayForm) => {
       setQnDrawerButton(btn);
@@ -2211,6 +2214,30 @@ export default function AiHomePage() {
         if (meta?.template) {
           setQnDrawerTemplate(meta.template as QnTemplate);
           setQnDrawerQuestions((meta.questions || []) as QnQuestion[]);
+          // 用 render-meta 返回的最新呈现配置覆盖按钮对象（顶层 + button 节点都覆盖一遍兜底）
+          const mergedBtn: any = { ...btn };
+          if (meta?.button) {
+            mergedBtn.auto_next_enabled = !!meta.button.auto_next_enabled;
+            mergedBtn.questions_per_page = Number(meta.button.questions_per_page || 1);
+            mergedBtn.presentation_container = meta.button.presentation_container || 'DRAWER';
+            mergedBtn.result_cta = meta.result_cta ?? mergedBtn.result_cta ?? null;
+          } else {
+            mergedBtn.auto_next_enabled = !!meta.auto_next_enabled;
+            mergedBtn.questions_per_page = Number(meta.questions_per_page || 1);
+            mergedBtn.presentation_container = meta.presentation_container || 'DRAWER';
+          }
+          // 顶层 result_cta 也透传一份（详情页可直接消费）
+          mergedBtn.result_cta = meta?.result_cta ?? mergedBtn.result_cta ?? null;
+          setQnDrawerButton(mergedBtn);
+          if (typeof console !== 'undefined') {
+            // eslint-disable-next-line no-console
+            console.debug('[ai-home] render-meta merged', {
+              btn_id: btn.id,
+              auto_next_enabled: mergedBtn.auto_next_enabled,
+              questions_per_page: mergedBtn.questions_per_page,
+              container: mergedBtn.presentation_container,
+            });
+          }
         } else {
           Toast.show({ content: '问卷模板未配置，请联系运营' });
           setQnDrawerOpen(false);

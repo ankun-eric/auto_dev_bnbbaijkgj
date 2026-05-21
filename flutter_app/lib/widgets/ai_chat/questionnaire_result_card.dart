@@ -1,8 +1,11 @@
 // [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 通用问卷结果卡片（AI 侧）
+// [PRD-HSC-OPTIM-V3 2026-05-21] 新增 AI 解读状态轮询 + 按钮置灰联动
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import '../../services/api_service.dart';
 
-class QuestionnaireResultCard extends StatelessWidget {
+class QuestionnaireResultCard extends StatefulWidget {
   final Map<String, dynamic> payload;
   final VoidCallback? onTapDetail;
 
@@ -11,6 +14,84 @@ class QuestionnaireResultCard extends StatelessWidget {
     required this.payload,
     this.onTapDetail,
   });
+
+  @override
+  State<QuestionnaireResultCard> createState() => _QuestionnaireResultCardState();
+}
+
+class _QuestionnaireResultCardState extends State<QuestionnaireResultCard> {
+  String _aiStatus = 'done';
+  Timer? _pollTimer;
+  DateTime? _pollStartedAt;
+  final ApiService _api = ApiService();
+
+  Map<String, dynamic> get payload => widget.payload;
+  VoidCallback? get onTapDetail => widget.onTapDetail;
+
+  @override
+  void initState() {
+    super.initState();
+    _maybeStartPoll();
+  }
+
+  @override
+  void didUpdateWidget(covariant QuestionnaireResultCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.payload != widget.payload) {
+      _maybeStartPoll();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  void _maybeStartPoll() {
+    final code = (payload['questionnaire_code'] ?? '').toString();
+    final aid = payload['answer_id'] ?? payload['result_id'];
+    if (code != 'health_self_check' || aid == null) {
+      setState(() => _aiStatus = 'done');
+      return;
+    }
+    _pollTimer?.cancel();
+    _aiStatus = 'pending';
+    _pollStartedAt = DateTime.now();
+    Future<void> pollOnce() async {
+      try {
+        final resp = await _api.dio.get('/api/questionnaire/answers/$aid/ai-status');
+        final data = resp.data is Map ? resp.data as Map : <String, dynamic>{};
+        final s = (data['ai_status'] ?? 'done').toString();
+        if (!mounted) return;
+        setState(() => _aiStatus = s);
+        if (s != 'pending') {
+          _pollTimer?.cancel();
+        }
+        if (_pollStartedAt != null &&
+            DateTime.now().difference(_pollStartedAt!).inSeconds > 60) {
+          _pollTimer?.cancel();
+          if (_aiStatus == 'pending') setState(() => _aiStatus = 'failed');
+        }
+      } catch (_) {
+        /* ignore */
+      }
+    }
+
+    pollOnce();
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) => pollOnce());
+  }
+
+  Future<void> _retryAi() async {
+    final aid = payload['answer_id'] ?? payload['result_id'];
+    if (aid == null) return;
+    try {
+      await _api.dio.post('/api/questionnaire/answers/$aid/retry-ai', data: {});
+      _maybeStartPoll();
+    } catch (_) {
+      /* ignore */
+    }
+  }
 
   Color _parseColor(String? hex, Color fallback) {
     if (hex == null || hex.isEmpty) return fallback;
@@ -162,35 +243,91 @@ class QuestionnaireResultCard extends StatelessWidget {
               ],
             ),
           ),
-          // 查看详情按钮
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onTapDetail,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF8FAFC),
-                  border: Border(top: BorderSide(color: Color(0xFFEEF2F7))),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(14),
-                    bottomRight: Radius.circular(14),
-                  ),
-                ),
-                child: Text(
-                  '查看详情 ›',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: coverColor,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+          // [PRD-HSC-OPTIM-V3 2026-05-21] 按 aiStatus 联动「查看详情」按钮
+          _buildDetailButton(coverColor),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailButton(Color coverColor) {
+    if (_aiStatus == 'pending') {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: const BoxDecoration(
+          color: Color(0xFFF1F5F9),
+          border: Border(top: BorderSide(color: Color(0xFFEEF2F7))),
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(14),
+            bottomRight: Radius.circular(14),
+          ),
+        ),
+        child: const Text(
+          '分析中...',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Color(0xFF94A3B8),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+    if (_aiStatus == 'failed') {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _retryAi,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFEF2F2),
+              border: Border(top: BorderSide(color: Color(0xFFEEF2F7))),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(14),
+                bottomRight: Radius.circular(14),
+              ),
+            ),
+            child: const Text(
+              '重试解读',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFFDC2626),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
-        ],
+        ),
+      );
+    }
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTapDetail,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: const BoxDecoration(
+            color: Color(0xFFF8FAFC),
+            border: Border(top: BorderSide(color: Color(0xFFEEF2F7))),
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(14),
+              bottomRight: Radius.circular(14),
+            ),
+          ),
+          child: Text(
+            '查看详情 ›',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: coverColor,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
       ),
     );
   }

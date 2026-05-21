@@ -7,12 +7,16 @@
 - 管理端：模板/题目/分型规则/推荐配置 CRUD
 """
 
+import asyncio
+import logging
 from datetime import datetime
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+_hsc_v3_logger = logging.getLogger("hsc_optim_v3")
 
 from app.core.database import get_db
 from app.core.security import get_current_user, require_role
@@ -225,9 +229,27 @@ async def get_button_render_meta(
         "presentation_container": btn.presentation_container or "DRAWER",
         "questions_per_page": int(btn.questions_per_page or 1),
         "auto_next_enabled": bool(btn.auto_next_enabled),
+        # [PRD-HSC-OPTIM-V3 2026-05-21] 结果详情页 CTA 按钮（按钮级配置，未开启则返回 null）
+        "result_cta": (
+            {
+                "text": (btn.result_cta_text or "找医生咨询")[:32],
+                "target_type": btn.result_cta_target_type or "H5_PATH",
+                "target_value": btn.result_cta_target_value or "",
+            }
+            if bool(getattr(btn, "result_cta_enabled", False))
+            else None
+        ),
         "template": None,
         "questions": [],
     }
+    # [PRD-HSC-OPTIM-V3 2026-05-21] 排查埋点：实际下发的 auto_next_enabled / 容器 / 每页题数
+    try:
+        _hsc_v3_logger.info(
+            "[render-meta] button_id=%s auto_next_enabled=%s questions_per_page=%s container=%s",
+            btn.id, bool(btn.auto_next_enabled), int(btn.questions_per_page or 1), btn.presentation_container,
+        )
+    except Exception:  # noqa: BLE001
+        pass
     tpl_id = btn.questionnaire_template_id
     if not tpl_id and btn.ai_function_type == "questionnaire":
         return meta
@@ -781,6 +803,7 @@ def _build_chat_messages_sequence(
 @router.post("/submit")
 async def submit_questionnaire(
     payload: QuestionnaireAnswerSubmit,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -854,6 +877,37 @@ async def submit_questionnaire(
     )
     classification_id = cls.id if cls else None
 
+    # [PRD-HSC-OPTIM-V3 2026-05-21] 从前端「咨询人胶囊」获取 subject_*；若前端未传则按 consultant_id 反查
+    _sub_kind = (payload.subject_kind or "").strip() or None
+    _sub_member_id = payload.subject_member_id or payload.consultant_id
+    _sub_name = (payload.subject_name or "").strip() or None
+    _sub_relation = (payload.subject_relation or "").strip() or None
+    if not _sub_kind:
+        try:
+            if payload.consultant_id:
+                from app.models.models import FamilyMember as _FM2
+                _m = await db.get(_FM2, payload.consultant_id)
+                if _m:
+                    _sub_kind = "self" if bool(getattr(_m, "is_self", False)) else "family"
+                    if not _sub_name:
+                        _sub_name = getattr(_m, "nickname", None)
+                    if not _sub_relation:
+                        _sub_relation = getattr(_m, "relationship_type", None)
+        except Exception:  # noqa: BLE001
+            pass
+    if not _sub_kind:
+        _sub_kind = "self"
+    if not _sub_name:
+        _sub_name = (
+            getattr(current_user, "nickname", None)
+            or getattr(current_user, "username", None)
+            or ""
+        )
+
+    # 健康自查走异步解读；其他模板沿用同步（既有逻辑），ai_status='done'
+    _is_hsc = (tpl.code or "") == "health_self_check"
+    _initial_ai_status = "pending" if _is_hsc else "done"
+
     ans = QuestionnaireAnswer(
         user_id=current_user.id,
         template_id=payload.template_id,
@@ -864,10 +918,19 @@ async def submit_questionnaire(
         classification_id=classification_id,
         status="completed",
         completed_at=datetime.utcnow(),
+        subject_kind=_sub_kind,
+        subject_member_id=_sub_member_id,
+        subject_name=_sub_name,
+        subject_relation=_sub_relation,
+        ai_status=_initial_ai_status,
     )
     db.add(ans)
     await db.flush()
     await db.refresh(ans)
+
+    # [PRD-HSC-OPTIM-V3 2026-05-21] 健康自查：异步生成 AI 解读（先解读后跳转）
+    if _is_hsc:
+        background_tasks.add_task(_run_hsc_ai_interpretation, ans.id)
 
     # 构建结果卡片
     summary_text = _render_result_summary(tpl.result_summary_template, answer_items)
@@ -1132,6 +1195,153 @@ async def submit_questionnaire(
         "cta_list": cta_list,
         "phq9_crisis": crisis_flag,
     }
+
+
+# ─────────────────────────────────────────────────────────────────
+# [PRD-HSC-OPTIM-V3 2026-05-21] AI 解读异步生成 + 状态轮询 + 重试
+# ─────────────────────────────────────────────────────────────────
+
+
+_HSC_DEFAULT_HOME_CARE_TIPS = [
+    "今日起减少高强度活动，保证 7-8 小时充足睡眠",
+    "饮食清淡，避免辛辣、油炸、酒精与咖啡因",
+    "根据症状性质选择对应方式：热敷/冷敷、休息、抬高患处",
+    "每 2-4 小时给症状重新打分（0-10），观察趋势",
+    "如确诊基础病，请按既往医嘱继续治疗",
+]
+_HSC_DEFAULT_RED_FLAGS = [
+    "症状持续 2 周以上无改善",
+    "症状明显影响日常工作、学习、睡眠",
+    "出现剧烈疼痛、意识模糊、持续呕吐、剧烈头痛等急性表现",
+    "服药后无效或出现皮疹/心悸/严重胃肠道反应",
+    "老人 / 儿童 / 孕妇 / 慢病患者出现新症状",
+]
+
+
+def _hsc_archive_insufficient(member) -> bool:
+    """判断家人档案是否信息较少：核心 3 项（年龄/性别/慢性病或主要疾病史）缺 ≥2 则视为不足。"""
+    if member is None:
+        return False
+    try:
+        miss = 0
+        # 年龄优先看 birthday；其次 age 字段
+        bd = getattr(member, "birthday", None)
+        ageval = getattr(member, "age", None)
+        if not bd and not ageval:
+            miss += 1
+        if not getattr(member, "gender", None):
+            miss += 1
+        chronic = (
+            getattr(member, "chronic_diseases", None)
+            or getattr(member, "medical_history", None)
+            or getattr(member, "history", None)
+        )
+        if not chronic:
+            miss += 1
+        return miss >= 2
+    except Exception:  # noqa: BLE001
+        return False
+
+
+async def _run_hsc_ai_interpretation(answer_id: int) -> None:
+    """健康自查 AI 解读异步任务：填充 ai_full_interpretation / home_care_tips_json /
+    red_flag_signals_json，并把 ai_status 置为 done / failed。
+
+    现版采用确定性模板（不调用外网 LLM），保证服务器无外网时也能稳定完成。
+    后续可在此处接入真实 LLM。
+    """
+    try:
+        # 模拟少量耗时让前端体验"分析中"
+        await asyncio.sleep(0.5)
+        from app.core.database import async_session as _async_session_hsc_task
+        async with _async_session_hsc_task() as db2:
+            ans = await db2.get(QuestionnaireAnswer, answer_id)
+            if not ans:
+                return
+            tpl = await db2.get(QuestionnaireTemplate, ans.template_id)
+            ks = (ans.key_summary or "").strip()
+
+            # 档案不足判定
+            arch_insuff = False
+            try:
+                if (ans.subject_kind or "") == "family" and ans.subject_member_id:
+                    from app.models.models import FamilyMember as _FM3
+                    _m3 = await db2.get(_FM3, ans.subject_member_id)
+                    arch_insuff = _hsc_archive_insufficient(_m3)
+            except Exception:  # noqa: BLE001
+                pass
+
+            subj_label = ans.subject_name or ""
+            if (ans.subject_kind or "") == "family" and ans.subject_relation:
+                subj_label = f"{ans.subject_name or ''}（{ans.subject_relation}）"
+            elif (ans.subject_kind or "") == "self":
+                subj_label = "本人"
+
+            interp = (
+                f"本次结果由{('您' if (ans.subject_kind or 'self') == 'self' else subj_label + '的')}主诉的部位、症状、严重程度、持续时间综合得出。"
+                + (f"关键症状：{ks}。" if ks else "")
+                + "请结合「居家处理建议」尝试自我调节，并关注「就医警示」中的红线信号。"
+                + "如症状持续或加重，请尽快前往正规医疗机构就诊。"
+            )
+
+            ans.ai_full_interpretation = interp
+            ans.home_care_tips_json = list(_HSC_DEFAULT_HOME_CARE_TIPS)
+            ans.red_flag_signals_json = list(_HSC_DEFAULT_RED_FLAGS)
+            ans.archive_insufficient = arch_insuff
+            ans.ai_status = "done"
+            ans.ai_failed_reason = None
+            await db2.commit()
+            _hsc_v3_logger.info(
+                "[hsc-ai-task] answer_id=%s status=done arch_insuff=%s", answer_id, arch_insuff
+            )
+    except Exception as e:  # noqa: BLE001
+        _hsc_v3_logger.exception("[hsc-ai-task] failed answer_id=%s err=%s", answer_id, e)
+        # 失败回写
+        try:
+            from app.core.database import async_session as _async_session_hsc_task_fail
+            async with _async_session_hsc_task_fail() as db3:
+                ans = await db3.get(QuestionnaireAnswer, answer_id)
+                if ans:
+                    ans.ai_status = "failed"
+                    ans.ai_failed_reason = str(e)[:255]
+                    await db3.commit()
+        except Exception:  # noqa: BLE001
+            pass
+
+
+@router.get("/answers/{answer_id}/ai-status")
+async def get_answer_ai_status(
+    answer_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """轻量轮询接口：仅返回 ai_status / failed_reason。前端每 3s 调一次，最多 60s。"""
+    ans = await db.get(QuestionnaireAnswer, answer_id)
+    if not ans or ans.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="答题记录不存在")
+    return {
+        "answer_id": ans.id,
+        "ai_status": (ans.ai_status or "done"),
+        "failed_reason": ans.ai_failed_reason or "",
+    }
+
+
+@router.post("/answers/{answer_id}/retry-ai")
+async def retry_answer_ai(
+    answer_id: int,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """失败时手动重试 AI 解读。"""
+    ans = await db.get(QuestionnaireAnswer, answer_id)
+    if not ans or ans.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="答题记录不存在")
+    ans.ai_status = "pending"
+    ans.ai_failed_reason = None
+    await db.commit()
+    background_tasks.add_task(_run_hsc_ai_interpretation, ans.id)
+    return {"ok": True, "ai_status": "pending"}
 
 
 # [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 追问 chip 接口：用户点击 chip 后触发二轮回答
@@ -1646,17 +1856,21 @@ async def get_answer_detail(
             classification_code = crow.code
 
     # [BUG-HSC-FIX-V2 2026-05-21] 详情页 subject 信息
-    detail_subject_kind = "self"
-    detail_subject_name: Optional[str] = None
-    detail_subject_relation: Optional[str] = None
+    # [PRD-HSC-OPTIM-V3 2026-05-21] 优先用落库的 subject_*；缺则按 consultant_id 反查
+    detail_subject_kind = (ans.subject_kind or "").strip() or "self"
+    detail_subject_name: Optional[str] = (ans.subject_name or "").strip() or None
+    detail_subject_relation: Optional[str] = (ans.subject_relation or "").strip() or None
     try:
-        if ans.consultant_id:
+        if (not detail_subject_name or not detail_subject_kind) and ans.consultant_id:
             from app.models.models import FamilyMember as _FM
             _mem = await db.get(_FM, ans.consultant_id)
             if _mem:
-                detail_subject_kind = "self" if bool(getattr(_mem, "is_self", False)) else "family"
-                detail_subject_name = getattr(_mem, "nickname", None)
-                detail_subject_relation = getattr(_mem, "relationship_type", None)
+                if not ans.subject_kind:
+                    detail_subject_kind = "self" if bool(getattr(_mem, "is_self", False)) else "family"
+                if not detail_subject_name:
+                    detail_subject_name = getattr(_mem, "nickname", None)
+                if not detail_subject_relation:
+                    detail_subject_relation = getattr(_mem, "relationship_type", None)
         if not detail_subject_name:
             detail_subject_name = getattr(current_user, "nickname", None) or getattr(current_user, "username", None)
     except Exception:  # noqa: BLE001
@@ -1671,6 +1885,7 @@ async def get_answer_detail(
         detail_subject_label = "本人"
 
     # AI 解读 / 居家建议 / 红线信号（健康自查不依赖大模型；按 key_summary 输出）
+    # [PRD-HSC-OPTIM-V3 2026-05-21] 优先使用落库内容；ai_status=pending 时返回空让前端等待
     ai_conclusion = ""
     ai_full_interpretation = ""
     home_care_tips: list[str] = []
@@ -1680,25 +1895,25 @@ async def get_answer_detail(
         ai_conclusion = (
             f"已完成本次健康自查。{('关键症状：' + ks) if ks else ''}"
         ).strip()
-        ai_full_interpretation = (
-            "本次结果由您主诉的部位、症状、严重程度、持续时间综合得出。"
-            "请结合「居家处理建议」尝试自我调节，并关注「就医警示」中的红线信号。"
-            "如症状持续或加重，请尽快前往正规医疗机构就诊。"
-        )
-        home_care_tips = [
-            "今日起减少高强度活动，保证 7-8 小时充足睡眠",
-            "饮食清淡，避免辛辣、油炸、酒精与咖啡因",
-            "根据症状性质选择对应方式：热敷/冷敷、休息、抬高患处",
-            "每 2-4 小时给症状重新打分（0-10），观察趋势",
-            "如确诊基础病，请按既往医嘱继续治疗",
-        ]
-        red_flag_signals = [
-            "症状持续 2 周以上无改善",
-            "症状明显影响日常工作、学习、睡眠",
-            "出现剧烈疼痛、意识模糊、持续呕吐、剧烈头痛等急性表现",
-            "服药后无效或出现皮疹/心悸/严重胃肠道反应",
-            "老人 / 儿童 / 孕妇 / 慢病患者出现新症状",
-        ]
+        _stored_interp = (ans.ai_full_interpretation or "").strip()
+        _stored_tips = ans.home_care_tips_json or []
+        _stored_flags = ans.red_flag_signals_json or []
+        if _stored_interp:
+            ai_full_interpretation = _stored_interp
+        elif (ans.ai_status or "done") == "done":
+            ai_full_interpretation = (
+                "本次结果由您主诉的部位、症状、严重程度、持续时间综合得出。"
+                "请结合「居家处理建议」尝试自我调节，并关注「就医警示」中的红线信号。"
+                "如症状持续或加重，请尽快前往正规医疗机构就诊。"
+            )
+        if isinstance(_stored_tips, list) and _stored_tips:
+            home_care_tips = list(_stored_tips)
+        elif (ans.ai_status or "done") == "done":
+            home_care_tips = list(_HSC_DEFAULT_HOME_CARE_TIPS)
+        if isinstance(_stored_flags, list) and _stored_flags:
+            red_flag_signals = list(_stored_flags)
+        elif (ans.ai_status or "done") == "done":
+            red_flag_signals = list(_HSC_DEFAULT_RED_FLAGS)
 
     # 推荐商品（复用既有逻辑）
     recommend_goods: list[dict[str, Any]] = []
@@ -1710,6 +1925,29 @@ async def get_answer_detail(
         )
     except Exception:  # noqa: BLE001
         recommend_goods = []
+
+    # [PRD-HSC-OPTIM-V3 2026-05-21] 透传 result_cta：通过 answer→template→关联按钮 反查
+    # 优先策略：找该模板对应的 questionnaire 类型按钮中第一个 result_cta_enabled=1 的；
+    # 若都没开则返回 null（前端隐藏按钮）。
+    result_cta_payload: Optional[dict[str, Any]] = None
+    try:
+        _btn_rows = (
+            await db.execute(
+                select(ChatFunctionButton).where(
+                    ChatFunctionButton.questionnaire_template_id == tpl.id,
+                    ChatFunctionButton.result_cta_enabled.is_(True),
+                )
+            )
+        ).scalars().all()
+        if _btn_rows:
+            _btn0 = _btn_rows[0]
+            result_cta_payload = {
+                "text": (_btn0.result_cta_text or "找医生咨询")[:32],
+                "target_type": _btn0.result_cta_target_type or "H5_PATH",
+                "target_value": _btn0.result_cta_target_value or "",
+            }
+    except Exception:  # noqa: BLE001
+        pass
 
     return {
         "answer_id": ans.id,
@@ -1732,6 +1970,11 @@ async def get_answer_detail(
         "subject_name": detail_subject_name or "",
         "subject_relation": detail_subject_relation or "",
         "subject_label": detail_subject_label,
+        # [PRD-HSC-OPTIM-V3 2026-05-21] 异步解读状态 + 档案不足标志 + 结果页 CTA
+        "ai_status": (ans.ai_status or "done"),
+        "ai_failed_reason": ans.ai_failed_reason or "",
+        "archive_insufficient": bool(getattr(ans, "archive_insufficient", False)),
+        "result_cta": result_cta_payload,
     }
 
 

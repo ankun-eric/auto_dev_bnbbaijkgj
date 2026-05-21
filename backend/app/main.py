@@ -1908,6 +1908,22 @@ async def lifespan(app: FastAPI):
         import traceback as _tb
         _tb.print_exc()
         print(f"[migrate] ai_home_archive_path_fix_v1: 迁移失败 err={_e}", flush=True)
+    # [PRD-HSC-OPTIM-V3-20260521] 健康自查功能优化 V3
+    #   - questionnaire_answer 加 subject_*/ai_status/ai_full_interpretation 等字段
+    #   - chat_function_buttons 加 result_cta_* 4 字段
+    try:
+        print("[migrate] hsc_optim_v3: 启动迁移...", flush=True)
+        from app.core.database import async_session as _async_session_hsc_v3
+        from app.services.prd_hsc_optim_v3_migration import (
+            run_migration_with_session as _run_hsc_optim_v3,
+        )
+        async with _async_session_hsc_v3() as _db_hsc_v3:
+            _stats_hsc_v3 = await _run_hsc_optim_v3(_db_hsc_v3)
+        print(f"[migrate] hsc_optim_v3: 迁移完成 stats={_stats_hsc_v3}", flush=True)
+    except Exception as _e:
+        import traceback as _tb
+        _tb.print_exc()
+        print(f"[migrate] hsc_optim_v3: 迁移失败 err={_e}", flush=True)
     # [PRD-MY-DEVICES-V1 2026-05-21] 「我的设备」V2：建表 + 幂等 seed 品牌目录
     try:
         print("[migrate] my_devices_v1: 启动迁移...", flush=True)

@@ -27,7 +27,58 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD-AI-HOME-OPTIM-V4 · AI 首页体验优化 v4 (2026-05-21 13:25)
+## Latest Update: PRD-HSC-OPTIM-V3 · 健康自查功能优化 V3（4 大 Bug 集中修复）(2026-05-21 14:00)
+
+**任务类型**：Bug 修复 + 体验优化；变更范围：backend + admin-web + h5-web + miniprogram + flutter_app（5 端联动）
+
+**核心交付**：
+
+1. **数据库迁移**（`backend/app/services/prd_hsc_optim_v3_migration.py`，幂等 + 注册在 `main.py` lifespan）：
+   - `questionnaire_answer` 新增 10 列：`subject_kind / subject_member_id / subject_name / subject_relation / ai_status / ai_failed_reason / ai_full_interpretation / home_care_tips_json / red_flag_signals_json / archive_insufficient`
+   - `chat_function_buttons` 新增 4 列：`result_cta_enabled / result_cta_text / result_cta_target_type / result_cta_target_value`
+   - 旧数据 `ai_status` 默认 backfill 为 `done`，避免误触发轮询
+2. **后端 API**（`backend/app/api/questionnaire.py`、`backend/app/schemas/questionnaire.py`、`backend/app/schemas/function_button.py`、`backend/app/models/models.py`）：
+   - `POST /api/questionnaire/submit` 接收 `subject_kind/subject_member_id/subject_name/subject_relation`，落库 + 立即返回 `ai_status=pending` + 启动 `BackgroundTasks` 异步解读
+   - 新增 `GET /api/questionnaire/answers/{id}/ai-status` 轻量轮询接口
+   - 新增 `POST /api/questionnaire/answers/{id}/retry-ai` 重试解读接口
+   - `GET /api/questionnaire/buttons/{id}/render-meta` 顶层 + `button` 节点都新增 `result_cta` 节点（开关关闭返回 null）
+   - `GET /api/questionnaire/answers/{id}` 透传 `ai_status / result_cta / archive_insufficient / subject_label`
+3. **Admin Web**（`admin-web/src/app/(admin)/function-buttons/page.tsx`）：
+   - 「操作」列对 `ai_function_type='questionnaire'` 按钮新增「**结果页配置**」Modal
+   - 4 字段：开关 / 文案 / 跳转类型（H5_PATH / EXTERNAL_URL / MINIPROGRAM_PATH / DOCTOR_ID / DEPARTMENT_ID）/ 跳转值
+   - 保存调 `PUT /api/admin/function-buttons/{id}`
+4. **H5**：
+   - `ai-home/page.tsx`：`openQuestionnaireDrawer` 前强制再拉一次 `render-meta`，用最新值覆盖 `auto_next_enabled/questions_per_page/presentation_container/result_cta`（修复 Bug 1 stale 缓存）
+   - `QuestionnaireDrawer.tsx`：保留 `DRAWER_STEPPED + 单选题 + 非末题` 自动跳逻辑 + debug 日志
+   - `UniversalQuestionnaireResultCard.tsx`：3 秒轮询 `ai-status` 最多 60s；按钮置灰联动「分析中.../查看详情/重试解读」
+   - `health-self-check/result/[id]/page.tsx`：`subjectLabel` 用落库字段；新增 `archive_insufficient` 黄色 Tip；`ai_status=pending/failed` 横幅；「重新填写」改为「**返回**」`router.back()` + `window.history.length<=1` 降级 `router.push('/ai-home')`；「找医生咨询」按 `result_cta` 条件渲染 + `dispatchCta` 分发；单按钮时 block 占满
+   - `src/lib/cta-router.ts`：新增多端 CTA 路由分发器（H5_PATH/EXTERNAL_URL/DOCTOR_ID/DEPARTMENT_ID 分发；MINIPROGRAM_PATH 隐藏）
+5. **微信小程序**：
+   - `components/questionnaire-result-card/{index.js,wxml,wxss}`：加 `ai-status` 3s 轮询 60s 上限 + `_retryAi` + 按钮 3 态联动样式
+6. **Flutter APP**：
+   - `lib/widgets/ai_chat/questionnaire_result_card.dart`：转为 `StatefulWidget`，加 `Timer.periodic` 3s 轮询、`_aiStatus` 状态、`_retryAi`、`_buildDetailButton` 三态渲染
+7. **测试**（`backend/tests/test_hsc_optim_v3_20260521.py`，7 个 pytest 用例）：
+   - `test_hsc_v3_render_meta_auto_next_enabled` (T1-01)
+   - `test_hsc_v3_result_cta_admin_config` (T4-01/02/05/06)
+   - `test_hsc_v3_submit_async_interpretation_self` (T2-01/02/03)
+   - `test_hsc_v3_submit_family_subject_label` (T2-04)
+   - `test_hsc_v3_retry_ai` (T2-06)
+   - `test_hsc_v3_migration_idempotent` (迁移幂等)
+   - `test_hsc_v3_detail_result_cta_inheritance` (详情接口透传 result_cta)
+8. **部署**（`_deploy_hsc_optim_v3.py`）：18 个文件上传 + backend + admin-web + h5-web 镜像重建 + HTTP 探活 + pytest 抽样
+
+**部署验证**：
+
+- 服务器：newbb.test.bangbangvip.com，3 个容器 Recreate 启动正常
+- 迁移日志：`[migrate] hsc_optim_v3: 迁移完成 stats={'answer_added': 10, 'button_added': 4, 'backfilled': 0}`
+- HTTP 探活：`/api/health` 200 / `/` 200 / `/admin/` 200 / `/health-self-check/result/{id}` 308（next 重定向，正常）
+- 烟雾测试 `_smoke_hsc_optim_v3.py`：`render-meta` 返回 `auto_next_enabled=True` + `result_cta=None`（未配置时为 null，符合预期）
+
+**用户体验手册**：`user_docs/健康自查功能优化V3.md`
+
+---
+
+## Previous Update: PRD-AI-HOME-OPTIM-V4 · AI 首页体验优化 v4 (2026-05-21 13:25)
 
 **任务类型**：Bug 修复 + 体验优化；变更范围：backend + h5-web + miniprogram + flutter_app（4 端联动）
 

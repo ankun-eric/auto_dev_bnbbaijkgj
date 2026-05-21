@@ -169,9 +169,23 @@ interface FunctionButton {
   presentation_container?: string | null;
   questions_per_page?: number | null;
   auto_next_enabled?: boolean | null;
+  // [PRD-HSC-OPTIM-V3 2026-05-21] 结果详情页 CTA 按钮（按钮级配置）
+  result_cta_enabled?: boolean | null;
+  result_cta_text?: string | null;
+  result_cta_target_type?: string | null;
+  result_cta_target_value?: string | null;
   created_at?: string;
   updated_at?: string;
 }
+
+// [PRD-HSC-OPTIM-V3 2026-05-21] 结果页 CTA 跳转类型枚举
+const RESULT_CTA_TARGET_TYPE_OPTIONS = [
+  { value: 'H5_PATH', label: '🌐 H5 路径（如 /services/consult）' },
+  { value: 'EXTERNAL_URL', label: '🔗 外部 URL（如 https://...）' },
+  { value: 'MINIPROGRAM_PATH', label: '📱 小程序原生页（H5 端隐藏）' },
+  { value: 'DOCTOR_ID', label: '👨‍⚕️ 医生 ID' },
+  { value: 'DEPARTMENT_ID', label: '🏥 科室 ID' },
+];
 
 interface QuestionnaireTemplateOption {
   id: number;
@@ -202,6 +216,13 @@ export default function FunctionButtonsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<FunctionButton | null>(null);
   const [saving, setSaving] = useState(false);
+  // [PRD-HSC-OPTIM-V3 2026-05-21] 「结果页配置」独立 Modal
+  const [ctaModalOpen, setCtaModalOpen] = useState(false);
+  const [ctaEditingItem, setCtaEditingItem] = useState<FunctionButton | null>(null);
+  const [ctaSaving, setCtaSaving] = useState(false);
+  const [ctaForm] = Form.useForm();
+  const ctaWatchedEnabled = Form.useWatch('result_cta_enabled', ctaForm);
+  const ctaWatchedTargetType = Form.useWatch('result_cta_target_type', ctaForm);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
@@ -834,6 +855,17 @@ export default function FunctionButtonsPage() {
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleOpenModal(record)}>
             编辑
           </Button>
+          {/* [PRD-HSC-OPTIM-V3 2026-05-21] 仅 questionnaire 类型按钮显示「结果页配置」 */}
+          {record.ai_function_type === 'questionnaire' && (
+            <Button
+              type="link"
+              size="small"
+              onClick={() => handleOpenCtaModal(record)}
+              title="配置结果详情页底部 CTA 按钮"
+            >
+              结果页配置
+            </Button>
+          )}
           <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(record)}>
             删除
           </Button>
@@ -841,6 +873,42 @@ export default function FunctionButtonsPage() {
       ),
     },
   ];
+
+  // [PRD-HSC-OPTIM-V3 2026-05-21] 打开「结果页配置」Modal
+  const handleOpenCtaModal = (record: FunctionButton) => {
+    setCtaEditingItem(record);
+    ctaForm.setFieldsValue({
+      result_cta_enabled: !!record.result_cta_enabled,
+      result_cta_text: record.result_cta_text || '',
+      result_cta_target_type: record.result_cta_target_type || 'H5_PATH',
+      result_cta_target_value: record.result_cta_target_value || '',
+    });
+    setCtaModalOpen(true);
+  };
+
+  const handleSaveCta = async () => {
+    if (!ctaEditingItem) return;
+    try {
+      const values = await ctaForm.validateFields();
+      setCtaSaving(true);
+      const payload = {
+        result_cta_enabled: !!values.result_cta_enabled,
+        result_cta_text: (values.result_cta_text || '').slice(0, 32) || null,
+        result_cta_target_type: values.result_cta_target_type || null,
+        result_cta_target_value: (values.result_cta_target_value || '').slice(0, 255) || null,
+      };
+      await put(`/api/admin/function-buttons/${ctaEditingItem.id}`, payload);
+      message.success('结果页配置已保存');
+      setCtaModalOpen(false);
+      setCtaEditingItem(null);
+      await fetchData();
+    } catch (e: any) {
+      if (e?.errorFields) return; // 校验失败
+      message.error(`保存失败: ${e?.response?.data?.detail || e?.message || '未知错误'}`);
+    } finally {
+      setCtaSaving(false);
+    }
+  };
 
   return (
     <div>
@@ -1540,6 +1608,100 @@ export default function FunctionButtonsPage() {
           </Form.Item>
           <Form.Item label="关联参数" name="params">
             <TextArea rows={4} placeholder='请输入JSON格式参数，例如: {"url": "https://..."}' />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* [PRD-HSC-OPTIM-V3 2026-05-21] 结果页 CTA 配置 Modal */}
+      <Modal
+        title={`结果页配置${ctaEditingItem ? ` - ${ctaEditingItem.name}` : ''}`}
+        open={ctaModalOpen}
+        onCancel={() => {
+          setCtaModalOpen(false);
+          setCtaEditingItem(null);
+        }}
+        onOk={handleSaveCta}
+        confirmLoading={ctaSaving}
+        okText="保存"
+        cancelText="取消"
+        destroyOnClose
+        width={620}
+      >
+        <Form form={ctaForm} layout="vertical" preserve={false}>
+          <Form.Item
+            label="在结果详情页显示 CTA 按钮"
+            name="result_cta_enabled"
+            valuePropName="checked"
+            extra="开启后，问卷结果详情页底部将显示一个跳转按钮（如「找医生咨询」）。未开启则不显示。"
+          >
+            <Switch checkedChildren="开" unCheckedChildren="关" />
+          </Form.Item>
+          <Form.Item
+            label="按钮文案"
+            name="result_cta_text"
+            rules={[
+              {
+                max: 16,
+                message: '按钮文案不超过 16 字',
+              },
+            ]}
+            extra="留空时默认显示「找医生咨询」"
+          >
+            <Input placeholder="例：在线问诊 / 找医生咨询" maxLength={16} disabled={!ctaWatchedEnabled} />
+          </Form.Item>
+          <Form.Item
+            label="跳转类型"
+            name="result_cta_target_type"
+            rules={[
+              {
+                required: !!ctaWatchedEnabled,
+                message: '请选择跳转类型',
+              },
+            ]}
+            extra="不同终端会自动适配对应的跳转方式"
+          >
+            <Select
+              options={RESULT_CTA_TARGET_TYPE_OPTIONS}
+              disabled={!ctaWatchedEnabled}
+              placeholder="请选择跳转类型"
+            />
+          </Form.Item>
+          <Form.Item
+            label="跳转值"
+            name="result_cta_target_value"
+            rules={[
+              {
+                required: !!ctaWatchedEnabled,
+                message: '请输入跳转值',
+              },
+              {
+                max: 255,
+                message: '跳转值不超过 255 字',
+              },
+            ]}
+            extra={
+              ctaWatchedTargetType === 'DOCTOR_ID'
+                ? '医生 ID（如 123）'
+                : ctaWatchedTargetType === 'DEPARTMENT_ID'
+                ? '科室 ID（如 4）'
+                : ctaWatchedTargetType === 'EXTERNAL_URL'
+                ? '外部 URL（http:// 或 https:// 开头）'
+                : ctaWatchedTargetType === 'MINIPROGRAM_PATH'
+                ? '小程序原生页路径（如 /pages/doctor-detail/index?id=123），H5 端会自动隐藏按钮'
+                : 'H5 路径（如 /services/consult）'
+            }
+          >
+            <Input
+              placeholder={
+                ctaWatchedTargetType === 'DOCTOR_ID' || ctaWatchedTargetType === 'DEPARTMENT_ID'
+                  ? '请输入 ID'
+                  : ctaWatchedTargetType === 'EXTERNAL_URL'
+                  ? 'https://...'
+                  : '/path/to/page'
+              }
+              maxLength={255}
+              disabled={!ctaWatchedEnabled}
+            />
           </Form.Item>
         </Form>
       </Modal>

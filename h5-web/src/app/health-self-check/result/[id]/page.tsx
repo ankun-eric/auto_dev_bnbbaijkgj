@@ -20,12 +20,13 @@
  * 数据源：GET /api/questionnaire/answers/{id}
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button, SpinLoading, Toast } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import api from '@/lib/api';
+import { dispatchCta, shouldHideOnH5, type ResultCta } from '@/lib/cta-router';
 
 interface QAItem {
   question_id: number;
@@ -67,6 +68,11 @@ interface ResultData {
   subject_name?: string;
   subject_relation?: string;
   subject_label?: string;
+  // [PRD-HSC-OPTIM-V3 2026-05-21]
+  ai_status?: 'pending' | 'done' | 'failed' | string;
+  ai_failed_reason?: string;
+  archive_insufficient?: boolean;
+  result_cta?: ResultCta | null;
 }
 
 type LoadState = 'loading' | 'ok' | 'notfound' | 'error';
@@ -77,6 +83,16 @@ function PageInner() {
   const router = useRouter();
   const [data, setData] = useState<ResultData | null>(null);
   const [loadState, setLoadState] = useState<LoadState>('loading');
+  // [PRD-HSC-OPTIM-V3 2026-05-21] ai-status 轮询：理论上详情页打开时已 done，但作为兜底
+  const pollTimerRef = useRef<any>(null);
+  const pollStartedAtRef = useRef<number>(0);
+
+  const stopPoll = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
 
   const load = useCallback(async () => {
     if (!id) {
@@ -108,6 +124,37 @@ function PageInner() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // [PRD-HSC-OPTIM-V3 2026-05-21] 若 ai_status=pending，按 3s 间隔轮询，最多 60s
+  useEffect(() => {
+    if (!id || !data) return;
+    if ((data.ai_status || 'done') !== 'pending') {
+      stopPoll();
+      return;
+    }
+    if (pollTimerRef.current) return; // 已在轮询
+    pollStartedAtRef.current = Date.now();
+    pollTimerRef.current = setInterval(async () => {
+      try {
+        const st = await api.get<any>(`/api/questionnaire/answers/${id}/ai-status`);
+        const s = (st?.ai_status || 'done') as string;
+        if (s !== 'pending') {
+          stopPoll();
+          // 重新拉一次详情
+          await load();
+          return;
+        }
+        if (Date.now() - pollStartedAtRef.current > 60000) {
+          stopPoll();
+          // 超时，让用户看到失败提示
+          setData((d) => (d ? { ...d, ai_status: 'failed', ai_failed_reason: '分析超时' } : d));
+        }
+      } catch {
+        // 静默忽略，下一轮再尝试
+      }
+    }, 3000);
+    return () => stopPoll();
+  }, [id, data, load, stopPoll]);
 
   if (loadState === 'loading') {
     return (
@@ -207,6 +254,93 @@ function PageInner() {
           <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>完成时间：{completedAt}</div>
         )}
       </div>
+
+      {/* [PRD-HSC-OPTIM-V3 2026-05-21] 档案不足提示（黄色 Tip） */}
+      {data.archive_insufficient && (
+        <div
+          style={{
+            margin: '8px 14px 0',
+            padding: '10px 12px',
+            background: '#FEFCE8',
+            border: '1px solid #FDE68A',
+            borderRadius: 10,
+            fontSize: 12,
+            color: '#92400E',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+          }}
+          data-testid="hsc-archive-insufficient"
+        >
+          <span>该家人档案信息较少，建议补全档案获得更精准解读</span>
+          <Button
+            size="mini"
+            color="warning"
+            fill="outline"
+            onClick={() => router.push('/health-profile')}
+          >
+            去补全
+          </Button>
+        </div>
+      )}
+
+      {/* [PRD-HSC-OPTIM-V3 2026-05-21] 分析中 / 失败 状态条（兜底） */}
+      {data.ai_status === 'pending' && (
+        <div
+          style={{
+            margin: '8px 14px 0',
+            padding: '10px 12px',
+            background: '#EFF6FF',
+            border: '1px solid #BFDBFE',
+            borderRadius: 10,
+            fontSize: 12,
+            color: '#1D4ED8',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+          data-testid="hsc-ai-pending"
+        >
+          <SpinLoading style={{ '--size': '14px' } as any} color="primary" />
+          <span>AI 正在分析中，结果生成后会自动刷新…</span>
+        </div>
+      )}
+      {data.ai_status === 'failed' && (
+        <div
+          style={{
+            margin: '8px 14px 0',
+            padding: '10px 12px',
+            background: '#FEF2F2',
+            border: '1px solid #FECACA',
+            borderRadius: 10,
+            fontSize: 12,
+            color: '#B91C1C',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+          }}
+          data-testid="hsc-ai-failed"
+        >
+          <span>AI 解读暂时失败：{data.ai_failed_reason || '请稍后重试'}</span>
+          <Button
+            size="mini"
+            color="primary"
+            onClick={async () => {
+              try {
+                await api.post(`/api/questionnaire/answers/${id}/retry-ai`, {});
+                Toast.show({ content: '已重新触发分析' });
+                setData((d) => (d ? { ...d, ai_status: 'pending' } : d));
+              } catch {
+                Toast.show({ content: '重试失败' });
+              }
+            }}
+          >
+            重试解读
+          </Button>
+        </div>
+      )}
 
       {/* B1 答题记录 */}
       <SectionCard title="📝 您的答题记录" testid="hsc-section-qa">
@@ -382,43 +516,57 @@ function PageInner() {
         </SectionCard>
       )}
 
-      {/* B6 底部 CTA */}
-      <div
-        style={{
-          position: 'fixed',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          padding: '10px 14px calc(10px + env(safe-area-inset-bottom))',
-          background: '#FFF',
-          borderTop: '1px solid #E2E8F0',
-          display: 'flex',
-          gap: 10,
-          zIndex: 50,
-        }}
-        data-testid="hsc-result-cta"
-      >
-        <Button
-          block
-          color="default"
-          onClick={() => {
+      {/* B6 底部 CTA
+        * [PRD-HSC-OPTIM-V3 2026-05-21]
+        * - 「重新填写」改为「返回」（router.back() + history 兜底）
+        * - 「找医生咨询」改为按后台配置 result_cta 动态渲染；未配置则隐藏，让「返回」占满整条
+        */}
+      {(() => {
+        const cta = data.result_cta || null;
+        const showCta = !shouldHideOnH5(cta);
+        const goBack = () => {
+          if (typeof window !== 'undefined' && window.history.length <= 1) {
             router.push('/ai-home');
-          }}
-          data-testid="hsc-cta-restart"
-        >
-          重新填写
-        </Button>
-        <Button
-          block
-          color="primary"
-          onClick={() => {
-            router.push('/services/category/consult');
-          }}
-          data-testid="hsc-cta-consult"
-        >
-          找医生咨询
-        </Button>
-      </div>
+            return;
+          }
+          try {
+            router.back();
+          } catch {
+            router.push('/ai-home');
+          }
+        };
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              padding: '10px 14px calc(10px + env(safe-area-inset-bottom))',
+              background: '#FFF',
+              borderTop: '1px solid #E2E8F0',
+              display: 'flex',
+              gap: 10,
+              zIndex: 50,
+            }}
+            data-testid="hsc-result-cta"
+          >
+            <Button block color="default" onClick={goBack} data-testid="hsc-cta-back">
+              返回
+            </Button>
+            {showCta && (
+              <Button
+                block
+                color="primary"
+                onClick={() => dispatchCta(cta, router)}
+                data-testid="hsc-cta-consult"
+              >
+                {(cta && cta.text) || '找医生咨询'}
+              </Button>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
