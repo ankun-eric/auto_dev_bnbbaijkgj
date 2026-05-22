@@ -3,7 +3,8 @@
 // [2026-04-24] 移动端 - 我的 PRD §4.9
 
 import React, { useEffect, useState } from 'react';
-import { List, Button, Toast, Dialog } from 'antd-mobile';
+import { List, Button, Dialog } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { useRouter } from 'next/navigation';
 import { getProfile, logoutMerchantMobile, roleLabel, MerchantLoginProfile, getCurrentStoreId, setCurrentStoreId } from '../mobile-lib';
 
@@ -40,7 +41,7 @@ export default function MeMobilePage() {
     if (sid && sid !== storeId) {
       setCurrentStoreId(sid);
       setStoreId(sid);
-      Toast.show({ icon: 'success', content: '已切换门店' });
+      showToast('已切换门店', 'success');
     }
   };
 
@@ -48,7 +49,7 @@ export default function MeMobilePage() {
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
     const url = `${window.location.origin}${basePath}/merchant/dashboard?desktop=1`;
     navigator.clipboard?.writeText(url).then(
-      () => Toast.show({ icon: 'success', content: 'PC 端链接已复制到剪贴板' }),
+      () => showToast('PC 端链接已复制到剪贴板', 'success'),
       () => Dialog.alert({ title: 'PC 端链接', content: url })
     );
   };

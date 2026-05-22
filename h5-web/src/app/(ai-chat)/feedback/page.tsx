@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Toast, ImageUploader, type ImageUploadItem, Input, TextArea } from 'antd-mobile';
+import { NavBar, ImageUploader, type ImageUploadItem, Input, TextArea } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { THEME } from '@/lib/theme';
 import api from '@/lib/api';
 import { resolveAssetUrl } from '@/lib/asset-url';
@@ -26,9 +27,9 @@ export default function FeedbackPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
-    if (!feedbackType) { Toast.show({ content: '请选择反馈类型' }); return; }
-    if (!content.trim()) { Toast.show({ content: '请填写反馈内容' }); return; }
-    if (content.length > 500) { Toast.show({ content: '内容不超过500字' }); return; }
+    if (!feedbackType) { showToast('请选择反馈类型'); return; }
+    if (!content.trim()) { showToast('请填写反馈内容'); return; }
+    if (content.length > 500) { showToast('内容不超过500字'); return; }
 
     setSubmitting(true);
     try {
@@ -39,10 +40,10 @@ export default function FeedbackPage() {
         images: imageUrls,
         contact: contact.trim() || undefined,
       });
-      Toast.show({ content: '提交成功，感谢反馈！', icon: 'success' });
+      showToast('提交成功，感谢反馈！', 'success');
       router.back();
     } catch {
-      Toast.show({ content: '提交失败', icon: 'fail' });
+      showToast('提交失败', 'fail');
     }
     setSubmitting(false);
   };

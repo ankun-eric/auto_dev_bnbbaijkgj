@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { NavBar, Toast } from 'antd-mobile';
+import { NavBar } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { Html5Qrcode } from 'html5-qrcode';
 
 export default function ScanPage() {
@@ -61,7 +62,7 @@ function ScanContent() {
     } catch (err: any) {
       setScanning(false);
       if (!stoppedRef.current) {
-        Toast.show({ content: '无法访问摄像头，请检查权限设置', icon: 'fail', duration: 3000 });
+        showToast('无法访问摄像头，请检查权限设置', 'fail');
       }
     }
   };
@@ -90,7 +91,7 @@ function ScanContent() {
       }
     }
 
-    Toast.show({ content: '无法识别该二维码', icon: 'fail', duration: 2000 });
+    showToast('无法识别该二维码', 'fail');
     setTimeout(() => {
       if (!stoppedRef.current) startScanner();
     }, 2500);

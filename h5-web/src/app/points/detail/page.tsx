@@ -12,7 +12,8 @@
 
 import { useCallback, useEffect, useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Tabs, List, InfiniteScroll, Empty, SpinLoading, Card, Tag, Button, Toast } from 'antd-mobile';
+import { Tabs, List, InfiniteScroll, Empty, SpinLoading, Card, Tag, Button } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 
 export const dynamic = 'force-dynamic';
 import GreenNavBar from '@/components/GreenNavBar';
@@ -255,7 +256,7 @@ function ExchangeRecordsTab() {
                                 if (ucId) {
                                   jumpToUseCoupon(router, ucId);
                                 } else {
-                                  Toast.show({ content: '券信息缺失，无法跳转' });
+                                  showToast('券信息缺失，无法跳转');
                                 }
                               }}
                               style={{

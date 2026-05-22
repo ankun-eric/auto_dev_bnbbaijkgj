@@ -1,6 +1,6 @@
 'use client';
 
-import { Toast } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 
 export interface DrugListItem {
   id?: number | null;
@@ -47,7 +47,7 @@ export default function DrugMergeCardFlat({ drugs, memberInfo, onImageClick }: P
   const single = list.length <= 1;
 
   const showFullName = (name: string) => {
-    Toast.show({ content: name, duration: 2000 });
+    showToast(name);
   };
 
   return (

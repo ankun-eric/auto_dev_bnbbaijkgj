@@ -5,7 +5,8 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { Toast, Mask } from 'antd-mobile';
+import { Mask } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 
 interface HealthInfo {
@@ -80,9 +81,9 @@ export default function HealthInfoBlock({ profileId, token: T }: Props) {
       await api.put(`/api/prd469/health-info/${profileId}`, draft);
       setInfo(draft);
       setEditing(false);
-      Toast.show({ content: '已保存', icon: 'success' });
+      showToast('已保存', 'success');
     } catch {
-      Toast.show({ content: '保存失败', icon: 'fail' });
+      showToast('保存失败', 'fail');
     }
   };
 
@@ -98,7 +99,7 @@ export default function HealthInfoBlock({ profileId, token: T }: Props) {
 
   const addFamilyHistory = () => {
     if (!familyForm.disease.trim()) {
-      Toast.show({ content: '请输入疾病名称', icon: 'fail' });
+      showToast('请输入疾病名称', 'fail');
       return;
     }
     const item = { relation: familyForm.relation, disease: familyForm.disease.trim(), note: familyForm.note.trim() || undefined };
@@ -130,7 +131,7 @@ export default function HealthInfoBlock({ profileId, token: T }: Props) {
 
   const addSurgeryHistory = () => {
     if (!surgeryForm.name.trim()) {
-      Toast.show({ content: '请输入手术名称', icon: 'fail' });
+      showToast('请输入手术名称', 'fail');
       return;
     }
     const item = { name: surgeryForm.name.trim(), time: surgeryForm.time || undefined, note: surgeryForm.note.trim() || undefined };

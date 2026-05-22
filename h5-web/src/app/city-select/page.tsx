@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { SpinLoading, Toast } from 'antd-mobile';
+import { SpinLoading } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 import {
   CityInfo,
@@ -162,7 +163,7 @@ export default function CitySelectPage() {
         setGpsStatus('located');
       } else {
         setGpsStatus('failed');
-        Toast.show({ content: '定位失败，请检查定位权限', icon: 'fail' });
+        showToast('定位失败，请检查定位权限', 'fail');
       }
     });
   }, []);

@@ -1,0 +1,145 @@
+============================================================
+[PRD-HEALTH-ARCHIVE-V5-20260521] 閮ㄧ讲寮€濮?
+  Host:       newbb.test.bangbangvip.com
+  DeployDir:  /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27
+  BaseURL:    https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27
+============================================================
+
+--- 姝ラ 1锛氫笂浼犲彉鏇存枃浠?---
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api'
+  鉁?uploaded backend/app/api/health_archive_v5.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/health_archive_v5.py
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/models'
+  鉁?uploaded backend/app/models/health_archive_v5.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/models/health_archive_v5.py
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/services'
+  鉁?uploaded backend/app/services/prd_health_archive_v5_migration.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/services/prd_health_archive_v5_migration.py
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app'
+  鉁?uploaded backend/app/main.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/main.py
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api'
+  鉁?uploaded backend/app/api/medication_plans_v1.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/medication_plans_v1.py
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests'
+  鉁?uploaded backend/tests/test_health_archive_v5_20260521.py -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_health_archive_v5_20260521.py
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/lib/api'
+  鉁?uploaded h5-web/src/lib/api/health-archive-v5.ts -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/lib/api/health-archive-v5.ts
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-alerts'
+  鉁?uploaded h5-web/src/app/health-alerts/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-alerts/page.tsx
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/medical-records'
+  鉁?uploaded h5-web/src/app/medical-records/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/medical-records/page.tsx
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/medical-records/[id]'
+  鉁?uploaded h5-web/src/app/medical-records/[id]/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/medical-records/[id]/page.tsx
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/medical-records/trash'
+  鉁?uploaded h5-web/src/app/medical-records/trash/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/medical-records/trash/page.tsx
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-profile'
+  鉁?uploaded h5-web/src/app/health-profile/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-profile/page.tsx
+$ mkdir -p '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/devices/member'
+  鉁?uploaded h5-web/src/app/devices/member/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/devices/member/page.tsx
+
+--- 姝ラ 2锛歞ocker compose build & up backend + h5-web ---
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build backend h5-web 2>&1 | tail -150
+s                                    5.79 kB         238 kB
+#24 94.63 鈹?鈼?/points/detail                             3.08 kB         240 kB
+#24 94.63 鈹?鈼?/points/exchange-records                   2.6 kB          239 kB
+#24 94.63 鈹?鈼?/points/mall                               6.28 kB         238 kB
+#24 94.63 鈹?鈼?/points/product-detail                     6.42 kB         239 kB
+#24 94.63 鈹?鈼?/points/records                            4.72 kB         237 kB
+#24 94.63 鈹?茠 /product/[id]                              5.5 kB          238 kB
+#24 94.63 鈹?鈼?/products                                  3.14 kB         235 kB
+#24 94.63 鈹?鈼?/profile/edit                              2.49 kB         235 kB
+#24 94.63 鈹?鈼?/refund-list                               3.17 kB         235 kB
+#24 94.63 鈹?茠 /refund/[orderId]                          2.49 kB         235 kB
+#24 94.63 鈹?茠 /review/[orderId]                          2.15 kB         234 kB
+#24 94.63 鈹?鈼?/sandbox-pay                               2.15 kB         234 kB
+#24 94.63 鈹?鈼?/scan                                      109 kB          319 kB
+#24 94.63 鈹?鈼?/search                                    6.37 kB         238 kB
+#24 94.63 鈹?鈼?/search/result                             7.33 kB         239 kB
+#24 94.63 鈹?鈼?/services                                  5.5 kB          238 kB
+#24 94.63 鈹?鈼?/settings                                  6.06 kB         238 kB
+#24 94.63 鈹?茠 /shared/chat/[token]                       2.51 kB         235 kB
+#24 94.63 鈹?茠 /shared/drug/[token]                       2.52 kB         235 kB
+#24 94.63 鈹?茠 /shared/report/[token]                     2.72 kB         235 kB
+#24 94.63 鈹?鈼?/symptom                                   9.96 kB         247 kB
+#24 94.63 鈹?鈼?/tcm                                       12.7 kB         245 kB
+#24 94.63 鈹?鈼?/tcm/archive                               510 B           210 kB
+#24 94.63 鈹?茠 /tcm/diagnosis/[id]                        549 B           210 kB
+#24 94.63 鈹?鈼?/tcm/loading                               958 B           211 kB
+#24 94.63 鈹?茠 /tcm/result/[id]                           9.37 kB         241 kB
+#24 94.63 鈹?茠 /unified-order/[id]                        9.95 kB         248 kB
+#24 94.63 鈹?鈼?/unified-orders                            4.05 kB         242 kB
+#24 94.63 + First Load JS shared by all                  87.6 kB
+#24 94.63   鈹?chunks/2117-e9348fb0d4d6144c.js            31.9 kB
+#24 94.63   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js        53.6 kB
+#24 94.63   鈹?other shared chunks (total)                2.1 kB
+#24 94.63 
+#24 94.63 
+#24 94.63 鈼? (Static)   prerendered as static content
+#24 94.63 茠  (Dynamic)  server-rendered on demand
+#24 94.63 
+#24 DONE 94.8s
+
+#16 [h5-web builder 2/7] WORKDIR /app
+#16 CACHED
+
+#25 [h5-web runner 3/5] COPY --from=builder /app/.next/standalone ./
+#25 DONE 0.5s
+
+#26 [h5-web runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#26 DONE 0.2s
+
+#27 [h5-web runner 5/5] COPY --from=builder /app/public ./public
+#27 DONE 0.4s
+
+#28 [h5-web] exporting to image
+#28 exporting layers
+#28 exporting layers 10.7s done
+#28 exporting manifest sha256:9b8c2f6a7d7362bf3bfb1e46623bbbab2e60334ad99536616ee051da85ffb128 0.0s done
+#28 exporting config sha256:d51e12cb17792ad101ec28c72a433f75897d0988282a6ed16f65b6e8785a9af3 0.0s done
+#28 exporting attestation manifest sha256:b3d1eea0e0bb72633f4ff734cab69a82ef76f759801d814cb69e6f146d3860db 0.0s done
+#28 exporting manifest list sha256:b24b6b97dded842067bbd7b5e65aba8697469bc261ae45a445662bb45c7cf1cc done
+#28 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#28 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#28 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 2.1s done
+#28 DONE 12.8s
+
+#29 [h5-web] resolving provenance for metadata file
+#29 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Built 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose up -d backend h5-web 2>&1 | tail -30
+time="2026-05-21T17:10:44+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started
+
+--- 姝ラ 3锛氱瓑寰?30s 鍚庢鏌ヨ縼绉绘棩蹇?---
+$ docker logs --tail 400 6b099ed3-7175-4a78-91f4-44570c84ed27-backend 2>&1 | grep -E 'health_archive_v5|health_alerts|medical_records' || true
+[migrate] health_archive_v5: 鍚姩杩佺Щ...
+[migrate] health_archive_v5: 杩佺Щ瀹屾垚 stats={'health_alerts': 0, 'medical_records': 0, 'medical_record_files': 0}
+
+--- 姝ラ 4锛欻TTP 鎺㈡椿 ---
+$ curl -sk -o /dev/null -w '/api/health HTTP_%{http_code}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health'
+/api/health HTTP_200
+$ curl -sk -o /dev/null -w '/ HTTP_%{http_code}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/'
+/ HTTP_200
+$ curl -sk -o /dev/null -w '/health-profile HTTP_%{http_code}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile'
+/health-profile HTTP_308
+$ curl -sk -o /dev/null -w '/health-alerts HTTP_%{http_code}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-alerts'
+/health-alerts HTTP_308
+$ curl -sk -o /dev/null -w '/medical-records HTTP_%{http_code}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/medical-records'
+/medical-records HTTP_308
+$ curl -sk -o /dev/null -w '/api/health-archive-v5/overview HTTP_%{http_code}\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health-archive-v5/overview'
+/api/health-archive-v5/overview HTTP_401
+
+--- 姝ラ 5锛氳繙绔?pytest锛坱est_health_archive_v5_20260521.py锛?---
+$ docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python -m pytest tests/test_health_archive_v5_20260521.py -v --no-header 2>&1 | tail -120
+/usr/local/bin/python: No module named pytest
+
+============================================================
+[PRD-HEALTH-ARCHIVE-V5-20260521] 閮ㄧ讲瀹屾垚
+============================================================

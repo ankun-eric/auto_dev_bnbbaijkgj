@@ -3,7 +3,8 @@
 // [2026-04-24] 移动端 - 对账详情 PRD §4.6
 
 import React, { useEffect, useState } from 'react';
-import { NavBar, List, Button, Toast, Dialog, TextArea } from 'antd-mobile';
+import { NavBar, List, Button, Dialog, TextArea } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { useRouter, useParams } from 'next/navigation';
 import api from '@/lib/api';
 
@@ -21,7 +22,7 @@ export default function SettlementDetailMobilePage() {
       const res: any = await api.get(`/api/merchant/v1/settlements/${sid}`);
       setDetail(res);
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '加载失败' });
+      showToast(e?.response?.data?.detail || '加载失败', 'fail');
     } finally {
       setLoading(false);
     }
@@ -37,10 +38,10 @@ export default function SettlementDetailMobilePage() {
     if (!ok) return;
     try {
       await api.post(`/api/merchant/v1/settlements/${sid}/confirm`, {});
-      Toast.show({ icon: 'success', content: '已确认' });
+      showToast('已确认', 'success');
       load();
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '操作失败' });
+      showToast(e?.response?.data?.detail || '操作失败', 'fail');
     }
   };
 
@@ -56,15 +57,15 @@ export default function SettlementDetailMobilePage() {
     });
     if (!ok) return;
     if (!reason.trim()) {
-      Toast.show({ content: '请填写争议原因' });
+      showToast('请填写争议原因');
       return;
     }
     try {
       await api.post(`/api/merchant/v1/settlements/${sid}/dispute`, { reason });
-      Toast.show({ icon: 'success', content: '已提交争议' });
+      showToast('已提交争议', 'success');
       load();
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '操作失败' });
+      showToast(e?.response?.data?.detail || '操作失败', 'fail');
     }
   };
 

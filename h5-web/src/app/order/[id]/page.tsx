@@ -1,7 +1,8 @@
 'use client';
 
 import { useRouter, useParams } from 'next/navigation';
-import { NavBar, Card, Steps, Tag, Button, Divider, Toast } from 'antd-mobile';
+import { NavBar, Card, Steps, Tag, Button, Divider } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 
 const mockOrder = {
   id: 'ORD20240315001',
@@ -30,7 +31,7 @@ export default function OrderDetailPage() {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(mockOrder.verifyCode);
     }
-    Toast.show({ content: '核销码已复制' });
+    showToast('核销码已复制');
   };
 
   return (

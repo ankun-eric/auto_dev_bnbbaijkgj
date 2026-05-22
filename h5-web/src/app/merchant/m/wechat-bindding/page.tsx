@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { NavBar, Toast, Button, DotLoading, Result } from 'antd-mobile';
+import { NavBar, Button, DotLoading, Result } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { getCurrentStoreId } from '../mobile-lib';
@@ -51,7 +52,7 @@ export default function WechatBinddingMobilePage() {
         if (res?.is_bound) {
           setStatus('bound');
           stopPolling();
-          Toast.show({ icon: 'success', content: '绑定成功' });
+          showToast('绑定成功', 'success');
         }
       } catch {}
     }, 3000);
@@ -67,7 +68,7 @@ export default function WechatBinddingMobilePage() {
       setQrcodeUrl(res?.qrcode_url || res?.url || '');
       startPolling();
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '获取二维码失败' });
+      showToast(e?.response?.data?.detail || '获取二维码失败', 'fail');
     } finally {
       setQrcodeLoading(false);
     }
@@ -80,11 +81,11 @@ export default function WechatBinddingMobilePage() {
       const params: any = {};
       if (storeId) params.store_id = storeId;
       await api.delete('/api/merchant/bindding/wechat', { params });
-      Toast.show({ icon: 'success', content: '已解绑' });
+      showToast('已解绑', 'success');
       setStatus('unbound');
       setQrcodeUrl('');
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '解绑失败' });
+      showToast(e?.response?.data?.detail || '解绑失败', 'fail');
     } finally {
       setUnbinding(false);
     }

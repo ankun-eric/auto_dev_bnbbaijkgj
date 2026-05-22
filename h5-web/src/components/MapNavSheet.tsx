@@ -18,7 +18,8 @@
  */
 
 import React from 'react';
-import { Popup, Toast } from 'antd-mobile';
+import { Popup } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 
 export interface MapNavTarget {
   name: string;
@@ -50,7 +51,7 @@ function tryOpenScheme(scheme: string, fallback?: () => void) {
       if (fallback) {
         fallback();
       } else {
-        Toast.show({ content: '未检测到该地图 App，请先安装' });
+        showToast('未检测到该地图 App，请先安装');
       }
     }
   }, 1500);

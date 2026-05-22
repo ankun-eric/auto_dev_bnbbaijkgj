@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, Grid, Button, Tag, SpinLoading, Badge, Toast } from 'antd-mobile';
+import { Card, Grid, Button, Tag, SpinLoading, Badge } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
@@ -128,12 +129,12 @@ export default function PointsMallPage() {
       return;
     }
     if (item.button_state === 'sold_out') {
-      Toast.show({ content: '已兑完' });
+      showToast('已兑完');
       return;
     }
     if (item.button_state === 'not_enough') {
       const diff = Math.max(0, item.price_points - userPoints);
-      Toast.show({ content: `积分不足，还差 ${diff} 积分` });
+      showToast(`积分不足，还差 ${diff} 积分`);
       return;
     }
     router.push(`/points/product-detail?id=${item.id}&quick=1`);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Toast } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 
 export type DiseaseItem = string | { type: 'custom'; value: string };
 
@@ -50,19 +50,19 @@ export default function DiseaseTagSelector({
   const handleAddCustom = () => {
     const val = customInput.trim();
     if (!val) {
-      Toast.show({ content: '请输入内容' });
+      showToast('请输入内容');
       return;
     }
     if (val.length > 100) {
-      Toast.show({ content: '最多输入100个字符' });
+      showToast('最多输入100个字符');
       return;
     }
     if (presets.some((p) => p.name === val)) {
-      Toast.show({ content: '该选项已存在于预设列表中，请直接选择' });
+      showToast('该选项已存在于预设列表中，请直接选择');
       return;
     }
     if (items.some((i) => getItemName(i) === val)) {
-      Toast.show({ content: '该选项已添加' });
+      showToast('该选项已添加');
       return;
     }
     onChange([...items, { type: 'custom', value: val }]);

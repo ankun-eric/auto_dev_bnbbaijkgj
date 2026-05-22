@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { NavBar, Tag, Toast, Divider, SpinLoading, Button, TextArea, Avatar } from 'antd-mobile';
+import { NavBar, Tag, Divider, SpinLoading, Button, TextArea, Avatar } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { HeartOutline, HeartFill, StarOutline, StarFill } from 'antd-mobile-icons';
 import api from '@/lib/api';
 import { resolveAssetUrl } from '@/lib/asset-url';
@@ -52,7 +53,7 @@ export default function NewsDetailPage() {
       setNews(data);
       setLikeCount(data.like_count ?? 0);
     } catch {
-      Toast.show({ content: '加载失败' });
+      showToast('加载失败');
     } finally {
       setLoading(false);
     }
@@ -90,7 +91,7 @@ export default function NewsDetailPage() {
       setCollected(favorited);
       setLikeCount(favorited ? likeCount + 1 : Math.max(0, likeCount - 1));
     } catch {
-      Toast.show({ content: '操作失败' });
+      showToast('操作失败');
     }
   };
 
@@ -100,9 +101,9 @@ export default function NewsDetailPage() {
       const favorited = res?.favorited ?? !collected;
       setCollected(favorited);
       setLiked(favorited);
-      Toast.show({ content: favorited ? '收藏成功' : '已取消收藏' });
+      showToast(favorited ? '收藏成功' : '已取消收藏');
     } catch {
-      Toast.show({ content: '操作失败' });
+      showToast('操作失败');
     }
   };
 
@@ -115,10 +116,10 @@ export default function NewsDetailPage() {
         content: comment.trim(),
       });
       setComment('');
-      Toast.show({ content: '评论成功' });
+      showToast('评论成功');
       loadComments();
     } catch {
-      Toast.show({ content: '评论失败' });
+      showToast('评论失败');
     }
   };
 

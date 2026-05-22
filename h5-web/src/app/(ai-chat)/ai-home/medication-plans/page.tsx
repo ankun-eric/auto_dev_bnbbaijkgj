@@ -15,7 +15,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Toast } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 
 type TabKey = 'in_progress' | 'not_started' | 'finished';
@@ -72,7 +72,7 @@ function MedicationPlansListPageInner() {
       const list: PlanItem[] = Array.isArray(body.items) ? body.items : [];
       setItems(list);
     } catch (e) {
-      Toast.show({ content: '加载失败', icon: 'fail' });
+      showToast('加载失败', 'fail');
       setItems([]);
     } finally {
       setLoading(false);

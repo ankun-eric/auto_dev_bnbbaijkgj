@@ -11,7 +11,8 @@
  */
 import { useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { NavBar, SpinLoading, Toast, ImageViewer, Image } from 'antd-mobile';
+import { NavBar, SpinLoading, ImageViewer, Image } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 import { resolveAssetUrl, resolveAssetUrls } from '@/lib/asset-url';
 import { parseServerTime } from '@/lib/datetime';
@@ -189,7 +190,7 @@ function CheckupChatContent() {
           startStream('');
         }
       } catch (e: any) {
-        Toast.show({ content: e?.message || '加载会话失败' });
+        showToast(e?.message || '加载会话失败');
       } finally {
         setLoading(false);
       }
@@ -298,13 +299,13 @@ function CheckupChatContent() {
                 prev.map((m) => (m.id === tmpId ? { ...m, content: final } : m))
               );
             } else if (obj.type === 'error') {
-              Toast.show({ content: obj.content || 'AI 服务异常' });
+              showToast(obj.content || 'AI 服务异常');
             }
           } catch {}
         }
       }
     } catch (e: any) {
-      Toast.show({ content: e?.message || 'AI 服务请求失败' });
+      showToast(e?.message || 'AI 服务请求失败');
       setMessages((prev) =>
         prev.map((m) =>
           m.id === tmpId && !m.content

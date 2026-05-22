@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Mask, Toast } from 'antd-mobile';
+import { Mask } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 
 interface ContactInfo {
@@ -70,7 +71,7 @@ export default function ContactStoreModal({
 
   const callPhone = (phone: string) => {
     if (!phone) {
-      Toast.show({ content: '商家未提供联系方式' });
+      showToast('商家未提供联系方式');
       return;
     }
     window.location.href = `tel:${phone}`;
@@ -78,7 +79,7 @@ export default function ContactStoreModal({
 
   const navigate = (lat?: number | null, lng?: number | null, name?: string) => {
     if (lat == null || lng == null) {
-      Toast.show({ content: '门店未配置地理坐标' });
+      showToast('门店未配置地理坐标');
       return;
     }
     const url = `https://uri.amap.com/marker?position=${lng},${lat}&name=${encodeURIComponent(

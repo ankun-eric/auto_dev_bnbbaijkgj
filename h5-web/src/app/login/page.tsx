@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Toast, SpinLoading } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { login } from '@/lib/auth';
 import api from '@/lib/api';
 import { resolveAssetUrl } from '@/lib/asset-url';
@@ -162,13 +163,13 @@ function LoginContent() {
 
   const sendCode = async () => {
     if (!phone || phone.length !== 11) {
-      Toast.show({ content: '请输入正确的手机号' });
+      showToast('请输入正确的手机号', 'warning');
       return;
     }
     setSending(true);
     try {
       await api.post('/api/auth/sms-code', { phone, type: 'login' });
-      Toast.show({ content: '验证码已发送，请注意查收短信' });
+      showToast('验证码已发送，请注意查收短信');
       setCountdown(60);
       timerRef.current = setInterval(() => {
         setCountdown((prev) => {
@@ -181,7 +182,7 @@ function LoginContent() {
       }, 1000);
     } catch (error: any) {
       const detail = error?.response?.data?.detail;
-      Toast.show({ content: detail || '发送失败，请稍后重试' });
+      showToast(detail || '发送失败，请稍后重试', 'fail');
     } finally {
       setSending(false);
     }
@@ -204,7 +205,7 @@ function LoginContent() {
         router.replace('/health-guide');
         return;
       } else {
-        Toast.show({ content: '登录成功' });
+        showToast('登录成功');
       }
       if (res.needs_profile_completion && registerSettings.show_profile_completion_prompt) {
         router.replace('/health-guide');
@@ -214,7 +215,7 @@ function LoginContent() {
       router.replace('/ai-home');
     } catch (error: any) {
       const detail = error?.response?.data?.detail || '';
-      Toast.show({ content: detail || '登录失败，请检查验证码' });
+      showToast(detail || '登录失败，请检查验证码', 'fail');
     } finally {
       setSubmitting(false);
     }
@@ -222,11 +223,11 @@ function LoginContent() {
 
   const handleSubmit = () => {
     if (!phone || phone.length !== 11) {
-      Toast.show({ content: '请输入正确的手机号' });
+      showToast('请输入正确的手机号', 'warning');
       return;
     }
     if (!code || code.length < 4) {
-      Toast.show({ content: '请输入验证码' });
+      showToast('请输入验证码', 'warning');
       return;
     }
     if (!agreed) {

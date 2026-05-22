@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Toast, Swiper, Dialog, ImageViewer } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { THEME } from '@/lib/theme';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -1763,7 +1764,7 @@ export default function AiHomePage() {
     if (type === 'health_self_check') {
       const strategy = btn.archive_missing_strategy || 'use_default';
       if (!selectedConsultant && strategy === 'force_toast') {
-        Toast.show({ content: '请先在顶部选择咨询档案' });
+        showToast('请先在顶部选择咨询档案', 'warning');
         return;
       }
       setHscDrawerButton(btn);
@@ -1925,7 +1926,7 @@ export default function AiHomePage() {
         if (opts.kind === 'image' && files.length > MAX_UPLOAD_IMAGES) {
           picked = files.slice(0, MAX_UPLOAD_IMAGES);
           try {
-            Toast.show({ content: `最多 ${MAX_UPLOAD_IMAGES} 张` });
+            showToast(`最多 ${MAX_UPLOAD_IMAGES} 张`, 'warning');
           } catch {}
         }
         // 上传 Loading
@@ -1962,13 +1963,13 @@ export default function AiHomePage() {
         const totalOk = uploadedImages.length + uploadedFiles.length;
         if (totalOk === 0) {
           try {
-            Toast.show({ icon: 'fail', content: '图片上传失败，请重试' });
+            showToast('图片上传失败，请重试', 'fail');
           } catch {}
           return;
         }
         if (failedCount > 0) {
           try {
-            Toast.show({ content: `${failedCount} 张上传失败，已自动跳过` });
+            showToast(`${failedCount} 张上传失败，已自动跳过`, 'warning');
           } catch {}
         }
 
@@ -2184,7 +2185,7 @@ export default function AiHomePage() {
     (data: NonNullable<ChatMessage['questionnairePreCard']>) => {
       const btn = funcButtons.find((b) => Number(b.id) === data.buttonId);
       if (!btn) {
-        Toast.show({ content: '按钮已不存在，请刷新页面' });
+        showToast('按钮已不存在，请刷新页面', 'warning');
         return;
       }
       const displayForm = (btn.questionnaire_display_form || 'DRAWER_SCROLL') as QnDisplayForm;
@@ -2193,7 +2194,7 @@ export default function AiHomePage() {
         displayForm === 'INLINE_CHAT' ? 'DRAWER_STEPPED' : displayForm;
       openQuestionnaireDrawer(btn, effForm).catch((e) => {
         console.warn('[ai-home] open questionnaire drawer (from pre-card) failed', e);
-        Toast.show({ content: '问卷加载失败，请重试' });
+        showToast('问卷加载失败，请重试', 'fail');
       });
     },
     [funcButtons],
@@ -2256,12 +2257,12 @@ export default function AiHomePage() {
             });
           }
         } else {
-          Toast.show({ content: '问卷模板未配置，请联系运营' });
+          showToast('问卷模板未配置，请联系运营', 'warning');
           setQnDrawerOpen(false);
         }
       } catch (e: any) {
         console.warn('[ai-home] render-meta fetch failed', e);
-        Toast.show({ content: '问卷加载失败，请重试' });
+        showToast('问卷加载失败，请重试', 'fail');
         setQnDrawerOpen(false);
       } finally {
         setQnDrawerLoading(false);
@@ -2409,7 +2410,7 @@ export default function AiHomePage() {
         // chat_messages 完整提供，前端无需再触发额外的"AI 解读"流式回复。
       } catch (e: any) {
         console.warn('[ai-home] qn submit failed', e);
-        Toast.show({ content: e?.response?.data?.detail || '问卷提交失败' });
+        showToast(e?.response?.data?.detail || '问卷提交失败', 'fail');
       }
     },
     [qnDrawerButton, qnDrawerTemplate, selectedConsultant],
@@ -2636,7 +2637,7 @@ export default function AiHomePage() {
         btn.ai_function_type === 'questionnaire' &&
         !btn.questionnaire_template_id
       ) {
-        Toast.show({ content: '该功能按钮未关联问卷模板，请联系管理员前往「功能按钮管理」补充配置' });
+        showToast('该功能按钮未关联问卷模板，请联系管理员前往「功能按钮管理」补充配置', 'warning');
         return;
       }
       if (
@@ -2654,7 +2655,7 @@ export default function AiHomePage() {
           }
           openQuestionnaireDrawer(btn, displayForm).catch((e) => {
             console.warn('[ai-home] open questionnaire drawer failed', e);
-            Toast.show({ content: '问卷加载失败，请重试' });
+            showToast('问卷加载失败，请重试', 'fail');
           });
           return;
         }
@@ -2675,7 +2676,7 @@ export default function AiHomePage() {
       if (isHealthSelfCheck) {
         const strategy = btn.archive_missing_strategy || 'use_default';
         if (!selectedConsultant && strategy === 'force_toast') {
-          Toast.show({ content: '请先在顶部选择咨询档案' });
+          showToast('请先在顶部选择咨询档案', 'warning');
           return;
         }
         setHscDrawerButton(btn);
@@ -2712,7 +2713,7 @@ export default function AiHomePage() {
             console.warn('[ai-home func btn] page_navigate_empty_url', { id: btn.id, name: btn.name });
           }
           try { aiHomeFnTrack.cardFail(btn.id, 'page_navigate_empty_url'); } catch {}
-          Toast.show({ content: '该按钮跳转地址异常，请联系管理员' });
+          showToast('该按钮跳转地址异常，请联系管理员', 'warning');
         } catch {}
         return;
       }
@@ -2823,7 +2824,7 @@ export default function AiHomePage() {
 
   const checkMicPermission = useCallback(async (): Promise<boolean> => {
     if (!navigator.mediaDevices?.getUserMedia) {
-      Toast.show({ content: '当前浏览器不支持语音输入', icon: 'fail' });
+      showToast('当前浏览器不支持语音输入', 'fail');
       return false;
     }
     try {
@@ -2913,7 +2914,7 @@ export default function AiHomePage() {
         const fmt = mimeToFormat(mimeTypeRef.current);
         const blob = new Blob(audioChunksRef.current, { type: mimeTypeRef.current || 'audio/webm' });
         if (blob.size < 1000) {
-          Toast.show({ content: '录音时间太短' });
+          showToast('录音时间太短', 'warning');
           return;
         }
 
@@ -2936,11 +2937,11 @@ export default function AiHomePage() {
             lastMsgTimeRef.current = Date.now();
             handleSend(text.trim(), 'voice');
           } else {
-            Toast.show({ content: '未识别到语音内容，请重试' });
+            showToast('未识别到语音内容，请重试', 'warning');
           }
         } catch {
           Toast.clear();
-          Toast.show({ content: '语音识别失败，请重试' });
+          showToast('语音识别失败，请重试', 'fail');
         }
       };
 
@@ -2948,7 +2949,7 @@ export default function AiHomePage() {
       setRecording(true);
       setRecordCancelled(false);
     } catch {
-      Toast.show({ content: '无法访问麦克风，请检查权限设置' });
+      showToast('无法访问麦克风，请检查权限设置', 'fail');
     }
   };
 
@@ -2962,7 +2963,7 @@ export default function AiHomePage() {
   const cancelRecording = () => {
     setRecordCancelled(true);
     stopRecording();
-    Toast.show({ content: '已取消' });
+    showToast('已取消');
   };
 
   const handleRecordTouchStart = (e: React.TouchEvent) => {
@@ -3024,7 +3025,7 @@ export default function AiHomePage() {
           audio.onended = () => setTtsPlaying(false);
           audio.onerror = () => {
             setTtsPlaying(false);
-            Toast.show({ content: '播放失败，请重试' });
+            showToast('播放失败，请重试', 'fail');
           };
           audio.play();
           return;
@@ -3057,14 +3058,14 @@ export default function AiHomePage() {
         audio.onended = () => setTtsPlaying(false);
         audio.onerror = () => {
           setTtsPlaying(false);
-          Toast.show({ content: '当前浏览器不支持语音播报' });
-        };
+          showToast('当前浏览器不支持语音播报', 'fail');
+          };
         audio.play();
         return;
       }
     } catch {}
     setTtsPlaying(false);
-    Toast.show({ content: '当前浏览器不支持语音播报' });
+    showToast('当前浏览器不支持语音播报', 'fail');
   };
 
   // [PRD-440] 复制反馈：Web 端顶部 Toast「已复制」/ 移动端调用系统原生轻提示
@@ -3072,7 +3073,7 @@ export default function AiHomePage() {
     navigator.clipboard?.writeText(text).then(() => {
       notifyCopied();
     }).catch(() => {
-      Toast.show({ content: '复制失败' });
+      showToast('复制失败', 'fail');
     });
   };
 
@@ -3083,7 +3084,7 @@ export default function AiHomePage() {
     const curSid = currentSidRef.current;
     const hasMessages = messages.length > 0;
     if (!hasMessages) {
-      Toast.show({ content: '当前已是新对话' });
+      showToast('当前已是新对话');
       return;
     }
     // 异步归档旧会话（失败不阻塞前端动作）
@@ -3675,7 +3676,7 @@ export default function AiHomePage() {
   const handleFontSize = useCallback(() => {
     setMoreMenuOpen(false);
     if (!isLoggedIn) {
-      Toast.show({ content: '请先登录', duration: 1500 });
+      showToast('请先登录', 'warning');
       router.push('/login');
       return;
     }
@@ -3688,13 +3689,13 @@ export default function AiHomePage() {
     const prev = fontSizeLevel;
     setFontSizeLevel(level);
     setFontPopoverOpen(false);
-    Toast.show({ content: FONT_TOAST_MAP[level], duration: 1500 });
+    showToast(FONT_TOAST_MAP[level]);
     if (!isLoggedIn) return;
     if (fontSaveTimerRef.current) clearTimeout(fontSaveTimerRef.current);
     fontSaveTimerRef.current = setTimeout(() => {
       api.put('/api/user/font-setting', { font_size_level: level }).catch(() => {
         setFontSizeLevel(prev);
-        Toast.show({ content: '保存失败，请重试', icon: 'fail', duration: 1500 });
+        showToast('保存失败，请重试', 'fail');
       });
     }, 300);
   }, [fontSizeLevel, isLoggedIn]);
@@ -4762,7 +4763,7 @@ export default function AiHomePage() {
                                 return;
                               case 'wechat':
                                 // H5 没有"微信选图"原生能力，给出友好提示后退化到相册
-                                try { Toast.show({ content: '请先把图片保存到相册，再从相册中选择' }); } catch {}
+                                try { showToast('请先把图片保存到相册，再从相册中选择', 'warning'); } catch {}
                                 triggerPick('album');
                                 return;
                               default: {
@@ -5003,7 +5004,7 @@ export default function AiHomePage() {
                               if (btn) {
                                 const df = (btn.questionnaire_display_form || 'DRAWER_SCROLL') as QnDisplayForm;
                                 openQuestionnaireDrawer(btn, df).catch(() => {
-                                  Toast.show({ content: '问卷加载失败' });
+                                  showToast('问卷加载失败', 'fail');
                                 });
                               }
                             }}
@@ -5063,7 +5064,7 @@ export default function AiHomePage() {
                             setMessages((prev) => [...prev, aiMsg]);
                           } catch (e: any) {
                             console.warn('[ai-home] followup-chip failed', e);
-                            Toast.show({ content: '请求失败，请稍后再试' });
+                            showToast('请求失败，请稍后再试', 'fail');
                           }
                         }}
                       />

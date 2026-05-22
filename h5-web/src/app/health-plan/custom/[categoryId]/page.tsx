@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Card, Button, ProgressBar, SpinLoading, Toast, Tag } from 'antd-mobile';
+import { Card, Button, ProgressBar, SpinLoading, Tag } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import { AddOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
@@ -65,7 +66,7 @@ export default function CategoryDetailPage() {
           user_plans: userPlans,
         });
       } catch {
-        Toast.show({ content: '加载失败', icon: 'fail' });
+        showToast('加载失败', 'fail');
       } finally {
         setLoading(false);
       }
@@ -74,7 +75,7 @@ export default function CategoryDetailPage() {
   }, [categoryId]);
 
   const handleAICustomize = () => {
-    Toast.show({ content: 'AI正在为您定制计划...', icon: 'loading' });
+    showToast('AI正在为您定制计划...');
     setTimeout(() => {
       const sessionId = `plan-${Date.now()}`;
       const msg = detail

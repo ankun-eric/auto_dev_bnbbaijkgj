@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { NavBar, TextArea, Button, SpinLoading, Toast, ImageViewer, Tabs, Dialog } from 'antd-mobile';
+import { NavBar, TextArea, Button, SpinLoading, ImageViewer, Tabs, Dialog } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
 import DrugMergeCardFlat, { type DrugListItem, type MemberInfo } from '@/components/drug/DrugMergeCardFlat';
@@ -420,7 +421,7 @@ export default function DrugChatPage() {
     const now = Date.now();
     if (regenerating) return;
     if (now - lastRegenTs < REGENERATE_COOLDOWN_MS) {
-      Toast.show({ content: '请稍候…' });
+      showToast('请稍候…');
       return;
     }
     setRegenerating(true);
@@ -453,14 +454,14 @@ export default function DrugChatPage() {
           };
           return next;
         });
-        Toast.show({ icon: 'success', content: '已重新生成' });
+        showToast('已重新生成', 'success');
       }
     } catch (err: any) {
       const status = err?.response?.status;
       if (status === 429) {
-        Toast.show({ content: '请稍候…' });
+        showToast('请稍候…');
       } else {
-        Toast.show({ content: '重新生成失败' });
+        showToast('重新生成失败');
       }
     } finally {
       setTimeout(() => setRegenerating(false), REGENERATE_COOLDOWN_MS);
@@ -476,7 +477,7 @@ export default function DrugChatPage() {
 
   const handleAddAnotherDrug = () => {
     if (drugList.length >= MAX_DRUGS_COMPARE) {
-      Toast.show({ content: '最多对比 2 个药品' });
+      showToast('最多对比 2 个药品');
       return;
     }
     albumRef.current?.click();
@@ -601,7 +602,7 @@ export default function DrugChatPage() {
 
     const sizeCheck = await checkFileSize(file, 'drug_identify');
     if (!sizeCheck.ok) {
-      Toast.show({ content: `文件大小超过限制（最大 ${sizeCheck.maxMb} MB）`, icon: 'fail' });
+      showToast(`文件大小超过限制（最大 ${sizeCheck.maxMb} MB）`, 'fail');
       return;
     }
 
@@ -650,7 +651,7 @@ export default function DrugChatPage() {
       await initDrugChat();
       initCalledRef.current = true;
     } catch {
-      Toast.show({ content: '识别失败，请重试', icon: 'fail' });
+      showToast('识别失败，请重试', 'fail');
     } finally {
       setUploading(false);
       setUploadPercent(-1);
@@ -662,7 +663,7 @@ export default function DrugChatPage() {
 
   const handleShare = async () => {
     if (!drugRecord?.id) {
-      Toast.show({ content: '暂无可分享的药物识别记录' });
+      showToast('暂无可分享的药物识别记录');
       return;
     }
     setShareLoading(true);
@@ -671,14 +672,14 @@ export default function DrugChatPage() {
       const data = res.data || res;
       const token = data.share_token || data.token;
       if (!token) {
-        Toast.show({ content: '生成分享链接失败' });
+        showToast('生成分享链接失败');
         return;
       }
       const url = `${BASE_SHARE_URL}/${token}`;
       setShareLink(url);
       setShareLinkVisible(true);
     } catch {
-      Toast.show({ content: '生成分享链接失败' });
+      showToast('生成分享链接失败');
     } finally {
       setShareLoading(false);
     }
@@ -687,9 +688,9 @@ export default function DrugChatPage() {
   const handleCopyFromDialog = async () => {
     try {
       await navigator.clipboard.writeText(shareLink);
-      Toast.show({ icon: 'success', content: '链接已复制' });
+      showToast('链接已复制', 'success');
     } catch {
-      Toast.show({ content: '复制失败' });
+      showToast('复制失败');
     }
   };
 

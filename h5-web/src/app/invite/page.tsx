@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Toast, SpinLoading } from 'antd-mobile';
+import { Button, SpinLoading } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import { QRCodeSVG } from 'qrcode.react';
 import api from '@/lib/api';
@@ -51,7 +52,7 @@ export default function InvitePage() {
         if (linkRes.status === 'fulfilled') {
           setShareData(linkRes.value?.data || linkRes.value);
         } else {
-          Toast.show({ content: '获取分享链接失败', icon: 'fail' });
+          showToast('获取分享链接失败', 'fail');
         }
         if (statsRes.status === 'fulfilled') {
           const d = statsRes.value?.data || statsRes.value || {};
@@ -71,9 +72,9 @@ export default function InvitePage() {
   const handleCopy = () => {
     if (!shareData?.share_link) return;
     navigator.clipboard.writeText(shareData.share_link).then(() => {
-      Toast.show({ content: '已复制', icon: 'success' });
+      showToast('已复制', 'success');
     }).catch(() => {
-      Toast.show({ content: '复制失败' });
+      showToast('复制失败');
     });
   };
 

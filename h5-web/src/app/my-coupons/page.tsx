@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Tabs, Empty, SpinLoading, Button, Tag, InfiniteScroll, Dialog, Input, Toast } from 'antd-mobile';
+import { Tabs, Empty, SpinLoading, Button, Tag, InfiniteScroll, Dialog, Input } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { couponTypeLabel, jumpToUseCoupon } from '@/lib/coupon';
@@ -211,19 +212,19 @@ function MyCouponsPage() {
     });
     if (!ok) return;
     if (!inputCode) {
-      Toast.show({ content: '请输入兑换码', icon: 'fail' });
+      showToast('请输入兑换码', 'fail');
       return;
     }
     try {
       const res: any = await api.post('/api/coupons/redeem', { code: inputCode });
       const data = res.data || res;
-      Toast.show({ content: data?.message || '兑换成功', icon: 'success' });
+      showToast(data?.message || '兑换成功', 'success');
       setLoading(true);
       setPage(1);
       fetchCoupons(1, true);
     } catch (err: any) {
       const detail = err?.response?.data?.detail || err?.message || '兑换失败';
-      Toast.show({ content: String(detail), icon: 'fail', duration: 3000 });
+      showToast(String(detail), 'fail');
     }
   };
 

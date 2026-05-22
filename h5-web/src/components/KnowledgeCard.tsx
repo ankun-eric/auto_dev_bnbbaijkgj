@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Image, ImageViewer, Tag, Toast } from 'antd-mobile';
+import { Button, Image, ImageViewer, Tag } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { DislikeOutlined, LikeOutlined } from '@ant-design/icons';
 import { resolveAssetUrl } from '@/lib/asset-url';
 
@@ -173,15 +174,15 @@ export function KnowledgeCard({ hit, hitLogId, onFeedback }: KnowledgeCardProps)
 
   const submitFeedback = async (kind: 'like' | 'dislike') => {
     if (localFeedback) {
-      Toast.show({ content: '已反馈' });
+      showToast('已反馈');
       return;
     }
     if (logId == null) {
-      Toast.show({ content: '暂无法反馈，请稍后重试' });
+      showToast('暂无法反馈，请稍后重试');
       return;
     }
     if (!onFeedback) {
-      Toast.show({ content: '反馈未就绪' });
+      showToast('反馈未就绪');
       return;
     }
     try {

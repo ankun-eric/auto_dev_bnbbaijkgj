@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Form, Input, Button, Toast } from 'antd-mobile';
+import { Form, Input, Button } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { saveLogin } from '../mobile-lib';
@@ -31,10 +32,7 @@ export default function MerchantMobileLoginPage() {
       const merchantRole = res?.merchant_role;
       const hasMerchantIdentity = merchantRole && validRoles.includes(merchantRole);
       if (!res?.access_token || !hasMerchantIdentity) {
-        Toast.show({
-          icon: 'fail',
-          content: '该账号不是商家账号，请使用商家账号登录，或联系管理员开通商家身份。',
-        });
+        showToast('该账号不是商家账号，请使用商家账号登录，或联系管理员开通商家身份。', 'fail');
         return;
       }
 
@@ -45,7 +43,7 @@ export default function MerchantMobileLoginPage() {
         store_ids: (res.stores || []).map((s: any) => s.id),
         stores: (res.stores || []).map((s: any) => ({ id: s.id, name: s.store_name })),
       });
-      Toast.show({ icon: 'success', content: '登录成功' });
+      showToast('登录成功', 'success');
       if (res.must_change_password) {
         router.push('/merchant/m/profile/force-change-password');
         return;

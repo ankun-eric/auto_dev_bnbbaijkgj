@@ -11,16 +11,13 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Toast } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 
 export default function CheckinPage() {
   const router = useRouter();
 
   useEffect(() => {
-    Toast.show({
-      content: '健康打卡已升级为提醒，请在首页右下角 🔔 查看',
-      duration: 2500,
-    });
+    showToast('健康打卡已升级为提醒，请在首页右下角 🔔 查看');
     const timer = setTimeout(() => {
       router.replace('/ai-home');
     }, 300);

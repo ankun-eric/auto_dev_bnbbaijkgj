@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { NavBar, SpinLoading, Toast, Image, ImageViewer, Input, Dialog } from 'antd-mobile';
+import { NavBar, SpinLoading, Image, ImageViewer, Input, Dialog } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { EditSOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 import { formatDateTime } from '@/lib/datetime';
@@ -40,7 +41,7 @@ export default function CheckupDetailPage() {
         setData(res);
         setTitleInput(res.title || '');
       } catch (e: any) {
-        Toast.show({ content: e?.message || '加载失败' });
+        showToast(e?.message || '加载失败');
       } finally {
         setLoading(false);
       }
@@ -50,11 +51,11 @@ export default function CheckupDetailPage() {
   const handleSaveTitle = async () => {
     const t = titleInput.trim();
     if (!t) {
-      Toast.show({ content: '标题不能为空' });
+      showToast('标题不能为空');
       return;
     }
     if (t.length > 50) {
-      Toast.show({ content: '标题最多 50 字' });
+      showToast('标题最多 50 字');
       return;
     }
     setSavingTitle(true);
@@ -62,9 +63,9 @@ export default function CheckupDetailPage() {
       await api.put(`/api/checkup/reports/${id}`, { title: t });
       setData((prev) => (prev ? { ...prev, title: t } : prev));
       setEditingTitle(false);
-      Toast.show({ icon: 'success', content: '已保存' });
+      showToast('已保存', 'success');
     } catch (e: any) {
-      Toast.show({ content: e?.message || '保存失败' });
+      showToast(e?.message || '保存失败');
     } finally {
       setSavingTitle(false);
     }
@@ -91,14 +92,14 @@ export default function CheckupDetailPage() {
         router.push(`/chat/${sid}?auto_start=1&type=report_interpret`);
       }
     } catch (e: any) {
-      Toast.show({ content: e?.message || '创建失败' });
+      showToast(e?.message || '创建失败');
     }
   };
 
   const handleCompareFromHere = () => {
     if (!data) return;
     if (!data.member_id) {
-      Toast.show({ content: '该报告未绑定咨询人，无法对比' });
+      showToast('该报告未绑定咨询人，无法对比');
       return;
     }
     router.push(`/checkup/compare/select?member_id=${data.member_id}&preselect=${data.id}`);

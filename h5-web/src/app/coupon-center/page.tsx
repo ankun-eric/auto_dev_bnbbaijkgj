@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Tag, Empty, SpinLoading, Toast } from 'antd-mobile';
+import { Button, Tag, Empty, SpinLoading } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { formatDate } from '@/lib/datetime';
@@ -52,22 +53,22 @@ export default function CouponCenterPage() {
   const handleClaim = async (coupon: Coupon) => {
     if (coupon.button_disabled) return;
     if (!isLoggedIn()) {
-      Toast.show({ content: '请先登录后再领取', icon: 'fail' });
+      showToast('请先登录后再领取', 'fail');
       setTimeout(() => router.push('/login'), 800);
       return;
     }
     setClaimingIds((prev) => new Set(prev).add(coupon.id));
     try {
       await api.post('/api/coupons/claim', { coupon_id: coupon.id });
-      Toast.show({ content: '领取成功', icon: 'success' });
+      showToast('领取成功', 'success');
       fetchCoupons();
     } catch (err: any) {
       const status = err?.response?.status;
       if (status === 409) {
-        Toast.show({ content: '您已领取过该券', icon: 'fail' });
+        showToast('您已领取过该券', 'fail');
         fetchCoupons();
       } else {
-        Toast.show({ content: err?.response?.data?.detail || '领取失败', icon: 'fail' });
+        showToast(err?.response?.data?.detail || '领取失败', 'fail');
       }
     } finally {
       setClaimingIds((prev) => {

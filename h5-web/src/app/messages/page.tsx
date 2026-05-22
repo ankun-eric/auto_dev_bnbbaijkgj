@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, List, Badge, SwipeAction, Empty, Button, Toast, InfiniteScroll, PullToRefresh } from 'antd-mobile';
+import { NavBar, List, Badge, SwipeAction, Empty, Button, InfiniteScroll, PullToRefresh } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import dayjs from 'dayjs';
 import api from '@/lib/api';
 
@@ -74,7 +75,7 @@ export default function MessagesPage() {
       setPage(pageNum);
       setHasMore(pageNum * PAGE_SIZE < t);
     } catch {
-      Toast.show({ content: '加载消息失败', icon: 'fail' });
+      showToast('加载消息失败', 'fail');
       setHasMore(false);
     }
   }, []);
@@ -111,10 +112,7 @@ export default function MessagesPage() {
     }
 
     if (msgType === 'family_invite_rejected' || msgType === 'family_auth_rejected') {
-      Toast.show({
-        content: item.content || '对方已拒绝邀请',
-        duration: 3000,
-      });
+      showToast(item.content || '对方已拒绝邀请');
       return;
     }
   };
@@ -124,9 +122,9 @@ export default function MessagesPage() {
       await api.put('/api/messages/read-all');
       setItems((prev) => prev.map((n) => ({ ...n, is_read: true })));
       setUnreadCount(0);
-      Toast.show({ content: '已全部标记为已读', icon: 'success' });
+      showToast('已全部标记为已读', 'success');
     } catch {
-      Toast.show({ content: '操作失败', icon: 'fail' });
+      showToast('操作失败', 'fail');
     }
   };
 

@@ -18,7 +18,8 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Popup, Toast } from 'antd-mobile';
+import { Popup } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 import MemberBadge from '@/components/family/MemberBadge';
 import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMemberModal';
@@ -90,7 +91,7 @@ export default function ConsultTargetPicker({
   const handleAddSuccess = async () => {
     setShowAdd(false);
     await fetchMembers();
-    Toast.show({ icon: 'success', content: '添加成功' });
+    showToast('添加成功');
   };
 
   if (showAdd) {

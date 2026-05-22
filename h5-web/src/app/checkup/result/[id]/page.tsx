@@ -7,7 +7,8 @@
  */
 import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { SpinLoading, Toast } from 'antd-mobile';
+import { SpinLoading } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 
 export default function CheckupResultLoadingPage() {
@@ -37,7 +38,7 @@ export default function CheckupResultLoadingPage() {
           router.replace(`/checkup/detail/${id}`);
         }
       } catch (e: any) {
-        Toast.show({ content: e?.message || '加载失败' });
+        showToast(e?.message || '加载失败');
         router.replace(`/checkup/detail/${id}`);
       }
     })();

@@ -11,7 +11,7 @@
  *
  * 后续可在不破坏接口的前提下，单独替换为 jsQR / ZXing 全屏扫码 UI。
  */
-import { Toast } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { DV_COLOR } from './theme';
 
 interface Props {
@@ -35,7 +35,7 @@ export default function ScanQRButton({ onResult }: Props) {
             success: (res: any) => {
               const code = (res?.resultStr || '').split(',').pop() || '';
               if (code) onResult(code);
-              else Toast.show({ content: '未识别到内容' });
+              else showToast('未识别到内容', 'warning');
             },
             fail: () => fallbackPrompt(onResult),
           });

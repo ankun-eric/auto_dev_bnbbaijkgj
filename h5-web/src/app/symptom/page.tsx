@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, TextArea, Tag, Grid, Card, Toast, Popup, Radio, DatePicker } from 'antd-mobile';
+import { Button, TextArea, Tag, Grid, Card, Popup, Radio, DatePicker } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { createChatSession } from '@/lib/chat-session';
@@ -146,9 +147,9 @@ export default function SymptomPage() {
   };
 
   const handleStep1Next = () => {
-    if (!selectedPart) { Toast.show({ content: '请选择不适部位' }); return; }
-    if (selectedSymptoms.length === 0) { Toast.show({ content: '请选择至少一个症状' }); return; }
-    if (!duration) { Toast.show({ content: '请选择症状持续时间' }); return; }
+    if (!selectedPart) { showToast('请选择不适部位'); return; }
+    if (selectedSymptoms.length === 0) { showToast('请选择至少一个症状'); return; }
+    if (!duration) { showToast('请选择症状持续时间'); return; }
     openMemberPopup();
   };
 
@@ -256,11 +257,11 @@ export default function SymptomPage() {
       } else {
         await api.put(`/api/health/profile/member/${m.id}`, payload);
       }
-      Toast.show({ content: '保存成功', icon: 'success' });
+      showToast('保存成功', 'success');
       setInitialProfile(JSON.parse(JSON.stringify(profile)));
       return true;
     } catch (err: any) {
-      Toast.show({ content: err?.response?.data?.detail || '保存失败，请重试', icon: 'fail' });
+      showToast(err?.response?.data?.detail || '保存失败，请重试', 'fail');
       return false;
     }
   };
@@ -281,7 +282,7 @@ export default function SymptomPage() {
 
   const handleAddMemberConfirm = async () => {
     if (!selectedRelation || !newNickname.trim() || !newGender || !newBirthday) {
-      Toast.show({ content: '请填写完整的成员信息' }); return;
+      showToast('请填写完整的成员信息'); return;
     }
     setAddLoading(true);
     try {
@@ -310,7 +311,7 @@ export default function SymptomPage() {
         if (created.id) { setSelectedMemberId(created.id); loadProfileFromMember(items, created.id); }
       } catch { /* keep existing */ }
     } catch {
-      Toast.show({ content: '添加失败，请重试', icon: 'fail' });
+      showToast('添加失败，请重试', 'fail');
     }
     setAddLoading(false);
   };
@@ -337,7 +338,7 @@ export default function SymptomPage() {
     if (!profileEdits.birthday) errors.birthday = '请选择出生日期';
     if (Object.keys(errors).length > 0) {
       setProfileErrors(errors);
-      Toast.show({ content: '请填写完整的必填信息' });
+      showToast('请填写完整的必填信息');
       setAnalyzing(false);
       return;
     }
@@ -386,7 +387,7 @@ export default function SymptomPage() {
       }
       router.push(`/chat/${sessionResult.sessionId}?type=symptom&msg=${encodeURIComponent(msg)}&member=${encodeURIComponent(memberLabel)}`);
     } catch (err: any) {
-      Toast.show({ content: err?.response?.data?.detail || '操作失败，请重试', icon: 'fail' });
+      showToast(err?.response?.data?.detail || '操作失败，请重试', 'fail');
     }
     setAnalyzing(false);
   };

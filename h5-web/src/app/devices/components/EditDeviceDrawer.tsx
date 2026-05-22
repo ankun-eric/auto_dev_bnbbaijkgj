@@ -6,7 +6,8 @@
  * - 可改：别名 / 使用人
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Popup, Toast } from 'antd-mobile';
+import { Popup } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import type { MyDeviceItem, EditBindingPayload } from '@/lib/api/devices';
 import ConsultTargetPicker, { type FamilyMemberItem } from '@/components/ai-chat/ConsultTargetPicker';
 import api from '@/lib/api';
@@ -53,7 +54,7 @@ export default function EditDeviceDrawer({ visible, item, onClose, onSubmit }: P
   const handleSubmit = async () => {
     if (!item) return;
     if (alias.length > 20) {
-      Toast.show({ icon: 'fail', content: '别名不超过 20 字' });
+      showToast('别名不超过 20 字', 'fail');
       return;
     }
     setSubmitting(true);

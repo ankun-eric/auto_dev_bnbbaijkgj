@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Toast, Dialog, Tag, SpinLoading, SwipeAction } from 'antd-mobile';
+import { Dialog, Tag, SpinLoading, SwipeAction } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { Action } from 'antd-mobile/es/components/swipe-action';
 import api from '@/lib/api';
 
@@ -187,9 +188,9 @@ export default function SearchPage() {
     try {
       await api.delete(`/api/search/history/${id}`);
       setHistoryList((prev) => prev.filter((h) => h.id !== id));
-      Toast.show({ content: '已删除', position: 'bottom' });
+      showToast('已删除');
     } catch {
-      Toast.show({ content: '删除失败', icon: 'fail' });
+      showToast('删除失败', 'fail');
     }
   };
 
@@ -202,9 +203,9 @@ export default function SearchPage() {
         try {
           await api.delete('/api/search/history');
           setHistoryList([]);
-          Toast.show({ content: '已清空', position: 'bottom' });
+          showToast('已清空');
         } catch {
-          Toast.show({ content: '清空失败', icon: 'fail' });
+          showToast('清空失败', 'fail');
         }
       },
     });

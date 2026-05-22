@@ -2,7 +2,8 @@
 
 import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Form, Input, Button, Toast, TextArea, Stepper, Switch, SpinLoading } from 'antd-mobile';
+import { Form, Input, Button, TextArea, Stepper, Switch, SpinLoading } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import { AddOutline, CloseOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
@@ -56,7 +57,7 @@ function CreateCustomPlanContent() {
         })));
       }
     } catch {
-      Toast.show({ content: '加载计划详情失败', icon: 'fail' });
+      showToast('加载计划详情失败', 'fail');
     } finally {
       setFetching(false);
     }
@@ -72,7 +73,7 @@ function CreateCustomPlanContent() {
 
   const removeTask = (tempId: string) => {
     if (tasks.length <= 1) {
-      Toast.show({ content: '至少保留一个任务', icon: 'fail' });
+      showToast('至少保留一个任务', 'fail');
       return;
     }
     setTasks(tasks.filter((t) => t.tempId !== tempId));
@@ -84,12 +85,12 @@ function CreateCustomPlanContent() {
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      Toast.show({ content: '请输入计划名称', icon: 'fail' });
+      showToast('请输入计划名称', 'fail');
       return;
     }
     const validTasks = tasks.filter((t) => t.name.trim());
     if (validTasks.length === 0) {
-      Toast.show({ content: '请至少添加一个任务', icon: 'fail' });
+      showToast('请至少添加一个任务', 'fail');
       return;
     }
 
@@ -101,7 +102,7 @@ function CreateCustomPlanContent() {
           description: description.trim(),
           duration_days: isInfinite ? null : durationDays,
         });
-        Toast.show({ content: '更新成功', icon: 'success' });
+        showToast('更新成功', 'success');
       } else {
         await api.post('/api/health-plan/user-plans', {
           plan_name: name.trim(),
@@ -112,11 +113,11 @@ function CreateCustomPlanContent() {
             sort_order: idx,
           })),
         });
-        Toast.show({ content: '创建成功', icon: 'success' });
+        showToast('创建成功', 'success');
       }
       router.back();
     } catch {
-      Toast.show({ content: isEdit ? '更新失败' : '创建失败', icon: 'fail' });
+      showToast(isEdit ? '更新失败' : '创建失败', 'fail');
     } finally {
       setSubmitting(false);
     }

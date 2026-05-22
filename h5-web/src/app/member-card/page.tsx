@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Avatar, Button, SpinLoading, Image, Toast } from 'antd-mobile';
+import { NavBar, Avatar, Button, SpinLoading, Image } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { useAuth } from '@/lib/auth';
 import api from '@/lib/api';
 
@@ -29,7 +30,7 @@ export default function MemberCardPage() {
       setQrData(data);
       setCountdown(60);
     } catch {
-      Toast.show({ content: '获取二维码失败' });
+      showToast('获取二维码失败');
     } finally {
       setLoading(false);
     }

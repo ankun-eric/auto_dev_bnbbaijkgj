@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { NavBar, Avatar, Tag, Card, Grid, Button, Dialog, Toast, Divider } from 'antd-mobile';
+import { NavBar, Avatar, Tag, Card, Grid, Button, Dialog, Divider } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 
 interface ExpertDetail {
@@ -77,7 +78,7 @@ export default function ExpertDetailPage() {
   const handleBook = () => {
     if (!expert.product_id) return;
     if (isOffline) {
-      Toast.show({ content: '该专家暂停预约' });
+      showToast('该专家暂停预约');
       return;
     }
     router.push(`/product/${expert.product_id}`);

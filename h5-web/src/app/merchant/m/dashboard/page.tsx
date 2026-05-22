@@ -4,7 +4,8 @@
 // 顶部：门店名 + 切换；4 个概览卡片；快捷操作；最近订单
 
 import React, { useEffect, useRef, useState } from 'react';
-import { PullToRefresh, Toast, Dialog } from 'antd-mobile';
+import { PullToRefresh, Dialog } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { formatDateTime } from '@/lib/datetime';
@@ -101,7 +102,7 @@ export default function DashboardMobilePage() {
     if (sid && sid !== currentStore) {
       setCurrentStoreId(sid);
       setCurrentStore(sid);
-      Toast.show({ icon: 'success', content: '已切换门店' });
+      showToast('已切换门店', 'success');
       load();
     }
   };

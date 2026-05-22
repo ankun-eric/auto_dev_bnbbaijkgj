@@ -11,7 +11,8 @@
  * 扫码：复用 ScanQRButton（微信内 wx.scanQRCode / H5 调用摄像头）
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Popup, Toast } from 'antd-mobile';
+import { Popup } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 import type { CatalogItem, BindPayload } from '@/lib/api/devices';
 import ConsultTargetPicker, { type FamilyMemberItem } from '@/components/ai-chat/ConsultTargetPicker';
@@ -71,11 +72,11 @@ export default function BindDeviceDrawer({ visible, catalog, onClose, onSubmit }
   const handleSubmit = async () => {
     if (!catalog) return;
     if (!sn.trim()) {
-      Toast.show({ icon: 'fail', content: '请填写 SN 码' });
+      showToast('请填写 SN 码', 'fail');
       return;
     }
     if (alias.length > 20) {
-      Toast.show({ icon: 'fail', content: '别名不超过 20 字' });
+      showToast('别名不超过 20 字', 'fail');
       return;
     }
     setSubmitting(true);

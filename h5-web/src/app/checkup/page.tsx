@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, Tag, Toast, Empty, SpinLoading, InfiniteScroll, Image, Popup, Radio, DatePicker, Button } from 'antd-mobile';
+import { Card, Tag, Empty, SpinLoading, InfiniteScroll, Image, Popup, Radio, DatePicker, Button } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import { PictureOutline, CameraOutline, FileOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
@@ -226,7 +227,7 @@ export default function CheckupPage() {
         next.delete(id);
       } else {
         if (next.size >= 2) {
-          Toast.show({ content: '最多选择2份报告进行对比' });
+          showToast('最多选择2份报告进行对比');
           return prev;
         }
         next.add(id);
@@ -238,7 +239,7 @@ export default function CheckupPage() {
   const handleCompare = () => {
     const ids = Array.from(selectedReportIds);
     if (ids.length !== 2) {
-      Toast.show({ content: '请选择2份报告进行对比' });
+      showToast('请选择2份报告进行对比');
       return;
     }
     router.push(`/checkup/compare?id1=${ids[0]}&id2=${ids[1]}`);
@@ -282,7 +283,7 @@ export default function CheckupPage() {
     const current = selectedFiles.length;
     const remaining = MAX_IMAGES - current;
     if (remaining <= 0) {
-      Toast.show({ content: `最多只能选择${MAX_IMAGES}张图片` });
+      showToast(`最多只能选择${MAX_IMAGES}张图片`);
       return;
     }
     const toAdd = Array.from(files).slice(0, remaining);
@@ -291,11 +292,11 @@ export default function CheckupPage() {
     for (const f of toAdd) {
       const sizeCheck = await checkFileSize(f, 'checkup_report');
       if (!sizeCheck.ok) {
-        Toast.show({ content: `文件 ${f.name} 超过限制（最大 ${sizeCheck.maxMb} MB），已跳过` });
+        showToast(`文件 ${f.name} 超过限制（最大 ${sizeCheck.maxMb} MB），已跳过`);
         continue;
       }
       if (f.size > MAX_SIZE) {
-        Toast.show({ content: '部分图片超过20MB，已跳过' });
+        showToast('部分图片超过20MB，已跳过');
         continue;
       }
       valid.push(f);
@@ -408,11 +409,11 @@ export default function CheckupPage() {
       } else {
         await api.put(`/api/health/profile/member/${m.id}`, payload);
       }
-      Toast.show({ content: '保存成功', icon: 'success' });
+      showToast('保存成功', 'success');
       setInitialProfile(JSON.parse(JSON.stringify(profile)));
       return true;
     } catch (err: any) {
-      Toast.show({ content: err?.response?.data?.detail || '保存失败，请重试', icon: 'fail' });
+      showToast(err?.response?.data?.detail || '保存失败，请重试', 'fail');
       return false;
     }
   };
@@ -463,7 +464,7 @@ export default function CheckupPage() {
 
   const handleAddMemberConfirm = async () => {
     if (!selectedRelation || !newNickname.trim() || !newGender || !newBirthday) {
-      Toast.show({ content: '请填写完整的成员信息' });
+      showToast('请填写完整的成员信息');
       return;
     }
     setAddLoading(true);
@@ -501,7 +502,7 @@ export default function CheckupPage() {
         // keep existing list
       }
     } catch {
-      Toast.show({ content: '添加失败，请重试', icon: 'fail' });
+      showToast('添加失败，请重试', 'fail');
     }
     setAddLoading(false);
   };
@@ -525,7 +526,7 @@ export default function CheckupPage() {
     if (!profileEdits.birthday) errors.birthday = '请选择出生日期';
     if (Object.keys(errors).length > 0) {
       setProfileErrors(errors);
-      Toast.show({ content: '请填写完整的必填信息' });
+      showToast('请填写完整的必填信息');
       return;
     }
     setProfileErrors({});
@@ -593,7 +594,7 @@ export default function CheckupPage() {
       );
 
       if (data.fail_count && data.fail_count > 0 && data.fail_count === selectedFiles.length) {
-        Toast.show({ content: '所有图片识别失败，请重试' });
+        showToast('所有图片识别失败，请重试');
         setUploading(false);
         setUploadProgress('');
         setUploadPercent(-1);
@@ -602,12 +603,12 @@ export default function CheckupPage() {
       }
 
       if (data.fail_count && data.fail_count > 0) {
-        Toast.show({ content: `${data.fail_count}张图片识别失败，已跳过` });
+        showToast(`${data.fail_count}张图片识别失败，已跳过`);
       }
 
       const reportId = data.report_id || data.merged_record_id;
       if (!reportId) {
-        Toast.show({ content: '识别返回异常，请重试' });
+        showToast('识别返回异常，请重试');
         setUploading(false);
         setUploadProgress('');
         setUploadPercent(-1);
@@ -615,7 +616,7 @@ export default function CheckupPage() {
         return;
       }
 
-      Toast.show({ icon: 'success', content: 'OCR 识别完成，正在创建 AI 解读会话...' });
+      showToast('OCR 识别完成，正在创建 AI 解读会话...', 'success');
       selectedFiles.forEach((sf) => URL.revokeObjectURL(sf.previewUrl));
       setSelectedFiles([]);
 
@@ -634,22 +635,22 @@ export default function CheckupPage() {
         if (redirectUrl) {
           router.push(redirectUrl);
         } else {
-          Toast.show({ content: '会话创建失败，请重试' });
+          showToast('会话创建失败，请重试');
           setCurrentStep(0);
         }
       } catch (se: any) {
         setUploading(false);
         setUploadProgress('');
         setUploadPercent(-1);
-        Toast.show({ content: se?.message || 'AI 会话创建失败' });
+        showToast(se?.message || 'AI 会话创建失败');
         setCurrentStep(0);
       }
     } catch (err: any) {
       const msg = err?.message || '上传失败，请重试';
       if (msg.includes('维护') || msg.includes('OCR') || msg.includes('closed')) {
-        Toast.show({ content: '解读功能暂时维护中，请稍后再试' });
+        showToast('解读功能暂时维护中，请稍后再试');
       } else {
-        Toast.show({ content: msg });
+        showToast(msg);
       }
       setUploading(false);
       setUploadProgress('');

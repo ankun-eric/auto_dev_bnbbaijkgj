@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Toast, SpinLoading } from 'antd-mobile';
+import { SpinLoading } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 
 interface CallMessage {
@@ -160,7 +161,7 @@ function DigitalHumanCallInner() {
         }]);
         startListening();
       } catch {
-        Toast.show({ content: '通话连接失败，请重试', icon: 'fail' });
+        showToast('通话连接失败，请重试', 'fail');
       }
     };
     startCall();

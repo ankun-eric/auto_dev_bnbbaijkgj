@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { List, Switch, Dialog, Toast, Button, NavBar } from 'antd-mobile';
+import { List, Switch, Dialog, Button, NavBar } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { THEME } from '@/lib/theme';
 import { logout, useAuth } from '@/lib/auth';
 import api from '@/lib/api';
@@ -30,7 +31,7 @@ export default function AiSettingsPage() {
       confirmText: '清除',
       cancelText: '取消',
       onConfirm: () => {
-        Toast.show({ content: '缓存已清除', icon: 'success' });
+        showToast('缓存已清除');
       },
     });
   };

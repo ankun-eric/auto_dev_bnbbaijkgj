@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Card, Button, SpinLoading, Toast, Tag, Dialog } from 'antd-mobile';
+import { Card, Button, SpinLoading, Tag, Dialog } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
@@ -46,7 +47,7 @@ export default function RecommendedPlanDetailPage() {
         }));
         setPlan({ ...raw, tasks: mappedTasks });
       } catch {
-        Toast.show({ content: '加载失败', icon: 'fail' });
+        showToast('加载失败', 'fail');
       } finally {
         setLoading(false);
       }
@@ -64,10 +65,10 @@ export default function RecommendedPlanDetailPage() {
     setJoining(true);
     try {
       await api.post(`/api/health-plan/recommended-plans/${planId}/join`);
-      Toast.show({ content: '加入成功', icon: 'success' });
+      showToast('加入成功', 'success');
       router.back();
     } catch {
-      Toast.show({ content: '加入失败', icon: 'fail' });
+      showToast('加入失败', 'fail');
     } finally {
       setJoining(false);
     }

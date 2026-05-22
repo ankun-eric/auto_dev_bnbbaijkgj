@@ -12,6 +12,7 @@ export const dynamic = 'force-dynamic';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Toast } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { BH_TOKENS } from '@/lib/health-tokens';
@@ -153,7 +154,7 @@ function SettingsPanel({
       Toast.show({ content: '已保存', icon: 'success', duration: 800 });
       onSaved();
     } catch {
-      Toast.show({ content: '保存失败', icon: 'fail' });
+      showToast('保存失败', 'fail');
     }
   };
 

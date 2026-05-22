@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Tabs, Card, Image, Empty, SpinLoading, InfiniteScroll, SwipeAction, Toast } from 'antd-mobile';
+import { Tabs, Card, Image, Empty, SpinLoading, InfiniteScroll, SwipeAction } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { resolveAssetUrl } from '@/lib/asset-url';
@@ -67,9 +68,9 @@ export default function MyFavoritesPage() {
     try {
       await api.post(`/api/favorites?content_type=${item.content_type}&content_id=${item.content_id}`);
       setItems((prev) => prev.filter((i) => i.id !== item.id));
-      Toast.show({ content: '已取消收藏' });
+      showToast('已取消收藏');
     } catch {
-      Toast.show({ content: '操作失败' });
+      showToast('操作失败');
     }
   };
 

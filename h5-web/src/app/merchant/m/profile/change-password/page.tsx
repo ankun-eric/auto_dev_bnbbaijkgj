@@ -4,7 +4,8 @@
 // PUT /api/merchant/password 成功后清除 token 并跳回 /merchant/m/login
 
 import React, { useState } from 'react';
-import { Form, Input, Button, Toast, NavBar } from 'antd-mobile';
+import { Form, Input, Button, NavBar } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { PASSWORD_REGEX, PASSWORD_HINT } from '@/lib/captcha';
@@ -18,7 +19,7 @@ export default function MerchantMobileChangePasswordPage() {
     try {
       const values = await form.validateFields();
       if (values.new_password !== values.confirm_password) {
-        Toast.show({ icon: 'fail', content: '两次输入的新密码不一致' });
+        showToast('两次输入的新密码不一致', 'fail');
         return;
       }
       setLoading(true);
@@ -27,7 +28,7 @@ export default function MerchantMobileChangePasswordPage() {
         new_password: values.new_password,
         confirm_password: values.confirm_password,
       });
-      Toast.show({ icon: 'success', content: '密码修改成功，请重新登录' });
+      showToast('密码修改成功，请重新登录', 'success');
       try {
         localStorage.removeItem('merchant_token');
         localStorage.removeItem('token');
@@ -37,7 +38,7 @@ export default function MerchantMobileChangePasswordPage() {
       setTimeout(() => router.push('/merchant/m/login'), 800);
     } catch (e: any) {
       if (e?.errorFields) return;
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '修改失败' });
+      showToast(e?.response?.data?.detail || '修改失败', 'fail');
     } finally {
       setLoading(false);
     }

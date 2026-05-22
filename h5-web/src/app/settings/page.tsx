@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { List, Switch, Dialog, Toast, Button } from 'antd-mobile';
+import { List, Switch, Dialog, Button } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import { logout, useAuth } from '@/lib/auth';
 import { useFontSize } from '@/lib/useFontSize';
@@ -60,7 +61,7 @@ export default function SettingsPage() {
       confirmText: '清除',
       cancelText: '取消',
       onConfirm: () => {
-        Toast.show({ content: '缓存已清除' });
+        showToast('缓存已清除');
       },
     });
   };

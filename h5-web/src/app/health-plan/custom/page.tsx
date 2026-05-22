@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, SpinLoading, Toast, Tag, SwipeAction, Dialog, Button } from 'antd-mobile';
+import { Card, SpinLoading, Tag, SwipeAction, Dialog, Button } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { EditSOutline, DeleteOutline } from 'antd-mobile-icons';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
@@ -28,7 +29,7 @@ export default function CustomPlanPage() {
       const data = res.data || res;
       setPlans(data.items || data || []);
     } catch {
-      Toast.show({ content: '加载失败', icon: 'fail' });
+      showToast('加载失败', 'fail');
     } finally {
       setLoading(false);
     }
@@ -45,10 +46,10 @@ export default function CustomPlanPage() {
     if (!confirmed) return;
     try {
       await api.delete(`/api/health-plan/user-plans/${plan.id}`);
-      Toast.show({ content: '删除成功', icon: 'success' });
+      showToast('删除成功', 'success');
       fetchData();
     } catch {
-      Toast.show({ content: '删除失败', icon: 'fail' });
+      showToast('删除失败', 'fail');
     }
   };
 

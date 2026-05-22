@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Toast, Empty, SpinLoading, Tag, Button, Popup, Radio, DatePicker } from 'antd-mobile';
+import { Empty, SpinLoading, Tag, Button, Popup, Radio, DatePicker } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
@@ -261,7 +262,7 @@ export default function DrugPage() {
     const current = selectedFiles.length;
     const remaining = MAX_IMAGES - current;
     if (remaining <= 0) {
-      Toast.show({ content: `最多只能选择${MAX_IMAGES}张图片` });
+      showToast(`最多只能选择${MAX_IMAGES}张图片`);
       return;
     }
     const toAdd = Array.from(files).slice(0, remaining);
@@ -270,11 +271,11 @@ export default function DrugPage() {
     for (const f of toAdd) {
       const sizeCheck = await checkFileSize(f, 'drug_identify');
       if (!sizeCheck.ok) {
-        Toast.show({ content: `文件 ${f.name} 超过限制（最大 ${sizeCheck.maxMb} MB），已跳过` });
+        showToast(`文件 ${f.name} 超过限制（最大 ${sizeCheck.maxMb} MB），已跳过`);
         continue;
       }
       if (f.size > MAX_SIZE) {
-        Toast.show({ content: '部分图片超过20MB，已跳过' });
+        showToast('部分图片超过20MB，已跳过');
         continue;
       }
       valid.push(f);
@@ -382,11 +383,11 @@ export default function DrugPage() {
       } else {
         await api.put(`/api/health/profile/member/${m.id}`, payload);
       }
-      Toast.show({ content: '保存成功', icon: 'success' });
+      showToast('保存成功', 'success');
       setInitialProfile(JSON.parse(JSON.stringify(profile)));
       return true;
     } catch (err: any) {
-      Toast.show({ content: err?.response?.data?.detail || '保存失败，请重试', icon: 'fail' });
+      showToast(err?.response?.data?.detail || '保存失败，请重试', 'fail');
       return false;
     }
   };
@@ -432,7 +433,7 @@ export default function DrugPage() {
 
   const handleAddMemberConfirm = async () => {
     if (!selectedRelation || !newNickname.trim() || !newGender || !newBirthday) {
-      Toast.show({ content: '请填写完整的成员信息' });
+      showToast('请填写完整的成员信息');
       return;
     }
     setAddLoading(true);
@@ -465,7 +466,7 @@ export default function DrugPage() {
         }
       } catch { /* keep existing */ }
     } catch {
-      Toast.show({ content: '添加失败，请重试', icon: 'fail' });
+      showToast('添加失败，请重试', 'fail');
     }
     setAddLoading(false);
   };
@@ -488,7 +489,7 @@ export default function DrugPage() {
     if (!profileEdits.birthday) errors.birthday = '请选择出生日期';
     if (Object.keys(errors).length > 0) {
       setProfileErrors(errors);
-      Toast.show({ content: '请填写完整的必填信息' });
+      showToast('请填写完整的必填信息');
       return;
     }
     setProfileErrors({});
@@ -529,7 +530,7 @@ export default function DrugPage() {
       );
 
       if (data?.single_select_notice) {
-        Toast.show({ content: data.notice_message || '已自动选取第一张图片' });
+        showToast(data.notice_message || '已自动选取第一张图片');
       }
 
       if (data.session_id) {

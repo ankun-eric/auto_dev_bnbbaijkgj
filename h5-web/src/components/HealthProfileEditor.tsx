@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle, useMemo } from 'react';
-import { Input, DatePicker, Toast } from 'antd-mobile';
+import { Input, DatePicker } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import DiseaseTagSelector, { type DiseaseItem } from '@/components/DiseaseTagSelector';
 
 export interface HealthProfile {
@@ -189,7 +190,7 @@ const HealthProfileEditor = forwardRef<HealthProfileEditorRef, HealthProfileEdit
     const doSave = useCallback(async (): Promise<boolean> => {
       if (!onSaveProfile) return true;
       if (!validateInternal()) {
-        Toast.show({ content: '请填写必填项' });
+        showToast('请填写必填项');
         return false;
       }
       setSaving(true);

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams, useSearchParams, usePathname } from 'next/navigation';
-import { Card, Image, Tag, Button, Steps, Divider, Toast, Dialog, SpinLoading, ProgressBar, Popup, DatePicker, Selector } from 'antd-mobile';
+import { Card, Image, Tag, Button, Steps, Divider, Dialog, SpinLoading, ProgressBar, Popup, DatePicker, Selector } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { extractRescheduleErrorText } from '@/lib/reschedule-error';
@@ -171,7 +172,7 @@ export default function UnifiedOrderDetailPage() {
     api.get(`/api/orders/unified/${orderId}`).then((res: any) => {
       setOrder(res.data || res);
     }).catch(() => {
-      Toast.show({ content: '加载失败' });
+      showToast('加载失败');
     }).finally(() => setLoading(false));
   };
 
@@ -196,7 +197,7 @@ export default function UnifiedOrderDetailPage() {
         return;
       }
       if (!channel_code) {
-        Toast.show({ content: '暂未开通支付方式，请联系管理员' });
+        showToast('暂未开通支付方式，请联系管理员');
         return;
       }
       const payRes: any = await api.post(`/api/orders/unified/${order.id}/pay`, { channel_code });
@@ -210,7 +211,7 @@ export default function UnifiedOrderDetailPage() {
         router.replace(`/pay/success?orderId=${order.id}`);
       }
     } catch (err: any) {
-      Toast.show({ content: err?.response?.data?.detail || '支付失败' });
+      showToast(err?.response?.data?.detail || '支付失败');
     }
   };
 
@@ -220,10 +221,10 @@ export default function UnifiedOrderDetailPage() {
       onConfirm: async () => {
         try {
           await api.post(`/api/orders/unified/${orderId}/cancel`, {});
-          Toast.show({ content: '已取消' });
+          showToast('已取消');
           fetchOrder();
         } catch (err: any) {
-          Toast.show({ content: err?.response?.data?.detail || '取消失败' });
+          showToast(err?.response?.data?.detail || '取消失败');
         }
       },
     });
@@ -235,10 +236,10 @@ export default function UnifiedOrderDetailPage() {
       onConfirm: async () => {
         try {
           await api.post(`/api/orders/unified/${orderId}/confirm`);
-          Toast.show({ content: '已确认收货' });
+          showToast('已确认收货');
           fetchOrder();
         } catch (err: any) {
-          Toast.show({ content: err?.response?.data?.detail || '操作失败' });
+          showToast(err?.response?.data?.detail || '操作失败');
         }
       },
     });
@@ -248,7 +249,7 @@ export default function UnifiedOrderDetailPage() {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(code);
     }
-    Toast.show({ content: '核销码已复制' });
+    showToast('核销码已复制');
   };
 
   // [先下单后预约 Bug 修复 v1.0 / 修改预约 Bug 修复 v1.0]
@@ -264,7 +265,7 @@ export default function UnifiedOrderDetailPage() {
           i.appointment_mode !== 'none',
       ) || order.items.find((i) => i.fulfillment_type === 'in_store');
     if (!apptItem) {
-      Toast.show({ content: '订单暂无可预约商品' });
+      showToast('订单暂无可预约商品');
       return;
     }
     // [修改预约 Bug 修复 v1.0] custom_form 模式：跳转到自定义表单页面，不走普通弹窗
@@ -304,17 +305,17 @@ export default function UnifiedOrderDetailPage() {
   // 当商品 appointment_mode === 'date' 时，整块时段块隐藏，只校验日期；time_slot 时校验时段
   const submitAppointment = async () => {
     if (!apptDate) {
-      Toast.show({ content: '请选择预约日期' });
+      showToast('请选择预约日期');
       return;
     }
     if (!apptItemId) {
-      Toast.show({ content: '订单异常' });
+      showToast('订单异常');
       return;
     }
     const currentItem = order?.items.find((i) => i.id === apptItemId);
     const mode = currentItem?.appointment_mode || 'time_slot';
     if (mode === 'time_slot' && !apptSlot) {
-      Toast.show({ content: '请选择预约时段' });
+      showToast('请选择预约时段');
       return;
     }
     setApptSubmitting(true);
@@ -357,7 +358,7 @@ export default function UnifiedOrderDetailPage() {
       } catch {
         /* URL 清理失败不影响主流程 */
       }
-      Toast.show({ content: isReschedule ? '改约成功' : '预约成功' });
+      showToast(isReschedule ? '改约成功' : '预约成功');
       try {
         if (typeof window !== 'undefined') {
           window.localStorage.setItem('bini_unified_orders_need_refresh', String(Date.now()));
@@ -370,7 +371,7 @@ export default function UnifiedOrderDetailPage() {
       // [双重身份用户 H5 顾客端改约失败 Bug 修复 v1.0]
       // 不再统一兜底"预约失败"，而是按后端返回的 {code, message} 结构展示具体原因。
       // 优先使用错误码 → 文案映射；无映射时回退到 message；都没有则展示 HTTP/网络错误兜底。
-      Toast.show({ content: extractRescheduleErrorText(err) });
+      showToast(extractRescheduleErrorText(err));
     } finally {
       setApptSubmitting(false);
     }
@@ -406,10 +407,10 @@ export default function UnifiedOrderDetailPage() {
       onConfirm: async () => {
         try {
           await api.post(`/api/orders/unified/${orderId}/refund/withdraw`);
-          Toast.show({ content: '退款已撤回' });
+          showToast('退款已撤回');
           fetchOrder();
         } catch (err: any) {
-          Toast.show({ content: err?.response?.data?.detail || '撤回失败' });
+          showToast(err?.response?.data?.detail || '撤回失败');
         }
       },
     });
@@ -423,11 +424,11 @@ export default function UnifiedOrderDetailPage() {
       const status = data?.status;
       const items: any[] = data?.available_items || [];
       if (status === 'all_unavailable' || items.length === 0) {
-        Toast.show({ content: data?.message || '商品已全部下架，无法再来一单' });
+        showToast(data?.message || '商品已全部下架，无法再来一单');
         return;
       }
       if (status === 'partial_filtered') {
-        Toast.show({ content: data?.message || '部分商品已下架，已为您过滤' });
+        showToast(data?.message || '部分商品已下架，已为您过滤');
       }
       const first = items[0];
       const params = new URLSearchParams();
@@ -439,11 +440,11 @@ export default function UnifiedOrderDetailPage() {
     } catch (err: any) {
       const status = err?.response?.status;
       if (status === 401 || status === 403) {
-        Toast.show({ content: '请先登录' });
+        showToast('请先登录');
         router.push(`/login?redirect=${encodeURIComponent(`/unified-order/${orderId}`)}`);
         return;
       }
-      Toast.show({ content: err?.response?.data?.detail || '网络异常，请稍后重试' });
+      showToast(err?.response?.data?.detail || '网络异常，请稍后重试');
     }
   };
 
@@ -941,9 +942,7 @@ export default function UnifiedOrderDetailPage() {
                 <Button
                   disabled
                   onClick={() =>
-                    Toast.show({
-                      content: '本订单已达改期上限，如需继续改期请联系门店',
-                    })
+                    showToast('本订单已达改期上限，如需继续改期请联系门店')
                   }
                   style={{ borderRadius: 20, height: 40, fontSize: 14, color: '#bfbfbf', borderColor: '#d9d9d9' }}
                 >
@@ -955,7 +954,7 @@ export default function UnifiedOrderDetailPage() {
               return (
                 <Button
                   disabled
-                  onClick={() => Toast.show({ content: '该商品不支持改期' })}
+                  onClick={() => showToast('该商品不支持改期')}
                   style={{ borderRadius: 20, height: 40, fontSize: 14, color: '#bfbfbf', borderColor: '#d9d9d9' }}
                 >
                   改约

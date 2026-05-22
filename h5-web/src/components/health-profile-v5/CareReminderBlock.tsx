@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Toast, Mask } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
@@ -80,7 +81,7 @@ export default function CareReminderBlock({ token: T, isLinked, profileId, membe
       setSetting((s) => ({ ...(s || {}), ...patch } as ReminderSetting));
       Toast.show({ content: '已保存', icon: 'success', duration: 800 });
     } catch {
-      Toast.show({ content: '保存失败', icon: 'fail' });
+      showToast('保存失败', 'fail');
     }
   };
 
@@ -99,9 +100,9 @@ export default function CareReminderBlock({ token: T, isLinked, profileId, membe
         )
       );
       setShowPermissionModal(null);
-      Toast.show({ content: '权限已更新', icon: 'success' });
+      showToast('权限已更新');
     } catch {
-      Toast.show({ content: '保存失败', icon: 'fail' });
+      showToast('保存失败', 'fail');
     }
   };
 

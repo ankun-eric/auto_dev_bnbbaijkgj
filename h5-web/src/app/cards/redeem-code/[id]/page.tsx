@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Button, Empty, SpinLoading, Toast } from 'antd-mobile';
+import { Button, Empty, SpinLoading } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import cardsV2, { RedemptionCode } from '@/services/cardsV2';
 import { parseServerTime } from '@/lib/datetime';
@@ -29,7 +30,7 @@ export default function RedeemCodePage() {
       const res = await cardsV2.issueRedemptionCode(userCardId);
       setCode(res);
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '生成核销码失败' });
+      showToast(e?.response?.data?.detail || '生成核销码失败', 'fail');
     } finally {
       setLoading(false);
     }

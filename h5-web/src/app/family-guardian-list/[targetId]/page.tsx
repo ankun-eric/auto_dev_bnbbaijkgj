@@ -13,6 +13,7 @@ export const dynamic = 'force-dynamic';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Dialog, Toast } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { BH_TOKENS } from '@/lib/health-tokens';
@@ -93,22 +94,22 @@ export default function GuardianTargetDetailPage() {
       setSetting(res.data || res);
       Toast.show({ content: '已保存', icon: 'success', duration: 800 });
     } catch {
-      Toast.show({ content: '保存失败', icon: 'fail' });
+      showToast('保存失败', 'fail');
     }
   };
 
   const remindBind = async () => {
     try {
       await api.post(`/api/health-archive/guardian/${targetId}/devices/remind-bind`);
-      Toast.show({ content: '已提醒 TA 绑定设备', icon: 'success' });
+      showToast('已提醒 TA 绑定设备');
     } catch {
-      Toast.show({ content: '操作失败，请稍后再试', icon: 'fail' });
+      showToast('操作失败，请稍后再试', 'fail');
     }
   };
 
   const cancelManagement = async () => {
     if (managementId == null) {
-      Toast.show({ content: '未找到守护关系', icon: 'fail' });
+      showToast('未找到守护关系', 'fail');
       return;
     }
     const result = await Dialog.confirm({
@@ -118,10 +119,10 @@ export default function GuardianTargetDetailPage() {
     if (!result) return;
     try {
       await api.delete(`/api/family/management/${managementId}`);
-      Toast.show({ content: '已解除守护', icon: 'success' });
+      showToast('已解除守护');
       setTimeout(() => router.back(), 800);
     } catch {
-      Toast.show({ content: '操作失败，请稍后再试', icon: 'fail' });
+      showToast('操作失败，请稍后再试', 'fail');
     }
   };
 

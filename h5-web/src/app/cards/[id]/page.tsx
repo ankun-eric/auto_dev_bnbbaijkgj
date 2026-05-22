@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Button, Empty, SpinLoading, Tag, Toast } from 'antd-mobile';
+import { Button, Empty, SpinLoading, Tag } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import CardFace from '@/components/card/CardFace';
 import api from '@/lib/api';
@@ -57,7 +58,7 @@ export default function CardDetailPage() {
         const res: any = await api.get(`/api/cards/${id}`);
         setCard(res.data || res);
       } catch (e: any) {
-        Toast.show({ content: e?.response?.data?.detail || '加载失败' });
+        showToast(e?.response?.data?.detail || '加载失败');
       } finally {
         setLoading(false);
       }
@@ -65,10 +66,7 @@ export default function CardDetailPage() {
   }, [id]);
 
   const onBuy = () => {
-    Toast.show({
-      content: '购卡功能将在第 2 期开放，敬请期待',
-      position: 'center',
-    });
+    showToast('购卡功能将在第 2 期开放，敬请期待');
   };
 
   if (loading) {

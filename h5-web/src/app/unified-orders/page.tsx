@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Tabs, Card, Tag, Image, Button, Empty, SpinLoading, InfiniteScroll, Toast, Dialog, Badge } from 'antd-mobile';
+import { Tabs, Card, Tag, Image, Button, Empty, SpinLoading, InfiniteScroll, Dialog, Badge } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import ContactStoreModal from '@/app/orders/components/ContactStoreModal';
@@ -205,12 +206,12 @@ function UnifiedOrdersPage() {
   const handlePay = async (orderId: number) => {
     try {
       await api.post(`/api/orders/unified/${orderId}/pay`, { payment_method: 'wechat' });
-      Toast.show({ content: '支付成功' });
+      showToast('支付成功');
       setLoading(true);
       setPage(1);
       fetchOrders(1, true);
     } catch (err: any) {
-      Toast.show({ content: err?.response?.data?.detail || '支付失败' });
+      showToast(err?.response?.data?.detail || '支付失败');
     }
   };
 
@@ -222,12 +223,12 @@ function UnifiedOrdersPage() {
       onConfirm: async () => {
         try {
           await api.post(`/api/orders/unified/${orderId}/cancel`, {});
-          Toast.show({ content: '已取消' });
+          showToast('已取消');
           setLoading(true);
           setPage(1);
           fetchOrders(1, true);
         } catch (err: any) {
-          Toast.show({ content: err?.response?.data?.detail || '取消失败' });
+          showToast(err?.response?.data?.detail || '取消失败');
         }
       },
     });
@@ -236,12 +237,12 @@ function UnifiedOrdersPage() {
   const handleConfirmReceipt = async (orderId: number) => {
     try {
       await api.post(`/api/orders/unified/${orderId}/confirm`);
-      Toast.show({ content: '已确认收货' });
+      showToast('已确认收货');
       setLoading(true);
       setPage(1);
       fetchOrders(1, true);
     } catch {
-      Toast.show({ content: '操作失败' });
+      showToast('操作失败');
     }
   };
 
@@ -254,11 +255,11 @@ function UnifiedOrdersPage() {
       const status = data?.status;
       const items: any[] = data?.available_items || [];
       if (status === 'all_unavailable' || items.length === 0) {
-        Toast.show({ content: data?.message || '商品已全部下架，无法再来一单' });
+        showToast(data?.message || '商品已全部下架，无法再来一单');
         return;
       }
       if (status === 'partial_filtered') {
-        Toast.show({ content: data?.message || '部分商品已下架，已为您过滤' });
+        showToast(data?.message || '部分商品已下架，已为您过滤');
       }
       // checkout 页是单品流转：取首品作为复购入口（携带 sku_id/quantity）
       const first = items[0];
@@ -272,11 +273,11 @@ function UnifiedOrdersPage() {
       const status = err?.response?.status;
       if (status === 401 || status === 403) {
         // 登录态过期：跳登录页（登录成功后用户回到本页面继续点击）
-        Toast.show({ content: '请先登录' });
+        showToast('请先登录');
         router.push(`/login?redirect=${encodeURIComponent('/unified-orders')}`);
         return;
       }
-      Toast.show({ content: err?.response?.data?.detail || '网络异常，请稍后重试' });
+      showToast(err?.response?.data?.detail || '网络异常，请稍后重试');
     }
   };
 
@@ -368,7 +369,7 @@ function UnifiedOrdersPage() {
             disabled
             onClick={(e) => {
               e.stopPropagation();
-              Toast.show({ content: '本订单已达改期上限' });
+              showToast('本订单已达改期上限');
             }}
             style={{ borderRadius: 16, fontSize: 12, color: '#bfbfbf', borderColor: '#d9d9d9' }}
           >
@@ -443,12 +444,12 @@ function UnifiedOrdersPage() {
               onConfirm: async () => {
                 try {
                   await api.post(`/api/orders/unified/${order.id}/refund/cancel`, {});
-                  Toast.show({ content: '已撤销' });
+                  showToast('已撤销');
                   setLoading(true);
                   setPage(1);
                   fetchOrders(1, true);
                 } catch (err: any) {
-                  Toast.show({ content: err?.response?.data?.detail || '撤销失败' });
+                  showToast(err?.response?.data?.detail || '撤销失败');
                 }
               },
             });

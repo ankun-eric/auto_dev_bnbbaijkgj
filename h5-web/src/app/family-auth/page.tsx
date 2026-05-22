@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { NavBar, Toast, Button, Dialog, Result } from 'antd-mobile';
+import { NavBar, Button, Dialog, Result } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 
 interface InvitationDetail {
@@ -97,10 +98,10 @@ function FamilyAuthContent() {
     try {
       await api.post(`/api/family/invitation/${code}/accept`);
       setStatus('accepted');
-      Toast.show({ content: '已接受邀请', icon: 'success' });
+      showToast('已接受邀请', 'success');
     } catch (err: any) {
       const detail = err?.response?.data?.detail || '操作失败，请重试';
-      Toast.show({ content: detail, icon: 'fail' });
+      showToast(detail, 'fail');
     }
     setSubmitting(false);
   };
@@ -117,7 +118,7 @@ function FamilyAuthContent() {
       setStatus('rejected');
     } catch (err: any) {
       const detail = err?.response?.data?.detail || '操作失败，请重试';
-      Toast.show({ content: detail, icon: 'fail' });
+      showToast(detail, 'fail');
     }
     setSubmitting(false);
   };

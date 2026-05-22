@@ -12,7 +12,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { List, Empty, PullToRefresh, Toast, Tag } from 'antd-mobile';
+import { List, Empty, PullToRefresh, Tag } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 import GreenNavBar from '@/components/GreenNavBar';
 import { parseServerTime, formatDate } from '@/lib/datetime';
@@ -62,7 +63,7 @@ export default function NotificationsPage() {
       const resp = await api.get('/api/notifications', { params: { page: 1, page_size: 50 } });
       setItems(resp.data.items || []);
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '加载失败' });
+      showToast(e?.response?.data?.detail || '加载失败', 'fail');
     } finally {
       setLoading(false);
     }
@@ -75,10 +76,10 @@ export default function NotificationsPage() {
   const markAllRead = async () => {
     try {
       await api.put('/api/notifications/read-all');
-      Toast.show({ content: '已全部标记为已读' });
+      showToast('已全部标记为已读');
       await load();
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '操作失败' });
+      showToast(e?.response?.data?.detail || '操作失败', 'fail');
     }
   };
 

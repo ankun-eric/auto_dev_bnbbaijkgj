@@ -3,7 +3,8 @@
 // [2026-04-24] 移动端 - P2 页面兜底提示：请用 PC 访问
 
 import React from 'react';
-import { NavBar, Button, Toast } from 'antd-mobile';
+import { NavBar, Button } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { useRouter } from 'next/navigation';
 
 export default function PcOnlyPage({
@@ -21,8 +22,8 @@ export default function PcOnlyPage({
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
     const url = `${window.location.origin}${basePath}${pcPath}?desktop=1`;
     navigator.clipboard?.writeText(url).then(
-      () => Toast.show({ icon: 'success', content: 'PC 端链接已复制' }),
-      () => Toast.show({ content: url })
+      () => showToast('PC 端链接已复制', 'success'),
+      () => showToast(url)
     );
   };
 

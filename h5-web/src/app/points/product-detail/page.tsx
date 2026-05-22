@@ -22,10 +22,10 @@ import {
   Dialog,
   Swiper,
   Tag,
-  Toast,
   SpinLoading,
   Empty,
 } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
@@ -100,10 +100,7 @@ function PointsProductDetailInner() {
       const data = res?.data || res || {};
       setItem(data);
     } catch (err: any) {
-      Toast.show({
-        content: err?.response?.data?.detail || '加载失败',
-        icon: 'fail',
-      });
+      showToast(err?.response?.data?.detail || '加载失败', 'fail');
       setItem(null);
     } finally {
       setLoading(false);
@@ -134,7 +131,7 @@ function PointsProductDetailInner() {
         );
         content = `积分不足，还差 ${diff} 分`;
       }
-      Toast.show({ content });
+      showToast(content);
       return;
     }
 
@@ -153,15 +150,12 @@ function PointsProductDetailInner() {
         goods_id: item.id,
         quantity: 1,
       });
-      Toast.show({ content: '兑换成功', icon: 'success' });
+      showToast('兑换成功', 'success');
       setTimeout(() => {
         router.push('/points/detail?tab=exchange');
       }, 800);
     } catch (err: any) {
-      Toast.show({
-        content: err?.response?.data?.detail || '兑换失败',
-        icon: 'fail',
-      });
+      showToast(err?.response?.data?.detail || '兑换失败', 'fail');
     } finally {
       setExchanging(false);
     }

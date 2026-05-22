@@ -9,8 +9,8 @@ import {
   TextArea,
   ImageUploader,
   Button,
-  Toast,
 } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import type { ImageUploadItem } from 'antd-mobile/es/components/image-uploader';
 import api from '@/lib/api';
 
@@ -30,7 +30,7 @@ export default function ReviewPage() {
 
   const handleSubmit = async () => {
     if (rating < 1) {
-      Toast.show({ content: '请选择评分' });
+      showToast('请选择评分');
       return;
     }
     setSubmitting(true);
@@ -41,10 +41,10 @@ export default function ReviewPage() {
         images: images.length > 0 ? images.map((img) => img.url) : undefined,
       };
       await api.post(`/api/orders/unified/${orderId}/review`, reviewData);
-      Toast.show({ content: '评价成功', icon: 'success' });
+      showToast('评价成功', 'success');
       router.back();
     } catch (err: any) {
-      Toast.show({ content: err?.response?.data?.detail || '评价失败' });
+      showToast(err?.response?.data?.detail || '评价失败');
     } finally {
       setSubmitting(false);
     }

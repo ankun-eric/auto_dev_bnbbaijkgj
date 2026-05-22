@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { NavBar, Toast, Button, Dialog, TextArea, Empty, DotLoading, Tag, Popup, DatePicker, Selector } from 'antd-mobile';
+import { NavBar, Button, Dialog, TextArea, Empty, DotLoading, Tag, Popup, DatePicker, Selector } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { useRouter, useParams } from 'next/navigation';
 import api from '@/lib/api';
 import { getCurrentStoreId, statusMap } from '../../mobile-lib';
@@ -118,7 +119,7 @@ export default function OrderDetailMobilePage() {
       const res: any = await api.get(`/api/merchant/orders/${orderId}/detail`, { params });
       setOrder(res);
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: '订单加载失败' });
+      showToast('订单加载失败', 'fail');
     } finally {
       setLoading(false);
     }
@@ -150,10 +151,10 @@ export default function OrderDetailMobilePage() {
       const confirmParams: any = {};
       if (sid) confirmParams.store_id = sid;
       await api.post(`/api/merchant/orders/${orderId}/confirm`, null, { params: confirmParams });
-      Toast.show({ icon: 'success', content: '已确认接单' });
+      showToast('已确认接单', 'success');
       loadOrder();
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '确认失败' });
+      showToast(e?.response?.data?.detail || '确认失败', 'fail');
     } finally {
       setConfirming(false);
     }
@@ -192,13 +193,13 @@ export default function OrderDetailMobilePage() {
 
   const submitAdjustTime = async () => {
     if (!order || !apptDate) {
-      Toast.show({ content: '请选择预约日期' });
+      showToast('请选择预约日期');
       return;
     }
     const mode = order.appointment_mode || 'time_slot';
     const isTimeSlotMode = mode === 'time_slot';
     if (isTimeSlotMode && !apptSlot) {
-      Toast.show({ content: '请选择预约时段' });
+      showToast('请选择预约时段');
       return;
     }
     setApptSubmitting(true);
@@ -215,13 +216,13 @@ export default function OrderDetailMobilePage() {
         payload.new_time_slot = apptSlot;
       }
       await api.put(`/api/merchant/orders/${orderId}/appointment-time`, payload, { params: adjustParams });
-      Toast.show({ icon: 'success', content: '改约成功' });
+      showToast('改约成功', 'success');
       setShowApptPopup(false);
       loadOrder();
     } catch (e: any) {
       const detail = e?.response?.data?.detail;
       const msg = typeof detail === 'string' ? detail : (detail?.message || '改约失败');
-      Toast.show({ icon: 'fail', content: msg });
+      showToast(msg, 'fail');
     } finally {
       setApptSubmitting(false);
     }
@@ -229,7 +230,7 @@ export default function OrderDetailMobilePage() {
 
   const handleSubmitNote = async () => {
     if (!noteText.trim()) {
-      Toast.show({ content: '请输入备注内容' });
+      showToast('请输入备注内容');
       return;
     }
     setSubmittingNote(true);
@@ -238,11 +239,11 @@ export default function OrderDetailMobilePage() {
       const noteParams: any = {};
       if (noteSid) noteParams.store_id = noteSid;
       await api.post(`/api/merchant/orders/${orderId}/notes`, { content: noteText.trim() }, { params: noteParams });
-      Toast.show({ icon: 'success', content: '备注已添加' });
+      showToast('备注已添加', 'success');
       setNoteText('');
       loadNotes();
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '添加备注失败' });
+      showToast(e?.response?.data?.detail || '添加备注失败', 'fail');
     } finally {
       setSubmittingNote(false);
     }

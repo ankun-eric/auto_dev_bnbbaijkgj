@@ -11,13 +11,13 @@ import {
   Input,
   TextArea,
   Button,
-  Toast,
   List,
   Tag,
   Image,
   Picker,
   Selector,
 } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { resolveAssetUrl } from '@/lib/asset-url';
@@ -113,7 +113,7 @@ export default function StoreSettingsMobilePage() {
     } catch (e: any) {
       const detail = e?.response?.data?.detail;
       const msg = typeof detail === 'string' ? detail : detail?.msg || '加载失败';
-      Toast.show({ icon: 'fail', content: msg });
+      showToast(msg, 'fail');
     } finally {
       setLoading(false);
     }
@@ -137,7 +137,7 @@ export default function StoreSettingsMobilePage() {
 
   const save = async () => {
     if (!info?.can_edit) {
-      Toast.show({ content: '仅老板可修改店铺信息' });
+      showToast('仅老板可修改店铺信息');
       return;
     }
     let values: any;
@@ -147,11 +147,11 @@ export default function StoreSettingsMobilePage() {
       return;
     }
     if (!bsStart || !bsEnd) {
-      Toast.show({ icon: 'fail', content: '请选择营业开始 / 结束时间' });
+      showToast('请选择营业开始 / 结束时间', 'fail');
       return;
     }
     if (bsEnd <= bsStart) {
-      Toast.show({ icon: 'fail', content: '结束时间必须晚于开始时间' });
+      showToast('结束时间必须晚于开始时间', 'fail');
       return;
     }
     try {
@@ -173,20 +173,17 @@ export default function StoreSettingsMobilePage() {
       setBsEnd(updated.business_end || bsEnd);
       setScope(Array.isArray(updated.business_scope) ? updated.business_scope : []);
       setEditing(false);
-      Toast.show({ icon: 'success', content: '保存成功' });
+      showToast('保存成功', 'success');
       const affected = Number(updated?.affected_appointments || 0);
       if (affected > 0) {
         setTimeout(() => {
-          Toast.show({
-            content: `您有 ${affected} 单预约时间已不在新营业范围内，建议联系客户`,
-            duration: 5000,
-          });
+          showToast(`您有 ${affected} 单预约时间已不在新营业范围内，建议联系客户`);
         }, 600);
       }
     } catch (e: any) {
       const detail = e?.response?.data?.detail;
       const msg = typeof detail === 'string' ? detail : detail?.msg || '保存失败';
-      Toast.show({ icon: 'fail', content: msg });
+      showToast(msg, 'fail');
     } finally {
       setSaving(false);
     }

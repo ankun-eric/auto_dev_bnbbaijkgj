@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, Dialog, Toast, Checkbox } from 'antd-mobile';
+import { NavBar, Dialog, Checkbox } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { THEME } from '@/lib/theme';
 import api from '@/lib/api';
 import { parseServerTime, formatDate } from '@/lib/datetime';
@@ -72,11 +73,11 @@ export default function ChatHistoryPage() {
 
     try {
       await api.post('/api/chat-sessions/batch-delete', { session_ids: ids.map(Number) });
-      Toast.show({ content: '删除成功', icon: 'success' });
+      showToast('删除成功', 'success');
       setSelected(new Set());
       fetchList();
     } catch {
-      Toast.show({ content: '删除失败', icon: 'fail' });
+      showToast('删除失败', 'fail');
     }
   };
 
@@ -85,10 +86,10 @@ export default function ChatHistoryPage() {
     if (!confirmed) return;
     try {
       await api.delete('/api/chat-sessions/clear-all');
-      Toast.show({ content: '已清空', icon: 'success' });
+      showToast('已清空', 'success');
       setItems([]);
     } catch {
-      Toast.show({ content: '操作失败', icon: 'fail' });
+      showToast('操作失败', 'fail');
     }
   };
 
@@ -97,7 +98,7 @@ export default function ChatHistoryPage() {
       await api.put(`/api/chat-sessions/${id}/pin`, { is_pinned: pin });
       fetchList();
     } catch {
-      Toast.show({ content: '操作失败', icon: 'fail' });
+      showToast('操作失败', 'fail');
     }
     setLongPressId(null);
   };

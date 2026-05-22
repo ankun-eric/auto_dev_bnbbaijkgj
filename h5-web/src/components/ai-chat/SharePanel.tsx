@@ -1,6 +1,7 @@
 'use client';
 
-import { Popup, Toast } from 'antd-mobile';
+import { Popup } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { THEME } from '@/lib/theme';
 import { SvgGradientDefs, AI_ACTION_BAR_GRADIENT_ID } from './AiActionBar';
 
@@ -73,14 +74,14 @@ export default function SharePanel({ visible, onClose, url }: SharePanelProps) {
       kind: 'wechat',
       label: '微信好友',
       action: () => {
-        Toast.show({ content: '请在微信中打开分享' });
+        showToast('请在微信中打开分享');
       },
     },
     {
       kind: 'moments',
       label: '朋友圈',
       action: () => {
-        Toast.show({ content: '请在微信中打开分享' });
+        showToast('请在微信中打开分享');
       },
     },
     {
@@ -88,9 +89,9 @@ export default function SharePanel({ visible, onClose, url }: SharePanelProps) {
       label: '复制链接',
       action: () => {
         navigator.clipboard?.writeText(shareUrl).then(() => {
-          Toast.show({ content: '链接已复制', icon: 'success' });
+          showToast('链接已复制', 'success');
         }).catch(() => {
-          Toast.show({ content: '复制失败' });
+          showToast('复制失败');
         });
       },
     },
@@ -98,7 +99,7 @@ export default function SharePanel({ visible, onClose, url }: SharePanelProps) {
       kind: 'poster',
       label: '生成海报',
       action: () => {
-        Toast.show({ content: '海报生成中...' });
+        showToast('海报生成中...');
       },
     },
   ];

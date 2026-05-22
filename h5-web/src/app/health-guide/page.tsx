@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Toast, DatePicker, Input } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 import DiseaseTagSelector, { type DiseaseItem } from '@/components/DiseaseTagSelector';
 
@@ -163,7 +164,7 @@ export default function HealthGuidePage() {
     }
     setStep1Errors(errors);
     if (missing.length > 0) {
-      Toast.show({ content: `请填写：${missing.join('、')}` });
+      showToast(`请填写：${missing.join('、')}`, 'warning');
       return false;
     }
     return true;
@@ -177,7 +178,7 @@ export default function HealthGuidePage() {
       setStep1Errors({});
       setCurrentStep((s) => s + 1);
     } catch {
-      Toast.show({ content: '保存失败，请重试' });
+      showToast('保存失败，请重试', 'fail');
     } finally {
       setSubmitting(false);
     }
@@ -191,7 +192,7 @@ export default function HealthGuidePage() {
       Toast.show({ content: '档案完善成功 ✓', duration: 2000 });
       setTimeout(() => router.replace('/ai-home'), 1500);
     } catch {
-      Toast.show({ content: '提交失败，请重试' });
+      showToast('提交失败，请重试', 'fail');
     } finally {
       setSubmitting(false);
     }

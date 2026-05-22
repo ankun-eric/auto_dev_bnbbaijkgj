@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, Tag, Button, Empty, SpinLoading, InfiniteScroll, Toast } from 'antd-mobile';
+import { Card, Tag, Button, Empty, SpinLoading, InfiniteScroll } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { jumpToUseCoupon } from '@/lib/coupon';
@@ -105,14 +106,14 @@ export default function PointsExchangeRecordsPage() {
 
   const handleAppointment = (r: ExchangeRecord) => {
     if (r.status === 'expired') {
-      Toast.show({ content: '该服务券已过期' });
+      showToast('该服务券已过期');
       return;
     }
     const fn = r.ref_service_type && SERVICE_ROUTE[r.ref_service_type];
     if (fn && r.ref_service_id) {
       router.push(fn(r.ref_service_id));
     } else {
-      Toast.show({ content: '暂无对应预约入口' });
+      showToast('暂无对应预约入口');
     }
   };
 
@@ -130,7 +131,7 @@ export default function PointsExchangeRecordsPage() {
   const handleUseButton = (r: ExchangeRecord) => {
     const state = r.use_button_state || 'normal';
     if (state === 'offline') {
-      Toast.show({ content: '该商品已下架' });
+      showToast('该商品已下架');
       return;
     }
     if (state === 'redirect_replaced' && r.use_button_target) {
@@ -254,7 +255,7 @@ export default function PointsExchangeRecordsPage() {
                                       if (ucId) {
                                         jumpToUseCoupon(router, ucId);
                                       } else {
-                                        Toast.show({ content: '券信息缺失，无法跳转' });
+                                        showToast('券信息缺失，无法跳转');
                                       }
                                     }}
                                     style={{

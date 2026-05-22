@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Toast } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 
 const PRIMARY = '#0EA5E9';
 
@@ -88,7 +88,7 @@ export default function CycleDrawer({
   const submit = () => {
     const s = parseISO(start);
     if (!s) {
-      Toast.show({ content: '请选择开始日期' });
+      showToast('请选择开始日期');
       return;
     }
     if (longTerm) {
@@ -97,11 +97,11 @@ export default function CycleDrawer({
     }
     const e = parseISO(end);
     if (!e) {
-      Toast.show({ content: '请选择结束日期' });
+      showToast('请选择结束日期');
       return;
     }
     if (e.getTime() < s.getTime()) {
-      Toast.show({ content: '结束日期不能早于开始日期' });
+      showToast('结束日期不能早于开始日期');
       return;
     }
     onConfirm({ startDate: start, endDate: end, isLongTerm: false });

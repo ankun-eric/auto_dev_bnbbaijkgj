@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { NavBar, Toast, Button } from 'antd-mobile';
+import { NavBar, Button } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { QRCodeCanvas } from 'qrcode.react';
 import api from '@/lib/api';
 
@@ -61,9 +62,9 @@ function FamilyInviteContent() {
     if (!inviteLink) return;
     try {
       await navigator.clipboard.writeText(inviteLink);
-      Toast.show({ content: '链接已复制', icon: 'success' });
+      showToast('链接已复制');
     } catch {
-      Toast.show({ content: '复制失败，请手动复制', icon: 'fail' });
+      showToast('复制失败，请手动复制', 'fail');
     }
   };
 
@@ -77,7 +78,7 @@ function FamilyInviteContent() {
   const handleSaveImage = useCallback(() => {
     const canvas = qrCanvasRef.current?.querySelector('canvas');
     if (!canvas) {
-      Toast.show({ content: '二维码未生成', icon: 'fail' });
+      showToast('二维码未生成', 'fail');
       return;
     }
     try {
@@ -86,14 +87,14 @@ function FamilyInviteContent() {
       link.download = `bini-health-invite-${invitation?.invite_code?.slice(0, 8) || 'qr'}.png`;
       link.href = url;
       link.click();
-      Toast.show({ content: '图片已保存', icon: 'success' });
+      showToast('图片已保存');
     } catch {
-      Toast.show({ content: '保存失败，请截图保存', icon: 'fail' });
+      showToast('保存失败，请截图保存', 'fail');
     }
   }, [invitation]);
 
   const handleShareWechat = () => {
-    Toast.show({ content: '请点击右上角"..."分享给微信好友' });
+    showToast('请点击右上角"..."分享给微信好友');
   };
 
   return (

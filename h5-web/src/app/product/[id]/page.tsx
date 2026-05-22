@@ -11,12 +11,12 @@ import {
   Card,
   Rate,
   Button,
-  Toast,
   SpinLoading,
   Divider,
   Popup,
   List,
 } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { HeartOutline, HeartFill } from 'antd-mobile-icons';
 import api from '@/lib/api';
 import MarketingBadge from '@/components/MarketingBadge';
@@ -102,7 +102,7 @@ function ProductDetailPage() {
         if (def) setSelectedSkuId(def.id);
       }
     }).catch(() => {
-      Toast.show({ content: '加载失败' });
+      showToast('加载失败', 'fail');
     }).finally(() => setLoading(false));
 
     // 收藏状态回显
@@ -121,9 +121,9 @@ function ProductDetailPage() {
       const msg = data.is_favorited
         ? '收藏成功，可在「我的-收藏」中查看'
         : (data.message || '已取消收藏');
-      Toast.show({ content: msg });
+      showToast(msg);
     } catch {
-      Toast.show({ content: '操作失败' });
+      showToast('操作失败', 'fail');
     }
   };
 
@@ -131,7 +131,7 @@ function ProductDetailPage() {
     const couponSuffix = couponIdParam ? `&couponId=${couponIdParam}` : '';
     if (product?.spec_mode === 2) {
       if (!selectedSkuId) {
-        Toast.show({ content: '请选择规格' });
+        showToast('请选择规格', 'warning');
         return;
       }
       router.push(`/checkout?product_id=${productId}&quantity=1&sku_id=${selectedSkuId}${couponSuffix}`);

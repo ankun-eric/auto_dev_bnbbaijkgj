@@ -5,7 +5,8 @@
 // 使用已安装的 html5-qrcode 库
 
 import React, { Suspense, useEffect, useRef, useState } from 'react';
-import { Tabs, Input, Button, Toast, Dialog, Empty } from 'antd-mobile';
+import { Tabs, Input, Button, Dialog, Empty } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { getCurrentStoreId } from '../mobile-lib';
@@ -106,7 +107,7 @@ function VerifyMobilePage() {
       // 会员码扫到 → 先验证
       if (text.startsWith('MEMBER:') || /^\d{10,}$/.test(text)) {
         const res: any = await api.post('/api/verify/member-qrcode', { qr_code: text });
-        Toast.show({ icon: 'success', content: '识别成功：' + (res?.nickname || '会员') });
+        showToast('识别成功：' + (res?.nickname || '会员'), 'success');
         // 成功后停止扫描并显示结果；这里做简化跳转：切换输码面板等待后续流程
         await stopScanner();
         setTab('input');
@@ -119,7 +120,7 @@ function VerifyMobilePage() {
         code: text,
         store_id: sid || undefined,
       });
-      Toast.show({ icon: 'success', content: '核销成功' });
+      showToast('核销成功', 'success');
       Dialog.alert({
         title: '核销成功',
         content: `订单：${res?.order_no || text}`,
@@ -149,7 +150,7 @@ function VerifyMobilePage() {
 
   const submitCode = async () => {
     if (!code.trim()) {
-      Toast.show({ content: '请输入核销码' });
+      showToast('请输入核销码');
       return;
     }
     setLoading(true);
@@ -159,7 +160,7 @@ function VerifyMobilePage() {
         code: code.trim(),
         store_id: sid || undefined,
       });
-      Toast.show({ icon: 'success', content: '核销成功' });
+      showToast('核销成功', 'success');
       Dialog.alert({ title: '核销成功', content: `订单：${res?.order_no || code}` });
       setCode('');
     } catch (e: any) {

@@ -4,7 +4,8 @@
 // 数据来源：GET /api/merchant/profile
 
 import React, { useEffect, useState } from 'react';
-import { NavBar, List, Tag, Toast, Button } from 'antd-mobile';
+import { NavBar, List, Tag, Button } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
@@ -34,7 +35,7 @@ export default function MerchantMobileProfilePage() {
     api
       .get<MerchantProfileFull, MerchantProfileFull>('/api/merchant/profile')
       .then(setData)
-      .catch((e: any) => Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '加载失败' }))
+      .catch((e: any) => showToast(e?.response?.data?.detail || '加载失败', 'fail'))
       .finally(() => setLoading(false));
   }, []);
 

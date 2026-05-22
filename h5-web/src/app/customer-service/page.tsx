@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Input, Button, SpinLoading, Toast } from 'antd-mobile';
+import { Input, Button, SpinLoading } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 
 import GreenNavBar from '@/components/GreenNavBar';
 interface Message {
@@ -82,7 +83,7 @@ export default function CustomerServicePage() {
       time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
     };
     setMessages((prev) => [...prev, sysMsg]);
-    Toast.show({ content: '已为您转接人工客服' });
+    showToast('已为您转接人工客服');
   };
 
   return (

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Toast, Dialog, Button } from 'antd-mobile';
+import { Dialog, Button } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { formatDate as fmtServerDate } from '@/lib/datetime';
@@ -44,10 +45,10 @@ export default function FamilyBindListPage() {
     if (!result) return;
     try {
       await api.delete(`/api/family/management/${item.id}`);
-      Toast.show({ content: '已取消授权', icon: 'success' });
+      showToast('已取消授权', 'success');
       await fetchList();
     } catch {
-      Toast.show({ content: '操作失败，请重试', icon: 'fail' });
+      showToast('操作失败，请重试', 'fail');
     }
   };
 

@@ -20,7 +20,8 @@
 
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button, Card, Toast, NavBar, SpinLoading } from 'antd-mobile';
+import { Button, Card, NavBar, SpinLoading } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 
 export default function SandboxPayWrapper() {
@@ -41,7 +42,7 @@ function SandboxPayPage() {
 
   const onConfirm = async () => {
     if (!orderNo) {
-      Toast.show({ content: '订单号缺失' });
+      showToast('订单号缺失');
       return;
     }
     setConfirming(true);
@@ -61,7 +62,7 @@ function SandboxPayPage() {
         router.replace('/unified-orders');
       }
     } catch (err: any) {
-      Toast.show({ content: err?.response?.data?.detail || '支付确认失败' });
+      showToast(err?.response?.data?.detail || '支付确认失败');
     } finally {
       setConfirming(false);
     }

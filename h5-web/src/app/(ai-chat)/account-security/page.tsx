@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, List, Dialog, Toast, Button, Input } from 'antd-mobile';
+import { NavBar, List, Dialog, Button, Input } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { THEME } from '@/lib/theme';
 import { useAuth } from '@/lib/auth';
 import api from '@/lib/api';
@@ -40,19 +41,19 @@ export default function AccountSecurityPage() {
         });
       }, 1000);
     } catch {
-      Toast.show({ content: '发送失败', icon: 'fail' });
+      showToast('发送失败', 'fail');
     }
   };
 
   const handleDeactivate = async () => {
-    if (!verifyCode) { Toast.show({ content: '请输入验证码' }); return; }
+    if (!verifyCode) { showToast('请输入验证码'); return; }
     try {
       await api.post('/api/user/deactivate', { code: verifyCode });
-      Toast.show({ content: '账号已注销' });
+      showToast('账号已注销');
       localStorage.clear();
       router.replace('/login');
     } catch {
-      Toast.show({ content: '注销失败', icon: 'fail' });
+      showToast('注销失败', 'fail');
     }
   };
 
@@ -63,12 +64,12 @@ export default function AccountSecurityPage() {
       try {
         await api.post('/api/user/unbind-wechat');
         setWechatBound(false);
-        Toast.show({ content: '已解绑', icon: 'success' });
+        showToast('已解绑', 'success');
       } catch {
-        Toast.show({ content: '解绑失败', icon: 'fail' });
+        showToast('解绑失败', 'fail');
       }
     } else {
-      Toast.show({ content: '请在微信中完成绑定' });
+      showToast('请在微信中完成绑定');
     }
   };
 

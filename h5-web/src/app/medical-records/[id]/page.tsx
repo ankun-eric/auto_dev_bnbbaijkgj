@@ -15,7 +15,8 @@ export const dynamic = 'force-dynamic';
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Toast, Dialog } from 'antd-mobile';
+import { Dialog } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import {
   MedicalRecordDetail,
@@ -51,7 +52,7 @@ export default function MedicalRecordDetailPage() {
       setDraftTitle(d.title);
       setDraftRemark(d.remark || '');
     } catch {
-      Toast.show({ icon: 'fail', content: '资料不存在或加载失败' });
+      showToast('资料不存在或加载失败', 'fail');
     } finally {
       setLoading(false);
     }
@@ -62,11 +63,11 @@ export default function MedicalRecordDetailPage() {
   const saveEdit = useCallback(async () => {
     try {
       await patchRecord(id, { title: draftTitle, remark: draftRemark });
-      Toast.show({ icon: 'success', content: '已保存' });
+      showToast('已保存');
       setEditing(false);
       load();
     } catch {
-      Toast.show({ icon: 'fail', content: '保存失败' });
+      showToast('保存失败', 'fail');
     }
   }, [id, draftTitle, draftRemark, load]);
 
@@ -75,10 +76,10 @@ export default function MedicalRecordDetailPage() {
     if (!ok) return;
     try {
       await softDeleteRecord(id);
-      Toast.show({ icon: 'success', content: '已移入回收站' });
+      showToast('已移入回收站');
       router.back();
     } catch {
-      Toast.show({ icon: 'fail', content: '删除失败' });
+      showToast('删除失败', 'fail');
     }
   }, [id, router]);
 

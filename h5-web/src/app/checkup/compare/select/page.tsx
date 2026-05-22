@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { NavBar, Toast, SpinLoading, Empty } from 'antd-mobile';
+import { NavBar, SpinLoading, Empty } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 import { resolveAssetUrl } from '@/lib/asset-url';
 import { formatDateTime } from '@/lib/datetime';
@@ -61,7 +62,7 @@ function CompareSelectContent() {
         );
         setMemberCounts(counts);
       } catch (e: any) {
-        Toast.show({ content: e?.message || '加载咨询人失败' });
+        showToast(e?.message || '加载咨询人失败');
       }
     })();
   }, []);
@@ -75,7 +76,7 @@ function CompareSelectContent() {
         const res: any = await api.get(`/api/member/${selectedMemberId}/reports?for_compare=1`);
         setReports(res?.items || []);
       } catch (e: any) {
-        Toast.show({ content: e?.message || '加载报告失败' });
+        showToast(e?.message || '加载报告失败');
       } finally {
         setLoading(false);
       }
@@ -94,7 +95,7 @@ function CompareSelectContent() {
         next.delete(rid);
       } else {
         if (next.size >= 2) {
-          Toast.show({ content: '最多只能选 2 份' });
+          showToast('最多只能选 2 份');
           return prev;
         }
         next.add(rid);
@@ -118,7 +119,7 @@ function CompareSelectContent() {
         router.replace(`/chat/${sid}?auto_start=1&type=report_compare`);
       }
     } catch (e: any) {
-      Toast.show({ content: e?.message || '创建对比会话失败' });
+      showToast(e?.message || '创建对比会话失败');
     } finally {
       setSubmitting(false);
     }
@@ -143,7 +144,7 @@ function CompareSelectContent() {
                   key={m.id}
                   onClick={() => {
                     if (disabled) {
-                      Toast.show({ content: '当前咨询人仅有不足 2 份报告，无法对比' });
+                      showToast('当前咨询人仅有不足 2 份报告，无法对比');
                       return;
                     }
                     setSelectedMemberId(m.id);

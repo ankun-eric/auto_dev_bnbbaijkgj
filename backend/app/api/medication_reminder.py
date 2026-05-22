@@ -185,52 +185,61 @@ async def delete_plan(
 @router.get("/today", response_model=List[TodayMedicationItem])
 async def today_medications(
     patient_id: Optional[int] = Query(None),
-    # [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F10/F11 2026-05-18]
-    # 增加 consultant_id 入参：与 patient_id 等价，按"咨询人 ID"维度筛选今日用药提醒。
-    # 同时传入时以 consultant_id 优先，兼容前端两种调用方式（识药卡片用 consultant_id，
-    # 历史调用方继续用 patient_id）。
     consultant_id: Optional[int] = Query(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """[BUG-MED-V1-FIX2 2026-05-22] 数据源切换到新表 MedicationReminder + MedicationCheckIn，
+    与 /badge 和 /medication-plans/today 保持完全一致的数据口径，彻底解决
+    首页 badge 显示 N 条 vs 此接口返回 0 条的不一致问题。
+    """
     today = date.today()
-    plan_stmt = (
-        select(MedicationPlan)
-        .where(MedicationPlan.user_id == current_user.id)
-        .where(MedicationPlan.enabled == True)  # noqa: E712
+    from app.api.medication_plans_v1 import (
+        _list_today_active_reminders,
+        _schedule_of,
+        _today_checkins,
     )
-    effective_pid = consultant_id if consultant_id is not None else patient_id
-    if effective_pid is not None:
-        plan_stmt = plan_stmt.where(MedicationPlan.patient_id == effective_pid)
-    plans = (await db.execute(plan_stmt)).scalars().all()
 
-    plan_ids = [p.id for p in plans]
-    logs_map: dict[tuple[int, str], MedicationLog] = {}
-    if plan_ids:
-        log_stmt = select(MedicationLog).where(
-            MedicationLog.plan_id.in_(plan_ids),
-            MedicationLog.log_date == today,
-            MedicationLog.user_id == current_user.id,
-            MedicationLog.revoked == False,  # noqa: E712
-        )
-        for log in (await db.execute(log_stmt)).scalars().all():
-            logs_map[(log.plan_id, log.scheduled_time)] = log
+    effective_cid = consultant_id if consultant_id is not None else patient_id
+    reminders = await _list_today_active_reminders(
+        db, current_user.id, today, consultant_id=effective_cid,
+    )
+    reminder_ids = {r.id for r in reminders}
+    all_checkins = await _today_checkins(db, current_user.id, today)
+    if effective_cid is not None and effective_cid != -1:
+        checkins = [c for c in all_checkins if c.reminder_id in reminder_ids]
+    else:
+        checkins = all_checkins
+
+    by_plan: dict[int, list] = {}
+    for c in checkins:
+        by_plan.setdefault(c.reminder_id, []).append(c)
 
     items: List[TodayMedicationItem] = []
-    for p in plans:
-        sched = list(p.schedule or [])
-        for t in sched:
-            log = logs_map.get((p.id, t))
+    for r in reminders:
+        schedule = _schedule_of(r)
+        used = sorted(
+            by_plan.get(r.id, []),
+            key=lambda x: x.check_in_time or x.created_at or datetime.min,
+        )
+        checked_map: dict[str, MedicationCheckIn] = {}
+        for i, c in enumerate(used):
+            if i >= len(schedule):
+                break
+            checked_map[schedule[i]] = c
+
+        for t in schedule:
+            c = checked_map.get(t)
             items.append(
                 TodayMedicationItem(
-                    plan_id=p.id,
-                    drug_name=p.drug_name,
-                    dosage=p.dosage,
+                    plan_id=r.id,
+                    drug_name=r.medicine_name or "",
+                    dosage=f"{r.dosage_value} {r.dosage_unit}" if r.dosage_value and r.dosage_unit else (r.dosage or ""),
                     scheduled_time=t,
-                    note=p.note,
-                    checked=bool(log),
-                    checked_at=log.checked_at.strftime("%H:%M") if log else None,
-                    log_id=log.id if log else None,
+                    note=r.note if hasattr(r, "note") else None,
+                    checked=bool(c),
+                    checked_at=c.check_in_time.strftime("%H:%M") if c and c.check_in_time else None,
+                    log_id=c.id if c else None,
                 )
             )
     items.sort(key=lambda x: (x.scheduled_time, x.plan_id))

@@ -13,7 +13,8 @@ export const dynamic = 'force-dynamic';
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Input, Popup, Toast, Switch } from 'antd-mobile';
+import { Button, Input, Popup, Switch } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMemberModal';
@@ -299,10 +300,10 @@ function EditMemberDrawer({
         body.relationship_type = draft.relationship_type || undefined;
       }
       await api.put(`/api/health/profile/member/${member.id}`, body);
-      Toast.show({ icon: 'success', content: '已保存' });
+      showToast('已保存');
       onSaved();
     } catch (e: any) {
-      Toast.show(e?.message || '保存失败');
+      showToast(e?.message || '保存失败', 'fail');
     } finally {
       setSaving(false);
     }
@@ -487,7 +488,7 @@ function AlertSettingsDrawer({ member, onClose }: { member: MemberItem | null; o
         const r: any = await api.get(`/api/family-archive-v2/member/${member.id}/alert-settings`);
         setSettings(r.data || r);
       } catch (e) {
-        Toast.show('加载提醒设置失败');
+        showToast('加载提醒设置失败', 'fail');
       }
     })();
   }, [member]);
@@ -501,10 +502,10 @@ function AlertSettingsDrawer({ member, onClose }: { member: MemberItem | null; o
         ai_call_timing: settings.ai_call_timing,
         guardian_alert_minutes: settings.guardian_alert_minutes,
       });
-      Toast.show({ icon: 'success', content: '已保存' });
+      showToast('已保存');
       onClose();
     } catch (e: any) {
-      Toast.show(e?.message || '保存失败');
+      showToast(e?.message || '保存失败', 'fail');
     } finally {
       setSaving(false);
     }
@@ -841,14 +842,14 @@ function UnbindDrawer({ member, onClose, onUnbound }: { member: MemberItem | nul
       setMasked(data.masked_phone);
       if (data.debug_code) {
         // 开发环境兜底
-        Toast.show(`验证码已发送（开发环境：${data.debug_code}）`);
+        showToast(`验证码已发送（开发环境：${data.debug_code}）`);
         setCode(data.debug_code);
       } else {
-        Toast.show('验证码已发送');
+        showToast('验证码已发送');
       }
       setCountdown(60);
     } catch (e: any) {
-      Toast.show(e?.message || '发送失败');
+      showToast(e?.message || '发送失败', 'fail');
     } finally {
       setSending(false);
     }
@@ -857,16 +858,16 @@ function UnbindDrawer({ member, onClose, onUnbound }: { member: MemberItem | nul
   const onConfirm = async () => {
     if (!member) return;
     if (!code || code.length < 4) {
-      Toast.show('请输入验证码');
+      showToast('请输入验证码', 'warning');
       return;
     }
     setConfirming(true);
     try {
       await api.post(`/api/family-archive-v2/member/${member.id}/unbind/confirm`, { code });
-      Toast.show({ icon: 'success', content: `已解除与 ${member.nickname || member.relationship_type} 的守护关系` });
+      showToast(`已解除与 ${member.nickname || member.relationship_type} 的守护关系`);
       onUnbound();
     } catch (e: any) {
-      Toast.show(e?.message || '验证码无效');
+      showToast(e?.message || '验证码无效', 'fail');
     } finally {
       setConfirming(false);
     }

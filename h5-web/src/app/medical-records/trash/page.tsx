@@ -12,7 +12,8 @@ export const dynamic = 'force-dynamic';
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Toast, Dialog } from 'antd-mobile';
+import { Dialog } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import {
   MedicalRecordItem,
@@ -36,7 +37,7 @@ function TrashInner() {
       const res = await listTrash(memberId);
       setItems(res.items || []);
     } catch {
-      Toast.show({ icon: 'fail', content: '加载失败' });
+      showToast('加载失败', 'fail');
     } finally {
       setLoading(false);
     }
@@ -47,9 +48,9 @@ function TrashInner() {
   const doRestore = useCallback(async (id: number) => {
     try {
       await restoreRecord(id);
-      Toast.show({ icon: 'success', content: '已恢复' });
+      showToast('已恢复');
       load();
-    } catch { Toast.show({ icon: 'fail', content: '恢复失败' }); }
+    } catch { showToast('恢复失败', 'fail'); }
   }, [load]);
 
   const doDelete = useCallback(async (id: number) => {
@@ -57,9 +58,9 @@ function TrashInner() {
     if (!ok) return;
     try {
       await permanentDelete(id);
-      Toast.show({ icon: 'success', content: '已彻底删除' });
+      showToast('已彻底删除');
       load();
-    } catch { Toast.show({ icon: 'fail', content: '删除失败' }); }
+    } catch { showToast('删除失败', 'fail'); }
   }, [load]);
 
   return (

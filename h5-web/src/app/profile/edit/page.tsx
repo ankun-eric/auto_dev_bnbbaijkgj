@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { NavBar, List, Input, Button, Toast, ImageUploader, Dialog } from 'antd-mobile';
+import { NavBar, List, Input, Button, ImageUploader, Dialog } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import type { ImageUploadItem } from 'antd-mobile/es/components/image-uploader';
 import { useAuth } from '@/lib/auth';
 import api from '@/lib/api';
@@ -34,14 +35,14 @@ export default function ProfileEditPage() {
       const data = res.data || res;
       return { url: resolveAssetUrl(data.url || data.file_url || '') };
     } catch {
-      Toast.show({ content: '上传失败' });
+      showToast('上传失败');
       throw new Error('upload failed');
     }
   };
 
   const handleSave = async () => {
     if (!nickname.trim()) {
-      Toast.show({ content: '请输入昵称' });
+      showToast('请输入昵称');
       return;
     }
     setSaving(true);
@@ -55,10 +56,10 @@ export default function ProfileEditPage() {
       if (user) {
         updateUser({ ...user, nickname: nickname.trim(), avatar: avatarUrl || user.avatar });
       }
-      Toast.show({ content: '保存成功', icon: 'success' });
+      showToast('保存成功', 'success');
       router.back();
     } catch (err: any) {
-      Toast.show({ content: err?.response?.data?.detail || '保存失败' });
+      showToast(err?.response?.data?.detail || '保存失败');
     } finally {
       setSaving(false);
     }

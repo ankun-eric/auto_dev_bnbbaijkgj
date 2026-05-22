@@ -11,7 +11,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Toast, Popup, Input, Button } from 'antd-mobile';
+import { Popup, Input, Button } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { formatDateTime } from '@/lib/datetime';
@@ -173,19 +174,19 @@ export default function HealthMetricDetailPage() {
 
   const handleSave = async () => {
     if (!profileId) {
-      Toast.show({ icon: 'fail', content: 'profileId 缺失' });
+      showToast('profileId 缺失', 'fail');
       return;
     }
     const value: Record<string, any> = {};
     for (const f of meta.fields) {
       const v = formValues[f.name];
       if (!v) {
-        Toast.show({ icon: 'fail', content: `请填写 ${f.label}` });
+        showToast(`请填写 ${f.label}`, 'fail');
         return;
       }
       value[f.name] = Number(v);
       if (Number.isNaN(value[f.name])) {
-        Toast.show({ icon: 'fail', content: `${f.label} 必须为数字` });
+        showToast(`${f.label} 必须为数字`, 'fail');
         return;
       }
     }
@@ -198,13 +199,13 @@ export default function HealthMetricDetailPage() {
       await api.post(`/api/health-profile-v3/${profileId}/metric/${metricType}`, {
         value, source: 'manual',
       });
-      Toast.show({ icon: 'success', content: '已保存' });
+      showToast('已保存', 'success');
       setPopupVisible(false);
       setFormValues({});
       setPeriodValue('');
       await fetchHistory();
     } catch {
-      Toast.show({ icon: 'fail', content: '保存失败，请重试' });
+      showToast('保存失败，请重试', 'fail');
     } finally {
       setSaving(false);
     }
@@ -213,20 +214,20 @@ export default function HealthMetricDetailPage() {
   const handleBindDevice = async (deviceType: string) => {
     try {
       await api.post(`/api/health-profile-v3/devices/${deviceType}/bind`, {});
-      Toast.show({ icon: 'success', content: '已绑定（占位通道）' });
+      showToast('已绑定（占位通道）', 'success');
       await fetchDevices();
     } catch {
-      Toast.show({ icon: 'fail', content: '绑定失败' });
+      showToast('绑定失败', 'fail');
     }
   };
 
   const handleUnbindDevice = async (deviceType: string) => {
     try {
       await api.delete(`/api/health-profile-v3/devices/${deviceType}`);
-      Toast.show({ icon: 'success', content: '已解绑' });
+      showToast('已解绑', 'success');
       await fetchDevices();
     } catch {
-      Toast.show({ icon: 'fail', content: '解绑失败' });
+      showToast('解绑失败', 'fail');
     }
   };
 
@@ -288,7 +289,7 @@ export default function HealthMetricDetailPage() {
           }}
         >✎ 手工填写</button>
         <button
-          onClick={() => Toast.show({ icon: 'success', content: '请在下方设备列表中绑定' })}
+          onClick={() => showToast('请在下方设备列表中绑定', 'success')}
           style={{
             flex: 4, padding: '12px 0', background: '#fff', color: T.brand500,
             border: `1px solid ${T.brand300}`, borderRadius: 22, fontSize: 16, fontWeight: 600, cursor: 'pointer',

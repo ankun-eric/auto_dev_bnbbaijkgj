@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import {
   ActionSheet,
   Dialog,
-  Toast,
   SpinLoading,
   Button,
 } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { CloseOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
 import { createChatSession } from '@/lib/chat-session';
@@ -148,10 +148,10 @@ export default function ChatSidebar({
     if (!confirmed) return;
     try {
       await api.delete(`/api/chat-sessions/${item.id}`);
-      Toast.show({ content: '已删除', icon: 'success' });
+      showToast('已删除', 'success');
       fetchSessions();
     } catch {
-      Toast.show({ content: '删除失败', icon: 'fail' });
+      showToast('删除失败', 'fail');
     }
   };
 
@@ -181,10 +181,10 @@ export default function ChatSidebar({
     if (!confirmed || !newTitle.trim()) return;
     try {
       await api.put(`/api/chat-sessions/${item.id}`, { title: newTitle.trim() });
-      Toast.show({ content: '已重命名', icon: 'success' });
+      showToast('已重命名', 'success');
       fetchSessions();
     } catch {
-      Toast.show({ content: '重命名失败', icon: 'fail' });
+      showToast('重命名失败', 'fail');
     }
   };
 
@@ -193,13 +193,10 @@ export default function ChatSidebar({
       await api.put(`/api/chat-sessions/${item.id}/pin`, {
         is_pinned: !item.is_pinned,
       });
-      Toast.show({
-        content: item.is_pinned ? '已取消置顶' : '已置顶',
-        icon: 'success',
-      });
+      showToast(item.is_pinned ? '已取消置顶' : '已置顶', 'success');
       fetchSessions();
     } catch {
-      Toast.show({ content: '操作失败', icon: 'fail' });
+      showToast('操作失败', 'fail');
     }
   };
 
@@ -210,12 +207,12 @@ export default function ChatSidebar({
       const shareUrl = data.share_url || `${window.location.origin}/shared/chat/${data.share_token}`;
       if (navigator.clipboard) {
         await navigator.clipboard.writeText(shareUrl);
-        Toast.show({ content: '分享链接已复制', icon: 'success' });
+        showToast('分享链接已复制', 'success');
       } else {
         Dialog.alert({ content: `分享链接：${shareUrl}`, confirmText: '确定' });
       }
     } catch {
-      Toast.show({ content: '生成分享链接失败', icon: 'fail' });
+      showToast('生成分享链接失败', 'fail');
     }
   };
 

@@ -27,7 +27,6 @@ import {
   Card,
   Image,
   Button,
-  Toast,
   Stepper,
   Radio,
   Space,
@@ -41,6 +40,7 @@ import {
   SearchBar,
 } from 'antd-mobile';
 import { RightOutline, LeftOutline } from 'antd-mobile-icons';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 import { redirectToPayUrl } from '@/lib/basePath';
 import { resolveAssetUrl } from '@/lib/asset-url';
@@ -663,22 +663,22 @@ function CheckoutPage() {
 
   const handleSubmit = async () => {
     if (!canSubmit) {
-      if (!selectedDate && needDate) Toast.show({ content: '请选择预约日期' });
-      else if (!selectedSlot && needTimeSlot) Toast.show({ content: '请选择时段' });
-      else if (slotInvalid) Toast.show({ content: '该门店此时段不可用，请重新选择' });
-      else if (isInStore && !selectedStore) Toast.show({ content: '请选择门店' });
-      else if (isDelivery && !selectedAddress) Toast.show({ content: '请选择收货地址' });
-      else if (isOnSite && !selectedAddress) Toast.show({ content: '请选择上门服务地址' });
-      else if (!PHONE_RE.test(contactPhone)) Toast.show({ content: '请输入正确的手机号' });
+      if (!selectedDate && needDate) showToast('请选择预约日期');
+      else if (!selectedSlot && needTimeSlot) showToast('请选择时段');
+      else if (slotInvalid) showToast('该门店此时段不可用，请重新选择');
+      else if (isInStore && !selectedStore) showToast('请选择门店');
+      else if (isDelivery && !selectedAddress) showToast('请选择收货地址');
+      else if (isOnSite && !selectedAddress) showToast('请选择上门服务地址');
+      else if (!PHONE_RE.test(contactPhone)) showToast('请输入正确的手机号');
       return;
     }
     // [2026-05-04 H5 支付链路 Bug 修复] 付费订单需选中支付方式（0 元订单后续会走 confirm-free 兜底）
     if (totalAmount > 0 && availableMethods.length === 0) {
-      Toast.show({ content: '暂未开通支付方式，请联系管理员' });
+      showToast('暂未开通支付方式，请联系管理员');
       return;
     }
     if (totalAmount > 0 && !selectedPayment) {
-      Toast.show({ content: '请选择支付方式' });
+      showToast('请选择支付方式');
       return;
     }
     setSubmitting(true);
@@ -755,7 +755,7 @@ function CheckoutPage() {
           });
         } catch (err: any) {
           // confirm-free 失败：透出后端 errMsg 而非通用"下单失败"
-          Toast.show({ content: err?.response?.data?.detail || '订单确认失败，请稍后重试' });
+          showToast(err?.response?.data?.detail || '订单确认失败，请稍后重试');
           router.replace(`/unified-order/${order.id}`);
           return;
         }
@@ -782,11 +782,11 @@ function CheckoutPage() {
         router.replace(`/pay/success?orderId=${order.id}`);
       } catch (err: any) {
         // 透出具体 errMsg（PRD F8）
-        Toast.show({ content: err?.response?.data?.detail || '发起支付失败' });
+        showToast(err?.response?.data?.detail || '发起支付失败');
         router.replace(`/unified-order/${order.id}`);
       }
     } catch (err: any) {
-      Toast.show({ content: err?.response?.data?.detail || '下单失败' });
+      showToast(err?.response?.data?.detail || '下单失败');
     } finally {
       setSubmitting(false);
     }

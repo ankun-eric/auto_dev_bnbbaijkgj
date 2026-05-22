@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Toast } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 
 interface DeviceItem {
@@ -40,13 +40,13 @@ export default function DeviceListBlock({ token: T }: Props) {
 
   const handleClick = async (it: DeviceItem) => {
     if (it.status === 'connected') {
-      Toast.show({ content: it.bound ? '已绑定，正在打开设备详情…' : '请前往「华为运动健康」授权绑定', icon: 'success' });
+      showToast(it.bound ? '已绑定，正在打开设备详情…' : '请前往「华为运动健康」授权绑定', 'success');
     } else {
       try {
         await api.post('/api/prd469/device/subscribe', { device_key: it.key });
-        Toast.show({ content: '该设备即将上线，敬请期待！上线后我们将通知您', icon: 'success' });
+        showToast('该设备即将上线，敬请期待！上线后我们将通知您', 'success');
       } catch {
-        Toast.show({ content: '该设备即将上线，敬请期待', icon: 'success' });
+        showToast('该设备即将上线，敬请期待', 'success');
       }
     }
   };

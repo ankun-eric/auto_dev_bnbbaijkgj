@@ -58,9 +58,9 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Avatar, Dialog, Toast } from 'antd-mobile';
+import { Avatar, Dialog } from 'antd-mobile';
 // [AI对话模式优化 PRD v1.0 §7] 全局 Toast 规范封装（位置上方 1/3 + 类型差异化配色）
-import { ToastUnified } from '@/lib/toast-unified';
+import { showToast, ToastUnified } from '@/lib/toast-unified';
 import { THEME } from '@/lib/theme';
 import { useAuth } from '@/lib/auth';
 import api from '@/lib/api';
@@ -528,7 +528,7 @@ export default function Sidebar({
     if (!item) return;
     // F-11 上限提示
     if (!item.pinned && pinnedItems.length >= PIN_LIMIT) {
-      Toast.show({ content: `最多置顶 ${PIN_LIMIT} 条对话` });
+      showToast(`最多置顶 ${PIN_LIMIT} 条对话`, 'warning');
       return;
     }
     const willPin = !item.pinned;
@@ -540,7 +540,7 @@ export default function Sidebar({
     );
     try {
       await api.post('/api/chat/history/pin', { id, isPinned: willPin });
-      Toast.show({ content: willPin ? '已置顶' : '已取消置顶' });
+      showToast(willPin ? '已置顶' : '已取消置顶');
     } catch {
       // 接口失败不回滚（保持乐观），仅静默
     }
@@ -609,12 +609,12 @@ export default function Sidebar({
       await api.post('/api/chat-sessions/batch-delete', {
         session_ids: sessionIds,
       });
-      Toast.show({ content: '已删除', icon: 'success' });
+      showToast('已删除');
     } catch {
       setHistories(snapshotHistories);
       setSelectedIds(snapshotSelectedIds);
       setManageMode(true);
-      Toast.show({ content: '删除失败,请稍后重试', icon: 'fail' });
+      showToast('删除失败,请稍后重试', 'fail');
     }
   };
 

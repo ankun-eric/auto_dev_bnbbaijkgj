@@ -7,9 +7,10 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  NavBar, List, Tag, Toast, Empty, Dialog, Switch, Button, Form, Input, Selector,
+  NavBar, List, Tag, Empty, Dialog, Switch, Button, Form, Input, Selector,
   Modal, Radio, TextArea,
 } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { getProfile } from '../mobile-lib';
@@ -110,7 +111,7 @@ export default function StaffMobilePage() {
       const list: StaffRow[] = Array.isArray(res) ? res : (res?.items || []);
       setRows(list);
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '加载失败' });
+      showToast(e?.response?.data?.detail || '加载失败', 'fail');
     } finally {
       setLoading(false);
     }
@@ -124,7 +125,7 @@ export default function StaffMobilePage() {
     const next = to ? 'active' : 'disabled';
     const isBossTarget = (row.role_code || memberRoleToCode[row.member_role]) === 'boss';
     if (isBossTarget) {
-      Toast.show({ icon: 'fail', content: '不能启停老板账号' });
+      showToast('不能启停老板账号', 'fail');
       return;
     }
     const ok = await Dialog.confirm({
@@ -141,9 +142,9 @@ export default function StaffMobilePage() {
       });
       // 仅成功后更新本地 state，避免乐观更新被回滚
       setRows((prev) => prev.map((r) => (r.user_id === row.user_id ? { ...r, status: next } : r)));
-      Toast.show({ icon: 'success', content: next === 'disabled' ? '已停用' : '已启用' });
+      showToast(next === 'disabled' ? '已停用' : '已启用', 'success');
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '操作失败' });
+      showToast(e?.response?.data?.detail || '操作失败', 'fail');
       // 失败：保持原状态（不更新 state）
     } finally {
       setTogglingId(null);
@@ -171,23 +172,23 @@ export default function StaffMobilePage() {
         remark: v.remark || undefined,
       };
       if (!payload.role_code) {
-        Toast.show({ icon: 'fail', content: '请选择角色' });
+        showToast('请选择角色', 'fail');
         setCreateLoading(false);
         return;
       }
       if (!payload.store_ids.length) {
-        Toast.show({ icon: 'fail', content: '请选择所属门店' });
+        showToast('请选择所属门店', 'fail');
         setCreateLoading(false);
         return;
       }
       const res: any = await api.post('/api/merchant/staff/create', payload);
-      Toast.show({ icon: 'success', content: '创建成功' });
+      showToast('创建成功', 'success');
       Dialog.alert({ title: '员工创建成功', content: res?.message || '初始密码为手机号后 6 位' });
       setCreateVisible(false);
       load();
     } catch (e: any) {
       if (e?.errorFields) return;
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '创建失败' });
+      showToast(e?.response?.data?.detail || '创建失败', 'fail');
     } finally {
       setCreateLoading(false);
     }
@@ -202,7 +203,7 @@ export default function StaffMobilePage() {
   const submitReset = async () => {
     if (!resetTarget) return;
     if (resetType === 'custom' && !PASSWORD_REGEX.test(resetPwd)) {
-      Toast.show({ icon: 'fail', content: PASSWORD_HINT });
+      showToast(PASSWORD_HINT, 'fail');
       return;
     }
     setResetLoading(true);
@@ -218,7 +219,7 @@ export default function StaffMobilePage() {
       Dialog.alert({ title: '重置成功', content: `${hint}，请告知员工首次登录修改密码。` });
       setResetVisible(false);
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '重置失败' });
+      showToast(e?.response?.data?.detail || '重置失败', 'fail');
     } finally {
       setResetLoading(false);
     }

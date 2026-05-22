@@ -4,7 +4,8 @@
 // K1：4 个汇总卡片 + 简化图表（使用 SVG 自绘，避免引入 echarts 增加体积）
 
 import React, { useEffect, useState } from 'react';
-import { NavBar, Tabs, Toast, Button } from 'antd-mobile';
+import { NavBar, Tabs, Button } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { getCurrentStoreId } from '../mobile-lib';
@@ -35,7 +36,7 @@ export default function ReportsMobilePage() {
       const res: any = await api.get('/api/merchant/v1/reports', { params });
       setData(res || {});
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '加载失败' });
+      showToast(e?.response?.data?.detail || '加载失败', 'fail');
     } finally {
       setLoading(false);
     }
@@ -207,8 +208,8 @@ export default function ReportsMobilePage() {
                 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
                 const url = `${window.location.origin}${basePath}/merchant/reports?desktop=1`;
                 navigator.clipboard?.writeText(url).then(
-                  () => Toast.show({ icon: 'success', content: 'PC 链接已复制' }),
-                  () => Toast.show({ content: url })
+                  () => showToast('PC 链接已复制', 'success'),
+                  () => showToast(url)
                 );
               }}
             >

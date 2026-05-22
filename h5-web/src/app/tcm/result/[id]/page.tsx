@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Button, SpinLoading, Toast } from 'antd-mobile';
+import { Button, SpinLoading } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { resolveAssetUrl } from '@/lib/asset-url';
@@ -303,7 +304,7 @@ export default function TcmResultPage() {
       const res: any = await api.get(`/api/constitution/result/${id}`);
       setData(res.data || res);
     } catch (err: any) {
-      Toast.show({ content: '加载结果失败，请稍后重试', icon: 'fail' });
+      showToast('加载结果失败，请稍后重试', 'fail');
     } finally {
       setLoading(false);
     }
@@ -320,17 +321,14 @@ export default function TcmResultPage() {
       const res: any = await api.post('/api/constitution/coupon/claim');
       const r = res.data || res;
       if (r.success) {
-        Toast.show({
-          content: r.already_claimed ? '您已领取过该券' : '领取成功，请到「我的优惠券」查看',
-          icon: 'success',
-        });
+        showToast(r.already_claimed ? '您已领取过该券' : '领取成功，请到「我的优惠券」查看', 'success');
         await fetchResult();
       } else {
-        Toast.show({ content: '领取失败，请稍后重试', icon: 'fail' });
+        showToast('领取失败，请稍后重试', 'fail');
       }
     } catch (err: any) {
       const msg = err?.response?.data?.detail || '领取失败，请稍后重试';
-      Toast.show({ content: String(msg), icon: 'fail' });
+      showToast(String(msg), 'fail');
     } finally {
       setClaimingCoupon(false);
     }
@@ -348,7 +346,7 @@ export default function TcmResultPage() {
 
   const handleBuyPackage = (pkg: PackageCard) => {
     if (!pkg.matched || !pkg.sku_id) {
-      Toast.show({ content: '套餐暂未上架，敬请期待' });
+      showToast('套餐暂未上架，敬请期待');
       return;
     }
     if (pkg.sku_kind === 'product') {
@@ -379,7 +377,7 @@ export default function TcmResultPage() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    Toast.show({ content: '已保存到本地，可分享到朋友圈', icon: 'success' });
+    showToast('已保存到本地，可分享到朋友圈', 'success');
   };
 
   if (loading || !data) {

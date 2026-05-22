@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { NavBar, Input, SpinLoading, Toast, Popup, Tag, DatePicker, Dialog, ActionSheet, ImageViewer } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { checkFileSize, uploadWithProgress } from '@/lib/upload-utils';
@@ -468,10 +469,10 @@ function ChatPageInner() {
   const handleFontChange = (level: FontSizeLevel) => {
     setFontSizeLevel(level);
     setFontPopoverVisible(false);
-    Toast.show({ content: FONT_TOAST_MAP[level], duration: 1500 });
+    showToast(FONT_TOAST_MAP[level]);
     if (isLoggedIn) {
       api.put('/api/user/font-setting', { font_size_level: level }).catch(() => {
-        Toast.show({ content: '保存失败，请稍后重试', icon: 'fail', duration: 1500 });
+        showToast('保存失败，请稍后重试', 'fail');
       });
     }
   };
@@ -678,7 +679,7 @@ function ChatPageInner() {
     const module = type === 'photo' ? 'chat_image' : 'chat_file';
     const sizeCheck = await checkFileSize(file, module);
     if (!sizeCheck.ok) {
-      Toast.show({ content: `文件大小超过限制（最大 ${sizeCheck.maxMb} MB）`, icon: 'fail' });
+      showToast(`文件大小超过限制（最大 ${sizeCheck.maxMb} MB）`, 'fail');
       return;
     }
 
@@ -709,7 +710,7 @@ function ChatPageInner() {
       setMessages((prev) => [...prev, userMsg, aiMsg]);
     } catch {
       setUploadPercent(-1);
-      Toast.show({ content: '上传失败，请重试', icon: 'fail' });
+      showToast('上传失败，请重试', 'fail');
     }
   };
 
@@ -857,7 +858,7 @@ function ChatPageInner() {
         const elapsed = (Date.now() - recordStartTimeRef.current) / 1000;
         if (elapsed < 0.5) {
           setRecordingOverlayVisible(false);
-          Toast.show({ content: '录音时间太短', duration: 1500 });
+          showToast('录音时间太短', 'warning');
           return;
         }
 
@@ -897,7 +898,7 @@ function ChatPageInner() {
       cleanupRecording();
       setIsRecording(false);
       setRecordingOverlayVisible(false);
-      Toast.show({ content: '录音启动失败，请重试', icon: 'fail' });
+      showToast('录音启动失败，请重试', 'fail');
     }
   }, [sendToAsr, cleanupRecording]);
 
@@ -923,7 +924,7 @@ function ChatPageInner() {
 
   const checkMicPermission = useCallback(async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
-      Toast.show({ content: '当前浏览器不支持语音输入', icon: 'fail' });
+      showToast('当前浏览器不支持语音输入', 'fail');
       return;
     }
     try {
@@ -1210,7 +1211,7 @@ function ChatPageInner() {
               }
             } else if (currentEvent === 'error' || data.type === 'error') {
               if (!accumulated) {
-                Toast.show({ content: data.message || data.content || 'AI 解读失败' });
+                showToast(data.message || data.content || 'AI 解读失败', 'fail');
               }
               setInterpretFailed(true);
             } else if (currentEvent === 'done') {
@@ -1267,7 +1268,7 @@ function ChatPageInner() {
       // trigger useEffect re-subscribe by toggling a state
       setStreamRetryTick((t) => t + 1);
     } catch (e: any) {
-      Toast.show({ content: e?.message || '重新解读失败，请稍后再试' });
+      showToast(e?.message || '重新解读失败，请稍后再试', 'fail');
     }
   }, [sessionId]);
 
@@ -1362,9 +1363,9 @@ function ChatPageInner() {
   const handleKnowledgeFeedback = async (hitLogId: number, feedback: 'like' | 'dislike') => {
     try {
       await api.post('/api/chat/feedback', { hit_log_id: hitLogId, feedback });
-      Toast.show({ content: '感谢反馈', icon: 'success' });
+      showToast('感谢反馈');
     } catch {
-      Toast.show({ content: '反馈失败，请稍后重试', icon: 'fail' });
+      showToast('反馈失败，请稍后重试', 'fail');
       throw new Error('feedback failed');
     }
   };
@@ -1492,7 +1493,7 @@ function ChatPageInner() {
               if (data.content) { accumulated = data.content; setStreamingContent(accumulated); }
               if (data.message_id) messageId = String(data.message_id);
             } else if (data.type === 'error') {
-              Toast.show({ content: data.content || 'AI 服务异常' });
+              showToast(data.content || 'AI 服务异常', 'fail');
             } else if (data.content || data.delta) {
               accumulated += (data.delta || data.content || '');
               setStreamingContent(accumulated);
@@ -1568,7 +1569,7 @@ function ChatPageInner() {
     for (const file of files) {
       const sizeCheck = await checkFileSize(file, 'drug_identify');
       if (!sizeCheck.ok) {
-        Toast.show({ content: `文件 ${file.name} 超过限制（最大 ${sizeCheck.maxMb} MB），已跳过` });
+        showToast(`文件 ${file.name} 超过限制（最大 ${sizeCheck.maxMb} MB），已跳过`, 'warning');
         continue;
       }
       validFiles.push(file);
@@ -1710,7 +1711,7 @@ function ChatPageInner() {
       utterance.onerror = () => { setTtsPlaying(false); setTtsPlayingMsgId(null); };
       window.speechSynthesis.speak(utterance);
     } else {
-      Toast.show({ content: '当前浏览器不支持语音播报' });
+      showToast('当前浏览器不支持语音播报', 'fail');
       setTtsPlaying(false);
       setTtsPlayingMsgId(null);
     }
@@ -1726,7 +1727,7 @@ function ChatPageInner() {
       notifyCopied();
       setTimeout(() => setCopiedMsgId(null), 1500);
     } catch {
-      Toast.show({ content: '复制失败', icon: 'fail' });
+      showToast('复制失败', 'fail');
     }
   }, []);
 
@@ -1749,13 +1750,13 @@ function ChatPageInner() {
         const shareUrl = `${baseUrl}${basePath}/shared/chat/${shareToken}`;
         try {
           await navigator.clipboard.writeText(shareUrl);
-          Toast.show({ content: '分享链接已复制到剪贴板', icon: 'success' });
+          showToast('分享链接已复制到剪贴板');
         } catch {
           Toast.show({ content: shareUrl, duration: 5000 });
         }
       }
     } catch {
-      Toast.show({ content: '生成分享链接失败', icon: 'fail' });
+      showToast('生成分享链接失败', 'fail');
     }
     setShareLoading(false);
     setSharePopupVisible(false);
@@ -1771,10 +1772,10 @@ function ChatPageInner() {
         setPosterUrl(data.poster_url || data.image_url);
         setPosterPreviewVisible(true);
       } else {
-        Toast.show({ content: '生成海报失败', icon: 'fail' });
+        showToast('生成海报失败', 'fail');
       }
     } catch {
-      Toast.show({ content: '生成海报失败', icon: 'fail' });
+      showToast('生成海报失败', 'fail');
     }
     setShareLoading(false);
     setSharePopupVisible(false);
@@ -1899,7 +1900,7 @@ function ChatPageInner() {
         // 跳转到新会话
         router.replace(`/chat/${newId}`);
       } catch {
-        Toast.show({ content: '切换失败，请稍后重试', icon: 'fail' });
+        showToast('切换失败，请稍后重试', 'fail');
       }
       setSwitchingMember(false);
       return;
@@ -1926,7 +1927,7 @@ function ChatPageInner() {
         /* ignore */
       }
     } catch {
-      Toast.show({ content: '切换失败，请稍后重试', icon: 'fail' });
+      showToast('切换失败，请稍后重试', 'fail');
     }
     setSwitchingMember(false);
   };
@@ -1961,7 +1962,7 @@ function ChatPageInner() {
 
   const handleAddMemberConfirm = async () => {
     if (!selectedRelation || !newNickname.trim() || !newGender || !newBirthday) {
-      Toast.show({ content: '请填写完整的成员信息' });
+      showToast('请填写完整的成员信息', 'warning');
       return;
     }
     setAddLoading(true);
@@ -1986,9 +1987,9 @@ function ChatPageInner() {
       await api.post('/api/family/members', body);
       setAddMemberPopupVisible(false);
       await fetchMemberList();
-      Toast.show({ content: '成员添加成功', icon: 'success' });
+      showToast('成员添加成功');
     } catch {
-      Toast.show({ content: '添加失败，请重试', icon: 'fail' });
+      showToast('添加失败，请重试', 'fail');
     }
     setAddLoading(false);
   };

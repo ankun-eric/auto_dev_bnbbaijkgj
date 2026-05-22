@@ -19,7 +19,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Toast, Popup, DatePicker } from 'antd-mobile';
+import { Popup, DatePicker } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 import {
   RELATION_DEFS,
@@ -148,7 +149,7 @@ export default function NewFamilyMemberModal({ onClose, onSuccess }: Props) {
   // 当选择关系时：自动锁定性别 + 自动填充默认出生年
   const handleSelectRelation = (rn: string) => {
     if (usedUniqueRelations.has(rn)) {
-      Toast.show({ content: '已添加过该关系', icon: 'fail' });
+      showToast('已添加过该关系', 'fail');
       return;
     }
     setSelectedRelation(rn);
@@ -215,7 +216,7 @@ export default function NewFamilyMemberModal({ onClose, onSuccess }: Props) {
 
   const handleSubmit = async () => {
     if (!validate()) {
-      Toast.show({ content: '请补全或修正标红字段', icon: 'fail' });
+      showToast('请补全或修正标红字段', 'fail');
       return;
     }
     const def = findRelationDef(selectedRelation)!;
@@ -244,11 +245,11 @@ export default function NewFamilyMemberModal({ onClose, onSuccess }: Props) {
       if (allergies.length) body.allergies = allergies;
 
       await api.post('/api/family/members', body);
-      Toast.show({ content: '添加成功', icon: 'success' });
+      showToast('添加成功');
       onSuccess();
     } catch (e: any) {
       const detail = e?.response?.data?.detail || '保存失败';
-      Toast.show({ content: typeof detail === 'string' ? detail : '保存失败', icon: 'fail' });
+      showToast(typeof detail === 'string' ? detail : '保存失败', 'fail');
     } finally {
       setSubmitting(false);
     }

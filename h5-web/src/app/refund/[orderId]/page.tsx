@@ -9,9 +9,9 @@ import {
   TextArea,
   Radio,
   Space,
-  Toast,
   SpinLoading,
 } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 
 interface OrderDetail {
@@ -50,14 +50,14 @@ export default function RefundPage() {
     api.get(`/api/orders/unified/${orderId}`).then((res: any) => {
       setOrder(res.data || res);
     }).catch(() => {
-      Toast.show({ content: '加载失败' });
+      showToast('加载失败');
     }).finally(() => setLoading(false));
   }, [orderId]);
 
   const handleSubmit = async () => {
     const finalReason = reason === '其他原因' ? (customReason || '其他原因') : reason;
     if (!finalReason) {
-      Toast.show({ content: '请选择退款原因' });
+      showToast('请选择退款原因');
       return;
     }
     setSubmitting(true);
@@ -66,10 +66,10 @@ export default function RefundPage() {
         reason: finalReason,
         refund_amount: order?.paid_amount,
       });
-      Toast.show({ content: '退款申请已提交', icon: 'success' });
+      showToast('退款申请已提交', 'success');
       router.back();
     } catch (err: any) {
-      Toast.show({ content: err?.response?.data?.detail || '申请失败' });
+      showToast(err?.response?.data?.detail || '申请失败');
     } finally {
       setSubmitting(false);
     }

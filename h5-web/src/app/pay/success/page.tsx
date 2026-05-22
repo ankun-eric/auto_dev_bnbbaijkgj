@@ -29,7 +29,8 @@
 
 import { Suspense, useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Card, Button, NavBar, SpinLoading, Toast } from 'antd-mobile';
+import { Card, Button, NavBar, SpinLoading } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { CheckCircleFill } from 'antd-mobile-icons';
 import api from '@/lib/api';
 import { formatDateTime } from '@/lib/datetime';
@@ -123,7 +124,7 @@ function PaySuccessPage() {
         let detail = await fetchDetailOnce();
         if (cancelled) return;
         if (!detail) {
-          Toast.show({ content: '订单不存在' });
+          showToast('订单不存在');
           router.replace('/unified-orders');
           return;
         }
@@ -152,14 +153,14 @@ function PaySuccessPage() {
         if (cancelled) return;
         if (!PAID_LIKE_STATUSES.has(detail.status)) {
           // 轮询超时：提示并跳订单详情让用户自己刷新
-          Toast.show({ content: '支付结果以支付宝为准，请稍后刷新查看' });
+          showToast('支付结果以支付宝为准，请稍后刷新查看');
           router.replace(`/unified-order/${detail.id}`);
           return;
         }
         setOrder(detail);
       } catch (err: any) {
         if (cancelled) return;
-        Toast.show({ content: err?.response?.data?.detail || '加载订单失败' });
+        showToast(err?.response?.data?.detail || '加载订单失败');
         router.replace('/unified-orders');
       } finally {
         if (!cancelled) setLoading(false);

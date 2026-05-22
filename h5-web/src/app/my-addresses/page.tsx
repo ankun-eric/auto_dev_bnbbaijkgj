@@ -3,9 +3,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Card, Button, Tag, Empty, SpinLoading, Toast, Dialog, Popup,
+  Card, Button, Tag, Empty, SpinLoading, Dialog, Popup,
   Form, Input, Switch, CascadePicker, TextArea, NoticeBar,
 } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { resolveAssetUrl } from '@/lib/asset-url';
@@ -125,7 +126,7 @@ export default function MyAddressesPage() {
 
   const openAddForm = () => {
     if (addresses.length >= ADDR_LIMIT) {
-      Toast.show({ content: `最多保存 ${ADDR_LIMIT} 条地址` });
+      showToast(`最多保存 ${ADDR_LIMIT} 条地址`);
       return;
     }
     setEditing(null);
@@ -169,16 +170,16 @@ export default function MyAddressesPage() {
   const validateName = (n: string) => n.length >= 2 && n.length <= 20;
 
   const submit = async () => {
-    if (!validateName(name)) { Toast.show({ content: '收货人姓名为 2-20 个字符' }); return; }
-    if (!validatePhone(phone)) { Toast.show({ content: '请输入正确的 11 位手机号' }); return; }
-    if (!provinceName || !cityName || !districtName) { Toast.show({ content: '请选择所在地区' }); return; }
-    if (!detail.trim()) { Toast.show({ content: '请输入详细地址' }); return; }
-    if (detail.length > DETAIL_MAX) { Toast.show({ content: `详细地址最多 ${DETAIL_MAX} 字` }); return; }
+    if (!validateName(name)) { showToast('收货人姓名为 2-20 个字符'); return; }
+    if (!validatePhone(phone)) { showToast('请输入正确的 11 位手机号'); return; }
+    if (!provinceName || !cityName || !districtName) { showToast('请选择所在地区'); return; }
+    if (!detail.trim()) { showToast('请输入详细地址'); return; }
+    if (detail.length > DETAIL_MAX) { showToast(`详细地址最多 ${DETAIL_MAX} 字`); return; }
 
     let finalTag = tag;
     if (customTagMode && customTagValue.trim()) {
       const v = customTagValue.trim();
-      if (v.length > 6) { Toast.show({ content: '自定义标签最多 6 个汉字' }); return; }
+      if (v.length > 6) { showToast('自定义标签最多 6 个汉字'); return; }
       finalTag = v;
     }
 
@@ -202,16 +203,16 @@ export default function MyAddressesPage() {
       setSubmitting(true);
       if (editing) {
         await api.put(`/api/v2/user/addresses/${editing.id}`, payload);
-        Toast.show({ content: '修改成功' });
+        showToast('修改成功');
       } else {
         await api.post('/api/v2/user/addresses', payload);
-        Toast.show({ content: '添加成功' });
+        showToast('添加成功');
       }
       setShowForm(false);
       fetchAddresses();
     } catch (err: any) {
       const msg = err?.response?.data?.detail?.message || err?.response?.data?.detail || '操作失败';
-      Toast.show({ content: typeof msg === 'string' ? msg : '操作失败' });
+      showToast(typeof msg === 'string' ? msg : '操作失败');
     } finally {
       setSubmitting(false);
     }
@@ -223,10 +224,10 @@ export default function MyAddressesPage() {
       onConfirm: async () => {
         try {
           await api.delete(`/api/v2/user/addresses/${addrId}`);
-          Toast.show({ content: '已删除' });
+          showToast('已删除');
           fetchAddresses();
         } catch {
-          Toast.show({ content: '删除失败' });
+          showToast('删除失败');
         }
       },
     });
@@ -235,10 +236,10 @@ export default function MyAddressesPage() {
   const setDefault = async (addrId: number) => {
     try {
       await api.patch(`/api/v2/user/addresses/${addrId}/default`, { is_default: true });
-      Toast.show({ content: '已设为默认' });
+      showToast('已设为默认');
       fetchAddresses();
     } catch {
-      Toast.show({ content: '操作失败' });
+      showToast('操作失败');
     }
   };
 

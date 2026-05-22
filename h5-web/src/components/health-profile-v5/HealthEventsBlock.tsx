@@ -5,7 +5,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Toast, Mask } from 'antd-mobile';
+import { Mask } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 
 interface EventItem {
@@ -68,7 +69,7 @@ export default function HealthEventsBlock({ profileId, token: T }: Props) {
 
   const handleAddDiary = async () => {
     if (!draftTitle.trim() && !draftContent.trim()) {
-      Toast.show({ content: '请填写标题或内容', icon: 'fail' });
+      showToast('请填写标题或内容', 'fail');
       return;
     }
     try {
@@ -83,9 +84,9 @@ export default function HealthEventsBlock({ profileId, token: T }: Props) {
       setAdding(false);
       setDraftTitle(''); setDraftContent(''); setDraftTag('');
       await fetchTimeline();
-      Toast.show({ content: '已记录', icon: 'success' });
+      showToast('已记录', 'success');
     } catch {
-      Toast.show({ content: '保存失败', icon: 'fail' });
+      showToast('保存失败', 'fail');
     }
   };
 
@@ -101,7 +102,7 @@ export default function HealthEventsBlock({ profileId, token: T }: Props) {
 
   const handleUploadRecord = async () => {
     if (!uploadImageUrl && !uploadOcrText) {
-      Toast.show({ content: '请选择图片或输入OCR文字', icon: 'fail' });
+      showToast('请选择图片或输入OCR文字', 'fail');
       return;
     }
     setUploading(true);
@@ -121,9 +122,9 @@ export default function HealthEventsBlock({ profileId, token: T }: Props) {
       setUploadTitle('');
       setUploadNote('');
       await fetchTimeline();
-      Toast.show({ content: '病历卡已上传', icon: 'success' });
+      showToast('病历卡已上传', 'success');
     } catch {
-      Toast.show({ content: '上传失败，请重试', icon: 'fail' });
+      showToast('上传失败，请重试', 'fail');
     } finally {
       setUploading(false);
     }

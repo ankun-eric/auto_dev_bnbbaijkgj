@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Card, Button, ProgressBar, SpinLoading, Toast, Tag } from 'antd-mobile';
+import { Card, Button, ProgressBar, SpinLoading, Tag } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
@@ -55,7 +56,7 @@ export default function MyPlanExecutionPage() {
         tasks: mappedTasks,
       });
     } catch {
-      Toast.show({ content: '加载失败', icon: 'fail' });
+      showToast('加载失败', 'fail');
     } finally {
       setLoading(false);
     }
@@ -66,10 +67,10 @@ export default function MyPlanExecutionPage() {
   const handleSimpleCheck = async (task: PlanTask) => {
     try {
       await api.post(`/api/health-plan/user-plans/${planId}/tasks/${task.id}/checkin`, { actual_value: null });
-      Toast.show({ content: '打卡成功', icon: 'success' });
+      showToast('打卡成功', 'success');
       fetchData();
     } catch {
-      Toast.show({ content: '打卡失败', icon: 'fail' });
+      showToast('打卡失败', 'fail');
     }
   };
 

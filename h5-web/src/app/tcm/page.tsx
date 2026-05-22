@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, Button, Radio, Space, ProgressBar, Toast, Result, SpinLoading, Empty, Popup, ImageUploader, Tag, DatePicker, Modal } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import type { ImageUploadItem } from 'antd-mobile/es/components/image-uploader';
 import api from '@/lib/api';
@@ -299,7 +300,7 @@ export default function TcmPage() {
   const handleUpload = async (file: File) => {
     const sizeCheck = await checkFileSize(file, 'tcm_image');
     if (!sizeCheck.ok) {
-      Toast.show({ content: `文件大小超过限制（最大 ${sizeCheck.maxMb} MB）`, icon: 'fail' });
+      showToast(`文件大小超过限制（最大 ${sizeCheck.maxMb} MB）`, 'fail');
       throw new Error('file too large');
     }
     return { url: URL.createObjectURL(file) };
@@ -307,7 +308,7 @@ export default function TcmPage() {
 
   const handleTongueAnalyze = () => {
     if (tongueImages.length === 0) {
-      Toast.show({ content: '请先上传舌头照片' });
+      showToast('请先上传舌头照片', 'warning');
       return;
     }
     Toast.show({ icon: 'loading', content: 'AI舌象分析中...', duration: 0 });
@@ -320,7 +321,7 @@ export default function TcmPage() {
 
   const handleFaceAnalyze = () => {
     if (faceImages.length === 0) {
-      Toast.show({ content: '请先上传面部照片' });
+      showToast('请先上传面部照片', 'warning');
       return;
     }
     Toast.show({ icon: 'loading', content: 'AI面诊分析中...', duration: 0 });
@@ -364,7 +365,7 @@ export default function TcmPage() {
       answer_value: String(value),
     }));
     if (answersArr.length === 0) {
-      Toast.show({ content: '请先完成体质测评', icon: 'fail' });
+      showToast('请先完成体质测评', 'fail');
       return;
     }
     setSubmittingTest(true);
@@ -512,7 +513,7 @@ export default function TcmPage() {
 
   const handleAddMemberConfirm = async () => {
     if (!selectedRelation || !newNickname.trim() || !newGender || !newBirthday) {
-      Toast.show({ content: '请填写完整的成员信息' });
+      showToast('请填写完整的成员信息', 'warning');
       return;
     }
     setAddLoading(true);
@@ -528,9 +529,9 @@ export default function TcmPage() {
 
       await fetchMemberList();
       if (created.id) setSelectedMemberId(created.id);
-      Toast.show({ content: '成员添加成功', icon: 'success' });
+      showToast('成员添加成功');
     } catch {
-      Toast.show({ content: '添加失败，请重试', icon: 'fail' });
+      showToast('添加失败，请重试', 'fail');
     }
     setAddLoading(false);
   };

@@ -3,7 +3,8 @@
 // [2026-04-24] 移动端 - 对账列表 PRD §4.6
 
 import React, { useEffect, useState } from 'react';
-import { NavBar, List, Tag, PullToRefresh, Empty, Toast } from 'antd-mobile';
+import { NavBar, List, Tag, PullToRefresh, Empty } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
@@ -25,7 +26,7 @@ export default function SettlementMobilePage() {
       const res: any = await api.get('/api/merchant/v1/settlements', { params: { page: 1, page_size: 50 } });
       setRows(res.items || res || []);
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '加载失败' });
+      showToast(e?.response?.data?.detail || '加载失败', 'fail');
     } finally {
       setLoading(false);
     }

@@ -2,7 +2,8 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Form, Input, Button, Toast, SpinLoading, Picker } from 'antd-mobile';
+import { Form, Input, Button, SpinLoading, Picker } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
@@ -67,7 +68,7 @@ function CheckinAddContent() {
         setFrequency(data.repeat_frequency || data.frequency || 'daily');
         setCustomDays(data.custom_days || []);
       } catch {
-        Toast.show({ content: '加载失败', icon: 'fail' });
+        showToast('加载失败', 'fail');
       } finally {
         setFetching(false);
       }
@@ -83,15 +84,15 @@ function CheckinAddContent() {
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      Toast.show({ content: '请输入打卡名称', icon: 'fail' });
+      showToast('请输入打卡名称', 'fail');
       return;
     }
     if (!remindTime) {
-      Toast.show({ content: '请选择提醒时间', icon: 'fail' });
+      showToast('请选择提醒时间', 'fail');
       return;
     }
     if (frequency === 'custom' && customDays.length === 0) {
-      Toast.show({ content: '请选择重复日期', icon: 'fail' });
+      showToast('请选择重复日期', 'fail');
       return;
     }
 
@@ -106,14 +107,14 @@ function CheckinAddContent() {
 
       if (isEdit) {
         await api.put(`/api/health-plan/checkin-items/${editId}`, payload);
-        Toast.show({ content: '修改成功', icon: 'success' });
+        showToast('修改成功', 'success');
       } else {
         await api.post('/api/health-plan/checkin-items', payload);
-        Toast.show({ content: '添加成功', icon: 'success' });
+        showToast('添加成功', 'success');
       }
       router.back();
     } catch {
-      Toast.show({ content: '保存失败', icon: 'fail' });
+      showToast('保存失败', 'fail');
     } finally {
       setSubmitting(false);
     }

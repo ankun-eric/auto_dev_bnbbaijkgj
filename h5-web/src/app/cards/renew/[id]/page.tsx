@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Button, Toast } from 'antd-mobile';
+import { Button } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import cardsV2 from '@/services/cardsV2';
 
@@ -17,11 +18,11 @@ export default function RenewCardPage() {
     setLoading(true);
     try {
       const res: any = await cardsV2.renewCard(userCardId);
-      Toast.show({ icon: 'success', content: '续卡订单已创建，请支付' });
+      showToast('续卡订单已创建，请支付', 'success');
       // 跳到支付页（沿用现有支付页路由，按订单 ID）
       router.replace(`/cards/pay/${res.order_id}`);
     } catch (e: any) {
-      Toast.show({ icon: 'fail', content: e?.response?.data?.detail || '续卡失败' });
+      showToast(e?.response?.data?.detail || '续卡失败', 'fail');
     } finally {
       setLoading(false);
     }

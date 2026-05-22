@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, Button, Toast, Grid, SpinLoading, Tag } from 'antd-mobile';
+import { Card, Button, Grid, SpinLoading, Tag } from 'antd-mobile';
+import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
@@ -78,10 +79,10 @@ export default function PointsPage() {
       const res: any = await api.post('/api/points/signin');
       const data = res?.data || res || {};
       const earned = data?.points_earned ?? 0;
-      Toast.show({ content: earned ? `签到成功 +${earned}积分` : '签到成功' });
+      showToast(earned ? `签到成功 +${earned}积分` : '签到成功');
       fetchData();
     } catch (err: any) {
-      Toast.show({ content: err?.response?.data?.detail || '签到失败', icon: 'fail' });
+      showToast(err?.response?.data?.detail || '签到失败', 'fail');
     } finally {
       setSigning(false);
     }
