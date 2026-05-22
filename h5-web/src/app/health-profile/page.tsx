@@ -12,6 +12,7 @@ import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMember
 import MemberBadge from '@/components/family/MemberBadge';
 import { formatGender } from '@/utils/format';
 import { BH_TOKENS } from '@/lib/health-tokens';
+import { RELATION_DEFS } from '@/lib/family-relation';
 import { parseServerTime } from '@/lib/datetime';
 
 const T = {
@@ -651,7 +652,7 @@ function HealthProfileV2PageInner() {
         const palette = BADGE_COLOR_PALETTE[colorIdx];
         const relationLabel = resolveRelationLabel(m);
         const displayName = m.nickname || (m.is_self ? '本人' : relationLabel);
-        const capsuleText = m.nickname || m.relation_type_name || '本人';
+        const capsuleText = m.nickname || m.name || '未命名';
         return (
           <div
             key={m.id}
@@ -1098,7 +1099,7 @@ function HealthProfileV2PageInner() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span onClick={(e) => { e.stopPropagation(); router.push('/medical-records?action=new'); }}
               style={{ fontSize: 13, fontWeight: 500, color: T.brand500 }}>+新增</span>
-            <span onClick={(e) => { e.stopPropagation(); router.push('/medical-records/all'); }}
+            <span onClick={(e) => { e.stopPropagation(); router.push(`/medical-records/all?member_id=${selectedMemberId || ''}`); }}
               style={{ fontSize: 13, fontWeight: 500, color: T.brand500 }}>全部 ›</span>
             <span style={{ fontSize: 13, color: '#9CA3AF' }}>
               {recordsExpanded ? '▴' : '▾'}
@@ -1113,7 +1114,7 @@ function HealthProfileV2PageInner() {
             {V5_RECORD_CATS.map((cat) => (
               <div
                 key={cat.key}
-                onClick={() => router.push(`/medical-records/all?tab=${cat.key}`)}
+                onClick={() => router.push(`/medical-records/all?tab=${cat.key}&member_id=${selectedMemberId || ''}`)}
                 style={{
                   background: '#fff', borderRadius: 12, padding: '14px 14px',
                   display: 'flex', alignItems: 'center', gap: 10,
@@ -1172,7 +1173,7 @@ function HealthProfileV2PageInner() {
                 {recordDrawerItems.map((item: any, idx: number) => (
                   <div
                     key={item.id || idx}
-                    onClick={() => item.id && router.push(`/medical-records/${item.id}`)}
+                    onClick={() => item.id && router.push(`/medical-records/all?tab=${recordDrawer?.key || 'case_note'}&highlight=${item.id}&member_id=${selectedMemberId || ''}`)}
                     style={{
                       background: '#F9FAFB', borderRadius: 10, padding: '12px 14px',
                       cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -1357,6 +1358,7 @@ function HealthProfileV2PageInner() {
             height: heroEditDraft.height,
             weight: heroEditDraft.weight,
             blood_type: heroEditDraft.blood_type,
+            relationship_type: selectedMember?.is_self ? undefined : editRelation,
           }),
           api.put(`/api/prd469/health-info/${profile.id}`, healthInfoDraft),
         ]);
@@ -1405,9 +1407,9 @@ function HealthProfileV2PageInner() {
                     <span style={{ fontSize: 14, color: '#374151' }}>本人</span>
                   ) : (
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                      {['爸爸', '妈妈', '老公', '老婆', '儿子', '女儿', '爷爷', '奶奶', '其他'].map((o) => (
-                        <button key={o} onClick={() => setEditRelation(o)}
-                          style={{ padding: '5px 12px', borderRadius: 14, background: editRelation === o ? T.brand500 : '#f3f4f6', color: editRelation === o ? '#fff' : '#374151', border: 'none', fontSize: 13, cursor: 'pointer' }}>{o}</button>
+                      {RELATION_DEFS.map((def) => (
+                        <button key={def.name} onClick={() => setEditRelation(def.name)}
+                          style={{ padding: '5px 12px', borderRadius: 14, background: editRelation === def.name ? T.brand500 : '#f3f4f6', color: editRelation === def.name ? '#fff' : '#374151', border: 'none', fontSize: 13, cursor: 'pointer' }}>{def.name}</button>
                       ))}
                     </div>
                   )}

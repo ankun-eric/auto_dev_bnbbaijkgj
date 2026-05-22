@@ -29,6 +29,7 @@ function MedicalRecordsAllInner() {
   const searchParams = useSearchParams();
   const initialTab = (searchParams?.get('tab') as TabKey) || 'case_note';
   const highlightId = searchParams?.get('highlight');
+  const memberId = searchParams?.get('member_id');
 
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const [items, setItems] = useState<RecordItem[]>([]);
@@ -38,7 +39,8 @@ function MedicalRecordsAllInner() {
   const fetchRecords = useCallback(async (category: string) => {
     setLoading(true);
     try {
-      const res: any = await api.get(`/api/health-archive-v5/medical-records?category=${category}`);
+      const memberQs = memberId ? `&member_id=${memberId}` : '';
+      const res: any = await api.get(`/api/medical-records?category=${category}${memberQs}`);
       const data = res?.data || res || {};
       setItems(Array.isArray(data.items) ? data.items : []);
     } catch {
@@ -46,7 +48,7 @@ function MedicalRecordsAllInner() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [memberId]);
 
   useEffect(() => {
     fetchRecords(activeTab);
