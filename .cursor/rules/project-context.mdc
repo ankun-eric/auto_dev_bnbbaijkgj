@@ -27,10 +27,27 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: PRD — H5 全局 Toast 统一化 + 首页用药数据一致性修复 (2026-05-22 15:53)
+## Latest Update: H5 全局 Toast 统一化 + 首页用药数据一致性修复 — 开发完成 (2026-05-22 16:20)
 
 ### 一句话结论
-用户需求沟通完毕，已产出 PRD 文档。两个功能点：(1) H5 端约 100 个文件仍使用原生 Toast.show，需全量替换为已封装的微信风格居中轻量 Toast（showToast）；(2) 首页用药提醒"N 条待服用"与今日页面 0 条的 Bug 复现，需彻底排查修复。
+H5 端约 90+ 文件中的 antd-mobile 原生 Toast.show 已全量替换为统一封装的微信风格 showToast（454 处）；首页用药 badge 与 /api/medication-reminder/today 数据源不一致 Bug 彻底修复（today 接口从旧表 MedicationPlan 切换到新表 MedicationReminder）。已部署并通过服务器测试。
+
+### 核心变更
+- **F1 Toast 统一**：h5-web/src/ 下约 90+ 文件替换 Toast.show → showToast，统一为微信风格居中轻量 Toast
+- **F2 数据一致性**：backend/app/api/medication_reminder.py `/today` 端点切换到新表 MedicationReminder + MedicationCheckIn，与 `/badge` 口径完全一致
+
+### 变更文件
+- `backend/app/api/medication_reminder.py` — today_medications 端点数据源切换
+- `h5-web/src/` 下约 90+ 个 .tsx/.ts 文件 — Toast.show → showToast 替换
+
+### 部署验证（已通过）
+- 部署时间：2026-05-22 16:20
+- H5+后端容器重建启动正常
+- HTTP 探活：`/` 200、`/api/docs` 200、`/login` 308、`/health-profile` 308
+- 核心测试：test_bug_med_v1_20260521.py 7 passed
+
+### 用户体验手册
+- `user_docs/H5全局Toast统一化与用药数据一致性修复.md`
 
 ### 相关 PRD
 - `.chat_output/3164fedb-ae71-4f06-acfb-c8bbb029716f/PRD_H5全局Toast统一与数据一致性修复_20260522_155300.md`
