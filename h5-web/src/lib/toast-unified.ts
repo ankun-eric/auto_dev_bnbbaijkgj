@@ -1,71 +1,129 @@
 /**
- * [PRD-MED-OPTIM-V2 2026-05-21] 全局 Toast 规范封装 — 微信风格居中轻量 Toast。
+ * 全局 Toast 规范封装 — 微信风格紧凑带小图标（v2.0）
  *
- * 规范要点：
- *  - 位置：屏幕垂直 + 水平居中
- *  - 形状：圆角矩形（border-radius: 8px）
- *  - 背景色：半透明深色（rgba(0, 0, 0, 0.7)）
- *  - 文字颜色：白色 14px
- *  - 内边距：上下 8px，左右 16px
- *  - 自动消失时间：1.5 秒
- *  - 动画：淡入淡出（opacity 过渡 0.3s）
- *  - 无关闭按钮，无遮罩层
+ * 使用自定义 React 节点作为 content，绕过 antd-mobile 的大图标模式，
+ * 统一渲染 24px 小图标 + 14px 文字的垂直布局。
  *
  * 用法：
  *   import { showToast } from '@/lib/toast-unified';
- *   showToast('已打卡');
- *   showToast('打卡失败', 'fail');
- *   showToast('请先选择内容', 'warning');
+ *   showToast('操作成功');
+ *   showToast('操作成功', 'success');
+ *   showToast('操作失败', 'fail');
  *
- *   // 兼容旧 API：
- *   import { ToastUnified } from '@/lib/toast-unified';
- *   ToastUnified.success('已删除');
- *   ToastUnified.fail('删除失败');
+ *   // loading（不自动消失，返回 close 函数）
+ *   const close = showToast('提交中...', 'loading');
+ *   // 异步完成后
+ *   close();
  */
 import { Toast } from 'antd-mobile';
+import React from 'react';
 
-export type UnifiedToastType = 'success' | 'fail' | 'warning';
+export type UnifiedToastType = 'success' | 'fail' | 'warning' | 'loading';
 
 const DURATION = 1500;
+const LOADING_TIMEOUT = 30000;
 
-const TYPE_ICON: Record<UnifiedToastType, 'success' | 'fail' | undefined> = {
-  success: 'success',
-  fail: 'fail',
-  warning: undefined,
-};
+const SuccessIcon = () =>
+  React.createElement(
+    'svg',
+    {
+      width: 24,
+      height: 24,
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      xmlns: 'http://www.w3.org/2000/svg',
+    },
+    React.createElement('path', {
+      d: 'M5 13l4 4L19 7',
+      stroke: '#ffffff',
+      strokeWidth: 2.5,
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+    })
+  );
 
-const TYPE_PREFIX: Record<UnifiedToastType, string> = {
-  success: '',
-  fail: '',
-  warning: '⚠ ',
-};
+const FailIcon = () =>
+  React.createElement(
+    'svg',
+    {
+      width: 24,
+      height: 24,
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      xmlns: 'http://www.w3.org/2000/svg',
+    },
+    React.createElement('path', {
+      d: 'M6 6l12 12M18 6L6 18',
+      stroke: '#ffffff',
+      strokeWidth: 2.5,
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+    })
+  );
 
-export function showToast(content: string, type: UnifiedToastType = 'success') {
+const LoadingIcon = () =>
+  React.createElement(
+    'div',
+    { className: 'bh-toast-loading-spinner' },
+    null
+  );
+
+function buildContent(text: string, type: UnifiedToastType) {
+  const icons: Record<UnifiedToastType, (() => React.ReactElement) | null> = {
+    success: SuccessIcon,
+    fail: FailIcon,
+    loading: LoadingIcon,
+    warning: null,
+  };
+
+  const IconComponent = icons[type];
+
+  return React.createElement(
+    'div',
+    { className: 'bh-toast-custom-content' },
+    IconComponent ? React.createElement(IconComponent) : null,
+    React.createElement(
+      'span',
+      { className: 'bh-toast-custom-text' },
+      type === 'warning' ? `⚠ ${text}` : text
+    )
+  );
+}
+
+export function showToast(content: string, type: UnifiedToastType = 'success'): () => void {
   try {
+    if (type === 'loading') {
+      Toast.show({
+        content: buildContent(content, type),
+        duration: 0,
+        position: 'center',
+        maskClickable: false,
+        maskClassName: 'bh-toast-loading-mask',
+      });
+
+      const timer = setTimeout(() => {
+        Toast.clear();
+      }, LOADING_TIMEOUT);
+
+      return () => {
+        clearTimeout(timer);
+        Toast.clear();
+      };
+    }
+
     Toast.show({
-      content: `${TYPE_PREFIX[type]}${content}`,
-      icon: TYPE_ICON[type],
+      content: buildContent(content, type),
       duration: DURATION,
       position: 'center',
       maskClickable: true,
     });
-    if (typeof document !== 'undefined') {
-      requestAnimationFrame(() => {
-        const nodes = document.querySelectorAll('.adm-toast-main');
-        const last = nodes[nodes.length - 1] as HTMLElement | undefined;
-        if (last) {
-          last.style.background = 'rgba(0, 0, 0, 0.7)';
-          last.style.color = '#fff';
-          last.style.fontSize = '14px';
-          last.style.fontWeight = '500';
-          last.style.borderRadius = '8px';
-          last.style.padding = '8px 16px';
-        }
-      });
-    }
   } catch {
     Toast.show({ content, position: 'center' });
   }
+
+  return () => {
+    Toast.clear();
+  };
 }
 
 export const ToastUnified = {
@@ -77,6 +135,9 @@ export const ToastUnified = {
   },
   warning(content: string) {
     showToast(content, 'warning');
+  },
+  loading(content: string) {
+    return showToast(content, 'loading');
   },
   show: Toast.show,
 };
