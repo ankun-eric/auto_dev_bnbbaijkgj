@@ -622,18 +622,21 @@ function HealthProfileV2PageInner() {
     setShowAddSurgery(true);
   };
 
-  // ─── Member Bar ─────────────────────────────────────────────────
+  // ─── Member Bar (Capsule/Pill layout) ───────────────────────────
 
   const renderMemberBar = () => (
     <div
       data-testid="prd469-member-bar"
       style={{
         background: '#FFFFFF',
-        padding: '10px 16px 12px',
+        padding: '8px 16px 10px',
         display: 'flex',
-        gap: 12,
+        gap: 8,
         overflowX: 'auto',
         alignItems: 'center',
+        WebkitOverflowScrolling: 'touch',
+        msOverflowStyle: 'none',
+        scrollbarWidth: 'none',
       }}
     >
       {members.map((m, idx) => {
@@ -645,6 +648,7 @@ function HealthProfileV2PageInner() {
         const palette = BADGE_COLOR_PALETTE[colorIdx];
         const relationLabel = resolveRelationLabel(m);
         const displayName = m.nickname || (m.is_self ? '本人' : relationLabel);
+        const capsuleText = `${relationLabel} ${displayName}`.trim();
         return (
           <div
             key={m.id}
@@ -652,35 +656,31 @@ function HealthProfileV2PageInner() {
             onClick={() => setSelectedMemberId(m.id)}
             style={{
               flex: '0 0 auto',
-              width: 76,
-              height: 96,
-              borderRadius: 12,
-              background: active ? '#FF8A3D' : '#EAF2FF',
-              boxShadow: active ? '0 4px 12px rgba(255,138,61,0.25)' : 'none',
+              height: 36,
+              borderRadius: 18,
+              background: active ? '#0EA5E9' : '#F1F5F9',
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'flex-start',
-              padding: '8px 4px 6px',
+              padding: '0 12px 0 4px',
               cursor: 'pointer',
               position: 'relative',
-              transition: 'background 0.18s ease',
+              transition: 'background-color 200ms ease, color 200ms ease',
+              gap: 6,
             }}
           >
             <div
               style={{
                 position: 'relative',
-                width: 36,
-                height: 36,
+                width: 28,
+                height: 28,
                 borderRadius: '50%',
                 background: palette.bg,
                 color: palette.fg,
-                fontSize: 18,
+                fontSize: 13,
                 fontWeight: 700,
-                lineHeight: '36px',
+                lineHeight: '28px',
                 textAlign: 'center',
-                border: active ? '2px solid #FFFFFF' : 'none',
-                boxSizing: 'border-box',
+                flexShrink: 0,
               }}
             >
               {badgeChar}
@@ -689,54 +689,35 @@ function HealthProfileV2PageInner() {
                   data-testid={`bh-guarded-badge-${m.id}`}
                   style={{
                     position: 'absolute',
-                    top: -6,
-                    right: -10,
+                    top: -5,
+                    right: -8,
                     background: '#0EA5E9',
                     color: '#fff',
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: 600,
-                    padding: '1px 5px',
+                    padding: '0px 4px',
                     borderRadius: 8,
                     boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
                     border: '1px solid #fff',
                     whiteSpace: 'nowrap',
-                    lineHeight: 1.2,
+                    lineHeight: 1.3,
                   }}
                 >守护中</span>
               )}
             </div>
-            <div
+            <span
               style={{
-                marginTop: 6,
-                fontSize: 12,
-                lineHeight: '16px',
-                color: active ? '#FFFFFF' : '#1F2937',
+                fontSize: 13,
                 fontWeight: active ? 600 : 500,
-                width: '100%',
-                textAlign: 'center',
+                color: active ? '#FFFFFF' : '#64748B',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
-                padding: '0 4px',
+                maxWidth: 100,
               }}
             >
-              {relationLabel}
-            </div>
-            <div
-              style={{
-                fontSize: 11,
-                lineHeight: '16px',
-                color: active ? 'rgba(255,255,255,0.92)' : '#6B7280',
-                width: '100%',
-                textAlign: 'center',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                padding: '0 4px',
-              }}
-            >
-              {displayName}
-            </div>
+              {capsuleText}
+            </span>
           </div>
         );
       })}
@@ -745,29 +726,18 @@ function HealthProfileV2PageInner() {
         data-testid="prd469-add-member-btn"
         style={{
           flex: '0 0 auto',
+          height: 36,
+          borderRadius: 18,
+          background: '#F1F5F9',
           display: 'flex',
-          flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
-          width: 76,
-          height: 96,
+          padding: '0 12px',
           cursor: 'pointer',
+          gap: 4,
         }}
       >
-        <div
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: '50%',
-            background: '#F3F4F6',
-            color: '#6B7280',
-            fontSize: 24,
-            lineHeight: '40px',
-            textAlign: 'center',
-            fontWeight: 400,
-          }}
-        >+</div>
-        <span style={{ fontSize: 12, color: '#6B7280', marginTop: 6 }}>添加成员</span>
+        <span style={{ fontSize: 18, color: '#6B7280', lineHeight: 1 }}>+</span>
+        <span style={{ fontSize: 13, color: '#6B7280', whiteSpace: 'nowrap' }}>添加</span>
       </div>
     </div>
   );
@@ -890,6 +860,53 @@ function HealthProfileV2PageInner() {
       </div>
     );
   };
+
+  // ─── Invite Area (restored) ─────────────────────────────────────
+
+  const currentGuardStatus = useMemo(() => {
+    if (!selectedMember) return 'self';
+    if (selectedMember.is_self) return 'self';
+    const flag = guardedFlags.get(selectedMember.id);
+    return flag?.guarded ? 'guarded' : 'unguarded';
+  }, [selectedMember, guardedFlags]);
+
+  const showInvite = currentGuardStatus === 'self' || currentGuardStatus === 'unguarded';
+
+  const renderInviteArea = () => (
+    <div
+      data-testid="bh-invite-area"
+      style={{
+        padding: '0 16px 12px',
+        overflow: 'hidden',
+        transition: 'opacity 300ms ease, max-height 300ms ease',
+        opacity: showInvite ? 1 : 0,
+        maxHeight: showInvite ? 120 : 0,
+      }}
+    >
+      <div
+        onClick={() => router.push('/family-invite')}
+        style={{
+          background: '#FFFFFF',
+          borderLeft: '4px solid #0EA5E9',
+          borderRadius: 12,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          padding: 16,
+          display: 'flex',
+          alignItems: 'center',
+          cursor: 'pointer',
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 16 }}>💙</span>
+            <span style={{ fontSize: 15, fontWeight: 600, color: '#1E293B' }}>邀请家人加入守护计划</span>
+          </div>
+          <div style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>远程监督用药、健康异常提醒</div>
+        </div>
+        <span style={{ fontSize: 14, fontWeight: 500, color: '#0EA5E9', whiteSpace: 'nowrap', marginLeft: 8 }}>去邀请 ›</span>
+      </div>
+    </div>
+  );
 
   // ─── F9: Family + Devices dual cards ────────────────────────────
 
@@ -1597,6 +1614,7 @@ function HealthProfileV2PageInner() {
       </div>
 
       {renderHero()}
+      {renderInviteArea()}
       {renderDualCards()}
       {renderAlertBanner()}
       {renderMedicationPlan()}
