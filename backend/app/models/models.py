@@ -4485,3 +4485,52 @@ class VirtualMemberMigration(Base):
     status = mapped_column(String(16), nullable=False, default="pending")
     created_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     confirmed_at = mapped_column(DateTime, nullable=True)
+
+
+# ──────────────── [PRD-HEALTH-DASHBOARD-V1] 家人健康看板 ────────────────
+
+
+class HealthReminder(Base):
+    """健康提醒（复诊/体检/复查）"""
+    __tablename__ = "health_reminders"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    member_id = mapped_column(Integer, ForeignKey("family_members.id"), nullable=True, index=True)
+    reminder_type = mapped_column(String(20), nullable=False)  # followup/checkup/recheck
+    title = mapped_column(String(200), nullable=False)
+    hospital = mapped_column(String(200), nullable=True)
+    department = mapped_column(String(100), nullable=True)
+    scheduled_date = mapped_column(Date, nullable=False, index=True)
+    recurrence = mapped_column(String(20), nullable=True)  # null/3months/6months/12months
+    notes = mapped_column(Text, nullable=True)
+    status = mapped_column(String(20), default="pending", nullable=False)  # pending/completed/cancelled
+    source = mapped_column(String(20), default="manual", nullable=False)  # manual/system_recheck/system_checkup
+    related_metric = mapped_column(String(50), nullable=True)  # blood_pressure/blood_sugar etc.
+    created_by = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    completed_at = mapped_column(DateTime, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    user = relationship("User", foreign_keys=[user_id])
+    member = relationship("FamilyMember", foreign_keys=[member_id])
+    creator = relationship("User", foreign_keys=[created_by])
+
+
+class HealthAlertNotification(Base):
+    """健康异常通知记录（体征异常时通知守护者）"""
+    __tablename__ = "health_alert_notifications"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    member_id = mapped_column(Integer, ForeignKey("family_members.id"), nullable=False, index=True)
+    guardian_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    metric_type = mapped_column(String(50), nullable=False)  # blood_pressure/blood_sugar/heart_rate
+    metric_value = mapped_column(String(100), nullable=False)  # "160/100" or "7.5" or "105"
+    is_abnormal = mapped_column(Boolean, default=True, nullable=False)
+    notification_channel = mapped_column(String(20), nullable=False, default="app")  # app/wechat/sms
+    delivery_status = mapped_column(String(20), default="pending", nullable=False)  # pending/sent/failed
+    sent_at = mapped_column(DateTime, nullable=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    member = relationship("FamilyMember", foreign_keys=[member_id])
+    guardian = relationship("User", foreign_keys=[guardian_user_id])

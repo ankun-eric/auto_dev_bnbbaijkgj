@@ -1689,12 +1689,60 @@ function HealthProfileV2PageInner() {
       >
         <GreenNavBar>健康档案</GreenNavBar>
         {renderMemberBar()}
+        {selectedMember && !selectedMember.is_self && (
+          <div style={{ padding: '0 16px', margin: '12px 16px', }}>
+            <div
+              data-testid="health-dashboard-entry"
+              onClick={() => router.push(`/health-dashboard?member_id=${selectedMemberId}`)}
+              style={{
+                background: 'linear-gradient(135deg, #0EA5E9 0%, #38BDF8 100%)',
+                color: '#fff',
+                fontSize: 16,
+                fontWeight: 700,
+                height: 44,
+                borderRadius: 22,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(14,165,233,0.35)',
+                margin: 0,
+              }}
+            >
+              查看 {selectedMember.nickname || '家人'} 的健康看板 →
+            </div>
+          </div>
+        )}
       </div>
 
       {renderHero()}
       {renderInviteArea()}
       {renderDualCards()}
       {renderAlertBanner()}
+      {/* 提醒管理入口 */}
+      <div style={{ padding: '0 16px 12px' }}>
+        <div
+          data-testid="health-reminders-entry"
+          onClick={() => router.push(`/health-reminders?member_id=${selectedMemberId || ''}`)}
+          style={{
+            background: '#fff',
+            borderRadius: 12,
+            padding: '14px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+            cursor: 'pointer',
+            borderLeft: '4px solid #F59E0B',
+          }}
+        >
+          <span style={{ fontSize: 20, marginRight: 10 }}>🔔</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: '#1F2937' }}>提醒管理</div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>复诊·体检·复查提醒</div>
+          </div>
+          <span style={{ fontSize: 14, color: '#9CA3AF' }}>›</span>
+        </div>
+      </div>
       {renderMedicationPlan()}
       {renderMedicalRecords()}
       {renderTodayHealthData()}

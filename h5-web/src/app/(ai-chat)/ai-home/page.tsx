@@ -878,17 +878,7 @@ export default function AiHomePage() {
   const [pickedGreeting, setPickedGreeting] = useState<string>('');
   const [pickedSubtitle, setPickedSubtitle] = useState<string>('');
 
-  // [PRD-420] 切换咨询对象后的「返回上一会话」5 秒撤销栈
-  // 记录切换前的会话 id 与咨询对象，5 秒内点击「返回上一会话」可恢复
-  const [undoSnapshot, setUndoSnapshot] = useState<{
-    sessionId: string | null;
-    consultant: FamilyMemberItem | null;
-    messages: ChatMessage[];
-    expiresAt: number;
-  } | null>(null);
-  const [undoToastVisible, setUndoToastVisible] = useState(false);
-  const [undoToastText, setUndoToastText] = useState('');
-  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // [PRD-420] 切换咨询对象 — 蓝色横条撤销功能已移除（M1 需求），保留中央 Toast 和系统消息分割线
 
   // [PRD-AI-HOME-OPTIM-V4 M2 · F-切人-01] 中央 Toast 浮层（2 秒消失）
   // 文案："已切换为 妈妈 咨询"
@@ -3415,31 +3405,7 @@ export default function AiHomePage() {
       setCenterToastVisible(false);
     }, 2000);
 
-    // [PRD-AI-HOME-OPTIM-V4 M2 · F-切人-03] 5 秒撤销横条 + 撤销期暂停 60min 计时
-    const expiresAt = Date.now() + 5000;
-    setUndoSnapshot({
-      sessionId: prevSessionId,
-      consultant: prevConsultant,
-      messages: prevMessages,
-      expiresAt,
-    });
-    setUndoToastText(`已切换为 ${displayLabel} 咨询，已为您开启新对话`);
-    setUndoToastVisible(true);
-    setRefreshPaused(true);
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    undoTimerRef.current = setTimeout(() => {
-      setUndoToastVisible(false);
-      setUndoSnapshot(null);
-      setRefreshPaused(false);
-      // 触发埋点：5 秒未撤销 → 切换永久生效
-      try {
-        api.post('/api/ai-home/track', {
-          event: 'switch_undo_expired',
-          platform: 'h5',
-          payload: {},
-        }).catch(() => {});
-      } catch {}
-    }, 5000);
+    // [M1] 蓝色横条撤销功能已移除，不再设置 undoSnapshot / undoToastVisible
 
     // 切换咨询人埋点
     try {
@@ -3546,52 +3512,12 @@ export default function AiHomePage() {
     refreshReminderRedDot();
   }, [refreshReminderRedDot, messages.length]);
 
-  // [PRD-420 F5-2 / BUG-466] 「返回上一会话」按钮点击：恢复原会话与原咨询对象
-  // 撤销时同样要：
-  //   1. 同步更新 currentSidRef.current（保证后续 handleSend 立刻命中正确 sid）
-  //   2. 派发 bh-history-refresh，让抽屉同步回滚显示原会话条目
-  const handleUndoSwitch = useCallback(() => {
-    if (!undoSnapshot || Date.now() > undoSnapshot.expiresAt) return;
-    const secondsSinceSwitch = Math.max(0, Math.round((5000 - (undoSnapshot.expiresAt - Date.now())) / 1000));
-    currentSidRef.current = undoSnapshot.sessionId;
-    setSessionId(undoSnapshot.sessionId);
-    setSelectedConsultant(undoSnapshot.consultant);
-    setMessages(undoSnapshot.messages);
-    setUndoToastVisible(false);
-    setUndoSnapshot(null);
-    // [PRD-AI-HOME-OPTIM-V4 M2] 撤销时三处提示同时消失（Toast、横条、系统消息气泡）
-    setCenterToastVisible(false);
-    if (centerToastTimerRef.current) {
-      clearTimeout(centerToastTimerRef.current);
-      centerToastTimerRef.current = null;
-    }
-    if (undoTimerRef.current) {
-      clearTimeout(undoTimerRef.current);
-      undoTimerRef.current = null;
-    }
-    // 撤销期结束 → 恢复 60min 计时
-    setRefreshPaused(false);
-    try {
-      window.dispatchEvent(new Event('bh-history-refresh'));
-    } catch {
-      /* ignore */
-    }
-    try {
-      api.post('/api/ai-home/track', {
-        event: 'switch_undo_clicked',
-        platform: 'h5',
-        payload: { seconds_since_switch: secondsSinceSwitch },
-      }).catch(() => {});
-    } catch {}
-  }, [undoSnapshot]);
+  // [M1] handleUndoSwitch 已移除 — 蓝色横条撤销功能不再需要
 
   // [PRD-420 F6] 进入页面默认咨询对象为「本人」（不读取上次选择，不与菜单模式联动）
   useEffect(() => {
     setSelectedConsultant(null);
     return () => {
-      if (undoTimerRef.current) {
-        clearTimeout(undoTimerRef.current);
-      }
       if (centerToastTimerRef.current) {
         clearTimeout(centerToastTimerRef.current);
       }
@@ -6168,48 +6094,7 @@ export default function AiHomePage() {
         </div>
       )}
 
-      {/* [PRD-420 F5-2 + PRD-423 T-05] 切换会话提示横条（PRD §5：高度 36px / 底色 #EAF4FF / 文字 13px / 主文本色 #2E2E2E） */}
-      {undoToastVisible && undoSnapshot && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 48,
-            left: 0,
-            right: 0,
-            zIndex: 1000,
-            height: 36,
-            background: '#EAF4FF',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0 12px',
-            fontSize: 13,
-            color: '#2E2E2E',
-            transition: 'opacity 200ms ease-out',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-          }}
-          data-testid="consult-switch-toast"
-        >
-          <span style={{ fontSize: 13, lineHeight: 1.4, color: '#2E2E2E', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{undoToastText}</span>
-          <button
-            onClick={handleUndoSwitch}
-            style={{
-              background: 'transparent',
-              color: '#1677FF',
-              border: '1px solid #1677FF',
-              borderRadius: 16,
-              padding: '2px 10px',
-              fontSize: 12,
-              cursor: 'pointer',
-              flexShrink: 0,
-              marginLeft: 8,
-            }}
-            data-testid="consult-switch-undo-btn"
-          >
-            返回上一会话
-          </button>
-        </div>
-      )}
+      {/* [M1] 蓝色横条撤销提示已移除 */}
 
       {/* [PRD-AI-HOME-OPTIM-V4 M2 · F-切人-01] 中央 Toast 浮层（屏幕中央偏上 20%，2 秒自动消失） */}
       {centerToastVisible && (

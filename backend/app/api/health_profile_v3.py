@@ -377,6 +377,22 @@ async def create_metric(
     await db.commit()
     await db.refresh(record)
 
+    # [PRD-HEALTH-DASHBOARD-V1] 体征录入后自动触发异常检查 + 复查提醒取消
+    if metric_type in ("blood_pressure", "blood_glucose", "heart_rate"):
+        try:
+            from app.services.health_dashboard_service import (
+                cancel_recheck_if_data_recorded,
+                check_and_alert,
+            )
+            profile = await _verify_profile_access(db, profile_id, current_user)
+            member_id = profile.family_member_id
+            if member_id:
+                await cancel_recheck_if_data_recorded(db, member_id, metric_type)
+                await check_and_alert(db, member_id, metric_type)
+                await db.commit()
+        except Exception:
+            logger.warning("health dashboard alert check failed after metric create", exc_info=True)
+
     return MetricRecordOut(
         id=record.id,
         profile_id=record.profile_id,

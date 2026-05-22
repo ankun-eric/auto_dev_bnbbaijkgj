@@ -109,6 +109,7 @@ from app.api import (
     medication_add_optim_v1,
     medication_today_v1,
     health_archive_optim_v1,
+    health_dashboard,
     questionnaire,
     devices_v2,
 )
@@ -2206,6 +2207,7 @@ app.include_router(_analytics.router)
 # [PRD-439 2026-05-10] H5 健康打卡升级为用药提醒：用药计划/打卡/徽标/待核销预约
 app.include_router(medication_reminder.router)
 app.include_router(prd469_health_v5.router)  # [PRD-469] 健康档案 v2 优化（v5 设计稿对齐）
+app.include_router(health_dashboard.router)  # [PRD-HEALTH-DASHBOARD-V1] 家人健康看板
 app.include_router(devices_v2.router)  # [PRD-MY-DEVICES-V1 2026-05-21] 我的设备 V2（/api/devices/*）
 # [PRD-DRUG-CARD-V3 2026-05-16] AI 对话拍照识药 v3：权威库匹配 + 待审池 + 医疗咨询热线
 app.include_router(medication_library_v3.router)

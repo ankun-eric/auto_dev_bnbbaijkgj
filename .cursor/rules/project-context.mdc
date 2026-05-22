@@ -27,7 +27,59 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: 健康档案功能优化Bug修复 — 6个代码Bug全部修复并部署 (2026-05-23 00:10)
+## Latest Update: 健康管理系统三大模块优化开发完成并部署 (2026-05-23 02:00)
+
+### 一句话结论
+切换咨询人优化（去掉顶部横条+撤销功能）+家人健康看板（仪表盘+评分+趋势曲线+动态时间线+用药打卡+体检摘要）+健康提醒增强（复诊/体检/复查三种提醒）+异常预警系统 全部开发完成并部署上线。后端新增8个API端点+2张数据表，H5前端新增2个页面+修改2个页面。
+
+### 核心变更
+
+#### 后端新增
+- **数据模型**：`HealthReminder`（健康提醒表）、`HealthAlertNotification`（异常预警通知表）
+- **Schema**：`backend/app/schemas/health_dashboard.py`（看板+提醒全套Schema）
+- **服务层**：`backend/app/services/health_dashboard_service.py`（健康评分计算、异常检测、趋势数据、守护者通知）
+- **API 路由**：`backend/app/api/health_dashboard.py`（8个端点）
+- **自动触发**：体征录入后自动检查异常→通知守护者→创建3天复查提醒
+
+#### 新增 API 端点
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/health-dashboard/{member_id}` | 家人健康看板汇总数据 |
+| GET | `/api/health-dashboard/{member_id}/trends` | 健康趋势曲线数据（支持7/30/90天） |
+| POST | `/api/health-reminders` | 创建健康提醒 |
+| GET | `/api/health-reminders` | 获取健康提醒列表 |
+| PUT | `/api/health-reminders/{id}` | 更新健康提醒 |
+| DELETE | `/api/health-reminders/{id}` | 删除健康提醒 |
+| GET | `/api/health-reminders/recommendations` | 体检推荐（按年龄） |
+| POST | `/api/health-alerts/check` | 手动触发异常检查 |
+
+#### H5 前端变更
+- **修改** `h5-web/src/app/(ai-chat)/ai-home/page.tsx` — 删除蓝色横条+撤销功能
+- **修改** `h5-web/src/app/health-profile/page.tsx` — 新增健康看板入口按钮+提醒管理入口
+- **新增** `h5-web/src/app/health-dashboard/page.tsx` — 家人健康看板页面
+- **新增** `h5-web/src/app/health-reminders/page.tsx` — 健康提醒管理页面
+
+#### 测试
+- `backend/tests/test_health_dashboard.py` — 13个测试用例全部通过
+
+### 部署验证（已通过）
+- 部署时间：2026-05-23 02:00
+- backend + h5-web 容器 --no-cache 重建启动正常
+- HTTP探活：`/` 200、`/api/docs` 200、`/health-dashboard` 200、`/health-reminders` 200
+
+### 用户体验手册
+- `user_docs/健康管理系统优化_看板与提醒.md`
+
+---
+
+## Previous Update: 需求沟通完成 — 切换咨询人优化+子女远程关注+健康提醒增强 PRD 已输出 (2026-05-23 01:40)
+
+### 一句话结论
+多轮需求沟通全部完成并输出PRD。
+
+---
+
+## Previous Update: 健康档案功能优化Bug修复 — 6个代码Bug全部修复并部署 (2026-05-23 00:10)
 
 ### 一句话结论
 健康档案首页 12 项 PRD 优化的 6 个代码层面 Bug 全部修复并重新部署：成员Tab胶囊回退到name而非关系名、就医资料全部页API路径修正、编辑弹层saveAll添加relationship_type、就医资料条目跳转添加highlight+member_id参数、就医资料全部页添加member_id过滤、关系选项与NewFamilyMemberModal保持一致使用RELATION_DEFS。
