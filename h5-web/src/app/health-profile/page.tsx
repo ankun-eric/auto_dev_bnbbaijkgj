@@ -223,6 +223,7 @@ function HealthProfileV2PageInner() {
   const [medSummary, setMedSummary] = useState<Array<{ id: number; name: string; dosage: string; frequency_text: string; timing_text: string; status_text: string }>>([]);
   const [guardedFlags, setGuardedFlags] = useState<Map<number, { guarded: boolean; managed_user_id: number | null }>>(new Map());
   const [guardianSummary, setGuardianSummary] = useState<{ managed_count: number }>({ managed_count: 0 });
+  const [todayDataUpdatedAt, setTodayDataUpdatedAt] = useState<string>('');
   const searchParams = useSearchParams();
 
   // Health info state (inlined from HealthInfoBlock)
@@ -299,6 +300,8 @@ function HealthProfileV2PageInner() {
       const res: any = await api.get(`/api/health-profile-v3/${profileId}/today-metrics`);
       const data = res.data || res;
       setTodayMetrics(data);
+      const now = new Date();
+      setTodayDataUpdatedAt(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
     } catch {
       setTodayMetrics(null);
     }
@@ -648,7 +651,7 @@ function HealthProfileV2PageInner() {
         const palette = BADGE_COLOR_PALETTE[colorIdx];
         const relationLabel = resolveRelationLabel(m);
         const displayName = m.nickname || (m.is_self ? '本人' : relationLabel);
-        const capsuleText = `${relationLabel} ${displayName}`.trim();
+        const capsuleText = m.nickname || m.relation_type_name || '本人';
         return (
           <div
             key={m.id}
@@ -798,9 +801,6 @@ function HealthProfileV2PageInner() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 22, fontWeight: 700 }}>{profile.name || '未填'}</span>
-                {age != null && (
-                  <span style={{ fontSize: 14, opacity: 0.9 }}>{age}岁</span>
-                )}
                 <span
                   data-testid="bh-hero-relation-label"
                   style={{
@@ -809,16 +809,15 @@ function HealthProfileV2PageInner() {
                     background: 'rgba(255,255,255,0.28)',
                   }}
                 >{relLabel}</span>
-                {genderText && (
-                  <span style={{ fontSize: 12, opacity: 0.85 }}>{genderText}</span>
-                )}
+              </div>
+              <div style={{ fontSize: 13, opacity: 0.85, marginTop: 2 }}>
+                {[genderText, age != null ? `${age}岁` : '', profile.height ? `${profile.height}cm` : '', profile.weight ? `${profile.weight}kg` : ''].filter(Boolean).join(' · ')}
               </div>
             </div>
           </div>
 
           {/* Lower: Health info tags */}
           <div style={{ marginTop: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, opacity: 0.9, marginBottom: 8 }}>健康信息</div>
             {healthInfoTags.length === 0 ? (
               <div
                 onClick={() => {
@@ -870,7 +869,7 @@ function HealthProfileV2PageInner() {
     return flag?.guarded ? 'guarded' : 'unguarded';
   }, [selectedMember, guardedFlags]);
 
-  const showInvite = currentGuardStatus === 'self' || currentGuardStatus === 'unguarded';
+  const showInvite = currentGuardStatus === 'unguarded';
 
   const renderInviteArea = () => (
     <div
@@ -978,12 +977,12 @@ function HealthProfileV2PageInner() {
     return (
       <div id="medication-plan" data-testid="prd469-medication-plan" style={{ padding: '0 16px 12px' }}>
         <div
-          onClick={() => setMedExpanded(!medExpanded)}
           style={{
             background: '#fff', borderRadius: 12, padding: '14px 16px',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             boxShadow: '0 1px 4px rgba(0,0,0,0.04)', cursor: 'pointer',
           }}
+          onClick={() => setMedExpanded(!medExpanded)}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 16, fontWeight: 600, color: T.brand700 }}>用药计划</span>
@@ -991,12 +990,18 @@ function HealthProfileV2PageInner() {
               <span style={{
                 background: T.brand500, color: '#fff', fontSize: 11, fontWeight: 600,
                 padding: '1px 7px', borderRadius: 10, minWidth: 18, textAlign: 'center',
-              }}>{totalCount}</span>
+              }}>({totalCount})</span>
             )}
           </div>
-          <span style={{ fontSize: 13, color: '#9CA3AF' }}>
-            {medExpanded ? '收起 ▴' : '展开 ▾'}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span onClick={(e) => { e.stopPropagation(); router.push('/ai-home/medication-plans/new'); }}
+              style={{ fontSize: 13, fontWeight: 500, color: T.brand500 }}>+新增</span>
+            <span onClick={(e) => { e.stopPropagation(); router.push('/ai-home/medication-plans'); }}
+              style={{ fontSize: 13, fontWeight: 500, color: T.brand500 }}>全部 ›</span>
+            <span style={{ fontSize: 13, color: '#9CA3AF' }}>
+              {medExpanded ? '▴' : '▾'}
+            </span>
+          </div>
         </div>
 
         {medExpanded && (
@@ -1090,9 +1095,15 @@ function HealthProfileV2PageInner() {
               }}>{totalRecords}</span>
             )}
           </div>
-          <span style={{ fontSize: 13, color: '#9CA3AF' }}>
-            {recordsExpanded ? '收起 ▴' : '展开 ▾'}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span onClick={(e) => { e.stopPropagation(); router.push('/medical-records?action=new'); }}
+              style={{ fontSize: 13, fontWeight: 500, color: T.brand500 }}>+新增</span>
+            <span onClick={(e) => { e.stopPropagation(); router.push('/medical-records/all'); }}
+              style={{ fontSize: 13, fontWeight: 500, color: T.brand500 }}>全部 ›</span>
+            <span style={{ fontSize: 13, color: '#9CA3AF' }}>
+              {recordsExpanded ? '▴' : '▾'}
+            </span>
+          </div>
         </div>
 
         {recordsExpanded && (
@@ -1102,7 +1113,7 @@ function HealthProfileV2PageInner() {
             {V5_RECORD_CATS.map((cat) => (
               <div
                 key={cat.key}
-                onClick={() => openRecordDrawer(cat)}
+                onClick={() => router.push(`/medical-records/all?tab=${cat.key}`)}
                 style={{
                   background: '#fff', borderRadius: 12, padding: '14px 14px',
                   display: 'flex', alignItems: 'center', gap: 10,
@@ -1243,27 +1254,54 @@ function HealthProfileV2PageInner() {
 
     return (
       <div data-testid="prd469-today-data" style={{ padding: '0 16px 12px' }}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: T.brand700, margin: '0 0 10px' }}>今日健康数据</h3>
-
-        {/* Medication reminder highlight card */}
-        <div
-          onClick={() => router.push('/ai-home/medication-reminder')}
-          style={{
-            background: 'linear-gradient(135deg, #4A9EE0 0%, #3B82F6 100%)',
-            borderRadius: 12, padding: '16px 18px',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            cursor: 'pointer', marginBottom: 12, color: '#fff',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>💊 用药提醒</div>
-            <div style={{ fontSize: 13, opacity: 0.9 }}>已完成 {medChecked}/{medTotal} 项</div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <CircleProgress percent={medPercent} size={48} />
-            <span style={{ fontSize: 18 }}>›</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 10px' }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, color: T.brand700, margin: 0 }}>今日健康数据</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {todayDataUpdatedAt && (
+              <span style={{ fontSize: 12, color: '#9CA3AF' }}>更新时间：{todayDataUpdatedAt}</span>
+            )}
+            <span
+              onClick={() => { if (profile?.id) fetchTodayMetrics(profile.id); }}
+              style={{ fontSize: 16, cursor: 'pointer', userSelect: 'none' }}
+            >🔄</span>
           </div>
         </div>
+
+        {/* Medication reminder card */}
+        {(() => {
+          const allDone = medHero?.status === 'all_done' || (medTotal > 0 && medChecked >= medTotal);
+          const cardBg = allDone
+            ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
+            : 'linear-gradient(135deg, #4A9EE0 0%, #3B82F6 100%)';
+          return (
+            <div
+              onClick={() => router.push('/ai-home/medication-reminder')}
+              style={{
+                background: cardBg,
+                borderRadius: 12, padding: '14px 16px',
+                cursor: 'pointer', marginBottom: 12, color: '#fff',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: allDone ? 0 : 6 }}>
+                <span style={{ fontSize: 15, fontWeight: 700 }}>💊 用药提醒</span>
+                <span onClick={(e) => { e.stopPropagation(); router.push('/ai-home/medication-reminder'); }}
+                  style={{ fontSize: 13, opacity: 0.9 }}>全部 ›</span>
+              </div>
+              {allDone ? (
+                <div style={{ fontSize: 14, marginTop: 6, opacity: 0.95 }}>今日用药已全部完成 ✅</div>
+              ) : medHero?.display_text ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 13, opacity: 0.9 }}>⏰ 下一次：{medHero.display_text}</span>
+                  <span style={{ fontSize: 12, opacity: 0.8 }}>
+                    {medHero.remaining_today === 1 ? '最后1次' : `还剩${medHero.remaining_today}次`}
+                  </span>
+                </div>
+              ) : (
+                <div style={{ fontSize: 13, opacity: 0.9 }}>暂无用药计划</div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Vitals 2x2 grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
@@ -1359,26 +1397,64 @@ function HealthProfileV2PageInner() {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.brand700, marginBottom: 12, paddingBottom: 6, borderBottom: `2px solid ${T.brand100}` }}>
                 个人信息
               </div>
-              <HeroEditRow label="姓名" value={heroEditDraft.name || ''}
-                onChange={(v) => setHeroEditDraft({ ...heroEditDraft, name: v })} />
-              <HeroEditRow label="性别" value={heroEditDraft.gender || ''}
-                onChange={(v) => setHeroEditDraft({ ...heroEditDraft, gender: v })}
-                options={['男', '女', '其他']} />
-              <HeroEditRow label="生日" value={heroEditDraft.birthday || ''}
-                onChange={(v) => setHeroEditDraft({ ...heroEditDraft, birthday: v })}
-                inputType="date" />
-              <HeroEditRow label="身高 (cm)" value={String(heroEditDraft.height ?? '')}
-                onChange={(v) => setHeroEditDraft({ ...heroEditDraft, height: v ? Number(v) : null })}
-                inputType="number" />
-              <HeroEditRow label="体重 (kg)" value={String(heroEditDraft.weight ?? '')}
-                onChange={(v) => setHeroEditDraft({ ...heroEditDraft, weight: v ? Number(v) : null })}
-                inputType="number" />
-              <HeroEditRow label="血型" value={heroEditDraft.blood_type || ''}
-                onChange={(v) => setHeroEditDraft({ ...heroEditDraft, blood_type: v })}
-                options={['A', 'B', 'AB', 'O', '未知']} />
-              <HeroEditRow label="关系" value={editRelation}
-                onChange={(v) => setEditRelation(v)}
-                options={['本人', '爸爸', '妈妈', '老公', '老婆', '儿子', '女儿', '爷爷', '奶奶', '其他']} />
+              {/* 关系 */}
+              <div style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <span style={{ width: 70, fontSize: 14, color: '#6b7280', flexShrink: 0 }}>关系</span>
+                <div style={{ flex: 1, textAlign: 'right' }}>
+                  {selectedMember?.is_self ? (
+                    <span style={{ fontSize: 14, color: '#374151' }}>本人</span>
+                  ) : (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      {['爸爸', '妈妈', '老公', '老婆', '儿子', '女儿', '爷爷', '奶奶', '其他'].map((o) => (
+                        <button key={o} onClick={() => setEditRelation(o)}
+                          style={{ padding: '5px 12px', borderRadius: 14, background: editRelation === o ? T.brand500 : '#f3f4f6', color: editRelation === o ? '#fff' : '#374151', border: 'none', fontSize: 13, cursor: 'pointer' }}>{o}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {/* 姓名 */}
+              <div style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <span style={{ width: 70, fontSize: 14, color: '#6b7280', flexShrink: 0 }}>姓名</span>
+                <input type="text" value={heroEditDraft.name || ''} onChange={(e) => setHeroEditDraft({ ...heroEditDraft, name: e.target.value })}
+                  style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, textAlign: 'right', boxSizing: 'border-box' }} />
+              </div>
+              {/* 性别 */}
+              <div style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <span style={{ width: 70, fontSize: 14, color: '#6b7280', flexShrink: 0 }}>性别</span>
+                <div style={{ flex: 1, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  {['男', '女'].map((o) => (
+                    <button key={o} onClick={() => setHeroEditDraft({ ...heroEditDraft, gender: o })}
+                      style={{ padding: '6px 14px', borderRadius: 14, background: heroEditDraft.gender === o ? T.brand500 : '#f3f4f6', color: heroEditDraft.gender === o ? '#fff' : '#374151', border: 'none', fontSize: 13, cursor: 'pointer' }}>{o}</button>
+                  ))}
+                </div>
+              </div>
+              {/* 生日 */}
+              <div style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <span style={{ width: 70, fontSize: 14, color: '#6b7280', flexShrink: 0 }}>生日</span>
+                <input type="date" value={heroEditDraft.birthday || ''} onChange={(e) => setHeroEditDraft({ ...heroEditDraft, birthday: e.target.value })}
+                  style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, textAlign: 'right', boxSizing: 'border-box' }} />
+              </div>
+              {/* 身高/体重 同行 */}
+              <div style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6', gap: 12 }}>
+                <span style={{ width: 70, fontSize: 14, color: '#6b7280', flexShrink: 0 }}>身高/体重</span>
+                <div style={{ flex: 1, display: 'flex', gap: 8 }}>
+                  <input type="number" placeholder="身高cm" value={String(heroEditDraft.height ?? '')} onChange={(e) => setHeroEditDraft({ ...heroEditDraft, height: e.target.value ? Number(e.target.value) : null })}
+                    style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, textAlign: 'right', boxSizing: 'border-box' }} />
+                  <input type="number" placeholder="体重kg" value={String(heroEditDraft.weight ?? '')} onChange={(e) => setHeroEditDraft({ ...heroEditDraft, weight: e.target.value ? Number(e.target.value) : null })}
+                    style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, textAlign: 'right', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+              {/* 血型 */}
+              <div style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <span style={{ width: 70, fontSize: 14, color: '#6b7280', flexShrink: 0 }}>血型</span>
+                <div style={{ flex: 1, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  {['A', 'B', 'AB', 'O'].map((o) => (
+                    <button key={o} onClick={() => setHeroEditDraft({ ...heroEditDraft, blood_type: o })}
+                      style={{ padding: '6px 14px', borderRadius: 14, background: heroEditDraft.blood_type === o ? T.brand500 : '#f3f4f6', color: heroEditDraft.blood_type === o ? '#fff' : '#374151', border: 'none', fontSize: 13, cursor: 'pointer' }}>{o}</button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Section 2: Health Info */}

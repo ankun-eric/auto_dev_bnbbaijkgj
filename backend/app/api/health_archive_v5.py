@@ -229,10 +229,13 @@ async def get_overview(
             MedicationReminder.end_date.is_(None),
             MedicationReminder.end_date >= today,
         ))
+        cond.append(or_(
+            MedicationReminder.start_date.is_(None),
+            MedicationReminder.start_date <= today,
+        ))
         r2 = await db.execute(select(func.count(MedicationReminder.id)).where(and_(*cond)))
         medication_plan_count = int(r2.scalar() or 0)
     except Exception as e:  # noqa: BLE001
-        # 异常应当不会发生；用 exception 级别便于排错
         logger.exception("[overview] medication_plan_count query failed: %s", e)
 
     # 3. 家庭成员数（含本人）
