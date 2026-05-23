@@ -27,7 +27,52 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: AI 客户端(ai-home)全量样式调整 + 12项组件补齐 (2026-05-23 12:20)
+## Latest Update: 体质测评结果页加载失败 Bug 修复 (2026-05-23 12:45)
+
+### 一句话结论
+AI 对话中点击体质测评结果卡片"查看详情"→结果页 404 的 Bug 已修复。根因为前端传 answerId（QuestionnaireAnswer 表 PK）而后端期望 diagnosis_id（TCMDiagnosis 表 PK），现已在提交问卷时同步创建 TCMDiagnosis 记录并使用正确 ID 生成跳转路由。
+
+### 核心变更
+
+#### 后端修复
+- `backend/app/api/questionnaire.py` — submit 时同步创建 TCMDiagnosis；`_build_detail_target` 使用 diagnosis_id
+- `backend/app/api/constitution.py` — `_load_diagnosis` 兼容 answer_id 反查；新增反查接口
+- `backend/app/api/tcm.py` — fake_tpl 补全 result_display_mode；card_payload 透传 diagnosis_id
+
+#### 前端修复
+- `h5-web/src/app/(ai-chat)/ai-home/page.tsx` — 跳转优先使用 diagnosis_id
+- `h5-web/src/app/tcm/result/[id]/page.tsx` — 404 容错提示
+- `miniprogram/pages/chat/index.js` — 跳转兼容 diagnosis_id
+
+### 新增 API 端点
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/constitution/diagnosis-by-answer/{answer_id}` | answer_id 反查 diagnosis_id |
+
+### 部署验证（已通过）
+- 部署时间：2026-05-23 12:37
+- backend + h5-web 容器重建启动正常
+- HTTP探活：`/` 200、`/api/docs` 200、`/ai-home` 308、`/tcm/result/1` 308
+
+### 用户体验手册
+- `user_docs/体质测评结果页Bug修复.md`
+
+---
+
+## Previous Update: 健康档案页面优化 Bug 修复方案输出 (2026-05-23 12:30)
+
+### 一句话结论
+健康档案页面 6 大项 Bug（用药计划统计不一致、底部按钮重复、列表页样式和统计、用药提醒信息错误、Hero 卡片紧凑化、健康看板入口本人也需展示、成员 Tab 切换回顶部、子页面返回 Tab 定位）已完成全量分析并输出修复方案文档。
+
+### Bug 修复方案文档
+- `.chat_output/af47dee3-f2fe-4fcb-9673-cf05bb7171de/BUG_FIX_健康档案页面优化_20260523_123000.md`
+
+### 历史记忆文件
+- `mem/mem_健康档案页面优化bug讨论_20260523_123000.md`
+
+---
+
+## Previous Update: AI 客户端(ai-home)全量样式调整 + 12项组件补齐 (2026-05-23 12:20)
 
 ### 一句话结论
 H5客户端全量视觉样式对齐设计稿「方案A·晴空诊室」：A类13个页面/组件群纯样式调整 + B类12项组件补齐（7个新文件+5个改造），品牌色/渐变/圆角/阴影/字号全部统一。
