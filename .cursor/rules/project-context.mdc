@@ -27,7 +27,65 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: 健康档案守护关系与页面优化 PRD 输出 (2026-05-23 22:35)
+## Latest Update: 健康档案守护关系与页面优化 — 14项需求全量开发部署 (2026-05-24 00:00)
+
+### 一句话结论
+"健康档案守护关系与页面优化"14项需求全量开发部署完成。后端新增反向守护API（6个端点+ReverseGuardianInvitation数据模型），H5前端首页双卡片并排布局+守护我的人列表页+反向邀请页，小程序同步适配全部功能。用药计划竞态修复、设备成员维度过滤均已实现。
+
+### 核心变更
+
+#### 后端新增
+- **数据模型**: `ReverseGuardianInvitation`（反向守护邀请记录表）
+- **API 路由**: `backend/app/api/reverse_guardian.py`（6个端点）
+- **Schema**: `backend/app/schemas/reverse_guardian.py`
+
+#### 新增 API 端点
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/reverse-guardian/my-guardians` | 获取"守护我的人"列表 |
+| GET | `/api/reverse-guardian/guardian-count` | 获取守护我的人数量 |
+| POST | `/api/reverse-guardian/remove` | 被守护人单方面解除守护关系 |
+| POST | `/api/reverse-guardian/invite` | 被守护人生成反向邀请链接 |
+| GET | `/api/reverse-guardian/invite/{invite_code}` | 查看反向邀请详情 |
+| POST | `/api/reverse-guardian/invite/{invite_code}/accept` | 接受反向邀请成为守护者 |
+
+#### 已修改的现有端点
+| 方法 | 路径 | 变更 |
+|------|------|------|
+| GET | `/api/devices/my` | 新增可选参数 `member_id`（0=全部, >0=按成员筛选） |
+
+#### H5 前端变更
+- `h5-web/src/app/health-profile/page.tsx` — 首页双卡片并排布局、图标底色优化
+- `h5-web/src/app/health-profile/my-guardians/page.tsx` — 新增守护我的人列表页
+- `h5-web/src/app/health-profile/my-guardians/invite/page.tsx` — 新增反向邀请页
+- `h5-web/src/app/(ai-chat)/ai-home/medication-plans/page.tsx` — 竞态修复
+- `h5-web/src/app/devices/page.tsx` — 设备成员维度过滤
+- `h5-web/src/app/family-auth/page.tsx` — 支持反向邀请接受
+
+#### 小程序变更
+- `miniprogram/pages/health-profile/` — 首页布局改造
+- `miniprogram/pages/my-guardians/` — 新增守护我的人列表页
+- `miniprogram/pages/reverse-invite/` — 新增反向邀请页
+- `miniprogram/pages/family-auth/` — 支持反向邀请接受
+
+### 部署验证（已通过）
+- 部署时间：2026-05-24 00:00
+- backend + h5-web 容器 --no-cache 重建启动正常
+- HTTP探活：`/` 200、`/api/docs` 200、`/api/reverse-guardian/guardian-count` 401、`/health-profile` 200
+
+### 用户体验手册
+- `user_docs/健康档案守护关系与页面优化.md`
+
+---
+
+## Previous Update: 报告解读历史记录与就医资料自动写入 Bug 修复方案输出 (2026-05-23 23:01)
+
+### 一句话结论
+完成"报告解读完成后历史报告和就医资料无自动写入记录"Bug 的多轮沟通与修复方案文档输出。
+
+---
+
+## Previous Update: 健康档案守护关系与页面优化 PRD 输出 (2026-05-23 22:35)
 
 ### 一句话结论
 完成"健康档案守护关系与页面优化"需求的多轮沟通与 PRD 文档输出，共 14 项需求（1 Bug + 7 新功能 + 3 规则确认 + 3 样式布局调整）。
