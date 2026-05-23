@@ -181,15 +181,36 @@ async def hero_count(
         ai_home_label = ""
         ai_home_number = remaining
 
+    # [BUG-HEALTH-PROFILE-OPT 2026-05-23] 计算下一次待服药信息
+    done_pairs: set[tuple[int, str]] = set()
+    by_plan: dict[int, list[MedicationCheckIn]] = {}
+    for ci in checkins:
+        by_plan.setdefault(ci.reminder_id, []).append(ci)
+    for rid, cis in by_plan.items():
+        r_obj = next((r for r in reminders if r.id == rid), None)
+        if not r_obj:
+            continue
+        sched = _schedule_of(r_obj)
+        cis_sorted = sorted(cis, key=lambda c: c.check_in_time or "")
+        for i, ci in enumerate(cis_sorted):
+            if i < len(sched):
+                done_pairs.add((rid, sched[i]))
+
+    now = datetime.now()
+    next_med = _next_reminder(reminders, done_pairs, now)
+    next_med_text = None
+    if next_med:
+        next_med_text = f"{next_med['name']} · {next_med['scheduled_time']}"
+
     return {
         "total_today": total_today,
         "done_today": done_today,
         "remaining_today": remaining,
         "status": status,
         "display_text": text,
-        # [PRD-HEALTH-ARCHIVE-V5-20260521 F01] AI 首页用药数字 + 兜底文案
         "ai_home_number": ai_home_number,
         "ai_home_label": ai_home_label,
+        "next_medication_text": next_med_text,
     }
 
 

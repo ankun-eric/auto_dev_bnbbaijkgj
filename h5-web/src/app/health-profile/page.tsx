@@ -220,7 +220,7 @@ function HealthProfileV2PageInner() {
   const [heroMetrics, setHeroMetrics] = useState<HeroMetric[]>([]);
   const [showHeroEdit, setShowHeroEdit] = useState(false);
   const [heroEditDraft, setHeroEditDraft] = useState<HealthProfileBasic | null>(null);
-  const [medHero, setMedHero] = useState<{ display_text: string; status: string; remaining_today: number } | null>(null);
+  const [medHero, setMedHero] = useState<{ display_text: string; status: string; remaining_today: number; next_medication_text?: string | null } | null>(null);
   const [medSummary, setMedSummary] = useState<Array<{ id: number; name: string; dosage: string; frequency_text: string; timing_text: string; status_text: string }>>([]);
   const [guardedFlags, setGuardedFlags] = useState<Map<number, { guarded: boolean; managed_user_id: number | null }>>(new Map());
   const [guardianSummary, setGuardianSummary] = useState<{ managed_count: number }>({ managed_count: 0 });
@@ -276,8 +276,12 @@ function HealthProfileV2PageInner() {
       const items: FamilyMember[] = Array.isArray(data.items) ? data.items : [];
       setMembers(items);
       if (items.length > 0 && selectedMemberId == null) {
-        const self = items.find((m) => m.is_self) || items[0];
-        setSelectedMemberId(self.id);
+        const urlMemberId = searchParams?.get('member_id');
+        const targetMember = urlMemberId
+          ? items.find((m) => String(m.id) === urlMemberId)
+          : null;
+        const fallback = items.find((m) => m.is_self) || items[0];
+        setSelectedMemberId(targetMember?.id ?? fallback.id);
       }
     } catch {
       setMembers([]);
@@ -328,7 +332,7 @@ function HealthProfileV2PageInner() {
     try {
       const res: any = await api.get(`/api/medication-plans/hero-count?consultant_id=${consultantId}`);
       const data = res.data || res;
-      setMedHero({ display_text: data.display_text, status: data.status, remaining_today: data.remaining_today });
+      setMedHero({ display_text: data.display_text, status: data.status, remaining_today: data.remaining_today, next_medication_text: data.next_medication_text });
     } catch {
       setMedHero(null);
     }
@@ -472,7 +476,13 @@ function HealthProfileV2PageInner() {
     setMedExpanded(false);
     setMedShowAll(false);
     setRecordsExpanded(false);
-    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch {}
+    try {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      const scrollContainer = document.querySelector('[data-testid="health-profile-page"]');
+      if (scrollContainer) scrollContainer.scrollTop = 0;
+    } catch {}
     const m = members.find((x) => x.id === selectedMemberId);
     const cid = m ? (m.is_self ? 0 : m.id) : -1;
     (async () => {
@@ -755,11 +765,11 @@ function HealthProfileV2PageInner() {
     const genderText = profile.gender ? formatGender(profile.gender) : '';
 
     return (
-      <div style={{ padding: '12px 16px' }}>
+      <div style={{ padding: '8px 16px' }}>
         <div
           data-testid="prd469-hero-card"
           style={{
-            background: T.gradient, color: '#fff', borderRadius: 16, padding: 20,
+            background: T.gradient, color: '#fff', borderRadius: 14, padding: '14px 16px',
             boxShadow: T.shadow, position: 'relative',
           }}
         >
@@ -772,16 +782,16 @@ function HealthProfileV2PageInner() {
               setShowHeroEdit(true);
             }}
             style={{
-              position: 'absolute', top: 12, right: 12,
-              padding: '4px 10px', borderRadius: 12,
+              position: 'absolute', top: 10, right: 10,
+              padding: '3px 8px', borderRadius: 10,
               background: 'rgba(255,255,255,0.25)', color: '#fff',
               border: '1px solid rgba(255,255,255,0.4)',
-              fontSize: 12, fontWeight: 500, cursor: 'pointer',
+              fontSize: 11, fontWeight: 500, cursor: 'pointer',
             }}
           >编辑</button>
 
           {/* Upper: Avatar + Name + Age + Relation + Gender */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div
               style={{
                 width: 64, height: 64, borderRadius: '50%',
@@ -818,7 +828,7 @@ function HealthProfileV2PageInner() {
           </div>
 
           {/* Lower: Health info tags */}
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: 10 }}>
             {healthInfoTags.length === 0 ? (
               <div
                 onClick={() => {
@@ -999,9 +1009,9 @@ function HealthProfileV2PageInner() {
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span onClick={(e) => { e.stopPropagation(); router.push('/ai-home/medication-plans/new'); }}
+            <span onClick={(e) => { e.stopPropagation(); router.push(`/ai-home/medication-plans/new${memberQs}`); }}
               style={{ fontSize: 13, fontWeight: 500, color: T.brand500 }}>+新增</span>
-            <span onClick={(e) => { e.stopPropagation(); router.push('/ai-home/medication-plans'); }}
+            <span onClick={(e) => { e.stopPropagation(); router.push(`/ai-home/medication-plans${memberQs}`); }}
               style={{ fontSize: 13, fontWeight: 500, color: T.brand500 }}>全部 ›</span>
             <span style={{ fontSize: 13, color: '#9CA3AF' }}>
               {medExpanded ? '▴' : '▾'}
@@ -1018,7 +1028,7 @@ function HealthProfileV2PageInner() {
               }}>
                 <button
                   data-testid="med-summary-empty-btn"
-                  onClick={() => router.push('/ai-home/medication-plans/new')}
+                  onClick={() => router.push(`/ai-home/medication-plans/new${memberQs}`)}
                   style={{
                     padding: '12px 24px', background: T.brand500, color: '#fff',
                     border: 'none', borderRadius: 24, fontSize: 15, fontWeight: 600, cursor: 'pointer',
@@ -1053,16 +1063,6 @@ function HealthProfileV2PageInner() {
                     >查看全部 ({totalCount})</button>
                   </div>
                 )}
-                <div style={{ textAlign: 'center', marginTop: 10 }}>
-                  <button
-                    data-testid="med-summary-add-btn"
-                    onClick={() => router.push('/ai-home/medication-plans/new')}
-                    style={{
-                      padding: '10px 24px', background: T.brand500, color: '#fff',
-                      border: 'none', borderRadius: 20, fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                    }}
-                  >+ 新增用药</button>
-                </div>
               </>
             )}
           </div>
@@ -1101,7 +1101,7 @@ function HealthProfileV2PageInner() {
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span onClick={(e) => { e.stopPropagation(); router.push('/medical-records?action=new'); }}
+            <span onClick={(e) => { e.stopPropagation(); router.push(`/medical-records?action=new${selectedMemberId ? `&member_id=${selectedMemberId}` : ''}`); }}
               style={{ fontSize: 13, fontWeight: 500, color: T.brand500 }}>+新增</span>
             <span onClick={(e) => { e.stopPropagation(); router.push(`/medical-records/all?member_id=${selectedMemberId || ''}`); }}
               style={{ fontSize: 13, fontWeight: 500, color: T.brand500 }}>全部 ›</span>
@@ -1280,7 +1280,7 @@ function HealthProfileV2PageInner() {
             : 'linear-gradient(135deg, #4A9EE0 0%, #3B82F6 100%)';
           return (
             <div
-              onClick={() => router.push('/ai-home/medication-reminder')}
+              onClick={() => router.push(`/ai-home/medication-reminder${memberQs}`)}
               style={{
                 background: cardBg,
                 borderRadius: 12, padding: '14px 16px',
@@ -1289,14 +1289,14 @@ function HealthProfileV2PageInner() {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: allDone ? 0 : 6 }}>
                 <span style={{ fontSize: 15, fontWeight: 700 }}>💊 用药提醒</span>
-                <span onClick={(e) => { e.stopPropagation(); router.push('/ai-home/medication-reminder'); }}
+                <span onClick={(e) => { e.stopPropagation(); router.push(`/ai-home/medication-reminder${memberQs}`); }}
                   style={{ fontSize: 13, opacity: 0.9 }}>全部 ›</span>
               </div>
               {allDone ? (
                 <div style={{ fontSize: 14, marginTop: 6, opacity: 0.95 }}>今日用药已全部完成 ✅</div>
-              ) : medHero?.display_text ? (
+              ) : medHero?.remaining_today != null && medHero.remaining_today > 0 ? (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 13, opacity: 0.9 }}>⏰ 下一次：{medHero.display_text}</span>
+                  <span style={{ fontSize: 13, opacity: 0.9 }}>⏰ 下一次：{medHero.next_medication_text || medHero.display_text}</span>
                   <span style={{ fontSize: 12, opacity: 0.8 }}>
                     {medHero.remaining_today === 1 ? '最后1次' : `还剩${medHero.remaining_today}次`}
                   </span>
@@ -1681,7 +1681,7 @@ function HealthProfileV2PageInner() {
   // ─── Main render ────────────────────────────────────────────────
 
   return (
-    <div style={{ background: BH_TOKENS.bgPage, minHeight: '100vh', paddingBottom: 80, position: 'relative' }}>
+    <div data-testid="health-profile-page" style={{ background: BH_TOKENS.bgPage, minHeight: '100vh', paddingBottom: 80, position: 'relative' }}>
       {/* Sticky top: title + member bar */}
       <div
         data-testid="bh-sticky-top"
@@ -1693,33 +1693,32 @@ function HealthProfileV2PageInner() {
       >
         <GreenNavBar>健康档案</GreenNavBar>
         {renderMemberBar()}
-        {selectedMember && !selectedMember.is_self && (
-          <div style={{ padding: '0 16px', margin: '12px 16px', }}>
-            <div
-              data-testid="health-dashboard-entry"
-              onClick={() => router.push(`/health-dashboard?member_id=${selectedMemberId}`)}
-              style={{
-                background: 'linear-gradient(135deg, #0EA5E9 0%, #38BDF8 100%)',
-                color: '#fff',
-                fontSize: 16,
-                fontWeight: 700,
-                height: 44,
-                borderRadius: 22,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(14,165,233,0.35)',
-                margin: 0,
-              }}
-            >
-              查看 {selectedMember.nickname || '家人'} 的健康看板 →
-            </div>
-          </div>
-        )}
       </div>
 
       {renderHero()}
+      {selectedMember && (
+        <div style={{ padding: '0 16px 8px' }}>
+          <div
+            data-testid="health-dashboard-entry"
+            onClick={() => router.push(`/health-dashboard?member_id=${selectedMemberId}`)}
+            style={{
+              background: 'linear-gradient(135deg, #0EA5E9 0%, #38BDF8 100%)',
+              color: '#fff',
+              fontSize: 15,
+              fontWeight: 700,
+              height: 42,
+              borderRadius: 21,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(14,165,233,0.35)',
+            }}
+          >
+            {selectedMember.is_self ? '查看我的健康看板 →' : `查看 ${selectedMember.nickname || '家人'} 的健康看板 →`}
+          </div>
+        </div>
+      )}
       {renderInviteArea()}
       {renderDualCards()}
       {renderAlertBanner()}

@@ -53,6 +53,7 @@ function MedicationPlansListPageInner() {
   const sp = useSearchParams();
   const initialTab = (sp?.get('tab') as TabKey) || 'in_progress';
   const highlightId = sp?.get('highlight');
+  const memberId = sp?.get('member_id') || '';
   const [tab, setTab] = useState<TabKey>(
     TABS.some((t) => t.id === initialTab) ? initialTab : 'in_progress',
   );
@@ -63,11 +64,31 @@ function MedicationPlansListPageInner() {
     finished: 0,
   });
   const [loading, setLoading] = useState(false);
+  const [consultantId, setConsultantId] = useState<number>(-1);
+
+  useEffect(() => {
+    if (!memberId) { setConsultantId(-1); return; }
+    (async () => {
+      try {
+        const res: any = await api.get('/api/family/members');
+        const data = res.data || res;
+        const items: any[] = Array.isArray(data.items) ? data.items : [];
+        const m = items.find((x: any) => String(x.id) === memberId);
+        setConsultantId(m ? (m.is_self ? 0 : m.id) : -1);
+      } catch { setConsultantId(-1); }
+    })();
+  }, [memberId]);
+
+  const buildQuery = useCallback((t: TabKey) => {
+    let q = `/api/health-plan/medications/list?tab=${t}`;
+    if (consultantId !== -1) q += `&consultant_id=${consultantId}`;
+    return q;
+  }, [consultantId]);
 
   const loadTab = useCallback(async (t: TabKey) => {
     setLoading(true);
     try {
-      const res: any = await api.get(`/api/health-plan/medications/list?tab=${t}`);
+      const res: any = await api.get(buildQuery(t));
       const body = res.data || res;
       const list: PlanItem[] = Array.isArray(body.items) ? body.items : [];
       setItems(list);
@@ -77,13 +98,13 @@ function MedicationPlansListPageInner() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [buildQuery]);
 
   const loadCounts = useCallback(async () => {
     try {
       const results = await Promise.all(
         TABS.map((t) =>
-          api.get(`/api/health-plan/medications/list?tab=${t.id}`).then((r: any) => {
+          api.get(buildQuery(t.id)).then((r: any) => {
             const body = r.data || r;
             return [t.id, Array.isArray(body.items) ? body.items.length : 0] as [TabKey, number];
           }),
@@ -95,7 +116,7 @@ function MedicationPlansListPageInner() {
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [buildQuery]);
 
   useEffect(() => {
     loadTab(tab);
@@ -114,7 +135,7 @@ function MedicationPlansListPageInner() {
     }
   }, [items, highlightId]);
 
-  const goBack = () => router.push('/health-profile?focus=medication');
+  const goBack = () => router.push(`/health-profile?focus=medication${memberId ? `&member_id=${memberId}` : ''}`);
 
   const renderItem = (it: PlanItem) => {
     const isHighlighted = highlightId && String(highlightId) === String(it.id);
@@ -193,18 +214,18 @@ function MedicationPlansListPageInner() {
           display: 'flex',
           alignItems: 'center',
           padding: '12px 16px',
-          background: '#fff',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+          background: 'linear-gradient(180deg, #0EA5E9, #38BDF8)',
+          boxShadow: '0 1px 4px rgba(14,165,233,0.2)',
         }}
       >
         <span
           onClick={goBack}
-          style={{ fontSize: 24, color: TEXT, cursor: 'pointer', padding: 4 }}
+          style={{ fontSize: 24, color: '#fff', cursor: 'pointer', padding: 4 }}
           data-testid="med-plans-back"
         >
           ←
         </span>
-        <span style={{ flex: 1, textAlign: 'center', fontSize: 16, fontWeight: 600 }}>用药计划</span>
+        <span style={{ flex: 1, textAlign: 'center', fontSize: 16, fontWeight: 600, color: '#fff' }}>用药计划</span>
         <span style={{ width: 32 }} />
       </div>
 
@@ -259,7 +280,7 @@ function MedicationPlansListPageInner() {
       </div>
 
       <div
-        onClick={() => router.push('/ai-home/medication-plans/new')}
+        onClick={() => router.push(`/ai-home/medication-plans/new${memberId ? `?member_id=${memberId}` : ''}`)}
         data-testid="med-plans-fab"
         style={{
           position: 'fixed',

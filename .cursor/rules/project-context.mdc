@@ -27,7 +27,31 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: 体质测评结果页加载失败 Bug 修复 (2026-05-23 12:45)
+## Latest Update: 健康档案页面优化 6 项 Bug 全量修复 (2026-05-23 12:57)
+
+### 一句话结论
+健康档案页面 6 项 Bug 全量修复并部署：用药计划统计数字一致性（前后端统一 consultant_id 过滤）、底部重复按钮移除、列表页蓝色渐变导航栏 + Tab 统计修正、用药提醒"下一次用药"正确显示药品名+时间、Hero 卡片紧凑化、健康看板入口本人 Tab 也展示并移至 Hero 下方、成员 Tab 切换自动回顶、子页面返回恢复成员 Tab。
+
+### 核心变更
+
+#### 后端修复
+- `backend/app/api/medication_plans_v1.py` — hero-count 接口新增 `next_medication_text` 字段，返回下一次待服药的药品名和时间
+
+#### H5 前端修复
+- `h5-web/src/app/health-profile/page.tsx` — Bug1.2 移除底部重复按钮；Bug2.1 用药提醒显示 next_medication_text；Bug3 Hero 卡片紧凑化；Bug4 健康看板入口对所有成员显示且移至 Hero 下方；Bug5 scrollTo 兼容多种滚动容器；Bug6 所有子页面跳转携带 member_id、初始化时从 URL 恢复 Tab
+- `h5-web/src/app/(ai-chat)/ai-home/medication-plans/page.tsx` — Bug1.3 蓝色渐变导航栏；Tab 统计和列表数据统一传递 consultant_id；返回时携带 member_id
+
+### 部署验证（已通过）
+- 部署时间：2026-05-23 12:57
+- backend + h5-web 容器 --no-cache 重建启动正常
+- HTTP探活：`/` 200、`/api/docs` 200、`/health-profile` 308、`/ai-home/medication-plans` 308
+
+### 用户体验手册
+- `user_docs/健康档案页面优化Bug修复.md`
+
+---
+
+## Previous Update: 体质测评结果页加载失败 Bug 修复 (2026-05-23 12:45)
 
 ### 一句话结论
 AI 对话中点击体质测评结果卡片"查看详情"→结果页 404 的 Bug 已修复。根因为前端传 answerId（QuestionnaireAnswer 表 PK）而后端期望 diagnosis_id（TCMDiagnosis 表 PK），现已在提交问卷时同步创建 TCMDiagnosis 记录并使用正确 ID 生成跳转路由。
