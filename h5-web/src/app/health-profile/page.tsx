@@ -905,7 +905,7 @@ function HealthProfileV2PageInner() {
       }}
     >
       <div
-        onClick={() => router.push('/family-invite')}
+        onClick={() => router.push(`/family-invite${selectedMemberId ? `?member_id=${selectedMemberId}` : ''}`)}
         style={{
           background: '#FFFFFF',
           borderLeft: '4px solid #0EA5E9',
@@ -920,9 +920,8 @@ function HealthProfileV2PageInner() {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 16 }}>💙</span>
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#1E293B' }}>邀请家人加入守护计划</span>
+            <span style={{ fontSize: 15, fontWeight: 600, color: '#1E293B' }}>邀请 TA 成为我守护的人</span>
           </div>
-          <div style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>远程监督用药、健康异常提醒</div>
         </div>
         <span style={{ fontSize: 14, fontWeight: 500, color: '#0EA5E9', whiteSpace: 'nowrap', marginLeft: 8 }}>去邀请 ›</span>
       </div>
@@ -941,8 +940,8 @@ function HealthProfileV2PageInner() {
           boxShadow: '0 1px 4px rgba(0,0,0,0.04)', cursor: 'pointer',
         }}
       >
-        <div style={{ width: 40, height: 40, borderRadius: 10, background: '#FFF3E0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <span style={{ fontSize: 20 }}>🛡️</span>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: '#E3F2FD', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span style={{ fontSize: 20 }}>👨‍👩‍👧</span>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>我守护的人</div>
@@ -1046,7 +1045,7 @@ function HealthProfileV2PageInner() {
               <span style={{
                 background: T.brand500, color: '#fff', fontSize: 11, fontWeight: 600,
                 padding: '1px 7px', borderRadius: 10, minWidth: 18, textAlign: 'center',
-              }}>({totalCount})</span>
+              }}>{totalCount}</span>
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1389,6 +1388,8 @@ function HealthProfileV2PageInner() {
 
   // ─── F8: Hero Edit Modal ────────────────────────────────────────
 
+  const isSmallScreen = typeof window !== 'undefined' && window.innerWidth <= 375;
+
   const renderHeroEditModal = () => {
     if (!showHeroEdit || !heroEditDraft) return null;
 
@@ -1438,10 +1439,10 @@ function HealthProfileV2PageInner() {
             <span onClick={() => setShowHeroEdit(false)} style={{ fontSize: 22, color: '#9ca3af', cursor: 'pointer' }}>×</span>
           </div>
 
-          <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: isSmallScreen ? 10 : 16 }}>
             {/* Section 1: Personal Info */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: T.brand700, marginBottom: 12, paddingBottom: 6, borderBottom: `2px solid ${T.brand100}` }}>
+            <div style={{ marginBottom: isSmallScreen ? 14 : 20 }}>
+              <div style={{ fontSize: isSmallScreen ? 14 : 15, fontWeight: 700, color: T.brand700, marginBottom: isSmallScreen ? 8 : 12, paddingBottom: 6, borderBottom: `2px solid ${T.brand100}` }}>
                 个人信息
               </div>
               {/* 关系 */}

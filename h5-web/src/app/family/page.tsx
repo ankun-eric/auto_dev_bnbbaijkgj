@@ -104,12 +104,17 @@ export default function FamilyListPage() {
   const [editMember, setEditMember] = useState<MemberItem | null>(null);
   const [editDraft, setEditDraft] = useState<{ name: string; gender: string; birthday: string; height: string; weight: string; relationship_type: string }>({ name: '', gender: '', birthday: '', height: '', weight: '', relationship_type: '' });
 
+  const [selfName, setSelfName] = useState('');
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const r: any = await api.get('/api/family-archive-v2/members');
       const data = r.data || r;
-      setMembers(Array.isArray(data.items) ? data.items : []);
+      const items: MemberItem[] = Array.isArray(data.items) ? data.items : [];
+      setMembers(items);
+      const selfItem = items.find((m) => m.is_self);
+      if (selfItem) setSelfName(selfItem.nickname || '');
     } catch (e) {
       setMembers([]);
     } finally {
@@ -156,7 +161,7 @@ export default function FamilyListPage() {
           </span>
         }
       >
-        家庭成员
+        {selfName ? `我守护的人(守护者：${selfName})` : '我守护的人'}
       </GreenNavBar>
 
       <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>

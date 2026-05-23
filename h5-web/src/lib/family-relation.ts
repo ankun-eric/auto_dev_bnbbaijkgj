@@ -36,15 +36,15 @@ export interface RelationDef {
  */
 export const RELATION_DEFS: RelationDef[] = [
   { name: '爸爸', gender: 'M', unique: true,  badge: '爸',   badgeTone: 'elder',   birthYearOffset: 25,    ageRule: 'elder',   category: 'parent' },
-  { name: '妈妈', gender: 'F', unique: true,  badge: '妈',   badgeTone: 'elder',   birthYearOffset: 25,    ageRule: 'elder',   category: 'parent' },
-  { name: '老公', gender: 'M', unique: true,  badge: '夫',   badgeTone: 'peer',    birthYearOffset: -2,    ageRule: null,      category: 'spouse' },
-  { name: '老婆', gender: 'F', unique: true,  badge: '妻',   badgeTone: 'peer',    birthYearOffset: 2,     ageRule: null,      category: 'spouse' },
-  { name: '儿子', gender: 'M', unique: false, badge: '儿',   badgeTone: 'younger', birthYearOffset: -25,   ageRule: 'younger', category: 'child' },
-  { name: '女儿', gender: 'F', unique: false, badge: '女',   badgeTone: 'younger', birthYearOffset: -25,   ageRule: 'younger', category: 'child' },
+  { name: '妈妈', gender: 'F', unique: true,  badge: '妈',   badgeTone: 'elder',   birthYearOffset: 23,    ageRule: 'elder',   category: 'parent' },
+  { name: '老公', gender: 'M', unique: true,  badge: '夫',   badgeTone: 'peer',    birthYearOffset: 0,     ageRule: null,      category: 'spouse' },
+  { name: '老婆', gender: 'F', unique: true,  badge: '妻',   badgeTone: 'peer',    birthYearOffset: 0,     ageRule: null,      category: 'spouse' },
+  { name: '儿子', gender: 'M', unique: false, badge: '儿',   badgeTone: 'younger', birthYearOffset: 25,    ageRule: 'younger', category: 'child' },
+  { name: '女儿', gender: 'F', unique: false, badge: '女',   badgeTone: 'younger', birthYearOffset: 25,    ageRule: 'younger', category: 'child' },
   { name: '哥哥', gender: 'M', unique: false, badge: '哥',   badgeTone: 'peer',    birthYearOffset: 3,     ageRule: null,      category: 'sibling' },
   { name: '姐姐', gender: 'F', unique: false, badge: '姐',   badgeTone: 'peer',    birthYearOffset: 3,     ageRule: null,      category: 'sibling' },
-  { name: '弟弟', gender: 'M', unique: false, badge: '弟',   badgeTone: 'peer',    birthYearOffset: -3,    ageRule: null,      category: 'sibling' },
-  { name: '妹妹', gender: 'F', unique: false, badge: '妹',   badgeTone: 'peer',    birthYearOffset: -3,    ageRule: null,      category: 'sibling' },
+  { name: '弟弟', gender: 'M', unique: false, badge: '弟',   badgeTone: 'peer',    birthYearOffset: 3,     ageRule: null,      category: 'sibling' },
+  { name: '妹妹', gender: 'F', unique: false, badge: '妹',   badgeTone: 'peer',    birthYearOffset: 3,     ageRule: null,      category: 'sibling' },
   { name: '爷爷', gender: 'M', unique: true,  badge: '爷',   badgeTone: 'elder',   birthYearOffset: 50,    ageRule: 'elder',   category: 'grand' },
   { name: '奶奶', gender: 'F', unique: true,  badge: '奶',   badgeTone: 'elder',   birthYearOffset: 50,    ageRule: 'elder',   category: 'grand' },
   { name: '外公', gender: 'M', unique: true,  badge: '外公', badgeTone: 'elder',   birthYearOffset: 50,    ageRule: 'elder',   category: 'grand' },
@@ -107,13 +107,21 @@ export function computeDefaultBirthday(selfBirthYear: number, relationName: stri
   if (def.birthYearOffset === 'same') {
     year = selfBirthYear;
   } else {
-    year = selfBirthYear + def.birthYearOffset;
+    const offset = Math.abs(def.birthYearOffset);
+    if (def.category === 'parent' || def.category === 'grand') {
+      year = selfBirthYear - offset;
+    } else if (def.category === 'child') {
+      year = selfBirthYear + offset;
+    } else if (def.category === 'sibling') {
+      if (def.name === '哥哥' || def.name === '姐姐') {
+        year = selfBirthYear - offset;
+      } else {
+        year = selfBirthYear + offset;
+      }
+    } else {
+      year = selfBirthYear;
+    }
   }
-  // 儿子/女儿：必须 > 0（即出生年要 ≤ 当前年）
-  if (def.ageRule === 'younger' && year >= currentYear) {
-    year = currentYear - 1;
-  }
-  // 校验合理范围
   if (year < 1900) year = 1900;
   if (year > currentYear) year = currentYear;
   return `${year}-01-01`;

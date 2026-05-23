@@ -348,7 +348,7 @@ export default function NewFamilyMemberModal({ onClose, onSuccess }: Props) {
         }}
       >
         <span onClick={onClose} style={{ fontSize: 20, color: T.textSecondary, cursor: 'pointer', padding: '0 4px' }}>‹</span>
-        <span style={{ fontSize: 16, fontWeight: 700, color: T.textPrimary }}>添加家庭成员</span>
+        <span style={{ fontSize: 16, fontWeight: 700, color: T.textPrimary }}>添加成员</span>
         <span style={{ width: 16 }} />
       </div>
 
@@ -368,8 +368,7 @@ export default function NewFamilyMemberModal({ onClose, onSuccess }: Props) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ fontSize: 20 }}>💙</div>
             <div>
-              <div style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>邀请家人加入健康守护计划</div>
-              <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11, marginTop: 2 }}>共同管理家庭健康档案</div>
+              <div style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>邀请 TA 成为我守护的人</div>
             </div>
           </div>
           <div
@@ -692,16 +691,22 @@ function FieldRow({
         padding: '12px 16px',
         borderBottom: isLast ? 'none' : `1px solid ${T.divider}`,
         flex: inline ? 1 : undefined,
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
         {required && <span style={{ color: T.textError, marginRight: 3 }}>*</span>}
         <span style={{ fontSize: 13, color: hasError ? T.textError : T.textSecondary, fontWeight: 600 }}>{label}</span>
       </div>
-      {children}
-      {hasError && errMsg && (
-        <div style={{ fontSize: 11, color: T.textError, marginTop: 4 }}>{errMsg}</div>
-      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {children}
+        {hasError && errMsg && (
+          <div style={{ fontSize: 11, color: T.textError, marginTop: 4 }}>{errMsg}</div>
+        )}
+      </div>
     </div>
   );
 }

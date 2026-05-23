@@ -5,7 +5,10 @@ from pydantic import BaseModel, ConfigDict
 
 
 class InvitationCreateRequest(BaseModel):
-    member_id: int
+    member_id: Optional[int] = None
+    nickname: Optional[str] = None
+    relationship_type: Optional[str] = None
+    relation_type_id: Optional[int] = None
 
 
 class InvitationCreateResponse(BaseModel):

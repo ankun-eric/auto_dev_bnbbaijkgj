@@ -453,21 +453,22 @@ async def list_medications_flat(
             MedicationReminder.status.in_(["archived", "deleted"]),
         ).order_by(MedicationReminder.end_date.desc().nullslast(), MedicationReminder.id.desc())
     elif tab == "not_started":
-        # [PRD-MED-PLAN-ENTRY-V1] 未开始：start_date > today 且 status != deleted
+        # [PRD-MED-PLAN-ENTRY-V1] 未开始：status='active' 且 start_date > today
         stmt = select(MedicationReminder).where(
             MedicationReminder.user_id == current_user.id,
-            MedicationReminder.status != "deleted",
+            MedicationReminder.status == "active",
             MedicationReminder.start_date.is_not(None),
             MedicationReminder.start_date > today,
         ).order_by(MedicationReminder.created_at.desc())
     elif tab == "finished":
-        # [PRD-MED-PLAN-ENTRY-V1] 已结束：(status=archived) 或 (end_date < today 且非 long_term)
+        # [PRD-MED-PLAN-ENTRY-V1] 已结束：status='archived' 或 (status='active' 且 end_date < today 且非 long_term)
         stmt = select(MedicationReminder).where(
             MedicationReminder.user_id == current_user.id,
             MedicationReminder.status != "deleted",
             or_(
                 MedicationReminder.status == "archived",
                 and_(
+                    MedicationReminder.status == "active",
                     MedicationReminder.end_date.is_not(None),
                     MedicationReminder.end_date < today,
                     MedicationReminder.long_term != True,  # noqa: E712
@@ -475,13 +476,18 @@ async def list_medications_flat(
             ),
         ).order_by(MedicationReminder.end_date.desc().nullslast(), MedicationReminder.created_at.desc())
     elif tab == "in_progress":
-        # [PRD-MED-PLAN-ENTRY-V1] 服药中：active + 已开始 + 未结束
+        # [PRD-MED-PLAN-ENTRY-V1] 服药中：status='active' 且已开始(start_date<=today或NULL) 且未结束(end_date>=today或long_term)
         stmt = select(MedicationReminder).where(
-            *_active_med_filter(current_user.id, today),
+            MedicationReminder.user_id == current_user.id,
+            MedicationReminder.status == "active",
             or_(
-                MedicationReminder.long_term == True,  # noqa: E712
                 MedicationReminder.start_date.is_(None),
                 MedicationReminder.start_date <= today,
+            ),
+            or_(
+                MedicationReminder.long_term == True,  # noqa: E712
+                MedicationReminder.end_date.is_(None),
+                MedicationReminder.end_date >= today,
             ),
         ).order_by(MedicationReminder.created_at.desc())
     else:

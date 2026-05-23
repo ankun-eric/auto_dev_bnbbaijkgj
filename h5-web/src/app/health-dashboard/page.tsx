@@ -305,17 +305,7 @@ function HealthDashboardInner() {
           style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff', fontSize: 18 }}
         >←</button>
         <span style={{ flex: 1, fontSize: 18, fontWeight: 700 }}>{memberName} 的健康看板</span>
-        {summary?.health_score != null && (
-          <div style={{
-            width: 40, height: 40, borderRadius: '50%',
-            background: summary.health_score >= 80 ? '#10B981' : summary.health_score >= 60 ? '#F59E0B' : '#EF4444',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 16, fontWeight: 800, color: '#fff',
-            boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
-          }}>
-            {summary.health_score}
-          </div>
-        )}
+        <span style={{ width: 32 }} />
       </div>
 
       {/* M4: 仪表盘卡片区 — 3 张小卡片横排 */}
@@ -374,13 +364,6 @@ function HealthDashboardInner() {
           {hr?.is_abnormal && (
             <div style={{ marginTop: 6, padding: '2px 8px', borderRadius: 8, background: '#EF4444', color: '#fff', fontSize: 11, fontWeight: 600, display: 'inline-block' }}>异常</div>
           )}
-        </div>
-      </div>
-
-      {/* M9: 健康评分 */}
-      <div style={{ padding: '12px 16px 0' }}>
-        <div style={{ background: '#fff', borderRadius: 16, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <ScoreRing score={summary?.health_score ?? 0} />
         </div>
       </div>
 

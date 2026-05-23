@@ -27,7 +27,23 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: 报告解读历史记录与就医资料自动写入 Bug 修复 (2026-05-24 00:20)
+## Latest Update: 健康档案页面 Bug 修复方案输出 (2026-05-24 01:11)
+
+### 一句话结论
+完成"健康档案页面问题"Bug 的多轮沟通与修复方案文档输出，共 6 大类 Bug + 邀请页面设计统一等新增需求。
+
+### Bug 修复方案文档
+- `docs/BUG_FIX_健康档案页面问题修复_20260524_011100.md`
+
+### 邀请页面设计稿
+- `.chat_output/f64a782c-3552-42ce-a998-ba6ae7e967dd/invite-design-final.html`
+
+### 历史记忆文件
+- `mem/mem_健康档案页面Bug修复方案_20260524_011100.md`
+
+---
+
+## Previous Update: 报告解读历史记录与就医资料自动写入 Bug 修复 (2026-05-24 00:20)
 
 ### 一句话结论
 修复"AI报告解读完成后历史报告和就医资料无自动写入记录"Bug。在 `_run_interpret_worker` 成功完成后新增 `_auto_sync_report_history` 自动同步逻辑，将解读结果双向写入 ReportHistory 表和 MedicalRecord（就医资料-体检报告）表，同时修复 `/api/report-history/save-medical` 端点使其真正创建就医资料记录。

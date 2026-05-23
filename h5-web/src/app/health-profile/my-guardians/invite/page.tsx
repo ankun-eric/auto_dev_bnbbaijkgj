@@ -1,12 +1,10 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { showToast } from '@/lib/toast-unified';
-import GreenNavBar from '@/components/GreenNavBar';
-import api from '@/lib/api';
-import { BH_TOKENS } from '@/lib/health-tokens';
 import { QRCodeCanvas } from 'qrcode.react';
+import api from '@/lib/api';
 
 interface InviteData {
   invite_code: string;
@@ -15,13 +13,6 @@ interface InviteData {
   max_uses?: number;
   used_count?: number;
 }
-
-const T = {
-  brand500: BH_TOKENS.brand500,
-  brand600: BH_TOKENS.brand600,
-  textPrimary: BH_TOKENS.textPrimary,
-  textSecondary: BH_TOKENS.textSecondary,
-};
 
 function InvitePageInner() {
   const router = useRouter();
@@ -54,6 +45,7 @@ function InvitePageInner() {
     : '';
 
   const qrContentUrl = inviteLink;
+  const qrCanvasRef = useRef<HTMLDivElement>(null);
 
   const handleCopyLink = async () => {
     if (!inviteLink) return;
@@ -65,38 +57,53 @@ function InvitePageInner() {
     }
   };
 
-  const handleShare = () => {
-    if (navigator.share && inviteLink) {
-      navigator.share({
-        title: '邀请你守护我的健康',
-        text: '我邀请你守护我的健康，点击链接接受邀请',
-        url: inviteLink,
-      }).catch(() => {});
-    } else {
-      handleCopyLink();
+  const handleSaveImage = useCallback(() => {
+    const canvas = qrCanvasRef.current?.querySelector('canvas');
+    if (!canvas) {
+      showToast('二维码未生成', 'fail');
+      return;
     }
+    try {
+      const url = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `bini-health-guardian-invite-${invite?.invite_code?.slice(0, 8) || 'qr'}.png`;
+      link.href = url;
+      link.click();
+      showToast('图片已保存');
+    } catch {
+      showToast('保存失败，请截图保存', 'fail');
+    }
+  }, [invite]);
+
+  const handleShareWechat = () => {
+    showToast('请点击右上角"..."分享给微信好友');
   };
 
-  const formatExpiry = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      const now = new Date();
-      const diffMs = d.getTime() - now.getTime();
-      const diffH = Math.floor(diffMs / (1000 * 60 * 60));
-      if (diffH > 24) return `${Math.floor(diffH / 24)}天${diffH % 24}小时`;
-      if (diffH > 0) return `${diffH}小时`;
-      const diffM = Math.floor(diffMs / (1000 * 60));
-      return diffM > 0 ? `${diffM}分钟` : '即将过期';
-    } catch {
-      return '24小时';
-    }
+  const THEME = {
+    gradientStart: '#4CAF50',
+    gradientEnd: '#66BB6A',
   };
 
   return (
-    <div style={{ background: 'linear-gradient(160deg, #E8F5E9 0%, #E8F4FF 100%)', minHeight: '100vh', paddingBottom: 40 }}>
-      <GreenNavBar>邀请别人守护我</GreenNavBar>
+    <div style={{ background: '#F0F5FF', minHeight: '100vh', paddingBottom: 40 }}>
+      {/* Nav bar */}
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 50,
+        background: `linear-gradient(135deg, ${THEME.gradientStart}, ${THEME.gradientEnd})`,
+        padding: '12px 16px',
+        display: 'flex', alignItems: 'center', gap: 12,
+        color: '#fff',
+        boxShadow: '0 2px 8px rgba(76,175,80,0.3)',
+      }}>
+        <button
+          onClick={() => router.back()}
+          style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff', fontSize: 18 }}
+        >←</button>
+        <span style={{ flex: 1, fontSize: 17, fontWeight: 700, textAlign: 'center' }}>邀请 TA 守护我的健康</span>
+        <span style={{ width: 36 }} />
+      </div>
 
-      <div style={{ padding: '12px 16px' }}>
+      <div style={{ padding: '16px 16px' }}>
         {loading ? (
           <div style={{ textAlign: 'center', color: '#9CA3AF', padding: 40 }}>正在生成邀请…</div>
         ) : error ? (
@@ -109,31 +116,49 @@ function InvitePageInner() {
               onClick={createInvite}
               style={{
                 padding: '10px 24px', borderRadius: 20,
-                background: T.brand500, color: '#fff',
+                background: THEME.gradientStart, color: '#fff',
                 border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer',
               }}
             >重新生成</button>
           </div>
         ) : invite ? (
           <>
+            {/* Gradient Card */}
             <div style={{
               background: '#fff', borderRadius: 20, overflow: 'hidden',
-              boxShadow: '0 8px 32px rgba(56,189,248,0.12)',
-              maxWidth: 340, margin: '0 auto',
+              boxShadow: '0 8px 32px rgba(76,175,80,0.12)',
+              maxWidth: 360, margin: '0 auto',
             }}>
+              {/* Card Header */}
               <div style={{
-                background: 'linear-gradient(135deg, #4CAF50, #66BB6A)',
-                padding: '28px 24px 20px', textAlign: 'center', color: '#fff',
+                background: `linear-gradient(135deg, ${THEME.gradientStart}, ${THEME.gradientEnd})`,
+                padding: '24px 20px 18px', textAlign: 'center', color: '#fff',
               }}>
-                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>邀请守护我的健康</div>
-                <div style={{ fontSize: 13, opacity: 0.9 }}>扫描二维码或复制链接接受邀请</div>
+                <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 10 }}>邀请 TA 守护我的健康</div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  {[
+                    { icon: '📋', text: '档案管理' },
+                    { icon: '💊', text: '用药提醒' },
+                    { icon: '🔔', text: '异常提醒' },
+                  ].map((tag) => (
+                    <span key={tag.text} style={{
+                      background: 'rgba(255,255,255,0.22)',
+                      padding: '4px 12px', borderRadius: 14,
+                      fontSize: 12, fontWeight: 500, color: '#fff',
+                    }}>{tag.icon} {tag.text}</span>
+                  ))}
+                </div>
               </div>
 
-              <div style={{ padding: '24px', textAlign: 'center' }}>
-                <div style={{
-                  display: 'inline-flex', padding: 12, borderRadius: 16,
-                  border: '2px solid #E8F5E9', background: '#fff',
-                }}>
+              {/* Card Body */}
+              <div style={{ padding: '20px 24px 24px', textAlign: 'center' }}>
+                <div
+                  ref={qrCanvasRef}
+                  style={{
+                    display: 'inline-flex', padding: 10, borderRadius: 14,
+                    border: '2px solid #E8F5E9', background: '#fff',
+                  }}
+                >
                   <QRCodeCanvas
                     value={qrContentUrl}
                     size={164}
@@ -144,36 +169,48 @@ function InvitePageInner() {
                   />
                 </div>
 
-                <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
-                  <div style={{ fontSize: 12, color: T.textSecondary }}>
-                    有效期: {formatExpiry(invite.expires_at)}
+                <div style={{ marginTop: 14, fontSize: 12, color: '#9CA3AF' }}>
+                  邀请有效期：24小时
+                </div>
+
+                <div style={{
+                  marginTop: 10, padding: '8px 14px', borderRadius: 10,
+                  background: '#F0FDF4', fontSize: 13, color: '#166534',
+                }}>
+                  💚 让 TA 随时关注我的健康
+                </div>
+
+                {/* Buttons */}
+                <div style={{ marginTop: 18 }}>
+                  <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+                    <button
+                      onClick={handleSaveImage}
+                      style={{
+                        flex: 1, padding: '12px 0', borderRadius: 22,
+                        background: `linear-gradient(135deg, ${THEME.gradientStart}, ${THEME.gradientEnd})`,
+                        color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                      }}
+                    >保存到本地</button>
+                    <button
+                      onClick={handleCopyLink}
+                      style={{
+                        flex: 1, padding: '12px 0', borderRadius: 22,
+                        background: '#fff', color: THEME.gradientStart,
+                        border: `1.5px solid ${THEME.gradientStart}`,
+                        fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                      }}
+                    >复制链接</button>
                   </div>
-                  {invite.used_count != null && (
-                    <div style={{ fontSize: 12, color: T.textSecondary }}>
-                      已使用: {invite.used_count}{invite.max_uses ? ` / ${invite.max_uses}` : ''} 次
-                    </div>
-                  )}
+                  <button
+                    onClick={handleShareWechat}
+                    style={{
+                      width: '100%', padding: '12px 0', borderRadius: 22,
+                      background: '#07c160', color: '#fff',
+                      border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >转发微信好友</button>
                 </div>
               </div>
-            </div>
-
-            <div style={{ maxWidth: 340, margin: '20px auto 0', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <button
-                onClick={handleCopyLink}
-                style={{
-                  width: '100%', padding: '14px 0', borderRadius: 24,
-                  background: T.brand500, color: '#fff',
-                  border: 'none', fontSize: 15, fontWeight: 600, cursor: 'pointer',
-                }}
-              >复制邀请链接</button>
-              <button
-                onClick={handleShare}
-                style={{
-                  width: '100%', padding: '14px 0', borderRadius: 24,
-                  background: '#07c160', color: '#fff',
-                  border: 'none', fontSize: 15, fontWeight: 600, cursor: 'pointer',
-                }}
-              >分享给好友</button>
             </div>
           </>
         ) : null}

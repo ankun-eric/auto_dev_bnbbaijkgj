@@ -255,7 +255,7 @@ function MedicationPlansListPageInner() {
                 cursor: 'pointer',
               }}
             >
-              {t.label}（{counts[t.id]}）
+              {t.label} {counts[t.id]}
             </button>
           );
         })}

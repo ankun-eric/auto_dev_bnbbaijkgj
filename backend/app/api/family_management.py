@@ -81,16 +81,46 @@ async def create_invitation(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    member_result = await db.execute(
-        select(FamilyMember).where(
-            FamilyMember.id == data.member_id,
-            FamilyMember.user_id == current_user.id,
-            FamilyMember.status == "active",
+    member: FamilyMember | None = None
+    if data.member_id:
+        member_result = await db.execute(
+            select(FamilyMember).where(
+                FamilyMember.id == data.member_id,
+                FamilyMember.user_id == current_user.id,
+                FamilyMember.status == "active",
+            )
         )
-    )
-    member = member_result.scalar_one_or_none()
-    if not member:
-        raise HTTPException(status_code=404, detail="家庭成员不存在或不属于当前用户")
+        member = member_result.scalar_one_or_none()
+        if not member:
+            raise HTTPException(status_code=404, detail="家庭成员不存在或不属于当前用户")
+    else:
+        # [F8] 无 member_id 时自动新建一个 Tab（家庭成员记录）
+        if not data.nickname and not data.relationship_type and not data.relation_type_id:
+            raise HTTPException(status_code=400, detail="需要提供 member_id 或 nickname/relationship_type 以创建新成员")
+        count_res = await db.execute(
+            select(func.count(FamilyMember.id)).where(
+                FamilyMember.user_id == current_user.id,
+                FamilyMember.status == "active",
+            )
+        )
+        existing_count = int(count_res.scalar() or 0)
+        member = FamilyMember(
+            user_id=current_user.id,
+            nickname=data.nickname or "",
+            relationship_type=data.relationship_type,
+            relation_type_id=data.relation_type_id,
+            is_self=False,
+            avatar_color_index=existing_count % 5,
+        )
+        db.add(member)
+        await db.flush()
+        hp = HealthProfile(
+            user_id=current_user.id,
+            family_member_id=member.id,
+            name=data.nickname or "",
+        )
+        db.add(hp)
+        await db.flush()
 
     managed_count_result = await db.execute(
         select(func.count(FamilyManagement.id)).where(
@@ -104,7 +134,7 @@ async def create_invitation(
 
     active_mgmt_result = await db.execute(
         select(FamilyManagement).where(
-            FamilyManagement.managed_member_id == data.member_id,
+            FamilyManagement.managed_member_id == member.id,
             FamilyManagement.status == "active",
         )
     )
@@ -113,7 +143,7 @@ async def create_invitation(
 
     pending_result = await db.execute(
         select(FamilyInvitation).where(
-            FamilyInvitation.member_id == data.member_id,
+            FamilyInvitation.member_id == member.id,
             FamilyInvitation.inviter_user_id == current_user.id,
             FamilyInvitation.status == "pending",
         )
@@ -127,7 +157,7 @@ async def create_invitation(
     invitation = FamilyInvitation(
         invite_code=invite_code,
         inviter_user_id=current_user.id,
-        member_id=data.member_id,
+        member_id=member.id,
         status="pending",
         expires_at=expires_at,
     )
@@ -411,6 +441,19 @@ async def accept_invitation(
             genetic_diseases=_maybe("genetic_diseases"),
         )
         db.add(acceptor_hp)
+
+    # [F9] 数据合并：将 inviter 在 member 下录入的数据合并到 acceptor
+    try:
+        from app.services.data_merge_service import merge_health_data_on_accept
+        merge_stats = await merge_health_data_on_accept(
+            db,
+            inviter_user_id=invitation.inviter_user_id,
+            acceptor_user_id=current_user.id,
+            member_id=invitation.member_id,
+        )
+        logger.info("[F9] data merge stats: %s", merge_stats)
+    except Exception as e:
+        logger.error("[F9] data merge failed (non-blocking): %s", e)
 
     management = FamilyManagement(
         manager_user_id=invitation.inviter_user_id,
