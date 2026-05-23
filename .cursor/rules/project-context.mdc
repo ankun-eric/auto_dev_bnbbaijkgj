@@ -27,7 +27,40 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: 历史报告与对比分析功能开发完成并部署 (2026-05-23 15:50)
+## Latest Update: 报告解读卡片类型映射与历史报告入口缺失 Bug 修复 (2026-05-23 20:52)
+
+### 一句话结论
+修复报告解读卡片因 `ai_function_type` 从 `report_interpret` 迁移为 `image_capture` 后前端未适配导致渲染为 NavigateCard 的 Bug，并新增"历史报告"入口按钮（当 `capture_purpose=interpret_report` 时动态显示第三个按钮，跳转 `/report-history`）。
+
+### 核心变更
+
+#### H5 前端修复
+- `h5-web/src/components/ai-chat/ChatCards.tsx`
+  - `resolveCardType` 增加 `case 'image_capture'` → `'upload'` 映射
+  - `ChatCardButton` 接口新增 `capturePurpose?: string` 字段
+  - `BackendFunctionButton` 接口新增 `capture_purpose?: string | null` 字段
+  - `backendButtonToCardButton` 适配器透传 `capturePurpose`
+  - `UploadCard` 组件根据 `capturePurpose === 'interpret_report'` 动态添加"📋 历史报告"入口按钮，grid 布局自动从 2 列调整为 3 列
+- `h5-web/src/app/(ai-chat)/ai-home/page.tsx`
+  - `backendButtonToCardButton` 调用增加 `capture_purpose` 透传
+  - `onAction` 回调 upload 分支增加 `case 'history'` → `router.push('/report-history')`
+- `h5-web/src/app/chat/[sessionId]/page.tsx`
+  - `FunctionButton` 接口新增 `ai_function_type`、`ai_opening`、`pre_card_for_navigate`、`capture_purpose` 字段
+  - `resolveCardType` 调用增加 `aiFunctionType` 参数
+  - `backendButtonToCardButton` 调用增加新字段透传
+  - `onAction` 回调 upload 分支增加 `case 'history'` → `router.push('/report-history')`
+
+### 部署验证（已通过）
+- 部署时间：2026-05-23 20:52
+- h5-web 容器 --no-cache 重建启动正常
+- HTTP探活：`/` 200、`/api/docs` 200、`/report-history` 308、`/ai-home` 308
+
+### 用户体验手册
+- `user_docs/报告解读卡片类型映射与历史报告入口修复.md`
+
+---
+
+## Previous Update: 历史报告与对比分析功能开发完成并部署 (2026-05-23 15:50)
 
 ### 一句话结论
 "历史报告与对比分析"功能全量开发完成并部署上线。后端新增 ReportHistory 数据模型和 9 个 API 端点（report-history 模块），H5 前端新增 4 个页面（历史报告列表页、报告详情页、对比报告详情页、分享报告页）。支持按咨询人查看历史报告、勾选2份报告发起AI对比分析、左滑删除+级联删除、分享（图片/链接/小程序卡片）、保存到就医资料。
@@ -130,6 +163,20 @@ AI 对话中点击体质测评结果卡片"查看详情"→结果页 404 的 Bug
 
 ### 用户体验手册
 - `user_docs/体质测评结果页Bug修复.md`
+
+---
+
+## Previous Update: 报告解读卡片类型映射与历史报告入口缺失 Bug 修复方案输出 (2026-05-23 20:40)
+
+### 一句话结论
+报告解读功能存在 2 个关联 Bug：(1) 数据迁移将 ai_function_type 从 report_interpret 改为 image_capture，但前端 resolveCardType 未处理该子类型，导致卡片渲染为 NavigateCard（只有"开始"按钮）而非 UploadCard（"相册"+"拍照"）；(2) capture_purpose 字段未透传到前端组件，UploadCard 按钮硬编码为 2 个，无法动态添加"历史报告"入口。已输出完整修复方案文档。
+
+### Bug 修复方案文档
+- `docs/BUG_FIX_报告解读卡片类型映射与历史报告入口缺失_20260523_204000.md`
+
+### 历史记忆文件
+- `mem/mem_报告解读卡片Bug修复方案_20260523_204000.md`
+- `mem/mem_健康档案Tab数据过滤逻辑查询_20260523_204500.md`
 
 ---
 
