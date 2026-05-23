@@ -562,11 +562,51 @@ async def report_history_save_medical(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    from app.models.health_archive_v5 import MedicalRecord, MedicalRecordFile
+
     record = await db.get(ReportHistory, body.report_history_id)
     if not record or record.is_deleted:
         raise HTTPException(status_code=404, detail="报告不存在")
     await _verify_ownership(db, record, current_user)
 
+    existing_q = await db.execute(
+        select(MedicalRecord).where(
+            and_(
+                MedicalRecord.user_id == current_user.id,
+                MedicalRecord.member_id == record.family_member_id,
+                MedicalRecord.category == "checkup_report",
+                MedicalRecord.title == record.report_name,
+                MedicalRecord.is_deleted == 0,
+            )
+        )
+    )
+    if existing_q.scalar_one_or_none():
+        return {"success": True, "message": "已保存到就医资料（记录已存在）"}
+
+    mr = MedicalRecord(
+        user_id=current_user.id,
+        member_id=record.family_member_id,
+        category="checkup_report",
+        title=record.report_name,
+        record_date=record.report_date or datetime.utcnow().date(),
+        source="ai_interpret",
+        ai_interpretation={"summary": record.ai_interpretation[:500]} if record.ai_interpretation else None,
+    )
+    db.add(mr)
+    await db.flush()
+
+    if record.original_images:
+        for idx, img_url in enumerate(record.original_images):
+            mrf = MedicalRecordFile(
+                record_id=mr.id,
+                file_url=img_url,
+                file_name=f"report_image_{idx + 1}.jpg",
+                file_type="image",
+                sort_order=idx,
+            )
+            db.add(mrf)
+
+    await db.commit()
     return {"success": True, "message": "已保存到就医资料"}
 
 

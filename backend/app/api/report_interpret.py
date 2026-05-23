@@ -33,13 +33,16 @@ from app.core import task_queue
 from app.models.models import (
     ChatMessage,
     ChatSession,
+    CheckupIndicator,
     CheckupReport,
     FamilyMember,
     MessageRole,
     PromptTemplate,
+    ReportHistory,
     SessionType,
     User,
 )
+from app.models.health_archive_v5 import MedicalRecord, MedicalRecordFile
 from app.services.ai_service import call_ai_model_stream
 from app.services.prompts import (
     DEFAULT_REPORT_COMPARE_PROMPT,
@@ -264,6 +267,145 @@ async def _save_assistant_message(session_id: int, content: str) -> int:
 _AI_UNAVAILABLE_USER_MSG = "AI 解读服务暂时不可用，请稍后重试。"
 
 
+async def _auto_sync_report_history(session_id: int, ai_text: str) -> None:
+    """解读成功后自动写入 ReportHistory + MedicalRecord（就医资料-体检报告）。"""
+    try:
+        async with _async_session() as db:
+            sess = await db.get(ChatSession, session_id)
+            if not sess:
+                return
+            report_id = getattr(sess, "report_id", None)
+            if not report_id:
+                return
+            report = await db.get(CheckupReport, report_id)
+            if not report:
+                return
+
+            user_id = sess.user_id
+            member_id = sess.family_member_id or report.family_member_id
+            if not member_id:
+                return
+
+            # --- 1. 写入 ReportHistory（去重） ---
+            from sqlalchemy import and_, select as sa_select
+            existing_q = await db.execute(
+                sa_select(ReportHistory).where(
+                    and_(
+                        ReportHistory.report_id == report_id,
+                        ReportHistory.session_id == session_id,
+                        ReportHistory.user_id == user_id,
+                        ReportHistory.is_deleted.is_(False),
+                    )
+                )
+            )
+            if not existing_q.scalar_one_or_none():
+                images: list[str] = []
+                file_urls_val = getattr(report, "file_urls", None)
+                if isinstance(file_urls_val, list) and file_urls_val:
+                    images = [u for u in file_urls_val if u]
+                elif isinstance(file_urls_val, str) and file_urls_val:
+                    try:
+                        parsed = json.loads(file_urls_val)
+                        if isinstance(parsed, list):
+                            images = [u for u in parsed if u]
+                    except Exception:
+                        pass
+                if not images:
+                    if report.file_url:
+                        images.append(report.file_url)
+                    if report.thumbnail_url and report.thumbnail_url != report.file_url:
+                        images.append(report.thumbnail_url)
+
+                ind_q = await db.execute(
+                    sa_select(CheckupIndicator).where(CheckupIndicator.report_id == report_id)
+                )
+                indicators = []
+                for ind in ind_q.scalars().all():
+                    status_val = ind.status.value if hasattr(ind.status, "value") else str(ind.status) if ind.status else None
+                    indicators.append({
+                        "name": ind.indicator_name,
+                        "value": ind.value,
+                        "unit": ind.unit,
+                        "reference_range": ind.reference_range,
+                        "status": status_val,
+                        "category": ind.category,
+                    })
+
+                ai_summary = ai_text[:200] if ai_text else None
+                report_name = report.title or _report_title(report)
+
+                new_rh = ReportHistory(
+                    user_id=user_id,
+                    family_member_id=member_id,
+                    report_id=report_id,
+                    session_id=session_id,
+                    report_name=report_name,
+                    report_date=report.report_date,
+                    source_type="体检报告",
+                    ai_summary=ai_summary,
+                    is_comparison=False,
+                    original_images=images if images else None,
+                    ai_interpretation=ai_text if ai_text else None,
+                    indicators_data=indicators if indicators else None,
+                )
+                db.add(new_rh)
+
+            # --- 2. 写入 MedicalRecord（就医资料-体检报告，去重） ---
+            existing_mr_q = await db.execute(
+                sa_select(MedicalRecord).where(
+                    and_(
+                        MedicalRecord.user_id == user_id,
+                        MedicalRecord.member_id == member_id,
+                        MedicalRecord.category == "checkup_report",
+                        MedicalRecord.source == "ai_interpret",
+                        MedicalRecord.title == (report.title or _report_title(report)),
+                        MedicalRecord.is_deleted == 0,
+                    )
+                )
+            )
+            if not existing_mr_q.scalar_one_or_none():
+                mr = MedicalRecord(
+                    user_id=user_id,
+                    member_id=member_id,
+                    category="checkup_report",
+                    title=report.title or _report_title(report),
+                    record_date=report.report_date or (report.created_at.date() if report.created_at else datetime.utcnow().date()),
+                    source="ai_interpret",
+                    ai_interpretation={"summary": ai_text[:500]} if ai_text else None,
+                )
+                db.add(mr)
+                await db.flush()
+
+                file_urls_for_mr: list[str] = []
+                file_urls_val2 = getattr(report, "file_urls", None)
+                if isinstance(file_urls_val2, list) and file_urls_val2:
+                    file_urls_for_mr = [u for u in file_urls_val2 if u]
+                elif isinstance(file_urls_val2, str) and file_urls_val2:
+                    try:
+                        parsed2 = json.loads(file_urls_val2)
+                        if isinstance(parsed2, list):
+                            file_urls_for_mr = [u for u in parsed2 if u]
+                    except Exception:
+                        pass
+                if not file_urls_for_mr and report.file_url:
+                    file_urls_for_mr = [report.file_url]
+
+                for idx, furl in enumerate(file_urls_for_mr):
+                    mrf = MedicalRecordFile(
+                        record_id=mr.id,
+                        file_url=furl,
+                        file_name=f"report_image_{idx + 1}.jpg",
+                        file_type="image",
+                        sort_order=idx,
+                    )
+                    db.add(mrf)
+
+            await db.commit()
+            logger.info("auto_sync_report_history done for session=%s report=%s", session_id, report_id)
+    except Exception as e:
+        logger.error("auto_sync_report_history failed for session %s: %s", session_id, e)
+
+
 async def _run_interpret_worker(session_id: int) -> None:
     """后台异步 worker：真正调用 AI，流式推送到 SSE 总线。
     失败自动重试（最多 2 次）。"""
@@ -309,6 +451,8 @@ async def _run_interpret_worker(session_id: int) -> None:
             await _set_session_status(session_id, "done", finished=True)
             task_queue.broadcast(session_id, "status", {"interpret_status": "done"})
             task_queue.broadcast(session_id, "done", {"message_id": stream_msg_id or 0, "content": full_text})
+            # [Bug-fix] 自动同步到历史报告 + 就医资料
+            await _auto_sync_report_history(session_id, full_text)
             return
         except Exception as e:  # noqa: BLE001
             last_error = str(e)
