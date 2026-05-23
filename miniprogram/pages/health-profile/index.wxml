@@ -64,18 +64,30 @@
     </view>
   </view>
 
-  <!-- [PRD-HEALTH-ARCHIVE-OPTIM-V1 F5] 共管区域 -->
-  <view class="guardian-area" wx:if="{{profile}}">
-    <view
-      wx:if="{{selectedMember.is_self}}"
-      class="guardian-row"
-      bindtap="onTapGuardianList"
-    >
-      <text class="guardian-text">👨‍👩‍👧 {{managedCount > 0 ? ('已守护 ' + managedCount + ' 人') : '暂未守护任何人，去邀请家人'}}</text>
-      <text class="guardian-arrow">›</text>
+  <!-- 守护关系卡片区 -->
+  <view class="guardian-cards-area" wx:if="{{profile && selectedMember.is_self}}">
+    <view class="guardian-cards-row">
+      <view class="guardian-card guardian-card-orange" bindtap="onTapGuardianList">
+        <view class="guardian-card-icon-wrap guardian-card-icon-orange">
+          <text class="guardian-card-icon">🛡️</text>
+        </view>
+        <text class="guardian-card-title">我守护的人</text>
+        <text class="guardian-card-count">{{managedCount || 0}}</text>
+      </view>
+      <view class="guardian-card guardian-card-green" bindtap="onTapMyGuardians">
+        <view class="guardian-card-icon-wrap guardian-card-icon-green">
+          <text class="guardian-card-icon">💚</text>
+        </view>
+        <text class="guardian-card-title">守护我的人</text>
+        <text class="guardian-card-count">{{myGuardianCount || 0}}</text>
+      </view>
     </view>
+  </view>
+
+  <!-- 非本人成员的共管操作 -->
+  <view class="guardian-area" wx:if="{{profile && selectedMember && !selectedMember.is_self}}">
     <view
-      wx:elif="{{!guardedFlags[selectedMember.id]}}"
+      wx:if="{{!guardedFlags[selectedMember.id]}}"
       class="guardian-invite-btn"
       bindtap="onTapInviteCoManage"
     >+ 邀请共管</view>
@@ -268,6 +280,19 @@
       <view class="reminder-summary">
         今日已完成 {{medCell.checked}} / {{medCell.total}}
         <text wx:if="{{medCell.has_overdue}}" class="overdue-tag">有待服</text>
+      </view>
+    </view>
+    <!-- 我的设备入口 -->
+    <view class="device-entry" bindtap="onTapDevices" wx:if="{{selectedMember.is_self}}">
+      <view class="device-entry-left">
+        <view class="guardian-card-icon-wrap guardian-card-icon-purple">
+          <text class="guardian-card-icon">📱</text>
+        </view>
+        <text class="device-entry-title">我的设备</text>
+      </view>
+      <view class="device-entry-right">
+        <text class="device-entry-count">{{deviceCount || 0}} 台</text>
+        <text class="device-entry-arrow">›</text>
       </view>
     </view>
   </view>

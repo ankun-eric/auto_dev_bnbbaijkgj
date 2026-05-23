@@ -258,16 +258,19 @@ async def get_catalog(
 
 @router.get("/my")
 async def list_my_devices(
+    member_id: Optional[int] = Query(None, description="家庭成员 id；为空或 0 时返回全部（本人 Tab），>0 时只返回该成员的设备"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """当前用户已绑定设备列表（按绑定时间倒序）。"""
-    res = await db.execute(
-        select(DeviceUserBinding).where(
-            DeviceUserBinding.user_id == current_user.id,
-            DeviceUserBinding.is_active == True,  # noqa: E712
-        ).order_by(DeviceUserBinding.bound_at.desc(), DeviceUserBinding.id.desc())
+    """当前用户已绑定设备列表（按绑定时间倒序），支持按成员维度筛选。"""
+    stmt = select(DeviceUserBinding).where(
+        DeviceUserBinding.user_id == current_user.id,
+        DeviceUserBinding.is_active == True,  # noqa: E712
     )
+    if member_id is not None and member_id > 0:
+        stmt = stmt.where(DeviceUserBinding.member_id == member_id)
+    stmt = stmt.order_by(DeviceUserBinding.bound_at.desc(), DeviceUserBinding.id.desc())
+    res = await db.execute(stmt)
     bindings = list(res.scalars().all())
 
     # 批量加载 catalog

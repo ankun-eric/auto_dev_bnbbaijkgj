@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "邀请守护",
+  "usingComponents": {
+    "qrcode": "/components/qrcode/index"
+  }
+}

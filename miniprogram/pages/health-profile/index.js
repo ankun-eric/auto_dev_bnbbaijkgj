@@ -87,10 +87,11 @@ Page({
     ],
     baseLine: '',
 
-    // [PRD-HEALTH-ARCHIVE-OPTIM-V1 2026-05-18] 新增字段
-    guardedFlags: {}, // { [member_id]: true } 当前主账号已守护的成员
-    managedUserIdMap: {}, // { [member_id]: managed_user_id }
+    guardedFlags: {},
+    managedUserIdMap: {},
     managedCount: 0,
+    myGuardianCount: 0,
+    deviceCount: 0,
     medHeroText: '今日用药 · 0',
 
     chronicPresets: [],
@@ -127,15 +128,18 @@ Page({
     this.loadManagedByInfo();
     this.loadGuardedFlags();
     this.loadGuardianSummary();
+    this.loadMyGuardianCount();
+    this.loadDeviceCount();
   },
 
   onShow() {
     if (this.data.selectedMemberId && this.data.profile && this.data.profile.id) {
       this.loadMedicationPlan(this.data.profile.id);
     }
-    // [PRD-HEALTH-ARCHIVE-OPTIM-V1] 每次回到页面刷新守护状态
     this.loadGuardedFlags();
     this.loadGuardianSummary();
+    this.loadMyGuardianCount();
+    this.loadDeviceCount();
   },
 
   // [PRD-HEALTH-ARCHIVE-OPTIM-V1 F3] 加载被守护标记
@@ -174,12 +178,42 @@ Page({
     }
   },
 
+  async loadMyGuardianCount() {
+    try {
+      const res = await get('/api/reverse-guardian/guardian-count', {}, { showLoading: false, suppressErrorToast: true });
+      const data = (res && (res.data || res)) || {};
+      this.setData({ myGuardianCount: data.count || 0 });
+    } catch (_) {}
+  },
+
+  async loadDeviceCount() {
+    try {
+      const res = await get('/api/devices/my', {}, { showLoading: false, suppressErrorToast: true });
+      const data = (res && (res.data || res)) || {};
+      const items = Array.isArray(data.items) ? data.items : (Array.isArray(data) ? data : []);
+      this.setData({ deviceCount: items.length });
+    } catch (_) {}
+  },
+
   onTapTodayMedication() {
     wx.navigateTo({ url: '/pages/health-plan/medication-reminder/index' });
   },
 
   onTapGuardianList() {
     wx.navigateTo({ url: '/pages/family-guardian-list/index' });
+  },
+
+  onTapMyGuardians() {
+    wx.navigateTo({ url: '/pages/my-guardians/index' });
+  },
+
+  onTapDevices() {
+    const memberId = this.data.selectedMemberId;
+    const url = memberId ? `/pages/devices/index?member_id=${memberId}` : '/pages/devices/index';
+    wx.navigateTo({
+      url,
+      fail() { wx.showToast({ title: '设备页面开发中', icon: 'none' }); },
+    });
   },
 
   onTapInviteCoManage() {

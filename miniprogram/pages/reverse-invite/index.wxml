@@ -1,0 +1,77 @@
+<view class="invite-page">
+  <!-- Loading -->
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">正在生成邀请…</text>
+  </view>
+
+  <!-- Error -->
+  <view class="error-wrap" wx:elif="{{error}}">
+    <text class="error-icon">⚠️</text>
+    <text class="error-text">{{error}}</text>
+    <button class="retry-btn" bindtap="retry">重新生成</button>
+  </view>
+
+  <!-- Invitation card -->
+  <view class="invite-content" wx:elif="{{invitation}}">
+    <view class="invite-card">
+      <view class="invite-header">
+        <text class="invite-title">邀请别人守护我的健康</text>
+        <text class="invite-subtitle">将邀请分享给您信任的家人或朋友</text>
+      </view>
+
+      <view class="qr-wrap" wx:if="{{invitation.qr_content_url || invitation.qr_url}}">
+        <qrcode
+          id="qrcode"
+          text="{{invitation.qr_content_url || invitation.qr_url}}"
+          size="{{360}}"
+          bind:ready="onQRReady"
+        />
+        <text class="qr-brand-name">宾尼小康AI健康管家</text>
+      </view>
+
+      <view class="invite-info">
+        <view class="info-row">
+          <text class="info-label">邀请码</text>
+          <text class="info-value">{{invitation.invite_code}}</text>
+        </view>
+        <view class="info-row" wx:if="{{invitation.expires_at}}">
+          <text class="info-label">有效期至</text>
+          <text class="info-value">{{invitation.expires_at}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="action-group">
+      <button class="action-btn action-save" bindtap="saveToAlbum">
+        <text class="action-btn-icon">📥</text>
+        <text>保存到本地</text>
+      </button>
+      <button class="action-btn action-copy" bindtap="copyLink">
+        <text class="action-btn-icon">🔗</text>
+        <text>复制链接</text>
+      </button>
+      <button class="action-btn action-share" open-type="share">
+        <text class="action-btn-icon">💬</text>
+        <text>分享好友</text>
+      </button>
+    </view>
+
+    <view class="tips-section">
+      <text class="tips-title">守护者可以：</text>
+      <view class="tip-item">
+        <text class="tip-icon">📊</text>
+        <text class="tip-text">查看您的健康档案与体检报告</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-icon">🔔</text>
+        <text class="tip-text">接收您的健康异常提醒通知</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-icon">💊</text>
+        <text class="tip-text">了解您的用药情况</text>
+      </view>
+      <view class="tip-note">您可以随时在「守护我的人」中解除守护关系</view>
+    </view>
+  </view>
+</view>

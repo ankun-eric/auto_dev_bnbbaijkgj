@@ -224,6 +224,7 @@ function HealthProfileV2PageInner() {
   const [medSummary, setMedSummary] = useState<Array<{ id: number; name: string; dosage: string; frequency_text: string; timing_text: string; status_text: string }>>([]);
   const [guardedFlags, setGuardedFlags] = useState<Map<number, { guarded: boolean; managed_user_id: number | null }>>(new Map());
   const [guardianSummary, setGuardianSummary] = useState<{ managed_count: number }>({ managed_count: 0 });
+  const [reverseGuardianCount, setReverseGuardianCount] = useState<number>(0);
   const [todayDataUpdatedAt, setTodayDataUpdatedAt] = useState<string>('');
   const searchParams = useSearchParams();
 
@@ -372,6 +373,16 @@ function HealthProfileV2PageInner() {
     }
   }, []);
 
+  const fetchReverseGuardianCount = useCallback(async () => {
+    try {
+      const res: any = await api.get('/api/reverse-guardian/guardian-count');
+      const data = res.data || res;
+      setReverseGuardianCount(data.count || 0);
+    } catch {
+      setReverseGuardianCount(0);
+    }
+  }, []);
+
   const fetchHeroSummary = useCallback(async (profileId: number) => {
     try {
       const res: any = await api.get(`/api/prd469/summary/${profileId}`);
@@ -452,7 +463,7 @@ function HealthProfileV2PageInner() {
   // ─── Effects ────────────────────────────────────────────────────
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
-  useEffect(() => { fetchGuardedFlags(); fetchGuardianSummary(); }, [fetchGuardedFlags, fetchGuardianSummary]);
+  useEffect(() => { fetchGuardedFlags(); fetchGuardianSummary(); fetchReverseGuardianCount(); }, [fetchGuardedFlags, fetchGuardianSummary, fetchReverseGuardianCount]);
 
   useEffect(() => {
     const f = searchParams?.get('focus');
@@ -918,7 +929,7 @@ function HealthProfileV2PageInner() {
     </div>
   );
 
-  // ─── F9: Family + Devices dual cards ────────────────────────────
+  // ─── F9: Guardian dual cards (我守护的人 + 守护我的人) ──────────
 
   const renderDualCards = () => (
     <div style={{ padding: '0 16px 12px', display: 'flex', gap: 10 }}>
@@ -930,31 +941,61 @@ function HealthProfileV2PageInner() {
           boxShadow: '0 1px 4px rgba(0,0,0,0.04)', cursor: 'pointer',
         }}
       >
-        <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #38BDF8, #0284C7)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <span style={{ fontSize: 20 }}>👨‍👩‍👧</span>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: '#FFF3E0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span style={{ fontSize: 20 }}>🛡️</span>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>家庭成员</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>我守护的人</div>
           <div style={{ fontSize: 12, color: '#6B7280' }}>{overview.family_member_count}人</div>
         </div>
         <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>
       </div>
       <div
-        onClick={() => router.push('/devices')}
+        onClick={() => router.push('/health-profile/my-guardians')}
         style={{
           flex: 1, background: '#fff', borderRadius: 12, padding: '14px 14px',
           display: 'flex', alignItems: 'center', gap: 10,
           boxShadow: '0 1px 4px rgba(0,0,0,0.04)', cursor: 'pointer',
         }}
       >
-        <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #38BDF8, #0284C7)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: '#E8F5E9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span style={{ fontSize: 20 }}>💚</span>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>守护我的人</div>
+          <div style={{ fontSize: 12, color: '#6B7280' }}>{reverseGuardianCount}人</div>
+        </div>
+        <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>
+      </div>
+    </div>
+  );
+
+  const renderDevicesEntry = () => (
+    <div style={{ padding: '0 16px 12px' }}>
+      <div
+        data-testid="health-devices-entry"
+        onClick={() => {
+          const mid = selectedMemberId && selectedMemberId > 0 ? selectedMemberId : 0;
+          router.push(`/devices?member_id=${mid}`);
+        }}
+        style={{
+          background: '#fff',
+          borderRadius: 12,
+          padding: '14px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+          cursor: 'pointer',
+        }}
+      >
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: '#F3E5F5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginRight: 10 }}>
           <span style={{ fontSize: 20 }}>🩺</span>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>我的设备</div>
-          <div style={{ fontSize: 12, color: '#6B7280' }}>{overview.device_count}台</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#1F2937' }}>我的设备</div>
         </div>
-        <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>
+        <span style={{ fontSize: 12, color: '#6B7280', marginRight: 4 }}>{overview.device_count}台</span>
+        <span style={{ fontSize: 14, color: '#9CA3AF' }}>›</span>
       </div>
     </div>
   );
@@ -1746,6 +1787,7 @@ function HealthProfileV2PageInner() {
           <span style={{ fontSize: 14, color: '#9CA3AF' }}>›</span>
         </div>
       </div>
+      {renderDevicesEntry()}
       {renderMedicationPlan()}
       {renderMedicalRecords()}
       {renderTodayHealthData()}

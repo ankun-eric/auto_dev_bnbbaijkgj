@@ -73,27 +73,110 @@
   color: #fff;
 }
 
-/* [PRD-HEALTH-ARCHIVE-OPTIM-V1] 共管区域 */
-.guardian-area {
+/* 守护关系卡片区 */
+.guardian-cards-area {
   padding: 0 24rpx 16rpx;
 }
-.guardian-row {
+.guardian-cards-row {
+  display: flex;
+  gap: 20rpx;
+}
+.guardian-card {
+  flex: 1;
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 28rpx 24rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
+}
+.guardian-card-icon-wrap {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12rpx;
+}
+.guardian-card-icon {
+  font-size: 40rpx;
+}
+.guardian-card-icon-orange {
+  background: #FFF7ED;
+  border: 2rpx solid #FDBA74;
+}
+.guardian-card-icon-green {
+  background: #F0FDF4;
+  border: 2rpx solid #86EFAC;
+}
+.guardian-card-icon-purple {
+  background: #FAF5FF;
+  border: 2rpx solid #C4B5FD;
+}
+.guardian-card-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4rpx;
+}
+.guardian-card-count {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #1F2937;
+}
+.guardian-card-orange {
+  border-top: 6rpx solid #F97316;
+}
+.guardian-card-green {
+  border-top: 6rpx solid #22C55E;
+}
+
+/* 我的设备入口 */
+.device-entry {
   background: #fff;
   border-radius: 16rpx;
   padding: 24rpx 28rpx;
+  margin-top: 20rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-left: 6rpx solid #0EA5E9;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04);
+  border-left: 6rpx solid #8B5CF6;
 }
-.guardian-text {
+.device-entry-left {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.device-entry-left .guardian-card-icon-wrap {
+  width: 64rpx;
+  height: 64rpx;
+  margin-bottom: 0;
+}
+.device-entry-title {
   font-size: 28rpx;
   font-weight: 600;
-  color: #1f2937;
+  color: #374151;
 }
-.guardian-arrow {
+.device-entry-right {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+.device-entry-count {
+  font-size: 26rpx;
+  color: #6B7280;
+}
+.device-entry-arrow {
   font-size: 32rpx;
   color: #9ca3af;
+}
+
+/* 非本人的共管区域 */
+.guardian-area {
+  padding: 0 24rpx 16rpx;
 }
 .guardian-invite-btn {
   background: #0EA5E9;

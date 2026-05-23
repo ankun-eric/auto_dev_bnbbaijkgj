@@ -64,24 +64,27 @@ function MedicationPlansListPageInner() {
     finished: 0,
   });
   const [loading, setLoading] = useState(false);
-  const [consultantId, setConsultantId] = useState<number>(-1);
+  const [consultantId, setConsultantId] = useState<number | null>(null);
+  const consultantReady = memberId ? consultantId !== null : true;
 
   useEffect(() => {
-    if (!memberId) { setConsultantId(-1); return; }
+    if (!memberId) { setConsultantId(null); return; }
+    let cancelled = false;
     (async () => {
       try {
         const res: any = await api.get('/api/family/members');
         const data = res.data || res;
-        const items: any[] = Array.isArray(data.items) ? data.items : [];
-        const m = items.find((x: any) => String(x.id) === memberId);
-        setConsultantId(m ? (m.is_self ? 0 : m.id) : -1);
-      } catch { setConsultantId(-1); }
+        const list: any[] = Array.isArray(data.items) ? data.items : [];
+        const m = list.find((x: any) => String(x.id) === memberId);
+        if (!cancelled) setConsultantId(m ? (m.is_self ? 0 : m.id) : -1);
+      } catch { if (!cancelled) setConsultantId(-1); }
     })();
+    return () => { cancelled = true; };
   }, [memberId]);
 
   const buildQuery = useCallback((t: TabKey) => {
     let q = `/api/health-plan/medications/list?tab=${t}`;
-    if (consultantId !== -1) q += `&consultant_id=${consultantId}`;
+    if (consultantId != null && consultantId !== -1) q += `&consultant_id=${consultantId}`;
     return q;
   }, [consultantId]);
 
@@ -119,12 +122,14 @@ function MedicationPlansListPageInner() {
   }, [buildQuery]);
 
   useEffect(() => {
+    if (!consultantReady) return;
     loadTab(tab);
-  }, [tab, loadTab]);
+  }, [tab, loadTab, consultantReady]);
 
   useEffect(() => {
+    if (!consultantReady) return;
     loadCounts();
-  }, [loadCounts]);
+  }, [loadCounts, consultantReady]);
 
   useEffect(() => {
     if (highlightId) {
@@ -257,7 +262,9 @@ function MedicationPlansListPageInner() {
       </div>
 
       <div style={{ padding: '12px 16px' }}>
-        {loading ? (
+        {!consultantReady ? (
+          <div style={{ textAlign: 'center', color: SUB, padding: 24 }}>加载中…</div>
+        ) : loading ? (
           <div style={{ textAlign: 'center', color: SUB, padding: 24 }}>加载中…</div>
         ) : items.length === 0 ? (
           <div

@@ -60,6 +60,8 @@
     "pages/family-guardian-list/index",
     "pages/family-guardian-list/detail",
     "pages/family-member-add/index",
+    "pages/my-guardians/index",
+    "pages/reverse-invite/index",
     "pages/messages/index",
     "pages/invite/index",
     "pages/products/index",

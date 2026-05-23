@@ -75,6 +75,7 @@ function formatExpiresAt(iso) {
 Page({
   data: {
     code: '',
+    inviteType: '', // '' = normal, 'reverse' = reverse guardian invite
     loading: true,
     error: '',
     networkError: false,
@@ -108,12 +109,13 @@ Page({
 
   onLoad(options) {
     const code = options.code || options.scene || '';
-    trackEvent('family_auth_view', { code });
+    const inviteType = options.type || '';
+    trackEvent('family_auth_view', { code, type: inviteType });
     if (!code) {
       this.setData({ loading: false, error: '无效的邀请链接' });
       return;
     }
-    this.setData({ code });
+    this.setData({ code, inviteType });
     this._ensureLoginThenLoad(code);
   },
 
@@ -127,13 +129,14 @@ Page({
   _ensureLoginThenLoad(code) {
     const token = (app && app.globalData && app.globalData.token) || '';
     if (!token) {
+      const typeSuffix = this.data.inviteType ? `&type=${this.data.inviteType}` : '';
       wx.showModal({
         title: '需要登录',
         content: '接受守护邀请前需要登录或注册，是否前往登录？',
         confirmText: '去登录',
         success: (res) => {
           if (res.confirm) {
-            const redirect = `/pages/family-auth/index?code=${encodeURIComponent(code)}`;
+            const redirect = `/pages/family-auth/index?code=${encodeURIComponent(code)}${typeSuffix}`;
             wx.navigateTo({
               url: `/pages/login/index?redirect=${encodeURIComponent(redirect)}`,
             });
@@ -150,7 +153,38 @@ Page({
   async loadInvitation(code) {
     this.setData({ loading: true, error: '', networkError: false });
     try {
-      const res = await get(`/api/family/invitation/${code}`, {}, { suppressErrorToast: true });
+      const apiPath = this.data.inviteType === 'reverse'
+        ? `/api/reverse-guardian/invite/${code}`
+        : `/api/family/invitation/${code}`;
+      const res = await get(apiPath, {}, { suppressErrorToast: true });
+
+      // Reverse invite: normalize invitee_nickname → inviter_nickname for template
+      if (this.data.inviteType === 'reverse' && res.invitee_nickname && !res.inviter_nickname) {
+        res.inviter_nickname = res.invitee_nickname;
+      }
+      if (this.data.inviteType === 'reverse' && res.invitee_avatar && !res.inviter_avatar) {
+        res.inviter_avatar = res.invitee_avatar;
+      }
+
+      // Reverse invite: check_result field carries validation result
+      if (this.data.inviteType === 'reverse' && res.check_result) {
+        const crMap = {
+          expired: 'expired',
+          full: 'limit',
+          self_invite: 'self',
+          already_guardian: 'used',
+        };
+        const reason = crMap[res.check_result];
+        if (reason) {
+          const meta = INVALID_REASON_MAP[reason] || { title: '邀请无效', desc: '该邀请暂时无法接受', action: 'home' };
+          trackEvent(`family_auth_invalid_${reason}`);
+          this.setData({
+            loading: false, invitation: res,
+            invalidReason: reason, invalidTitle: meta.title, invalidDesc: meta.desc, invalidAction: meta.action,
+          });
+          return;
+        }
+      }
 
       // 失效原因优先于 status 判断（后端已做归一化）
       if (res.invalid_reason) {
@@ -268,18 +302,25 @@ Page({
 
     this.setData({ processing: true });
     try {
+      const isReverse = this.data.inviteType === 'reverse';
+      const acceptPath = isReverse
+        ? `/api/reverse-guardian/invite/${this.data.code}/accept`
+        : `/api/family/invitation/${this.data.code}/accept`;
       await post(
-        `/api/family/invitation/${this.data.code}/accept`,
+        acceptPath,
         { merge_fields: mergeFields },
         { suppressErrorToast: true }
       );
       trackEvent('family_auth_accept_success');
       trackEvent('family_auth_mp_qr_view');
+      const successMsg = isReverse
+        ? '已成功成为「' + (this.data.invitation.inviter_nickname || '对方') + '」的守护者'
+        : '已成功成为「' + (this.data.invitation.inviter_nickname || '对方') + '」的被守护者';
       this.setData({
         processing: false,
         resultStatus: 'success',
-        resultMessage: '已成功成为「' + (this.data.invitation.inviter_nickname || '对方') + '」的被守护者',
-        showFollowMp: true,
+        resultMessage: successMsg,
+        showFollowMp: !isReverse,
       });
     } catch (e) {
       this.setData({

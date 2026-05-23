@@ -5,7 +5,7 @@
     <view class="brand-logo">
       <text class="brand-logo-text">B</text>
     </view>
-    <text class="brand-title">家庭健康守护邀请</text>
+    <text class="brand-title">{{inviteType === 'reverse' ? '健康守护邀请' : '家庭健康守护邀请'}}</text>
     <view class="brand-cs" bindtap="onCallService">
       <text class="brand-cs-icon">💬</text>
     </view>
@@ -104,9 +104,9 @@
         <view class="inviter-info">
           <text class="inviter-name">
             {{invitation.inviter_nickname || '家人'}}
-            <text class="inviter-relation" wx:if="{{relationshipLabel}}">（您的{{relationshipLabel}}）</text>
+            <text class="inviter-relation" wx:if="{{relationshipLabel && inviteType !== 'reverse'}}">（您的{{relationshipLabel}}）</text>
           </text>
-          <text class="inviter-desc">邀请您加入家庭健康守护</text>
+          <text class="inviter-desc">{{inviteType === 'reverse' ? '邀请你守护 TA 的健康' : '邀请您加入家庭健康守护'}}</text>
           <text class="inviter-expire">邀请到期：{{expiresAtText}}</text>
         </view>
       </view>
@@ -115,24 +115,40 @@
     <!-- 关系说明卡片 -->
     <view class="card explain-card">
       <text class="card-title">接受后将发生：</text>
-      <view class="explain-item">
-        <text class="explain-icon explain-icon-ok">✅</text>
-        <text class="explain-text">{{invitation.inviter_nickname || '邀请人'}} 可查看您的体检报告与健康档案</text>
-      </view>
-      <view class="explain-item">
-        <text class="explain-icon explain-icon-ok">✅</text>
-        <text class="explain-text">您的体检异常会自动推送给 {{invitation.inviter_nickname || '邀请人'}}</text>
-      </view>
-      <view class="explain-item">
-        <text class="explain-icon explain-icon-ok">✅</text>
-        <text class="explain-text">您随时可以在「我的-家庭」中解除守护</text>
-      </view>
-      <view class="explain-item explain-item-warn">
-        <text class="explain-icon explain-icon-warn">⚠️</text>
-        <text class="explain-text">
-          您当前已有 {{invitation.current_managed_by_count || 0}} 位守护者（最多 {{invitation.max_managed_by_count || 3}} 位）
-        </text>
-      </view>
+      <block wx:if="{{inviteType === 'reverse'}}">
+        <view class="explain-item">
+          <text class="explain-icon explain-icon-ok">✅</text>
+          <text class="explain-text">您将可以查看 {{invitation.inviter_nickname || '对方'}} 的体检报告与健康档案</text>
+        </view>
+        <view class="explain-item">
+          <text class="explain-icon explain-icon-ok">✅</text>
+          <text class="explain-text">{{invitation.inviter_nickname || '对方'}} 的体检异常会自动推送给您</text>
+        </view>
+        <view class="explain-item">
+          <text class="explain-icon explain-icon-ok">✅</text>
+          <text class="explain-text">双方随时可以解除守护关系</text>
+        </view>
+      </block>
+      <block wx:else>
+        <view class="explain-item">
+          <text class="explain-icon explain-icon-ok">✅</text>
+          <text class="explain-text">{{invitation.inviter_nickname || '邀请人'}} 可查看您的体检报告与健康档案</text>
+        </view>
+        <view class="explain-item">
+          <text class="explain-icon explain-icon-ok">✅</text>
+          <text class="explain-text">您的体检异常会自动推送给 {{invitation.inviter_nickname || '邀请人'}}</text>
+        </view>
+        <view class="explain-item">
+          <text class="explain-icon explain-icon-ok">✅</text>
+          <text class="explain-text">您随时可以在「我的-家庭」中解除守护</text>
+        </view>
+        <view class="explain-item explain-item-warn">
+          <text class="explain-icon explain-icon-warn">⚠️</text>
+          <text class="explain-text">
+            您当前已有 {{invitation.current_managed_by_count || 0}} 位守护者（最多 {{invitation.max_managed_by_count || 3}} 位）
+          </text>
+        </view>
+      </block>
     </view>
 
     <!-- 健康档案合并预览 -->

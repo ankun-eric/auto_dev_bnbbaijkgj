@@ -60,8 +60,9 @@ export async function fetchCatalog(): Promise<{ groups: CatalogGroup[]; total: n
   return unwrap<{ groups: CatalogGroup[]; total: number }>(res);
 }
 
-export async function fetchMyDevices(): Promise<{ items: MyDeviceItem[]; total: number }> {
-  const res = await api.get('/api/devices/my');
+export async function fetchMyDevices(memberId?: string | number | null): Promise<{ items: MyDeviceItem[]; total: number }> {
+  const qs = memberId != null && memberId !== '' ? `?member_id=${memberId}` : '';
+  const res = await api.get(`/api/devices/my${qs}`);
   return unwrap<{ items: MyDeviceItem[]; total: number }>(res);
 }
 

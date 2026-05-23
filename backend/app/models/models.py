@@ -4571,3 +4571,22 @@ class ReportHistory(Base):
 
     user = relationship("User")
     family_member = relationship("FamilyMember")
+
+
+# ──────────────── 反向守护邀请 ────────────────
+
+
+class ReverseGuardianInvitation(Base):
+    """被守护人主动发起的反向邀请，邀请他人成为自己的守护者。"""
+    __tablename__ = "reverse_guardian_invitations"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    invite_code = mapped_column(String(64), unique=True, nullable=False, index=True)
+    invitee_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    status = mapped_column(String(20), default="pending")
+    max_uses = mapped_column(Integer, default=3)
+    used_count = mapped_column(Integer, default=0)
+    expires_at = mapped_column(DateTime, nullable=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+
+    invitee = relationship("User", foreign_keys=[invitee_user_id])

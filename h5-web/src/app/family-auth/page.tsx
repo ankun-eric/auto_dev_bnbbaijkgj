@@ -15,6 +15,19 @@ interface InvitationDetail {
   created_at: string;
 }
 
+interface ReverseInvitationDetail {
+  invite_code: string;
+  status: string;
+  invitee_user_id: number;
+  invitee_nickname?: string | null;
+  invitee_avatar?: string | null;
+  max_uses: number;
+  used_count: number;
+  expires_at: string;
+  created_at: string;
+  check_result?: string | null;
+}
+
 type PageStatus = 'loading' | 'confirm' | 'accepted' | 'rejected' | 'error';
 
 export default function FamilyAuthPage() {
@@ -29,9 +42,12 @@ function FamilyAuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const code = searchParams.get('code');
+  const inviteType = searchParams.get('type');
+  const isReverse = inviteType === 'reverse';
 
   const [status, setStatus] = useState<PageStatus>('loading');
   const [invitation, setInvitation] = useState<InvitationDetail | null>(null);
+  const [reverseInvitation, setReverseInvitation] = useState<ReverseInvitationDetail | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const wechatCheckedRef = useRef(false);
@@ -40,7 +56,7 @@ function FamilyAuthContent() {
     const token = localStorage.getItem('token');
     if (!token) {
       const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-      const returnUrl = `${basePath}/family-auth?code=${code || ''}`;
+      const returnUrl = `${basePath}/family-auth?code=${code || ''}${isReverse ? '&type=reverse' : ''}`;
       router.replace(`/login?redirect=${encodeURIComponent(returnUrl)}`);
       return;
     }
@@ -50,19 +66,25 @@ function FamilyAuthContent() {
       return;
     }
 
-    const isWechat = /MicroMessenger/i.test(navigator.userAgent);
-    if (isWechat && !wechatCheckedRef.current) {
-      wechatCheckedRef.current = true;
-      const schemeUrl = `weixin://dl/business/?appid=wx_placeholder&path=/pages/family-auth/index&query=code%3D${code}`;
-      window.location.href = schemeUrl;
-      setTimeout(() => {
-        fetchInvitation();
-      }, 3000);
-      return;
+    if (!isReverse) {
+      const isWechat = /MicroMessenger/i.test(navigator.userAgent);
+      if (isWechat && !wechatCheckedRef.current) {
+        wechatCheckedRef.current = true;
+        const schemeUrl = `weixin://dl/business/?appid=wx_placeholder&path=/pages/family-auth/index&query=code%3D${code}`;
+        window.location.href = schemeUrl;
+        setTimeout(() => {
+          fetchInvitation();
+        }, 3000);
+        return;
+      }
     }
 
-    fetchInvitation();
-  }, [code]);
+    if (isReverse) {
+      fetchReverseInvitation();
+    } else {
+      fetchInvitation();
+    }
+  }, [code, isReverse]);
 
   const fetchInvitation = async () => {
     setStatus('loading');
@@ -93,12 +115,51 @@ function FamilyAuthContent() {
     }
   };
 
+  const fetchReverseInvitation = async () => {
+    setStatus('loading');
+    try {
+      const res: any = await api.get(`/api/reverse-guardian/invite/${code}`);
+      const data: ReverseInvitationDetail = res.data || res;
+      setReverseInvitation(data);
+
+      const cr = data.check_result;
+      if (cr === 'expired' || data.status === 'expired') {
+        setErrorMsg('邀请已过期，请联系对方重新发送');
+        setStatus('error');
+      } else if (cr === 'full') {
+        setErrorMsg('邀请名额已满');
+        setStatus('error');
+      } else if (cr === 'already_guardian') {
+        setErrorMsg('你已经是对方的守护者了');
+        setStatus('error');
+      } else if (cr === 'self_invite') {
+        setErrorMsg('不能守护自己哦');
+        setStatus('error');
+      } else if (data.status !== 'pending') {
+        setErrorMsg('邀请状态异常');
+        setStatus('error');
+      } else {
+        setStatus('confirm');
+      }
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || '获取邀请信息失败';
+      setErrorMsg(detail);
+      setStatus('error');
+    }
+  };
+
   const handleAccept = async () => {
     setSubmitting(true);
     try {
-      await api.post(`/api/family/invitation/${code}/accept`);
-      setStatus('accepted');
-      showToast('已接受邀请', 'success');
+      if (isReverse) {
+        await api.post(`/api/reverse-guardian/invite/${code}/accept`);
+        setStatus('accepted');
+        showToast('已成为守护者', 'success');
+      } else {
+        await api.post(`/api/family/invitation/${code}/accept`);
+        setStatus('accepted');
+        showToast('已接受邀请', 'success');
+      }
     } catch (err: any) {
       const detail = err?.response?.data?.detail || '操作失败，请重试';
       showToast(detail, 'fail');
@@ -108,14 +169,18 @@ function FamilyAuthContent() {
 
   const handleReject = async () => {
     const result = await Dialog.confirm({
-      title: '拒绝邀请',
-      content: '确定要拒绝此守护邀请吗？',
+      title: isReverse ? '拒绝守护' : '拒绝邀请',
+      content: isReverse ? '确定要拒绝守护对方的健康吗？' : '确定要拒绝此守护邀请吗？',
     });
     if (!result) return;
     setSubmitting(true);
     try {
-      await api.post(`/api/family/invitation/${code}/reject`);
-      setStatus('rejected');
+      if (isReverse) {
+        setStatus('rejected');
+      } else {
+        await api.post(`/api/family/invitation/${code}/reject`);
+        setStatus('rejected');
+      }
     } catch (err: any) {
       const detail = err?.response?.data?.detail || '操作失败，请重试';
       showToast(detail, 'fail');
@@ -128,10 +193,16 @@ function FamilyAuthContent() {
     window.location.href = schemeUrl;
   };
 
+  const displayInviterName = isReverse
+    ? (reverseInvitation?.invitee_nickname || '对方')
+    : (invitation?.inviter_nickname || '对方');
+
+  const displayInviterChar = (displayInviterName || '对')[0];
+
   return (
-    <div className="min-h-screen" style={{ background: 'linear-gradient(160deg, #f0faf0 0%, #e8f4ff 100%)' }}>
+    <div className="min-h-screen" style={{ background: isReverse ? 'linear-gradient(160deg, #E8F5E9 0%, #e8f4ff 100%)' : 'linear-gradient(160deg, #f0faf0 0%, #e8f4ff 100%)' }}>
       <NavBar onBack={() => router.back()} style={{ background: 'transparent' }}>
-        授权确认
+        {isReverse ? '守护确认' : '授权确认'}
       </NavBar>
 
       <div className="px-4 pt-4 pb-8">
@@ -165,7 +236,7 @@ function FamilyAuthContent() {
           </div>
         )}
 
-        {status === 'confirm' && invitation && (
+        {status === 'confirm' && (invitation || reverseInvitation) && (
           <div className="pt-6">
             <div
               className="rounded-3xl overflow-hidden mx-auto"
@@ -178,17 +249,19 @@ function FamilyAuthContent() {
               <div className="px-6 pt-10 pb-6 text-center">
                 <div
                   className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
-                  style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
+                  style={{ background: isReverse ? 'linear-gradient(135deg, #4CAF50, #66BB6A)' : 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
                 >
                   <span className="text-white text-2xl font-bold">
-                    {(invitation.inviter_nickname || '对')[0]}
+                    {displayInviterChar}
                   </span>
                 </div>
                 <div className="text-lg font-bold text-gray-800 mb-2">
-                  {invitation.inviter_nickname || '对方'}
+                  {displayInviterName}
                 </div>
                 <div className="text-sm text-gray-500">
-                  TA 邀请你加入家庭健康圈
+                  {isReverse
+                    ? `${displayInviterName} 邀请你守护 TA 的健康`
+                    : 'TA 邀请你加入家庭健康圈'}
                 </div>
               </div>
 
@@ -198,7 +271,7 @@ function FamilyAuthContent() {
                     block
                     loading={submitting}
                     style={{
-                      background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
+                      background: isReverse ? 'linear-gradient(135deg, #4CAF50, #66BB6A)' : 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
                       color: '#fff',
                       border: 'none',
                       borderRadius: 24,
@@ -208,7 +281,7 @@ function FamilyAuthContent() {
                     }}
                     onClick={handleAccept}
                   >
-                    同意
+                    {isReverse ? '同意守护' : '同意'}
                   </Button>
                   <Button
                     block
@@ -230,7 +303,7 @@ function FamilyAuthContent() {
           </div>
         )}
 
-        {status === 'accepted' && invitation && (
+        {status === 'accepted' && (
           <div className="pt-6">
             <div
               className="rounded-3xl overflow-hidden mx-auto"
@@ -243,48 +316,52 @@ function FamilyAuthContent() {
               <div className="px-6 pt-10 pb-8 text-center">
                 <div
                   className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center"
-                  style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
+                  style={{ background: isReverse ? 'linear-gradient(135deg, #4CAF50, #66BB6A)' : 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
                 >
                   <span className="text-white text-3xl font-bold">
-                    {(invitation.inviter_nickname || '对')[0]}
+                    {displayInviterChar}
                   </span>
                 </div>
                 <div className="text-lg font-bold text-gray-800 mb-2">
-                  {invitation.inviter_nickname || '对方'}
+                  {displayInviterName}
                 </div>
                 <div className="text-sm text-gray-500 mb-6">
-                  {invitation.inviter_nickname || '对方'} 已成为你的家人
+                  {isReverse
+                    ? `你已成为 ${displayInviterName} 的守护者`
+                    : `${displayInviterName} 已成为你的家人`}
                 </div>
 
                 <div
                   className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs mb-8"
-                  style={{ background: '#F0F9FF', color: '#0EA5E9', border: '1px solid #d9f7be' }}
+                  style={{ background: isReverse ? '#E8F5E9' : '#F0F9FF', color: isReverse ? '#2E7D32' : '#0EA5E9', border: isReverse ? '1px solid #C8E6C9' : '1px solid #d9f7be' }}
                 >
                   <span>✓</span>
-                  <span>授权成功</span>
+                  <span>{isReverse ? '守护成功' : '授权成功'}</span>
                 </div>
 
                 <div className="space-y-3">
-                  <Button
-                    block
-                    style={{
-                      background: '#07c160',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: 24,
-                      height: 48,
-                      fontWeight: 600,
-                      fontSize: 16,
-                    }}
-                    onClick={handleOpenMiniProgram}
-                  >
-                    打开小程序查看
-                  </Button>
+                  {!isReverse && (
+                    <Button
+                      block
+                      style={{
+                        background: '#07c160',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 24,
+                        height: 48,
+                        fontWeight: 600,
+                        fontSize: 16,
+                      }}
+                      onClick={handleOpenMiniProgram}
+                    >
+                      打开小程序查看
+                    </Button>
+                  )}
                   <div
                     className="text-center text-sm text-gray-400 py-2 cursor-pointer"
                     onClick={() => router.replace('/health-profile')}
                   >
-                    稍后再说
+                    {isReverse ? '返回健康档案' : '稍后再说'}
                   </div>
                 </div>
               </div>
@@ -297,7 +374,7 @@ function FamilyAuthContent() {
             <Result
               status="info"
               title="已拒绝"
-              description="您已拒绝此守护邀请"
+              description={isReverse ? '您已拒绝守护对方的健康' : '您已拒绝此守护邀请'}
             />
             <div className="mt-6 px-8">
               <Button

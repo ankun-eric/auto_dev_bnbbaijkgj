@@ -2069,6 +2069,9 @@ app.include_router(points_exchange.router)
 app.include_router(plan.router)
 app.include_router(family.router)
 app.include_router(family_management.router)
+# [PRD-REVERSE-GUARDIAN-V1] 反向守护邀请
+from app.api import reverse_guardian as _reverse_guardian  # noqa: E402
+app.include_router(_reverse_guardian.router)
 # [PRD-FAMILY-GUARDIAN-V1] 家庭体检异常守护推送
 from app.api import family_guardian as _family_guardian  # noqa: E402
 from app.api import admin_family_guardian as _admin_family_guardian  # noqa: E402

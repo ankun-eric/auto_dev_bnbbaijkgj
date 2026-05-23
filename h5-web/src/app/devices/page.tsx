@@ -14,7 +14,8 @@
  *
  * 全量样式遵循 AI-home 11 级天蓝色阶（#0EA5E9 系）。
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import {
@@ -37,6 +38,17 @@ import UnbindConfirmModal from './components/UnbindConfirmModal';
 import { DV_COLOR } from './components/theme';
 
 export default function DevicesPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#6B7280' }}>加载中…</div>}>
+      <DevicesPageInner />
+    </Suspense>
+  );
+}
+
+function DevicesPageInner() {
+  const searchParams = useSearchParams();
+  const memberId = searchParams?.get('member_id') || '';
+  const isSelfTab = !memberId || memberId === '0';
   const [myList, setMyList] = useState<MyDeviceItem[]>([]);
   const [groups, setGroups] = useState<CatalogGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,8 +63,9 @@ export default function DevicesPage() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
+      const mid = isSelfTab ? undefined : memberId;
       const [my, cat] = await Promise.all([
-        fetchMyDevices().catch(() => ({ items: [], total: 0 })),
+        fetchMyDevices(mid).catch(() => ({ items: [], total: 0 })),
         fetchCatalog().catch(() => ({ groups: [], total: 0 })),
       ]);
       setMyList(my.items || []);
@@ -60,7 +73,7 @@ export default function DevicesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [memberId, isSelfTab]);
 
   useEffect(() => {
     loadAll();
@@ -153,25 +166,27 @@ export default function DevicesPage() {
             <div
               data-testid="bh-my-devices-empty"
               style={{
-                background: DV_COLOR.gradient,
+                background: isSelfTab ? DV_COLOR.gradient : '#fff',
                 borderRadius: 16,
                 padding: '28px 20px',
-                color: '#fff',
-                boxShadow: '0 6px 24px rgba(2,132,199,0.25)',
+                color: isSelfTab ? '#fff' : DV_COLOR.textSecondary,
+                boxShadow: isSelfTab ? '0 6px 24px rgba(2,132,199,0.25)' : '0 2px 12px rgba(2,132,199,0.06)',
                 textAlign: 'center',
               }}
             >
-              <div style={{ fontSize: 56, marginBottom: 8 }}>📱➕</div>
-              <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>还没有绑定任何设备</div>
+              <div style={{ fontSize: 56, marginBottom: 8 }}>{isSelfTab ? '📱➕' : '📱'}</div>
+              <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>
+                {isSelfTab ? '还没有绑定任何设备' : '该成员暂无绑定设备'}
+              </div>
               <div style={{ fontSize: 13, opacity: 0.92, marginBottom: 16 }}>
-                从下方选择支持的设备，开启智能健康监测
+                {isSelfTab ? '从下方选择支持的设备，开启智能健康监测' : '可以为该成员绑定设备，开启健康监测'}
               </div>
               <button
                 onClick={scrollToCatalog}
                 data-testid="bh-my-devices-cta"
                 style={{
-                  background: '#fff',
-                  color: DV_COLOR.brand600,
+                  background: isSelfTab ? '#fff' : DV_COLOR.brand600,
+                  color: isSelfTab ? DV_COLOR.brand600 : '#fff',
                   border: 'none',
                   padding: '10px 26px',
                   borderRadius: 22,
@@ -180,7 +195,7 @@ export default function DevicesPage() {
                   cursor: 'pointer',
                   boxShadow: '0 4px 14px rgba(0,0,0,0.08)',
                 }}
-              >立即绑定 ↓</button>
+              >{isSelfTab ? '立即绑定 ↓' : '去绑定设备 ↓'}</button>
             </div>
           ) : (
             <div

@@ -47,14 +47,35 @@ function decorate(item) {
 
 Page({
   data: {
+    consultantId: null,
     medications: [],
     medGroups: [],
     loading: false,
     pointsRefreshKey: 0
   },
 
+  onLoad(options) {
+    if (options.target) {
+      this.setData({ consultantId: options.target });
+    }
+  },
+
   onShow() {
-    this.loadList();
+    this._loadWhenReady();
+  },
+
+  _loadWhenReady() {
+    const cid = this.data.consultantId;
+    if (cid !== null && cid !== undefined) {
+      this.loadList();
+      return;
+    }
+    const app = getApp();
+    if (app && app.globalData && app.globalData.token) {
+      this.loadList();
+      return;
+    }
+    setTimeout(() => { this.loadList(); }, 300);
   },
 
   onPullDownRefresh() {
@@ -64,7 +85,11 @@ Page({
   async loadList() {
     this.setData({ loading: true });
     try {
-      const res = await get('/api/health-plan/medications', {}, { showLoading: false });
+      const params = {};
+      if (this.data.consultantId) {
+        params.consultant_id = this.data.consultantId;
+      }
+      const res = await get('/api/health-plan/medications', params, { showLoading: false });
       let items = [];
       let medGroups = [];
       if (res && res.groups && typeof res.groups === 'object') {
