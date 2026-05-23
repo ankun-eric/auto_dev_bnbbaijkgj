@@ -27,7 +27,40 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: 健康档案页面 Bug 修复方案输出 (2026-05-24 01:11)
+## Latest Update: 健康档案页面修复与邀请页面统一 (2026-05-24 02:00)
+
+### 一句话结论
+完成健康档案页面15项修复与新功能（F1-F9），包括图标优化、健康评分移除、用药计划Tab筛选修正、添加成员弹窗优化、邀请页面方案D统一、Tab绑定逻辑、数据合并策略。后端+H5前端全量开发部署完成。
+
+### 核心变更
+
+#### 后端修改
+- `backend/app/api/health_plan_v2.py` — F4b: 修正用药计划3个Tab的筛选逻辑（in_progress/not_started/finished）
+- `backend/app/api/family_management.py` — F8: 邀请时member_id可选，无member_id时自动新建家庭成员
+- `backend/app/schemas/family_management.py` — F8: InvitationCreateRequest.member_id改为可选
+- `backend/app/services/data_merge_service.py` — F9: 新增数据合并服务（按report_date去重）
+
+#### H5前端修改
+- `h5-web/src/app/health-profile/page.tsx` — F1图标、F3去括号、F5.3小屏适配、F6.1/F6.2邀请横幅
+- `h5-web/src/app/health-dashboard/page.tsx` — F2移除健康评分渲染
+- `h5-web/src/app/family-invite/page.tsx` — F7邀请被守护人页面方案D重写（蓝色渐变）
+- `h5-web/src/app/health-profile/my-guardians/invite/page.tsx` — F7邀请守护我页面方案D重写（绿色渐变）
+- `h5-web/src/app/family/page.tsx` — F5.1标题含守护者名
+- `h5-web/src/app/(ai-chat)/ai-home/medication-plans/page.tsx` — F4a Tab数字去括号
+- `h5-web/src/components/health-profile-v5/NewFamilyMemberModal.tsx` — F5.2a标题、F5.2b水平布局、F6.1横幅文案
+- `h5-web/src/lib/family-relation.ts` — F5.2c birthYearOffset计算方向修正
+
+### 部署验证（已通过）
+- 部署时间：2026-05-24 02:00
+- backend 容器 --no-cache 重建启动正常（Application startup complete）
+- h5-web 容器 --no-cache 重建启动正常（Ready in 139ms）
+
+### 用户体验手册
+- `user_docs/健康档案页面修复与邀请页面统一.md`
+
+---
+
+## Previous Update: 健康档案页面 Bug 修复方案输出 (2026-05-24 01:11)
 
 ### 一句话结论
 完成"健康档案页面问题"Bug 的多轮沟通与修复方案文档输出，共 6 大类 Bug + 邀请页面设计统一等新增需求。

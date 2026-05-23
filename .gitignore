@@ -128,3 +128,5 @@ deploy_order_enh.log
 .chat_output/
 .chat_prompts/
 build_ios_prd_aichat_home_grid_v1.log
+_deploy_remote.py
+_deploy_sftp.py
