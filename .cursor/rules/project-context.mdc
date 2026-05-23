@@ -27,7 +27,57 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: 健康档案页面优化 6 项 Bug 全量修复 (2026-05-23 12:57)
+## Latest Update: 历史报告与对比分析功能开发完成并部署 (2026-05-23 15:50)
+
+### 一句话结论
+"历史报告与对比分析"功能全量开发完成并部署上线。后端新增 ReportHistory 数据模型和 9 个 API 端点（report-history 模块），H5 前端新增 4 个页面（历史报告列表页、报告详情页、对比报告详情页、分享报告页）。支持按咨询人查看历史报告、勾选2份报告发起AI对比分析、左滑删除+级联删除、分享（图片/链接/小程序卡片）、保存到就医资料。
+
+### 核心变更
+
+#### 后端新增
+- **数据模型**：`ReportHistory`（历史报告记录表，支持普通报告和对比报告，含软删除、分享token）
+- **API 路由**：`backend/app/api/report_history.py`（9个端点）
+
+#### 新增 API 端点
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/report-history/list` | 历史报告列表（分页，按 report_date 倒序） |
+| GET | `/api/report-history/{id}` | 报告详情（含指标数据、原图、AI解读） |
+| GET | `/api/report-history/comparison/{id}` | 对比报告详情（含两份源报告信息） |
+| POST | `/api/report-history/compare` | 发起 AI 对比分析（调用 AI 生成结构化 JSON） |
+| DELETE | `/api/report-history/{id}` | 软删除报告（级联删除关联对比报告） |
+| POST | `/api/report-history/share` | 生成分享 token |
+| GET | `/api/report-history/shared/{token}` | 通过 share_token 查看分享报告 |
+| POST | `/api/report-history/save-medical` | 保存到就医资料 |
+| POST | `/api/report-history/sync` | 从现有报告+会话同步到历史记录（幂等） |
+
+#### H5 前端新增页面
+- `h5-web/src/app/report-history/page.tsx` — 历史报告列表页（咨询人选择器、报告卡片列表、勾选对比、左滑删除、分页加载）
+- `h5-web/src/app/report-history/[id]/page.tsx` — 报告详情页（原图、AI解读、指标表格+异常标记、对比入口、分享、保存就医资料）
+- `h5-web/src/app/report-history/comparison/[id]/page.tsx` — 对比报告详情页（双报告信息、指标变化、改善/恶化高亮、健康建议、风险预警）
+- `h5-web/src/app/report-history/shared/[token]/page.tsx` — 分享报告只读页
+
+### 部署验证（已通过）
+- 部署时间：2026-05-23 15:50
+- backend + h5-web 容器 --no-cache 重建启动正常
+- HTTP探活：`/` 200、`/api/docs` 200、`/report-history` 200
+
+### 用户体验手册
+- `user_docs/历史报告与对比分析.md`
+
+---
+
+## Previous Update: 历史报告与对比分析需求 PRD 输出 (2026-05-23 15:22)
+
+### 一句话结论
+完成"历史报告与对比分析"需求的多轮沟通与 PRD 文档输出。
+
+### PRD 文档
+- `.chat_output/48dbc2fa-aaf0-42b1-9676-77ca2b8935e4/PRD_历史报告与对比分析_20260523_152200.md`
+
+---
+
+## Previous Update: 健康档案页面优化 6 项 Bug 全量修复 (2026-05-23 12:57)
 
 ### 一句话结论
 健康档案页面 6 项 Bug 全量修复并部署：用药计划统计数字一致性（前后端统一 consultant_id 过滤）、底部重复按钮移除、列表页蓝色渐变导航栏 + Tab 统计修正、用药提醒"下一次用药"正确显示药品名+时间、Hero 卡片紧凑化、健康看板入口本人 Tab 也展示并移至 Hero 下方、成员 Tab 切换自动回顶、子页面返回恢复成员 Tab。

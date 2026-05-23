@@ -4534,3 +4534,40 @@ class HealthAlertNotification(Base):
 
     member = relationship("FamilyMember", foreign_keys=[member_id])
     guardian = relationship("User", foreign_keys=[guardian_user_id])
+
+
+# ──────────────── [PRD-REPORT-HISTORY-V1] 历史报告与对比分析 ────────────────
+
+
+class ReportHistory(Base):
+    """历史报告解读记录"""
+    __tablename__ = "report_history"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    family_member_id = mapped_column(Integer, ForeignKey("family_members.id"), nullable=False, index=True)
+    report_id = mapped_column(Integer, ForeignKey("checkup_reports.id"), nullable=True)
+    session_id = mapped_column(Integer, ForeignKey("chat_sessions.id"), nullable=True)
+
+    report_name = mapped_column(String(200), nullable=False)
+    report_date = mapped_column(Date, nullable=True)
+    source_type = mapped_column(String(50), nullable=False, default="体检报告", comment="来源类型: 体检报告/对比报告")
+    ai_summary = mapped_column(Text, nullable=True, comment="AI一句话健康总结")
+
+    is_comparison = mapped_column(Boolean, default=False)
+    compare_report_a_id = mapped_column(Integer, nullable=True)
+    compare_report_b_id = mapped_column(Integer, nullable=True)
+    comparison_content = mapped_column(JSON, nullable=True, comment="对比分析内容JSON")
+
+    original_images = mapped_column(JSON, nullable=True, comment="原图URL列表")
+    ai_interpretation = mapped_column(Text, nullable=True, comment="AI解读摘要")
+    indicators_data = mapped_column(JSON, nullable=True, comment="结构化指标数据")
+
+    share_token = mapped_column(String(100), nullable=True, unique=True)
+
+    is_deleted = mapped_column(Boolean, default=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User")
+    family_member = relationship("FamilyMember")
