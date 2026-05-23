@@ -51,6 +51,8 @@ export interface ChatCardButton {
   aiFunctionType?: string;
   /** 页面跳转：是否先弹卡片再跳转（仅 button_type=page_navigate 时生效） */
   preCardForNavigate?: boolean;
+  /** 拍照/上传用途（如 interpret_report / identify_medicine / upload） */
+  capturePurpose?: string;
 }
 
 export interface ChatCardProps {
@@ -255,13 +257,15 @@ function buttonToFcv2Data(button: ChatCardButton, override?: Partial<FunctionCar
 // ─────────────────── A. upload 卡片（新版样式） ───────────────────
 
 export function UploadCard({ button, disabled, onAction }: ChatCardProps) {
-  // [PRD-AICHAT-CAPSULE-V2 2026-05-15 需求 1] 入口收口为 2 项：相册 + 拍照
-  const entries: Array<{ key: 'album' | 'camera'; label: string; icon: string }> = [
+  const entries: Array<{ key: string; label: string; icon: string }> = [
     { key: 'album', label: '相册', icon: '🖼️' },
     { key: 'camera', label: '拍照', icon: '📷' },
   ];
+  if (button.capturePurpose === 'interpret_report') {
+    entries.push({ key: 'history', label: '历史报告', icon: '📋' });
+  }
+  const gridCols = entries.length >= 3 ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)';
   const data = buttonToFcv2Data(button, {
-    // v1.2 方案 D：按钮文案统一为「开始」（虽然 upload 卡因 hideButton 不渲染按钮）
     buttonText: '开始',
     disabled,
   });
@@ -271,7 +275,7 @@ export function UploadCard({ button, disabled, onAction }: ChatCardProps) {
       hideButton
       testid="function-card-v2-upload"
     >
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 10 }}>
         {entries.map((e) => (
           <button
             key={e.key}
@@ -496,6 +500,7 @@ export function resolveCardType(buttonType: string, aiFunctionType?: string | nu
       case 'file_upload':
       case 'medicine_recognize':
       case 'report_interpret':
+      case 'image_capture':
         return 'upload';
       case 'quick_ask':
         return 'quick_ask';
@@ -555,6 +560,7 @@ export interface BackendFunctionButton {
   ai_function_type?: string | null;
   ai_opening?: string | null;
   pre_card_for_navigate?: boolean | null;
+  capture_purpose?: string | null;
   grid_sort?: number | null;
   capsule_sort?: number | null;
 }
@@ -576,6 +582,7 @@ export function backendButtonToCardButton(b: BackendFunctionButton): ChatCardBut
     aiOpening: (b.ai_opening || '').trim() || undefined,
     aiFunctionType: b.ai_function_type || undefined,
     preCardForNavigate: !!b.pre_card_for_navigate,
+    capturePurpose: b.capture_purpose || undefined,
   };
 }
 

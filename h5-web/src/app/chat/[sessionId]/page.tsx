@@ -95,6 +95,10 @@ interface FunctionButton {
   card_subtitle?: string | null;
   card_cover_image?: string | null;
   button_sub_desc?: string | null;
+  ai_function_type?: string | null;
+  ai_opening?: string | null;
+  pre_card_for_navigate?: boolean | null;
+  capture_purpose?: string | null;
 }
 
 const BUTTON_EMOJI: Record<string, string> = {
@@ -629,7 +633,7 @@ function ChatPageInner() {
    */
   const handleCapsuleClick = (btn: FunctionButton) => {
     try {
-      const cardType: ChatCardType = resolveCardType(btn.button_type);
+      const cardType: ChatCardType = resolveCardType(btn.button_type, btn.ai_function_type);
       // quick_ask 类型：直接发预设话术
       if (cardType === 'quick_ask') {
         const text = (btn.preset_prompt || btn.auto_user_message || btn.name || '').trim();
@@ -660,6 +664,10 @@ function ChatPageInner() {
           card_subtitle: btn.card_subtitle,
           card_cover_image: btn.card_cover_image,
           button_sub_desc: btn.button_sub_desc,
+          ai_function_type: btn.ai_function_type,
+          ai_opening: btn.ai_opening,
+          pre_card_for_navigate: btn.pre_card_for_navigate,
+          capture_purpose: btn.capture_purpose,
         }),
       });
       const cardMsg: Message = {
@@ -2316,9 +2324,12 @@ function ChatPageInner() {
                       }
                       // upload 类型：触发上传文件
                       if (chatCardData!.cardType === 'upload') {
+                        if (sub === 'history') {
+                          router.push('/report-history');
+                          return;
+                        }
                         const auto = (chatCardData!.button.autoUserMessage || '').trim();
                         if (auto) sendMessageText(auto);
-                        // 根据 sub_action 决定相册 / 拍照入口
                         if (sub === 'camera') drugCameraRef.current?.click();
                         else drugAlbumRef.current?.click();
                         return;

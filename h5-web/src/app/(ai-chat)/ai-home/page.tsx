@@ -2773,6 +2773,7 @@ export default function AiHomePage() {
           ai_function_type: btn.ai_function_type,
           ai_opening: btn.ai_opening,
           pre_card_for_navigate: btn.pre_card_for_navigate,
+          capture_purpose: btn.capture_purpose,
         }),
       });
       const cardMsg: ChatMessage = {
@@ -4675,6 +4676,9 @@ export default function AiHomePage() {
                                 return;
                               case 'camera':
                                 triggerPick('camera');
+                                return;
+                              case 'history':
+                                router.push('/report-history');
                                 return;
                               case 'local':
                                 // 兼容存量「本机」按钮：本机文件 = 相册（含 PDF）
