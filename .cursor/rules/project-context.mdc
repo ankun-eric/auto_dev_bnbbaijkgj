@@ -27,7 +27,57 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: 体质测评结果页加载失败 Bug 修复方案输出 (2026-05-23 12:08)
+## Latest Update: AI 客户端(ai-home)全量样式调整 + 12项组件补齐 (2026-05-23 12:20)
+
+### 一句话结论
+H5客户端全量视觉样式对齐设计稿「方案A·晴空诊室」：A类13个页面/组件群纯样式调整 + B类12项组件补齐（7个新文件+5个改造），品牌色/渐变/圆角/阴影/字号全部统一。
+
+### 核心变更
+
+#### 全局样式更新
+- `h5-web/src/app/globals.css` — 渐变token修正(topbar 180deg / user-bubble改色值)、新增coupon渐变、背景色改#F0F9FF、AI气泡左竖线+新圆角、用户气泡渐变+新圆角
+- `h5-web/src/lib/theme.ts` — 新增 GRADIENTS/SHADOWS 常量集
+
+#### A类样式调整（13个页面/组件群）
+- `TopBar.tsx` — 顶栏渐变180deg、标题18px #0C4A6E、安全区paddingTop
+- `UserBubble.tsx` — 渐变背景、圆角16px 0 16px 16px、白字15px
+- `FollowupChipsRow.tsx` — Chip背景#F0F9FF、描边#BAE6FD、圆角20px、字色#0284C7
+- `CapsuleBar.tsx` — 白底、#E2E8F0描边、12px圆角、蓝色图标
+- `FnCell.tsx` — badge背景色对齐品牌色
+- `health-profile/page.tsx` — 指标卡16px圆角、大数字28px #0C4A6E、模块图标渐变
+- `order/[id]/page.tsx` — 白底顶栏、状态色分级、渐变主按钮
+- `services/page.tsx` — 搜索栏#F0F9FF 24px圆角、分类Chip渐变激活态
+- `member-card/page.tsx` — 英雄卡gradient-hero-dark 20px圆角、金色等级文字
+- `coupon-center/page.tsx` — 券卡渐变左侧、金额24px深蓝、过期标签黄色
+- `customer-service/page.tsx` — 深蓝banner、48px圆形快捷按钮、FAQ卡片蓝竖线
+- `settings/page.tsx` — Switch渐变激活、分组16px圆角、56px列表项
+- `ai-home/page.tsx` — 顶栏渐变、输入栏#F8FAFC 24px圆角、发送按钮渐变
+
+#### B类组件补齐（7个新文件+5个改造）
+- **新增** `WelcomeSection.tsx` — 时段问候语+健康贴士条
+- **新增** `VoiceInputPanel.tsx` — 语音输入半屏面板(声波动画+转写+取消/发送)
+- **新增** `QuickActionPanel.tsx` — 快捷操作4×2网格浮层(8项功能入口)
+- **新增** `HistorySessionBar.tsx` — 历史会话提示条+回到当前浮钮
+- **新增** `InterruptedBar.tsx` — 中断态提示+继续生成/重新回答按钮
+- **新增** `PrivacyConfirmModal.tsx` — 隐私确认弹层(4项数据说明)
+- **新增** `appointment/page.tsx` — 预约时间选择页(月历+时段网格)
+- **新增** `address/page.tsx` — 收货地址管理页
+- **改造** `AiHomeSkeleton.tsx` — 新增离线/弱网状态(网络状态条+重试按钮)
+- **改造** `checkup/result/[id]/page.tsx` — 报告详情页样式对齐(英雄区+AI解读卡+指标列表)
+- **改造** `expert/[id]/page.tsx` — 医生详情页样式(gradient-hero-dark+统计+底部预约按钮)
+- **改造** `VoiceWave` CSS — 竖线4px宽+更明显脉冲动画
+
+### 部署验证（已通过）
+- 部署时间：2026-05-23 12:17
+- h5-web 容器 --no-cache 重建启动正常
+- 全部路由可达：/ 200, /ai-home 308, /health-profile 308, /settings 308, /member-card 308, /coupon-center 308, /customer-service 308, /services 308, /address 308, /appointment 308, /api/docs 200
+
+### 用户体验手册
+- `user_docs/AI客户端样式调整.md`
+
+---
+
+## Previous Update: 体质测评结果页加载失败 Bug 修复方案输出 (2026-05-23 12:08)
 
 ### 一句话结论
 AI 对话中点击体质测评结果卡片"查看详情"→跳转到结果详情页→显示"加载失败"的 Bug 已完成根因分析并输出修复方案文档。根因为卡片跳转时传递的 answerId（QuestionnaireAnswer 表 PK）与后端接口期望的 diagnosis_id（TCMDiagnosis 表 PK）不匹配，导致 404。
