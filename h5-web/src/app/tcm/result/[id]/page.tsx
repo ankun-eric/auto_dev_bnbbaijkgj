@@ -304,7 +304,12 @@ export default function TcmResultPage() {
       const res: any = await api.get(`/api/constitution/result/${id}`);
       setData(res.data || res);
     } catch (err: any) {
-      showToast('加载结果失败，请稍后重试', 'fail');
+      const status = err?.response?.status || err?.status;
+      if (status === 404) {
+        showToast('测评记录不存在，请重新测评', 'fail');
+      } else {
+        showToast('加载结果失败，请稍后重试', 'fail');
+      }
     } finally {
       setLoading(false);
     }

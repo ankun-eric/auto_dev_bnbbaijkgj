@@ -306,8 +306,11 @@ Page({
     const payload = detail.payload || {};
     const target = detail.target || {};
     let mpPath = target.mp_path;
-    if (!mpPath && payload.questionnaire_code === 'tcm_constitution' && (payload.result_id || payload.answer_id)) {
-      mpPath = `/pages/tcm-constitution-result/index?id=${payload.result_id || payload.answer_id}`;
+    if (!mpPath && payload.questionnaire_code === 'tcm_constitution') {
+      const tcmId = payload.diagnosis_id || target.diagnosis_id || payload.result_id || payload.answer_id;
+      if (tcmId) {
+        mpPath = `/pages/tcm-constitution-result/index?id=${tcmId}`;
+      }
     }
     if (mpPath) {
       wx.navigateTo({ url: mpPath });

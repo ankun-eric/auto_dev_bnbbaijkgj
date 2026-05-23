@@ -425,6 +425,7 @@ async def constitution_test(
             name="中医体质测评（王琦 36 题版）",
             ai_opening=None,
             followup_chips_json=None,
+            result_display_mode="triple",
         )
         fake_ans = SimpleNamespace(
             id=diagnosis_snapshot["id"],
@@ -442,6 +443,7 @@ async def constitution_test(
             summary_text=constitution_desc or None,
             fields=[],
             icon="🌿",
+            diagnosis_id=diagnosis_snapshot["id"],
         )
         chat_messages_seq = _build_chat_messages_sequence(
             tpl=fake_tpl,

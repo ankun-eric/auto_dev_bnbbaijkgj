@@ -22,11 +22,13 @@ from app.core.database import get_db
 from app.core.security import get_current_user, require_role
 from app.models.models import (
     ChatFunctionButton,
+    ConstitutionAnswer,
     QuestionnaireAnswer,
     QuestionnaireClassificationRule,
     QuestionnaireQuestion,
     QuestionnaireRecommendation,
     QuestionnaireTemplate,
+    TCMDiagnosis,
     User,
 )
 from app.schemas.questionnaire import (
@@ -570,38 +572,43 @@ def _detect_phq9_crisis_from_qmap(
 
 
 _ROUTE_H5_MAP = {
-    "tcm_constitution": lambda ans_id: f"/tcm/result/{ans_id}",
-    "health_self_check": lambda ans_id: f"/health-self-check/result/{ans_id}",
+    "tcm_constitution": lambda target_id: f"/tcm/result/{target_id}",
+    "health_self_check": lambda target_id: f"/health-self-check/result/{target_id}",
 }
 _MP_PATH_MAP = {
-    "tcm_constitution": lambda ans_id: (
-        f"/pages/tcm-constitution-result/index?id={ans_id}"
+    "tcm_constitution": lambda target_id: (
+        f"/pages/tcm-constitution-result/index?id={target_id}"
     ),
-    "health_self_check": lambda ans_id: (
-        f"/pages/health-self-check-result/index?id={ans_id}"
+    "health_self_check": lambda target_id: (
+        f"/pages/health-self-check-result/index?id={target_id}"
     ),
 }
 
 
-def _build_detail_target(tpl, ans) -> dict[str, Any]:
+def _build_detail_target(tpl, ans, *, diagnosis_id: Optional[int] = None) -> dict[str, Any]:
     """根据模板 code 与 result_display_mode 决定详情跳转目标。
 
     仅当 `result_display_mode == 'triple'` 时返回 route_h5 / mp_path；否则返回 None。
+    对 tcm_constitution 类型，优先使用 diagnosis_id（TCMDiagnosis 表主键）。
     """
     route_h5 = None
     mp_path = None
     mode = (getattr(tpl, "result_display_mode", None) or "simple").lower()
     if mode == "triple":
         code = tpl.code or ""
+        target_id = ans.id
+        if code == "tcm_constitution" and diagnosis_id:
+            target_id = diagnosis_id
         fn = _ROUTE_H5_MAP.get(code)
         if fn:
-            route_h5 = fn(ans.id)
+            route_h5 = fn(target_id)
         fnp = _MP_PATH_MAP.get(code)
         if fnp:
-            mp_path = fnp(ans.id)
+            mp_path = fnp(target_id)
     return {
         "kind": "immersive_detail",
         "result_id": ans.id,
+        "diagnosis_id": diagnosis_id,
         "route_h5": route_h5,
         "mp_path": mp_path,
     }
@@ -622,6 +629,7 @@ def _build_questionnaire_card_payload(
     icon: str,
     subject_kind: str = "self",
     subject_relation: Optional[str] = None,
+    diagnosis_id: Optional[int] = None,
 ) -> dict[str, Any]:
     """构建 questionnaire_result_card 的统一 payload（三端共用）。"""
     # 主结论：体质卷优先 main_type；其他卷优先 classification_name
@@ -678,7 +686,8 @@ def _build_questionnaire_card_payload(
         "subject_label": subject_label,
         "completed_at": ans.completed_at.isoformat() if ans.completed_at else None,
         "answer_id": ans.id,
-        "result_id": ans.id,  # 用于详情页跳转
+        "result_id": ans.id,
+        "diagnosis_id": diagnosis_id,
         "template_id": tpl.id,
         # 主结论
         "main_type": main_label,
@@ -697,7 +706,8 @@ def _build_questionnaire_card_payload(
         # [BUG-HEALTH-SELF-CHECK-FIX-V1 2026-05-21] 去掉 tcm_constitution 硬编码：
         #   - 按 result_display_mode=='triple' 才生成 route_h5
         #   - 按 code 查 ROUTE_H5_MAP / MP_PATH_MAP
-        "detail_target": _build_detail_target(tpl, ans),
+        # [BUG-TCM-RESULT-ID-FIX 2026-05-23] 传入 diagnosis_id 供体质测评使用
+        "detail_target": _build_detail_target(tpl, ans, diagnosis_id=diagnosis_id),
         "cover_style": "universal_v1",
         "cover_color": cover_color,
     }
@@ -1009,6 +1019,33 @@ async def submit_questionnaire(
             import logging as _l
             _l.getLogger(__name__).warning("tcm constitution active followup failed: %s", e)
 
+    # [BUG-TCM-RESULT-ID-FIX 2026-05-23] 同步创建 TCMDiagnosis 记录，
+    # 确保结果详情页能通过 diagnosis_id 正确查询。
+    _tcm_diagnosis_id: Optional[int] = None
+    if tpl.code == "tcm_constitution":
+        try:
+            _tcm_diag = TCMDiagnosis(
+                user_id=current_user.id,
+                constitution_type=(constitution_main_type or "平和质")[:50],
+                syndrome_analysis=summary_text or "",
+                health_plan="",
+                family_member_id=payload.consultant_id if payload.consultant_id else None,
+                constitution_description=(constitution_main_type or "平和质")[:50],
+                advice_summary=(summary_text or "")[:1000] if summary_text else None,
+                constitution_scores=(
+                    {"main_type": constitution_main_type,
+                     "secondary_types": constitution_secondary_types,
+                     "scores": constitution_scores}
+                    if constitution_scores else None
+                ),
+            )
+            db.add(_tcm_diag)
+            await db.flush()
+            _tcm_diagnosis_id = _tcm_diag.id
+        except Exception as _e:  # noqa: BLE001
+            import logging as _l
+            _l.getLogger(__name__).warning("tcm_constitution create TCMDiagnosis failed: %s", _e)
+
     # [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 在后端完成所有业务级占位符渲染，
     # 严禁让 {main_type}/{secondary_types}/{scores} 透传给前端。
     summary_text = _render_business_placeholders(
@@ -1109,6 +1146,7 @@ async def submit_questionnaire(
 
     # [PRD-TCM-CARD-MSG-PROTOCOL-V1 2026-05-20] 卡片 payload + 对话流消息序列
     # [BUG-HSC-FIX-V2 2026-05-21] B-2：透传 subject_kind / subject_relation
+    # [BUG-TCM-RESULT-ID-FIX 2026-05-23] 透传 diagnosis_id
     card_payload = _build_questionnaire_card_payload(
         tpl=tpl,
         ans=ans,
@@ -1123,6 +1161,7 @@ async def submit_questionnaire(
         icon=icon,
         subject_kind=subject_kind,
         subject_relation=subject_relation,
+        diagnosis_id=_tcm_diagnosis_id,
     )
     chat_messages_seq = _build_chat_messages_sequence(
         tpl=tpl,
@@ -1168,6 +1207,7 @@ async def submit_questionnaire(
 
     return {
         "answer_id": ans.id,
+        "diagnosis_id": _tcm_diagnosis_id,
         "template_id": tpl.id,
         "card": {
             "template_code": tpl.code,

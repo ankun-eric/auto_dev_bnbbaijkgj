@@ -4912,12 +4912,13 @@ export default function AiHomePage() {
                           <UniversalQuestionnaireResultCard
                             payload={qr.universalCard}
                             onClickDetail={(target) => {
-                              // [BUG-HSC-FIX-V2 2026-05-21] B-3 配套：route_h5 缺失时按 questionnaire_code 容错降级
+                              // [BUG-TCM-RESULT-ID-FIX 2026-05-23] 优先使用 diagnosis_id
                               const code = qr.universalCard?.questionnaire_code;
                               const aid = qr.answerId;
+                              const diagnosisId = target?.diagnosis_id || qr.universalCard?.diagnosis_id;
                               let route =
                                 (target && target.route_h5) ||
-                                (code === 'tcm_constitution' ? `/tcm/result/${aid}` : null) ||
+                                (code === 'tcm_constitution' ? `/tcm/result/${diagnosisId || aid}` : null) ||
                                 (code === 'health_self_check' ? `/health-self-check/result/${aid}` : null);
                               if (route) router.push(route);
                             }}

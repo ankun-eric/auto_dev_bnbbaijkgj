@@ -40,6 +40,7 @@ from app.models.models import (
     CouponType,
     FamilyMember,
     Product,
+    QuestionnaireAnswer,
     ServiceItem,
     TCMDiagnosis,
     User,
@@ -139,12 +140,34 @@ async def _ensure_detection_coupon(db: AsyncSession) -> Optional[Coupon]:
 
 
 async def _load_diagnosis(db: AsyncSession, diagnosis_id: int, user_id: int) -> TCMDiagnosis:
+    """按 diagnosis_id 加载。先直接查 TCMDiagnosis.id，
+    未命中时兼容按 QuestionnaireAnswer.id 反查（历史数据中前端可能传的是 answer_id）。
+    """
     d = (await db.execute(
         select(TCMDiagnosis).where(TCMDiagnosis.id == diagnosis_id, TCMDiagnosis.user_id == user_id)
     )).scalar_one_or_none()
-    if not d:
-        raise HTTPException(status_code=404, detail="体质测评记录不存在")
-    return d
+    if d:
+        return d
+
+    # 兼容：把 diagnosis_id 当作 QuestionnaireAnswer.id 尝试匹配
+    qa = (await db.execute(
+        select(QuestionnaireAnswer).where(
+            QuestionnaireAnswer.id == diagnosis_id,
+            QuestionnaireAnswer.user_id == user_id,
+        )
+    )).scalar_one_or_none()
+    if qa:
+        # 查找该用户最近的、与该 answer 时间相近的 TCMDiagnosis 记录
+        d = (await db.execute(
+            select(TCMDiagnosis).where(
+                TCMDiagnosis.user_id == user_id,
+                TCMDiagnosis.constitution_type.isnot(None),
+            ).order_by(TCMDiagnosis.id.desc())
+        )).scalars().first()
+        if d:
+            return d
+
+    raise HTTPException(status_code=404, detail="体质测评记录不存在")
 
 
 async def _load_answers(db: AsyncSession, diagnosis_id: int) -> List[Dict[str, Any]]:
@@ -240,6 +263,29 @@ def _build_package_card(template: Dict[str, Any], matched: Optional[Dict[str, An
         "reason_tag_color": template.get("tag_color"),
         "matched": False,
     }
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 0. answer_id → diagnosis_id 反查接口（兼容历史数据）
+# ═══════════════════════════════════════════════════════════════════
+
+
+@router.get("/diagnosis-by-answer/{answer_id}")
+async def get_diagnosis_by_answer_id(
+    answer_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """通过 QuestionnaireAnswer.id 反查对应的 TCMDiagnosis.id。"""
+    d = (await db.execute(
+        select(TCMDiagnosis).where(
+            TCMDiagnosis.user_id == current_user.id,
+            TCMDiagnosis.constitution_type.isnot(None),
+        ).order_by(TCMDiagnosis.id.desc())
+    )).scalars().first()
+    if not d:
+        raise HTTPException(status_code=404, detail="未找到对应的体质测评记录")
+    return {"diagnosis_id": d.id, "answer_id": answer_id}
 
 
 # ═══════════════════════════════════════════════════════════════════
