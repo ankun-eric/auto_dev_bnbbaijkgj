@@ -27,7 +27,29 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: 健康档案守护关系与页面优化 — 14项需求全量开发部署 (2026-05-24 00:00)
+## Latest Update: 报告解读历史记录与就医资料自动写入 Bug 修复 (2026-05-24 00:20)
+
+### 一句话结论
+修复"AI报告解读完成后历史报告和就医资料无自动写入记录"Bug。在 `_run_interpret_worker` 成功完成后新增 `_auto_sync_report_history` 自动同步逻辑，将解读结果双向写入 ReportHistory 表和 MedicalRecord（就医资料-体检报告）表，同时修复 `/api/report-history/save-medical` 端点使其真正创建就医资料记录。
+
+### 核心变更
+
+#### 后端修改
+- `backend/app/api/report_interpret.py` — 新增 `_auto_sync_report_history()` 函数，在 worker 解读成功后自动写入 ReportHistory + MedicalRecord；新增 CheckupIndicator、ReportHistory、MedicalRecord、MedicalRecordFile 导入
+- `backend/app/api/report_history.py` — 修复 `report_history_save_medical` 端点，由空壳改为实际创建 MedicalRecord 和 MedicalRecordFile 记录
+
+### 部署验证（已通过）
+- 部署时间：2026-05-24 00:16
+- backend 容器 --no-cache 重建启动正常
+- HTTP探活：`/api/docs` 200、`/` 200、`/api/report-history/list` 401（需认证，正确）
+- 导入验证：`_auto_sync_report_history` 可正常导入，MedicalRecord 模型导入正常
+
+### 用户体验手册
+- `user_docs/报告解读历史记录与就医资料自动写入.md`
+
+---
+
+## Previous Update: 健康档案守护关系与页面优化 — 14项需求全量开发部署 (2026-05-24 00:00)
 
 ### 一句话结论
 "健康档案守护关系与页面优化"14项需求全量开发部署完成。后端新增反向守护API（6个端点+ReverseGuardianInvitation数据模型），H5前端首页双卡片并排布局+守护我的人列表页+反向邀请页，小程序同步适配全部功能。用药计划竞态修复、设备成员维度过滤均已实现。
