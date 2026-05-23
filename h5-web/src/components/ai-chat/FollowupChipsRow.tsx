@@ -45,10 +45,10 @@ export default function FollowupChipsRow({ chips, disabled, onClickChip }: Props
           onClick={() => !disabled && onClickChip(chip)}
           style={{
             padding: '6px 14px',
-            background: disabled ? '#F1F5F9' : '#EFF6FF',
-            color: disabled ? '#94A3B8' : '#0EA5E9',
+            background: disabled ? '#F1F5F9' : '#F0F9FF',
+            color: disabled ? '#94A3B8' : '#0284C7',
             border: `1px solid ${disabled ? '#E2E8F0' : '#BAE6FD'}`,
-            borderRadius: 999,
+            borderRadius: 20,
             fontSize: 13,
             fontWeight: 500,
             cursor: disabled ? 'not-allowed' : 'pointer',

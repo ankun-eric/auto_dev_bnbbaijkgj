@@ -17,7 +17,13 @@ export const UserBubble: React.FC<UserBubbleProps> = ({
   return (
     <div
       className={`bh-bubble-user ${className}`}
-      style={style}
+      style={{
+        background: 'linear-gradient(135deg, #38BDF8, #0284C7)',
+        borderRadius: '16px 0 16px 16px',
+        color: '#FFFFFF',
+        fontSize: 15,
+        ...style,
+      }}
       data-testid={testId}
     >
       {children}

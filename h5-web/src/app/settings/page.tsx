@@ -73,13 +73,42 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: '#F0F9FF' }}>
+      <style>{`
+        .settings-page .adm-list {
+          --border-top: none;
+          --border-bottom: none;
+          border-radius: 16px;
+          overflow: hidden;
+          margin: 0 16px 12px;
+        }
+        .settings-page .adm-list-header {
+          background: #FAFCFF;
+          font-size: 13px;
+          color: #6B7280;
+          padding: 12px 16px 8px;
+        }
+        .settings-page .adm-list-body {
+          border-radius: 16px;
+          overflow: hidden;
+        }
+        .settings-page .adm-list-item {
+          --min-height: 56px;
+        }
+        .settings-page .adm-list-item-content-arrow {
+          color: #CBD5E1 !important;
+        }
+        .settings-page .adm-switch-checked {
+          --checked-color: transparent !important;
+          background: linear-gradient(135deg, #38BDF8, #0284C7) !important;
+        }
+      `}</style>
       <GreenNavBar>
         设置
       </GreenNavBar>
 
-      <div className="pt-2">
-        <List header="通知设置" style={{ '--border-top': 'none' }}>
+      <div className="pt-2 settings-page">
+        <List header="通知设置">
           <List.Item extra={<Switch checked={pushEnabled} onChange={setPushEnabled}
             style={{ '--checked-color': '#0EA5E9' }} />}>
             推送通知
@@ -90,7 +119,7 @@ export default function SettingsPage() {
         </List>
 
         {fontConfig.font_switch_enabled && (
-          <List header="显示设置" style={{ '--border-top': 'none' }}>
+          <List header="显示设置">
             <List.Item
               extra={FONT_LEVEL_LABELS[fontLevel] || '标准'}
               arrow
@@ -101,7 +130,7 @@ export default function SettingsPage() {
           </List>
         )}
 
-        <List header="其他" style={{ '--border-top': 'none' }}>
+        <List header="其他">
           <List.Item onClick={handleClearCache} arrow>
             清除缓存
           </List.Item>

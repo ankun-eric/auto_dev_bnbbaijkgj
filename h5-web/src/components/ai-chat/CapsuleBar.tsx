@@ -59,8 +59,8 @@ export default function CapsuleBar({ buttons, hidden, onCapsuleClick }: CapsuleB
       data-capsule-count={buttons.length}
       style={{
         display: hidden ? 'none' : 'block',
-        background: '#fff',
-        borderTop: '1px solid #f0f0f0',
+        background: '#FFFFFF',
+        borderTop: '1px solid #E2E8F0',
         padding: '4px 0',
       }}
     >
@@ -97,17 +97,17 @@ export default function CapsuleBar({ buttons, hidden, onCapsuleClick }: CapsuleB
               gap: 4,
               height: 28,
               padding: '4px 12px',
-              background: '#F5F5F7',
-              border: '1px solid #EAEBED',
-              color: '#1F2937',
-              borderRadius: 14,
+              background: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              color: '#374151',
+              borderRadius: 12,
               fontSize: 13,
               whiteSpace: 'nowrap',
               cursor: 'pointer',
               lineHeight: 1,
             }}
           >
-            <span style={{ fontSize: 16, lineHeight: 1 }}>{btn.icon || '📌'}</span>
+            <span style={{ fontSize: 16, lineHeight: 1, color: '#0284C7' }}>{btn.icon || '📌'}</span>
             <span>{btn.name}</span>
           </button>
         ))}

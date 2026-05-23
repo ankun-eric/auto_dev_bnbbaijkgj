@@ -136,10 +136,10 @@ export default function CouponCenterPage() {
                   style={{
                     background: btnDisabled
                       ? 'linear-gradient(135deg, #bdbdbd, #9e9e9e)'
-                      : 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
+                      : 'linear-gradient(135deg, #0284C7, #075985)',
                   }}
                 >
-                  <div className="text-xl font-bold">{getCouponValue(coupon)}</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#fff' }}>{getCouponValue(coupon)}</div>
                   <div className="text-xs mt-0.5">满{coupon.condition_amount}可用</div>
                 </div>
                 <div className="flex-1 p-3 flex items-center justify-between min-w-0">
@@ -160,10 +160,16 @@ export default function CouponCenterPage() {
                         {getCouponTypeLabel(coupon.type)}
                       </Tag>
                     </div>
-                    <div className="text-xs text-gray-400 mt-1">
-                      {coupon.valid_end
+                    <div className="text-xs text-gray-400 mt-1" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{coupon.valid_end
                         ? `有效期至 ${formatDate(coupon.valid_end)}`
-                        : '长期有效'}
+                        : '长期有效'}</span>
+                      {coupon.valid_end && (() => {
+                        const daysLeft = Math.ceil((new Date(coupon.valid_end).getTime() - Date.now()) / 86400000);
+                        return daysLeft <= 7 && daysLeft > 0 ? (
+                          <span style={{ background: '#FFFBEB', color: '#F59E0B', fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4 }}>即将过期</span>
+                        ) : null;
+                      })()}
                     </div>
                     <div className="text-xs text-gray-400 mt-0.5">剩余{Math.max(0, remaining)}张</div>
                   </div>
@@ -176,7 +182,7 @@ export default function CouponCenterPage() {
                       borderRadius: 20,
                       background: btnDisabled
                         ? '#e8e8e8'
-                        : 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
+                        : 'linear-gradient(135deg, #38BDF8, #0284C7)',
                       color: btnDisabled ? '#999' : '#fff',
                       border: 'none',
                       flexShrink: 0,

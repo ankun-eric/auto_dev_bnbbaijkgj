@@ -46,6 +46,10 @@ import QuestionnaireResultCard, { type QnResultCardPayload } from '@/components/
 import QuestionnaireRecommendCard, { type RecommendGoodsItem } from '@/components/ai-chat/QuestionnaireRecommendCard';
 import UniversalQuestionnaireResultCard from '@/components/ai-chat/UniversalQuestionnaireResultCard';
 import FollowupChipsRow from '@/components/ai-chat/FollowupChipsRow';
+import WelcomeSection from '@/components/ai-chat/WelcomeSection';
+import QuickActionPanel from '@/components/ai-chat/QuickActionPanel';
+import HistorySessionBar from '@/components/ai-chat/HistorySessionBar';
+import InterruptedBar from '@/components/ai-chat/InterruptedBar';
 import RecommendGoodsDrawer from '@/components/ai-chat/RecommendGoodsDrawer';
 import QuestionnairePreCard from '@/components/ai-chat/QuestionnairePreCard';
 // [BUG_FIX_拍照识药三联_20260516] 聊天内嵌识药引擎：识药结果卡片
@@ -693,6 +697,7 @@ export default function AiHomePage() {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [consultantOpen, setConsultantOpen] = useState(false);
+  const [quickActionOpen, setQuickActionOpen] = useState(false);
 
   // [PRD-467 FR-02~FR-06] 字号设置：popover 开关 + 当前字号 + 锚点引用 + 300ms debounce 保存
   const [fontPopoverOpen, setFontPopoverOpen] = useState(false);
@@ -3951,9 +3956,7 @@ export default function AiHomePage() {
             zIndex: 100,
             height: 'calc(48px + env(safe-area-inset-top))',
             paddingTop: 'env(safe-area-inset-top)',
-            // 顶部固定栏背景改为 AI 主页背景色（THEME.background），与下方欢迎区/消息流形成整体感，
-            // 避免与下方区域出现色块割裂。文字"小康"、☰、⋯ 图标保持原黑色不变（详见下方 color: THEME.textPrimary）
-            background: THEME.background,
+            background: 'linear-gradient(180deg, #F0F9FF 0%, #DBEAFE 100%)',
             maxWidth: 750,
             marginLeft: 'auto',
             marginRight: 'auto',
@@ -4086,9 +4089,9 @@ export default function AiHomePage() {
               <span
                 className="relative inline-block"
                 style={{
-                  fontSize: 17,
+                  fontSize: 18,
                   fontWeight: 600,
-                  color: THEME.textPrimary,
+                  color: '#0C4A6E',
                   // [PRD-AI-HOME-OPTIM-FINAL-V1 2026-05-19 §3.2] lineHeight:1 关闭额外行高带来的不可见偏移，
                   // 保证"小康"文字视觉中线与汉堡水平中线对齐误差 ≤ 1px
                   lineHeight: 1,
@@ -5906,7 +5909,7 @@ export default function AiHomePage() {
               )}
               <div
                 className="flex-1 flex items-end px-4 py-2"
-                style={{ background: '#F5F7FA', borderRadius: 22, minHeight: 44 }}
+                style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 24, minHeight: 44 }}
               >
                 <textarea
                   ref={textareaRef}
@@ -5932,7 +5935,8 @@ export default function AiHomePage() {
                 style={{
                   width: 44,
                   height: 44,
-                  background: inputValue.trim() ? '#1677FF' : '#D1D5DB',
+                  background: inputValue.trim() ? 'linear-gradient(135deg, #38BDF8, #0284C7)' : '#D1D5DB',
+                  borderRadius: '50%',
                   color: '#fff',
                   transition: 'background 0.2s',
                   opacity: inputValue.trim() ? 1 : 0.6,

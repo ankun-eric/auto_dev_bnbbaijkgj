@@ -21,14 +21,18 @@ export const TopBar: React.FC<TopBarProps> = ({
   return (
     <div
       className={`bh-topbar ${className}`}
-      style={style}
+      style={{
+        background: 'linear-gradient(180deg, #F0F9FF 0%, #DBEAFE 100%)',
+        paddingTop: 'env(safe-area-inset-top)',
+        ...style,
+      }}
       data-testid={testId}
     >
-      <div style={{ flex: '0 0 auto', minWidth: 28 }}>{left}</div>
-      <div style={{ flex: 1, textAlign: 'center', fontWeight: 600, fontSize: 'var(--font-size-md)' }}>
+      <div style={{ flex: '0 0 auto', minWidth: 28, color: '#1F2937' }}>{left}</div>
+      <div style={{ flex: 1, textAlign: 'center', fontWeight: 600, fontSize: 18, color: '#0C4A6E' }}>
         {title}
       </div>
-      <div style={{ flex: '0 0 auto', minWidth: 28, textAlign: 'right' }}>{right}</div>
+      <div style={{ flex: '0 0 auto', minWidth: 28, textAlign: 'right', color: '#1F2937' }}>{right}</div>
     </div>
   );
 };

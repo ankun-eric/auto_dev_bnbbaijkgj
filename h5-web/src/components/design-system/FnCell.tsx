@@ -46,8 +46,8 @@ export const FnCell: React.FC<FnCellProps> = ({
             right: 6,
             padding: '2px 6px',
             borderRadius: 'var(--radius-full)',
-            background: 'var(--color-brand-600)',
-            color: 'var(--color-text-inverse)',
+            background: '#0284C7',
+            color: '#FFFFFF',
             fontSize: 10,
             lineHeight: 1.2,
           }}

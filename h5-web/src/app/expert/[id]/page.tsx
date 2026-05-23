@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { NavBar, Avatar, Tag, Card, Grid, Button, Dialog, Divider } from 'antd-mobile';
 import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 
@@ -12,6 +11,7 @@ interface ExpertDetail {
   title: string;
   department: string;
   hospital: string;
+  avatar?: string;
   rating: number;
   consultCount: number;
   price: number;
@@ -54,8 +54,6 @@ const fallbackExpert: ExpertDetail = {
 export default function ExpertDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const [selectedDay, setSelectedDay] = useState('');
-  const [selectedTime, setSelectedTime] = useState('');
   const [expert, setExpert] = useState<ExpertDetail>(fallbackExpert);
 
   useEffect(() => {
@@ -85,159 +83,141 @@ export default function ExpertDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
-        专家详情
-      </NavBar>
+    <div style={{ minHeight: '100vh', background: '#F5F5F5', paddingBottom: 80 }}>
+      {/* 英雄区 gradient-hero-dark */}
+      <div style={{
+        background: 'linear-gradient(135deg, #0C4A6E, #0284C7)',
+        minHeight: 240, padding: '0 0 24px 0', position: 'relative',
+      }}>
+        {/* 顶栏 */}
+        <div style={{
+          display: 'flex', alignItems: 'center', height: 48,
+          paddingTop: 'env(safe-area-inset-top)', padding: '0 16px',
+        }}>
+          <div onClick={() => router.back()} style={{ cursor: 'pointer', fontSize: 20, color: '#fff' }}>←</div>
+          <div style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: 700, color: '#fff' }}>专家详情</div>
+          <div style={{ width: 20 }} />
+        </div>
 
-      <div
-        className="px-4 py-6"
-        style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
-      >
-        <div className="flex items-center">
-          <Avatar
-            src=""
-            style={{
-              '--size': '72px',
-              '--border-radius': '50%',
-              border: '3px solid rgba(255,255,255,0.3)',
-            }}
-          />
-          <div className="ml-4 text-white">
-            <div className="text-xl font-bold">{expert.name}</div>
-            <div className="text-sm opacity-80 mt-1">{expert.title} · {expert.department}</div>
-            <div className="text-xs opacity-70 mt-1">{expert.hospital}</div>
+        {/* 头像 + 信息 */}
+        <div style={{ display: 'flex', alignItems: 'center', padding: '20px 20px 0' }}>
+          <div style={{
+            width: 80, height: 80, borderRadius: '50%',
+            border: '3px solid #fff', background: '#E0F2FE',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 32, color: '#0284C7', flexShrink: 0,
+            overflow: 'hidden',
+          }}>
+            {expert.avatar
+              ? <img src={expert.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : expert.name.slice(-1)}
+          </div>
+          <div style={{ marginLeft: 16 }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#fff' }}>{expert.name}</div>
+            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', marginTop: 4 }}>
+              {expert.department} · {expert.title}
+            </div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>{expert.hospital}</div>
           </div>
         </div>
-        <Grid columns={3} gap={0} className="mt-4">
-          <Grid.Item>
-            <div className="text-center text-white">
-              <div className="font-bold">★ {expert.rating}</div>
-              <div className="text-xs opacity-70">评分</div>
-            </div>
-          </Grid.Item>
-          <Grid.Item>
-            <div className="text-center text-white">
-              <div className="font-bold">{expert.consultCount}</div>
-              <div className="text-xs opacity-70">接诊</div>
-            </div>
-          </Grid.Item>
-          <Grid.Item>
-            <div className="text-center text-white">
-              <div className="font-bold">{expert.experience}</div>
-              <div className="text-xs opacity-70">从业</div>
-            </div>
-          </Grid.Item>
-        </Grid>
-      </div>
 
-      <div className="px-4 -mt-3">
-        <Card style={{ borderRadius: 12, marginBottom: 12 }}>
-          <div className="section-title">专家简介</div>
-          <p className="text-sm text-gray-600">{expert.desc}</p>
-          <div className="flex flex-wrap gap-1 mt-3">
-            {expert.tags.map((tag) => (
-              <Tag key={tag} style={{
-                '--background-color': '#0EA5E915',
-                '--text-color': '#0EA5E9',
-                '--border-color': 'transparent',
-              }}>
-                {tag}
-              </Tag>
-            ))}
-          </div>
-        </Card>
-
-        <Card style={{ borderRadius: 12, marginBottom: 12 }}>
-          <div className="section-title">排班时间</div>
-          <div className="flex gap-2 mb-3">
-            {expert.schedule.map((s) => (
-              <div
-                key={s.day}
-                className={`px-4 py-2 rounded-xl text-sm cursor-pointer`}
-                style={{
-                  background: selectedDay === s.day ? '#0EA5E9' : '#f5f5f5',
-                  color: selectedDay === s.day ? '#fff' : '#666',
-                }}
-                onClick={() => { setSelectedDay(s.day); setSelectedTime(''); }}
-              >
-                {s.day}
-              </div>
-            ))}
-          </div>
-          {selectedDay && (
-            <div className="flex flex-wrap gap-2">
-              {expert.schedule.find((s) => s.day === selectedDay)?.times.map((t) => (
-                <div
-                  key={t}
-                  className={`px-4 py-2 rounded-lg text-sm cursor-pointer`}
-                  style={{
-                    background: selectedTime === t ? '#0EA5E9' : '#fafafa',
-                    color: selectedTime === t ? '#fff' : '#666',
-                    border: selectedTime === t ? 'none' : '1px solid #e8e8e8',
-                  }}
-                  onClick={() => setSelectedTime(t)}
-                >
-                  {t}
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card style={{ borderRadius: 12, marginBottom: 12 }}>
-          <div className="section-title">患者评价</div>
-          {expert.reviews.map((r, i) => (
-            <div key={i} className={`py-3 ${i > 0 ? 'border-t border-gray-50' : ''}`}>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{r.user}</span>
-                <span className="text-xs text-yellow-500">{'★'.repeat(r.rating)}</span>
-              </div>
-              <p className="text-sm text-gray-500 mt-1">{r.content}</p>
-              <p className="text-xs text-gray-300 mt-1">{r.time}</p>
+        {/* 3 项统计 */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-around', marginTop: 20, padding: '0 20px',
+        }}>
+          {[
+            { value: `★ ${expert.rating}`, label: '评分' },
+            { value: String(expert.consultCount), label: '接诊' },
+            { value: expert.experience, label: '从业' },
+          ].map((item) => (
+            <div key={item.label} style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 24, fontWeight: 700, color: '#fff' }}>{item.value}</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>{item.label}</div>
             </div>
           ))}
-        </Card>
+        </div>
       </div>
 
-      <div
-        className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full bg-white border-t border-gray-100 px-4 py-3 flex items-center justify-between"
-        style={{ maxWidth: 750, paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}
-      >
-        <div>
-          <span className="text-2xl font-bold text-red-500">¥{expert.price}</span>
-          <span className="text-xs text-gray-400">/次</span>
+      {/* 内容区 */}
+      <div style={{ padding: '16px 16px 0', marginTop: -12 }}>
+        {/* 标签 */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+          {expert.tags.map((tag) => (
+            <span key={tag} style={{
+              background: '#E0F2FE', color: '#0284C7',
+              borderRadius: 16, padding: '4px 12px', fontSize: 12,
+            }}>{tag}</span>
+          ))}
         </div>
-        {expert.product_id ? (
-          <Button
-            onClick={handleBook}
-            disabled={!!isOffline}
-            style={{
-              background: isOffline ? '#ccc' : 'linear-gradient(135deg, #0EA5E9, #38BDF8)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 24,
-              height: 44,
-              width: 160,
-            }}
-          >
-            {isOffline ? '暂停预约' : '预约'}
-          </Button>
-        ) : (
-          <Button
-            disabled
-            style={{
-              background: '#eee',
-              color: '#bbb',
-              border: 'none',
-              borderRadius: 24,
-              height: 44,
-              width: 160,
-            }}
-          >
-            预约
-          </Button>
-        )}
+
+        {/* 专家简介 */}
+        <div style={{
+          background: '#fff', borderRadius: 12, padding: 16, marginBottom: 12,
+        }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#1F2937', marginBottom: 8 }}>专家简介</div>
+          <p style={{ fontSize: 14, color: '#6B7280', lineHeight: 1.6, margin: 0 }}>{expert.desc}</p>
+        </div>
+
+        {/* 排班时间 */}
+        <div style={{
+          background: '#fff', borderRadius: 12, padding: 16, marginBottom: 12,
+        }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#1F2937', marginBottom: 12 }}>排班时间</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {expert.schedule.map((s) => (
+              <span key={s.day} style={{
+                background: '#F0F9FF', color: '#0284C7', borderRadius: 8,
+                padding: '6px 14px', fontSize: 13,
+              }}>
+                {s.day}：{s.times.join('、')}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* 患者评价 */}
+        <div style={{
+          background: '#fff', borderRadius: 12, padding: 16, marginBottom: 12,
+        }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#1F2937', marginBottom: 12 }}>患者评价</div>
+          {expert.reviews.map((r, i) => (
+            <div key={i} style={{
+              paddingTop: i > 0 ? 12 : 0, marginTop: i > 0 ? 12 : 0,
+              borderTop: i > 0 ? '1px solid #F3F4F6' : 'none',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 14, fontWeight: 500, color: '#1F2937' }}>{r.user}</span>
+                <span style={{ fontSize: 12, color: '#F59E0B' }}>{'★'.repeat(r.rating)}</span>
+              </div>
+              <p style={{ fontSize: 13, color: '#6B7280', margin: '6px 0 2px' }}>{r.content}</p>
+              <div style={{ fontSize: 12, color: '#9CA3AF' }}>{r.time}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 底部按钮 */}
+      <div style={{
+        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+        width: '100%', maxWidth: 750, background: '#fff',
+        borderTop: '1px solid #E5E7EB',
+        padding: '12px 16px calc(12px + env(safe-area-inset-bottom))',
+      }}>
+        <button
+          type="button"
+          onClick={handleBook}
+          disabled={!canBook}
+          style={{
+            width: '100%', height: 48, borderRadius: 12, border: 'none',
+            background: canBook
+              ? 'linear-gradient(135deg, #38BDF8, #0284C7)'
+              : '#D1D5DB',
+            color: '#fff', fontSize: 16, fontWeight: 600,
+            cursor: canBook ? 'pointer' : 'not-allowed',
+          }}
+        >
+          {isOffline ? '暂停预约' : '预约问诊'}
+        </button>
       </div>
     </div>
   );

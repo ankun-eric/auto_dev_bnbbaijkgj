@@ -134,7 +134,8 @@ function ProductCard({
   return (
     <div
       onClick={onClick}
-      className="bg-white rounded-xl p-3 mb-2 active:bg-gray-50 cursor-pointer shadow-sm"
+      className="bg-white p-3 mb-2 active:bg-gray-50 cursor-pointer shadow-sm"
+      style={{ borderRadius: 16 }}
     >
       <div className="flex">
         <div className="relative w-20 h-20 flex-shrink-0">
@@ -604,6 +605,7 @@ function ServicesPage() {
           <GlobalSearchEntry
             placeholder="搜索服务、商品、医生…"
             testId="services-global-search"
+            style={{ background: '#F0F9FF', borderRadius: 24, border: '1px solid #E5E7EB' }}
           />
         </div>
       </div>
@@ -683,8 +685,8 @@ function ServicesPage() {
                 className="inline-block px-3 py-1 mr-2 rounded-full text-xs cursor-pointer"
                 style={{
                   position: 'relative',
-                  background: activeSubId === null ? '#0EA5E9' : '#f5f5f5',
-                  color: activeSubId === null ? '#fff' : '#666',
+                  background: activeSubId === null ? 'linear-gradient(135deg, #38BDF8, #0284C7)' : '#F1F5F9',
+                  color: activeSubId === null ? '#fff' : '#64748B',
                   transition: 'background 250ms ease-in-out, color 250ms ease-in-out',
                 }}
               >
@@ -698,8 +700,8 @@ function ServicesPage() {
                   className="inline-block px-3 py-1 mr-2 rounded-full text-xs cursor-pointer"
                   style={{
                     position: 'relative',
-                    background: activeSubId === sub.id ? '#0EA5E9' : '#f5f5f5',
-                    color: activeSubId === sub.id ? '#fff' : '#666',
+                    background: activeSubId === sub.id ? 'linear-gradient(135deg, #38BDF8, #0284C7)' : '#F1F5F9',
+                    color: activeSubId === sub.id ? '#fff' : '#64748B',
                     transition: 'background 250ms ease-in-out, color 250ms ease-in-out',
                   }}
                 >

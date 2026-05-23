@@ -88,23 +88,20 @@ export default function CustomerServicePage() {
 
   return (
     <div className="flex flex-col h-screen bh-ai-page">
-      <div className="bh-ai-topbar">
+      <div className="cs-topbar-wrap" style={{ background: 'linear-gradient(135deg, #0C4A6E, #0284C7)', borderRadius: '0 0 16px 16px' }}>
+        <style>{`.cs-topbar-wrap > div { background: transparent !important; }`}</style>
         <GreenNavBar
           right={
             <span
               className="text-sm font-medium"
-              style={{ color: '#0C4A6E' }}
+              style={{ color: '#fff' }}
               onClick={transferHuman}
             >
               转人工
             </span>
           }
-          style={{
-            background: 'linear-gradient(135deg, #F0F9FF 0%, #DBEAFE 100%)',
-            color: '#0C4A6E',
-          } as React.CSSProperties}
         >
-          <span style={{ color: '#0C4A6E' }}>在线客服</span>
+          <span style={{ color: '#fff' }}>在线客服</span>
         </GreenNavBar>
       </div>
 
@@ -125,8 +122,8 @@ export default function CustomerServicePage() {
               className={`flex mb-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {msg.role === 'assistant' && (
-                <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2 bg-primary">
-                  <span className="text-white text-xs">客</span>
+                <div className="flex-shrink-0 flex items-center justify-center mr-2" style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg, #38BDF8, #0284C7)' }}>
+                  <span className="text-white text-sm font-bold">客</span>
                 </div>
               )}
               <div className="max-w-[75%]">
@@ -136,7 +133,7 @@ export default function CustomerServicePage() {
                   }`}
                   style={msg.role === 'user'
                     ? { background: 'linear-gradient(135deg, #7DD3FC 0%, #38BDF8 100%)', color: '#fff', boxShadow: '0 1px 4px rgba(2,132,199,0.18)' }
-                    : { background: 'var(--color-brand-100)', color: 'var(--color-brand-900)', boxShadow: '0 1px 4px rgba(56,189,248,0.08)' }}
+                    : { background: '#fff', color: '#1F2937', borderRadius: 12, borderLeft: '3px solid #0EA5E9', boxShadow: '0 1px 4px rgba(56,189,248,0.08)' }}
                 >
                   {msg.content}
                 </div>
@@ -145,8 +142,8 @@ export default function CustomerServicePage() {
                 </div>
               </div>
               {msg.role === 'user' && (
-                <div className="w-8 h-8 rounded-full bg-primary flex-shrink-0 flex items-center justify-center ml-2">
-                  <span className="text-white text-xs">我</span>
+                <div className="flex-shrink-0 flex items-center justify-center ml-2" style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg, #38BDF8, #0284C7)' }}>
+                  <span className="text-white text-sm font-bold">我</span>
                 </div>
               )}
             </div>
@@ -154,10 +151,10 @@ export default function CustomerServicePage() {
         })}
         {loading && (
           <div className="flex items-center mb-4">
-            <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mr-2 bg-primary">
-              <span className="text-white text-xs">客</span>
+            <div className="flex-shrink-0 flex items-center justify-center mr-2" style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg, #38BDF8, #0284C7)' }}>
+              <span className="text-white text-sm font-bold">客</span>
             </div>
-            <div className="rounded-2xl rounded-tl-sm px-4 py-3" style={{ background: 'var(--color-brand-100)', boxShadow: '0 1px 4px rgba(56,189,248,0.08)' }}>
+            <div className="rounded-2xl rounded-tl-sm px-4 py-3" style={{ background: '#fff', borderRadius: 12, borderLeft: '3px solid #0EA5E9', boxShadow: '0 1px 4px rgba(56,189,248,0.08)' }}>
               <SpinLoading style={{ '--size': '20px', '--color': '#0EA5E9' }} />
             </div>
           </div>

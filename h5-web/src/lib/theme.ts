@@ -15,6 +15,19 @@ export const THEME = {
   gradient: 'linear-gradient(135deg, #38BDF8, #0284C7)',  // gradient-primary-btn
 } as const;
 
+export const GRADIENTS = {
+  topbar: 'linear-gradient(180deg, #F0F9FF 0%, #DBEAFE 100%)',
+  primaryBtn: 'linear-gradient(135deg, #38BDF8, #0284C7)',
+  userBubble: 'linear-gradient(135deg, #38BDF8, #0284C7)',
+  heroDark: 'linear-gradient(135deg, #0C4A6E, #0284C7)',
+  coupon: 'linear-gradient(135deg, #0284C7, #075985)',
+} as const;
+
+export const SHADOWS = {
+  card: '0 2px 12px rgba(14,165,233,0.08)',
+  primaryBtn: '0 4px 12px rgba(2,132,199,0.3)',
+} as const;
+
 /** 11 级天蓝色阶 hex（与 globals.css --color-brand-* 严格对齐） */
 export const BRAND = {
   50: '#F0F9FF',

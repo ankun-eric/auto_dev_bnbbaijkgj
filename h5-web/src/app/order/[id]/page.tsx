@@ -4,6 +4,13 @@ import { useRouter, useParams } from 'next/navigation';
 import { NavBar, Card, Steps, Tag, Button, Divider } from 'antd-mobile';
 import { showToast } from '@/lib/toast-unified';
 
+const STATUS_COLORS: Record<string, string> = {
+  pending: '#F59E0B',
+  unused: '#F59E0B',
+  paid: '#10B981',
+  cancelled: '#9CA3AF',
+};
+
 const mockOrder = {
   id: 'ORD20240315001',
   title: '基础体检套餐',
@@ -36,15 +43,15 @@ export default function OrderDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <NavBar onBack={() => router.back()} style={{ background: '#fff' }}>
-        订单详情
+      <NavBar onBack={() => router.back()} style={{ background: '#FFFFFF', '--adm-color-text': '#1F2937' } as any}>
+        <span style={{ fontSize: 17, fontWeight: 700, color: '#1F2937' }}>订单详情</span>
       </NavBar>
 
       <div
         className="px-4 py-6 text-center"
         style={{ background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)' }}
       >
-        <div className="text-white text-lg font-bold">{mockOrder.statusText}</div>
+        <div className="text-white text-lg font-bold" style={{ color: STATUS_COLORS[mockOrder.status] || '#fff' }}>{mockOrder.statusText}</div>
         <div className="text-white/70 text-xs mt-1">请在有效期内前往门店核销</div>
       </div>
 
@@ -58,7 +65,7 @@ export default function OrderDetailPage() {
             <Button
               size="small"
               onClick={copyCode}
-              style={{ color: '#0EA5E9', borderColor: '#0EA5E9', borderRadius: 16, fontSize: 12 }}
+              style={{ background: 'linear-gradient(135deg, #38BDF8, #0284C7)', color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700 }}
             >
               复制核销码
             </Button>
@@ -71,8 +78,8 @@ export default function OrderDetailPage() {
         <Card style={{ borderRadius: 12, marginBottom: 12 }}>
           <div className="flex items-center mb-3">
             <div
-              className="w-14 h-14 rounded-lg flex items-center justify-center text-2xl flex-shrink-0"
-              style={{ background: '#F0F9FF' }}
+              className="flex items-center justify-center text-2xl flex-shrink-0"
+              style={{ width: 80, height: 80, borderRadius: 8, background: '#F0F9FF' }}
             >
               🏥
             </div>

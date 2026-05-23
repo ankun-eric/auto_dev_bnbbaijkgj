@@ -920,7 +920,9 @@ function HealthProfileV2PageInner() {
           boxShadow: '0 1px 4px rgba(0,0,0,0.04)', cursor: 'pointer',
         }}
       >
-        <span style={{ fontSize: 20 }}>👨‍👩‍👧</span>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #38BDF8, #0284C7)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span style={{ fontSize: 20 }}>👨‍👩‍👧</span>
+        </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>家庭成员</div>
           <div style={{ fontSize: 12, color: '#6B7280' }}>{overview.family_member_count}人</div>
@@ -935,7 +937,9 @@ function HealthProfileV2PageInner() {
           boxShadow: '0 1px 4px rgba(0,0,0,0.04)', cursor: 'pointer',
         }}
       >
-        <span style={{ fontSize: 20 }}>🩺</span>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #38BDF8, #0284C7)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span style={{ fontSize: 20 }}>🩺</span>
+        </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>我的设备</div>
           <div style={{ fontSize: 12, color: '#6B7280' }}>{overview.device_count}台</div>
@@ -986,7 +990,7 @@ function HealthProfileV2PageInner() {
           onClick={() => setMedExpanded(!medExpanded)}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16, fontWeight: 600, color: T.brand700 }}>用药计划</span>
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#1F2937' }}>用药计划</span>
             {totalCount > 0 && (
               <span style={{
                 background: T.brand500, color: '#fff', fontSize: 11, fontWeight: 600,
@@ -1088,7 +1092,7 @@ function HealthProfileV2PageInner() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16, fontWeight: 600, color: T.brand700 }}>就医资料</span>
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#1F2937' }}>就医资料</span>
             {totalRecords > 0 && (
               <span style={{
                 background: '#10B981', color: '#fff', fontSize: 11, fontWeight: 600,
@@ -1256,7 +1260,7 @@ function HealthProfileV2PageInner() {
     return (
       <div data-testid="prd469-today-data" style={{ padding: '0 16px 12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 10px' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: T.brand700, margin: 0 }}>今日健康数据</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1F2937', margin: 0 }}>今日健康数据</h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {todayDataUpdatedAt && (
               <span style={{ fontSize: 12, color: '#9CA3AF' }}>更新时间：{todayDataUpdatedAt}</span>
@@ -1314,9 +1318,9 @@ function HealthProfileV2PageInner() {
               style={{
                 background: '#FFFFFF',
                 borderLeft: c.abnormal ? '4px solid #F5B544' : '4px solid transparent',
-                borderRadius: 12,
+                borderRadius: 16,
                 padding: 14,
-                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                boxShadow: '0 2px 12px rgba(14,165,233,0.08)',
                 cursor: 'pointer',
                 position: 'relative',
               }}
@@ -1331,7 +1335,7 @@ function HealthProfileV2PageInner() {
                 )}
               </div>
               <div style={{ marginTop: 6 }}>
-                <span style={{ fontSize: 20, fontWeight: 700, color: T.textPrimary }}>{c.value}</span>
+                <span style={{ fontSize: 28, fontWeight: 700, color: '#0C4A6E' }}>{c.value}</span>
                 <span style={{ fontSize: 12, color: T.textSecondary, marginLeft: 4 }}>{c.unit}</span>
               </div>
               <div style={{ position: 'absolute', top: 12, right: 12, fontSize: 14, color: T.brand500 }}>›</div>

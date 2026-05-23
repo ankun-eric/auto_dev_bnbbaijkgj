@@ -28,9 +28,10 @@
   --color-brand-900: #0c4a6e;
 
   /* ===== 渐变 token（与 design-tokens.json 完全一致） ===== */
-  --gradient-topbar: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%);
-  --gradient-user-bubble: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%);
+  --gradient-topbar: linear-gradient(180deg, #F0F9FF 0%, #DBEAFE 100%);
+  --gradient-user-bubble: linear-gradient(135deg, #38BDF8 0%, #0284C7 100%);
   --gradient-primary-btn: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+  --gradient-coupon: linear-gradient(135deg, #0284C7, #075985);
   --gradient-hero-deep: linear-gradient(135deg, #0369a1 0%, #0c4a6e 100%);
   --gradient-user-card: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
 
@@ -42,7 +43,7 @@
   --secondary-light: var(--color-brand-200);     /* 旧浅青 #5cdbd3 → 天蓝 #bae6fd */
   --secondary-dark: var(--color-brand-600);      /* 旧深青 #08979c → 天蓝 #0284c7 */
 
-  --bg-color: #f5f7fa;
+  --bg-color: #F0F9FF;
   --text-color: #1f2937;          /* 与 design-tokens text-primary 一致 */
   --text-secondary: #6b7280;
   --border-color: #e5e7eb;
@@ -284,16 +285,15 @@ html, body {
 .bh-ai-bubble {
   background: var(--color-brand-100);
   color: var(--color-brand-900);
-  border-radius: 16px;
-  border-top-left-radius: 4px;
+  border-radius: 0 16px 16px 16px;
+  border-left: 3px solid #38BDF8;
   padding: 10px 14px;
   box-shadow: 0 1px 4px rgba(56, 189, 248, 0.08);
 }
 .bh-ai-user-bubble {
-  background: var(--gradient-user-bubble);
+  background: linear-gradient(135deg, #38BDF8, #0284C7);
   color: #ffffff;
-  border-radius: 16px;
-  border-top-right-radius: 4px;
+  border-radius: 16px 0 16px 16px;
   padding: 10px 14px;
   box-shadow: 0 1px 4px rgba(2, 132, 199, 0.18);
 }
@@ -374,7 +374,7 @@ html, body {
   --radius-full: 9999px;
 
   /* ===== 原子层：阴影 ===== */
-  --shadow-card:    0 2px 8px 0 rgba(14, 165, 233, 0.08);
+  --shadow-card:    0 2px 12px rgba(14,165,233,0.08);
   --shadow-bubble:  0 1px 4px 0 rgba(2, 132, 199, 0.10);
   --shadow-float:   0 4px 12px 0 rgba(56, 189, 248, 0.20);
   --shadow-modal:   0 8px 24px 0 rgba(12, 74, 110, 0.16);
@@ -449,17 +449,16 @@ html, body {
   transition: opacity var(--duration-fast) var(--ease-standard);
 }
 .bh-fn-cell:active { opacity: 0.85; }
-.bh-fn-cell .bh-fn-cell-icon { font-size: 28px; }
-.bh-fn-cell .bh-fn-cell-main { font-size: var(--font-size-base); font-weight: 600; color: var(--color-brand-900); }
-.bh-fn-cell .bh-fn-cell-sub { font-size: var(--font-size-sm); color: var(--color-brand-700); opacity: 0.85; text-align: center; }
+.bh-fn-cell .bh-fn-cell-icon { font-size: 28px; color: #0284C7; }
+.bh-fn-cell .bh-fn-cell-main { font-size: var(--font-size-base); font-weight: 600; color: #0C4A6E; }
+.bh-fn-cell .bh-fn-cell-sub { font-size: var(--font-size-sm); color: #374151; opacity: 0.85; text-align: center; }
 
 /* 用户气泡（深一档天蓝） */
 .bh-bubble-user {
-  background: var(--color-bubble-user-bg);
-  color: var(--color-brand-900);
+  background: linear-gradient(135deg, #38BDF8, #0284C7);
+  color: #FFFFFF;
   padding: 10px 14px;
-  border-radius: var(--radius-xl);
-  border-top-right-radius: var(--radius-sm);
+  border-radius: 16px 0 16px 16px;
   box-shadow: var(--shadow-bubble);
   display: inline-block;
   max-width: 80%;
@@ -526,7 +525,7 @@ html, body {
   border-radius: var(--radius-full);
   background: var(--color-brand-50);
   border: 1px solid var(--color-brand-200);
-  color: var(--color-brand-600);
+  color: #0284C7;
   font-size: var(--font-size-sm);
   cursor: pointer;
   animation: bh-followup-in var(--duration-base) var(--ease-decelerate);
@@ -581,14 +580,14 @@ html, body {
 .bh-voice-wave {
   display: inline-flex;
   align-items: flex-end;
-  gap: 3px;
-  height: 28px;
+  gap: 4px;
+  height: 32px;
 }
 .bh-voice-wave span {
-  width: 3px;
-  background: var(--color-brand-500);
+  width: 4px;
+  background: #38BDF8;
   border-radius: var(--radius-sm);
-  animation: bh-wave 1s ease-in-out infinite;
+  animation: bh-wave 0.9s ease-in-out infinite;
 }
 .bh-voice-wave span:nth-child(1) { animation-delay: 0s; }
 .bh-voice-wave span:nth-child(2) { animation-delay: 0.1s; }
@@ -596,8 +595,8 @@ html, body {
 .bh-voice-wave span:nth-child(4) { animation-delay: 0.3s; }
 .bh-voice-wave span:nth-child(5) { animation-delay: 0.4s; }
 @keyframes bh-wave {
-  0%, 100% { height: 8px; }
-  50% { height: 24px; }
+  0%, 100% { height: 6px; }
+  50% { height: 28px; }
 }
 
 /* Toast v2.0 */
@@ -694,6 +693,12 @@ html, body {
 @keyframes ai-home-skeleton-shimmer {
   100% {
     transform: translateX(100%);
+  }
+}
+
+@keyframes skeleton-spin {
+  100% {
+    transform: rotate(360deg);
   }
 }
 

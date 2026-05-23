@@ -61,7 +61,7 @@ export default function MemberCardPage() {
   }, [fetchQRCode]);
 
   return (
-    <div className="min-h-screen" style={{ background: 'linear-gradient(180deg, #0EA5E9, #38BDF8 60%, #f5f5f5)' }}>
+    <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #0C4A6E, #0284C7)' }}>
       <NavBar
         onBack={() => router.back()}
         style={{ background: 'transparent', color: '#fff' }}
@@ -71,8 +71,9 @@ export default function MemberCardPage() {
 
       <div className="px-6 pt-4">
         <div
-          className="rounded-2xl p-6 text-center"
+          className="p-6 text-center"
           style={{
+            borderRadius: 20,
             background: 'rgba(255,255,255,0.95)',
             boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
           }}
@@ -86,7 +87,7 @@ export default function MemberCardPage() {
               margin: '0 auto',
             }}
           />
-          <div className="text-lg font-bold mt-3">{user?.nickname || '用户'}</div>
+          <div className="text-lg font-bold mt-3" style={{ color: '#1F2937' }}>{user?.nickname || '用户'}</div>
           {user?.user_no && (
             <div className="text-xs text-gray-400 mt-1">会员号：{user.user_no}</div>
           )}
@@ -112,7 +113,7 @@ export default function MemberCardPage() {
           </div>
 
           <div className="text-sm text-gray-500">
-            <span className="text-primary font-medium">{countdown}s</span> 后自动刷新
+            <span style={{ color: '#FFD700', fontWeight: 600 }}>{countdown}s</span> 后自动刷新
           </div>
 
           <Button
