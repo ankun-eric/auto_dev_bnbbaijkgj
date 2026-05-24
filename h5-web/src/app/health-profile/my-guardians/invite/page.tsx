@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { showToast } from '@/lib/toast-unified';
 import { QRCodeCanvas } from 'qrcode.react';
 import api from '@/lib/api';
+import { RELATION_DEFS } from '@/lib/family-relation';
 
 interface InviteData {
   invite_code: string;
@@ -14,11 +15,7 @@ interface InviteData {
   used_count?: number;
 }
 
-const RELATION_OPTIONS = [
-  '父亲', '母亲', '儿子', '女儿', '丈夫', '妻子',
-  '爷爷', '奶奶', '外公', '外婆', '哥哥', '姐姐',
-  '弟弟', '妹妹', '朋友', '其他',
-];
+const RELATION_OPTIONS = RELATION_DEFS.map((d) => d.name);
 
 function InvitePageInner() {
   const router = useRouter();

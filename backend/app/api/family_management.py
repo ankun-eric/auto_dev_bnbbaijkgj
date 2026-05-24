@@ -96,7 +96,7 @@ async def create_invitation(
             raise HTTPException(status_code=404, detail="家庭成员不存在或不属于当前用户")
     else:
         # [F8] 无 member_id 时自动新建一个 Tab（家庭成员记录）
-        if not data.nickname and not data.relationship_type and not data.relation_type_id:
+        if not data.nickname and not data.relationship_type and not data.relation_type_id and not data.relation_type:
             raise HTTPException(status_code=400, detail="需要提供 member_id 或 nickname/relationship_type 以创建新成员")
         count_res = await db.execute(
             select(func.count(FamilyMember.id)).where(

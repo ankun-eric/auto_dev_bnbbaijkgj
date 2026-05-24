@@ -31,8 +31,8 @@ export interface RelationDef {
 }
 
 /**
- * 15 种预置关系 + 「其他」
- * 顺序：爸爸、妈妈、老公、老婆、儿子、女儿、哥哥、姐姐、弟弟、妹妹、爷爷、奶奶、外公、外婆、其他
+ * 16 种预置关系 + 「其他」
+ * 顺序：爸爸、妈妈、老公、老婆、儿子、女儿、哥哥、姐姐、弟弟、妹妹、爷爷、奶奶、外公、外婆、朋友、其他
  */
 export const RELATION_DEFS: RelationDef[] = [
   { name: '爸爸', gender: 'M', unique: true,  badge: '爸',   badgeTone: 'elder',   birthYearOffset: 25,    ageRule: 'elder',   category: 'parent' },
@@ -49,6 +49,7 @@ export const RELATION_DEFS: RelationDef[] = [
   { name: '奶奶', gender: 'F', unique: true,  badge: '奶',   badgeTone: 'elder',   birthYearOffset: 50,    ageRule: 'elder',   category: 'grand' },
   { name: '外公', gender: 'M', unique: true,  badge: '外公', badgeTone: 'elder',   birthYearOffset: 50,    ageRule: 'elder',   category: 'grand' },
   { name: '外婆', gender: 'F', unique: true,  badge: '外婆', badgeTone: 'elder',   birthYearOffset: 50,    ageRule: 'elder',   category: 'grand' },
+  { name: '朋友', gender: null,unique: false, badge: '友',   badgeTone: 'peer',    birthYearOffset: 'same',ageRule: null,      category: 'other' },
   { name: '其他', gender: null,unique: false, badge: '',    badgeTone: 'other',   birthYearOffset: 'same',ageRule: null,      category: 'other' },
 ];
 
