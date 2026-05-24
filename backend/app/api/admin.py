@@ -1789,13 +1789,22 @@ async def admin_delete_expert(
     return {"message": "删除成功"}
 
 
-# ── 会员等级管理 ──
+# ── 会员等级管理（DEPRECATED：旧"积分会员等级"体系已废弃，由付费会员套餐 v1.1 替代） ──
+# 路由保留以兼容前端历史调用，OpenAPI 标记 deprecated=True 并打印警告日志。
+# 计划在 1~2 个版本观察期后整体下线。
 
-@router.get("/points/levels")
+import logging as _legacy_level_logging  # noqa: E402
+_legacy_level_logger = _legacy_level_logging.getLogger("legacy.member_levels")
+
+
+@router.get("/points/levels", deprecated=True)
 async def admin_list_member_levels(
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
+    _legacy_level_logger.warning(
+        "[DEPRECATED] /api/admin/points/levels 已废弃；请改用 /api/admin/membership/plans（付费会员套餐）"
+    )
     result = await db.execute(select(MemberLevel).order_by(MemberLevel.min_points.asc()))
     items = []
     for lv in result.scalars().all():
@@ -1823,12 +1832,15 @@ async def admin_list_member_levels(
     return {"items": items}
 
 
-@router.post("/points/levels")
+@router.post("/points/levels", deprecated=True)
 async def admin_create_or_update_level(
     data: dict = Body(...),
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
+    _legacy_level_logger.warning(
+        "[DEPRECATED] POST /api/admin/points/levels 已废弃；请改用付费会员套餐 API"
+    )
     level_id = data.get("id")
     level_name = data.get("name") or data.get("level_name", "")
     icon = data.get("icon", "")
@@ -1867,13 +1879,16 @@ async def admin_create_or_update_level(
     return {"message": "创建成功", "id": level.id}
 
 
-@router.put("/points/levels/{level_id}")
+@router.put("/points/levels/{level_id}", deprecated=True)
 async def admin_update_member_level(
     level_id: int,
     data: dict = Body(...),
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
+    _legacy_level_logger.warning(
+        "[DEPRECATED] PUT /api/admin/points/levels/%s 已废弃；请改用付费会员套餐 API", level_id
+    )
     result = await db.execute(select(MemberLevel).where(MemberLevel.id == level_id))
     level = result.scalar_one_or_none()
     if not level:
@@ -1895,12 +1910,15 @@ async def admin_update_member_level(
     return {"message": "更新成功", "id": level.id}
 
 
-@router.delete("/points/levels/{level_id}")
+@router.delete("/points/levels/{level_id}", deprecated=True)
 async def admin_delete_member_level(
     level_id: int,
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
+    _legacy_level_logger.warning(
+        "[DEPRECATED] DELETE /api/admin/points/levels/%s 已废弃；请改用付费会员套餐 API", level_id
+    )
     result = await db.execute(select(MemberLevel).where(MemberLevel.id == level_id))
     level = result.scalar_one_or_none()
     if not level:

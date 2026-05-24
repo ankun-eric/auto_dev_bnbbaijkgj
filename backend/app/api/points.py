@@ -781,8 +781,21 @@ async def list_daily_tasks(
         return {"items": []}
 
 
-@router.get("/level")
+import logging as _legacy_user_level_logging
+
+_legacy_user_level_logger = _legacy_user_level_logging.getLogger("legacy.member_levels.user")
+
+
+@router.get("/level", deprecated=True)
 async def get_member_levels(db: AsyncSession = Depends(get_db)):
+    """[DEPRECATED] 旧"积分会员等级"体系已废弃（PRD v1.1）。
+
+    用户端如需展示会员状态，请改用 `/api/membership/me`（付费会员套餐）。
+    本接口保留只读返回历史等级列表，便于灰度过渡期降级回滚使用。
+    """
+    _legacy_user_level_logger.warning(
+        "[DEPRECATED] /api/points/level 已废弃；请改用 /api/membership/me（付费会员套餐）"
+    )
     result = await db.execute(select(MemberLevel).order_by(MemberLevel.min_points.asc()))
     items = [MemberLevelResponse.model_validate(l) for l in result.scalars().all()]
     return {"items": items}

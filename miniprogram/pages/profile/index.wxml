@@ -17,8 +17,9 @@
     </view>
     <view class="user-info">
       <text class="user-name">{{userInfo.nickname || '用户'}}</text>
-      <view class="member-tag" wx:if="{{userInfo.memberLevel}}">
-        <text class="member-text">{{userInfo.memberLevel}}</text>
+      <!-- [付费会员体系 PRD v1.1] 旧"积分会员等级"标签已废弃，替换为"付费会员套餐"标签；免费用户不展示 -->
+      <view class="member-tag" wx:if="{{isPaidMember && membershipPlanName}}">
+        <text class="member-text">{{membershipPlanName}}</text>
       </view>
       <view class="user-no-row" wx:if="{{userInfo.user_no}}" bindtap="copyUserNo">
         <text class="user-no-text">用户编号：{{userInfo.user_no}}</text>

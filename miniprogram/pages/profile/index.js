@@ -8,6 +8,9 @@ Page({
     pageMode: 'user',
     isLoggedIn: false,
     userInfo: null,
+    // [付费会员体系 PRD v1.1] 当前付费会员套餐（替代旧"积分会员等级"标签）
+    membershipPlanName: '',
+    isPaidMember: false,
     merchantProfile: null,
     currentStore: null,
     canSwitchRole: false,
@@ -78,8 +81,28 @@ Page({
       if (app.globalData.isLoggedIn) {
         this.loadUserData();
         this.refreshMerchantStatus();
+        this.loadMembership();
       }
     }
+  },
+
+  /**
+   * [付费会员体系 PRD v1.1] 加载当前付费会员套餐状态，
+   * 替代旧"积分会员等级"标签。免费用户不显示标签。
+   */
+  loadMembership() {
+    get('/api/membership/me', {}, { showLoading: false, suppressErrorToast: true })
+      .then(res => {
+        if (res && res.is_paid_member && res.plan_name) {
+          this.setData({
+            isPaidMember: true,
+            membershipPlanName: res.plan_name,
+          });
+        } else {
+          this.setData({ isPaidMember: false, membershipPlanName: '' });
+        }
+      })
+      .catch(() => this.setData({ isPaidMember: false, membershipPlanName: '' }));
   },
 
   // 异步校验商家身份 - 兜底

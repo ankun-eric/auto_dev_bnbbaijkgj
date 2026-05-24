@@ -18,8 +18,9 @@
         </view>
       </view>
 
-      <view class="card-level" wx:if="{{userInfo.memberLevel}}">
-        <text class="level-text">{{userInfo.memberLevel}}</text>
+      <!-- [付费会员体系 PRD v1.1] 旧"积分会员等级"已废弃，替换为"付费会员套餐"标识 -->
+      <view class="card-level" wx:if="{{isPaidMember && membershipPlanName}}">
+        <text class="level-text">{{membershipPlanName}}</text>
       </view>
     </view>
   </view>
@@ -47,9 +48,10 @@
       <text class="info-label">当前积分</text>
       <text class="info-value points-val">{{userInfo.points || 0}}</text>
     </view>
-    <view class="info-row" wx:if="{{userInfo.memberLevel}}">
-      <text class="info-label">会员等级</text>
-      <text class="info-value">{{userInfo.memberLevel}}</text>
+    <!-- [付费会员体系 PRD v1.1] 旧"积分会员等级"已废弃，替换为"付费会员套餐" -->
+    <view class="info-row" wx:if="{{isPaidMember && membershipPlanName}}">
+      <text class="info-label">付费会员</text>
+      <text class="info-value">{{membershipPlanName}}</text>
     </view>
     <view class="info-row" wx:if="{{userInfo.register_date}}">
       <text class="info-label">注册时间</text>

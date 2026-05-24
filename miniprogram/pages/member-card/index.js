@@ -5,7 +5,10 @@ Page({
     userInfo: null,
     qrCodeUrl: '',
     qrExpireTime: 60,
-    loading: true
+    loading: true,
+    // [付费会员体系 PRD v1.1] 付费会员套餐替代旧"积分会员等级"
+    isPaidMember: false,
+    membershipPlanName: ''
   },
 
   _timer: null,
@@ -14,7 +17,22 @@ Page({
     const app = getApp();
     this.setData({ userInfo: app.getUserInfo() });
     this.loadQrCode();
+    this.loadMembership();
     this.startRefreshTimer();
+  },
+
+  /** [付费会员体系 PRD v1.1] 拉取当前付费会员套餐 */
+  loadMembership() {
+    get('/api/membership/me', {}, { showLoading: false, suppressErrorToast: true })
+      .then(res => {
+        const data = res.data || res;
+        if (data && data.is_paid_member && data.plan_name) {
+          this.setData({ isPaidMember: true, membershipPlanName: data.plan_name });
+        } else {
+          this.setData({ isPaidMember: false, membershipPlanName: '' });
+        }
+      })
+      .catch(() => this.setData({ isPaidMember: false, membershipPlanName: '' }));
   },
 
   onUnload() {

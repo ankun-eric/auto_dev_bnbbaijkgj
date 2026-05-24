@@ -5,7 +5,12 @@ interface UserInfo {
   phone: string;
   nickname: string;
   avatar: string;
-  memberLevel: string;
+  /**
+   * @deprecated 旧"积分会员等级"已废弃（PRD v1.1），UI 不再展示该字段。
+   * 请改用 `/api/membership/me` 返回的付费会员套餐信息（plan_code / plan_name / is_paid_member）。
+   * 字段保留仅为兼容旧数据反序列化，不要在新代码中读取。
+   */
+  memberLevel?: string;
   points: number;
   user_no?: string;
   referrer_no?: string;

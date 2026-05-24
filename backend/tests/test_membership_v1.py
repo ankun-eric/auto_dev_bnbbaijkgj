@@ -379,3 +379,92 @@ async def test_product_member_discount_field_create_and_update(client: AsyncClie
     assert r.json()["is_member_discount_eligible"] is False
     # points_deductible 仍保留
     assert r.json()["points_deductible"] is True
+
+
+# ──────────────── 5. 旧"积分会员等级"API @deprecated 验证 ────────────────
+
+
+@pytest.mark.asyncio
+async def test_legacy_member_levels_api_marked_deprecated(client: AsyncClient):
+    """[PRD v1.1] 旧"积分会员等级"API 应在 OpenAPI schema 中标记为 deprecated=True，
+    但路由本身仍保留，以兼容前端历史调用。"""
+    # FastAPI app 自定义 openapi_url=/api/openapi.json
+    r = await client.get("/api/openapi.json")
+    assert r.status_code == 200, r.text
+    schema = r.json()
+    paths = schema.get("paths", {})
+
+    # 后台 4 个端点
+    admin_paths = [
+        ("/api/admin/points/levels", "get"),
+        ("/api/admin/points/levels", "post"),
+        ("/api/admin/points/levels/{level_id}", "put"),
+        ("/api/admin/points/levels/{level_id}", "delete"),
+    ]
+    for path, method in admin_paths:
+        spec = paths.get(path, {}).get(method)
+        assert spec is not None, f"{method.upper()} {path} 必须存在（保留兼容）"
+        assert spec.get("deprecated") is True, f"{method.upper()} {path} 必须标记 deprecated=True"
+
+    # 用户端兼容只读端点
+    user_spec = paths.get("/api/points/level", {}).get("get")
+    assert user_spec is not None
+    assert user_spec.get("deprecated") is True
+
+
+@pytest.mark.asyncio
+async def test_legacy_member_levels_api_still_callable(client: AsyncClient, admin_headers: dict):
+    """旧 API 虽然 deprecated，但仍可正常调用（保留兼容期）。"""
+    r = await client.get("/api/admin/points/levels", headers=admin_headers)
+    assert r.status_code == 200, r.text
+    assert "items" in r.json()
+
+
+# ──────────────── 6. 单笔最多抵扣 20% 上限 ────────────────
+
+
+@pytest.mark.asyncio
+async def test_points_deduct_capped_at_20pct(client: AsyncClient, auth_headers: dict):
+    """[PRD v1.1 § 五] 积分抵扣单笔不得超过订单金额的 20%。
+
+    场景：商品 100 元，用户有 10000 积分（=100 元），最多只能抵扣 20 元（20%）。
+    """
+    pid = await _create_product(sale_price=100.0, points_deductible=True)
+    r = await client.post(
+        "/api/membership/calculate-discount",
+        json={"product_id": pid, "quantity": 1, "user_points": 10000},
+        headers=auth_headers,
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    pd = next((o for o in body["options"] if o["type"] == "points_deduction"), None)
+    assert pd is not None
+    # 20% 上限 = 20 元，对应 2000 积分
+    assert pd["discount_amount"] == 20.0
+    assert pd["use_points"] == 2000
+
+
+# ──────────────── 7. 套餐购买/续费禁止积分抵扣 ────────────────
+
+
+@pytest.mark.asyncio
+async def test_subscribe_membership_cannot_use_points(client: AsyncClient, auth_headers: dict, admin_headers: dict):
+    """[PRD v1.1 § 九] 套餐购买/续费业务路径不接受积分抵扣字段，
+    即使用户积分充足，订阅金额也不会被积分抵扣。"""
+    plan = await _create_active_plan(client, admin_headers, discount_rate=0.9, price_monthly=29.9)
+
+    # 即使用户提交积分抵扣字段，订阅接口也只看 plan_id / billing_cycle
+    r = await client.post(
+        "/api/membership/subscribe",
+        json={"plan_id": plan["id"], "billing_cycle": "monthly", "points_deduction": 99999},
+        headers=auth_headers,
+    )
+    assert r.status_code == 200, r.text
+    sub = r.json()
+    # 实付金额必须等于套餐月度价（不被积分扣减）
+    assert float(sub.get("plan_id")) == float(plan["id"])
+    # 用 /me 验证：到期时间、套餐均按原价订阅，没有被积分抵扣
+    me_r = await client.get("/api/membership/me", headers=auth_headers)
+    me = me_r.json()
+    assert me["is_paid_member"] is True
+    assert me["plan_id"] == plan["id"]

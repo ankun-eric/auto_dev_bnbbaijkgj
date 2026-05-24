@@ -60,6 +60,8 @@ interface ProductDetail {
   points_exchangeable: boolean;
   points_price: number;
   points_deductible: boolean;
+  /** [付费会员体系 PRD v1.1] 是否支持付费会员折扣 */
+  is_member_discount_eligible?: boolean;
   redeem_count: number;
   appointment_mode: string;
   time_slots?: { start: string; end: string; capacity: number }[];

@@ -58,6 +58,8 @@ interface ProductInfo {
   images: string[] | null;
   fulfillment_type: string;
   points_deductible: boolean;
+  /** [付费会员体系 PRD v1.1] 是否支持付费会员折扣 */
+  is_member_discount_eligible?: boolean;
   appointment_mode: string;
   include_today?: boolean;
   redeem_count: number;
@@ -66,6 +68,21 @@ interface ProductInfo {
   purchase_appointment_mode?: string;
   spec_mode?: number;
   skus?: Array<{ id: number; spec_name: string; sale_price: number; origin_price: number | null; stock: number; is_default: boolean; status: number; sort_order: number }>;
+}
+
+/** [付费会员体系 PRD v1.1] 当前用户会员状态 */
+interface MembershipMe {
+  is_paid_member: boolean;
+  plan_id: number | null;
+  plan_code: string | null;
+  plan_name: string | null;
+  expire_at: string | null;
+  discount_rate: number;
+  max_guardians: number;
+  ai_call_quota: number;
+  ai_alert_quota: number;
+  ai_remind_quota: number;
+  benefits_desc: string | null;
 }
 
 interface Address {
@@ -241,6 +258,9 @@ function CheckoutPage() {
   const [usePoints, setUsePoints] = useState(false);
   const [pointsDeduction, setPointsDeduction] = useState(0);
   const [userPoints, setUserPoints] = useState(0);
+  // [付费会员体系 PRD v1.1] 会员状态 & 会员折扣开关
+  const [membership, setMembership] = useState<MembershipMe | null>(null);
+  const [useMemberDiscount, setUseMemberDiscount] = useState(false);
 
   const [paymentMethod, setPaymentMethod] = useState('wechat');
   // [2026-05-04 H5 支付链路 Bug 修复] 动态可用支付方式 + 当前选中通道
@@ -284,7 +304,9 @@ function CheckoutPage() {
       // [优惠券下单页 Bug 修复 v2 · B3] 切换为下单页专用券列表接口（仅返回本单可用的券）
       api.get('/api/coupons/usable-for-order', { params: { product_id: productId, subtotal: 0 } }),
       api.get('/api/points/summary'),
-    ]).then(([pRes, initRes, aRes, cRes, ptRes]) => {
+      // [付费会员体系 PRD v1.1] 拉取当前用户会员状态，用于"会员折扣 + 积分抵扣二选一"
+      api.get('/api/membership/me').catch(() => null),
+    ]).then(([pRes, initRes, aRes, cRes, ptRes, mRes]) => {
       if (pRes.status === 'fulfilled') {
         const data = (pRes.value as any).data || pRes.value;
         setProduct(data);
@@ -341,6 +363,11 @@ function CheckoutPage() {
       if (ptRes.status === 'fulfilled') {
         const data = (ptRes.value as any).data || ptRes.value;
         setUserPoints(data.total_points || 0);
+      }
+      // [付费会员体系 PRD v1.1] 会员状态
+      if (mRes && (mRes as any).status === 'fulfilled') {
+        const data = ((mRes as any).value as any)?.data || (mRes as any).value;
+        if (data) setMembership(data as MembershipMe);
       }
     }).finally(() => setLoading(false));
   }, [productId]);
@@ -621,7 +648,17 @@ function CheckoutPage() {
     return c.discount_value || 0;
   })());
   const pointsValue = usePoints ? round2(pointsDeduction / 100) : 0;
-  const totalAmount = round2(Math.max(0, subtotal - couponDiscount - pointsValue));
+
+  // [付费会员体系 PRD v1.1] 会员折扣 + 积分抵扣二选一（仅商城商品，不影响付费套餐购买）
+  const memberDiscountEligible = !!(product as any).is_member_discount_eligible;
+  const isPaidMember = !!membership?.is_paid_member;
+  const memberDiscountRate = membership?.discount_rate ?? 1.0;
+  const canUseMemberDiscount = memberDiscountEligible && isPaidMember && memberDiscountRate < 1.0;
+  const memberDiscountValue = useMemberDiscount && canUseMemberDiscount
+    ? round2(subtotal * (1 - memberDiscountRate))
+    : 0;
+
+  const totalAmount = round2(Math.max(0, subtotal - couponDiscount - pointsValue - memberDiscountValue));
 
   const isDelivery = product.fulfillment_type === 'delivery';
   const isInStore = product.fulfillment_type === 'in_store';
@@ -727,6 +764,8 @@ function CheckoutPage() {
         // [2026-05-04 H5 优惠券抵扣 0 元下单 Bug 修复 v1.0 · A1] 0 元单上面已被改写为 coupon_deduction
         payment_method: providerForOrder,
         points_deduction: usePoints ? pointsDeduction : 0,
+        // [付费会员体系 PRD v1.1] 会员折扣金额（与积分抵扣互斥，二选一）
+        member_discount: useMemberDiscount && canUseMemberDiscount ? memberDiscountValue : 0,
         notes: notes || undefined,
       };
       if (selectedCoupon) orderData.coupon_id = selectedCoupon.coupon_id;
@@ -1112,20 +1151,60 @@ function CheckoutPage() {
           </div>
         </Card>
 
+        {/* [付费会员体系 PRD v1.1] 会员折扣 + 积分抵扣二选一不可叠加 */}
+        {canUseMemberDiscount && (
+          <Card style={{ borderRadius: 12, marginBottom: 12 }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium">付费会员折扣</span>
+                <span className="text-xs text-gray-400 ml-2">
+                  {membership?.plan_name || '付费会员'} · {Math.round(memberDiscountRate * 10)} 折
+                </span>
+              </div>
+              <Switch
+                checked={useMemberDiscount}
+                onChange={(checked) => {
+                  setUseMemberDiscount(checked);
+                  if (checked && usePoints) {
+                    // 二选一：开启会员折扣自动关闭积分抵扣
+                    setUsePoints(false);
+                    setPointsDeduction(0);
+                    showToast('已切换为会员折扣，积分抵扣已关闭');
+                  }
+                }}
+                style={{ '--checked-color': '#0EA5E9' }}
+              />
+            </div>
+            {useMemberDiscount && (
+              <div className="mt-2 flex items-center justify-between">
+                <span className="text-xs text-gray-500">已抵扣 ¥{memberDiscountValue}</span>
+              </div>
+            )}
+          </Card>
+        )}
+
         {product.points_deductible && (
           <Card style={{ borderRadius: 12, marginBottom: 12 }}>
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-sm font-medium">积分抵扣</span>
-                <span className="text-xs text-gray-400 ml-2">可用{userPoints}积分</span>
+                <span className="text-xs text-gray-400 ml-2">可用{userPoints}积分 · 单笔最多抵扣 20%</span>
               </div>
               <Switch
                 checked={usePoints}
                 onChange={(checked) => {
                   setUsePoints(checked);
                   if (checked) {
-                    const maxPoints = Math.min(userPoints, Math.floor(subtotal * 100));
+                    // [付费会员体系 PRD v1.1] 单笔最多抵扣订单金额 20%（1 积分 = 0.01 元）
+                    const cap = Math.floor(subtotal * 0.2 * 100); // 20% 上限对应的积分数
+                    const maxPoints = Math.min(userPoints, cap);
                     setPointsDeduction(maxPoints);
+                    if (useMemberDiscount) {
+                      setUseMemberDiscount(false);
+                      showToast('已切换为积分抵扣，会员折扣已关闭');
+                    }
+                  } else {
+                    setPointsDeduction(0);
                   }
                 }}
                 style={{ '--checked-color': '#0EA5E9' }}
@@ -1163,7 +1242,8 @@ function CheckoutPage() {
           <span className="text-sm text-gray-500">
             小计 ¥{subtotal}
             {couponDiscount > 0 && <span className="text-red-500 ml-2">-¥{couponDiscount}</span>}
-            {pointsValue > 0 && <span className="text-red-500 ml-2">-¥{pointsValue}</span>}
+            {memberDiscountValue > 0 && <span className="text-red-500 ml-2">-¥{memberDiscountValue}（会员）</span>}
+            {pointsValue > 0 && <span className="text-red-500 ml-2">-¥{pointsValue}（积分）</span>}
           </span>
         </div>
         <div className="flex items-center gap-3">

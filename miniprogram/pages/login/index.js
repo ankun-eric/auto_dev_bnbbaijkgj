@@ -84,10 +84,15 @@ const PRIVACY_POLICY_CONTENT = `隐私政策
 
 — 本政策自您勾选同意之时起对您生效 —`;
 
+/**
+ * [付费会员体系 PRD v1.1] 旧"积分会员等级"已废弃。
+ * 保留字段仅用于兼容旧版本接口返回，不再用于 UI 展示。
+ * UI 展示请改用付费会员套餐（/api/membership/me 返回的 plan_name）。
+ */
 function formatMemberLevel(level) {
-  if (level === undefined || level === null) return '会员';
-  const map = { 0: '普通会员', 1: '银卡会员', 2: '金卡会员', 3: '钻石会员' };
-  return map[level] != null ? map[level] : `会员Lv.${level}`;
+  // 不再生成"普通会员/银卡/金卡/钻石"等历史标签；返回空字符串避免 UI 误展示。
+  if (level === undefined || level === null) return '';
+  return '';
 }
 
 function mapUserFromApi(u) {

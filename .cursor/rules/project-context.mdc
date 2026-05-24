@@ -27,7 +27,43 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: 邀请页与守护人体系 PRD v1.1 全量开发部署 (2026-05-25)
+## Latest Update: 旧会员体系废弃与付费会员升级 v1.1 全量开发部署 (2026-05-25)
+
+### 一句话结论
+按《旧会员体系废弃与迁移说明 v1.1》完成旧"积分会员等级"体系的全面废弃与付费会员升级：旧 `/api/admin/points/levels` 与 `/api/points/level` API 标记 `@deprecated`（OpenAPI 与 WARNING 日志）；h5-web 收银台改造"会员折扣 + 积分抵扣"二选一互斥 UI 与 20% 积分抵扣上限；客服中心"会员"话术更新；miniprogram 个人中心/会员卡用「付费会员套餐」标签替代旧 memberLevel；后端 16/16 测试全绿。
+
+### 核心变更
+
+#### 后端
+- `backend/app/api/admin.py` — 旧 4 个 `/points/levels` 端点全部标 `deprecated=True` 并写 WARNING 日志
+- `backend/app/api/points.py` — `/api/points/level` 同步标 `deprecated=True`
+- `backend/tests/test_membership_v1.py` — 新增 4 条测试：deprecated OpenAPI 校验 / 旧 API 仍可调用 / 20% 积分抵扣上限 / 套餐购买禁用积分抵扣
+
+#### H5 前端
+- `h5-web/src/app/checkout/page.tsx` — 新增「付费会员折扣」开关 Card，与「积分抵扣」开关互斥；积分抵扣按 20% 订单金额上限自动封顶；底部支付栏分别展示会员/积分两类抵扣金额；下单接口新增 `member_discount` 字段
+- `h5-web/src/app/customer-service/page.tsx` — "会员"话术由旧"普通/银卡/金卡/钻石"改为付费会员说明
+- `h5-web/src/app/product/[id]/page.tsx` — `ProductInfo` 类型新增 `is_member_discount_eligible?`
+- `h5-web/src/lib/auth.ts` — `UserInfo.memberLevel` 标 `@deprecated`，UI 不再消费
+
+#### 微信小程序
+- `miniprogram/pages/profile/index.js` / `index.wxml` — 个人中心标签从 `userInfo.memberLevel` 改为「付费会员套餐」名称，新增 `loadMembership()` 拉取 `/api/membership/me`
+- `miniprogram/pages/member-card/index.js` / `index.wxml` — 会员卡同步切换为付费会员套餐展示
+- `miniprogram/pages/login/index.js` — `formatMemberLevel` 退化为空字符串，不再生成历史等级标签
+
+### 部署验证（已通过）
+- 部署时间：2026-05-25
+- backend / h5-web 容器已重启或重建
+- pytest test_membership_v1.py：**16 passed**（含新增的 4 条 v1.1 测试）
+- OpenAPI 校验：`/api/admin/points/levels (GET/POST/PUT/DELETE)` + `/api/points/level (GET)` 全部 `deprecated=True`
+- HTTP 验证：`/` 200、`/checkout` 308、`/customer-service` 308、`/admin` 301、`/api/openapi.json` 200
+- 小程序 zip：[miniprogram_20260525_011507_651f.zip](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_20260525_011507_651f.zip) 506 KB，HTTP 200 已验证
+
+### 用户体验手册
+- `user_docs/旧会员体系废弃与付费会员升级.md`
+
+---
+
+## Previous Update: 邀请页与守护人体系 PRD v1.1 全量开发部署 (2026-05-25)
 
 ### 一句话结论
 按《邀请页与守护人体系 PRD v1.1》完成"守护人体系"全量开发与部署：FamilyManagement 新增 `is_primary_guardian` / `priority_order` 字段，新建 `guardian_transfer_requests` / `guardian_alert_quota_usage` 两表，新增 11 个 API 端点（守护人列表 / 主守护人转移 / 串行外呼模拟 / 告警额度 / 邀请记录），新建 H5 `/guardian-system` 页面与管理后台 `/admin/guardian-relations` 页面。Docker 容器全量重建并通过 10/10 单元测试。
