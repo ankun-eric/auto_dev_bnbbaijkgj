@@ -87,6 +87,20 @@ export default function SettingsPage() {
   }, [registerForm]);
 
   useEffect(() => {
+    const loadProtocol = async () => {
+      try {
+        const res = await get('/api/admin/settings/protocol');
+        if (res) {
+          protocolForm.setFieldsValue(res);
+        }
+      } catch {
+        // use defaults
+      }
+    };
+    loadProtocol();
+  }, [protocolForm]);
+
+  useEffect(() => {
     const loadTimeoutPolicy = async () => {
       try {
         const [policyRes, reminderRes] = await Promise.all([
@@ -454,6 +468,7 @@ export default function SettingsPage() {
               userAgreement: '《宾尼小康用户服务协议》\n\n第一条 总则\n本协议是用户与宾尼小康AI健康管家平台之间关于使用平台服务的法律协议...\n\n第二条 服务内容\n宾尼小康提供AI健康咨询、营养管理、专家问诊等健康管理服务...\n\n第三条 用户权利与义务\n用户有权享受平台提供的各项服务，同时应遵守平台规则...',
               privacyPolicy: '《宾尼小康隐私政策》\n\n一、信息收集\n我们可能收集您的以下信息：\n1. 注册信息：手机号、昵称等\n2. 健康信息：您主动提供的健康数据\n3. 使用信息：浏览记录、使用偏好等\n\n二、信息使用\n我们将收集的信息用于：\n1. 提供和改善健康管理服务\n2. 个性化推荐\n3. 安全保障...',
               healthDisclaimer: '《健康免责声明》\n\n宾尼小康AI健康管家提供的所有健康建议、营养方案、体检报告解读等内容仅供参考，不构成医疗诊断或治疗建议。\n\n如有健康问题，请及时就医。\n\n本平台不对因使用AI建议而导致的任何健康问题承担责任。',
+              healthDataAuthorization: '《宾尼小康健康数据授权协议》\n\n第一条 协议概述\n本协议用于规范"宾尼小康AI健康管家"平台中家庭成员之间的健康数据共享行为。当您接受家庭成员的邀请加入守护关系后，双方将按照本协议约定的范围和方式共享健康数据。\n\n第二条 授权数据范围\n接受邀请后，授权共享的数据包括：\n- 基础健康档案：姓名、性别、年龄、身高、体重、血型等基本信息\n- 体检报告：历次上传的体检报告及AI解读结果\n- 用药计划：当前及历史用药方案、服药提醒记录\n- 健康指标：血压、血糖、心率等日常监测数据\n- 就医资料：就诊记录、诊断报告、医嘱等信息\n- AI健康建议：系统为您生成的个性化健康建议和提醒\n\n第三条 数据使用目的\n共享的健康数据仅用于以下目的：\n- 家庭成员之间的健康关怀与互助管理\n- 紧急情况下的健康信息快速获取\n- AI健康助手基于家庭整体数据提供更精准的健康建议\n\n第四条 授权可撤回性\n- 您可以随时解除守护关系以撤回授权\n- 解除关系后，对方将无法继续查看您的健康数据\n- 已生成的历史健康建议不受影响，但不再更新\n\n第五条 数据安全保障\n- 所有健康数据均经加密传输和存储\n- 平台采用严格的访问控制机制，仅授权的家庭成员可查看\n- 平台不会将您的健康数据用于商业销售或未授权的第三方共享\n\n第六条 未成年人保护\n- 未满14周岁的用户，其健康数据授权须由监护人代为操作\n- 14~18周岁的用户，建议在监护人知情同意下进行授权\n\n第七条 协议变更\n- 本协议内容如有变更，平台将通过系统通知或页面公告的方式告知\n- 变更后继续使用守护功能即视为同意修改后的协议\n\n第八条 争议解决\n因本协议引起的争议，双方应友好协商解决。协商不成的，任何一方均可向平台所在地有管辖权的人民法院提起诉讼。',
             }}
           >
             <Form.Item label="用户服务协议" name="userAgreement" rules={[{ required: true, message: '请输入用户服务协议' }]}>
@@ -464,6 +479,9 @@ export default function SettingsPage() {
             </Form.Item>
             <Form.Item label="健康免责声明" name="healthDisclaimer">
               <TextArea rows={6} placeholder="请输入健康免责声明" />
+            </Form.Item>
+            <Form.Item label="健康数据授权协议" name="healthDataAuthorization">
+              <TextArea rows={10} placeholder="请输入健康数据授权协议内容" />
             </Form.Item>
             <Form.Item>
               <Button type="primary" icon={<SaveOutlined />} onClick={handleSaveProtocol} loading={saving}>保存协议</Button>

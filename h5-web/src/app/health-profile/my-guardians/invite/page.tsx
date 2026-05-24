@@ -14,30 +14,121 @@ interface InviteData {
   used_count?: number;
 }
 
+const RELATION_OPTIONS = [
+  '父亲', '母亲', '儿子', '女儿', '丈夫', '妻子',
+  '爷爷', '奶奶', '外公', '外婆', '哥哥', '姐姐',
+  '弟弟', '妹妹', '朋友', '其他',
+];
+
 function InvitePageInner() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [invite, setInvite] = useState<InviteData | null>(null);
   const [error, setError] = useState('');
 
-  const createInvite = useCallback(async () => {
+  const [selectedRelation, setSelectedRelation] = useState<string>('');
+  const [customRelation, setCustomRelation] = useState('');
+  const customRelationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [profileChecked, setProfileChecked] = useState(false);
+  const [showProfileDrawer, setShowProfileDrawer] = useState(false);
+  const [profileName, setProfileName] = useState('');
+  const [profileId, setProfileId] = useState<number | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const THEME = {
+    gradientStart: '#4CAF50',
+    gradientEnd: '#66BB6A',
+  };
+
+  useEffect(() => {
+    checkProfile();
+  }, []);
+
+  const checkProfile = async () => {
+    try {
+      const res: any = await api.get('/api/family/members');
+      const data = res.data || res;
+      const items: any[] = Array.isArray(data.items) ? data.items : [];
+      const selfMember = items.find((x: any) => x.is_self === true);
+      if (selfMember) {
+        const hp = selfMember.health_profile || selfMember.healthProfile;
+        if (hp && !hp.name) {
+          setProfileId(hp.id || selfMember.health_profile_id || null);
+          setShowProfileDrawer(true);
+          return;
+        }
+      }
+    } catch {}
+    setProfileChecked(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!profileName.trim()) {
+      showToast('请输入姓名', 'fail');
+      return;
+    }
+    setSavingProfile(true);
+    try {
+      if (profileId) {
+        await api.put(`/api/health-profile/${profileId}`, { name: profileName.trim() });
+      }
+      showToast('保存成功');
+      setShowProfileDrawer(false);
+      setProfileChecked(true);
+    } catch {
+      showToast('保存失败，请重试', 'fail');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleSkipProfile = () => {
+    setShowProfileDrawer(false);
+    setProfileChecked(true);
+  };
+
+  const createInvite = useCallback(async (relationOverride?: string) => {
     setLoading(true);
     setError('');
     try {
-      const res: any = await api.post('/api/reverse-guardian/invite');
+      const body: any = {};
+      const rel = relationOverride !== undefined ? relationOverride : (selectedRelation === '其他' ? customRelation : selectedRelation);
+      if (rel) body.relation_type = rel;
+      const res: any = await api.post('/api/reverse-guardian/invite', body);
       const data = res.data || res;
       setInvite(data);
     } catch (e: any) {
       const msg = e?.response?.data?.detail || e?.message || '生成邀请失败';
       setError(String(msg));
+      showToast(String(msg), 'fail');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedRelation, customRelation]);
 
-  useEffect(() => {
-    createInvite();
-  }, [createInvite]);
+  const handleRelationSelect = (rel: string) => {
+    setSelectedRelation(rel);
+    if (rel !== '其他') {
+      setCustomRelation('');
+      createInvite(rel);
+    } else {
+      setInvite(null);
+    }
+  };
+
+  const handleCustomRelationChange = (val: string) => {
+    const trimmed = val.slice(0, 8);
+    setCustomRelation(trimmed);
+    if (customRelationTimer.current) clearTimeout(customRelationTimer.current);
+    if (trimmed.length > 0) {
+      customRelationTimer.current = setTimeout(() => {
+        createInvite(trimmed);
+      }, 500);
+    } else {
+      setInvite(null);
+    }
+  };
 
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
   const inviteLink = invite
@@ -79,10 +170,7 @@ function InvitePageInner() {
     showToast('请点击右上角"..."分享给微信好友');
   };
 
-  const THEME = {
-    gradientStart: '#4CAF50',
-    gradientEnd: '#66BB6A',
-  };
+  const canShowQr = selectedRelation && (selectedRelation !== '其他' || customRelation.length > 0);
 
   return (
     <div style={{ background: '#F0F5FF', minHeight: '100vh', paddingBottom: 40 }}>
@@ -103,17 +191,74 @@ function InvitePageInner() {
         <span style={{ width: 36 }} />
       </div>
 
+      {/* Brand bar */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '12px 16px', background: '#fff', gap: 8,
+      }}>
+        <span style={{ fontSize: 22 }}>🌿</span>
+        <span style={{ fontSize: 15, fontWeight: 600, color: '#333' }}>宾尼小康AI健康管家</span>
+      </div>
+
       <div style={{ padding: '16px 16px' }}>
-        {loading ? (
+        {/* Relation selector - always shown */}
+        {profileChecked && (
+          <div style={{
+            background: '#fff', borderRadius: 16, padding: '16px 16px 12px',
+            marginBottom: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#333', marginBottom: 12 }}>
+              请选择 TA 与您的关系
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+              {RELATION_OPTIONS.map((rel) => (
+                <button
+                  key={rel}
+                  onClick={() => handleRelationSelect(rel)}
+                  style={{
+                    padding: '6px 14px', borderRadius: 16,
+                    border: selectedRelation === rel ? `1.5px solid ${THEME.gradientStart}` : '1.5px solid #E5E7EB',
+                    background: selectedRelation === rel ? '#E8F5E9' : '#F9FAFB',
+                    color: selectedRelation === rel ? THEME.gradientStart : '#4B5563',
+                    fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >{rel}</button>
+              ))}
+            </div>
+            {/* Custom input for "其他" */}
+            {selectedRelation === '其他' && (
+              <div style={{ marginTop: 12 }}>
+                <input
+                  type="text"
+                  value={customRelation}
+                  onChange={(e) => handleCustomRelationChange(e.target.value)}
+                  placeholder="请输入关系名称（1~8字）"
+                  maxLength={8}
+                  style={{
+                    width: '100%', padding: '10px 14px', borderRadius: 10,
+                    border: `1.5px solid ${THEME.gradientStart}`, outline: 'none',
+                    fontSize: 14, color: '#333', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Main content */}
+        {!profileChecked ? (
+          <div style={{ textAlign: 'center', color: '#9CA3AF', padding: 40 }}>正在检查资料…</div>
+        ) : loading ? (
           <div style={{ textAlign: 'center', color: '#9CA3AF', padding: 40 }}>正在生成邀请…</div>
-        ) : error ? (
+        ) : error && canShowQr ? (
           <div style={{
             background: '#fff', borderRadius: 16, padding: '40px 20px',
             textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
           }}>
             <div style={{ fontSize: 14, color: '#6B7280', marginBottom: 16 }}>{error}</div>
             <button
-              onClick={createInvite}
+              onClick={() => createInvite()}
               style={{
                 padding: '10px 24px', borderRadius: 20,
                 background: THEME.gradientStart, color: '#fff',
@@ -121,7 +266,7 @@ function InvitePageInner() {
               }}
             >重新生成</button>
           </div>
-        ) : invite ? (
+        ) : invite && canShowQr ? (
           <>
             {/* Gradient Card */}
             <div style={{
@@ -213,8 +358,75 @@ function InvitePageInner() {
               </div>
             </div>
           </>
+        ) : profileChecked && !canShowQr ? (
+          <div style={{
+            background: '#fff', borderRadius: 16, padding: '32px 20px',
+            textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+            color: '#9CA3AF', fontSize: 14,
+          }}>
+            请先选择关系类型，选择后将生成邀请二维码
+          </div>
         ) : null}
       </div>
+
+      {/* Profile Drawer */}
+      {showProfileDrawer && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: 'rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: '20px 20px 0 0',
+            width: '100%', maxWidth: 500, padding: '24px 20px 32px',
+            animation: 'slideUp 0.3s ease',
+          }}>
+            <div style={{ fontSize: 17, fontWeight: 700, color: '#333', marginBottom: 20, textAlign: 'center' }}>
+              完善个人资料
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 13, color: '#6B7280', marginBottom: 6, display: 'block' }}>姓名（必填）</label>
+              <input
+                type="text"
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                placeholder="请输入您的姓名"
+                style={{
+                  width: '100%', padding: '12px 14px', borderRadius: 10,
+                  border: '1.5px solid #E5E7EB', outline: 'none',
+                  fontSize: 15, color: '#333', boxSizing: 'border-box',
+                }}
+              />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 13, color: '#6B7280', marginBottom: 6, display: 'block' }}>关系</label>
+              <div style={{
+                padding: '12px 14px', borderRadius: 10,
+                background: '#F3F4F6', fontSize: 15, color: '#6B7280',
+              }}>本人</div>
+            </div>
+            <button
+              onClick={handleSaveProfile}
+              disabled={savingProfile}
+              style={{
+                width: '100%', padding: '14px 0', borderRadius: 22,
+                background: `linear-gradient(135deg, ${THEME.gradientStart}, ${THEME.gradientEnd})`,
+                color: '#fff', border: 'none', fontSize: 15, fontWeight: 600,
+                cursor: savingProfile ? 'not-allowed' : 'pointer',
+                opacity: savingProfile ? 0.7 : 1,
+              }}
+            >{savingProfile ? '保存中...' : '保存并继续邀请'}</button>
+            <button
+              onClick={handleSkipProfile}
+              style={{
+                width: '100%', padding: '12px 0', marginTop: 10,
+                background: 'transparent', color: '#9CA3AF',
+                border: 'none', fontSize: 13, cursor: 'pointer',
+              }}
+            >跳过</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

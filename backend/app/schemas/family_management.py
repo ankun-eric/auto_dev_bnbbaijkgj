@@ -9,6 +9,7 @@ class InvitationCreateRequest(BaseModel):
     nickname: Optional[str] = None
     relationship_type: Optional[str] = None
     relation_type_id: Optional[int] = None
+    relation_type: Optional[str] = None
 
 
 class InvitationCreateResponse(BaseModel):
@@ -37,9 +38,12 @@ class InvitationDetailResponse(BaseModel):
     inviter_nickname: Optional[str] = None
     inviter_avatar: Optional[str] = None
     inviter_phone: Optional[str] = None
+    inviter_real_name: Optional[str] = None
     member_id: Optional[int] = None
     member_nickname: Optional[str] = None
     relationship_type: Optional[str] = None
+    relation_type: Optional[str] = None
+    invite_type: Optional[str] = None
     expires_at: datetime
     created_at: datetime
     # [PRD-FAMILY-AUTH-MP-V1] 当前已登录用户视角下的预判信息

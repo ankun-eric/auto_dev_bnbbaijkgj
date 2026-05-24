@@ -2974,6 +2974,7 @@ class FamilyInvitation(Base):
     expires_at = mapped_column(DateTime, nullable=False)
     accepted_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     accepted_at = mapped_column(DateTime, nullable=True)
+    relation_type = mapped_column(String(50), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     inviter = relationship("User", foreign_keys=[inviter_user_id])
@@ -4587,6 +4588,7 @@ class ReverseGuardianInvitation(Base):
     max_uses = mapped_column(Integer, default=3)
     used_count = mapped_column(Integer, default=0)
     expires_at = mapped_column(DateTime, nullable=False)
+    relation_type = mapped_column(String(50), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     invitee = relationship("User", foreign_keys=[invitee_user_id])

@@ -47,6 +47,8 @@ class ReverseInviteDetailResponse(BaseModel):
     invitee_user_id: int
     invitee_nickname: Optional[str] = None
     invitee_avatar: Optional[str] = None
+    inviter_real_name: Optional[str] = None
+    relation_type: Optional[str] = None
     max_uses: int
     used_count: int
     expires_at: datetime

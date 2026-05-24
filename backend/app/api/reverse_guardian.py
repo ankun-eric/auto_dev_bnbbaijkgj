@@ -7,8 +7,9 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime, timedelta
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +18,7 @@ from app.core.security import get_current_user
 from app.models.models import (
     FamilyManagement,
     FamilyMember,
+    HealthProfile,
     ManagementOperationLog,
     Notification,
     NotificationType,
@@ -170,6 +172,7 @@ async def remove_guardian(
 
 @router.post("/invite", response_model=ReverseInviteCreateResponse)
 async def create_reverse_invite(
+    relation_type: Optional[str] = Body(None, embed=True),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -196,6 +199,7 @@ async def create_reverse_invite(
         max_uses=MAX_INVITE_USES,
         used_count=0,
         expires_at=expires_at,
+        relation_type=relation_type,
     )
     db.add(invitation)
     await db.flush()
@@ -234,6 +238,16 @@ async def get_reverse_invite_detail(
     )
     invitee = invitee_result.scalar_one_or_none()
 
+    # 查询邀请人(invitee_user_id)的主健康档案获取真实姓名
+    invitee_hp_result = await db.execute(
+        select(HealthProfile).where(
+            HealthProfile.user_id == invitation.invitee_user_id,
+            HealthProfile.family_member_id.is_(None),
+        )
+    )
+    invitee_main_hp = invitee_hp_result.scalar_one_or_none()
+    inviter_real_name = invitee_main_hp.name if invitee_main_hp else None
+
     check_result: str | None = None
     if invitation.status == "expired" or (invitation.status == "pending" and invitation.expires_at < datetime.utcnow()):
         check_result = "expired"
@@ -260,6 +274,8 @@ async def get_reverse_invite_detail(
         invitee_user_id=invitation.invitee_user_id,
         invitee_nickname=invitee.nickname if invitee else None,
         invitee_avatar=invitee.avatar if invitee else None,
+        inviter_real_name=inviter_real_name,
+        relation_type=invitation.relation_type,
         max_uses=invitation.max_uses,
         used_count=invitation.used_count,
         expires_at=invitation.expires_at,

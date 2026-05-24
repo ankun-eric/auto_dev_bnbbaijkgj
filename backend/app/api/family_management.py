@@ -17,6 +17,7 @@ from app.models.models import (
     ManagementOperationLog,
     Notification,
     NotificationType,
+    SystemConfig,
     SystemMessage,
     User,
 )
@@ -107,7 +108,7 @@ async def create_invitation(
         member = FamilyMember(
             user_id=current_user.id,
             nickname=data.nickname or "",
-            relationship_type=data.relationship_type,
+            relationship_type=data.relationship_type or data.relation_type,
             relation_type_id=data.relation_type_id,
             is_self=False,
             avatar_color_index=existing_count % 5,
@@ -160,6 +161,7 @@ async def create_invitation(
         member_id=member.id,
         status="pending",
         expires_at=expires_at,
+        relation_type=data.relation_type,
     )
     db.add(invitation)
     await db.flush()
@@ -224,6 +226,16 @@ async def get_invitation_detail(
         select(User).where(User.id == invitation.inviter_user_id)
     )
     inviter = inviter_result.scalar_one_or_none()
+
+    # 查询邀请人的主健康档案获取真实姓名
+    inviter_hp_result = await db.execute(
+        select(HealthProfile).where(
+            HealthProfile.user_id == invitation.inviter_user_id,
+            HealthProfile.family_member_id.is_(None),
+        )
+    )
+    inviter_main_hp = inviter_hp_result.scalar_one_or_none()
+    inviter_real_name = inviter_main_hp.name if inviter_main_hp else None
 
     member_result = await db.execute(
         select(FamilyMember).where(FamilyMember.id == invitation.member_id)
@@ -312,9 +324,12 @@ async def get_invitation_detail(
         inviter_nickname=inviter.nickname if inviter else None,
         inviter_avatar=inviter.avatar if inviter else None,
         inviter_phone=inviter.phone if inviter else None,
+        inviter_real_name=inviter_real_name,
         member_id=invitation.member_id,
         member_nickname=member.nickname if member else None,
         relationship_type=member.relationship_type if member else None,
+        relation_type=invitation.relation_type,
+        invite_type="normal",
         expires_at=invitation.expires_at,
         created_at=invitation.created_at,
         is_self_invite=is_self_invite,
@@ -796,3 +811,67 @@ async def list_management_logs(
         ))
 
     return {"items": [item.model_dump() for item in items], "total": total, "page": page, "page_size": page_size}
+
+
+# ── 公开协议接口 ──
+
+HEALTH_DATA_AUTH_PROTOCOL_DEFAULT = """《宾尼小康健康数据授权协议》
+
+第一条 协议概述
+本协议用于规范"宾尼小康AI健康管家"平台中家庭成员之间的健康数据共享行为。当您接受家庭成员的邀请加入守护关系后，双方将按照本协议约定的范围和方式共享健康数据。
+
+第二条 授权数据范围
+接受邀请后，授权共享的数据包括：
+- 基础健康档案：姓名、性别、年龄、身高、体重、血型等基本信息
+- 体检报告：历次上传的体检报告及AI解读结果
+- 用药计划：当前及历史用药方案、服药提醒记录
+- 健康指标：血压、血糖、心率等日常监测数据
+- 就医资料：就诊记录、诊断报告、医嘱等信息
+- AI健康建议：系统为您生成的个性化健康建议和提醒
+
+第三条 数据使用目的
+共享的健康数据仅用于以下目的：
+- 家庭成员之间的健康关怀与互助管理
+- 紧急情况下的健康信息快速获取
+- AI健康助手基于家庭整体数据提供更精准的健康建议
+
+第四条 授权可撤回性
+- 您可以随时解除守护关系以撤回授权
+- 解除关系后，对方将无法继续查看您的健康数据
+- 已生成的历史健康建议不受影响，但不再更新
+
+第五条 数据安全保障
+- 所有健康数据均经加密传输和存储
+- 平台采用严格的访问控制机制，仅授权的家庭成员可查看
+- 平台不会将您的健康数据用于商业销售或未授权的第三方共享
+
+第六条 未成年人保护
+- 未满14周岁的用户，其健康数据授权须由监护人代为操作
+- 14~18周岁的用户，建议在监护人知情同意下进行授权
+
+第七条 协议变更
+- 本协议内容如有变更，平台将通过系统通知或页面公告的方式告知
+- 变更后继续使用守护功能即视为同意修改后的协议
+
+第八条 争议解决
+因本协议引起的争议，双方应友好协商解决。协商不成的，任何一方均可向平台所在地有管辖权的人民法院提起诉讼。"""
+
+public_protocol_router = APIRouter(tags=["公开协议"])
+
+
+@public_protocol_router.get("/api/public/protocol/{protocol_key}")
+async def get_public_protocol(protocol_key: str, db: AsyncSession = Depends(get_db)):
+    """获取指定协议的内容（公开接口，不需要登录）"""
+    valid_keys = ["userAgreement", "privacyPolicy", "healthDisclaimer", "healthDataAuthorization"]
+    if protocol_key not in valid_keys:
+        raise HTTPException(status_code=404, detail="协议不存在")
+    config_key = f"protocol_{protocol_key}"
+    result = await db.execute(select(SystemConfig).where(SystemConfig.config_key == config_key))
+    config = result.scalar_one_or_none()
+    if config:
+        content = config.config_value
+    elif protocol_key == "healthDataAuthorization":
+        content = HEALTH_DATA_AUTH_PROTOCOL_DEFAULT
+    else:
+        content = ""
+    return {"key": protocol_key, "content": content}

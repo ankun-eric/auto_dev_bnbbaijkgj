@@ -1967,6 +1967,22 @@ async def update_push_settings(
     )
 
 
+@router.get("/settings/protocol")
+async def get_protocol_settings(
+    current_user=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(SystemConfig).where(SystemConfig.config_type == "protocol")
+    )
+    configs = result.scalars().all()
+    data = {}
+    for cfg in configs:
+        key = cfg.config_key.replace("protocol_", "", 1)
+        data[key] = cfg.config_value or ""
+    return data
+
+
 @router.post("/settings/protocol")
 async def update_protocol_settings(
     data: dict = Body(...),
