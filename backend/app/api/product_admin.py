@@ -238,6 +238,8 @@ async def _build_product_response_dict(db: AsyncSession, product: Product) -> di
         "points_exchangeable": bool(product.points_exchangeable),
         "points_price": product.points_price or 0,
         "points_deductible": bool(product.points_deductible),
+        # [付费会员体系 PRD v1.1] 是否支持付费会员折扣
+        "is_member_discount_eligible": bool(getattr(product, "is_member_discount_eligible", False)),
         "redeem_count": product.redeem_count or 1,
         "appointment_mode": am or "none",
         "purchase_appointment_mode": pam,
@@ -596,6 +598,8 @@ async def admin_create_product(
         points_exchangeable=data.points_exchangeable,
         points_price=data.points_price,
         points_deductible=data.points_deductible,
+        # [付费会员体系 PRD v1.1] 是否支持付费会员折扣
+        is_member_discount_eligible=bool(getattr(data, "is_member_discount_eligible", False) or False),
         redeem_count=data.redeem_count,
         appointment_mode=data.appointment_mode,
         purchase_appointment_mode=data.purchase_appointment_mode,

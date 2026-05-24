@@ -3090,6 +3090,13 @@ class Product(Base):
     points_exchangeable = mapped_column(Boolean, default=False)
     points_price = mapped_column(Integer, default=0)
     points_deductible = mapped_column(Boolean, default=False)
+    # [付费会员体系 PRD v1.1] 是否支持付费会员折扣
+    # 勾选后，付费会员下单本商品时按其所在套餐的全局折扣率执行；
+    # 与 points_deductible 同时为 true 时，下单收银台二选一不可叠加
+    is_member_discount_eligible = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0",
+        comment="是否支持付费会员折扣（v1.1 新增）",
+    )
     redeem_count = mapped_column(Integer, default=1)
     appointment_mode = mapped_column(Enum(AppointmentMode), default=AppointmentMode.none)
     purchase_appointment_mode = mapped_column(Enum(PurchaseAppointmentMode), nullable=True)

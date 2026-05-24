@@ -48,6 +48,8 @@ interface Product {
   points_exchangeable: boolean;
   points_price: number;
   points_deductible: boolean;
+  // [付费会员体系 PRD v1.1] 是否支持付费会员折扣
+  is_member_discount_eligible: boolean;
   redeem_count: number;
   appointment_mode: string;
   purchase_appointment_mode: string | null;
@@ -114,6 +116,7 @@ function mapProduct(raw: Record<string, any>): Product {
     points_exchangeable: Boolean(raw.points_exchangeable),
     points_price: Number(raw.points_price ?? 0),
     points_deductible: Boolean(raw.points_deductible),
+    is_member_discount_eligible: Boolean(raw.is_member_discount_eligible),
     redeem_count: Number(raw.redeem_count ?? 1),
     appointment_mode: String(raw.appointment_mode ?? 'none'),
     purchase_appointment_mode: raw.purchase_appointment_mode ? String(raw.purchase_appointment_mode) : null,
@@ -241,7 +244,8 @@ type TabKey = 'base' | 'tags' | 'points' | 'appointment' | 'sort';
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'base', label: '基础信息' },
   { key: 'tags', label: '标签设置' },
-  { key: 'points', label: '积分设置' },
+  // [付费会员体系 PRD v1.1] 原「积分设置」改名为「会员与积分」
+  { key: 'points', label: '会员与积分' },
   { key: 'appointment', label: '预约与核销' },
   { key: 'sort', label: '排序与权重' },
 ];
@@ -684,6 +688,7 @@ export default function ProductsPage() {
       appointment_mode: 'none',
       points_exchangeable: false,
       points_deductible: false,
+      is_member_discount_eligible: false,
       spec_mode: 1,
       include_today: true,
       // [核销订单过期+改期规则优化 v1.0] 默认允许改期
@@ -717,6 +722,7 @@ export default function ProductsPage() {
       points_exchangeable: detail.points_exchangeable,
       points_price: detail.points_price,
       points_deductible: detail.points_deductible,
+      is_member_discount_eligible: !!detail.is_member_discount_eligible,
       redeem_count: detail.redeem_count,
       appointment_mode: detail.appointment_mode,
       purchase_appointment_mode: detail.purchase_appointment_mode || undefined,
@@ -997,6 +1003,7 @@ export default function ProductsPage() {
       points_exchangeable: values.points_exchangeable || false,
       points_price: values.points_price ?? 0,
       points_deductible: values.points_deductible || false,
+      is_member_discount_eligible: values.is_member_discount_eligible || false,
       redeem_count: values.redeem_count ?? 1,
       appointment_mode: mode,
       purchase_appointment_mode: mode !== 'none' ? values.purchase_appointment_mode : null,
@@ -1514,19 +1521,46 @@ export default function ProductsPage() {
           })}
         </div>
 
-        {/* ── 积分设置 Tab ── */}
+        {/* ── 会员与积分 Tab（PRD v1.1：原"积分设置"升级）── */}
         <div style={tabStyle('points')}>
+          {/* 会员折扣分组 */}
+          <div style={{ padding: '4px 0 8px', color: '#666', fontWeight: 500 }}>会员折扣</div>
+          <Form.Item
+            label="是否支持付费会员折扣"
+            name="is_member_discount_eligible"
+            valuePropName="checked"
+            extra="勾选后，付费会员下单本商品时按其所在套餐的全局折扣率执行"
+          >
+            <Switch />
+          </Form.Item>
+
+          {/* 积分分组 */}
+          <div style={{ padding: '12px 0 8px', color: '#666', fontWeight: 500, borderTop: '1px solid #f0f0f0' }}>积分</div>
           <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item label="可积分兑换" name="points_exchangeable" valuePropName="checked"><Switch /></Form.Item>
+            <Col span={12}>
+              <Form.Item
+                label="是否进入积分商城（纯积分兑换）"
+                name="points_exchangeable"
+                valuePropName="checked"
+                extra="勾选后，本商品同时显示在【积分商城】，由【积分商城管理】另行配置兑换积分"
+              >
+                <Switch />
+              </Form.Item>
             </Col>
-            <Col span={8}>
-              <Form.Item label="积分价格" name="points_price"><InputNumber min={0} style={{ width: '100%' }} /></Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item label="可积分抵扣" name="points_deductible" valuePropName="checked"><Switch /></Form.Item>
+            <Col span={12}>
+              <Form.Item label="积分商城兑换所需积分" name="points_price">
+                <InputNumber min={0} style={{ width: '100%' }} />
+              </Form.Item>
             </Col>
           </Row>
+          <Form.Item
+            label="是否支持积分抵扣订单金额"
+            name="points_deductible"
+            valuePropName="checked"
+            extra='勾选后，普通商城下单本商品时可用积分按系统当前比例抵扣订单金额，单笔最多抵扣订单金额 20%；与"付费会员折扣"不可叠加，由用户在收银台二选一'
+          >
+            <Switch />
+          </Form.Item>
         </div>
 
         {/* ── 预约与核销 Tab ── */}

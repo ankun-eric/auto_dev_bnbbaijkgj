@@ -204,6 +204,8 @@ class ProductCreate(BaseModel):
     points_exchangeable: bool = False
     points_price: int = 0
     points_deductible: bool = False
+    # [付费会员体系 PRD v1.1] 是否支持付费会员折扣
+    is_member_discount_eligible: bool = False
     redeem_count: int = 1
     appointment_mode: str = "none"
     purchase_appointment_mode: Optional[str] = None
@@ -269,6 +271,8 @@ class ProductUpdate(BaseModel):
     points_exchangeable: Optional[bool] = None
     points_price: Optional[int] = None
     points_deductible: Optional[bool] = None
+    # [付费会员体系 PRD v1.1] 是否支持付费会员折扣（PUT 部分更新可不传）
+    is_member_discount_eligible: Optional[bool] = None
     redeem_count: Optional[int] = None
     appointment_mode: Optional[str] = None
     purchase_appointment_mode: Optional[str] = None
@@ -385,6 +389,8 @@ class ProductResponse(BaseModel):
     points_exchangeable: bool
     points_price: int
     points_deductible: bool
+    # [付费会员体系 PRD v1.1] 是否支持付费会员折扣
+    is_member_discount_eligible: bool = False
     redeem_count: int
     appointment_mode: str
     purchase_appointment_mode: Optional[str] = None

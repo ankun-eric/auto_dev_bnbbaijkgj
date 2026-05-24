@@ -2740,6 +2740,98 @@ async def _sync_guardian_ai_call_settings_v1(conn: AsyncConnection) -> None:
     ))
 
 
+async def _sync_membership_v1(conn: AsyncConnection) -> None:
+    """[付费会员体系 PRD v1.1] 创建 membership_plans / user_memberships / free_member_quota 表，
+    并给 products 表添加 is_member_discount_eligible 字段（幂等）。
+    """
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        product_cols = (
+            {col["name"] for col in inspector.get_columns("products")}
+            if "products" in tables else set()
+        )
+        return tables, product_cols
+
+    tables, product_cols = await conn.run_sync(_load)
+
+    if "membership_plans" not in tables:
+        await conn.execute(text(
+            """
+            CREATE TABLE membership_plans (
+                id INT NOT NULL AUTO_INCREMENT,
+                plan_code VARCHAR(50) NOT NULL,
+                name VARCHAR(100) NOT NULL,
+                price_monthly DECIMAL(10,2) NOT NULL DEFAULT 0,
+                price_yearly DECIMAL(10,2) NULL,
+                ai_call_quota INT NOT NULL DEFAULT 0,
+                ai_alert_quota INT NOT NULL DEFAULT 0,
+                ai_remind_quota INT NOT NULL DEFAULT 0,
+                max_guardians INT NOT NULL DEFAULT 1,
+                discount_rate FLOAT NOT NULL DEFAULT 1.0,
+                benefits_desc TEXT NULL,
+                is_active TINYINT(1) NOT NULL DEFAULT 1,
+                sort_order INT NOT NULL DEFAULT 0,
+                created_at DATETIME NULL,
+                updated_at DATETIME NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY uk_membership_plan_code (plan_code)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """
+        ))
+
+    if "user_membership_subs" not in tables:
+        await conn.execute(text(
+            """
+            CREATE TABLE user_membership_subs (
+                id INT NOT NULL AUTO_INCREMENT,
+                user_id INT NOT NULL,
+                plan_id INT NOT NULL,
+                billing_cycle VARCHAR(20) NOT NULL DEFAULT 'monthly',
+                start_at DATETIME NOT NULL,
+                expire_at DATETIME NOT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'active',
+                paid_amount DECIMAL(10,2) NULL,
+                auto_renew TINYINT(1) NOT NULL DEFAULT 0,
+                created_at DATETIME NULL,
+                updated_at DATETIME NULL,
+                PRIMARY KEY (id),
+                INDEX ix_user_membership_subs_user (user_id),
+                INDEX ix_user_membership_subs_plan (plan_id),
+                INDEX ix_user_membership_subs_status_expire (user_id, status, expire_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """
+        ))
+
+    if "free_member_quota" not in tables:
+        await conn.execute(text(
+            """
+            CREATE TABLE free_member_quota (
+                id INT NOT NULL,
+                ai_call_quota INT NOT NULL DEFAULT 0,
+                ai_alert_quota INT NOT NULL DEFAULT 3,
+                ai_remind_quota INT NOT NULL DEFAULT 0,
+                max_guardians INT NOT NULL DEFAULT 1,
+                benefits_desc TEXT NULL,
+                updated_at DATETIME NULL,
+                PRIMARY KEY (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """
+        ))
+        # 插入默认配置 id=1
+        await conn.execute(text(
+            "INSERT INTO free_member_quota (id, ai_call_quota, ai_alert_quota, ai_remind_quota, max_guardians, benefits_desc, updated_at) "
+            "VALUES (1, 0, 3, 0, 1, '免费会员默认权益：异常告警 3 次/月', NOW()) "
+            "ON DUPLICATE KEY UPDATE id=id"
+        ))
+
+    if "products" in tables and "is_member_discount_eligible" not in product_cols:
+        await conn.execute(text(
+            "ALTER TABLE products ADD COLUMN is_member_discount_eligible TINYINT(1) NOT NULL DEFAULT 0 "
+            "COMMENT '是否支持付费会员折扣 (PRD v1.1)'"
+        ))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -2807,6 +2899,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_guardian_ai_call_settings_v1(conn)
     # [PRD-HEALTH-ARCHIVE-OPTIM-V2 2026-05-18] family_members 新增 avatar_color_index/ai_call_enabled/ai_call_timing/guardian_alert_minutes
     await _sync_family_members_archive_optim_v2(conn)
+    # [付费会员体系 PRD v1.1 2026-05-24] membership_plans / user_memberships / free_member_quota + products.is_member_discount_eligible
+    await _sync_membership_v1(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

@@ -33,6 +33,7 @@ import {
   IdcardOutlined,
   KeyOutlined,
   CreditCardOutlined,
+  CrownOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import type { MenuProps } from 'antd';
@@ -174,7 +175,17 @@ const menuItems: MenuItem[] = [
     children: [
       { key: '/points/rules', label: '积分规则' },
       { key: '/points/mall', label: '积分商城' },
-      { key: '/points/levels', label: '会员等级' },
+      // [付费会员体系 PRD v1.1] 旧「会员等级」（依积分自动划档）已废弃，改用付费会员套餐
+      // 入口下线，菜单仅保留积分规则与积分商城
+    ],
+  },
+  {
+    key: 'membership',
+    icon: <CrownOutlined />,
+    label: '会员管理',
+    children: [
+      { key: '/membership/plans', label: '付费会员套餐' },
+      { key: '/membership/free-quota', label: '免费会员额度' },
     ],
   },
   {

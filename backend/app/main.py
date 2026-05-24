@@ -2346,6 +2346,11 @@ app.include_router(_merchant_dashboard.router)
 from app.api import common as _common_api  # noqa: E402
 app.include_router(_common_api.router)
 
+# [付费会员体系 PRD v1.1] 付费会员套餐 + 用户订阅 + 收银台优惠计算
+from app.api import membership as _membership  # noqa: E402
+app.include_router(_membership.admin_router)
+app.include_router(_membership.user_router)
+
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
