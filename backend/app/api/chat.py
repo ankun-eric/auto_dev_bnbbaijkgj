@@ -18,6 +18,7 @@ from app.models.models import (
     AiSensitiveWord,
     ChatMessage,
     ChatSession,
+    CheckupReport,
     FamilyMember,
     HealthProfile,
     MessageRole,
@@ -837,6 +838,82 @@ async def _stream_drug_identify(
     )
 
 
+async def _auto_create_report_and_sync(
+    *,
+    session_id: int,
+    user_id: int,
+    family_member_id: Optional[int],
+    final_meta: dict,
+    ai_text: str,
+    db: AsyncSession,
+) -> None:
+    """[BUG_FIX_REPORT_HISTORY_AUTO_SYNC_20260524]
+    chat 路径报告解读成功后：
+      1. 自动创建 CheckupReport 记录
+      2. 回写 ChatSession.report_id
+      3. 调用 _auto_sync_report_history 写入 ReportHistory + MedicalRecord
+
+    仅在 card_type == "report_interpret" 时调用（OCR 失败 / 兜底场景不触发）。
+    """
+    import logging as _logging
+    _logger = _logging.getLogger(__name__)
+
+    try:
+        from app.core.database import async_session as _async_session
+        from app.api.report_interpret import _auto_sync_report_history
+
+        meta_image_urls = final_meta.get("image_urls") or []
+        meta_report_title = final_meta.get("report_title") or ""
+        meta_report_date = final_meta.get("report_date") or ""
+        meta_ocr_text = final_meta.get("ocr_text") or ""
+
+        report_date_parsed = None
+        if meta_report_date:
+            try:
+                from datetime import date as _date_type
+                report_date_parsed = datetime.strptime(meta_report_date, "%Y-%m-%d").date()
+            except Exception:
+                pass
+
+        async with _async_session() as sync_db:
+            report = CheckupReport(
+                user_id=user_id,
+                family_member_id=family_member_id,
+                title=meta_report_title or f"{datetime.utcnow().date().strftime('%Y-%m-%d')} 体检报告",
+                report_date=report_date_parsed,
+                report_type="体检报告",
+                file_url=meta_image_urls[0] if meta_image_urls else None,
+                file_urls=meta_image_urls if meta_image_urls else None,
+                ocr_result={"text": meta_ocr_text} if meta_ocr_text else None,
+                ai_analysis=ai_text,
+                status="analyzed",
+            )
+            sync_db.add(report)
+            await sync_db.flush()
+            await sync_db.refresh(report)
+
+            sess = await sync_db.get(ChatSession, session_id)
+            if sess:
+                try:
+                    sess.report_id = report.id  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+                try:
+                    report.interpret_session_id = session_id
+                except Exception:
+                    pass
+            await sync_db.commit()
+
+            _logger.info(
+                "auto_create_report: created CheckupReport id=%s for session=%s user=%s",
+                report.id, session_id, user_id,
+            )
+
+        await _auto_sync_report_history(session_id, ai_text)
+    except Exception as e:
+        _logger.error("_auto_create_report_and_sync error session=%s: %s", session_id, e, exc_info=True)
+
+
 async def _stream_report_interpret(
     *,
     session: ChatSession,
@@ -923,6 +1000,24 @@ async def _stream_report_interpret(
                         ensure_ascii=False,
                     )
                     yield f"event: done\ndata: {done_data}\n\n"
+
+                    # [BUG_FIX_REPORT_HISTORY_AUTO_SYNC_20260524]
+                    # chat 路径解读成功后自动创建 CheckupReport + 写入 ReportHistory + MedicalRecord
+                    if final_meta.get("card_type") == "report_interpret":
+                        try:
+                            await _auto_create_report_and_sync(
+                                session_id=session_id,
+                                user_id=user.id,
+                                family_member_id=family_member_id,
+                                final_meta=final_meta,
+                                ai_text=full_text,
+                                db=db,
+                            )
+                        except Exception:
+                            import logging as _logging
+                            _logging.getLogger(__name__).error(
+                                "auto_create_report_and_sync failed session=%s", session_id, exc_info=True
+                            )
         except Exception as e:
             err_data = json.dumps(
                 {"content": f"报告解读服务异常：{str(e)[:160]}"},
