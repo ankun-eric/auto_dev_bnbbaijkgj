@@ -1320,7 +1320,7 @@ function HealthProfileV2PageInner() {
             : 'linear-gradient(135deg, #4A9EE0 0%, #3B82F6 100%)';
           return (
             <div
-              onClick={() => router.push(`/ai-home/medication-reminder${memberQs}`)}
+              onClick={() => router.push(`/ai-home/medication-reminder?consultant_id=${consultantIdParam}${memberQs ? `&${memberQs.slice(1)}` : ''}`)}
               style={{
                 background: cardBg,
                 borderRadius: 12, padding: '14px 16px',
@@ -1329,7 +1329,7 @@ function HealthProfileV2PageInner() {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: allDone ? 0 : 6 }}>
                 <span style={{ fontSize: 15, fontWeight: 700 }}>💊 用药提醒</span>
-                <span onClick={(e) => { e.stopPropagation(); router.push(`/ai-home/medication-reminder${memberQs}`); }}
+                <span onClick={(e) => { e.stopPropagation(); router.push(`/ai-home/medication-reminder?consultant_id=${consultantIdParam}${memberQs ? `&${memberQs.slice(1)}` : ''}`); }}
                   style={{ fontSize: 13, opacity: 0.9 }}>全部 ›</span>
               </div>
               {allDone ? (

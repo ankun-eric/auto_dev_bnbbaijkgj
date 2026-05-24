@@ -17,6 +17,8 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
+import GreenNavBar from '@/components/GreenNavBar';
+import { BH_TOKENS } from '@/lib/health-tokens';
 
 type TabKey = 'in_progress' | 'not_started' | 'finished';
 
@@ -95,30 +97,40 @@ function MedicationPlansListPageInner() {
       const body = res.data || res;
       const list: PlanItem[] = Array.isArray(body.items) ? body.items : [];
       setItems(list);
-    } catch (e) {
-      showToast('加载失败', 'fail');
+    } catch (e: any) {
+      // [BUG-HEALTH-PROFILE-MED-20260525 Bug1] 精细化错误文案
+      const status = e?.response?.status;
+      showToast(
+        status === 500 ? '该列数据异常，请联系客服' : '加载失败，请稍后重试',
+        'fail',
+      );
       setItems([]);
     } finally {
       setLoading(false);
     }
   }, [buildQuery]);
 
+  // [BUG-HEALTH-PROFILE-MED-20260525 Bug1] 改 Promise.allSettled，单个 Tab 失败不拖垮全部
   const loadCounts = useCallback(async () => {
-    try {
-      const results = await Promise.all(
-        TABS.map((t) =>
-          api.get(buildQuery(t.id)).then((r: any) => {
-            const body = r.data || r;
-            return [t.id, Array.isArray(body.items) ? body.items.length : 0] as [TabKey, number];
-          }),
-        ),
-      );
-      const c: Record<TabKey, number> = { in_progress: 0, not_started: 0, finished: 0 };
-      results.forEach(([k, v]) => (c[k] = v));
-      setCounts(c);
-    } catch {
-      /* ignore */
-    }
+    const results = await Promise.allSettled(
+      TABS.map((t) =>
+        api.get(buildQuery(t.id)).then((r: any) => {
+          const body = r.data || r;
+          return [t.id, Array.isArray(body.items) ? body.items.length : 0] as [TabKey, number];
+        }),
+      ),
+    );
+    const c: Record<TabKey, number> = { in_progress: 0, not_started: 0, finished: 0 };
+    results.forEach((res, idx) => {
+      if (res.status === 'fulfilled') {
+        const [k, v] = res.value;
+        c[k] = v;
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn('[MedPlansList] count failed:', TABS[idx].id, res.reason);
+      }
+    });
+    setCounts(c);
   }, [buildQuery]);
 
   useEffect(() => {
@@ -214,51 +226,46 @@ function MedicationPlansListPageInner() {
 
   return (
     <div data-testid="med-plans-list" style={{ minHeight: '100vh', background: '#F4F6F9', paddingBottom: 100 }}>
+      {/* [BUG-HEALTH-PROFILE-MED-20260525 Bug2] 顶部返回栏统一使用 GreenNavBar，与「就医资料」页样式一致 */}
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '12px 16px',
-          background: 'linear-gradient(180deg, #0EA5E9, #38BDF8)',
-          boxShadow: '0 1px 4px rgba(14,165,233,0.2)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 60,
+          background: BH_TOKENS.brand50,
+          boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
         }}
       >
-        <span
-          onClick={goBack}
-          style={{ fontSize: 24, color: '#fff', cursor: 'pointer', padding: 4 }}
-          data-testid="med-plans-back"
+        <GreenNavBar back={goBack}>用药提醒</GreenNavBar>
+        {/* Tabs */}
+        <div
+          data-testid="med-plans-tabs"
+          style={{ display: 'flex', background: '#fff', borderBottom: '1px solid #f1f5f9' }}
         >
-          ←
-        </span>
-        <span style={{ flex: 1, textAlign: 'center', fontSize: 16, fontWeight: 600, color: '#fff' }}>用药计划</span>
-        <span style={{ width: 32 }} />
-      </div>
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', background: '#fff', padding: '0 8px' }}>
-        {TABS.map((t) => {
-          const active = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              data-testid={`med-tab-${t.id}`}
-              style={{
-                flex: 1,
-                padding: '12px 0',
-                background: 'transparent',
-                border: 'none',
-                borderBottom: active ? `2px solid ${BLUE}` : '2px solid transparent',
-                color: active ? BLUE : SUB,
-                fontWeight: active ? 700 : 500,
-                fontSize: 14,
-                cursor: 'pointer',
-              }}
-            >
-              {t.label} {counts[t.id]}
-            </button>
-          );
-        })}
+          {TABS.map((t) => {
+            const active = tab === t.id;
+            return (
+              <div
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                data-testid={`med-tab-${t.id}`}
+                style={{
+                  flex: 1,
+                  textAlign: 'center',
+                  padding: '12px 0',
+                  fontSize: 14,
+                  fontWeight: active ? 600 : 400,
+                  color: active ? BH_TOKENS.brand600 : '#6B7280',
+                  borderBottom: active ? `2px solid ${BH_TOKENS.brand500}` : '2px solid transparent',
+                  cursor: 'pointer',
+                  transition: 'all 200ms ease',
+                }}
+              >
+                {t.label} {counts[t.id] > 0 ? counts[t.id] : ''}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div style={{ padding: '12px 16px' }}>

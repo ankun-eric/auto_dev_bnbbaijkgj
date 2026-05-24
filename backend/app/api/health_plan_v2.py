@@ -471,7 +471,12 @@ async def list_medications_flat(
                     MedicationReminder.status == "active",
                     MedicationReminder.end_date.is_not(None),
                     MedicationReminder.end_date < today,
-                    MedicationReminder.long_term != True,  # noqa: E712
+                    # [BUG-HEALTH-PROFILE-MED-20260525 Bug1] 安全比较：NULL 视为非 long_term（即“非长期”），
+                    # 避免某些数据库 NULL != True 三值逻辑导致历史数据被错误过滤。
+                    or_(
+                        MedicationReminder.long_term.is_(None),
+                        MedicationReminder.long_term == False,  # noqa: E712
+                    ),
                 ),
             ),
         ).order_by(MedicationReminder.end_date.desc().nullslast(), MedicationReminder.created_at.desc())
@@ -510,7 +515,11 @@ async def list_medications_flat(
     reminders = (await db.execute(stmt)).scalars().all()
 
     items: list[dict] = []
+    # [BUG-HEALTH-PROFILE-MED-20260525 Bug1] 单条记录序列化失败时跳过该条，避免拖垮整个接口
+    import logging as _logging
+    _logger = _logging.getLogger(__name__)
     for r in reminders:
+      try:
         schedule = _schedule_from_reminder(r)
         is_today = bool(schedule)
         if segment == "today" and not is_today:
@@ -560,6 +569,16 @@ async def list_medications_flat(
             "family_member_id": r.family_member_id,
             "generic_name": r.generic_name,
         })
+      except Exception as _ex:  # noqa: BLE001
+        # [BUG-HEALTH-PROFILE-MED-20260525 Bug1] 跳过脏数据，记录日志方便运营修复
+        try:
+            _logger.warning(
+                "skip bad medication reminder id=%s user_id=%s err=%s",
+                getattr(r, "id", None), getattr(r, "user_id", None), _ex,
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        continue
 
     return {
         "items": items,
