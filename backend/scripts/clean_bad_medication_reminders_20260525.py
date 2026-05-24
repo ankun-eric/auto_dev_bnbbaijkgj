@@ -33,11 +33,11 @@ async def _scan() -> None:
     # 延迟导入避免脚本头部依赖 backend.app
     from sqlalchemy import select  # noqa: WPS433
 
-    from app.core.database import AsyncSessionLocal  # noqa: WPS433
+    from app.core.database import async_session  # noqa: WPS433
     from app.models.models import MedicationReminder  # noqa: WPS433
 
     bad_ids: list[tuple[int, str]] = []
-    async with AsyncSessionLocal() as db:
+    async with async_session() as db:
         rows = (await db.execute(select(MedicationReminder))).scalars().all()
         for r in rows:
             reasons: list[str] = []
