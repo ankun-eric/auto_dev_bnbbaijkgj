@@ -2070,6 +2070,10 @@ app.include_router(plan.router)
 app.include_router(family.router)
 app.include_router(family_management.router)
 app.include_router(family_management.public_protocol_router)
+
+# [守护人体系 PRD v1.1 2026-05-25] guardian_system 路由（主/普通守护人、转移、串行外呼、额度）
+from app.api import guardian_system as _guardian_system  # noqa: E402
+app.include_router(_guardian_system.router)
 # [PRD-REVERSE-GUARDIAN-V1] 反向守护邀请
 from app.api import reverse_guardian as _reverse_guardian  # noqa: E402
 app.include_router(_reverse_guardian.router)

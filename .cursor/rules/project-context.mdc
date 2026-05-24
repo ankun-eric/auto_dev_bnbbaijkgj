@@ -27,7 +27,40 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: 邀请页面数据关联与解除守护逻辑讨论 (2026-05-24 20:38)
+## Latest Update: 邀请页与守护人体系 PRD v1.1 全量开发部署 (2026-05-25)
+
+### 一句话结论
+按《邀请页与守护人体系 PRD v1.1》完成"守护人体系"全量开发与部署：FamilyManagement 新增 `is_primary_guardian` / `priority_order` 字段，新建 `guardian_transfer_requests` / `guardian_alert_quota_usage` 两表，新增 11 个 API 端点（守护人列表 / 主守护人转移 / 串行外呼模拟 / 告警额度 / 邀请记录），新建 H5 `/guardian-system` 页面与管理后台 `/admin/guardian-relations` 页面。Docker 容器全量重建并通过 10/10 单元测试。
+
+### 核心变更
+
+#### 后端
+- `backend/app/api/guardian_system.py` — 新增（守护人体系核心 API，含 11 个端点 + 后台查询）
+- `backend/app/models/models.py` — FamilyManagement 新增 `is_primary_guardian` / `priority_order`；新增 `GuardianTransferRequest` / `GuardianAlertQuotaUsage` 两个 ORM 模型
+- `backend/app/services/schema_sync.py` — 新增 `_sync_guardian_system_v1` 自动迁移（含历史数据回填主守护人）
+- `backend/app/main.py` — 注册 guardian_system 路由
+- `backend/tests/test_guardian_system_v1.py` — 10 条单元测试，全部通过
+
+#### H5 前端
+- `h5-web/src/app/guardian-system/page.tsx` — 新增（守护人体系总览页：Tab 切换、角色徽章、转移操作、告警额度、邀请记录）
+
+#### 管理后台
+- `admin-web/src/app/(admin)/guardian-relations/page.tsx` — 新增（守护关系查询页：手机号/昵称模糊搜索、主守护人筛选、付费/免费徽章）
+
+### 部署验证（已通过）
+- 部署时间：2026-05-25
+- backend 容器重启完成，schema 自动迁移：`is_primary_guardian` / `priority_order` 字段、`guardian_transfer_requests` / `guardian_alert_quota_usage` 表 EXISTS
+- 21 个 guardian 相关 API 端点已注册（含原 reverse-guardian、health-archive 等）
+- h5-web 和 admin-web 已 rebuild + recreate
+- HTTP 验证：`/guardian-system/` 200、`/admin/guardian-relations/` 200
+- 服务器内 pytest test_guardian_system_v1.py：10 passed
+
+### 用户体验手册
+- `user_docs/邀请页与守护人体系.md`
+
+---
+
+## Previous Update: 邀请页面数据关联与解除守护逻辑讨论 (2026-05-24 20:38)
 
 ### 一句话结论
 继续细化邀请页面优化需求：确认对方同意后数据关联方式（引用视图非复制）、编辑权限（双方可编辑）、数据合并冲突策略（对方本人优先）、解除守护后Tab处理（建议保留快照）、同一被邀请人角色唯一性校验。

@@ -2955,6 +2955,11 @@ class FamilyManagement(Base):
     managed_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     managed_member_id = mapped_column(Integer, ForeignKey("family_members.id"), nullable=True)
     status = mapped_column(String(20), default="active")
+    # [PRD-GUARDIAN-V1 2026-05-25] 主守护人/普通守护人 + 串行外呼优先级
+    is_primary_guardian = mapped_column(Boolean, default=False, nullable=False, server_default="0",
+                                        comment="是否为该被守护人的主守护人（全局唯一）")
+    priority_order = mapped_column(Integer, default=100, nullable=False, server_default="100",
+                                   comment="串行电话外呼优先级，数字越小越靠前；主守护人固定为 0")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     cancelled_at = mapped_column(DateTime, nullable=True)
     cancelled_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
@@ -4579,6 +4584,43 @@ class ReportHistory(Base):
 
     user = relationship("User")
     family_member = relationship("FamilyMember")
+
+
+# ──────────────── 守护人体系 PRD v1.1 ────────────────
+
+
+class GuardianTransferRequest(Base):
+    """[PRD-GUARDIAN-V1 2026-05-25] 主守护人转移请求。
+
+    现任主守护人发起 → 被守护人确认 / 拒绝。
+    """
+    __tablename__ = "guardian_transfer_requests"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    managed_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    from_management_id = mapped_column(Integer, ForeignKey("family_management.id"), nullable=False)
+    to_management_id = mapped_column(Integer, ForeignKey("family_management.id"), nullable=False)
+    status = mapped_column(String(20), default="pending", nullable=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    expires_at = mapped_column(DateTime, nullable=True)
+    approved_at = mapped_column(DateTime, nullable=True)
+    cancelled_at = mapped_column(DateTime, nullable=True)
+
+
+class GuardianAlertQuotaUsage(Base):
+    """[PRD-GUARDIAN-V1 2026-05-25] 异常告警免费电话额度使用记录。
+
+    每次成功外呼即写一行；按月统计 user_id 已使用条数。
+    """
+    __tablename__ = "guardian_alert_quota_usage"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True,
+                            comment="消耗额度的守护人 user_id")
+    managed_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True,
+                                    comment="触发告警的被守护人 user_id")
+    used_at = mapped_column(DateTime, default=datetime.utcnow)
+    call_type = mapped_column(String(20), default="alert", nullable=False)
 
 
 # ──────────────── 反向守护邀请 ────────────────

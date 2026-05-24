@@ -2832,6 +2832,88 @@ async def _sync_membership_v1(conn: AsyncConnection) -> None:
         ))
 
 
+async def _sync_guardian_system_v1(conn: AsyncConnection) -> None:
+    """[守护人体系 PRD v1.1 2026-05-25] 在 family_management 表加字段，新建转移与额度表（幂等）。"""
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        fm_cols = (
+            {col["name"] for col in inspector.get_columns("family_management")}
+            if "family_management" in tables else set()
+        )
+        return tables, fm_cols
+
+    tables, fm_cols = await conn.run_sync(_load)
+
+    if "family_management" in tables:
+        if "is_primary_guardian" not in fm_cols:
+            await conn.execute(text(
+                "ALTER TABLE family_management ADD COLUMN is_primary_guardian TINYINT(1) "
+                "NOT NULL DEFAULT 0 COMMENT '是否主守护人(每被守护人唯一) PRD-GUARDIAN-V1'"
+            ))
+        if "priority_order" not in fm_cols:
+            await conn.execute(text(
+                "ALTER TABLE family_management ADD COLUMN priority_order INT NOT NULL DEFAULT 100 "
+                "COMMENT '串行外呼优先级(主=0,其他越小越优先) PRD-GUARDIAN-V1'"
+            ))
+        # 初始化历史数据：对于每个被守护人，其最早绑定的守护人设为主守护人
+        await conn.execute(text(
+            """
+            UPDATE family_management fm
+            JOIN (
+                SELECT managed_user_id, MIN(created_at) AS first_at
+                FROM family_management
+                WHERE status='active'
+                GROUP BY managed_user_id
+            ) t ON t.managed_user_id = fm.managed_user_id AND t.first_at = fm.created_at
+            SET fm.is_primary_guardian = 1, fm.priority_order = 0
+            WHERE fm.status='active'
+              AND NOT EXISTS (
+                  SELECT 1 FROM (SELECT 1) tmp
+                  WHERE fm.is_primary_guardian = 1
+              )
+            """
+        ))
+
+    if "guardian_transfer_requests" not in tables:
+        await conn.execute(text(
+            """
+            CREATE TABLE guardian_transfer_requests (
+                id INT NOT NULL AUTO_INCREMENT,
+                managed_user_id INT NOT NULL,
+                from_management_id INT NOT NULL,
+                to_management_id INT NOT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                created_at DATETIME NULL,
+                expires_at DATETIME NULL,
+                approved_at DATETIME NULL,
+                cancelled_at DATETIME NULL,
+                PRIMARY KEY (id),
+                KEY idx_gtr_managed (managed_user_id),
+                KEY idx_gtr_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            COMMENT '主守护人转移请求 PRD-GUARDIAN-V1'
+            """
+        ))
+
+    if "guardian_alert_quota_usage" not in tables:
+        await conn.execute(text(
+            """
+            CREATE TABLE guardian_alert_quota_usage (
+                id INT NOT NULL AUTO_INCREMENT,
+                user_id INT NOT NULL COMMENT '消耗额度的守护人 user_id',
+                managed_user_id INT NOT NULL COMMENT '触发告警的被守护人 user_id',
+                used_at DATETIME NULL,
+                call_type VARCHAR(20) NOT NULL DEFAULT 'alert',
+                PRIMARY KEY (id),
+                KEY idx_gaqu_user_used (user_id, used_at),
+                KEY idx_gaqu_managed (managed_user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            COMMENT '异常告警免费电话额度使用记录 PRD-GUARDIAN-V1'
+            """
+        ))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -2901,6 +2983,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_family_members_archive_optim_v2(conn)
     # [付费会员体系 PRD v1.1 2026-05-24] membership_plans / user_memberships / free_member_quota + products.is_member_discount_eligible
     await _sync_membership_v1(conn)
+    # [守护人体系 PRD v1.1 2026-05-25] family_management 字段 + 转移请求表 + 告警额度使用表
+    await _sync_guardian_system_v1(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)
