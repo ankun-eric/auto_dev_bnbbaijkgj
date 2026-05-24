@@ -1098,6 +1098,16 @@ async def stream_message(
     payload_button_id = getattr(data, "button_id", None)
     payload_report_meta = getattr(data, "report_meta", None)
 
+    import logging as _dbg_logging
+    _dbg_logger = _dbg_logging.getLogger("chat.stream_dispatch")
+    _dbg_logger.warning(
+        "[STREAM_DISPATCH] session=%s intent=%r button_type=%r button_id=%r "
+        "payload_image_urls=%r text_image_urls=%r merged_image_urls=%r content_first100=%r",
+        session_id, payload_intent, getattr(data, "button_type", None),
+        payload_button_id, payload_image_urls, text_image_urls,
+        merged_image_urls, (data.content or "")[:100],
+    )
+
     # [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517] 分发优先级 1：报告解读 intent
     # 显式 intent == 'report_interpret' 或 button_type 命中报告解读按钮 → 走 ReportInterpretEngine
     if is_report_interpret_intent(
