@@ -27,7 +27,126 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: 健康档案页面修复与邀请页面统一 (2026-05-24 02:00)
+## Latest Update: 家庭守护邀请页面优化13项功能全量开发部署 (2026-05-24 17:38)
+
+### 一句话结论
+完成"家庭守护邀请页面优化"PRD全部13项功能的开发部署。后端新增relation_type字段+inviter_real_name+公开协议API，H5邀请方新增品牌标识+关系选择器+二维码刷新+其他关系填写+完善资料拦截，H5接收方新增品牌标识+横排布局+真实姓名+关系文案+协议勾选，管理后台新增健康数据授权协议Tab（含8条款默认内容）。
+
+### 核心变更
+
+#### 后端修改
+- `backend/app/models/models.py` — FamilyInvitation、ReverseGuardianInvitation新增relation_type字段
+- `backend/app/schemas/family_management.py` — InvitationCreateRequest新增relation_type，InvitationDetailResponse新增inviter_real_name/relation_type/invite_type
+- `backend/app/api/family_management.py` — 创建邀请时存relation_type，详情接口返回inviter_real_name，新增public_protocol_router公开协议API
+- `backend/app/api/reverse_guardian.py` — 创建反向邀请支持relation_type参数，详情返回inviter_real_name
+- `backend/app/api/admin.py` — 新增GET /settings/protocol协议读取接口
+- `backend/app/main.py` — 注册public_protocol_router
+
+#### H5前端修改
+- `h5-web/src/app/family-invite/page.tsx` — 品牌标识+关系选择器+二维码刷新+其他关系+完善资料拦截
+- `h5-web/src/app/health-profile/my-guardians/invite/page.tsx` — 同上（绿色主题版）
+- `h5-web/src/app/family-auth/page.tsx` — 品牌标识+横排布局+真实姓名+关系文案+协议勾选
+
+#### 管理后台修改
+- `admin-web/src/app/(admin)/settings/page.tsx` — 协议管理Tab新增健康数据授权协议字段+加载已保存协议
+
+### 部署验证（已通过）
+- 部署时间：2026-05-24 17:42
+- backend 容器重建启动正常
+- h5-web 容器重建启动正常
+- admin-web 容器重建启动正常
+- DB迁移：family_invitations、reverse_guardian_invitations新增relation_type列
+- HTTP验证：/api/docs 200、/family-invite 308、/family-auth 308、/api/public/protocol/healthDataAuthorization 200
+
+### 用户体验手册
+- `user_docs/家庭守护邀请页面优化.md`
+
+---
+
+## Previous Update: 邀请页面优化PRD文档输出 (2026-05-24 17:24)
+
+### 一句话结论
+用户确认全部13项调整方案符合预期，输出完整PRD文档《宾尼小康·家庭守护邀请页面优化》。涵盖邀请方页面改造（关系前置选择、品牌标识、二维码刷新、其他关系手填、个人资料拦截）、接收方页面改造（文案优化、横排布局、真实姓名、协议勾选、品牌标识）、管理后台新增（健康数据授权协议配置项+8条款初始内容）、分享安全性保障共13项功能。
+
+### PRD文档
+- `.chat_output/75db2d60-a509-44b6-a393-469adf2ef5f4/PRD_邀请页面优化_20260524_172400.md`
+
+### 历史记忆文件
+- `mem/mem_邀请页面优化PRD输出_20260524_172400.md`
+
+---
+
+## Previous Update: 邀请页面协议初始化与完善资料抽屉讨论 (2026-05-24 17:12)
+
+### 一句话结论
+用户追问2个细节：①请帮初始化健康数据授权协议内容（已编写完整8条款协议初稿）②点击【去邀请】时若姓名未填，直接弹出完善资料抽屉（复用新增成员组件，关系锁定"本人"只读，保存后自动跳转邀请页）。累计13项调整，等待用户确认后出PRD。
+
+### 历史记忆文件
+- `mem/mem_邀请页面协议初始化与完善资料抽屉讨论_20260524_171200.md`
+
+---
+
+## Previous Update: 邀请页面其他关系与档案姓名与协议后台配置讨论 (2026-05-24 17:03)
+
+### 一句话结论
+用户追问3个细节：①选"其他"关系时需手工填写具体关系名称（与添加成员一致）②接收方页面改为显示邀请人档案真实姓名（优先级：真实姓名>昵称），未填名字则拦截提示先完善档案 ③后台协议管理需新增"健康数据授权协议"配置项。等待用户确认后出PRD。
+
+### 历史记忆文件
+- `mem/mem_邀请页面其他关系与档案姓名与协议后台配置讨论_20260524_170300.md`
+
+---
+
+## Previous Update: 邀请页面二维码刷新与链接安全性讨论 (2026-05-24 16:41)
+
+### 一句话结论
+用户追问2个细节：①选关系后二维码是否自动刷新（确认：是的，选完关系调接口生成新邀请码自动渲染新二维码，换选会废弃旧码）②保存到本地/复制链接打开是否看到发起人视角（确认：不会，链接和二维码都指向接收方页面family-auth）。等待用户最终确认后出PRD。
+
+### 历史记忆文件
+- `mem/mem_邀请页面二维码刷新与链接安全性讨论_20260524_164100.md`
+
+---
+
+## Previous Update: 邀请页面已有档案与接收方头像讨论 (2026-05-24 14:40)
+
+### 一句话结论
+用户追问2个细节：①已有档案vs未建档案的关系选择逻辑（确认：有member_id不选关系，无member_id先选关系）②接收方邀请人头像和名字数据来源（确认：来自inviter_nickname+inviter_avatar，改为左右横排布局）。等待用户最终确认后出PRD。
+
+### 历史记忆文件
+- `mem/mem_邀请页面已有档案与接收方头像讨论_20260524_144000.md`
+
+---
+
+## Previous Update: 邀请页面四项调整方案 (2026-05-24 14:28)
+
+### 一句话结论
+用户确认4项调整：①两种邀请模式统一先选关系类型 ②顶部加品牌标识Logo+"宾尼小康AI健康管家" ③接收方文案优化（显示具体关系类型） ④接收方增加协议勾选。已生成调整后HTML全览，等待用户最终确认后出PRD。
+
+### 历史记忆文件
+- `mem/mem_邀请页面四项调整方案_20260524_142800.md`
+
+---
+
+## Previous Update: 邀请页面全览整理 (2026-05-24 14:15)
+
+### 一句话结论
+用户要求先列出所有邀请方和接收方页面再决定调整，生成了6个页面的可视化HTML总览，发现H5接收方页面相比小程序严重缺少内容（权限说明、合并预览、授权协议等）。
+
+### 历史记忆文件
+- `mem/mem_邀请页面全览整理_20260524_141500.md`
+
+---
+
+## Previous Update: 邀请页面与状态颜色需求讨论续 (2026-05-24 13:02)
+
+### 一句话结论
+继续讨论邀请页面设计调整和用药计划状态颜色不一致问题，确认了3种邀请场景的代码逻辑现状，发现扫码功能存在反向邀请参数丢失Bug。
+
+### 历史记忆文件
+- `mem/mem_邀请页面与状态颜色需求讨论续_20260524_130200.md`
+
+---
+
+## Previous Update: 健康档案页面修复与邀请页面统一 (2026-05-24 02:00)
 
 ### 一句话结论
 完成健康档案页面15项修复与新功能（F1-F9），包括图标优化、健康评分移除、用药计划Tab筛选修正、添加成员弹窗优化、邀请页面方案D统一、Tab绑定逻辑、数据合并策略。后端+H5前端全量开发部署完成。
