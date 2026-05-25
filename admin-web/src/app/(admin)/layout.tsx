@@ -205,7 +205,10 @@ const menuItems: MenuItem[] = [
       { key: '/health-records', label: '用户档案查看' },
       { key: '/relation-types', label: '关系类型配置' },
       { key: '/disease-presets', label: '预设列表管理' },
-      { key: '/family-management', label: '家庭共管管理' },
+      // [PRD-GUARDIAN-V1.2] 守护关系管理（原顶层「守护关系查询」并入）
+      { key: '/family-management', label: '守护关系管理' },
+      // [PRD-GUARDIAN-V1.2 §12.3] 紧急呼叫触发源管理
+      { key: '/emergency-sources', label: '紧急呼叫触发源管理' },
     ],
   },
   {
@@ -288,7 +291,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/system-messages') || pathname.startsWith('/alert-templates') || pathname.startsWith('/abnormal-thresholds') || pathname.startsWith('/alert-logs')) return ['messages'];
   if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config') || pathname.startsWith('/map-config') || pathname.startsWith('/system/')) return ['system'];
   if (pathname.startsWith('/health-plan')) return ['health-plan'];
-  if (pathname.startsWith('/health-records') || pathname.startsWith('/relation-types') || pathname.startsWith('/disease-presets') || pathname.startsWith('/family-management')) return ['health'];
+  if (pathname.startsWith('/health-records') || pathname.startsWith('/relation-types') || pathname.startsWith('/disease-presets') || pathname.startsWith('/family-management') || pathname.startsWith('/emergency-sources') || pathname.startsWith('/guardian-relations')) return ['health'];
   if (pathname.startsWith('/product-system')) return ['product-system'];
   return [];
 }

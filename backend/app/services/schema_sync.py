@@ -2914,6 +2914,151 @@ async def _sync_guardian_system_v1(conn: AsyncConnection) -> None:
         ))
 
 
+async def _sync_guardian_system_v12(conn: AsyncConnection) -> None:
+    """[守护人体系 PRD v1.2 2026-05-25] v1.2 schema 升级：
+    - membership_plans 新增 emergency_ai_call_count / max_managed / point_multiplier 字段
+    - free_member_quota 新增 emergency_ai_call_count / max_managed 字段
+    - 新增 guardian_proxy_pay 表（代付开关）
+    - 新增 emergency_call_sources 表（紧急呼叫触发源管理，4 条种子数据）
+    - 新增 ai_call_reminders 表（AI 外呼提醒列表）
+    幂等执行。"""
+
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        mp_cols = (
+            {col["name"] for col in inspector.get_columns("membership_plans")}
+            if "membership_plans" in tables else set()
+        )
+        fmq_cols = (
+            {col["name"] for col in inspector.get_columns("free_member_quota")}
+            if "free_member_quota" in tables else set()
+        )
+        return tables, mp_cols, fmq_cols
+
+    tables, mp_cols, fmq_cols = await conn.run_sync(_load)
+
+    # membership_plans 新增字段
+    if "membership_plans" in tables:
+        if "emergency_ai_call_count" not in mp_cols:
+            await conn.execute(text(
+                "ALTER TABLE membership_plans ADD COLUMN emergency_ai_call_count INT NOT NULL DEFAULT 0 "
+                "COMMENT '[PRD-GUARDIAN-V1.2] 紧急 AI 呼叫额度（次/月），-1=不限'"
+            ))
+            # 从旧的 ai_alert_quota 字段迁移数据
+            await conn.execute(text(
+                "UPDATE membership_plans SET emergency_ai_call_count = ai_alert_quota "
+                "WHERE emergency_ai_call_count = 0 AND ai_alert_quota > 0"
+            ))
+        if "max_managed" not in mp_cols:
+            await conn.execute(text(
+                "ALTER TABLE membership_plans ADD COLUMN max_managed INT NOT NULL DEFAULT 10 "
+                "COMMENT '[PRD-GUARDIAN-V1.2] 守护他人上限（前端展示），-1=不限'"
+            ))
+        if "point_multiplier" not in mp_cols:
+            await conn.execute(text(
+                "ALTER TABLE membership_plans ADD COLUMN point_multiplier FLOAT NOT NULL DEFAULT 1.0 "
+                "COMMENT '[PRD-GUARDIAN-V1.2] 积分翻倍倍数'"
+            ))
+
+    # free_member_quota 新增字段
+    if "free_member_quota" in tables:
+        if "emergency_ai_call_count" not in fmq_cols:
+            await conn.execute(text(
+                "ALTER TABLE free_member_quota ADD COLUMN emergency_ai_call_count INT NOT NULL DEFAULT 3 "
+                "COMMENT '[PRD-GUARDIAN-V1.2] 免费紧急 AI 呼叫额度'"
+            ))
+            await conn.execute(text(
+                "UPDATE free_member_quota SET emergency_ai_call_count = ai_alert_quota "
+                "WHERE emergency_ai_call_count = 3 AND ai_alert_quota > 0"
+            ))
+        if "max_managed" not in fmq_cols:
+            await conn.execute(text(
+                "ALTER TABLE free_member_quota ADD COLUMN max_managed INT NOT NULL DEFAULT 3 "
+                "COMMENT '[PRD-GUARDIAN-V1.2] 免费用户守护他人上限'"
+            ))
+
+    # guardian_proxy_pay 表
+    if "guardian_proxy_pay" not in tables:
+        await conn.execute(text(
+            """
+            CREATE TABLE guardian_proxy_pay (
+                id INT NOT NULL AUTO_INCREMENT,
+                primary_guardian_user_id INT NOT NULL COMMENT '主守护人 user_id',
+                managed_user_id INT NOT NULL COMMENT '被守护人 user_id',
+                enabled TINYINT(1) NOT NULL DEFAULT 0,
+                created_at DATETIME NULL,
+                updated_at DATETIME NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY uniq_gpp_pair (primary_guardian_user_id, managed_user_id),
+                KEY idx_gpp_managed (managed_user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            COMMENT '主守护人代付被守护人 AI 外呼额度开关 PRD-GUARDIAN-V1.2'
+            """
+        ))
+
+    # emergency_call_sources 表
+    if "emergency_call_sources" not in tables:
+        await conn.execute(text(
+            """
+            CREATE TABLE emergency_call_sources (
+                id INT NOT NULL AUTO_INCREMENT,
+                source_code VARCHAR(50) NOT NULL,
+                source_name VARCHAR(100) NOT NULL,
+                description TEXT NULL,
+                is_enabled TINYINT(1) NOT NULL DEFAULT 1,
+                is_builtin TINYINT(1) NOT NULL DEFAULT 0,
+                trigger_condition TEXT NULL,
+                applicable_device_type VARCHAR(100) NULL,
+                sort_order INT NOT NULL DEFAULT 0,
+                created_at DATETIME NULL,
+                updated_at DATETIME NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY uniq_source_code (source_code)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            COMMENT '紧急呼叫触发源管理 PRD-GUARDIAN-V1.2'
+            """
+        ))
+        # 4 条内置种子
+        await conn.execute(text(
+            """
+            INSERT INTO emergency_call_sources
+              (source_code, source_name, description, is_enabled, is_builtin, sort_order, created_at, updated_at)
+            VALUES
+              ('health_data_abnormal', '健康数据异常', '心率/血压/血氧/体温异常', 1, 1, 1, NOW(), NOW()),
+              ('smoke_alarm', '烟雾报警器', '火灾隐患', 1, 1, 2, NOW(), NOW()),
+              ('water_alarm', '水位报警器', '漏水/水浸', 1, 1, 3, NOW(), NOW()),
+              ('emergency_button', '紧急呼叫器', '一键呼救，含跌倒检测', 1, 1, 4, NOW(), NOW())
+            """
+        ))
+
+    # ai_call_reminders 表
+    if "ai_call_reminders" not in tables:
+        await conn.execute(text(
+            """
+            CREATE TABLE ai_call_reminders (
+                id INT NOT NULL AUTO_INCREMENT,
+                setter_user_id INT NOT NULL,
+                target_user_id INT NOT NULL,
+                reminder_type VARCHAR(40) NOT NULL DEFAULT 'general',
+                title VARCHAR(100) NOT NULL,
+                content TEXT NULL,
+                schedule_cron VARCHAR(100) NULL,
+                next_fire_at DATETIME NULL,
+                is_enabled TINYINT(1) NOT NULL DEFAULT 1,
+                is_paused_by_quota TINYINT(1) NOT NULL DEFAULT 0,
+                created_at DATETIME NULL,
+                updated_at DATETIME NULL,
+                PRIMARY KEY (id),
+                KEY idx_acr_setter (setter_user_id),
+                KEY idx_acr_target (target_user_id),
+                KEY idx_acr_next_fire (next_fire_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            COMMENT 'AI 外呼提醒 PRD-GUARDIAN-V1.2'
+            """
+        ))
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -2985,6 +3130,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_membership_v1(conn)
     # [守护人体系 PRD v1.1 2026-05-25] family_management 字段 + 转移请求表 + 告警额度使用表
     await _sync_guardian_system_v1(conn)
+    # [守护人体系 PRD v1.2 2026-05-25] membership_plans 新字段 + 代付开关表 + 紧急呼叫触发源表 + AI 外呼提醒表
+    await _sync_guardian_system_v12(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

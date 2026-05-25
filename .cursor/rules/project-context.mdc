@@ -27,7 +27,69 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: 旧会员体系废弃与付费会员升级 v1.1 全量开发部署 (2026-05-25)
+## Latest Update: 邀请页与守护人体系 PRD v1.2 健康档案融合全量开发部署 (2026-05-25)
+
+### 一句话结论
+按《邀请页与守护人体系 PRD v1.2 - 健康档案融合调整方案》落地了主守护人转让重构（接收者同意 + 被守护人上帝视角）、紧急 AI 呼叫统一扣主守护人、主守护人代付被守护人 AI 外呼开关、紧急呼叫触发源管理（4 内置 + 后台可扩展）、套餐字段规范化（删 `ai_phone_alert_count`、改名 `emergency_ai_call_count`、新增 `max_managed`）。后端 14/14 测试全绿，H5「我守护的人 直筒列表」「会员中心」与管理后台「紧急呼叫触发源管理」均已上线并 HTTP 200 可达。
+
+### 核心变更
+
+#### 后端
+- `backend/app/models/models.py` — 新增 `GuardianProxyPay` / `EmergencyCallSource` / `AiCallReminder` 三个 ORM
+- `backend/app/models/membership_plan.py` — `MembershipPlan` 增 `emergency_ai_call_count` / `max_managed` / `point_multiplier`；`FreeMemberQuota` 同步增字段
+- `backend/app/services/schema_sync.py` — 新增 `_sync_guardian_system_v12`，建 3 张新表 + 4 条内置 emergency_call_sources 种子
+- `backend/app/api/guardian_system_v12.py` — 全部 v1.2 接口（17 个用户端 + 4 个 admin 端）
+- `backend/app/api/membership.py` — `_plan_to_dict` / `admin_create_plan` / `get_my_membership` 全部带上新字段
+- `backend/app/schemas/membership.py` — Pydantic schemas 同步新字段
+- `backend/app/main.py` — 注册 `_guardian_v12.router` 与 `_guardian_v12.admin_router`
+- `backend/tests/test_guardian_system_v12.py` — 14 条 v1.2 集成测试（含 admin login 通过 `/api/admin/login`）
+
+#### H5 (h5-web)
+- `h5-web/src/app/health-profile/i-guard/page.tsx` — 直筒列表（无底部 Tab）+ 守护管理抽屉 + 提醒设置抽屉 + 邀请记录抽屉 + 代付开关 + 配额预警
+- `h5-web/src/app/member-center/page.tsx` — 当前等级卡片 + 3 个环形配额（AI 外呼/紧急 AI 呼叫/守护他人上限）+ 权益对比表 + 套餐选购卡
+
+#### 管理后台 (admin-web)
+- `admin-web/src/app/(admin)/emergency-sources/page.tsx` — 紧急呼叫触发源 CRUD 页面
+- `admin-web/src/app/(admin)/layout.tsx` — 菜单：家庭共管管理 → 守护关系管理；新增"紧急呼叫触发源管理"
+
+### v1.2 关键业务规则
+- AI 外呼提醒：默认谁设置扣谁；主守护人开启"代付"后，被守护人本人设置的扣主守护人
+- 紧急 AI 呼叫：**统一扣主守护人**，无论谁接通；额度耗尽降级为推送+短信
+- 主守护人转让：接收者同意（通道 A）+ 被守护人上帝视角直改（通道 B）
+- 数量上限：`max_managed`（前端展示） + `max_guardians`（仅后台），均后台自由配置
+
+### 部署
+- 部署脚本：`_deploy_prd_v12.py`、`_deploy_prd_v12_fix.py`（rebuild backend）、`_seed_emergency_sources.py`（补种 4 条内置）
+- 校验脚本：`_check_v12_frontends.py`、`_smoke_v12_e2e.py`（端到端业务冒烟全绿）
+
+### 已知接口（v1.2 新增 / 改造）
+- `GET /api/guardian/v12/i-guard` — 我守护的人列表（含 `role_badge` / `relation_label` / `proxy_pay_enabled` / `max_managed`）
+- `GET /api/guardian/v12/managed/{managed_user_id}/all-guardians` — 守护管理抽屉数据
+- `POST /api/guardian/v12/transfer/initiate` + `POST /api/guardian/v12/transfer/{id}/approve`（接收者同意）
+- `POST /api/guardian/v12/owner/direct-adjust` — 被守护人上帝视角直改
+- `POST /api/guardian/v12/managed/{managed_user_id}/proxy-pay` — 代付开关
+- `GET /api/guardian/v12/ai-call-quota` / `GET /api/guardian/v12/emergency-quota` / `GET /api/guardian/v12/managed-quota-summary`
+- `GET /api/guardian/v12/reminders/{managed_user_id}` / `POST /api/guardian/v12/reminders` / `DELETE /api/guardian/v12/reminders/{reminder_id}`
+- `POST /api/guardian/v12/emergency/simulate-serial-call`
+- `GET /api/guardian/v12/invitations/records`
+- `GET|POST|PUT|DELETE /api/admin/emergency-sources[/{id}]` — 紧急触发源 CRUD
+
+### 部署后访问入口
+- H5 我守护的人：`/health-profile/i-guard` → HTTP 200
+- H5 会员中心：`/member-center` → HTTP 200
+- 后台守护关系：`/admin/family-management` → HTTP 200
+- 后台紧急触发源：`/admin/emergency-sources` → HTTP 200
+
+### 端到端冒烟测试结果
+- `/api/guardian/v12/i-guard` 200 `{items:[], max_managed:3}`
+- `/api/guardian/v12/managed-quota-summary` 200（含 ai_remind / emergency_ai_call / max_managed 三维度）
+- `/api/guardian/v12/ai-call-quota` 200 / `/emergency-quota` 200
+- `/api/guardian/v12/invitations/records` 200
+- `/api/membership/me` 200（含 `max_managed=3` / `emergency_ai_call_count=3`）
+
+---
+
+## Previous Update: 旧会员体系废弃与付费会员升级 v1.1 全量开发部署 (2026-05-25)
 
 ### 一句话结论
 按《旧会员体系废弃与迁移说明 v1.1》完成旧"积分会员等级"体系的全面废弃与付费会员升级：旧 `/api/admin/points/levels` 与 `/api/points/level` API 标记 `@deprecated`（OpenAPI 与 WARNING 日志）；h5-web 收银台改造"会员折扣 + 积分抵扣"二选一互斥 UI 与 20% 积分抵扣上限；客服中心"会员"话术更新；miniprogram 个人中心/会员卡用「付费会员套餐」标签替代旧 memberLevel；后端 16/16 测试全绿。

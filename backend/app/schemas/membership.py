@@ -14,10 +14,13 @@ class MembershipPlanCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     price_monthly: float = 0
     price_yearly: Optional[float] = None
-    ai_call_quota: int = 0
-    ai_alert_quota: int = 0
-    ai_remind_quota: int = 0
-    max_guardians: int = 1
+    ai_call_quota: int = 0   # v1.2 deprecated 字段，保留兼容
+    ai_alert_quota: int = 0  # v1.2 deprecated 字段，保留兼容
+    ai_remind_quota: int = 0  # AI 外呼提醒额度（次/月），-1=不限
+    emergency_ai_call_count: int = 0  # [v1.2] 紧急 AI 呼叫额度，-1=不限
+    max_guardians: int = 1  # 被绑定守护上限（前端不展示）
+    max_managed: int = 10  # [v1.2] 守护他人上限（前端展示）
+    point_multiplier: float = 1.0  # [v1.2] 积分翻倍
     discount_rate: float = 1.0
     benefits_desc: Optional[str] = None
     is_active: bool = True
@@ -32,7 +35,10 @@ class MembershipPlanUpdate(BaseModel):
     ai_call_quota: Optional[int] = None
     ai_alert_quota: Optional[int] = None
     ai_remind_quota: Optional[int] = None
+    emergency_ai_call_count: Optional[int] = None
     max_guardians: Optional[int] = None
+    max_managed: Optional[int] = None
+    point_multiplier: Optional[float] = None
     discount_rate: Optional[float] = None
     benefits_desc: Optional[str] = None
     is_active: Optional[bool] = None
@@ -48,7 +54,10 @@ class MembershipPlanResponse(BaseModel):
     ai_call_quota: int
     ai_alert_quota: int
     ai_remind_quota: int
+    emergency_ai_call_count: int = 0
     max_guardians: int
+    max_managed: int = 10
+    point_multiplier: float = 1.0
     discount_rate: float
     benefits_desc: Optional[str] = None
     is_active: bool
@@ -66,7 +75,9 @@ class FreeMemberQuotaUpdate(BaseModel):
     ai_call_quota: Optional[int] = None
     ai_alert_quota: Optional[int] = None
     ai_remind_quota: Optional[int] = None
+    emergency_ai_call_count: Optional[int] = None
     max_guardians: Optional[int] = None
+    max_managed: Optional[int] = None
     benefits_desc: Optional[str] = None
 
 
@@ -75,7 +86,9 @@ class FreeMemberQuotaResponse(BaseModel):
     ai_call_quota: int
     ai_alert_quota: int
     ai_remind_quota: int
+    emergency_ai_call_count: int = 3
     max_guardians: int
+    max_managed: int = 3
     benefits_desc: Optional[str] = None
     updated_at: datetime
 
@@ -114,9 +127,11 @@ class MembershipMeResponse(BaseModel):
     expire_at: Optional[datetime] = None
     discount_rate: float = 1.0
     max_guardians: int = 1
+    max_managed: int = 3
     ai_call_quota: int = 0
     ai_alert_quota: int = 0
     ai_remind_quota: int = 0
+    emergency_ai_call_count: int = 3
     benefits_desc: Optional[str] = None
 
 

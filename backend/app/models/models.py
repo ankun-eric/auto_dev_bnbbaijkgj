@@ -4611,6 +4611,9 @@ class GuardianAlertQuotaUsage(Base):
     """[PRD-GUARDIAN-V1 2026-05-25] 异常告警免费电话额度使用记录。
 
     每次成功外呼即写一行；按月统计 user_id 已使用条数。
+    [PRD-GUARDIAN-V1.2 2026-05-25] call_type 扩展：
+      - alert/emergency_call   → 紧急 AI 呼叫（统一扣主守护人）
+      - ai_remind              → AI 外呼提醒（谁设置扣谁，可由主守护人代付）
     """
     __tablename__ = "guardian_alert_quota_usage"
 
@@ -4621,6 +4624,80 @@ class GuardianAlertQuotaUsage(Base):
                                     comment="触发告警的被守护人 user_id")
     used_at = mapped_column(DateTime, default=datetime.utcnow)
     call_type = mapped_column(String(20), default="alert", nullable=False)
+
+
+# ──────────────── 守护人体系 PRD v1.2 2026-05-25 ────────────────
+
+
+class GuardianProxyPay(Base):
+    """[PRD-GUARDIAN-V1.2 2026-05-25] 主守护人代付被守护人 AI 外呼额度开关。
+
+    主守护人可在「守护管理」抽屉里，针对每个被守护人开启或关闭"代付 AI 外呼额度"开关。
+    开启后：被守护人本人为自己设置的 AI 外呼提醒，将改为扣主守护人的额度。
+    主守护人切换时不自动继承，新主守护人需要重新开启。
+    """
+    __tablename__ = "guardian_proxy_pay"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    primary_guardian_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True,
+                                             comment="主守护人 user_id")
+    managed_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True,
+                                    comment="被守护人 user_id")
+    enabled = mapped_column(Boolean, default=False, nullable=False, comment="是否代付")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class EmergencyCallSource(Base):
+    """[PRD-GUARDIAN-V1.2 2026-05-25] 紧急呼叫触发源管理。
+
+    初始 4 种触发源（已内置，可启停但不可删）：
+      - health_data_abnormal  健康数据异常
+      - smoke_alarm           烟雾报警器
+      - water_alarm           水位报警器
+      - emergency_button      紧急呼叫器
+    运营可在后台新增触发源。
+    """
+    __tablename__ = "emergency_call_sources"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    source_code = mapped_column(String(50), nullable=False, unique=True, comment="触发源唯一编码")
+    source_name = mapped_column(String(100), nullable=False, comment="触发源名称")
+    description = mapped_column(Text, nullable=True, comment="触发源描述")
+    is_enabled = mapped_column(Boolean, default=True, nullable=False, comment="是否启用")
+    is_builtin = mapped_column(Boolean, default=False, nullable=False, comment="是否内置（内置不可删）")
+    trigger_condition = mapped_column(Text, nullable=True, comment="触发条件配置 JSON")
+    applicable_device_type = mapped_column(String(100), nullable=True, comment="适用设备类型")
+    sort_order = mapped_column(Integer, default=0, nullable=False, comment="排序")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AiCallReminder(Base):
+    """[PRD-GUARDIAN-V1.2 2026-05-25] AI 外呼提醒（日常用药/复诊/喝水等）。
+
+    与"紧急 AI 呼叫"区分：
+    - AI 外呼提醒：守护人或被守护人主动设置的日常提醒，谁设置扣谁额度（主守护人开启代付时除外）
+    - 紧急 AI 呼叫：系统检测到紧急事件触发的强提醒（统一扣主守护人额度）
+    """
+    __tablename__ = "ai_call_reminders"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    setter_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True,
+                                    comment="设置者 user_id（守护人 或 被守护人自己）")
+    target_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True,
+                                    comment="提醒对象 user_id（被守护人）")
+    reminder_type = mapped_column(String(40), nullable=False, default="general",
+                                  comment="提醒类型：medication/checkup/water/general")
+    title = mapped_column(String(100), nullable=False, comment="提醒标题")
+    content = mapped_column(Text, nullable=True, comment="提醒详情")
+    schedule_cron = mapped_column(String(100), nullable=True, comment="提醒时间 cron 表达式")
+    next_fire_at = mapped_column(DateTime, nullable=True, index=True, comment="下次触发时间")
+    is_enabled = mapped_column(Boolean, default=True, nullable=False)
+    is_paused_by_quota = mapped_column(Boolean, default=False, nullable=False,
+                                       comment="是否因额度耗尽自动暂停")
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 # ──────────────── 反向守护邀请 ────────────────

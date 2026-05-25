@@ -2074,6 +2074,16 @@ app.include_router(family_management.public_protocol_router)
 # [守护人体系 PRD v1.1 2026-05-25] guardian_system 路由（主/普通守护人、转移、串行外呼、额度）
 from app.api import guardian_system as _guardian_system  # noqa: E402
 app.include_router(_guardian_system.router)
+
+# [守护人体系 PRD v1.2 2026-05-25] guardian_system_v12 路由：
+# - 直筒列表（带关系称呼、角色徽章、代付状态）
+# - 守护管理抽屉、提醒设置抽屉
+# - 主守护人转让（接收者同意）、被守护人上帝视角
+# - 紧急 AI 呼叫扣主守护人、AI 外呼提醒扣额度（含代付）
+# - 紧急呼叫触发源后台管理
+from app.api import guardian_system_v12 as _guardian_v12  # noqa: E402
+app.include_router(_guardian_v12.router)
+app.include_router(_guardian_v12.admin_router)
 # [PRD-REVERSE-GUARDIAN-V1] 反向守护邀请
 from app.api import reverse_guardian as _reverse_guardian  # noqa: E402
 app.include_router(_reverse_guardian.router)
