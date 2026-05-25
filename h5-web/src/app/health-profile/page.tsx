@@ -52,6 +52,12 @@ interface FamilyMember {
   avatar_color_index?: number | null;
   relation_badge_char?: string | null;
   guard_status?: string | null;
+  // [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 后端注入：该成员若已有 pending 邀请则返回此对象
+  pending_invitation?: {
+    invite_code: string;
+    expires_at: string;
+    remaining_hours: number;
+  } | null;
 }
 
 const BADGE_COLOR_PALETTE: { bg: string; fg: string }[] = [
@@ -893,40 +899,59 @@ function HealthProfileV2PageInner() {
 
   const showInvite = currentGuardStatus === 'unguarded';
 
-  const renderInviteArea = () => (
-    <div
-      data-testid="bh-invite-area"
-      style={{
-        padding: '0 16px 12px',
-        overflow: 'hidden',
-        transition: 'opacity 300ms ease, max-height 300ms ease',
-        opacity: showInvite ? 1 : 0,
-        maxHeight: showInvite ? 120 : 0,
-      }}
-    >
+  const renderInviteArea = () => {
+    // [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 若该成员已有 pending 邀请，按钮置灰并禁用跳转
+    const pending = selectedMember?.pending_invitation || null;
+    const isPending = !!(pending && pending.remaining_hours > 0);
+    const buttonText = isPending
+      ? `邀请中（剩余 ${pending!.remaining_hours} 小时）`
+      : '去邀请 ›';
+
+    const handleClick = () => {
+      if (isPending) {
+        showToast('该成员邀请中，请等待对方接受或邀请过期后重新发起');
+        return;
+      }
+      router.push(`/family-invite${selectedMemberId ? `?member_id=${selectedMemberId}` : ''}`);
+    };
+
+    return (
       <div
-        onClick={() => router.push(`/family-invite${selectedMemberId ? `?member_id=${selectedMemberId}` : ''}`)}
+        data-testid="bh-invite-area"
         style={{
-          background: '#FFFFFF',
-          borderLeft: '4px solid #0EA5E9',
-          borderRadius: 12,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-          padding: 16,
-          display: 'flex',
-          alignItems: 'center',
-          cursor: 'pointer',
+          padding: '0 16px 12px',
+          overflow: 'hidden',
+          transition: 'opacity 300ms ease, max-height 300ms ease',
+          opacity: showInvite ? 1 : 0,
+          maxHeight: showInvite ? 120 : 0,
         }}
       >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 16 }}>💙</span>
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#1E293B' }}>邀请 TA 成为我守护的人</span>
+        <div
+          onClick={handleClick}
+          style={{
+            background: '#FFFFFF',
+            borderLeft: '4px solid #0EA5E9',
+            borderRadius: 12,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            padding: 16,
+            display: 'flex',
+            alignItems: 'center',
+            // [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] pending 状态时整卡置灰、cursor 改为 not-allowed
+            opacity: isPending ? 0.6 : 1,
+            cursor: isPending ? 'not-allowed' : 'pointer',
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 16 }}>💙</span>
+              <span style={{ fontSize: 15, fontWeight: 600, color: '#1E293B' }}>邀请 TA 成为我守护的人</span>
+            </div>
           </div>
+          <span style={{ fontSize: 14, fontWeight: 500, color: '#0EA5E9', whiteSpace: 'nowrap', marginLeft: 8 }}>{buttonText}</span>
         </div>
-        <span style={{ fontSize: 14, fontWeight: 500, color: '#0EA5E9', whiteSpace: 'nowrap', marginLeft: 8 }}>去邀请 ›</span>
       </div>
-    </div>
-  );
+    );
+  };
 
   // ─── F9: Guardian dual cards (我守护的人 + 守护我的人) ──────────
   // [Bug 修复 v1.2 §11.2] "我守护的人" 双卡片整块改为可点击区域，跳转至 /health-profile/i-guard

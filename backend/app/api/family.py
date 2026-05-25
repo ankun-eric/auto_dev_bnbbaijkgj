@@ -74,6 +74,7 @@ def _enrich_member_dict(member: FamilyMember, fallback_color_index: int | None =
     base["avatar_color_index"] = int(color_index) % 5
     base["relation_badge_char"] = relation_badge_char(relation_for_badge, member.nickname)
     base["guard_status"] = _guard_status(member)
+    base["pending_invitation"] = None  # [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 由 list_family_members 注入
     return base
 
 
@@ -103,6 +104,33 @@ async def list_family_members(
 
     # [BUGFIX-HEALTH-ARCHIVE-MEMBER-TAB-V2 2026-05-19] 顺带回填配色（极少数 NULL 数据兜底）
     items = [_enrich_member_dict(m, fallback_color_index=idx % 5) for idx, m in enumerate(ordered)]
+
+    # [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 注入 pending_invitation 用于"邀请中"置灰
+    from app.models.models import FamilyInvitation as _FamilyInvitation
+    from datetime import datetime as _dt2
+    pending_res = await db.execute(
+        select(_FamilyInvitation).where(
+            _FamilyInvitation.inviter_user_id == current_user.id,
+            _FamilyInvitation.status == "pending",
+            _FamilyInvitation.expires_at > _dt2.utcnow(),
+            _FamilyInvitation.member_id.is_not(None),
+        ).order_by(_FamilyInvitation.created_at.desc())
+    )
+    pending_by_member: dict[int, dict] = {}
+    now = _dt2.utcnow()
+    for inv in pending_res.scalars().all():
+        if inv.member_id in pending_by_member:
+            continue  # 只保留最新（按 created_at desc 取首条）
+        remaining_seconds = max(0, int((inv.expires_at - now).total_seconds()))
+        remaining_hours = int(remaining_seconds // 3600)
+        pending_by_member[inv.member_id] = {
+            "invite_code": inv.invite_code,
+            "expires_at": inv.expires_at.isoformat() if inv.expires_at else None,
+            "remaining_hours": remaining_hours,
+        }
+    for it in items:
+        it["pending_invitation"] = pending_by_member.get(it.get("id"))
+
     return {"items": items, "total": len(items)}
 
 

@@ -82,7 +82,14 @@ async def create_invitation(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """[BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 创建邀请。
+
+    - 情况 1：传入 member_id，校验后用现有 Tab。重复邀请会自动取消旧 pending。
+    - 情况 2：不传 member_id（从"+ 新增"入口"去邀请"），邀请阶段不创建 Tab，
+      只保存邀请记录 + relation_type，对方接受时再建 FamilyMember + HealthProfile。
+    """
     member: FamilyMember | None = None
+    target_member_id: int | None = None
     if data.member_id:
         member_result = await db.execute(
             select(FamilyMember).where(
@@ -94,63 +101,58 @@ async def create_invitation(
         member = member_result.scalar_one_or_none()
         if not member:
             raise HTTPException(status_code=404, detail="家庭成员不存在或不属于当前用户")
+        target_member_id = member.id
     else:
-        # [F8] 无 member_id 时自动新建一个 Tab（家庭成员记录）
-        if not data.nickname and not data.relationship_type and not data.relation_type_id and not data.relation_type:
-            raise HTTPException(status_code=400, detail="需要提供 member_id 或 nickname/relationship_type 以创建新成员")
-        count_res = await db.execute(
-            select(func.count(FamilyMember.id)).where(
-                FamilyMember.user_id == current_user.id,
-                FamilyMember.status == "active",
-            )
-        )
-        existing_count = int(count_res.scalar() or 0)
-        member = FamilyMember(
-            user_id=current_user.id,
-            nickname=data.nickname or "",
-            relationship_type=data.relationship_type or data.relation_type,
-            relation_type_id=data.relation_type_id,
-            is_self=False,
-            avatar_color_index=existing_count % 5,
-        )
-        db.add(member)
-        await db.flush()
-        hp = HealthProfile(
-            user_id=current_user.id,
-            family_member_id=member.id,
-            name=data.nickname or "",
-        )
-        db.add(hp)
-        await db.flush()
+        # [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 情况 2：邀请阶段不创建 Tab；必须提供关系字段，避免空邀请
+        if not (data.relation_type_id or data.relation_type or data.relationship_type):
+            raise HTTPException(status_code=400, detail="需要提供关系类型")
 
+    # [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 守护人配额 = 已激活管理关系数 + 当前用户进行中（pending 且未过期）的邀请数
     managed_count_result = await db.execute(
         select(func.count(FamilyManagement.id)).where(
             FamilyManagement.manager_user_id == current_user.id,
             FamilyManagement.status == "active",
         )
     )
-    managed_count = managed_count_result.scalar() or 0
-    if managed_count >= MAX_MANAGED_COUNT:
-        raise HTTPException(status_code=400, detail=f"管理人数已达上限（{MAX_MANAGED_COUNT}人）")
+    managed_count = int(managed_count_result.scalar() or 0)
 
-    active_mgmt_result = await db.execute(
-        select(FamilyManagement).where(
-            FamilyManagement.managed_member_id == member.id,
-            FamilyManagement.status == "active",
-        )
-    )
-    if active_mgmt_result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="该成员已有激活的共管关系")
-
-    pending_result = await db.execute(
-        select(FamilyInvitation).where(
-            FamilyInvitation.member_id == member.id,
+    pending_invite_count_result = await db.execute(
+        select(func.count(FamilyInvitation.id)).where(
             FamilyInvitation.inviter_user_id == current_user.id,
             FamilyInvitation.status == "pending",
+            FamilyInvitation.expires_at > datetime.utcnow(),
         )
     )
-    for old_inv in pending_result.scalars().all():
-        old_inv.status = "cancelled"
+    pending_invite_count = int(pending_invite_count_result.scalar() or 0)
+
+    if managed_count + pending_invite_count >= MAX_MANAGED_COUNT:
+        raise HTTPException(
+            status_code=400,
+            detail=f"管理人数已达上限（{MAX_MANAGED_COUNT}人，含进行中的邀请）",
+        )
+
+    if member is not None:
+        # [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 情况 1 兜底：同 Tab 已激活共管，禁止再邀
+        active_mgmt_result = await db.execute(
+            select(FamilyManagement).where(
+                FamilyManagement.managed_member_id == member.id,
+                FamilyManagement.status == "active",
+            )
+        )
+        if active_mgmt_result.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="该成员已有激活的共管关系")
+
+        # [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 情况 1：自动取消旧 pending
+        pending_result = await db.execute(
+            select(FamilyInvitation).where(
+                FamilyInvitation.member_id == member.id,
+                FamilyInvitation.inviter_user_id == current_user.id,
+                FamilyInvitation.status == "pending",
+            )
+        )
+        for old_inv in pending_result.scalars().all():
+            old_inv.status = "cancelled"
+    # [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 情况 2：允许并存多条 pending，不去重
 
     invite_code = uuid.uuid4().hex
     expires_at = datetime.utcnow() + timedelta(hours=INVITATION_EXPIRE_HOURS)
@@ -158,10 +160,10 @@ async def create_invitation(
     invitation = FamilyInvitation(
         invite_code=invite_code,
         inviter_user_id=current_user.id,
-        member_id=member.id,
+        member_id=target_member_id,  # [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 情况 2 时为 None
         status="pending",
         expires_at=expires_at,
-        relation_type=data.relation_type,
+        relation_type=data.relation_type or data.relationship_type,
     )
     db.add(invitation)
     await db.flush()
@@ -376,12 +378,40 @@ async def accept_invitation(
     if managed_by_count >= MAX_MANAGED_BY_COUNT:
         raise HTTPException(status_code=400, detail=f"被管理人数已达上限（{MAX_MANAGED_BY_COUNT}人）")
 
-    member_result = await db.execute(
-        select(FamilyMember).where(FamilyMember.id == invitation.member_id)
-    )
-    member = member_result.scalar_one_or_none()
-    if not member:
-        raise HTTPException(status_code=404, detail="关联的家庭成员不存在")
+    # [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 情况 2 邀请阶段没建 Tab，此时才建
+    if invitation.member_id is None:
+        existing_count_res = await db.execute(
+            select(func.count(FamilyMember.id)).where(
+                FamilyMember.user_id == invitation.inviter_user_id,
+                FamilyMember.status == "active",
+            )
+        )
+        existing_count = int(existing_count_res.scalar() or 0)
+        member = FamilyMember(
+            user_id=invitation.inviter_user_id,
+            nickname="",
+            relationship_type=invitation.relation_type,
+            is_self=False,
+            avatar_color_index=existing_count % 5,
+            member_user_id=current_user.id,
+        )
+        db.add(member)
+        await db.flush()
+        new_hp = HealthProfile(
+            user_id=invitation.inviter_user_id,
+            family_member_id=member.id,
+            name="",
+        )
+        db.add(new_hp)
+        await db.flush()
+        invitation.member_id = member.id
+    else:
+        member_result = await db.execute(
+            select(FamilyMember).where(FamilyMember.id == invitation.member_id)
+        )
+        member = member_result.scalar_one_or_none()
+        if not member:
+            raise HTTPException(status_code=404, detail="关联的家庭成员不存在")
 
     # --- 档案合并逻辑 ---
     member.member_user_id = current_user.id

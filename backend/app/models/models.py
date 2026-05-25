@@ -2974,7 +2974,7 @@ class FamilyInvitation(Base):
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     invite_code = mapped_column(String(64), unique=True, nullable=False, index=True)
     inviter_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
-    member_id = mapped_column(Integer, ForeignKey("family_members.id"), nullable=False)
+    member_id = mapped_column(Integer, ForeignKey("family_members.id"), nullable=True)  # [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 情况 2 邀请阶段 member_id 可为 NULL
     status = mapped_column(String(20), default="pending")
     expires_at = mapped_column(DateTime, nullable=False)
     accepted_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
