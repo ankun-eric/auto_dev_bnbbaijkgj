@@ -4,6 +4,9 @@ const { checkFileSize, uploadWithProgress } = require('../../utils/upload-utils'
 const { compressImage } = require('../../utils/image-compress');
 // [2026-05-05 全端图片附件 BasePath 治理 v1.0] 把后端"裸 /uploads/..."补齐为带 baseUrl 的绝对 URL
 const { resolveAssetUrl, resolveAssetUrls } = require('../../utils/asset-url');
+// [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+// 统一按钮意图解析（与后端 button_intent_resolver.py / H5 button-intent.ts 完全一致）
+const { resolveButtonIntent: _resolveBtnIntent } = require('../../utils/buttonIntent');
 
 const RELATION_COLORS = {
   '本人': '#52c41a',
@@ -653,6 +656,10 @@ Page({
       extras && extras.button_id ? { button_id: extras.button_id } : {},
       extras && extras.button_type ? { button_type: extras.button_type } : {},
       extras && extras.report_meta ? { report_meta: extras.report_meta } : {},
+      // [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+      // 后台 3 层按钮配置透传，前后端双保险解析
+      extras && extras.ai_function_type ? { ai_function_type: extras.ai_function_type } : {},
+      extras && extras.capture_purpose ? { capture_purpose: extras.capture_purpose } : {},
     );
     this._sseRequestTask = wx.request({
       url,
@@ -1005,10 +1012,62 @@ Page({
           sourceType: ['album', 'camera'],
           success: (res) => {
             const filePath = res.tempFiles[0].tempFilePath;
-            this._uploadAndStartReportInterpret(filePath, btn.id);
+            this._uploadAndStartReportInterpret(filePath, btn);
           }
         });
         break;
+
+      // [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+      // 新体系 ai_function 按钮分发：根据 ai_function_type + capture_purpose 路由。
+      // 由 resolveButtonIntent 统一映射到专用引擎，本入口在小程序内点击新体系按钮时被命中。
+      case 'ai_function': {
+        const _afType = btn.ai_function_type || '';
+        const _cp = btn.capture_purpose || '';
+        // 图像采集类（image_capture / 老 photo_upload）：复用拍照上传链路
+        if (_afType === 'image_capture' || _afType === 'photo_upload'
+            || _afType === 'report_interpret' || _afType === 'medicine_recognize') {
+          wx.chooseMedia({
+            count: 1,
+            mediaType: ['image'],
+            sourceType: ['album', 'camera'],
+            success: (res) => {
+              const filePath = res.tempFiles[0].tempFilePath;
+              this._uploadAndStartReportInterpret(filePath, btn);
+            }
+          });
+        } else if (_afType === 'ai_dialog_trigger' || _afType === 'quick_ask') {
+          // 触发预设话术
+          const triggerMsg = (btn.preset_prompt || btn.auto_user_message || params.message || btn.name || '').trim();
+          if (triggerMsg) {
+            this.setData({ inputValue: triggerMsg });
+            this.sendMessage();
+          }
+        } else if (_afType === 'file_upload') {
+          wx.chooseMessageFile({
+            count: 1,
+            type: 'file',
+            success: (res) => {
+              const filePath = res.tempFiles[0].path;
+              const fileName = res.tempFiles[0].name;
+              this._uploadAndSendFile(filePath, fileName);
+            }
+          });
+        } else {
+          // 兜底：未识别子类型，按拍照上传处理
+          wx.chooseMedia({
+            count: 1,
+            mediaType: ['image'],
+            sourceType: ['album', 'camera'],
+            success: (res) => {
+              const filePath = res.tempFiles[0].tempFilePath;
+              this._uploadAndStartReportInterpret(filePath, btn);
+            }
+          });
+        }
+        // 顺带保留 capture_purpose 引用，避免编译器警告（也方便后续扩展）
+        void _cp;
+        break;
+      }
 
       case 'file_upload':
         wx.chooseMessageFile({
@@ -1782,7 +1841,30 @@ Page({
   // 报告解读按钮改造：不再新建独立 report_interpret 会话 + 跳转，
   // 改为在当前会话内通过 SSE intent='report_interpret' 把图片提交给后端引擎。
   // 与 H5 / Flutter 三端协议保持一致。
-  async _uploadAndStartReportInterpret(filePath, buttonId) {
+  // [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+  // 通用化：支持任意 button_type / ai_function_type / capture_purpose 组合，
+  // 通过 resolveButtonIntent 统一映射到 SSE intent（report_interpret / drug_identify / null）。
+  async _uploadAndStartReportInterpret(filePath, btn) {
+    // 兼容旧签名：btn 可能是 buttonId (number) 或完整 button 对象
+    const buttonObj = (btn && typeof btn === 'object') ? btn : { id: btn, button_type: 'report_interpret' };
+    const buttonId = buttonObj.id || null;
+    const buttonType = buttonObj.button_type || null;
+    const aiFunctionType = buttonObj.ai_function_type || null;
+    const capturePurpose = buttonObj.capture_purpose || null;
+    const resolvedIntent = _resolveBtnIntent({
+      button_type: buttonType,
+      ai_function_type: aiFunctionType,
+      capture_purpose: capturePurpose,
+    });
+
+    // 根据解析结果决定用户气泡文案
+    let userBubbleText = '我上传了一张图片，请你帮我看看';
+    if (resolvedIntent === 'report_interpret') {
+      userBubbleText = '我上传了一份体检报告，请帮我解读';
+    } else if (resolvedIntent === 'drug_identify') {
+      userBubbleText = '我上传了一张药品图片，请帮我识别';
+    }
+
     try {
       filePath = await compressImage(filePath);
     } catch (_) { /* 压缩失败回退原图 */ }
@@ -1796,7 +1878,7 @@ Page({
         return;
       }
       wx.hideLoading();
-      // 在当前会话内插入用户图片气泡 + 触发 SSE 报告解读
+      // 在当前会话内插入用户图片气泡 + 触发 SSE
       const id = generateId();
       const now = new Date();
       const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
@@ -1826,15 +1908,19 @@ Page({
         wx.showToast({ title: '创建会话失败', icon: 'none' });
         return;
       }
-      this._startSseStream(sid, '我上传了一份体检报告，请帮我解读', {
-        intent: 'report_interpret',
+      this._startSseStream(sid, userBubbleText, {
+        intent: resolvedIntent || undefined,
         image_urls: [imageUrl],
         button_id: buttonId,
-        button_type: 'report_interpret',
+        button_type: buttonType,
+        // [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+        // 后台新体系按钮 3 层配置透传给后端，让后端双保险兜底解析
+        ai_function_type: aiFunctionType,
+        capture_purpose: capturePurpose,
       });
     } catch (e) {
       wx.hideLoading();
-      wx.showToast({ title: '报告解读启动失败', icon: 'none' });
+      wx.showToast({ title: '上传后启动失败', icon: 'none' });
     }
   },
 

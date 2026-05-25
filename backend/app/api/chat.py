@@ -50,6 +50,13 @@ from app.services.report_interpret_engine import (
     is_report_interpret_intent,
     run_report_interpret_stream,
 )
+# [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+# 统一按钮意图解析器：把后台 3 层按钮配置翻译为专用引擎 intent。
+from app.services.button_intent_resolver import (
+    DRUG_IDENTIFY as _RB_DRUG_IDENTIFY,
+    REPORT_INTERPRET as _RB_REPORT_INTERPRET,
+    resolve_button_intent,
+)
 
 router = APIRouter(prefix="/api/chat", tags=["AI对话"])
 
@@ -822,6 +829,27 @@ async def _stream_drug_identify(
                         ensure_ascii=False,
                     )
                     yield f"event: done\ndata: {done_data}\n\n"
+
+                    # [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+                    # 识药成功后自动写入 MedicalRecord(category=medication_record,
+                    # source=ai_drug_identify) + MedicalRecordFile，
+                    # 与「报告解读 → 体检报告」链路对称，让识药结果出现在
+                    # 「档案管理 → 就医资料 → 用药记录」中。
+                    if final_meta.get("card_type") == "drug_identify":
+                        try:
+                            await _auto_sync_drug_record(
+                                session_id=session_id,
+                                user_id=user_id,
+                                family_member_id=family_member_id,
+                                final_meta=final_meta,
+                                ai_text=full_text,
+                            )
+                        except Exception:
+                            import logging as _logging
+                            _logging.getLogger(__name__).error(
+                                "auto_sync_drug_record failed session=%s",
+                                session_id, exc_info=True,
+                            )
         except Exception as e:
             err_data = json.dumps({"content": f"识药服务异常：{str(e)[:160]}"}, ensure_ascii=False)
             yield f"event: delta\ndata: {err_data}\n\n"
@@ -836,6 +864,134 @@ async def _stream_drug_identify(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+async def _auto_sync_drug_record(
+    *,
+    session_id: int,
+    user_id: int,
+    family_member_id: Optional[int],
+    final_meta: dict,
+    ai_text: str,
+) -> None:
+    """[BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+    识药成功后自动写入「就医资料 - 用药记录」(MedicalRecord +
+    MedicalRecordFile)。与 _auto_create_report_and_sync 形成对称链路：
+
+    - 报告解读 → CheckupReport + ReportHistory + MedicalRecord(checkup_report)
+    - 识药      → MedicalRecord(medication_record) + MedicalRecordFile
+
+    去重唯一键：user_id + member_id + source(ai_drug_identify) + session_id
+    （同一会话内反复触发识药不重复落档）。
+    """
+    import logging as _logging
+    _logger = _logging.getLogger(__name__)
+    try:
+        from sqlalchemy import and_, select as sa_select
+        from app.models.health_archive_v5 import MedicalRecord, MedicalRecordFile
+
+        meta_image_urls = final_meta.get("image_urls") or []
+        medicines = final_meta.get("medicines") or []
+        primary_name = ""
+        if medicines and isinstance(medicines[0], dict):
+            primary_name = (
+                medicines[0].get("name")
+                or medicines[0].get("brand")
+                or ""
+            ).strip()
+
+        today_str = datetime.utcnow().date().strftime("%Y-%m-%d")
+        title = primary_name or f"{today_str} 识药记录"
+
+        # summary：药品名 + 简短用法用量摘要（取首品种）
+        summary_parts: list[str] = []
+        if primary_name:
+            summary_parts.append(primary_name)
+        if medicines and isinstance(medicines[0], dict):
+            m0 = medicines[0]
+            usage = (m0.get("usage") or m0.get("dosage") or "").strip()
+            if usage:
+                summary_parts.append(f"用法：{usage[:80]}")
+        summary_text = "；".join(summary_parts) if summary_parts else None
+
+        member_id_final = family_member_id or final_meta.get("family_member_id")
+        if not member_id_final:
+            _logger.warning(
+                "_auto_sync_drug_record skipped: missing family_member_id "
+                "session=%s user=%s",
+                session_id, user_id,
+            )
+            return
+
+        async with async_session() as sync_db:
+            # 去重：同一会话已写过的识药记录不重复落档
+            existing_q = await sync_db.execute(
+                sa_select(MedicalRecord).where(
+                    and_(
+                        MedicalRecord.user_id == user_id,
+                        MedicalRecord.member_id == member_id_final,
+                        MedicalRecord.category == "medication_record",
+                        MedicalRecord.source == "ai_drug_identify",
+                        MedicalRecord.is_deleted == 0,
+                    )
+                )
+            )
+            existing_records = existing_q.scalars().all()
+            # 用 ai_interpretation.session_id 作二次去重键
+            for er in existing_records:
+                try:
+                    ai_info = er.ai_interpretation or {}
+                    if isinstance(ai_info, dict) and ai_info.get("session_id") == session_id:
+                        _logger.info(
+                            "_auto_sync_drug_record skipped (dedup) "
+                            "session=%s record_id=%s",
+                            session_id, er.id,
+                        )
+                        return
+                except Exception:
+                    continue
+
+            mr = MedicalRecord(
+                user_id=user_id,
+                member_id=member_id_final,
+                category="medication_record",
+                title=title[:255],
+                record_date=datetime.utcnow().date(),
+                source="ai_drug_identify",
+                ai_interpretation={
+                    "session_id": session_id,
+                    "summary": (summary_text or "")[:500],
+                    "full_text": (ai_text or "")[:2000],
+                    "medicines": medicines[:5] if medicines else [],
+                },
+                remark=summary_text,
+            )
+            sync_db.add(mr)
+            await sync_db.flush()
+
+            for idx, furl in enumerate(meta_image_urls):
+                if not furl:
+                    continue
+                mrf = MedicalRecordFile(
+                    record_id=mr.id,
+                    file_url=furl,
+                    file_name=f"drug_image_{idx + 1}.jpg",
+                    file_type="image",
+                    sort_order=idx,
+                )
+                sync_db.add(mrf)
+
+            await sync_db.commit()
+
+            _logger.info(
+                "_auto_sync_drug_record done session=%s user=%s member=%s record_id=%s",
+                session_id, user_id, member_id_final, mr.id,
+            )
+    except Exception as e:
+        _logger.error(
+            "_auto_sync_drug_record error session=%s: %s",
+            session_id, e, exc_info=True,
+        )
 
 
 async def _auto_create_report_and_sync(
@@ -1097,22 +1253,41 @@ async def stream_message(
     payload_intent = (getattr(data, "intent", None) or "").strip().lower() or None
     payload_button_id = getattr(data, "button_id", None)
     payload_report_meta = getattr(data, "report_meta", None)
+    payload_button_type = getattr(data, "button_type", None)
+    payload_ai_function_type = getattr(data, "ai_function_type", None)
+    payload_capture_purpose = getattr(data, "capture_purpose", None)
+
+    # [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+    # 后台按钮 3 层配置统一解析：把 button_type + ai_function_type + capture_purpose
+    # 统一翻译为专用引擎 intent。命中后用解析值覆盖 payload_intent，
+    # 让下游 is_report_interpret_intent / is_drug_identify_intent 兜底逻辑同样命中。
+    resolved_intent = resolve_button_intent(
+        intent=payload_intent,
+        button_type=payload_button_type,
+        ai_function_type=payload_ai_function_type,
+        capture_purpose=payload_capture_purpose,
+    )
+    if resolved_intent in (_RB_REPORT_INTERPRET, _RB_DRUG_IDENTIFY):
+        payload_intent = resolved_intent
 
     import logging as _dbg_logging
     _dbg_logger = _dbg_logging.getLogger("chat.stream_dispatch")
     _dbg_logger.warning(
-        "[STREAM_DISPATCH] session=%s intent=%r button_type=%r button_id=%r "
-        "payload_image_urls=%r text_image_urls=%r merged_image_urls=%r content_first100=%r",
-        session_id, payload_intent, getattr(data, "button_type", None),
-        payload_button_id, payload_image_urls, text_image_urls,
-        merged_image_urls, (data.content or "")[:100],
+        "[STREAM_DISPATCH] session=%s intent=%r button_type=%r ai_function_type=%r "
+        "capture_purpose=%r button_id=%r payload_image_urls=%r text_image_urls=%r "
+        "merged_image_urls=%r resolved_intent=%r content_first100=%r",
+        session_id, payload_intent, payload_button_type, payload_ai_function_type,
+        payload_capture_purpose, payload_button_id, payload_image_urls, text_image_urls,
+        merged_image_urls, resolved_intent, (data.content or "")[:100],
     )
 
     # [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517] 分发优先级 1：报告解读 intent
-    # 显式 intent == 'report_interpret' 或 button_type 命中报告解读按钮 → 走 ReportInterpretEngine
+    # [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525] resolved_intent 已把
+    # 后台 3 层按钮配置统一覆盖到 payload_intent，is_report_interpret_intent 第一条
+    # 显式 intent 判定即可命中。
     if is_report_interpret_intent(
         intent=payload_intent,
-        button_type=getattr(data, "button_type", None),
+        button_type=payload_button_type,
         button_id=payload_button_id,
         image_urls=merged_image_urls,
     ):
@@ -1129,9 +1304,8 @@ async def stream_message(
         )
 
     # [BUG_FIX_拍照识药三联_20260516] 方案 E：聊天内嵌识药引擎路由
-    # 当 button_type ∈ {photo_recognize_drug, drug_identify, medication_recognize}
-    # 或消息文本含识药关键词，且消息含图片 URL → 走 DrugIdentifyEngine
-    # [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517] 同时支持显式 intent='drug_identify'
+    # [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525] resolved_intent='drug_identify'
+    # 经上面覆盖到 payload_intent='drug_identify'，此处第一条判定即命中。
     drug_image_urls = merged_image_urls
     if payload_intent == "drug_identify" and drug_image_urls:
         return await _stream_drug_identify(
@@ -1146,7 +1320,7 @@ async def stream_message(
             db=db,
         )
     if is_drug_identify_intent(
-        button_type=getattr(data, "button_type", None),
+        button_type=payload_button_type,
         content=data.content or "",
         image_urls=drug_image_urls,
     ):

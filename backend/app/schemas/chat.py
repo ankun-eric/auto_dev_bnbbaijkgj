@@ -90,6 +90,16 @@ class ChatMessageCreate(BaseModel):
     image_urls: Optional[List[str]] = None
     button_id: Optional[int] = None
     report_meta: Optional[dict] = None
+    # [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+    # 后台「功能按钮管理」3 层配置体系新增透传字段：
+    # - ai_function_type：button_type=ai_function 时的子类型
+    #   (questionnaire / image_capture / file_upload / ai_dialog_trigger / quick_ask
+    #    及老兼容 photo_upload / report_interpret / medicine_recognize / check)
+    # - capture_purpose：ai_function_type=image_capture 时的图像采集子用途
+    #   (identify_medicine / upload / interpret_report)
+    # 后端 resolve_button_intent 据此把任意配置统一路由到专用引擎。
+    ai_function_type: Optional[str] = None
+    capture_purpose: Optional[str] = None
 
 
 class ChatMessageResponse(BaseModel):

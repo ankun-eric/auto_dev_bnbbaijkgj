@@ -543,6 +543,10 @@ async def run_drug_identify_stream(
 
     meta = {
         "message_type": "drug_identify_card",
+        # [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+        # 与 report_interpret 引擎对齐：done.meta 同时下发 card_type，
+        # 供 chat.py 的 _auto_sync_drug_record 与前端卡片渲染按统一字段判定。
+        "card_type": "drug_identify",
         "medicines": medicines,
         "image_urls": image_urls,
         "image_hash": image_hash,

@@ -26,6 +26,9 @@ import { publishBellEvent, subscribeBellEvent } from '@/lib/bell-event-bus';
 // [PRD-AIHOME-SKELETON-V1 2026-05-19] 首屏骨架屏：消除刷新跳变
 import AiHomeSkeleton from '@/components/ai-chat/AiHomeSkeleton';
 import { trackEvent, aiChatTrack, aiHomeFnTrack, type AiChatTargetType } from '@/lib/analytics';
+// [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+// 统一按钮意图解析（与后端 button_intent_resolver.py / 小程序 buttonIntent.js 完全一致）
+import { resolveButtonIntent } from '@/utils/button-intent';
 import { FnCell } from '@/components/design-system';
 import { parseServerTime } from '@/lib/datetime';
 // [AICHAT-OPTIM-FIX-V1 F-06] ChatCards 调度器
@@ -1348,6 +1351,10 @@ export default function AiHomePage() {
     buttonType?: string | null;
     buttonId?: number | null;
     reportMeta?: { report_title?: string | null; report_date?: string | null } | null;
+    // [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+    // 后台 3 层按钮配置透传：ai_function_type / capture_purpose
+    aiFunctionType?: string | null;
+    capturePurpose?: string | null;
   };
 
   const sendSSE = async (
@@ -1400,6 +1407,10 @@ export default function AiHomePage() {
             button_type: extras?.buttonType || undefined,
             button_id: extras?.buttonId || undefined,
             report_meta: extras?.reportMeta || undefined,
+            // [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+            // 新体系按钮 3 层配置透传给后端，前后端双保险兜底解析。
+            ai_function_type: extras?.aiFunctionType || undefined,
+            capture_purpose: extras?.capturePurpose || undefined,
           }),
           signal: controller.signal,
         });
@@ -1907,6 +1918,10 @@ export default function AiHomePage() {
     //   - 'photo_recognize_drug' / 'drug_identify' / 'medication_recognize' → intent='drug_identify'
     buttonType?: string | null;
     buttonId?: number | null;
+    // [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+    // 后台新体系按钮 3 层配置透传，用于 resolveButtonIntent 统一翻译为 SSE intent
+    aiFunctionType?: string | null;
+    capturePurpose?: string | null;
   }) => {
     const accept = opts.kind === 'image' ? 'image/*' : 'image/*,application/pdf';
     let loadingToastVisible = false;
@@ -2026,25 +2041,25 @@ export default function AiHomePage() {
             : prompt;
           const hasUploaded = uploadedImages.length > 0 || uploadedFiles.length > 0;
           lastMsgTimeRef.current = Date.now();
-          // [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517]
-          // 计算 SSE 通用 intent extras：按钮类型 → 显式 intent + 图片 URL 数组
-          const btnTypeLower = (opts.buttonType || '').toLowerCase();
-          let sseIntent: string | null = null;
-          if (btnTypeLower === 'report_interpret') {
-            sseIntent = 'report_interpret';
-          } else if (
-            btnTypeLower === 'photo_recognize_drug' ||
-            btnTypeLower === 'drug_identify' ||
-            btnTypeLower === 'medication_recognize'
-          ) {
-            sseIntent = 'drug_identify';
-          }
+          // [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+          // 使用统一映射器把后台 3 层按钮配置翻译为 SSE intent，
+          // 与后端 button_intent_resolver.py 逻辑保持完全一致。
+          const sseIntent = resolveButtonIntent({
+            button_type: opts.buttonType,
+            ai_function_type: opts.aiFunctionType,
+            capture_purpose: opts.capturePurpose,
+          });
           const sseExtras = sseIntent || uploadedImages.length > 0
             ? {
                 intent: sseIntent,
                 imageUrls: uploadedImages.length > 0 ? uploadedImages : null,
                 buttonType: opts.buttonType || null,
                 buttonId: opts.buttonId || null,
+                // [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+                // 同时透传 ai_function_type / capture_purpose，
+                // 后端可做双保险兜底解析。
+                aiFunctionType: opts.aiFunctionType || null,
+                capturePurpose: opts.capturePurpose || null,
               }
             : undefined;
           setTimeout(() => {
@@ -2097,6 +2112,10 @@ export default function AiHomePage() {
       // [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517] 透传按钮类型 → SSE intent
       buttonType: btn.button_type,
       buttonId: btn.id as any,
+      // [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+      // 后台新体系按钮 3 层配置透传，让 resolveButtonIntent 命中 P3/P4 规则
+      aiFunctionType: (btn as any).ai_function_type ?? null,
+      capturePurpose: (btn as any).capture_purpose ?? null,
     });
   };
 
@@ -4668,6 +4687,13 @@ export default function AiHomePage() {
                                 // [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517]
                                 buttonType: btnType,
                                 buttonId: (chatCardData!.button as any).id || null,
+                                // [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+                                aiFunctionType: (chatCardData!.button as any).aiFunctionType
+                                  || (chatCardData!.button as any).ai_function_type
+                                  || null,
+                                capturePurpose: (chatCardData!.button as any).capturePurpose
+                                  || (chatCardData!.button as any).capture_purpose
+                                  || null,
                               });
                             };
                             switch (sub) {
@@ -4692,6 +4718,13 @@ export default function AiHomePage() {
                                   // [BUG_FIX_AI_HOME_REPORT_INTERPRET_20260517]
                                   buttonType: btnType,
                                   buttonId: (chatCardData!.button as any).id || null,
+                                  // [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
+                                  aiFunctionType: (chatCardData!.button as any).aiFunctionType
+                                    || (chatCardData!.button as any).ai_function_type
+                                    || null,
+                                  capturePurpose: (chatCardData!.button as any).capturePurpose
+                                    || (chatCardData!.button as any).capture_purpose
+                                    || null,
                                 });
                                 return;
                               case 'wechat':
