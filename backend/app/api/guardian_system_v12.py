@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -119,6 +120,22 @@ class EmergencySourceUpdateRequest(BaseModel):
 
 
 # ─────────── 工具函数 ───────────
+
+
+import json as _json
+
+
+def utf8_json(content) -> Response:
+    """[Bug 修复 v1.2 §9.1] 强制中文以 UTF-8 编码返回，避免被部分浏览器/反代以 Latin-1 解码导致乱码。
+
+    显式声明 Content-Type: application/json; charset=utf-8，并禁用 ensure_ascii，
+    确保中文字段以原生 UTF-8 字节传输。
+    """
+    body = _json.dumps(content, ensure_ascii=False, default=str).encode("utf-8")
+    return Response(
+        content=body,
+        media_type="application/json; charset=utf-8",
+    )
 
 
 # v1.2 关系称呼 fallback：在 family_management 没有关系字段时，从 FamilyMember 表取
@@ -1095,28 +1112,50 @@ async def admin_list_emergency_sources(
     _=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
-    """[PRD-GUARDIAN-V1.2 §12.3] 紧急呼叫触发源列表"""
+    """[PRD-GUARDIAN-V1.2 §12.3] 紧急呼叫触发源列表（v1.2 强制 UTF-8 输出，修复中文乱码）"""
     res = await db.execute(
         select(EmergencyCallSource).order_by(
             EmergencyCallSource.sort_order.asc(),
             EmergencyCallSource.id.asc(),
         )
     )
+    # 统计内置 / 自定义 / 启用 / 停用 数量（v1.2 §5.5 Hero 区 4 项统计）
     items = []
+    builtin_count = 0
+    custom_count = 0
+    enabled_count = 0
     for s in res.scalars().all():
+        is_builtin = bool(s.is_builtin)
+        is_enabled = bool(s.is_enabled)
+        if is_builtin:
+            builtin_count += 1
+        else:
+            custom_count += 1
+        if is_enabled:
+            enabled_count += 1
         items.append({
             "id": s.id,
             "source_code": s.source_code,
             "source_name": s.source_name,
             "description": s.description,
-            "is_enabled": bool(s.is_enabled),
-            "is_builtin": bool(s.is_builtin),
+            "is_enabled": is_enabled,
+            "is_builtin": is_builtin,
             "trigger_condition": s.trigger_condition,
             "applicable_device_type": s.applicable_device_type,
             "sort_order": s.sort_order,
             "created_at": s.created_at.isoformat() if s.created_at else None,
         })
-    return {"items": items, "total": len(items)}
+    return utf8_json({
+        "items": items,
+        "total": len(items),
+        "stats": {
+            "total": len(items),
+            "builtin": builtin_count,
+            "custom": custom_count,
+            "enabled": enabled_count,
+            "disabled": len(items) - enabled_count,
+        },
+    })
 
 
 @admin_router.post("/emergency-sources")
@@ -1144,7 +1183,7 @@ async def admin_create_emergency_source(
     db.add(s)
     await db.flush()
     await db.refresh(s)
-    return {"id": s.id, "source_code": s.source_code}
+    return utf8_json({"id": s.id, "source_code": s.source_code, "message": "已新增"})
 
 
 @admin_router.put("/emergency-sources/{source_id}")
@@ -1154,19 +1193,27 @@ async def admin_update_emergency_source(
     _=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
-    """[PRD-GUARDIAN-V1.2] 编辑紧急呼叫触发源（内置只允许改启停）"""
+    """[PRD-GUARDIAN-V1.2 Bug 修复 v1.2 §8] 编辑紧急呼叫触发源
+
+    内置触发源（is_builtin=true）：
+    - 仅修改 is_enabled / sort_order → 允许（启停场景）
+    - 试图修改 source_name / description / trigger_condition / applicable_device_type → 返回 403
+    """
     s = await db.get(EmergencyCallSource, source_id)
     if not s:
         raise HTTPException(status_code=404, detail="触发源不存在")
     data = payload.model_dump(exclude_unset=True)
     if s.is_builtin:
-        # 内置仅允许改 is_enabled
+        # 内置仅允许 启停 / 排序
         allowed = {"is_enabled", "sort_order"}
+        forbidden = set(data.keys()) - allowed
+        if forbidden:
+            raise HTTPException(status_code=403, detail="内置触发源不可编辑，仅允许启停与排序")
         data = {k: v for k, v in data.items() if k in allowed}
     for k, v in data.items():
         setattr(s, k, v)
     await db.flush()
-    return {"id": s.id, "message": "已更新"}
+    return utf8_json({"id": s.id, "message": "已更新"})
 
 
 @admin_router.delete("/emergency-sources/{source_id}")
@@ -1175,12 +1222,421 @@ async def admin_delete_emergency_source(
     _=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
-    """[PRD-GUARDIAN-V1.2] 删除非内置触发源"""
+    """[PRD-GUARDIAN-V1.2 Bug 修复 v1.2 §8] 删除非内置触发源
+
+    内置触发源：返回 403（与 v1.2 设计一致，明确"无权限"语义而非"请求错误"）
+    """
     s = await db.get(EmergencyCallSource, source_id)
     if not s:
         raise HTTPException(status_code=404, detail="触发源不存在")
     if s.is_builtin:
-        raise HTTPException(status_code=400, detail="内置触发源不可删除，仅可禁用")
+        raise HTTPException(status_code=403, detail="内置触发源不可删除，仅可禁用")
     await db.delete(s)
     await db.flush()
-    return {"message": "已删除"}
+    return utf8_json({"message": "已删除"})
+
+
+@admin_router.patch("/emergency-sources/{source_id}/toggle")
+async def admin_toggle_emergency_source(
+    source_id: int,
+    _=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """[Bug 修复 v1.2 §9.4] 紧急呼叫触发源启停 - 内置/自定义均允许。"""
+    s = await db.get(EmergencyCallSource, source_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="触发源不存在")
+    s.is_enabled = not bool(s.is_enabled)
+    await db.flush()
+    return utf8_json({"id": s.id, "is_enabled": bool(s.is_enabled), "message": "已更新"})
+
+
+# ─────────── 守护关系管理（后台 - v1.2 §9.2 / §9.3 新增） ───────────
+
+# 关系称呼到中文的展示映射 - 复用 RELATION_FALLBACKS（已在工具区定义）
+
+MEMBERSHIP_LEVEL_LABELS = {
+    "normal": "普通会员",
+    "health": "健康会员",
+    "premium": "尊享会员",
+}
+
+
+def _plan_to_level(plan_name: Optional[str]) -> str:
+    """根据套餐名称粗略归一化为 normal / health / premium 三档"""
+    if not plan_name:
+        return "normal"
+    n = str(plan_name)
+    if "尊享" in n or "至尊" in n or "premium" in n.lower() or "钻石" in n:
+        return "premium"
+    if "健康" in n or "health" in n.lower() or "金" in n:
+        return "health"
+    return "normal"
+
+
+async def _build_family_management_row(
+    db: AsyncSession,
+    mgmt: FamilyManagement,
+) -> dict:
+    """[Bug 修复 v1.2 §9.2] 构造后台「守护关系管理」单行卡片数据。"""
+    manager = await db.get(User, mgmt.manager_user_id)
+    managed_user = await db.get(User, mgmt.managed_user_id)
+    relation_label = await _resolve_relation_label(db, mgmt)
+    is_primary = bool(getattr(mgmt, "is_primary_guardian", False))
+
+    # 守护人本月额度（统一以「守护人 = manager_user_id」视角统计）
+    quotas = await _get_user_quotas(db, mgmt.manager_user_id)
+    em_used = await _get_used_count(db, mgmt.manager_user_id, "emergency_call")
+    ai_used = await _get_used_count(db, mgmt.manager_user_id, "ai_remind")
+    em_total = int(quotas["emergency_ai_call_count"])
+    ai_total = int(quotas["ai_remind_quota"])
+    em_remaining = -1 if em_total < 0 else max(0, em_total - em_used)
+    ai_remaining = -1 if ai_total < 0 else max(0, ai_total - ai_used)
+
+    return {
+        "id": mgmt.id,
+        "manager_user_id": mgmt.manager_user_id,
+        "manager_nickname": manager.nickname if manager else None,
+        "manager_phone": manager.phone if manager else None,
+        "manager_avatar": manager.avatar if manager else None,
+        "managed_user_id": mgmt.managed_user_id,
+        "managed_user_nickname": managed_user.nickname if managed_user else None,
+        "managed_user_phone": managed_user.phone if managed_user else None,
+        "managed_user_avatar": managed_user.avatar if managed_user else None,
+        "managed_member_id": mgmt.managed_member_id,
+        "relation_label": relation_label,
+        "role": "primary" if is_primary else "normal",
+        "role_label": "主守护人" if is_primary else "普通守护人",
+        "is_primary_guardian": is_primary,
+        "priority": int(getattr(mgmt, "priority_order", 100) or 100),
+        "membership_level": _plan_to_level(quotas["plan_name"]),
+        "membership_level_label": MEMBERSHIP_LEVEL_LABELS.get(_plan_to_level(quotas["plan_name"]), "普通会员"),
+        "plan_name": quotas["plan_name"],
+        "is_paid_member": bool(quotas["is_paid_member"]),
+        "emergency_quota_total": em_total,
+        "emergency_quota_used": em_used,
+        "emergency_quota_remaining": em_remaining,
+        "ai_call_quota_total": ai_total,
+        "ai_call_quota_used": ai_used,
+        "ai_call_quota_remaining": ai_remaining,
+        "status": mgmt.status,
+        "created_at": mgmt.created_at.isoformat() if mgmt.created_at else None,
+        "cancelled_at": mgmt.cancelled_at.isoformat() if mgmt.cancelled_at else None,
+    }
+
+
+@admin_router.get("/family-management")
+async def admin_list_family_management(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    status: Optional[str] = Query(None, description="active / cancelled"),
+    role_filter: Optional[str] = Query(None, description="primary / normal"),
+    is_paid: Optional[bool] = Query(None, description="是否付费会员"),
+    keyword: Optional[str] = Query(None, description="昵称/手机号模糊搜索"),
+    _=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """[Bug 修复 v1.2 §9.2] 后台守护关系管理 - 卡片列表
+
+    新增 5 个字段（角色、优先级、会员等级、紧急呼叫剩余、AI 外呼剩余）
+    新增 3 个筛选器（仅看主守护人、仅看普通守护人、仅看付费）
+    强制 UTF-8 输出修复中文乱码
+    """
+    stmt = select(FamilyManagement)
+    if status:
+        stmt = stmt.where(FamilyManagement.status == status)
+    else:
+        stmt = stmt.where(FamilyManagement.status == "active")
+
+    if role_filter == "primary":
+        stmt = stmt.where(FamilyManagement.is_primary_guardian == True)
+    elif role_filter == "normal":
+        stmt = stmt.where(FamilyManagement.is_primary_guardian == False)
+
+    # 关键字：先查 user.nickname / phone
+    if keyword:
+        like = f"%{keyword.strip()}%"
+        users_stmt = select(User.id).where(
+            or_(User.nickname.like(like), User.phone.like(like))
+        )
+        user_ids = [uid for uid, in (await db.execute(users_stmt)).all()]
+        if not user_ids:
+            return utf8_json({
+                "items": [], "total": 0, "page": page, "page_size": page_size,
+                "stats": {"total": 0, "primary": 0, "normal": 0, "paid": 0},
+            })
+        stmt = stmt.where(or_(
+            FamilyManagement.manager_user_id.in_(user_ids),
+            FamilyManagement.managed_user_id.in_(user_ids),
+        ))
+
+    # 先取全量计数（is_paid 是计算字段，需要二次过滤后再分页）
+    all_rows = (await db.execute(stmt.order_by(
+        FamilyManagement.is_primary_guardian.desc(),
+        FamilyManagement.created_at.desc(),
+    ))).scalars().all()
+
+    rows = []
+    for mgmt in all_rows:
+        row = await _build_family_management_row(db, mgmt)
+        if is_paid is True and not row["is_paid_member"]:
+            continue
+        if is_paid is False and row["is_paid_member"]:
+            continue
+        rows.append(row)
+
+    # 统计（Hero 区 4 项数字）
+    stats = {
+        "total": len(rows),
+        "primary": sum(1 for r in rows if r["is_primary_guardian"]),
+        "normal": sum(1 for r in rows if not r["is_primary_guardian"]),
+        "paid": sum(1 for r in rows if r["is_paid_member"]),
+    }
+
+    total = len(rows)
+    start = (page - 1) * page_size
+    end = start + page_size
+    items = rows[start:end]
+    return utf8_json({
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "stats": stats,
+    })
+
+
+@admin_router.delete("/family-management/{mgmt_id}")
+async def admin_cancel_family_management(
+    mgmt_id: int,
+    _=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """[Bug 修复 v1.2 §9] 管理员强制解除守护关系。"""
+    m = await db.get(FamilyManagement, mgmt_id)
+    if not m:
+        raise HTTPException(status_code=404, detail="守护关系不存在")
+    if m.status == "cancelled":
+        return utf8_json({"id": m.id, "message": "已是取消状态"})
+    m.status = "cancelled"
+    m.cancelled_at = datetime.utcnow()
+    if getattr(m, "is_primary_guardian", False):
+        m.is_primary_guardian = False
+    await db.flush()
+    return utf8_json({"id": m.id, "message": "已解除"})
+
+
+@admin_router.get("/family-management/{mgmt_id}/detail")
+async def admin_family_management_detail(
+    mgmt_id: int,
+    _=Depends(admin_dep),
+    db: AsyncSession = Depends(get_db),
+):
+    """[Bug 修复 v1.2 §7] 后台守护关系只读详情 - 6 分区数据。
+
+    1. 基本信息 / 2. 会员与配额 / 3. 代付开关状态 /
+    4. 关联守护人列表 / 5. 最近一次紧急 AI 呼叫 / 6. 最近一次 AI 外呼
+    """
+    mgmt = await db.get(FamilyManagement, mgmt_id)
+    if not mgmt:
+        raise HTTPException(status_code=404, detail="守护关系不存在")
+
+    manager = await db.get(User, mgmt.manager_user_id)
+    managed_user = await db.get(User, mgmt.managed_user_id)
+    relation_label = await _resolve_relation_label(db, mgmt)
+    is_primary = bool(getattr(mgmt, "is_primary_guardian", False))
+
+    # 分区 1：基本信息
+    managed_member = None
+    if mgmt.managed_member_id:
+        managed_member = await db.get(FamilyMember, mgmt.managed_member_id)
+    basic_info = {
+        "id": mgmt.id,
+        "manager_user_id": mgmt.manager_user_id,
+        "manager_nickname": manager.nickname if manager else None,
+        "manager_phone": manager.phone if manager else None,
+        "manager_avatar": manager.avatar if manager else None,
+        "managed_user_id": mgmt.managed_user_id,
+        "managed_user_nickname": managed_user.nickname if managed_user else None,
+        "managed_user_avatar": managed_user.avatar if managed_user else None,
+        "managed_user_phone": managed_user.phone if managed_user else None,
+        "managed_member_nickname": managed_member.nickname if managed_member else None,
+        "managed_member_gender": getattr(managed_member, "gender", None) if managed_member else None,
+        "managed_member_birthday": (
+            managed_member.birthday.isoformat()
+            if managed_member and managed_member.birthday else None
+        ),
+        "relation_label": relation_label,
+        "role": "primary" if is_primary else "normal",
+        "role_label": "主守护人" if is_primary else "普通守护人",
+        "priority": int(getattr(mgmt, "priority_order", 100) or 100),
+        "status": mgmt.status,
+        "created_at": mgmt.created_at.isoformat() if mgmt.created_at else None,
+        "cancelled_at": mgmt.cancelled_at.isoformat() if mgmt.cancelled_at else None,
+    }
+
+    # 分区 2：会员与配额（守护人视角）
+    quotas = await _get_user_quotas(db, mgmt.manager_user_id)
+    em_used = await _get_used_count(db, mgmt.manager_user_id, "emergency_call")
+    ai_used = await _get_used_count(db, mgmt.manager_user_id, "ai_remind")
+    em_total = int(quotas["emergency_ai_call_count"])
+    ai_total = int(quotas["ai_remind_quota"])
+
+    # 套餐到期时间
+    plan_expire_at = None
+    if quotas["is_paid_member"]:
+        now = datetime.utcnow()
+        sub = (await db.execute(
+            select(UserMembershipSub).where(
+                UserMembershipSub.user_id == mgmt.manager_user_id,
+                UserMembershipSub.status == "active",
+                UserMembershipSub.expire_at > now,
+            ).order_by(UserMembershipSub.expire_at.desc())
+        )).scalars().first()
+        plan_expire_at = sub.expire_at.isoformat() if (sub and sub.expire_at) else None
+
+    # 已守护他人数量
+    managed_count = (await db.execute(
+        select(func.count(FamilyManagement.id)).where(
+            FamilyManagement.manager_user_id == mgmt.manager_user_id,
+            FamilyManagement.status == "active",
+        )
+    )).scalar() or 0
+
+    membership_quota = {
+        "plan_name": quotas["plan_name"],
+        "membership_level": _plan_to_level(quotas["plan_name"]),
+        "membership_level_label": MEMBERSHIP_LEVEL_LABELS.get(_plan_to_level(quotas["plan_name"]), "普通会员"),
+        "is_paid_member": bool(quotas["is_paid_member"]),
+        "plan_expire_at": plan_expire_at,
+        "emergency_quota_total": em_total,
+        "emergency_quota_used": em_used,
+        "emergency_quota_remaining": -1 if em_total < 0 else max(0, em_total - em_used),
+        "ai_call_quota_total": ai_total,
+        "ai_call_quota_used": ai_used,
+        "ai_call_quota_remaining": -1 if ai_total < 0 else max(0, ai_total - ai_used),
+        "max_managed_total": int(quotas["max_managed"]),
+        "max_managed_used": int(managed_count),
+    }
+
+    # 分区 3：代付开关状态
+    primary_mgmt = await _get_primary_guardian_mgmt(db, mgmt.managed_user_id)
+    proxy_pay_info = {
+        "enabled": False,
+        "enabled_at": None,
+        "primary_guardian_user_id": None,
+        "primary_guardian_nickname": None,
+    }
+    if primary_mgmt:
+        primary_user = await db.get(User, primary_mgmt.manager_user_id)
+        proxy_pay_info["primary_guardian_user_id"] = primary_mgmt.manager_user_id
+        proxy_pay_info["primary_guardian_nickname"] = primary_user.nickname if primary_user else None
+        rec = (await db.execute(
+            select(GuardianProxyPay).where(
+                GuardianProxyPay.primary_guardian_user_id == primary_mgmt.manager_user_id,
+                GuardianProxyPay.managed_user_id == mgmt.managed_user_id,
+            )
+        )).scalars().first()
+        if rec:
+            proxy_pay_info["enabled"] = bool(rec.enabled)
+            proxy_pay_info["enabled_at"] = rec.updated_at.isoformat() if rec.updated_at else None
+
+    # 分区 4：关联守护人列表（该被守护人身上所有守护人）
+    all_guardians_rows = (await db.execute(
+        select(FamilyManagement).where(
+            FamilyManagement.managed_user_id == mgmt.managed_user_id,
+            FamilyManagement.status == "active",
+        ).order_by(
+            FamilyManagement.is_primary_guardian.desc(),
+            FamilyManagement.priority_order.asc().nullslast(),
+            FamilyManagement.created_at.asc(),
+        )
+    )).scalars().all()
+    associated_guardians = []
+    for g in all_guardians_rows:
+        g_user = await db.get(User, g.manager_user_id)
+        g_quotas = await _get_user_quotas(db, g.manager_user_id)
+        g_is_primary = bool(getattr(g, "is_primary_guardian", False))
+        g_relation = await _resolve_relation_label(db, g)
+        # 手机号脱敏
+        phone_masked = None
+        if g_user and g_user.phone:
+            p = g_user.phone
+            phone_masked = (p[:3] + "****" + p[-4:]) if len(p) >= 11 else p
+        associated_guardians.append({
+            "management_id": g.id,
+            "manager_user_id": g.manager_user_id,
+            "manager_nickname": g_user.nickname if g_user else None,
+            "manager_avatar": g_user.avatar if g_user else None,
+            "manager_phone_masked": phone_masked,
+            "role": "primary" if g_is_primary else "normal",
+            "role_label": "主守护人" if g_is_primary else "普通守护人",
+            "priority": int(getattr(g, "priority_order", 100) or 100),
+            "relation_label": g_relation,
+            "membership_level": _plan_to_level(g_quotas["plan_name"]),
+            "membership_level_label": MEMBERSHIP_LEVEL_LABELS.get(_plan_to_level(g_quotas["plan_name"]), "普通会员"),
+            "plan_name": g_quotas["plan_name"],
+            "is_paid_member": bool(g_quotas["is_paid_member"]),
+            "is_current": g.id == mgmt.id,
+            "created_at": g.created_at.isoformat() if g.created_at else None,
+        })
+
+    # 分区 5：最近一次紧急 AI 呼叫（基于 GuardianAlertQuotaUsage call_type='emergency_call'，被守护人维度）
+    last_emergency = (await db.execute(
+        select(GuardianAlertQuotaUsage).where(
+            GuardianAlertQuotaUsage.managed_user_id == mgmt.managed_user_id,
+            GuardianAlertQuotaUsage.call_type.in_(["emergency_call", "alert"]),
+        ).order_by(GuardianAlertQuotaUsage.used_at.desc()).limit(1)
+    )).scalars().first()
+    last_emergency_call = None
+    if last_emergency:
+        charged_user = await db.get(User, last_emergency.user_id)
+        last_emergency_call = {
+            "used_at": last_emergency.used_at.isoformat() if last_emergency.used_at else None,
+            "source_code": "health_data_abnormal",
+            "source_name": "健康数据异常",
+            "charged_user_id": last_emergency.user_id,
+            "charged_user_nickname": charged_user.nickname if charged_user else None,
+            "charged_count": 1,
+            "is_proxy_paid": False,
+        }
+
+    # 分区 6：最近一次 AI 外呼提醒（按目标被守护人）
+    last_reminder = (await db.execute(
+        select(AiCallReminder).where(
+            AiCallReminder.target_user_id == mgmt.managed_user_id,
+        ).order_by(AiCallReminder.created_at.desc()).limit(1)
+    )).scalars().first()
+    last_ai_call = None
+    if last_reminder:
+        setter = await db.get(User, last_reminder.setter_user_id)
+        # 是否代付：仅当 setter == 被守护人本人 且 主守护人开启了代付
+        is_proxy_paid = False
+        charged_user_id = last_reminder.setter_user_id
+        if last_reminder.setter_user_id == mgmt.managed_user_id and primary_mgmt:
+            if proxy_pay_info["enabled"]:
+                is_proxy_paid = True
+                charged_user_id = primary_mgmt.manager_user_id
+        charged_user = await db.get(User, charged_user_id)
+        last_ai_call = {
+            "id": last_reminder.id,
+            "title": last_reminder.title,
+            "setter_user_id": last_reminder.setter_user_id,
+            "setter_nickname": setter.nickname if setter else None,
+            "created_at": last_reminder.created_at.isoformat() if last_reminder.created_at else None,
+            "next_fire_at": last_reminder.next_fire_at.isoformat() if last_reminder.next_fire_at else None,
+            "is_enabled": bool(last_reminder.is_enabled),
+            "is_paused_by_quota": bool(last_reminder.is_paused_by_quota),
+            "charged_user_id": charged_user_id,
+            "charged_user_nickname": charged_user.nickname if charged_user else None,
+            "is_proxy_paid": is_proxy_paid,
+        }
+
+    return utf8_json({
+        "basic_info": basic_info,
+        "membership_quota": membership_quota,
+        "proxy_pay_info": proxy_pay_info,
+        "associated_guardians": associated_guardians,
+        "last_emergency_call": last_emergency_call,
+        "last_ai_call": last_ai_call,
+    })

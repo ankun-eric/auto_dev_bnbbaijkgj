@@ -480,10 +480,10 @@ async def test_v12_emergency_sources_seed_and_admin_crud(client: AsyncClient):
     assert r.status_code == 200, r.text
     new_id = r.json()["id"]
 
-    # 不能删内置
+    # [Bug 修复 v1.2 §8] 不能删内置 - 403（不再是 400）
     builtin = next(i for i in items if i["source_code"] == "smoke_alarm")
     r = await client.delete(f"/api/admin/emergency-sources/{builtin['id']}", headers=h_admin)
-    assert r.status_code == 400
+    assert r.status_code == 403
 
     # 可删自定义
     r = await client.delete(f"/api/admin/emergency-sources/{new_id}", headers=h_admin)
@@ -562,3 +562,170 @@ async def test_v12_owner_sees_proxy_pay_payer(client: AsyncClient):
     data = r.json()
     assert data["caller_is_owner"] is True
     assert data["proxy_pay_payer_nickname"] == "女儿(主)"
+
+
+# ════════════════════════════════════════════════════════════
+# Bug 修复方案文档 v1.2 — 新增测试
+# ════════════════════════════════════════════════════════════
+
+
+# ─────────── T13: UTF-8 中文乱码修复 ───────────
+
+
+@pytest.mark.asyncio
+async def test_v12_fix_emergency_sources_utf8_response(client: AsyncClient):
+    """[Bug 修复 v1.2 §9.1] 紧急呼叫触发源接口返回 Content-Type 应包含 charset=utf-8"""
+    await _ensure_builtin_sources()
+    await _make_user("13900000001", "运营", role=UserRole.admin)
+    h = await _admin_headers(client, "13900000001")
+    r = await client.get("/api/admin/emergency-sources", headers=h)
+    assert r.status_code == 200, r.text
+    # Content-Type 必须显式声明 charset=utf-8
+    ct = r.headers.get("content-type", "").lower()
+    assert "charset=utf-8" in ct or "charset=\"utf-8\"" in ct, f"Content-Type 缺 utf-8 charset: {ct}"
+    # 中文字段确实正确编码（response.text 解码后含原始中文）
+    assert "健康数据异常" in r.text
+
+
+@pytest.mark.asyncio
+async def test_v12_fix_family_management_list_utf8_response(client: AsyncClient):
+    """[Bug 修复 v1.2 §9.1 + §9.2] 守护关系列表中文正常 + 含新增 5 字段"""
+    await _make_user("13900100001", "张三")
+    await _make_user("13900100002", "妈妈李梅")
+    await _make_management("13900100001", "13900100002", is_primary=True, priority=0)
+
+    await _make_user("13900100099", "运营X", role=UserRole.admin)
+    h = await _admin_headers(client, "13900100099")
+    r = await client.get("/api/admin/family-management", headers=h)
+    assert r.status_code == 200, r.text
+    ct = r.headers.get("content-type", "").lower()
+    assert "charset=utf-8" in ct, f"Content-Type 缺 utf-8 charset: {ct}"
+    data = r.json()
+    assert data["total"] >= 1
+    item = next(it for it in data["items"] if it["manager_nickname"] == "张三")
+    # 新增 5 字段必须返回
+    for key in ("role", "priority", "membership_level",
+                "emergency_quota_remaining", "ai_call_quota_remaining"):
+        assert key in item, f"列表项缺字段 {key}"
+    assert item["role"] == "primary"
+    assert item["role_label"] == "主守护人"
+    # Hero 区 4 项统计
+    assert "stats" in data
+    assert "primary" in data["stats"]
+    assert "paid" in data["stats"]
+
+
+# ─────────── T14: 守护关系列表筛选器 ───────────
+
+
+@pytest.mark.asyncio
+async def test_v12_fix_family_management_role_filter(client: AsyncClient):
+    """[Bug 修复 v1.2 §9.2] role_filter / is_paid 筛选参数生效"""
+    await _make_user("13900200001", "主守护人A")
+    await _make_user("13900200002", "妈妈X")
+    await _make_user("13900200003", "普通守护人B")
+    await _make_management("13900200001", "13900200002", is_primary=True, priority=0, delta_seconds=0)
+    await _make_management("13900200003", "13900200002", is_primary=False, priority=10, delta_seconds=10)
+
+    await _make_user("13900200099", "运营Y", role=UserRole.admin)
+    h = await _admin_headers(client, "13900200099")
+    r = await client.get("/api/admin/family-management?role_filter=primary", headers=h)
+    assert r.status_code == 200
+    for item in r.json()["items"]:
+        assert item["role"] == "primary"
+
+    r = await client.get("/api/admin/family-management?role_filter=normal", headers=h)
+    assert r.status_code == 200
+    for item in r.json()["items"]:
+        assert item["role"] == "normal"
+
+
+# ─────────── T15: 守护关系只读详情接口（6 分区） ───────────
+
+
+@pytest.mark.asyncio
+async def test_v12_fix_family_management_detail(client: AsyncClient):
+    """[Bug 修复 v1.2 §7] 守护关系只读详情 - 返回 6 分区结构"""
+    await _make_user("13900300001", "守护人A")
+    await _make_user("13900300002", "被守护人Y")
+    mid = await _make_management("13900300001", "13900300002", is_primary=True, priority=0)
+
+    await _make_user("13900300099", "运营Z", role=UserRole.admin)
+    h = await _admin_headers(client, "13900300099")
+    r = await client.get(f"/api/admin/family-management/{mid}/detail", headers=h)
+    assert r.status_code == 200, r.text
+    ct = r.headers.get("content-type", "").lower()
+    assert "charset=utf-8" in ct
+    data = r.json()
+    # 6 个分区
+    for section in (
+        "basic_info", "membership_quota", "proxy_pay_info",
+        "associated_guardians", "last_emergency_call", "last_ai_call",
+    ):
+        assert section in data, f"详情缺分区 {section}"
+    # 基本信息含角色/关系
+    assert data["basic_info"]["role"] == "primary"
+    # 关联守护人列表至少包含当前
+    assert isinstance(data["associated_guardians"], list)
+    assert len(data["associated_guardians"]) >= 1
+
+
+# ─────────── T16: 内置触发源 PUT 修改非启停字段 → 403 ───────────
+
+
+@pytest.mark.asyncio
+async def test_v12_fix_emergency_source_builtin_put_returns_403(client: AsyncClient):
+    """[Bug 修复 v1.2 §8] 内置触发源仅允许启停/排序，修改其他字段返回 403"""
+    await _ensure_builtin_sources()
+    await _make_user("13900400099", "运营P", role=UserRole.admin)
+    h = await _admin_headers(client, "13900400099")
+    items = (await client.get("/api/admin/emergency-sources", headers=h)).json()["items"]
+    smoke = next(i for i in items if i["source_code"] == "smoke_alarm")
+
+    # 启停 - 允许
+    r = await client.put(
+        f"/api/admin/emergency-sources/{smoke['id']}",
+        json={"is_enabled": False},
+        headers=h,
+    )
+    assert r.status_code == 200
+
+    # 修改 source_name - 禁止
+    r = await client.put(
+        f"/api/admin/emergency-sources/{smoke['id']}",
+        json={"source_name": "改名"},
+        headers=h,
+    )
+    assert r.status_code == 403, r.text
+
+
+# ─────────── T17: 内置触发源 DELETE → 403（之前是 400） ───────────
+
+
+@pytest.mark.asyncio
+async def test_v12_fix_emergency_source_builtin_delete_returns_403(client: AsyncClient):
+    """[Bug 修复 v1.2 §8] 内置触发源 DELETE 返回 403（修正自 400）"""
+    await _ensure_builtin_sources()
+    await _make_user("13900500099", "运营Q", role=UserRole.admin)
+    h = await _admin_headers(client, "13900500099")
+    items = (await client.get("/api/admin/emergency-sources", headers=h)).json()["items"]
+    water = next(i for i in items if i["source_code"] == "water_alarm")
+    r = await client.delete(f"/api/admin/emergency-sources/{water['id']}", headers=h)
+    assert r.status_code == 403
+
+
+# ─────────── T18: 紧急呼叫触发源启停 PATCH ───────────
+
+
+@pytest.mark.asyncio
+async def test_v12_fix_emergency_source_toggle_patch(client: AsyncClient):
+    """[Bug 修复 v1.2 §9.4] PATCH /emergency-sources/{id}/toggle 内置和自定义均允许"""
+    await _ensure_builtin_sources()
+    await _make_user("13900600099", "运营R", role=UserRole.admin)
+    h = await _admin_headers(client, "13900600099")
+    items = (await client.get("/api/admin/emergency-sources", headers=h)).json()["items"]
+    eb = next(i for i in items if i["source_code"] == "emergency_button")
+    before = eb["is_enabled"]
+    r = await client.patch(f"/api/admin/emergency-sources/{eb['id']}/toggle", headers=h)
+    assert r.status_code == 200
+    assert r.json()["is_enabled"] is (not before)

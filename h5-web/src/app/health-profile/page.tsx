@@ -929,15 +929,25 @@ function HealthProfileV2PageInner() {
   );
 
   // ─── F9: Guardian dual cards (我守护的人 + 守护我的人) ──────────
+  // [Bug 修复 v1.2 §11.2] "我守护的人" 双卡片整块改为可点击区域，跳转至 /health-profile/i-guard
+  // 旧逻辑跳到 /family（家庭页），不符合 PRD §11.1 健康档案融合后的入口规范
 
   const renderDualCards = () => (
     <div style={{ padding: '0 16px 12px', display: 'flex', gap: 10 }}>
       <div
-        onClick={() => router.push('/family')}
+        data-testid='health-profile-i-guard-entry'
+        onClick={() => router.push('/health-profile/i-guard')}
         style={{
           flex: 1, background: '#fff', borderRadius: 12, padding: '14px 14px',
           display: 'flex', alignItems: 'center', gap: 10,
           boxShadow: '0 1px 4px rgba(0,0,0,0.04)', cursor: 'pointer',
+          transition: 'all 0.2s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(24, 144, 255, 0.12)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)';
         }}
       >
         <div style={{ width: 40, height: 40, borderRadius: 10, background: '#E3F2FD', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -945,7 +955,7 @@ function HealthProfileV2PageInner() {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>我守护的人</div>
-          <div style={{ fontSize: 12, color: '#6B7280' }}>{overview.family_member_count}人</div>
+          <div style={{ fontSize: 12, color: '#6B7280' }}>{guardianSummary.managed_count || overview.family_member_count}人</div>
         </div>
         <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>
       </div>

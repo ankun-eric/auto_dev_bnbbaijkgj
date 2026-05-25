@@ -27,7 +27,66 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: 邀请页与守护人体系 PRD v1.2 健康档案融合全量开发部署 (2026-05-25)
+## Latest Update: 邀请页与守护人体系 v1.2 - Bug 修复（卡片化 + 中文乱码 + 客户端入口闭环）(2026-05-25)
+
+### 一句话结论
+按《Bug 修复方案文档 v1.2》全量修复 v1.2 上线后 4 类问题：(1) 后台两个核心页面卡片化改造（紧急呼叫触发源 + 守护关系管理，含天蓝 Hero 区、响应式卡片网格、上下分区式卡片）；(2) 接口响应统一 `Content-Type: application/json; charset=utf-8` 修复中文乱码；(3) 守护关系列表补齐 5 字段 + 3 筛选器 + 6 分区只读详情抽屉；(4) H5 客户端 3 处入口接入闭环（首页 MoreMenu 新增「会员中心」、健康档案"我守护的人"双卡片整块点击跳 `/health-profile/i-guard`、本人行「我的 AI 外呼额度」加 `#quota` 锚点）。服务器内 21/21 pytest 全绿（含 6 条新增 v1.2 修复测试 T13-T18）。
+
+### 核心变更
+
+#### 后端
+- `backend/app/api/guardian_system_v12.py`
+  - 新增 `utf8_json()` 工具函数，封装 UTF-8 强制响应（Content-Type 带 charset=utf-8 + ensure_ascii=False）
+  - `admin_list_emergency_sources` 改用 utf8_json 包装，并新增 stats 统计字段（total/builtin/custom/enabled/disabled）
+  - `admin_update_emergency_source` 内置项修改非启停字段返回 403（之前是静默丢弃）
+  - `admin_delete_emergency_source` 内置项 DELETE 由 400 改为 403（语义对齐）
+  - 新增 `PATCH /api/admin/emergency-sources/{id}/toggle` 启停专用接口
+  - 新增 `GET /api/admin/family-management` 守护关系卡片列表（含 5 新增字段：role/priority/membership_level/emergency_quota_remaining/ai_call_quota_remaining，3 筛选器：role_filter/is_paid/keyword，Hero 区 4 项 stats）
+  - 新增 `DELETE /api/admin/family-management/{id}` 管理员强制解除
+  - 新增 `GET /api/admin/family-management/{id}/detail` 6 分区只读详情（基本信息/会员配额/代付/关联守护人/最近紧急呼叫/最近 AI 外呼）
+- `backend/tests/test_guardian_system_v12.py`
+  - T9 内置触发源 DELETE 期望从 400 改为 403
+  - 新增 6 条 v1.2 修复测试（T13-T18）：UTF-8 Content-Type、守护关系列表新字段、role_filter、6 分区详情、内置 PUT 403、内置 DELETE 403、PATCH toggle
+
+#### 管理后台 (admin-web)
+- `admin-web/src/app/(admin)/emergency-sources/page.tsx` — 整体重写为响应式卡片网格 + 120px 天蓝 Hero 区 + 内置/自定义徽章 + 操作菜单权限分层（内置编辑/删除灰色禁用）
+- `admin-web/src/app/(admin)/emergency-sources/page.legacy.tsx` — 旧 Table 实现回滚兜底
+- `admin-web/src/app/(admin)/family-management/page.tsx` — 整体重写为卡片网格 + Hero 区 + 上下分区式卡片（顶部头像+姓名+角色徽章/中部会员+优先级/底部双进度条+详情按钮）+ 3 筛选器（角色 Segmented / 付费 Segmented / 关键字搜索）+ 6 分区只读详情抽屉
+- `admin-web/src/app/(admin)/family-management/page.legacy.tsx` — 旧 Table 实现回滚兜底
+
+#### H5 (h5-web)
+- `h5-web/src/components/ai-chat/MoreMenu.tsx` — 新增 `onMemberCenter` props，菜单末位增加「会员中心」入口
+- `h5-web/src/app/(ai-chat)/ai-home/page.tsx` — 挂接 `onMemberCenter={() => router.push('/member-center#quota')}`
+- `h5-web/src/app/health-profile/page.tsx` — "我守护的人"双卡片左卡片整块改为可点击区域，跳转目标由 `/family` 改为 `/health-profile/i-guard`，加 hover 阴影反馈
+- `h5-web/src/app/health-profile/i-guard/page.tsx` — 本人行「我的 AI 外呼额度」按钮跳转目标改为 `/member-center#quota`（带 hash 锚定本月配额板块）
+
+### v1.2 视觉规范（已落地）
+- 主色 `#1890FF` / 深 `#096DD9` / 浅 `#69C0FF` / 浅底 `#E6F7FF` / 页面底 `#F0F8FF`
+- 卡片：圆角 20px / 阴影 `0 4px 16px rgba(24,144,255,0.08)` / hover 阴影 `0 6px 20px rgba(24,144,255,0.16)` + `translateY(-2px)`
+- Hero 区：120px / 渐变 `135deg, #1890FF 0%, #096DD9 100%` / 含 4 个半透明白色统计数字卡片
+- 角色徽章：主守护人 `#1890FF` 实心；普通守护人 `#E6F7FF` 浅底 + `#91D5FF` 描边 + `#1890FF` 文字
+- 按钮：药丸形圆角 22px
+
+### 部署
+- 部署脚本：`_deploy_bugfix_v12.py`（含 scp 上传 + docker compose build + rebuild + smoke）
+- 验证脚本：`_verify_bugfix_v12.py`（含 admin login + UTF-8 Content-Type 校验 + pytest 21/21 全绿）
+- 部署时间：2026-05-25
+
+### 已知接口（v1.2 Bug 修复新增 / 改造）
+- `GET /api/admin/emergency-sources` — UTF-8 强制 + 新增 stats 统计
+- `PATCH /api/admin/emergency-sources/{id}/toggle` — 新增启停专用
+- `PUT /api/admin/emergency-sources/{id}` — 内置非启停字段返回 403
+- `DELETE /api/admin/emergency-sources/{id}` — 内置返回 403（改自 400）
+- `GET /api/admin/family-management` — 新增（5 字段 + 3 筛选器 + Hero stats）
+- `GET /api/admin/family-management/{id}/detail` — 新增（6 分区只读详情）
+- `DELETE /api/admin/family-management/{id}` — 新增（管理员强制解除）
+
+### 用户体验手册
+- `user_docs/邀请页与守护人体系v1.2_Bug修复.md`
+
+---
+
+## Previous Update: 邀请页与守护人体系 PRD v1.2 健康档案融合全量开发部署 (2026-05-25)
 
 ### 一句话结论
 按《邀请页与守护人体系 PRD v1.2 - 健康档案融合调整方案》落地了主守护人转让重构（接收者同意 + 被守护人上帝视角）、紧急 AI 呼叫统一扣主守护人、主守护人代付被守护人 AI 外呼开关、紧急呼叫触发源管理（4 内置 + 后台可扩展）、套餐字段规范化（删 `ai_phone_alert_count`、改名 `emergency_ai_call_count`、新增 `max_managed`）。后端 14/14 测试全绿，H5「我守护的人 直筒列表」「会员中心」与管理后台「紧急呼叫触发源管理」均已上线并 HTTP 200 可达。

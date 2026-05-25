@@ -258,7 +258,8 @@ export default function IGuardPage() {
             <Button size='mini' color='primary' fill='outline' style={{ flex: 1, borderRadius: 22 }}
               onClick={openInviteRecords}>邀请记录</Button>
             <Button size='mini' color='primary' fill='solid' style={{ flex: 1, borderRadius: 22 }}
-              onClick={() => router.push('/member-center')}>我的 AI 外呼额度</Button>
+              data-testid='i-guard-self-quota-entry'
+              onClick={() => router.push('/member-center#quota')}>我的 AI 外呼额度</Button>
           </div>
         </div>
 

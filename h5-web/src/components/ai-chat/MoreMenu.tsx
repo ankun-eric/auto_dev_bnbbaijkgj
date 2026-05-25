@@ -9,6 +9,8 @@ interface MoreMenuProps {
   onScan?: () => void;
   onFontSize?: () => void;
   onShare?: () => void;
+  // [Bug 修复 v1.2 §11.1] 新增「会员中心」入口（替换原"我的硬件"语义；因健康档案里已有硬件入口）
+  onMemberCenter?: () => void;
 }
 
 // [PRD-467 FR-07] ⋯ 菜单卡片视觉与首页 THEME.background 浅蓝主题打通：
@@ -18,13 +20,15 @@ interface MoreMenuProps {
 const MENU_BG = THEME.background; // #F0F9FF
 const MENU_DIVIDER = '#BAE6FD'; // 主题浅蓝点缀色
 
-export default function MoreMenu({ visible, onClose, onScan, onFontSize, onShare }: MoreMenuProps) {
+export default function MoreMenu({ visible, onClose, onScan, onFontSize, onShare, onMemberCenter }: MoreMenuProps) {
   // [PRD-467 FR-01/FR-02] 「扫一扫」「字体大小」可点击：action 由父组件挂接到 onScan / onFontSize
   // 注意：点击后 onClose 仍会被调用以关闭⋯菜单，与字号 popover 互斥（FR-02）
+  // [Bug 修复 v1.2 §11.1] 末位新增「会员中心」入口（v1.2 客户端入口接入闭环，跳转 /member-center）
   const items = [
     { icon: '📷', label: '扫一扫', action: onScan },
     { icon: '🔤', label: '字体大小', action: onFontSize },
     { icon: '📤', label: '立即分享', action: onShare },
+    { icon: '👑', label: '会员中心', action: onMemberCenter },
   ];
 
   return (

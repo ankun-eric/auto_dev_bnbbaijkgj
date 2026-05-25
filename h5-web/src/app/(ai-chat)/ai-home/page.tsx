@@ -6076,6 +6076,8 @@ export default function AiHomePage() {
         onScan={handleScan}
         onFontSize={handleFontSize}
         onShare={() => setShareOpen(true)}
+        // [Bug 修复 v1.2 §11.1] 会员中心入口：跳转 H5 会员中心页面（自动锚定到本月配额板块）
+        onMemberCenter={() => { setMoreMenuOpen(false); router.push('/member-center#quota'); }}
       />
       <ConsultTargetPicker
         visible={consultantOpen}
