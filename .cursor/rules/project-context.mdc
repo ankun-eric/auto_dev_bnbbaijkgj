@@ -27,7 +27,39 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: 紧急呼叫触发源管理 v1.0 - 中文乱码修复 + 内置开放编辑（2026-05-25）
+## Latest Update: 健康计划管理菜单下线与打卡统计搬家 v1.0（2026-05-25）
+
+### 一句话结论
+按《健康计划管理菜单下线与打卡统计搬家 PRD v1.0》完成一次性清理：(1) 物理删除孤岛模块 `default_health_tasks` 表 + `DefaultHealthTask` 模型 + `DefaultHealthTask*` Schema + `/api/admin/health-plan/default-tasks/*` 全部 CRUD 接口；(2) 管理后台「健康计划管理 → 打卡数据统计」(`/admin/health-plan/statistics`) 搬家到「健康档案管理 → 打卡数据统计」(`/admin/health-records/statistics`)，页面功能 0 改动；(3) 整条「健康计划管理」一级菜单从 admin-web layout 中彻底下线（连同 `ScheduleOutlined` 图标导入）；(4) 推荐计划相关 3 张表 (`plan_template_categories` / `recommended_plans` / `recommended_plan_tasks`) 与对应接口/前端残留页面完全保留（H5/小程序/Flutter App 仍在读取）。H5 / 小程序 / Flutter App 三端**0 代码改动**。服务器端 DB 表已 DROP、API 全部 404、OpenAPI 中已无 default-tasks 路径、新页面 200 渲染「打卡数据统计」。
+
+### 核心变更
+#### 后端
+- `backend/app/models/models.py` — 删除 `DefaultHealthTask` ORM 模型类
+- `backend/app/schemas/health_plan_v2.py` — 删除 `DefaultHealthTaskResponse / Create / Update` 三个 Pydantic Schema
+- `backend/app/api/admin_health_plan.py` — 删除 `DefaultHealthTask` 全部 import、删除 `/default-tasks` GET/POST/PUT/DELETE 4 个端点（保留 `/checkin-statistics`、`/user-daily-summary`、`/recommended-plans`、`/template-categories`）
+- `backend/app/services/schema_sync.py` — 新增 `_sync_drop_default_health_tasks_v1()` 幂等 DROP TABLE 迁移并在 `sync_register_schema()` 注册
+
+#### 管理后台 (admin-web)
+- 删除：`admin-web/src/app/(admin)/health-plan/default-tasks/page.tsx` + 整个 `default-tasks/` 目录
+- 移动：`admin-web/src/app/(admin)/health-plan/statistics/page.tsx` → `admin-web/src/app/(admin)/health-records/statistics/page.tsx`（内容 0 改动）
+- `admin-web/src/app/(admin)/layout.tsx` — 移除 `health-plan` 一级菜单条目；移除 `ScheduleOutlined` 图标导入；移除 `getOpenKeys` 中 `/health-plan` 路径匹配；在 `health` 一级菜单下追加 `/health-records/statistics` 二级菜单条目
+
+#### 测试
+- `tests/test_health_plan_module.py` — 删除 `test_admin_list_default_tasks` / `test_admin_default_task_crud` / `test_admin_default_tasks_unauth` 三个测试
+- `test_health_plan_v2.py` — 删除 `test_admin_default_task_crud()` 函数及 `__main__` 中的调用
+
+### 部署后访问入口
+- 新位置：`/admin/health-records/statistics` → 200（页面渲染「打卡数据统计」标题）
+- 旧位置：`/admin/health-plan/default-tasks` → 404
+- 旧接口：`/api/admin/health-plan/default-tasks/*` → 404（OpenAPI 中已无该路径）
+- 保留接口：`/api/admin/health-plan/checkin-statistics`、`/api/admin/health-plan/user-daily-summary`（路径未变，仅前端归属变化）
+
+### 用户体验手册
+- `user_docs/健康计划管理菜单下线与打卡统计搬家.md`
+
+---
+
+## Previous Update: 紧急呼叫触发源管理 v1.0 - 中文乱码修复 + 内置开放编辑（2026-05-25）
 
 ### 一句话结论
 完成《Bug 修复 + 功能增强方案：紧急呼叫触发源管理 v1.0》：(1) UPDATE 现网 4 行内置触发源中文文案为最终参考版（健康数据异常 / 烟雾报警 / 浸水报警 / 紧急按钮）；(2) `schema_sync.py` 内置种子改为 `INSERT ... ON DUPLICATE KEY UPDATE` 幂等 upsert，未来重装自动覆盖任何历史乱码；(3) 后端硬保护规则调整：内置触发源 PUT 仅接受 `source_name + description`、其他字段静默忽略、`is_enabled` 强制锁定为 True；DELETE / PATCH toggle 内置项返回 403；(4) admin-web 卡片右上角铅笔图标弹出编辑模态框（仅 name + description）、内置卡片隐藏删除菜单与启停 Switch；(5) 新增 / 重写 4 条后端 pytest 用例（T16-T19）；(6) 服务器端 12 项端到端验证 100% 通过。

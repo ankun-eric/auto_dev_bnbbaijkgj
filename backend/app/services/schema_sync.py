@@ -3080,6 +3080,25 @@ async def _sync_guardian_system_v12(conn: AsyncConnection) -> None:
         ))
 
 
+async def _sync_drop_default_health_tasks_v1(conn: AsyncConnection) -> None:
+    """[健康计划管理菜单下线与打卡统计搬家 PRD v1.0 2026-05-25]
+
+    DROP TABLE `default_health_tasks`：管理后台「健康计划管理 → 通用任务配置」
+    及其对应数据表已下线。该表为孤岛功能，未被 H5 / 小程序 / Flutter App 引用，
+    直接物理删除，不做备份。
+
+    幂等：通过 `DROP TABLE IF EXISTS` 实现，多次执行不报错。
+    """
+    def _has_table(sync_conn):
+        inspector = inspect(sync_conn)
+        return "default_health_tasks" in set(inspector.get_table_names())
+
+    if not await conn.run_sync(_has_table):
+        return
+
+    await conn.execute(text("DROP TABLE IF EXISTS default_health_tasks"))
+
+
 async def _sync_decouple_points_mall_from_products_v1(conn: AsyncConnection) -> None:
     """[实物商品与积分商城彻底解耦 v1.0 2026-05-25]
 
@@ -3187,6 +3206,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_guardian_system_v12(conn)
     # [实物商品与积分商城彻底解耦 v1.0 2026-05-25] 置空 products.points_exchangeable / points_price
     await _sync_decouple_points_mall_from_products_v1(conn)
+    # [健康计划管理菜单下线与打卡统计搬家 v1.0 2026-05-25] DROP TABLE default_health_tasks
+    await _sync_drop_default_health_tasks_v1(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

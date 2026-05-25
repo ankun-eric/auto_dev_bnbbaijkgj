@@ -9,7 +9,6 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.security import require_role
 from app.models.models import (
-    DefaultHealthTask,
     HealthCheckInItem,
     HealthCheckInRecord,
     MedicationCheckIn,
@@ -23,9 +22,6 @@ from app.models.models import (
     UserPlanTaskRecord,
 )
 from app.schemas.health_plan_v2 import (
-    DefaultHealthTaskCreate,
-    DefaultHealthTaskResponse,
-    DefaultHealthTaskUpdate,
     PlanTemplateCategoryCreate,
     PlanTemplateCategoryResponse,
     PlanTemplateCategoryUpdate,
@@ -343,82 +339,6 @@ async def admin_delete_template_category(
     if user_count > 0:
         msg = f"分类已标记删除，但有 {user_count} 个用户计划引用此分类，已有计划不受影响"
     return {"message": msg}
-
-
-# ──────────────── 默认健康任务 ────────────────
-
-
-@router.get("/default-tasks")
-async def admin_list_default_tasks(
-    current_user: User = Depends(require_role("admin")),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(DefaultHealthTask).order_by(DefaultHealthTask.sort_order.asc())
-    )
-    tasks = [DefaultHealthTaskResponse.model_validate(t) for t in result.scalars().all()]
-    return {"items": tasks}
-
-
-@router.post("/default-tasks", response_model=DefaultHealthTaskResponse)
-async def admin_create_default_task(
-    data: DefaultHealthTaskCreate,
-    current_user: User = Depends(require_role("admin")),
-    db: AsyncSession = Depends(get_db),
-):
-    task = DefaultHealthTask(
-        name=data.name,
-        description=data.description,
-        target_value=data.target_value,
-        target_unit=data.target_unit,
-        category_type=data.category_type,
-        template_category_id=data.template_category_id,
-        sort_order=data.sort_order,
-        is_active=data.is_active,
-    )
-    db.add(task)
-    await db.flush()
-    await db.refresh(task)
-    return DefaultHealthTaskResponse.model_validate(task)
-
-
-@router.put("/default-tasks/{task_id}", response_model=DefaultHealthTaskResponse)
-async def admin_update_default_task(
-    task_id: int,
-    data: DefaultHealthTaskUpdate,
-    current_user: User = Depends(require_role("admin")),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(DefaultHealthTask).where(DefaultHealthTask.id == task_id)
-    )
-    task = result.scalar_one_or_none()
-    if not task:
-        raise HTTPException(status_code=404, detail="任务不存在")
-
-    for field, value in data.model_dump(exclude_unset=True).items():
-        setattr(task, field, value)
-    await db.flush()
-    await db.refresh(task)
-    return DefaultHealthTaskResponse.model_validate(task)
-
-
-@router.delete("/default-tasks/{task_id}")
-async def admin_delete_default_task(
-    task_id: int,
-    current_user: User = Depends(require_role("admin")),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(DefaultHealthTask).where(DefaultHealthTask.id == task_id)
-    )
-    task = result.scalar_one_or_none()
-    if not task:
-        raise HTTPException(status_code=404, detail="任务不存在")
-
-    await db.delete(task)
-    await db.flush()
-    return {"message": "删除成功"}
 
 
 # ──────────────── 打卡数据统计 ────────────────

@@ -2483,23 +2483,6 @@ class UserPlanTaskRecord(Base):
     user = relationship("User")
 
 
-class DefaultHealthTask(Base):
-    __tablename__ = "default_health_tasks"
-
-    id = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name = mapped_column(String(200), nullable=False)
-    description = mapped_column(Text, nullable=True)
-    target_value = mapped_column(Float, nullable=True)
-    target_unit = mapped_column(String(50), nullable=True)
-    category_type = mapped_column(String(50), nullable=True)
-    template_category_id = mapped_column(Integer, ForeignKey("plan_template_categories.id"), nullable=True)
-    sort_order = mapped_column(Integer, default=0)
-    is_active = mapped_column(Boolean, default=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-
-    template_category = relationship("PlanTemplateCategory")
-
-
 class NotificationLog(Base):
     __tablename__ = "notification_logs"
 
@@ -3092,8 +3075,11 @@ class Product(Base):
     stock = mapped_column(Integer, default=0)
     # 商品功能优化 v1.0：valid_start_date / valid_end_date 已废弃并清理
     # 如果历史业务确有限时活动需求，请改造为独立的 promotion 表
-    points_exchangeable = mapped_column(Boolean, default=False)
-    points_price = mapped_column(Integer, default=0)
+    # [实物商品与积分商城彻底解耦 v1.0 2026-05-25] 已废弃，仅保留物理列以便回滚
+    # 业务层不再读写这两个字段；schema_sync 已将存量数据置空（0 / False）
+    # 下个迭代评估后再决定物理 DROP COLUMN
+    points_exchangeable = mapped_column(Boolean, default=False, comment="[DEPRECATED 2026-05-25] 已与积分商城解耦，永远为 False")
+    points_price = mapped_column(Integer, default=0, comment="[DEPRECATED 2026-05-25] 已与积分商城解耦，永远为 0")
     points_deductible = mapped_column(Boolean, default=False)
     # [付费会员体系 PRD v1.1] 是否支持付费会员折扣
     # 勾选后，付费会员下单本商品时按其所在套餐的全局折扣率执行；

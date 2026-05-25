@@ -711,15 +711,6 @@ class TestAdminAPIs:
         assert "items" in data
         assert "total" in data
 
-    def test_admin_list_default_tasks(self, session, admin_headers):
-        r = session.get(
-            f"{BASE_URL}/api/admin/health-plan/default-tasks",
-            headers=admin_headers,
-            timeout=TIMEOUT,
-        )
-        assert r.status_code == 200
-        assert "items" in r.json()
-
     def test_admin_checkin_statistics(self, session, admin_headers):
         r = session.get(
             f"{BASE_URL}/api/admin/health-plan/checkin-statistics",
@@ -895,43 +886,6 @@ class TestAdminAPIs:
         )
         assert r.status_code == 403
 
-    def test_admin_default_task_crud(self, session, admin_headers):
-        tag = _uid()
-        # Create
-        r = session.post(
-            f"{BASE_URL}/api/admin/health-plan/default-tasks",
-            headers=admin_headers,
-            json={
-                "name": f"默认任务_{tag}",
-                "description": "autotest",
-                "target_value": 10000,
-                "target_unit": "步",
-                "category_type": "exercise",
-                "sort_order": 999,
-                "is_active": True,
-            },
-            timeout=TIMEOUT,
-        )
-        assert r.status_code == 200
-        task_id = r.json()["id"]
-
-        # Update
-        r = session.put(
-            f"{BASE_URL}/api/admin/health-plan/default-tasks/{task_id}",
-            headers=admin_headers,
-            json={"name": f"Updated_{tag}", "is_active": False},
-            timeout=TIMEOUT,
-        )
-        assert r.status_code == 200
-
-        # Delete
-        r = session.delete(
-            f"{BASE_URL}/api/admin/health-plan/default-tasks/{task_id}",
-            headers=admin_headers,
-            timeout=TIMEOUT,
-        )
-        assert r.status_code == 200
-
     def test_admin_categories_unauth(self, session):
         r = session.get(
             f"{BASE_URL}/api/admin/health-plan/template-categories",
@@ -942,13 +896,6 @@ class TestAdminAPIs:
     def test_admin_plans_unauth(self, session):
         r = session.get(
             f"{BASE_URL}/api/admin/health-plan/recommended-plans",
-            timeout=TIMEOUT,
-        )
-        assert r.status_code == 401
-
-    def test_admin_default_tasks_unauth(self, session):
-        r = session.get(
-            f"{BASE_URL}/api/admin/health-plan/default-tasks",
             timeout=TIMEOUT,
         )
         assert r.status_code == 401

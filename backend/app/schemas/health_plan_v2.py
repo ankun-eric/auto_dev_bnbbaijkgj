@@ -341,46 +341,6 @@ class AIGenerateCategoryPlanRequest(BaseModel):
     goals: Optional[str] = None
 
 
-# ──────────────── 默认健康任务 ────────────────
-
-
-class DefaultHealthTaskResponse(BaseModel):
-    id: int
-    name: str
-    description: Optional[str] = None
-    target_value: Optional[float] = None
-    target_unit: Optional[str] = None
-    category_type: Optional[str] = None
-    template_category_id: Optional[int] = None
-    sort_order: int
-    is_active: bool
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class DefaultHealthTaskCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
-    target_value: Optional[float] = None
-    target_unit: Optional[str] = None
-    category_type: Optional[str] = None
-    template_category_id: Optional[int] = None
-    sort_order: int = 0
-    is_active: bool = True
-
-
-class DefaultHealthTaskUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    target_value: Optional[float] = None
-    target_unit: Optional[str] = None
-    category_type: Optional[str] = None
-    template_category_id: Optional[int] = None
-    sort_order: Optional[int] = None
-    is_active: Optional[bool] = None
-
-
 # ──────────────── 今日待办 ────────────────
 
 

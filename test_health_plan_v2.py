@@ -554,67 +554,6 @@ def test_admin_recommended_plan_crud():
     requests.delete(f"{BASE_URL}/api/admin/health-plan/template-categories/{cat_id}", headers=h, timeout=TIMEOUT)
 
 
-# ─── 9. Admin: Default Health Task CRUD ───
-
-
-def test_admin_default_task_crud():
-    print("\n[9] Admin Default Health Task CRUD")
-    token = get_admin_token()
-    if not token:
-        print("  SKIP (no admin token)")
-        return
-    h = {"Authorization": f"Bearer {token}"}
-    uid = uuid.uuid4().hex[:6]
-
-    # List
-    resp = requests.get(f"{BASE_URL}/api/admin/health-plan/default-tasks", headers=h, timeout=TIMEOUT)
-    check("GET admin /default-tasks returns 200", resp.status_code == 200, f"got {resp.status_code}")
-    list_data = safe_json(resp)
-    check("Default tasks has items", "items" in list_data, str(list_data.keys()))
-
-    # Create
-    resp = requests.post(
-        f"{BASE_URL}/api/admin/health-plan/default-tasks",
-        headers=h,
-        json={
-            "name": f"默认任务_{uid}",
-            "description": "autotest default task",
-            "target_value": 10000,
-            "target_unit": "步",
-            "category_type": "exercise",
-            "sort_order": 999,
-            "is_active": True,
-        },
-        timeout=TIMEOUT,
-    )
-    check("POST admin /default-tasks returns 200", resp.status_code == 200,
-          f"got {resp.status_code}: {resp.text[:200]}")
-    data = safe_json(resp)
-    task_id = data.get("id")
-    check("Created default task has id", task_id is not None, str(data))
-
-    if not task_id:
-        return
-
-    # Update
-    resp = requests.put(
-        f"{BASE_URL}/api/admin/health-plan/default-tasks/{task_id}",
-        headers=h,
-        json={"name": f"更新默认任务_{uid}", "target_value": 15000, "is_active": False},
-        timeout=TIMEOUT,
-    )
-    check("PUT admin /default-tasks/{id} returns 200", resp.status_code == 200,
-          f"got {resp.status_code}: {resp.text[:200]}")
-
-    # Delete
-    resp = requests.delete(
-        f"{BASE_URL}/api/admin/health-plan/default-tasks/{task_id}",
-        headers=h,
-        timeout=TIMEOUT,
-    )
-    check("DELETE admin /default-tasks/{id} returns 200", resp.status_code == 200, f"got {resp.status_code}")
-
-
 # ─── 10. Admin: Check-in Statistics ───
 
 
@@ -809,7 +748,6 @@ if __name__ == "__main__":
     test_statistics()
     test_admin_template_category_crud()
     test_admin_recommended_plan_crud()
-    test_admin_default_task_crud()
     test_admin_checkin_statistics()
     test_join_recommended_plan()
     test_edge_cases()
