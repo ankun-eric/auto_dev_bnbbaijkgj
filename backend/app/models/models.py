@@ -3551,7 +3551,8 @@ class OrderItem(Base):
 
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     order_id = mapped_column(Integer, ForeignKey("unified_orders.id"), nullable=False, index=True)
-    product_id = mapped_column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    # [会员中心优化 PRD v2.0 2026-05-26] 会员费订单无关联实物商品，product_id 改为可空
+    product_id = mapped_column(Integer, ForeignKey("products.id"), nullable=True, index=True)
     sku_id = mapped_column(Integer, ForeignKey("product_skus.id"), nullable=True, index=True)
     sku_name = mapped_column(String(50), nullable=True)
     product_name = mapped_column(String(200), nullable=False)
@@ -3569,6 +3570,12 @@ class OrderItem(Base):
     # [PRD V2 核销订单状态体系优化] 核销码 5 态独立状态机（active/locked/used/expired/refunded）
     redemption_code_status = mapped_column(String(16), default="active", nullable=False)
     redemption_code_expires_at = mapped_column(DateTime, nullable=True)
+    # [会员中心优化 PRD v2.0 2026-05-26] 会员费订单关联套餐
+    # 复用 fulfillment_type='virtual' 识别权益服务订单；本字段非空表示该订单是会员费订单
+    membership_plan_id = mapped_column(Integer, nullable=True, index=True,
+                                       comment="[v2.0] 会员套餐ID，仅会员费订单填充")
+    membership_period = mapped_column(String(10), nullable=True,
+                                      comment="[v2.0] month/year，仅会员费订单填充")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

@@ -2365,6 +2365,11 @@ from app.api import membership as _membership  # noqa: E402
 app.include_router(_membership.admin_router)
 app.include_router(_membership.user_router)
 
+# [会员中心优化 PRD v2.0 2026-05-26] 注册新的会员中心 v2 路由
+from app.api import member_center_v2 as _member_center_v2  # noqa: E402
+app.include_router(_member_center_v2.router)
+app.include_router(_member_center_v2.admin_router)
+
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 

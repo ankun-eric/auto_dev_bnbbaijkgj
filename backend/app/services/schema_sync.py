@@ -3099,6 +3099,51 @@ async def _sync_drop_default_health_tasks_v1(conn: AsyncConnection) -> None:
     await conn.execute(text("DROP TABLE IF EXISTS default_health_tasks"))
 
 
+async def _sync_member_center_v2(conn: AsyncConnection) -> None:
+    """[会员中心优化 PRD v2.0 2026-05-26] order_items 新增 membership_plan_id / membership_period 列。
+
+    复用 fulfillment_type='virtual' 标识权益服务订单；本两列非空时表示该 OrderItem 是会员费订单。
+    幂等：每次启动时检查列是否存在，不存在才 ALTER。
+    """
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "order_items" not in tables:
+            return None
+        return {col["name"] for col in inspector.get_columns("order_items")}
+
+    cols = await conn.run_sync(_load)
+    if cols is None:
+        return
+    if "membership_plan_id" not in cols:
+        await conn.execute(text(
+            "ALTER TABLE order_items ADD COLUMN membership_plan_id INT NULL, "
+            "ADD INDEX idx_order_items_membership_plan_id (membership_plan_id)"
+        ))
+    if "membership_period" not in cols:
+        await conn.execute(text(
+            "ALTER TABLE order_items ADD COLUMN membership_period VARCHAR(10) NULL"
+        ))
+    # 将 product_id 改为可空，以支持会员费订单（无关联实物商品）
+    def _check_prod_nullable(sync_conn):
+        inspector = inspect(sync_conn)
+        for col in inspector.get_columns("order_items"):
+            if col["name"] == "product_id":
+                return col.get("nullable", False)
+        return True
+
+    try:
+        is_nullable = await conn.run_sync(_check_prod_nullable)
+        if not is_nullable:
+            await conn.execute(text(
+                "ALTER TABLE order_items MODIFY COLUMN product_id INT NULL"
+            ))
+    except Exception:
+        # 一些 DB（如 SQLite）不支持 MODIFY COLUMN，忽略；
+        # 测试场景下表会被重新 create_all
+        pass
+
+
 async def _sync_decouple_points_mall_from_products_v1(conn: AsyncConnection) -> None:
     """[实物商品与积分商城彻底解耦 v1.0 2026-05-25]
 
@@ -3208,6 +3253,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_decouple_points_mall_from_products_v1(conn)
     # [健康计划管理菜单下线与打卡统计搬家 v1.0 2026-05-25] DROP TABLE default_health_tasks
     await _sync_drop_default_health_tasks_v1(conn)
+    # [会员中心优化 PRD v2.0 2026-05-26] order_items 新增 membership_plan_id / membership_period 列
+    await _sync_member_center_v2(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

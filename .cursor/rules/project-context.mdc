@@ -27,7 +27,38 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: 健康计划管理菜单下线与打卡统计搬家 v1.0（2026-05-25）
+## Latest Update: 会员中心优化 PRD v2.0（2026-05-26）
+
+### 一句话结论
+按《会员中心优化 PRD v2.0》落地：(1) 新增独立的 `member_center_v2` 后端模块，9 个新接口（`/api/member/center`、`/api/member/order`、`/api/member/order/{id}/pay`、`/api/member/orders`、`/api/member/plans`、`/api/admin/users/{id}/membership`、`/api/admin/users/{id}/membership/adjust`、`/api/member/_internal/cron/expire`、`/api/member/_internal/cron/remind`）；(2) `order_items` 表新增 `membership_plan_id` / `membership_period` 两列，复用 `fulfillment_type='virtual'` 标识权益服务订单，无新增 `order_type` 字段；(3) `order_items.product_id` 改为可空，支持会员费订单无关联实物商品；(4) H5 `MoreMenu.tsx` 将「👑 会员中心」提到第一项；(5) H5 `/member-center` 整体重构为蓝紫主调 + 金色点缀：用户信息卡（蓝紫渐变 + 金色皇冠 + 金色等级胶囊）+ 4 格权益卡（3 实 + 1 占位）+ 动态套餐区（推荐金色描边）+ 底部入口区；(6) 业务规则：同套餐续费时长追加 / 跨套餐升级立即生效旧时长作废 / 降级被拒；(7) `_sync_member_center_v2` 幂等 schema 迁移；(8) 8/8 pytest 全绿（含到期降级 cron 测试）。
+
+### 核心变更
+- 后端新增：`backend/app/api/member_center_v2.py`（9 个接口 + `_grant_membership` 升级/续费逻辑 + 2 个 cron 任务函数）
+- 后端模型：`backend/app/models/models.py` OrderItem 新增 `membership_plan_id` / `membership_period`，`product_id` 改为可空
+- 后端 schema：`backend/app/services/schema_sync.py` 新增 `_sync_member_center_v2()` 幂等迁移
+- 后端注册：`backend/app/main.py` 注册 `_member_center_v2.router` 与 `admin_router`
+- 后端测试：`backend/tests/test_member_center_v2.py` 8 条端到端测试
+- H5：`h5-web/src/components/ai-chat/MoreMenu.tsx` 调整菜单项顺序
+- H5：`h5-web/src/app/member-center/page.tsx` 整体重构为新视觉
+
+### 部署后访问入口
+- `/api/member/plans` → 200（返回所有启用套餐）
+- `/api/member/center` → 200（需 user token）
+- `/member-center/` → 200（H5 新版页面）
+
+### 已知设计决策
+- 当前为模拟支付（simulate=true 直接 grant），真实通道未对接
+- `product_id` 改为可空：会员费订单无关联实物商品
+- `_plan_rank` 以年价为优先排名依据，年价 NULL 时退化为 月价×12
+- 占位卡永远在末尾，新权益从前填入
+- 跨套餐降级直接 400 拒绝
+
+### 用户体验手册
+- `user_docs/会员中心优化v2.0.md`
+
+---
+
+## Previous Update: 健康计划管理菜单下线与打卡统计搬家 v1.0（2026-05-25）
 
 ### 一句话结论
 按《健康计划管理菜单下线与打卡统计搬家 PRD v1.0》完成一次性清理：(1) 物理删除孤岛模块 `default_health_tasks` 表 + `DefaultHealthTask` 模型 + `DefaultHealthTask*` Schema + `/api/admin/health-plan/default-tasks/*` 全部 CRUD 接口；(2) 管理后台「健康计划管理 → 打卡数据统计」(`/admin/health-plan/statistics`) 搬家到「健康档案管理 → 打卡数据统计」(`/admin/health-records/statistics`)，页面功能 0 改动；(3) 整条「健康计划管理」一级菜单从 admin-web layout 中彻底下线（连同 `ScheduleOutlined` 图标导入）；(4) 推荐计划相关 3 张表 (`plan_template_categories` / `recommended_plans` / `recommended_plan_tasks`) 与对应接口/前端残留页面完全保留（H5/小程序/Flutter App 仍在读取）。H5 / 小程序 / Flutter App 三端**0 代码改动**。服务器端 DB 表已 DROP、API 全部 404、OpenAPI 中已无 default-tasks 路径、新页面 200 渲染「打卡数据统计」。
