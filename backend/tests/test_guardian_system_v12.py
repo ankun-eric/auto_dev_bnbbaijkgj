@@ -670,62 +670,127 @@ async def test_v12_fix_family_management_detail(client: AsyncClient):
     assert len(data["associated_guardians"]) >= 1
 
 
-# ─────────── T16: 内置触发源 PUT 修改非启停字段 → 403 ───────────
+# ─────────── T16: 内置触发源 PUT 仅允许 name+description ───────────
 
 
 @pytest.mark.asyncio
-async def test_v12_fix_emergency_source_builtin_put_returns_403(client: AsyncClient):
-    """[Bug 修复 v1.2 §8] 内置触发源仅允许启停/排序，修改其他字段返回 403"""
+async def test_emergency_source_builtin_put_only_name_and_description(client: AsyncClient):
+    """[紧急呼叫触发源管理 v1.0] 内置触发源 PUT：
+    - source_name / description 字段可改
+    - 其他字段（is_enabled / source_code / sort_order / trigger_condition /
+      applicable_device_type）一律被静默忽略；is_enabled 强制锁定为 True
+    """
     await _ensure_builtin_sources()
     await _make_user("13900400099", "运营P", role=UserRole.admin)
     h = await _admin_headers(client, "13900400099")
     items = (await client.get("/api/admin/emergency-sources", headers=h)).json()["items"]
     smoke = next(i for i in items if i["source_code"] == "smoke_alarm")
+    sid = smoke["id"]
 
-    # 启停 - 允许
+    # 改名 + 改描述 → 允许
     r = await client.put(
-        f"/api/admin/emergency-sources/{smoke['id']}",
+        f"/api/admin/emergency-sources/{sid}",
+        json={"source_name": "烟雾报警", "description": "当家中烟雾传感器检测到烟雾浓度异常时触发紧急呼叫"},
+        headers=h,
+    )
+    assert r.status_code == 200, r.text
+
+    after = (await client.get("/api/admin/emergency-sources", headers=h)).json()["items"]
+    smoke2 = next(i for i in after if i["id"] == sid)
+    assert smoke2["source_name"] == "烟雾报警"
+    assert "烟雾浓度" in smoke2["description"]
+
+    # 试图禁用 → 后端静默忽略，is_enabled 仍为 True
+    r = await client.put(
+        f"/api/admin/emergency-sources/{sid}",
         json={"is_enabled": False},
         headers=h,
     )
-    assert r.status_code == 200
+    assert r.status_code == 200, r.text
+    after = (await client.get("/api/admin/emergency-sources", headers=h)).json()["items"]
+    smoke3 = next(i for i in after if i["id"] == sid)
+    assert smoke3["is_enabled"] is True, "内置触发源 is_enabled 必须始终为 True"
 
-    # 修改 source_name - 禁止
+    # 试图改 source_code → 静默忽略
     r = await client.put(
-        f"/api/admin/emergency-sources/{smoke['id']}",
-        json={"source_name": "改名"},
+        f"/api/admin/emergency-sources/{sid}",
+        json={"source_code": "hacked_code"},
         headers=h,
     )
-    assert r.status_code == 403, r.text
+    assert r.status_code == 200, r.text
+    after = (await client.get("/api/admin/emergency-sources", headers=h)).json()["items"]
+    smoke4 = next(i for i in after if i["id"] == sid)
+    assert smoke4["source_code"] == "smoke_alarm", "内置触发源 source_code 不可被修改"
 
 
-# ─────────── T17: 内置触发源 DELETE → 403（之前是 400） ───────────
+# ─────────── T17: 内置触发源 DELETE → 403 ───────────
 
 
 @pytest.mark.asyncio
-async def test_v12_fix_emergency_source_builtin_delete_returns_403(client: AsyncClient):
-    """[Bug 修复 v1.2 §8] 内置触发源 DELETE 返回 403（修正自 400）"""
+async def test_emergency_source_builtin_delete_returns_403(client: AsyncClient):
+    """[紧急呼叫触发源管理 v1.0] 内置触发源 DELETE 返回 403"""
     await _ensure_builtin_sources()
     await _make_user("13900500099", "运营Q", role=UserRole.admin)
     h = await _admin_headers(client, "13900500099")
     items = (await client.get("/api/admin/emergency-sources", headers=h)).json()["items"]
     water = next(i for i in items if i["source_code"] == "water_alarm")
     r = await client.delete(f"/api/admin/emergency-sources/{water['id']}", headers=h)
-    assert r.status_code == 403
+    assert r.status_code == 403, r.text
 
 
-# ─────────── T18: 紧急呼叫触发源启停 PATCH ───────────
+# ─────────── T18: 内置触发源 toggle 禁用 → 403；自定义可正常切换 ───────────
 
 
 @pytest.mark.asyncio
-async def test_v12_fix_emergency_source_toggle_patch(client: AsyncClient):
-    """[Bug 修复 v1.2 §9.4] PATCH /emergency-sources/{id}/toggle 内置和自定义均允许"""
+async def test_emergency_source_toggle_builtin_forbidden_custom_allowed(client: AsyncClient):
+    """[紧急呼叫触发源管理 v1.0] PATCH /emergency-sources/{id}/toggle：
+    - 内置触发源始终启用，toggle 返回 403
+    - 自定义触发源 toggle 正常切换
+    """
     await _ensure_builtin_sources()
     await _make_user("13900600099", "运营R", role=UserRole.admin)
     h = await _admin_headers(client, "13900600099")
     items = (await client.get("/api/admin/emergency-sources", headers=h)).json()["items"]
+
+    # 内置 toggle → 403
     eb = next(i for i in items if i["source_code"] == "emergency_button")
-    before = eb["is_enabled"]
     r = await client.patch(f"/api/admin/emergency-sources/{eb['id']}/toggle", headers=h)
+    assert r.status_code == 403, r.text
+
+    # 自定义可 toggle
+    r = await client.post(
+        "/api/admin/emergency-sources",
+        json={
+            "source_code": "gas_alarm_t18",
+            "source_name": "燃气报警器",
+            "description": "燃气泄漏",
+            "is_enabled": True,
+        },
+        headers=h,
+    )
+    assert r.status_code == 200, r.text
+    new_id = r.json()["id"]
+    r = await client.patch(f"/api/admin/emergency-sources/{new_id}/toggle", headers=h)
     assert r.status_code == 200
-    assert r.json()["is_enabled"] is (not before)
+    assert r.json()["is_enabled"] is False
+
+
+# ─────────── T19: 内置触发源种子文案 ───────────
+
+
+@pytest.mark.asyncio
+async def test_emergency_source_builtin_seed_text_correct(client: AsyncClient):
+    """[紧急呼叫触发源管理 v1.0] 验证 4 条内置触发源初始文案中文未乱码（测试 seed 文案）"""
+    await _ensure_builtin_sources()
+    await _make_user("13900700099", "运营S", role=UserRole.admin)
+    h = await _admin_headers(client, "13900700099")
+    items = (await client.get("/api/admin/emergency-sources", headers=h)).json()["items"]
+    codes = {i["source_code"]: i for i in items}
+    for code in ("health_data_abnormal", "smoke_alarm", "water_alarm", "emergency_button"):
+        assert code in codes, f"缺少内置触发源：{code}"
+        rec = codes[code]
+        # 中文未乱码（包含至少一个 CJK 字符）
+        assert any("\u4e00" <= ch <= "\u9fff" for ch in (rec["source_name"] or "")), \
+            f"source_name 中无 CJK 字符（可能乱码）：{rec['source_name']}"
+        assert rec["is_builtin"] is True
+        assert rec["is_enabled"] is True

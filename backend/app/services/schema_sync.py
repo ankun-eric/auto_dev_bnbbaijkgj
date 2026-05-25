@@ -3019,18 +3019,39 @@ async def _sync_guardian_system_v12(conn: AsyncConnection) -> None:
             COMMENT '紧急呼叫触发源管理 PRD-GUARDIAN-V1.2'
             """
         ))
-        # 4 条内置种子
-        await conn.execute(text(
-            """
-            INSERT INTO emergency_call_sources
-              (source_code, source_name, description, is_enabled, is_builtin, sort_order, created_at, updated_at)
-            VALUES
-              ('health_data_abnormal', '健康数据异常', '心率/血压/血氧/体温异常', 1, 1, 1, NOW(), NOW()),
-              ('smoke_alarm', '烟雾报警器', '火灾隐患', 1, 1, 2, NOW(), NOW()),
-              ('water_alarm', '水位报警器', '漏水/水浸', 1, 1, 3, NOW(), NOW()),
-              ('emergency_button', '紧急呼叫器', '一键呼救，含跌倒检测', 1, 1, 4, NOW(), NOW())
-            """
-        ))
+
+    # [紧急呼叫触发源管理 v1.0 2026-05-25] 4 条内置种子幂等 upsert
+    # 注意：本块在每次启动时都会执行，自动修复历史中文乱码记录。
+    # 文案为「紧急呼叫触发源管理 v1.0」最终参考版。
+    await conn.execute(text(
+        """
+        INSERT INTO emergency_call_sources
+          (source_code, source_name, description, is_enabled, is_builtin, sort_order, created_at, updated_at)
+        VALUES
+          ('health_data_abnormal',
+           '健康数据异常',
+           '当用户的健康数据（如心率、血压、血氧）超出安全阈值时自动触发',
+           1, 1, 1, NOW(), NOW()),
+          ('smoke_alarm',
+           '烟雾报警',
+           '当家中烟雾传感器检测到烟雾浓度异常时触发紧急呼叫',
+           1, 1, 2, NOW(), NOW()),
+          ('water_alarm',
+           '浸水报警',
+           '当家中浸水传感器检测到漏水或积水时触发紧急呼叫',
+           1, 1, 3, NOW(), NOW()),
+          ('emergency_button',
+           '紧急按钮',
+           '当用户按下随身或家中的一键紧急呼叫按钮时立即触发',
+           1, 1, 4, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE
+          source_name = VALUES(source_name),
+          description = VALUES(description),
+          is_enabled  = 1,
+          is_builtin  = 1,
+          updated_at  = NOW()
+        """
+    ))
 
     # ai_call_reminders 表
     if "ai_call_reminders" not in tables:
@@ -3056,6 +3077,38 @@ async def _sync_guardian_system_v12(conn: AsyncConnection) -> None:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             COMMENT 'AI 外呼提醒 PRD-GUARDIAN-V1.2'
             """
+        ))
+
+
+async def _sync_decouple_points_mall_from_products_v1(conn: AsyncConnection) -> None:
+    """[实物商品与积分商城彻底解耦 v1.0 2026-05-25]
+
+    将 products 表中 points_exchangeable / points_price 两列**置空（清零）**，
+    使所有历史"实物商品 + 进入积分商城 = 是"配置自然失效。
+
+    按 PRD v1.0 第七节"回滚预案"，本次**只置空、不物理 DROP COLUMN**，
+    保留物理列一个发版周期作为回滚缓冲；下个迭代再决定是否物理删除。
+
+    幂等：可以多次执行；多次执行只会重复 UPDATE 0 行（或不变）。
+    """
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "products" not in tables:
+            return set()
+        return {col["name"] for col in inspector.get_columns("products")}
+
+    product_cols = await conn.run_sync(_load)
+    if not product_cols:
+        return
+
+    if "points_exchangeable" in product_cols:
+        await conn.execute(text(
+            "UPDATE products SET points_exchangeable = 0 WHERE points_exchangeable = 1"
+        ))
+    if "points_price" in product_cols:
+        await conn.execute(text(
+            "UPDATE products SET points_price = 0 WHERE points_price IS NOT NULL AND points_price <> 0"
         ))
 
 
@@ -3132,6 +3185,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_guardian_system_v1(conn)
     # [守护人体系 PRD v1.2 2026-05-25] membership_plans 新字段 + 代付开关表 + 紧急呼叫触发源表 + AI 外呼提醒表
     await _sync_guardian_system_v12(conn)
+    # [实物商品与积分商城彻底解耦 v1.0 2026-05-25] 置空 products.points_exchangeable / points_price
+    await _sync_decouple_points_mall_from_products_v1(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

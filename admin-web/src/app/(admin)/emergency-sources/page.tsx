@@ -1,15 +1,13 @@
 'use client';
 
 /**
- * [Bug 修复 v1.2 §6] 紧急呼叫触发源管理 - 卡片网格化改造
+ * [紧急呼叫触发源管理 v1.0 2026-05-25] 内置触发源开放编辑
  *
- * 关键变更：
- * - 顶部 120px 天蓝 Hero 区 + 4 个统计数字（总数 / 内置 / 自定义 / 启用中）
- * - 响应式卡片网格（≥1600:4 / ≥1200:3 / <1200:2）
- * - 主色 #1890FF / 圆角 20px / 阴影 0 4px 16px rgba(24,144,255,0.08)
- * - 卡片：图标 + 名称 + 启停 Switch + 描述 + 适用设备 + 操作菜单 + 内置/自定义徽章
- * - 内置：编辑/删除菜单项灰色禁用；自定义：可编辑/删除（二次确认）
- * - 旧 Table 实现保留为 page.legacy.tsx 作为回滚兜底
+ * 关键变更（在 Bug 修复 v1.2 §6 基础上）：
+ * - 内置卡片：右上角铅笔图标弹出编辑模态框，仅允许修改「名称」「描述」两个字段
+ * - 内置卡片：不显示启停 Switch（始终启用，由后端硬保护）
+ * - 内置卡片：不显示删除菜单项
+ * - 自定义卡片：保留原有「编辑 / 删除 / 启停」全部能力
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -18,7 +16,7 @@ import {
 } from 'antd';
 import {
   PlusOutlined, ReloadOutlined, MoreOutlined, EditOutlined, DeleteOutlined,
-  CheckCircleFilled, CloseCircleFilled, BellOutlined,
+  CheckCircleFilled, CloseCircleFilled, BellOutlined, InfoCircleOutlined,
 } from '@ant-design/icons';
 import { get, post, put, del } from '@/lib/api';
 
@@ -122,20 +120,20 @@ function SourceCard({
   const [hover, setHover] = useState(false);
   const icon = SOURCE_ICONS[data.source_code] || '🔔';
 
-  const menuItems = [
+  // 自定义触发源才显示「更多」菜单（编辑 / 删除）；
+  // 内置触发源使用右上角铅笔图标直接编辑，且不可删除/不可禁用。
+  const customMenuItems = [
     {
       key: 'edit',
       label: '编辑',
       icon: <EditOutlined />,
-      disabled: data.is_builtin,
-      onClick: () => { if (!data.is_builtin) onEdit(data); },
+      onClick: () => onEdit(data),
     },
     {
       key: 'delete',
-      label: <span style={{ color: data.is_builtin ? COLOR.gray : COLOR.danger }}>删除</span>,
+      label: <span style={{ color: COLOR.danger }}>删除</span>,
       icon: <DeleteOutlined />,
-      disabled: data.is_builtin,
-      onClick: () => { if (!data.is_builtin) onDelete(data); },
+      onClick: () => onDelete(data),
     },
   ];
 
@@ -154,10 +152,31 @@ function SourceCard({
         flexDirection: 'column',
         gap: 12,
         height: '100%',
+        position: 'relative',
       }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
+      {/* 内置卡片右上角铅笔图标编辑入口 */}
+      {data.is_builtin && (
+        <Tooltip title='编辑名称和描述'>
+          <Button
+            type='text'
+            shape='circle'
+            size='small'
+            icon={<EditOutlined style={{ color: COLOR.primary }} />}
+            onClick={() => onEdit(data)}
+            data-testid={`source-edit-builtin-${data.id}`}
+            style={{
+              position: 'absolute',
+              top: 12,
+              right: 12,
+              background: COLOR.primaryBg,
+            }}
+          />
+        </Tooltip>
+      )}
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
           <div
@@ -170,7 +189,7 @@ function SourceCard({
           >
             {icon}
           </div>
-          <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ minWidth: 0, flex: 1, paddingRight: data.is_builtin ? 32 : 0 }}>
             <div style={{ fontSize: 16, fontWeight: 600, color: '#1F2937', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {data.source_name}
             </div>
@@ -179,11 +198,15 @@ function SourceCard({
             </div>
           </div>
         </div>
-        <Switch
-          checked={data.is_enabled}
-          onChange={(c) => onToggle(data, c)}
-          style={{ background: data.is_enabled ? COLOR.success : undefined }}
-        />
+        {/* 启停 Switch：仅自定义触发源显示，内置触发源始终启用，不允许禁用 */}
+        {!data.is_builtin && (
+          <Switch
+            checked={data.is_enabled}
+            onChange={(c) => onToggle(data, c)}
+            style={{ background: data.is_enabled ? COLOR.success : undefined }}
+            data-testid={`source-toggle-${data.id}`}
+          />
+        )}
       </div>
 
       <Paragraph
@@ -219,9 +242,10 @@ function SourceCard({
         )}
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'auto' }}>
-        <Tooltip title={data.is_builtin ? '内置触发源仅可启停，不可编辑/删除' : ''}>
-          <Dropdown menu={{ items: menuItems }} trigger={['click']} placement='bottomRight'>
+      {/* 自定义触发源才显示底部操作菜单；内置触发源依靠右上角铅笔图标编辑 */}
+      {!data.is_builtin && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'auto' }}>
+          <Dropdown menu={{ items: customMenuItems }} trigger={['click']} placement='bottomRight'>
             <Button
               type='text'
               icon={<MoreOutlined />}
@@ -230,8 +254,8 @@ function SourceCard({
               data-testid={`source-actions-${data.id}`}
             />
           </Dropdown>
-        </Tooltip>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -274,12 +298,18 @@ export default function EmergencySourcesPage() {
   };
 
   const openEdit = (rec: EmergencySource) => {
-    if (rec.is_builtin) {
-      message.warning('内置触发源不可编辑，仅可启停');
-      return;
-    }
     setEditing(rec);
-    form.setFieldsValue(rec);
+    form.resetFields();
+    if (rec.is_builtin) {
+      // 内置触发源仅可编辑名称 + 描述
+      form.setFieldsValue({
+        source_code: rec.source_code,
+        source_name: rec.source_name,
+        description: rec.description,
+      });
+    } else {
+      form.setFieldsValue(rec);
+    }
     setModalOpen(true);
   };
 
@@ -287,7 +317,11 @@ export default function EmergencySourcesPage() {
     try {
       const vals = await form.validateFields();
       if (editing) {
-        await put(`/api/admin/emergency-sources/${editing.id}`, vals);
+        // 内置触发源仅提交 source_name + description，避免脏字段被后端硬保护拦截
+        const payload = editing.is_builtin
+          ? { source_name: vals.source_name, description: vals.description }
+          : vals;
+        await put(`/api/admin/emergency-sources/${editing.id}`, payload);
         message.success('已更新');
       } else {
         await post('/api/admin/emergency-sources', vals);
@@ -302,6 +336,10 @@ export default function EmergencySourcesPage() {
   };
 
   const handleToggle = async (rec: EmergencySource, checked: boolean) => {
+    if (rec.is_builtin) {
+      message.warning('内置触发源始终启用，不允许禁用');
+      return;
+    }
     try {
       await put(`/api/admin/emergency-sources/${rec.id}`, { is_enabled: checked });
       message.success(checked ? '已启用' : '已停用');
@@ -313,7 +351,7 @@ export default function EmergencySourcesPage() {
 
   const handleDelete = async (rec: EmergencySource) => {
     if (rec.is_builtin) {
-      message.warning('内置触发源不可删除，仅可禁用');
+      message.warning('内置触发源不可删除');
       return;
     }
     try {
@@ -327,7 +365,7 @@ export default function EmergencySourcesPage() {
 
   const confirmDelete = (rec: EmergencySource) => {
     if (rec.is_builtin) {
-      message.warning('内置触发源不可删除，仅可禁用');
+      message.warning('内置触发源不可删除');
       return;
     }
     Modal.confirm({
@@ -404,7 +442,7 @@ export default function EmergencySourcesPage() {
       </Spin>
 
       <Modal
-        title={editing ? '编辑触发源' : '新增触发源'}
+        title={editing ? (editing.is_builtin ? `编辑触发源 - ${editing.source_name}` : '编辑触发源') : '新增触发源'}
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         onOk={handleSave}
@@ -414,32 +452,68 @@ export default function EmergencySourcesPage() {
         cancelButtonProps={{ style: { borderRadius: 22 } }}
       >
         <Form form={form} layout='vertical'>
+          {/* 内置触发源编辑：仅可改名称和描述，给出提示 */}
+          {editing?.is_builtin && (
+            <div
+              style={{
+                background: COLOR.primaryBg,
+                border: `1px solid #91D5FF`,
+                borderRadius: 8,
+                padding: '8px 12px',
+                marginBottom: 16,
+                color: '#0958D9',
+                fontSize: 13,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+              data-testid='builtin-edit-notice'
+            >
+              <InfoCircleOutlined />
+              这是系统内置触发源，仅支持修改名称和描述，且始终启用。
+            </div>
+          )}
+
           <Form.Item
             label='触发源编码'
             name='source_code'
-            rules={[{ required: true, message: '请输入编码' }]}
-            extra='唯一标识，建议小写英文+下划线，如 gas_alarm'
+            rules={editing?.is_builtin ? [] : [{ required: true, message: '请输入编码' }]}
+            extra={editing?.is_builtin ? '内置触发源编码不可修改' : '唯一标识，建议小写英文+下划线，如 gas_alarm'}
           >
             <Input disabled={!!editing} placeholder='如 gas_alarm' />
           </Form.Item>
-          <Form.Item label='触发源名称' name='source_name' rules={[{ required: true }]}>
-            <Input placeholder='如 燃气报警器' />
+          <Form.Item
+            label='触发源名称'
+            name='source_name'
+            rules={[{ required: true, message: '请输入名称' }, { max: 20, message: '不超过 20 字' }]}
+          >
+            <Input placeholder='如 燃气报警器' maxLength={20} showCount />
           </Form.Item>
-          <Form.Item label='描述' name='description'>
-            <Input.TextArea rows={2} placeholder='触发源详细说明' />
+          <Form.Item
+            label='描述'
+            name='description'
+            rules={editing?.is_builtin ? [{ required: true, message: '请输入描述' }, { max: 100 }] : [{ max: 100 }]}
+          >
+            <Input.TextArea rows={3} placeholder='触发源详细说明' maxLength={100} showCount />
           </Form.Item>
-          <Form.Item label='适用设备类型' name='applicable_device_type'>
-            <Input placeholder='如 wifi-gas-sensor' />
-          </Form.Item>
-          <Form.Item label='触发条件配置（JSON）' name='trigger_condition'>
-            <Input.TextArea rows={2} placeholder='可选，JSON 格式描述阈值等' />
-          </Form.Item>
-          <Form.Item label='排序' name='sort_order' initialValue={100}>
-            <InputNumber min={0} max={9999} />
-          </Form.Item>
-          <Form.Item label='启用' name='is_enabled' valuePropName='checked' initialValue={true}>
-            <Switch />
-          </Form.Item>
+
+          {/* 仅自定义触发源显示以下字段；内置触发源隐藏，确保后端硬保护和前端展示一致 */}
+          {!editing?.is_builtin && (
+            <>
+              <Form.Item label='适用设备类型' name='applicable_device_type'>
+                <Input placeholder='如 wifi-gas-sensor' />
+              </Form.Item>
+              <Form.Item label='触发条件配置（JSON）' name='trigger_condition'>
+                <Input.TextArea rows={2} placeholder='可选，JSON 格式描述阈值等' />
+              </Form.Item>
+              <Form.Item label='排序' name='sort_order' initialValue={100}>
+                <InputNumber min={0} max={9999} />
+              </Form.Item>
+              <Form.Item label='启用' name='is_enabled' valuePropName='checked' initialValue={true}>
+                <Switch />
+              </Form.Item>
+            </>
+          )}
         </Form>
       </Modal>
     </div>

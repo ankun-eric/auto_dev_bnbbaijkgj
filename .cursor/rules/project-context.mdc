@@ -27,6 +27,25 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: 紧急呼叫触发源管理 v1.0 - 中文乱码修复 + 内置开放编辑（2026-05-25）
+
+### 一句话结论
+完成《Bug 修复 + 功能增强方案：紧急呼叫触发源管理 v1.0》：(1) UPDATE 现网 4 行内置触发源中文文案为最终参考版（健康数据异常 / 烟雾报警 / 浸水报警 / 紧急按钮）；(2) `schema_sync.py` 内置种子改为 `INSERT ... ON DUPLICATE KEY UPDATE` 幂等 upsert，未来重装自动覆盖任何历史乱码；(3) 后端硬保护规则调整：内置触发源 PUT 仅接受 `source_name + description`、其他字段静默忽略、`is_enabled` 强制锁定为 True；DELETE / PATCH toggle 内置项返回 403；(4) admin-web 卡片右上角铅笔图标弹出编辑模态框（仅 name + description）、内置卡片隐藏删除菜单与启停 Switch；(5) 新增 / 重写 4 条后端 pytest 用例（T16-T19）；(6) 服务器端 12 项端到端验证 100% 通过。
+
+### 核心变更
+- 后端：`backend/app/api/guardian_system_v12.py` 中 `admin_update_emergency_source` / `admin_delete_emergency_source` / `admin_toggle_emergency_source` 三个接口的内置硬保护规则重写
+- 后端：`backend/app/services/schema_sync.py` 内置 4 条种子改为幂等 upsert（移出 `if not table` 块），并采用最终参考版文案
+- 后端测试：`backend/tests/test_guardian_system_v12.py` T16-T19 重写为新规则
+- admin-web：`admin-web/src/app/(admin)/emergency-sources/page.tsx` 内置卡片新增右上角铅笔图标、编辑模态框区分内置/自定义、内置卡片隐藏删除菜单和启停 Switch
+- 用户手册：`user_docs/紧急呼叫触发源管理.md`
+
+### API 行为变化
+- `PUT /api/admin/emergency-sources/{id}`：内置项仅接受 `source_name + description`，其它字段静默忽略，`is_enabled` 强制为 True
+- `DELETE /api/admin/emergency-sources/{id}`：内置项 403 不变
+- `PATCH /api/admin/emergency-sources/{id}/toggle`：内置项由 200 改为 403（始终启用）
+
+---
+
 ## Latest Update: 邀请页与守护人体系 v1.2 - Bug 修复（卡片化 + 中文乱码 + 客户端入口闭环）(2026-05-25)
 
 ### 一句话结论

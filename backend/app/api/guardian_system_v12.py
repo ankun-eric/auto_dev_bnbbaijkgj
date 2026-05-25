@@ -1193,25 +1193,32 @@ async def admin_update_emergency_source(
     _=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
-    """[PRD-GUARDIAN-V1.2 Bug 修复 v1.2 §8] 编辑紧急呼叫触发源
+    """[紧急呼叫触发源管理 v1.0 2026-05-25] 编辑紧急呼叫触发源
 
-    内置触发源（is_builtin=true）：
-    - 仅修改 is_enabled / sort_order → 允许（启停场景）
-    - 试图修改 source_name / description / trigger_condition / applicable_device_type → 返回 403
+    - 内置触发源（is_builtin=true）：
+      * 仅接受 source_name / description 两个字段
+      * 其他字段（source_code / is_enabled / is_builtin / icon /
+        trigger_condition / applicable_device_type / sort_order）一律静默忽略
+      * is_enabled 强制锁定为 True（不允许禁用）
+    - 自定义触发源（is_builtin=false）：按原有逻辑全字段可改（除 is_builtin 外）
     """
     s = await db.get(EmergencyCallSource, source_id)
     if not s:
         raise HTTPException(status_code=404, detail="触发源不存在")
     data = payload.model_dump(exclude_unset=True)
     if s.is_builtin:
-        # 内置仅允许 启停 / 排序
-        allowed = {"is_enabled", "sort_order"}
-        forbidden = set(data.keys()) - allowed
-        if forbidden:
-            raise HTTPException(status_code=403, detail="内置触发源不可编辑，仅允许启停与排序")
-        data = {k: v for k, v in data.items() if k in allowed}
-    for k, v in data.items():
-        setattr(s, k, v)
+        allowed = {"source_name", "description"}
+        filtered = {k: v for k, v in data.items() if k in allowed}
+        for k, v in filtered.items():
+            setattr(s, k, v)
+        # 内置项始终启用，硬保护锁定
+        s.is_enabled = True
+    else:
+        for k, v in data.items():
+            if k in {"is_builtin"}:
+                continue
+            setattr(s, k, v)
+    s.updated_at = datetime.utcnow()
     await db.flush()
     return utf8_json({"id": s.id, "message": "已更新"})
 
@@ -1222,15 +1229,15 @@ async def admin_delete_emergency_source(
     _=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
-    """[PRD-GUARDIAN-V1.2 Bug 修复 v1.2 §8] 删除非内置触发源
+    """[紧急呼叫触发源管理 v1.0] 删除非内置触发源
 
-    内置触发源：返回 403（与 v1.2 设计一致，明确"无权限"语义而非"请求错误"）
+    内置触发源：返回 403（无权限语义，硬保护）
     """
     s = await db.get(EmergencyCallSource, source_id)
     if not s:
         raise HTTPException(status_code=404, detail="触发源不存在")
     if s.is_builtin:
-        raise HTTPException(status_code=403, detail="内置触发源不可删除，仅可禁用")
+        raise HTTPException(status_code=403, detail="内置触发源不可删除")
     await db.delete(s)
     await db.flush()
     return utf8_json({"message": "已删除"})
@@ -1242,11 +1249,18 @@ async def admin_toggle_emergency_source(
     _=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
-    """[Bug 修复 v1.2 §9.4] 紧急呼叫触发源启停 - 内置/自定义均允许。"""
+    """[紧急呼叫触发源管理 v1.0] 紧急呼叫触发源启停。
+
+    - 内置触发源：返回 403（始终启用，不允许禁用）
+    - 自定义触发源：允许切换启停
+    """
     s = await db.get(EmergencyCallSource, source_id)
     if not s:
         raise HTTPException(status_code=404, detail="触发源不存在")
+    if s.is_builtin:
+        raise HTTPException(status_code=403, detail="内置触发源始终启用，不允许禁用")
     s.is_enabled = not bool(s.is_enabled)
+    s.updated_at = datetime.utcnow()
     await db.flush()
     return utf8_json({"id": s.id, "is_enabled": bool(s.is_enabled), "message": "已更新"})
 

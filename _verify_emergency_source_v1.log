@@ -1,0 +1,42 @@
+
+[A] DB 鐩存煡 emergency_call_sources:
+source_code	source_name	description	is_enabled	is_builtin
+health_data_abnormal	鍋ュ悍鏁版嵁寮傚父	褰撶敤鎴风殑鍋ュ悍鏁版嵁锛堝蹇冪巼銆佽鍘嬨€佽姘э級瓒呭嚭瀹夊叏闃堝€兼椂鑷姩瑙﹀彂	1	1
+smoke_alarm	鐑熼浘鎶ヨ	褰撳涓儫闆句紶鎰熷櫒妫€娴嬪埌鐑熼浘娴撳害寮傚父鏃惰Е鍙戠揣鎬ュ懠鍙?1	1
+water_alarm	娴告按鎶ヨ	褰撳涓蹈姘翠紶鎰熷櫒妫€娴嬪埌婕忔按鎴栫Н姘存椂瑙﹀彂绱ф€ュ懠鍙?1	1
+emergency_button	绱ф€ユ寜閽?褰撶敤鎴锋寜涓嬮殢韬垨瀹朵腑鐨勪竴閿揣鎬ュ懠鍙寜閽椂绔嬪嵆瑙﹀彂	1	1
+
+
+[login resp]: {"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzc5ODA3NzE2fQ.MczZIGOF5C24nKrTdE-LFmHzChQ08l1SvqAbXFC8INk","token_type":"bearer","token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzc5ODA3NzE2fQ.MczZIGOF5C24nKrTdE-LFmHzChQ08l1SvqAbXFC8INk","must_change_password":false,"user":{"id":1,"name":"骞冲彴绠＄悊鍛?,"phone":"13800000000","nickname":"骞冲彴绠＄悊鍛?,"role":"admin","is_superuser":true,"must_change_password":false}}
+
+
+[B] GET list code=200 body_head={"items": [{"id": 1, "source_code": "health_data_abnormal", "source_name": "鍋ュ悍鏁版嵁寮傚父", "description": "褰撶敤鎴风殑鍋ュ悍鏁版嵁锛堝蹇冪巼銆佽鍘嬨€佽姘э級瓒呭嚭瀹夊叏闃堝€兼椂鑷姩瑙﹀彂", "is_enabled": true, "is_builtin": true, "trigger_condition": null, "applicable_device_type": null, "sort_order": 1, "created_at": "2026-05-25T10:02:27"}, {"id": 2, "s
+
+[C] PUT 鍐呯疆 name+desc code=200 body={"id": 2, "message": "宸叉洿鏂?}
+
+[D-put] PUT is_enabled=false code=200
+[D] 鍐嶆煡 smoke is_enabled=True
+
+[E-put] PUT source_code=hacked code=200
+
+[F] DELETE 鍐呯疆 code=403 body={"detail":"鍐呯疆瑙﹀彂婧愪笉鍙垹闄?}
+
+[G] PATCH toggle 鍐呯疆 code=403 body={"detail":"鍐呯疆瑙﹀彂婧愬缁堝惎鐢紝涓嶅厑璁哥鐢?}
+
+[H-create] code=200 body={"id": 9, "source_code": "verify_custom_v1", "message": "宸叉柊澧?}
+
+========= 楠岃瘉缁撴灉 =========
+  [PASS] A. DB 4 鏉″唴缃枃妗堟纭?
+  [PASS] [login] 鍙栧埌 token
+  [PASS] B. 鎺ュ彛杩斿洖 4 鏉″唴缃腑鏂囨纭?
+  [PASS] C. PUT 鍐呯疆 name+desc 200
+  [PASS] D. 鍐呯疆 PUT is_enabled=false 琚拷鐣ワ紝浠嶄负 True
+  [PASS] E. 鍐呯疆 PUT source_code 闈欓粯蹇界暐
+  [PASS] F. DELETE 鍐呯疆 鈫?403
+  [PASS] G. PATCH toggle 鍐呯疆 鈫?403
+  [PASS] H1. 鑷畾涔夎Е鍙戞簮鍙垱寤?
+  [PASS] H2. 鑷畾涔夊叏瀛楁鍙敼
+  [PASS] H3. 鑷畾涔夊彲 toggle
+  [PASS] H4. 鑷畾涔夊彲鍒犻櫎
+
+鎬荤粨锛氬叏閮ㄩ€氳繃
