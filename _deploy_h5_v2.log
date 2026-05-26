@@ -1,0 +1,324 @@
+[deploy_h5_admin_v2] git_sha=e7ca29e56c target=h5
+uploaded deploy_h5_admin_v2.sh -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/deploy_h5_admin_v2.sh
+uploaded rollback_h5_admin_v2.sh -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/rollback_h5_admin_v2.sh
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && bash deploy_h5_admin_v2.sh e7ca29e56c h5
+============================================================
+[deploy_h5_admin_v2] 2026-05-27 00:23:35
+  SERVICE     = h5
+  GIT_SHA     = e7ca29e56c
+  CONTAINER   = 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+  IMAGE_NEW   = 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-e7ca29e56c
+  IMAGE_PREV  = 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-prev
+  CTX         = /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web
+  NETWORK     = 6b099ed3-7175-4a78-91f4-44570c84ed27-network
+  HEALTH_URL  = http://127.0.0.1/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/i-guard
+============================================================
+[1/6] tag prev image
+    prev image -> 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web tagged as 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-prev
+[2/6] docker build -> 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-e7ca29e56c
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 653B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/node:18-alpine
+#2 DONE 0.6s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 102B done
+#3 DONE 0.0s
+
+#4 [builder 1/7] FROM docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e
+#4 resolve docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e 0.0s done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 28.66kB 0.0s done
+#5 DONE 0.0s
+
+#6 [builder 2/7] WORKDIR /app
+#6 CACHED
+
+#7 [builder 3/7] COPY package.json ./
+#7 CACHED
+
+#8 [builder 4/7] RUN npm config set registry https://registry.npmmirror.com && npm install --legacy-peer-deps
+#8 CACHED
+
+#9 [builder 5/7] COPY . .
+#9 CACHED
+
+#10 [builder 6/7] RUN mkdir -p public
+#10 DONE 0.2s
+
+#11 [builder 7/7] RUN npm run build
+#11 0.630 
+#11 0.630 > bini-health-h5@1.0.0 build
+#11 0.630 > next build
+#11 0.630 
+#11 1.616 Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#11 1.616 This information is used to shape Next.js' roadmap and prioritize features.
+#11 1.616 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#11 1.616 https://nextjs.org/telemetry
+#11 1.617 
+#11 1.711   鈻?Next.js 14.2.15
+#11 1.711 
+#11 1.829    Creating an optimized production build ...
+#11 73.37  鉁?Compiled successfully
+#11 73.37    Skipping validation of types
+#11 73.37    Linting ...
+#11 73.61  猕?ESLint must be installed in order to run during builds: npm install --save-dev eslint
+#11 73.79    Collecting page data ...
+#11 78.71    Generating static pages (0/127) ...
+#11 81.11    Generating static pages (31/127) 
+
+#11 82.59    Generating static pages (63/127) 
+
+#11 83.51    Generating static pages (95/127) 
+
+#11 84.55  鉁?Generating static pages (127/127)
+#11 85.36    Finalizing page optimization ...
+#11 85.36    Collecting build traces ...
+#11 95.39 
+#11 95.41 Route (app)                                    Size     First Load JS
+#11 95.41 鈹?鈼?/                                          607 B          88.1 kB
+#11 95.41 鈹?鈼?/_not-found                                880 B          88.4 kB
+#11 95.41 鈹?鈼?/account-security                          3.47 kB         235 kB
+#11 95.41 鈹?鈼?/address                                   1.51 kB          89 kB
+#11 95.41 鈹?鈼?/ai-home                                   61.7 kB         325 kB
+#11 95.41 鈹?鈼?/ai-home/medication-plans                  3.15 kB         239 kB
+#11 95.41 鈹?茠 /ai-home/medication-plans/[id]             1.87 kB         241 kB
+#11 95.41 鈹?鈼?/ai-home/medication-plans/new              1.76 kB         241 kB
+#11 95.41 鈹?鈼?/ai-home/medication-reminder               3.93 kB         236 kB
+#11 95.41 鈹?鈼?/ai-settings                               2.31 kB         212 kB
+#11 95.41 鈹?鈼?/alert-redirect                            4.35 kB         114 kB
+#11 95.41 鈹?鈼?/appointment                               2.15 kB        89.6 kB
+#11 95.41 鈹?茠 /article/[id]                              2.34 kB         238 kB
+#11 95.41 鈹?鈼?/articles                                  2.43 kB         234 kB
+#11 95.41 鈹?鈼?/cards                                     1.13 kB         238 kB
+#11 95.41 鈹?茠 /cards/[id]                                3.33 kB         240 kB
+#11 95.41 鈹?茠 /cards/redeem-code/[id]                    2.11 kB         238 kB
+#11 95.41 鈹?茠 /cards/renew/[id]                          1.57 kB         238 kB
+#11 95.41 鈹?茠 /cards/usage-logs/[id]                     1.17 kB         237 kB
+#11 95.41 鈹?鈼?/cards/wallet                              2 kB            239 kB
+#11 95.41 鈹?鈼?/chat-history                              4.17 kB         236 kB
+#11 95.41 鈹?茠 /chat/[sessionId]                          28.3 kB         281 kB
+#11 95.41 鈹?鈼?/checkout                                  11.4 kB         243 kB
+#11 95.41 鈹?鈼?/checkup                                   14.6 kB         254 kB
+#11 95.41 鈹?茠 /checkup/chat/[sessionId]                  5.82 kB         238 kB
+#11 95.41 鈹?鈼?/checkup/compare                           540 B            88 kB
+#11 95.41 鈹?鈼?/checkup/compare/select                    4.06 kB         236 kB
+#11 95.41 鈹?茠 /checkup/detail/[id]                       4.89 kB         237 kB
+#11 95.41 鈹?茠 /checkup/result/[id]                       3.65 kB         236 kB
+#11 95.41 鈹?鈼?/checkup/trend                             525 B            88 kB
+#11 95.41 鈹?鈼?/city-select                               4.24 kB         236 kB
+#11 95.41 鈹?鈼?/coupon-center                             6.41 kB         238 kB
+#11 95.41 鈹?鈼?/customer-service                          6.21 kB         216 kB
+#11 95.41 鈹?鈼?/design-system-v2-preview                  3.87 kB        91.4 kB
+#11 95.41 鈹?鈼?/devices                                   7.47 kB         250 kB
+#11 95.41 鈹?鈼?/devices/member                            586 B          88.1 kB
+#11 95.41 鈹?鈼?/digital-human-call                        4.98 kB         237 kB
+#11 95.41 鈹?鈼?/drug                                      10.7 kB         250 kB
+#11 95.41 鈹?茠 /drug/chat/[sessionId]                     8.76 kB         243 kB
+#11 95.41 鈹?茠 /expert/[id]                               3.62 kB         236 kB
+#11 95.41 鈹?鈼?/experts                                   1.66 kB         211 kB
+#11 95.41 鈹?鈼?/family                                    9.16 kB         247 kB
+#11 95.41 鈹?鈼?/family-alert                              1.84 kB        89.3 kB
+#11 95.41 鈹?鈼?/family-auth                               7.68 kB         240 kB
+#11 95.41 鈹?鈼?/family-bindlist                           5.86 kB         238 kB
+#11 95.41 鈹?鈼?/family-guardian-list                      3.17 kB         239 kB
+#11 95.41 鈹?茠 /family-guardian-list/[targetId]           2.87 kB         239 kB
+#11 95.41 鈹?鈼?/family-invite                             6 kB            244 kB
+#11 95.41 鈹?鈼?/feedback                                  3.27 kB         235 kB
+#11 95.41 鈹?鈼?/health-alerts                             2.65 kB         239 kB
+#11 95.41 鈹?鈼?/health-dashboard                          5.5 kB          115 kB
+#11 95.41 鈹?鈼?/health-guide                              5.14 kB         237 kB
+#11 95.41 鈹?茠 /health-metric/[type]                      7.96 kB         240 kB
+#11 95.41 鈹?鈼?/health-plan                               5.64 kB         238 kB
+#11 95.41 鈹?鈼?/health-plan/checkin                       1.25 kB         211 kB
+#11 95.41 鈹?鈼?/health-plan/checkin/add                   6.18 kB         238 kB
+#11 95.41 鈹?鈼?/health-plan/custom                        7.69 kB         240 kB
+#11 95.41 鈹?茠 /health-plan/custom/[categoryId]           6.16 kB         238 kB
+#11 95.41 鈹?鈼?/health-plan/custom/create                 6.15 kB         238 kB
+#11 95.41 鈹?茠 /health-plan/custom/my-plan/[planId]       5.82 kB         238 kB
+#11 95.41 鈹?茠 /health-plan/custom/plan/[planId]          5.81 kB         238 kB
+#11 95.41 鈹?鈼?/health-plan/statistics                    6.79 kB         239 kB
+#11 95.41 鈹?鈼?/health-profile                            13.9 kB         256 kB
+#11 95.41 鈹?鈼?/health-profile/i-guard                    8.56 kB         241 kB
+#11 95.41 鈹?鈼?/health-profile/my-guardians               2.58 kB         239 kB
+#11 95.41 鈹?鈼?/health-profile/my-guardians/invite        5.84 kB         244 kB
+#11 95.41 鈹?鈼?/health-reminders                          5.61 kB         238 kB
+#11 95.41 鈹?茠 /health-self-check/result/[id]             8.35 kB         240 kB
+#11 95.41 鈹?鈼?/invite                                    6.21 kB         244 kB
+#11 95.41 鈹?鈼?/landing                                   1.72 kB         211 kB
+#11 95.41 鈹?鈼?/legal/privacy-policy                      2.12 kB        89.6 kB
+#11 95.41 鈹?鈼?/legal/service-agreement                   1.92 kB        89.4 kB
+#11 95.41 鈹?鈼?/login                                     5.05 kB         237 kB
+#11 95.41 鈹?鈼?/medical-records                           3.75 kB         240 kB
+#11 95.41 鈹?茠 /medical-records/[id]                      2.63 kB         239 kB
+#11 95.41 鈹?鈼?/medical-records/all                       1.7 kB          238 kB
+#11 95.41 鈹?鈼?/medical-records/trash                     1.39 kB         238 kB
+#11 95.41 鈹?鈼?/member-card                               2.79 kB         235 kB
+#11 95.41 鈹?鈼?/member-center                             7.71 kB         240 kB
+#11 95.41 鈹?鈼?/merchant                                  2.31 kB         112 kB
+#11 95.41 鈹?鈼?/merchant/dashboard                        11.8 kB         249 kB
+#11 95.41 鈹?鈼?/merchant/downloads                        5.01 kB         410 kB
+#11 95.41 鈹?鈼?/merchant/finance                          3.68 kB         223 kB
+#11 95.41 鈹?鈼?/merchant/invoice                          2.04 kB         273 kB
+#11 95.41 鈹?鈼?/merchant/login                            6.81 kB         278 kB
+#11 95.41 鈹?鈼?/merchant/m                                2.89 kB         113 kB
+#11 95.41 鈹?鈼?/merchant/m/dashboard                      4.7 kB          237 kB
+#11 95.41 鈹?鈼?/merchant/m/downloads                      1.55 kB         211 kB
+#11 95.41 鈹?鈼?/merchant/m/finance                        1.58 kB         211 kB
+#11 95.41 鈹?鈼?/merchant/m/invoice                        1.55 kB         211 kB
+#11 95.41 鈹?鈼?/merchant/m/login                          4.03 kB         236 kB
+#11 95.41 鈹?鈼?/merchant/m/me                             3.84 kB         236 kB
+#11 95.41 鈹?鈼?/merchant/m/messages                       1.8 kB          234 kB
+#11 95.41 鈹?鈼?/merchant/m/orders                         3.55 kB         236 kB
+#11 95.41 鈹?茠 /merchant/m/orders/[id]                    6.79 kB         239 kB
+#11 95.41 鈹?鈼?/merchant/m/profile                        2.3 kB          234 kB
+#11 95.41 鈹?鈼?/merchant/m/profile/change-password        2.52 kB         235 kB
+#11 95.41 鈹?鈼?/merchant/m/profile/force-change-password  2.6 kB          235 kB
+#11 95.41 鈹?鈼?/merchant/m/reports                        4.31 kB         236 kB
+#11 95.41 鈹?鈼?/merchant/m/select-store                   2.49 kB         234 kB
+#11 95.41 鈹?鈼?/merchant/m/settlement                     2.32 kB         234 kB
+#11 95.41 鈹?茠 /merchant/m/settlement/[id]                2.66 kB         235 kB
+#11 95.41 鈹?鈼?/merchant/m/staff                          5.95 kB         238 kB
+#11 95.41 鈹?鈼?/merchant/m/store-settings                 4.64 kB         237 kB
+#11 95.41 鈹?鈼?/merchant/m/verify                         4.71 kB         237 kB
+#11 95.41 鈹?鈼?/merchant/m/wechat-bindding                3.69 kB         236 kB
+#11 95.41 鈹?鈼?/merchant/messages                         10.2 kB         272 kB
+#11 95.41 鈹?鈼?/merchant/order-dashboard                  23.1 kB         338 kB
+#11 95.41 鈹?鈼?/merchant/orders                           41.9 kB         467 kB
+#11 95.41 鈹?鈼?/merchant/profile                          9.32 kB         257 kB
+#11 95.41 鈹?鈼?/merchant/profile/change-password          2.72 kB         274 kB
+#11 95.41 鈹?鈼?/merchant/reports                          3.71 kB         369 kB
+#11 95.41 鈹?鈼?/merchant/select-store                     2.77 kB         294 kB
+#11 95.41 鈹?鈼?/merchant/settlement                       15.9 kB         378 kB
+#11 95.41 鈹?茠 /merchant/settlement/[id]                  8.79 kB         263 kB
+#11 95.41 鈹?鈼?/merchant/staff                            10.3 kB         435 kB
+#11 95.41 鈹?鈼?/merchant/store-settings                   8.66 kB         318 kB
+#11 95.41 鈹?鈼?/merchant/verifications                    3.13 kB         383 kB
+#11 95.41 鈹?鈼?/merchant/wechat-bindding                  17.1 kB         270 kB
+#11 95.41 鈹?鈼?/messages                                  3.22 kB         235 kB
+#11 95.41 鈹?鈼?/my-addresses                              7.93 kB         240 kB
+#11 95.41 鈹?鈼?/my-coupons                                3.28 kB         240 kB
+#11 95.41 鈹?鈼?/my-favorites                              6.24 kB         238 kB
+#11 95.41 鈹?鈼?/news                                      2.57 kB         235 kB
+#11 95.41 鈹?茠 /news/[id]                                 2.68 kB         238 kB
+#11 95.41 鈹?鈼?/notifications                             5.96 kB         238 kB
+#11 95.41 鈹?茠 /order/[id]                                2.36 kB         212 kB
+#11 95.41 鈹?鈼?/pay/success                               3.97 kB         236 kB
+#11 95.41 鈹?鈼?/points                                    6.22 kB         238 kB
+#11 95.41 鈹?鈼?/points/detail                             3.05 kB         240 kB
+#11 95.41 鈹?鈼?/points/exchange-records                   2.6 kB          239 kB
+#11 95.41 鈹?鈼?/points/mall                               6.73 kB         239 kB
+#11 95.41 鈹?鈼?/points/product-detail                     6.85 kB         239 kB
+#11 95.41 鈹?鈼?/points/records                            4.68 kB         237 kB
+#11 95.41 鈹?茠 /product/[id]                              5.9 kB          238 kB
+#11 95.41 鈹?鈼?/products                                  3.1 kB          235 kB
+#11 95.41 鈹?鈼?/profile/edit                              2.92 kB         235 kB
+#11 95.41 鈹?鈼?/refund-list                               3.13 kB         235 kB
+#11 95.41 鈹?茠 /refund/[orderId]                          2.94 kB         235 kB
+#11 95.41 鈹?鈼?/report-history                            6.87 kB         239 kB
+#11 95.41 鈹?茠 /report-history/[id]                       6.89 kB         239 kB
+#11 95.41 鈹?茠 /report-history/comparison/[id]            7.07 kB         239 kB
+#11 95.41 鈹?茠 /report-history/shared/[token]             3.85 kB         236 kB
+#11 95.41 鈹?茠 /review/[orderId]                          2.6 kB          235 kB
+#11 95.41 鈹?鈼?/sandbox-pay                               2.61 kB         235 kB
+#11 95.41 鈹?鈼?/scan                                      110 kB          319 kB
+#11 95.41 鈹?鈼?/search                                    6.73 kB         239 kB
+#11 95.41 鈹?鈼?/search/result                             7.29 kB         239 kB
+#11 95.41 鈹?鈼?/services                                  5.51 kB         237 kB
+#11 95.41 鈹?鈼?/settings                                  6.71 kB         239 kB
+#11 95.41 鈹?茠 /shared/chat/[token]                       2.47 kB         234 kB
+#11 95.41 鈹?茠 /shared/drug/[token]                       2.48 kB         234 kB
+#11 95.41 鈹?茠 /shared/report/[token]                     2.68 kB         235 kB
+#11 95.41 鈹?鈼?/symptom                                   11 kB           248 kB
+#11 95.41 鈹?鈼?/tcm                                       10.9 kB         246 kB
+#11 95.41 鈹?鈼?/tcm/archive                               510 B           210 kB
+#11 95.41 鈹?茠 /tcm/diagnosis/[id]                        549 B           210 kB
+#11 95.41 鈹?鈼?/tcm/loading                               958 B           211 kB
+#11 95.41 鈹?茠 /tcm/result/[id]                           9.82 kB         242 kB
+#11 95.41 鈹?茠 /unified-order/[id]                        9.95 kB         248 kB
+#11 95.41 鈹?鈼?/unified-orders                            4.05 kB         242 kB
+#11 95.41 + First Load JS shared by all                  87.5 kB
+#11 95.41   鈹?chunks/2117-10f2869395a117b2.js            31.8 kB
+#11 95.41   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js        53.6 kB
+#11 95.41   鈹?other shared chunks (total)                2.06 kB
+#11 95.41 
+#11 95.41 
+#11 95.41 鈼? (Static)   prerendered as static content
+#11 95.41 茠  (Dynamic)  server-rendered on demand
+#11 95.41 
+#11 DONE 95.5s
+
+#6 [builder 2/7] WORKDIR /app
+#6 CACHED
+
+#12 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#12 DONE 0.4s
+
+#13 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#13 DONE 0.1s
+
+#14 [runner 5/5] COPY --from=builder /app/public ./public
+#14 DONE 0.6s
+
+#15 exporting to image
+#15 exporting layers
+#15 exporting layers 10.8s done
+#15 exporting manifest sha256:f3237004008343873317572d5d45e30df7761902745fb38092d865799b4c5518 0.0s done
+#15 exporting config sha256:34573e7ecf8874cfce07a5d493e34c4e88ae9b8f1ffbb20518872a4ab3b4ad16 0.0s done
+#15 exporting attestation manifest sha256:3e972b7f3849bb675248fb12385303ee43ee6fc2079b17e2f319a1a1bd1614ee 0.0s done
+#15 exporting manifest list sha256:31c63f0dec60505e0e9bbbd584deb87a707c1d6086cc48fc6025d7b252efc65d done
+#15 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-e7ca29e56c done
+#15 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-e7ca29e56c
+#15 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-e7ca29e56c 1.9s done
+#15 DONE 12.9s
+[3/6] stop & rm old container
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+[4/6] run new container on network=6b099ed3-7175-4a78-91f4-44570c84ed27-network
+65f6ba5588718bc865932406a313f67c34b1b490ddbd154de59a4372753394f5
+[5/6] health check (max 30 tries * 2s = 60s)
+    waiting... HTTP=301 (try 1/30)
+    waiting... HTTP=301 (try 2/30)
+    waiting... HTTP=301 (try 3/30)
+    waiting... HTTP=301 (try 4/30)
+    waiting... HTTP=301 (try 5/30)
+    waiting... HTTP=301 (try 6/30)
+    waiting... HTTP=301 (try 7/30)
+    waiting... HTTP=301 (try 8/30)
+    waiting... HTTP=301 (try 9/30)
+    waiting... HTTP=301 (try 10/30)
+    waiting... HTTP=301 (try 11/30)
+    waiting... HTTP=301 (try 12/30)
+    waiting... HTTP=301 (try 13/30)
+    waiting... HTTP=301 (try 14/30)
+    waiting... HTTP=301 (try 15/30)
+    waiting... HTTP=301 (try 16/30)
+    waiting... HTTP=301 (try 17/30)
+    waiting... HTTP=301 (try 18/30)
+    waiting... HTTP=301 (try 19/30)
+    waiting... HTTP=301 (try 20/30)
+    waiting... HTTP=301 (try 21/30)
+    waiting... HTTP=301 (try 22/30)
+    waiting... HTTP=301 (try 23/30)
+    waiting... HTTP=301 (try 24/30)
+    waiting... HTTP=301 (try 25/30)
+    waiting... HTTP=301 (try 26/30)
+    waiting... HTTP=301 (try 27/30)
+    waiting... HTTP=301 (try 28/30)
+    waiting... HTTP=301 (try 29/30)
+    waiting... HTTP=301 (try 30/30)
+鉂?health check failed after 60s, rolling back to 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-prev
+鈿狅笍  rollback h5 -> 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-prev
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+6851e48d5e072b45a1e91406a2656fe3871903d5859097344e7a3ebae48cedda
+鉁?rolled back to 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-prev
+
+鉂?deploy h5 FAILED rc=1; rollback should have happened automatically.

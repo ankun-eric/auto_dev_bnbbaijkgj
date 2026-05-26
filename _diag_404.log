@@ -1,0 +1,200 @@
+
+==== CMD: docker ps --format '{{.Names}} {{.Status}} {{.Image}}' | grep 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Up 32 seconds 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-prev
+
+
+==== CMD: curl -k -s -o /tmp/_d1.html -w 'iguard=%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/i-guard
+iguard=308
+
+
+==== CMD: curl -k -s -L -o /tmp/_d1L.html -w 'iguardL=%{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/i-guard
+iguardL=200
+
+
+==== CMD: head -c 500 /tmp/_d1L.html
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/static/css/3b56dac11a8e23f0.css" data-precedence="next"/><link rel="stylesheet" href="/autodev/6b099ed3-7175-4a78-91f4-4457
+
+==== CMD: docker exec gateway sh -c 'curl -s -o /dev/null -w "%{http_code}\n" http://6b099ed3-7175-4a78-91f4-44570c84ed27-h5:3001/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/i-guard'
+308
+
+
+==== CMD: docker exec gateway sh -c 'curl -s -o /dev/null -w "%{http_code}\n" http://6b099ed3-7175-4a78-91f4-44570c84ed27-h5:3001/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/i-guard/'
+200
+
+
+==== CMD: docker exec gateway sh -c 'curl -s -o /dev/null -w "%{http_code}\n" http://6b099ed3-7175-4a78-91f4-44570c84ed27-h5:3001/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/'
+200
+
+
+==== CMD: docker exec gateway sh -c 'curl -s -I http://6b099ed3-7175-4a78-91f4-44570c84ed27-h5:3001/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/i-guard'
+HTTP/1.1 308 Permanent Redirect
+
+location: /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/i-guard/
+
+Refresh: 0;url=/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/i-guard/
+
+Date: Tue, 26 May 2026 16:31:45 GMT
+
+Connection: keep-alive
+
+Keep-Alive: timeout=5
+
+
+
+
+
+==== CMD: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 sh -c 'env | grep -i base; ls / ; cat /app/server.js 2>/dev/null | head -30'
+app
+bin
+dev
+etc
+home
+lib
+media
+mnt
+opt
+proc
+root
+run
+sbin
+srv
+sys
+tmp
+usr
+var
+const path = require('path')
+
+const dir = path.join(__dirname)
+
+process.env.NODE_ENV = 'production'
+process.chdir(__dirname)
+
+const currentPort = parseInt(process.env.PORT, 10) || 3000
+const hostname = process.env.HOSTNAME || '0.0.0.0'
+
+let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10)
+const nextConfig = {"env":{},"webpack":null,"eslint":{"ignoreDuringBuilds":false},"typescript":{"ignoreBuildErrors":true,"tsconfigPath":"tsconfig.json"},"distDir":"./.next","cleanDistDir":true,"assetPrefix":"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27","cacheMaxMemorySize":52428800,"configOrigin":"next.config.js","useFileSystemPublicRoutes":true,"generateEtags":true,"pageExtensions":["tsx","ts","jsx","js"],"poweredByHeader":true,"compress":true,"analyticsId":"","images":{"deviceSizes":[640,750,828,1080,1200,1920,2048,3840],"imageSizes":[16,32,48,64,96,128,256,384],"path":"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/image/","loader":"default","loaderFile":"","domains":[],"disableStaticImages":false,"minimumCacheTTL":60,"formats":["image/webp"],"dangerouslyAllowSVG":false,"contentSecurityPolicy":"script-src 'none'; frame-src 'none'; sandbox;","contentDispositionType":"inline","remotePatterns":[],"unoptimized":false},"devIndicators":{"buildActivity":true,"buildActivityPosition":"bottom-right"},"onDemandEntries":{"maxInactiveAge":60000,"pagesBufferLength":5},"amp":{"canonicalBase":"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27"},"basePath":"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27","sassOptions":{},"trailingSlash":true,"i18n":null,"productionBrowserSourceMaps":false,"optimizeFonts":true,"excludeDefaultMomentLocales":true,"serverRuntimeConfig":{},"publicRuntimeConfig":{},"reactProductionProfiling":false,"reactStrictMode":true,"httpAgentOptions":{"keepAlive":true},"outputFileTracing":true,"staticPageGenerationTimeout":60,"swcMinify":true,"output":"standalone","modularizeImports":{"@mui/icons-material":{"transform":"@mui/icons-material/{{member}}"},"lodash":{"transform":"lodash/{{member}}"}},"experimental":{"multiZoneDraftMode":false,"prerenderEarlyExit":false,"serverMinification":true,"serverSourceMaps":false,"linkNoTouchStart":false,"caseSensitiveRoutes":false,"clientRouterFilter":true,"clientRouterFilterRedirects":false,"fetchCacheKeyPrefix":"","middlewarePrefetch":"flexible","optimisticClientCache":true,"manualClientBasePath":false,"cpus":3,"memoryBasedWorkersCount":false,"isrFlushToDisk":true,"workerThreads":false,"optimizeCss":false,"nextScriptWorkers":false,"scrollRestoration":false,"externalDir":false,"disableOptimizedLoading":false,"gzipSize":true,"craCompat":false,"esmExternals":true,"fullySpecified":false,"outputFileTracingRoot":"/app","swcTraceProfiling":false,"forceSwcTransforms":false,"largePageDataBytes":128000,"adjustFontFallbacks":false,"adjustFontFallbacksWithSizeAdjust":false,"typedRoutes":false,"instrumentationHook":false,"bundlePagesExternals":false,"parallelServerCompiles":false,"parallelServerBuildTraces":false,"ppr":false,"missingSuspenseWithCSRBailout":true,"optimizeServerReact":true,"useEarlyImport":false,"staleTimes":{"dynamic":30,"static":300},"optimizePackageImports":["lucide-react","date-fns","lodash-es","ramda","antd","react-bootstrap","ahooks","@ant-design/icons","@headlessui/react","@headlessui-float/react","@heroicons/react/20/solid","@heroicons/react/24/solid","@heroicons/react/24/outline","@visx/visx","@tremor/react","rxjs","@mui/material","@mui/icons-material","recharts","react-use","@material-ui/core","@material-ui/icons","@tabler/icons-react","mui-core","react-icons/ai","react-icons/bi","react-icons/bs","react-icons/cg","react-icons/ci","react-icons/di","react-icons/fa","react-icons/fa6","react-icons/fc","react-icons/fi","react-icons/gi","react-icons/go","react-icons/gr","react-icons/hi","react-icons/hi2","react-icons/im","react-icons/io","react-icons/io5","react-icons/lia","react-icons/lib","react-icons/lu","react-icons/md","react-icons/pi","react-icons/ri","react-icons/rx","react-icons/si","react-icons/sl","react-icons/tb","react-icons/tfi","react-icons/ti","react-icons/vsc","react-icons/wi"],"trustHostHeader":false,"isExperimentalCompile":false},"configFileName":"next.config.js","_originalRewrites":{"beforeFiles":[],"afterFiles":[],"fallback":[]},"_originalRedirects":[{"source":"/checkup/chat/:sid","destination":"/chat/:sid?type=report_interpret&auto_start=1","permanent":true},{"source":"/home","destination":"/ai-home","permanent":true},{"source":"/ai","destination":"/ai-home","permanent":true}]}
+
+process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
+
+require('next')
+const { startServer } = require('next/dist/server/lib/start-server')
+
+if (
+  Number.isNaN(keepAliveTimeout) ||
+  !Number.isFinite(keepAliveTimeout) ||
+  keepAliveTimeout < 0
+) {
+  keepAliveTimeout = undefined
+}
+
+startServer({
+  dir,
+  isDev: false,
+  config: nextConfig,
+
+
+==== CMD: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 sh -c 'ls /app/.next/standalone/.next/server/app 2>/dev/null | head -20; echo ----; ls /app/.next/server/app 2>/dev/null | head -30'
+----
+(ai-chat)
+_not-found
+_not-found.html
+_not-found.meta
+_not-found.rsc
+account-security.html
+account-security.meta
+account-security.rsc
+address
+address.html
+address.meta
+address.rsc
+ai-home
+ai-home.html
+ai-home.meta
+ai-home.rsc
+ai-settings.html
+ai-settings.meta
+ai-settings.rsc
+alert-redirect
+alert-redirect.html
+alert-redirect.meta
+alert-redirect.rsc
+appointment
+appointment.html
+appointment.meta
+appointment.rsc
+article
+articles
+articles.html
+
+
+==== CMD: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 sh -c 'find /app -name "*.next" -prune -o -type d -name "i-guard" -print 2>/dev/null'
+
+==== CMD: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 sh -c 'ls /app/.next/server/app/health-profile/ 2>/dev/null'
+i-guard
+i-guard.html
+i-guard.meta
+i-guard.rsc
+my-guardians
+my-guardians.html
+my-guardians.meta
+my-guardians.rsc
+page.js
+page.js.nft.json
+page_client-reference-manifest.js
+
+
+==== CMD: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 sh -c 'cat /app/.next/routes-manifest.json 2>/dev/null | head -120 | python3 -c "import json,sys; d=json.load(sys.stdin); print(json.dumps(d.get(\"s
+{"version":3,"pages404":true,"caseSensitive":false,"basePath":"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27","redirects":[{"source":"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27","destination":"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/","basePath":false,"internal":true,"statusCode":308,"regex":"^/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27$"},{"source":"/:file((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+)/","destination":"/:file","internal":true,"missing":[{"type":"header","key":"x-nextjs-data"}],"statusCode":308,"regex":"^(?:/((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+))/$"},{"source":"/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)","destination":"/:notfile/","internal":true,"statusCode":308,"regex":"^(?:/((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+))$"},{"source":"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/chat/:sid","destination":"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/chat/:sid?type=report_interpret&auto_start=1","statusCode":308,"regex":"^(?!/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next)/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/checkup/chat(?:/([^/]+?))(?:/)?$"},{"source":"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/home","destination":"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home","statusCode":308,"regex":"^(?!/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next)/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/home(?:/)?$"},{"source":"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai","destination":"/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home","statusCode":308,"regex":"^(?!/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next)/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai(?:/)?$"}],"headers":[],"dynamicRoutes":[{"page":"/ai-home/medication-plans/[id]","regex":"^/ai\\-home/medication\\-plans/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/ai\\-home/medication\\-plans/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/article/[id]","regex":"^/article/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/article/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/cards/redeem-code/[id]","regex":"^/cards/redeem\\-code/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/cards/redeem\\-code/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/cards/renew/[id]","regex":"^/cards/renew/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/cards/renew/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/cards/usage-logs/[id]","regex":"^/cards/usage\\-logs/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/cards/usage\\-logs/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/cards/[id]","regex":"^/cards/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/cards/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/chat/[sessionId]","regex":"^/chat/([^/]+?)(?:/)?$","routeKeys":{"nxtPsessionId":"nxtPsessionId"},"namedRegex":"^/chat/(?<nxtPsessionId>[^/]+?)(?:/)?$"},{"page":"/checkup/chat/[sessionId]","regex":"^/checkup/chat/([^/]+?)(?:/)?$","routeKeys":{"nxtPsessionId":"nxtPsessionId"},"namedRegex":"^/checkup/chat/(?<nxtPsessionId>[^/]+?)(?:/)?$"},{"page":"/checkup/detail/[id]","regex":"^/checkup/detail/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/checkup/detail/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/checkup/result/[id]","regex":"^/checkup/result/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/checkup/result/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/drug/chat/[sessionId]","regex":"^/drug/chat/([^/]+?)(?:/)?$","routeKeys":{"nxtPsessionId":"nxtPsessionId"},"namedRegex":"^/drug/chat/(?<nxtPsessionId>[^/]+?)(?:/)?$"},{"page":"/expert/[id]","regex":"^/expert/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/expert/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/family-guardian-list/[targetId]","regex":"^/family\\-guardian\\-list/([^/]+?)(?:/)?$","routeKeys":{"nxtPtargetId":"nxtPtargetId"},"namedRegex":"^/family\\-guardian\\-list/(?<nxtPtargetId>[^/]+?)(?:/)?$"},{"page":"/health-metric/[type]","regex":"^/health\\-metric/([^/]+?)(?:/)?$","routeKeys":{"nxtPtype":"nxtPtype"},"namedRegex":"^/health\\-metric/(?<nxtPtype>[^/]+?)(?:/)?$"},{"page":"/health-plan/custom/my-plan/[planId]","regex":"^/health\\-plan/custom/my\\-plan/([^/]+?)(?:/)?$","routeKeys":{"nxtPplanId":"nxtPplanId"},"namedRegex":"^/health\\-plan/custom/my\\-plan/(?<nxtPplanId>[^/]+?)(?:/)?$"},{"page":"/health-plan/custom/plan/[planId]","regex":"^/health\\-plan/custom/plan/([^/]+?)(?:/)?$","routeKeys":{"nxtPplanId":"nxtPplanId"},"namedRegex":"^/health\\-plan/custom/plan/(?<nxtPplanId>[^/]+?)(?:/)?$"},{"page":"/health-plan/custom/[categoryId]","regex":"^/health\\-plan/custom/([^/]+?)(?:/)?$","routeKeys":{"nxtPcategoryId":"nxtPcategoryId"},"namedRegex":"^/health\\-plan/custom/(?<nxtPcategoryId>[^/]+?)(?:/)?$"},{"page":"/health-self-check/result/[id]","regex":"^/health\\-self\\-check/result/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/health\\-self\\-check/result/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/medical-records/[id]","regex":"^/medical\\-records/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/medical\\-records/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/merchant/m/orders/[id]","regex":"^/merchant/m/orders/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/merchant/m/orders/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/merchant/m/settlement/[id]","regex":"^/merchant/m/settlement/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/merchant/m/settlement/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/merchant/settlement/[id]","regex":"^/merchant/settlement/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/merchant/settlement/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/news/[id]","regex":"^/news/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/news/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/order/[id]","regex":"^/order/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/order/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/product/[id]","regex":"^/product/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/product/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/refund/[orderId]","regex":"^/refund/([^/]+?)(?:/)?$","routeKeys":{"nxtPorderId":"nxtPorderId"},"namedRegex":"^/refund/(?<nxtPorderId>[^/]+?)(?:/)?$"},{"page":"/report-history/comparison/[id]","regex":"^/report\\-history/comparison/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/report\\-history/comparison/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/report-history/shared/[token]","regex":"^/report\\-history/shared/([^/]+?)(?:/)?$","routeKeys":{"nxtPtoken":"nxtPtoken"},"namedRegex":"^/report\\-history/shared/(?<nxtPtoken>[^/]+?)(?:/)?$"},{"page":"/report-history/[id]","regex":"^/report\\-history/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/report\\-history/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/review/[orderId]","regex":"^/review/([^/]+?)(?:/)?$","routeKeys":{"nxtPorderId":"nxtPorderId"},"namedRegex":"^/review/(?<nxtPorderId>[^/]+?)(?:/)?$"},{"page":"/shared/chat/[token]","regex":"^/shared/chat/([^/]+?)(?:/)?$","routeKeys":{"nxtPtoken":"nxtPtoken"},"namedRegex":"^/shared/chat/(?<nxtPtoken>[^/]+?)(?:/)?$"},{"page":"/shared/drug/[token]","regex":"^/shared/drug/([^/]+?)(?:/)?$","routeKeys":{"nxtPtoken":"nxtPtoken"},"namedRegex":"^/shared/drug/(?<nxtPtoken>[^/]+?)(?:/)?$"},{"page":"/shared/report/[token]","regex":"^/shared/report/([^/]+?)(?:/)?$","routeKeys":{"nxtPtoken":"nxtPtoken"},"namedRegex":"^/shared/report/(?<nxtPtoken>[^/]+?)(?:/)?$"},{"page":"/tcm/diagnosis/[id]","regex":"^/tcm/diagnosis/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/tcm/diagnosis/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/tcm/result/[id]","regex":"^/tcm/result/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/tcm/result/(?<nxtPid>[^/]+?)(?:/)?$"},{"page":"/unified-order/[id]","regex":"^/unified\\-order/([^/]+?)(?:/)?$","routeKeys":{"nxtPid":"nxtPid"},"namedRegex":"^/unified\\-order/(?<nxtPid>[^/]+?)(?:/)?$"}],"staticRoutes":[{"page":"/","regex":"^/(?:/)?$","routeKeys":{},"namedRegex":"^/(?:/)?$"},{"page":"/_not-found","regex":"^/_not\\-found(?:/)?$","routeKeys":{},"namedRegex":"^/_not\\-found(?:/)?$"},{"page":"/account-security","regex":"^/account\\-security(?:/)?$","routeKeys":{},"namedRegex":"^/account\\-security(?:/)?$"},{"page":"/address","regex":"^/address(?:/)?$","routeKeys":{},"namedRegex":"^/address(?:/)?$"},{"page":"/ai-home","regex":"^/ai\\-home(?:/)?$","routeKeys":{},"namedRegex":"^/ai\\-home(?:/)?$"},{"page":"/ai-home/medication-plans","regex":"^/ai\\-home/medication\\-plans(?:/)?$","routeKeys":{},"namedRegex":"^/ai\\-home/medication\\-plans(?:/)?$"},{"page":"/ai-home/medication-plans/new","regex":"^/ai\\-home/medication\\-plans/new(?:/)?$","routeKeys":{},"namedRegex":"^/ai\\-home/medication\\-plans/new(?:/)?$"},{"page":"/ai-home/medication-reminder","regex":"^/ai\\-home/medication\\-reminder(?:/)?$","routeKeys":{},"namedRegex":"^/ai\\-home/medication\\-reminder(?:/)?$"},{"page":"/ai-settings","regex":"^/ai\\-settings(?:/)?$","routeKeys":{},"namedRegex":"^/ai\\-settings(?:/)?$"},{"page":"/alert-redirect","regex":"^/alert\\-redirect(?:/)?$","routeKeys":{},"namedRegex":"^/alert\\-redirect(?:/)?$"},{"page":"/appointment","regex":"^/appointment(?:/)?$","routeKeys":{},"namedRegex":"^/appointment(?:/)?$"},{"page":"/articles","regex":"^/articles(?:/)?$","routeKeys":{},"namedRegex":"^/articles(?:/)?$"},{"page":"/cards","regex":"^/cards(?:/)?$","routeKeys":{},"namedRegex":"^/cards(?:/)?$"},{"page":"/cards/wallet","regex":"^/cards/wallet(?:/)?$","routeKeys":{},"namedRegex":"^/cards/wallet(?:/)?$"},{"page":"/chat-history","regex":"^/chat\\-history(?:/)?$","routeKeys":{},"namedRegex":"^/chat\\-history(?:/)?$"},{"page":"/checkout","regex":"^/checkout(?:/)?$","routeKeys":{},"namedRegex":"^/checkout(?:/)?$"},{"page":"/checkup","regex":"^/checkup(?:/)?$","routeKeys":{},"namedRegex":"^/checkup(?:/)?$"},{"page":"/checkup/compare","regex":"^/checkup/compare(?:/)?$","routeKeys":{},"namedRegex":"^/checkup/compare(?:/)?$"},{"page":"/checkup/compare/select","regex":"^/checkup/compare/select(?:/)?$","routeKeys":{},"namedRegex":"^/checkup/compare/select(?:/)?$"},{"page":"/checkup/trend","regex":"^/checkup/trend(?:/)?$","routeKeys":{},"namedRegex":"^/checkup/trend(?:/)?$"},{"page":"/city-select","regex":"^/city\\-select(?:/)?$","routeKeys":{},"namedRegex":"^/city\\-select(?:/)?$"},{"page":"/coupon-center","regex":"^/coupon\\-center(?:/)?$","routeKeys":{},"namedRegex":"^/coupon\\-center(?:/)?$"},{"page":"/customer-service","regex":"^/customer\\-service(?:/)?$","routeKeys":{},"namedRegex":"^/customer\\-service(?:/)?$"},{"page":"/design-system-v2-preview","regex":"^/design\\-system\\-v2\\-preview(?:/)?$","routeKeys":{},"namedRegex":"^/design\\-system\\-v2\\-preview(?:/)?$"},{"page":"/devices","regex":"^/devices(?:/)?$","routeKeys":{},"namedRegex":"^/devices(?:/)?$"},{"page":"/devices/member","regex":"^/devices/member(?:/)?$","routeKeys":{},"namedRegex":"^/devices/member(?:/)?$"},{"page":"/digital-human-call","regex":"^/digital\\-human\\-call(?:/)?$","routeKeys":{},"namedRegex":"^/digital\\-human\\-call(?:/)?$"},{"page":"/drug","regex":"^/drug(?:/)?$","routeKeys":{},"namedRegex":"^/drug(?:/)?$"},{"page":"/experts","regex":"^/experts(?:/)?$","routeKeys":{},"namedRegex":"^/experts(?:/)?$"},{"page":"/family","regex":"^/family(?:/)?$","routeKeys":{},"namedRegex":"^/family(?:/)?$"},{"page":"/family-alert","regex":"^/family\\-alert(?:/)?$","routeKeys":{},"namedRegex":"^/family\\-alert(?:/)?$"},{"page":"/family-auth","regex":"^/family\\-auth(?:/)?$","routeKeys":{},"namedRegex":"^/family\\-auth(?:/)?$"},{"page":"/family-bindlist","regex":"^/family\\-bindlist(?:/)?$","routeKeys":{},"namedRegex":"^/family\\-bindlist(?:/)?$"},{"page":"/family-guardian-list","regex":"^/family\\-guardian\\-list(?:/)?$","routeKeys":{},"namedRegex":"^/family\\-guardian\\-list(?:/)?$"},{"page":"/family-invite","regex":"^/family\\-invite(?:/)?$","routeKeys":{},"namedRegex":"^/family\\-invite(?:/)?$"},{"page":"/feedback","regex":"^/feedback(?:/)?$","routeKeys":{},"namedRegex":"^/feedback(?:/)?$"},{"page":"/health-alerts","regex":"^/health\\-alerts(?:/)?$","routeKeys":{},"namedRegex":"^/health\\-alerts(?:/)?$"},{"page":"/health-dashboard","regex":"^/health\\-dashboard(?:/)?$","routeKeys":{},"namedRegex":"^/health\\-dashboard(?:/)?$"},{"page":"/health-guide","regex":"^/health\\-guide(?:/)?$","routeKeys":{},"namedRegex":"^/health\\-guide(?:/)?$"},{"page":"/health-plan","regex":"^/health\\-plan(?:/)?$","routeKeys":{},"namedRegex":"^/health\\-plan(?:/)?$"},{"page":"/health-plan/checkin","regex":"^/health\\-plan/checkin(?:/)?$","routeKeys":{},"namedRegex":"^/health\\-plan/checkin(?:/)?$"},{"page":"/health-plan/checkin/add","regex":"^/health\\-plan/checkin/add(?:/)?$","routeKeys":{},"namedRegex":"^/health\\-plan/checkin/add(?:/)?$"},{"page":"/health-plan/custom","regex":"^/health\\-plan/custom(?:/)?$","routeKeys":{},"namedRegex":"^/health\\-plan/custom(?:/)?$"},{"page":"/health-plan/custom/create","regex":"^/health\\-plan/custom/create(?:/)?$","routeKeys":{},"namedRegex":"^/health\\-plan/custom/create(?:/)?$"},{"page":"/health-plan/statistics","regex":"^/health\\-plan/statistics(?:/)?$","routeKeys":{},"namedRegex":"^/health\\-plan/statistics(?:/)?$"},{"page":"/health-profile","regex":"^/health\\-profile(?:/)?$","routeKeys":{},"namedRegex":"^/health\\-profile(?:/)?$"},{"page":"/health-profile/i-guard","regex":"^/health\\-profile/i\\-guard(?:/)?$","routeKeys":{},"namedRegex":"^/health\\-profile/i\\-guard(?:/)?$"},{"page":"/health-profile/my-guardians","regex":"^/health\\-profile/my\\-guardians(?:/)?$","routeKeys":{},"namedRegex":"^/health\\-profile/my\\-guardians(?:/)?$"},{"page":"/health-profile/my-guardians/invite","regex":"^/health\\-profile/my\\-guardians/invite(?:/)?$","routeKeys":{},"namedRegex":"^/health\\-profile/my\\-guardians/invite(?:/)?$"},{"page":"/health-reminders","regex":"^/health\\-reminders(?:/)?$","routeKeys":{},"namedRegex":"^/health\\-reminders(?:/)?$"},{"page":"/invite","regex":"^/invite(?:/)?$","routeKeys":{},"namedRegex":"^/invite(?:/)?$"},{"page":"/landing","regex":"^/landing(?:/)?$","routeKeys":{},"namedRegex":"^/landing(?:/)?$"},{"page":"/legal/privacy-policy","regex":"^/legal/privacy\\-policy(?:/)?$","routeKeys":{},"namedRegex":"^/legal/privacy\\-policy(?:/)?$"},{"page":"/legal/service-agreement","regex":"^/legal/service\\-agreement(?:/)?$","routeKeys":{},"namedRegex":"^/legal/service\\-agreement(?:/)?$"},{"page":"/login","regex":"^/login(?:/)?$","routeKeys":{},"namedRegex":"^/login(?:/)?$"},{"page":"/medical-records","regex":"^/medical\\-records(?:/)?$","routeKeys":{},"namedRegex":"^/medical\\-records(?:/)?$"},{"page":"/medical-records/all","regex":"^/medical\\-records/all(?:/)?$","routeKeys":{},"namedRegex":"^/medical\\-records/all(?:/)?$"},{"page":"/medical-records/trash","regex":"^/medical\\-records/trash(?:/)?$","routeKeys":{},"namedRegex":"^/medical\\-records/trash(?:/)?$"},{"page":"/member-card","regex":"^/member\\-card(?:/)?$","routeKeys":{},"namedRegex":"^/member\\-card(?:/)?$"},{"page":"/member-center","regex":"^/member\\-center(?:/)?$","routeKeys":{},"namedRegex":"^/member\\-center(?:/)?$"},{"page":"/merchant","regex":"^/merchant(?:/)?$","routeKeys":{},"namedRegex":"^/merchant(?:/)?$"},{"page":"/merchant/dashboard","regex":"^/merchant/dashboard(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/dashboard(?:/)?$"},{"page":"/merchant/downloads","regex":"^/merchant/downloads(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/downloads(?:/)?$"},{"page":"/merchant/finance","regex":"^/merchant/finance(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/finance(?:/)?$"},{"page":"/merchant/invoice","regex":"^/merchant/invoice(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/invoice(?:/)?$"},{"page":"/merchant/login","regex":"^/merchant/login(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/login(?:/)?$"},{"page":"/merchant/m","regex":"^/merchant/m(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/m(?:/)?$"},{"page":"/merchant/m/dashboard","regex":"^/merchant/m/dashboard(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/m/dashboard(?:/)?$"},{"page":"/merchant/m/downloads","regex":"^/merchant/m/downloads(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/m/downloads(?:/)?$"},{"page":"/merchant/m/finance","regex":"^/merchant/m/finance(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/m/finance(?:/)?$"},{"page":"/merchant/m/invoice","regex":"^/merchant/m/invoice(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/m/invoice(?:/)?$"},{"page":"/merchant/m/login","regex":"^/merchant/m/login(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/m/login(?:/)?$"},{"page":"/merchant/m/me","regex":"^/merchant/m/me(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/m/me(?:/)?$"},{"page":"/merchant/m/messages","regex":"^/merchant/m/messages(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/m/messages(?:/)?$"},{"page":"/merchant/m/orders","regex":"^/merchant/m/orders(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/m/orders(?:/)?$"},{"page":"/merchant/m/profile","regex":"^/merchant/m/profile(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/m/profile(?:/)?$"},{"page":"/merchant/m/profile/change-password","regex":"^/merchant/m/profile/change\\-password(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/m/profile/change\\-password(?:/)?$"},{"page":"/merchant/m/profile/force-change-password","regex":"^/merchant/m/profile/force\\-change\\-password(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/m/profile/force\\-change\\-password(?:/)?$"},{"page":"/merchant/m/reports","regex":"^/merchant/m/reports(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/m/reports(?:/)?$"},{"page":"/merchant/m/select-store","regex":"^/merchant/m/select\\-store(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/m/select\\-store(?:/)?$"},{"page":"/merchant/m/settlement","regex":"^/merchant/m/settlement(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/m/settlement(?:/)?$"},{"page":"/merchant/m/staff","regex":"^/merchant/m/staff(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/m/staff(?:/)?$"},{"page":"/merchant/m/store-settings","regex":"^/merchant/m/store\\-settings(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/m/store\\-settings(?:/)?$"},{"page":"/merchant/m/verify","regex":"^/merchant/m/verify(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/m/verify(?:/)?$"},{"page":"/merchant/m/wechat-bindding","regex":"^/merchant/m/wechat\\-bindding(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/m/wechat\\-bindding(?:/)?$"},{"page":"/merchant/messages","regex":"^/merchant/messages(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/messages(?:/)?$"},{"page":"/merchant/order-dashboard","regex":"^/merchant/order\\-dashboard(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/order\\-dashboard(?:/)?$"},{"page":"/merchant/orders","regex":"^/merchant/orders(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/orders(?:/)?$"},{"page":"/merchant/profile","regex":"^/merchant/profile(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/profile(?:/)?$"},{"page":"/merchant/profile/change-password","regex":"^/merchant/profile/change\\-password(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/profile/change\\-password(?:/)?$"},{"page":"/merchant/reports","regex":"^/merchant/reports(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/reports(?:/)?$"},{"page":"/merchant/select-store","regex":"^/merchant/select\\-store(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/select\\-store(?:/)?$"},{"page":"/merchant/settlement","regex":"^/merchant/settlement(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/settlement(?:/)?$"},{"page":"/merchant/staff","regex":"^/merchant/staff(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/staff(?:/)?$"},{"page":"/merchant/store-settings","regex":"^/merchant/store\\-settings(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/store\\-settings(?:/)?$"},{"page":"/merchant/verifications","regex":"^/merchant/verifications(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/verifications(?:/)?$"},{"page":"/merchant/wechat-bindding","regex":"^/merchant/wechat\\-bindding(?:/)?$","routeKeys":{},"namedRegex":"^/merchant/wechat\\-bindding(?:/)?$"},{"page":"/messages","regex":"^/messages(?:/)?$","routeKeys":{},"namedRegex":"^/messages(?:/)?$"},{"page":"/my-addresses","regex":"^/my\\-addresses(?:/)?$","routeKeys":{},"namedRegex":"^/my\\-addresses(?:/)?$"},{"page":"/my-coupons","regex":"^/my\\-coupons(?:/)?$","routeKeys":{},"namedRegex":"^/my\\-coupons(?:/)?$"},{"page":"/my-favorites","regex":"^/my\\-favorites(?:/)?$","routeKeys":{},"namedRegex":"^/my\\-favorites(?:/)?$"},{"page":"/news","regex":"^/news(?:/)?$","routeKeys":{},"namedRegex":"^/news(?:/)?$"},{"page":"/notifications","regex":"^/notifications(?:/)?$","routeKeys":{},"namedRegex":"^/notifications(?:/)?$"},{"page":"/pay/success","regex":"^/pay/success(?:/)?$","routeKeys":{},"namedRegex":"^/pay/success(?:/)?$"},{"page":"/points","regex":"^/points(?:/)?$","routeKeys":{},"namedRegex":"^/points(?:/)?$"},{"page":"/points/detail","regex":"^/points/detail(?:/)?$","routeKeys":{},"namedRegex":"^/points/detail(?:/)?$"},{"page":"/points/exchange-records","regex":"^/points/exchange\\-records(?:/)?$","routeKeys":{},"namedRegex":"^/points/exchange\\-records(?:/)?$"},{"page":"/points/mall","regex":"^/points/mall(?:/)?$","routeKeys":{},"namedRegex":"^/points/mall(?:/)?$"},{"page":"/points/product-detail","regex":"^/points/product\\-detail(?:/)?$","routeKeys":{},"namedRegex":"^/points/product\\-detail(?:/)?$"},{"page":"/points/records","regex":"^/points/records(?:/)?$","routeKeys":{},"namedRegex":"^/points/records(?:/)?$"},{"page":"/products","regex":"^/products(?:/)?$","routeKeys":{},"namedRegex":"^/products(?:/)?$"},{"page":"/profile/edit","regex":"^/profile/edit(?:/)?$","routeKeys":{},"namedRegex":"^/profile/edit(?:/)?$"},{"page":"/refund-list","regex":"^/refund\\-list(?:/)?$","routeKeys":{},"namedRegex":"^/refund\\-list(?:/)?$"},{"page":"/report-history","regex":"^/report\\-history(?:/)?$","routeKeys":{},"namedRegex":"^/report\\-history(?:/)?$"},{"page":"/sandbox-pay","regex":"^/sandbox\\-pay(?:/)?$","routeKeys":{},"namedRegex":"^/sandbox\\-pay(?:/)?$"},{"page":"/scan","regex":"^/scan(?:/)?$","routeKeys":{},"namedRegex":"^/scan(?:/)?$"},{"page":"/search","regex":"^/search(?:/)?$","routeKeys":{},"namedRegex":"^/search(?:/)?$"},{"page":"/search/result","regex":"^/search/result(?:/)?$","routeKeys":{},"namedRegex":"^/search/result(?:/)?$"},{"page":"/services","regex":"^/services(?:/)?$","routeKeys":{},"namedRegex":"^/services(?:/)?$"},{"page":"/settings","regex":"^/settings(?:/)?$","routeKeys":{},"namedRegex":"^/settings(?:/)?$"},{"page":"/symptom","regex":"^/symptom(?:/)?$","routeKeys":{},"namedRegex":"^/symptom(?:/)?$"},{"page":"/tcm","regex":"^/tcm(?:/)?$","routeKeys":{},"namedRegex":"^/tcm(?:/)?$"},{"page":"/tcm/archive","regex":"^/tcm/archive(?:/)?$","routeKeys":{},"namedRegex":"^/tcm/archive(?:/)?$"},{"page":"/tcm/loading","regex":"^/tcm/loading(?:/)?$","routeKeys":{},"namedRegex":"^/tcm/loading(?:/)?$"},{"page":"/unified-orders","regex":"^/unified\\-orders(?:/)?$","routeKeys":{},"namedRegex":"^/unified\\-orders(?:/)?$"}],"dataRoutes":[],"rsc":{"header":"RSC","varyHeader":"RSC, Next-Router-State-Tree, Next-Router-Prefetch","prefetchHeader":"Next-Router-Prefetch","didPostponeHeader":"x-nextjs-postponed","contentTypeHeader":"text/x-component","suffix":".rsc","prefetchSuffix":".prefetch.rsc"},"rewrites":[]}
+
+==== CMD: docker logs --tail 50 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 2>&1 | tail -50
+  鈻?Next.js 14.2.15
+  - Local:        http://1b0e821cc198:3001
+  - Network:      http://172.20.0.5:3001
+
+ 鉁?Starting...
+ 鉁?Ready in 94ms
+
+
+==== CMD: cat /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/next.config.js 2>/dev/null | head -50
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'standalone',
+  reactStrictMode: true,
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
+  trailingSlash: true,
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  async rewrites() {
+    return [];
+  },
+  // [2026-04-23 瀵硅瘽椤电粺涓€鍖朷 鏃т綋妫€瀵硅瘽椤佃矾寰?301 姘镐箙閲嶅畾鍚戝埌鍏叡鍜ㄨ椤碉紝澶栭儴/鍘嗗彶閾炬帴浠嶅彲璁块棶
+  // [PRD-AI-HOME-V1 2026-05-19] (tabs) 璺敱缁勫凡褰掓。锛?home銆?ai 鏃у叆鍙ｇ粺涓€ 301 閲嶅畾鍚戝埌 /ai-home锛?
+  //   閬垮厤澶栭儴鍒嗕韩鎴栨祻瑙堝櫒鍘嗗彶鍛戒腑宸蹭笅绾胯矾鐢卞嚭鐜?404銆?
+  //   /profile 鍥?app/profile 鍚屽悕鐙珛椤典粛鍦ㄤ娇鐢紝**涓?*鍋氶噸瀹氬悜銆?
+  async redirects() {
+    return [
+      {
+        source: '/checkup/chat/:sid',
+        destination: '/chat/:sid?type=report_interpret&auto_start=1',
+        permanent: true,
+      },
+      {
+        source: '/home',
+        destination: '/ai-home',
+        permanent: true,
+      },
+      {
+        source: '/ai',
+        destination: '/ai-home',
+        permanent: true,
+      },
+    ];
+  },
+};
+
+module.exports = nextConfig;
+
+
+==== CMD: cat /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/next.config.mjs 2>/dev/null | head -50

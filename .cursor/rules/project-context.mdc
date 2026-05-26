@@ -27,6 +27,59 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: 健康档案 PRD 改造部署生效（H5/admin 容器单容器重建上线 · 2026-05-27）
+
+### 一句话结论
+按《Bug 修复方案文档：健康档案 PRD 改造未生效》v1.0 落地一套**仅运维侧**的部署改造，不动任何业务代码即让 PRD 源码改造（守护体系收敛、`/health-profile/i-guard` 转让横幅+两态分组、`体验全新` 按钮删除、`/health-profile/v13` 与 `/guardian-system` 旧入口 404）真正在浏览器上生效；根本原因是老部署脚本对 H5/admin 调用 `docker compose build` 但 compose 文件里没这俩 service 而被静默吞掉，新脚本 `deploy_h5_admin_v2.sh` 启用 `set -euo pipefail` + 镜像 tag 双轨（`autodev-<sha>` + `autodev-prev`） + 健康自检 + 自动回滚，**关键修复点**是 `docker build` 必须传 `--build-arg NEXT_PUBLIC_BASE_PATH=/autodev/{token}`（H5）/ `/autodev/{token}/admin`（admin），否则 Next.js basePath="" 全部 404；首次 admin 部署因 basePath 写错失败已**成功触发自动回滚**到 prev，验证了回滚机制；最终 11 条自动 TC 全部 PASS，3 条手测 TC 列入清单。
+
+### 核心变更
+- 新增部署脚本：`deploy_h5_admin_v2.sh`（远端执行：`set -euo pipefail` + tag prev + docker build with NEXT_PUBLIC_BASE_PATH build-arg + stop/rm/run + 健康自检 + 自动 rollback）
+- 新增回滚脚本：`rollback_h5_admin_v2.sh`（独立可用，用 `:autodev-prev` 重起容器）
+- 新增本地驱动：`_deploy_h5_admin_v2.py`（paramiko SSH 上传 sh 并触发执行；CRLF→LF 转换）
+- 新增 PRD 验收：`_verify_prd_v1.py`（12 条 TC：9 条自动 + 3 条手测清单；通过 `requests` + `paramiko docker exec` 对 backend/H5 容器内 chunk 文件做关键词断言）
+- 用户手册：`user_docs/健康档案PRD改造部署生效_用户体验手册_20260527_004735_a7f2.md`
+- 现场勘查脚本（一次性）：`_ssh_survey_v12.py` / `_ssh_survey2_v12.py` / `_ssh_survey3_v12.py` / `_diag_404_v12.py` / `_check_health_v12.py`
+- 验收探针：`_verify_h5_postdeploy_v12.py` / `_verify_h5_chunks_v12.py` / `_verify_h5_chunks2_v12.py` / `_verify_h5_keywords2_v12.py`
+- 基线快照：`_baseline_commit_v12.txt`（记录修复前 HEAD = `e7ca29e56c70`）
+
+### 关键决策
+- **不重写 docker-compose.yml**（PRD Q2 选 A）：仅给 H5/admin 单独写单容器部署脚本，不影响现有 compose 管理的 db/backend
+- **不动 gateway-nginx**：H5/admin 容器名和 nginx upstream 不变（`6b099ed3-...-h5` / `6b099ed3-...-admin`），nginx 的 `resolver 127.0.0.11 valid=10s` 自动重新解析新容器 IP，部署前 sleep 10s 等 DNS 缓存刷新即可
+- **镜像 tag 双轨命名约定**：`<repo>:autodev-<git-sha-short10>` 为新版，`<repo>:autodev-prev` 为上版快照；首次部署允许 prev 缺失（`docker tag ... || true` 兜底）
+- **健康自检走域名而非 127.0.0.1**：宿主 80 端口会 301 → 443，证书 SAN 不含 127.0.0.1，因此用 `https://newbb.test.bangbangvip.com/...` 域名 + `-k -L` 跟随 301/308，断言 HTTP 200
+- **关键词断言用 node -e 而非 grep**：alpine 镜像无 python3，且中文 UTF-8 字节序列与 PowerShell shell 转义不友好，统一用容器内 node 读 chunk 文件 + regex 计数
+- **PRD 文案断言修正**：PRD TC-07 写的「待确认转让」是源码注释，UI 实际文案是「主守护人转让」（来自 `从 from_user_nickname 申请将...主守护人转让给您`、`您发起的主守护人转让待...确认`），断言关键词改用真实 UI 字面量
+- **回滚不重试**：rollback 成功后脚本 `exit 1` 直接退出，避免循环加深故障；新一轮修复由 AI 介入
+
+### H5 容器与 admin 容器现场参数（已落实到部署脚本）
+| 字段 | H5 | admin-web |
+|---|---|---|
+| 容器名 | `6b099ed3-7175-4a78-91f4-44570c84ed27-h5` | `6b099ed3-7175-4a78-91f4-44570c84ed27-admin` |
+| 镜像 repo | `6b099ed3-...-h5-web` | `6b099ed3-...-admin-web` |
+| 容器内端口 | 3001 (PORT 环境变量) | 3000 |
+| docker network | `6b099ed3-...-network` | `6b099ed3-..._6b099ed3-...-network`（带 _ 前缀，gateway 已连接） |
+| build context | `/home/ubuntu/6b099ed3-.../h5-web` | `/home/ubuntu/6b099ed3-.../admin-web` |
+| basePath build-arg | `/autodev/6b099ed3-...` | `/autodev/6b099ed3-.../admin` |
+| 健康自检 URL | `https://newbb.test.bangbangvip.com/autodev/6b099ed3-.../health-profile/i-guard` | `https://newbb.test.bangbangvip.com/autodev/6b099ed3-.../admin/` |
+
+### TC 验收结果
+| 编号 | 用例 | 结果 | 备注 |
+|---|---|---|---|
+| TC-01 | v12 接口含 `total_count` | ✅ PASS | 字段在 guardian_system_v12.py 中出现 6 次 |
+| TC-02 | 本人 Tab → i-guard | ✅ PASS | i-guard 路径在 H5 chunk 中出现 1 次（router.push 字面量） |
+| TC-03 | i-guard 无「体验全新」 | ✅ PASS | 关键词 = 0 |
+| TC-07 | 转让横幅 UI 文案 | ✅ PASS | 「主守护人转让」出现 4 次 |
+| TC-08 | v12 transfer 端点齐全 | ✅ PASS | pending/approve/reject/cancel 4 个齐全 |
+| TC-09 | v13 → 404 | ✅ PASS | 308 → 404 |
+| TC-10 | guardian-system → 404 | ✅ PASS | 308 → 404 |
+| TC-11 | admin guardian-relations 接口 | ✅ PASS | 401（未带 token 时正常） |
+| TC-12 | /api/guardian/list → 404 | ✅ PASS | / |
+| TC-IG | i-guard 整体可达 | ✅ PASS | HTTP 200 |
+| TC-AD | admin 首页可达 | ✅ PASS | HTTP 200 |
+| TC-04..06 | 非本人 Tab 三连验收 | 🖐 手测 | 涉及 Tab/弹窗交互 |
+
+---
+
 ## Latest Update: AI 首页 5 项完善（H5 顶栏/铃铛/侧栏微调 Bug 修复 · 2026-05-26）
 
 ### 一句话结论

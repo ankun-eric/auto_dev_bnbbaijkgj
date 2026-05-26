@@ -1,0 +1,106 @@
+
+==== CMD: ls -la /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-profile/
+total 116
+drwxrwxr-x  4 ubuntu ubuntu  4096 May 27 00:05 .
+drwxrwxr-x 71 ubuntu ubuntu  4096 May 26 23:07 ..
+drwxrwxr-x  2 ubuntu ubuntu  4096 May 27 00:05 i-guard
+drwxrwxr-x  3 ubuntu ubuntu  4096 May 23 22:56 my-guardians
+-rw-rw-r--  1 ubuntu ubuntu 95622 May 27 00:05 page.tsx
+-rw-rw-r--  1 ubuntu ubuntu   275 May 23 12:13 page.tsx.bak-2026-05-16
+
+
+==== CMD: ls -la /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-profile/i-guard/ 2>/dev/null
+total 36
+drwxrwxr-x 2 ubuntu ubuntu  4096 May 27 00:05 .
+drwxrwxr-x 4 ubuntu ubuntu  4096 May 27 00:05 ..
+-rw-rw-r-- 1 ubuntu ubuntu 28134 May 27 00:05 page.tsx
+
+
+==== CMD: ls -la /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/guardian-system/ 2>/dev/null || echo 'NO guardian-system'
+NO guardian-system
+
+
+==== CMD: ls -la /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-profile/v13/ 2>/dev/null || echo 'NO v13'
+NO v13
+
+
+==== CMD: grep -c '浣撻獙鍏ㄦ柊' /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-profile/i-guard/page.tsx 2>/dev/null || echo 'i-guard NO file'
+0
+i-guard NO file
+
+
+==== CMD: grep -c '寰呯‘璁よ浆璁? /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-profile/i-guard/page.tsx 2>/dev/null
+4
+
+
+==== CMD: cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git log --oneline -5 2>/dev/null
+915887b fix(ai-home): 5椤?H5 椤舵爮涓庨搩閾涙暟鎹慨澶?(Bug#1-5)
+fdc3d00 feat: 鍋ュ悍妗ｆ浼樺寲 v1.0 - 瀹堟姢浣撶郴鏀舵暃涓庢棫椤甸潰涓嬬嚎
+8181069 feat(guardian-v13): 瀹堟姢浜轰綋绯?v1.3 鍋ュ悍妗ｆ铻嶅悎浼樺寲鍏ㄩ噺钀藉湴
+e896109 docs: 浼氬憳涓績鍏ュ彛涓庢潈鐩婂姣?v1.0 鐢ㄦ埛浣撻獙鎵嬪唽 + 椤圭洰绱㈠紩鍚屾
+d03c11d fix(member-center): 椤堕儴鏇村鑿滃崟閲戣壊+鏂拌鏍?/ Sidebar 鍏ュ彛鏇挎崲 / 鏂板鏉冪泭瀵规瘮琛?/ 灏忕▼搴?Flutter 鏇村鑿滃崟涓庝細鍛樹腑蹇冩帴鍏?
+
+
+==== CMD: cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && git status --short 2>/dev/null | head -20
+?? _hp_offline.tar.gz
+?? backend/check_session404.py
+?? backend/clean_old_data.py
+?? backend/tests/test_decouple_points_mall_v1.py
+?? backend/tests/test_member_center_prd_v1_aligned.py
+?? check_meta.py
+?? check_meta2.py
+?? check_meta3.py
+?? check_session403.py
+?? decouple_v1.tar.gz
+?? flutter_app/android/.gradle/
+?? flutter_app/android/app/src/main/java/
+?? flutter_app/ios/Flutter/
+
+
+==== CMD: cat /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/Dockerfile
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package.json ./
+RUN npm config set registry https://registry.npmmirror.com && npm install --legacy-peer-deps
+COPY . .
+ARG NEXT_PUBLIC_API_URL=""
+ARG NEXT_PUBLIC_BASE_PATH=""
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
+RUN mkdir -p public
+RUN npm run build
+
+FROM node:18-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+EXPOSE 3001
+ENV PORT=3001
+CMD ["node", "server.js"]
+
+
+==== CMD: cat /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/Dockerfile
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package.json ./
+RUN npm config set registry https://registry.npmmirror.com && npm install --legacy-peer-deps
+COPY . .
+ARG NEXT_PUBLIC_API_URL=""
+ARG NEXT_PUBLIC_BASE_PATH=""
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
+RUN mkdir -p public
+RUN npm run build
+
+FROM node:18-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+EXPOSE 3000
+ENV PORT=3000
+CMD ["node", "server.js"]
+

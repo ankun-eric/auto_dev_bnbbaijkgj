@@ -1,0 +1,1427 @@
+
+==== CMD: docker exec gateway sh -c 'ls /etc/nginx/conf.d/ 2>/dev/null; ls /etc/nginx/sites-enabled/ 2>/dev/null' 
+0451a430-e3c8-49e2-b627-329938d2313d.conf
+0451a430-e3c8-49e2-b627-329938d2313d.conf.bak
+09fca155-2b91-45be-a4aa-87b3dfdd0d3e.conf
+0a31a546-d493-4b60-bbb1-a5f8f7686924.conf
+0a31a546-d493-4b60-bbb1-a5f8f7686924.conf.bak.20260423194021
+0faabede-ad8a-439d-a946-b887ffcd8dee.conf
+1f2b22da-528e-4e13-acee-6511a7b5b172.conf
+1f2b22da-528e-4e13-acee-6511a7b5b172.conf.bak.20260517_login_fix
+20d0760a-5230-4867-a343-a91a95e05d50.conf
+2c2b48f8-c6fa-4411-b719-8d910baf4f9a.conf
+2c2b48f8-c6fa-4411-b719-8d910baf4f9a.conf.bak.20260514_redirect_fix
+309c268a-80c8-431f-9747-e2c53ada724f.conf
+309c268a-80c8-431f-9747-e2c53ada724f.conf.bak.20260518162029
+4ad2bc0a-9c36-4b60-9c81-69e945e53cc4.conf
+4ad2bc0a-9c36-4b60-9c81-69e945e53cc4.conf.bak. 
+4ad2bc0a-9c36-4b60-9c81-69e945e53cc4.conf.bak.20260428
+53a8e6ba-479a-48cd-aa4d-00e5d61fec52.conf
+5fa64f53-c6e8-443c-9a5c-611e554ddde1.conf
+5fa64f53-c6e8-443c-9a5c-611e554ddde1.conf.bak.proxy101. 
+617ba922-acf8-4859-9737-1854bad08497.conf
+6333c7ee-e664-4874-acb1-75365bd58709.conf
+6b099ed3-7175-4a78-91f4-44570c84ed27-toplevel-apk.conf
+6b099ed3-7175-4a78-91f4-44570c84ed27.conf
+6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak
+6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.20260417185313
+6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.20260419141208
+6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.20260419141607
+6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.20260419193900
+6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.20260419205021
+6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.before_prd03_redelivery_20260505_201245
+6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.directapk.1777815377
+6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.directzip.20260423013614
+6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.fix
+6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.h5redir.20260423120001
+6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.ipa.20260504153919
+6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.miniprogram
+6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.miniprogram2
+6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.static
+6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.staticdl.20260421034313
+745ea1f0-7b9d-449c-bd36-a2e4a2599d06.conf
+76078d4e-cf0a-40d0-92bc-ad40ea4436b2.conf
+793d88c4-949b-478a-a551-147cc100d2b1.conf
+7eabb913-3d3e-4361-9dbd-dcdf42fa061e.conf
+85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf
+85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf.bak
+85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf.bak.
+85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf.bak.bgfix.1777794575
+85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf.bak.bgfix.1777794707
+85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf.bak.long_task_keepalive
+85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf.bak2
+85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf.bak3
+85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf.disabled
+8946923e-5887-4d14-a54f-2cb39819c8f2.conf
+911e7350-7584-4898-bb92-ac568a699575.conf
+9782217d-bbe9-45df-b57b-6f1db576316c.conf
+9782217d-bbe9-45df-b57b-6f1db576316c.conf.bak.20260519
+9782217d-bbe9-45df-b57b-6f1db576316c.conf.bak.20260525142306
+9782217d-bbe9-45df-b57b-6f1db576316c.conf.bak.20260525142345
+9782217d-bbe9-45df-b57b-6f1db576316c.conf.bak.20260525142411
+9b51e155-b3d1-4515-8137-03bfd66446a1.conf
+9f0604d2-45b2-41c9-ac88-7a317a80702f.conf
+a46094c5-4cff-434b-a815-3e73fc6d39a6.conf
+b04670f8-ef50-4fcc-92b5-e25f73121b54.conf
+c57cd78e-baf2-4648-be33-611be54734d9.conf
+c935e952-5c8f-44c5-8d09-7d77698407fa.conf
+dbc8a82b-07f9-4b5f-b1b7-9cd7118f018f.conf
+dce395b9-f2ce-4853-8c63-a7ccdfe5793a.conf
+deploy_test.conf
+deploy_test.conf.bak.static_fix
+ed7f67c4-b4f4-4e66-9d43-010316c4069e.conf
+ffaac1e1-9e0f-426b-b852-5ad04a963b72.conf
+gateway-routes
+
+
+==== CMD: docker exec gateway sh -c 'cat /etc/nginx/conf.d/default.conf 2>/dev/null | head -200' 
+
+==== CMD: docker exec gateway sh -c "grep -rln '6b099ed3-7175-4a78-91f4-44570c84ed27' /etc/nginx/ 2>/dev/null" 
+/etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf
+/etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.20260417185313
+/etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.before_prd03_redelivery_20260505_201245
+/etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.20260419141208
+/etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.20260419193900
+/etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.staticdl.20260421034313
+/etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak
+/etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.20260419205021
+/etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.fix
+/etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.directapk.1777815377
+/etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.ipa.20260504153919
+/etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.h5redir.20260423120001
+/etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27-toplevel-apk.conf
+/etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.miniprogram
+/etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.directzip.20260423013614
+/etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.static
+/etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.miniprogram2
+/etc/nginx/conf.d/gateway-routes/6b099ed3-7175-4a78-91f4-44570c84ed27-apk.conf
+/etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf.bak.20260419141607
+
+
+==== CMD: docker exec gateway sh -c "grep -A 60 '6b099ed3-7175-4a78-91f4-44570c84ed27' /etc/nginx/nginx.conf 2>/dev/null | head -120" 
+
+==== CMD: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 sh -c 'ls; cat package.json 2>/dev/null | head -40' 
+node_modules
+package.json
+public
+server.js
+{
+  "name": "bini-health-h5",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^5.5.0",
+    "antd": "^5.29.3",
+    "antd-mobile": "^5.37.0",
+    "antd-mobile-icons": "^0.3.0",
+    "axios": "^1.7.0",
+    "dayjs": "^1.11.13",
+    "html5-qrcode": "^2.3.8",
+    "next": "14.2.15",
+    "qrcode.react": "^4.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.6.0"
+  }
+}
+
+
+==== CMD: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 sh -c 'ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null' 
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    
+tcp        0      0 127.0.0.11:41333        0.0.0.0:*               LISTEN      -
+tcp        0      0 172.20.0.5:3001         0.0.0.0:*               LISTEN      1/next-server (v
+
+
+==== CMD: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-admin sh -c 'ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null' 
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    
+tcp        0      0 127.0.0.11:41417        0.0.0.0:*               LISTEN      -
+tcp        0      0 192.168.32.5:3000       0.0.0.0:*               LISTEN      1/next-server (v
+
+
+==== CMD: ls -la /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/ 
+total 624652
+drwxrwxr-x 35 ubuntu ubuntu    61440 May 27 00:05 .
+drwxr-x--- 56 ubuntu ubuntu     4096 May 26 18:42 ..
+-rw-rw-r--  1 ubuntu ubuntu     4383 May 23 12:13 add_apk_route.py
+-rw-rw-r--  1 ubuntu ubuntu     1551 May 23 12:13 _admin_rebuild2.py
+drwxrwxr-x  3 ubuntu ubuntu     4096 May 23 20:48 admin-web
+-rw-rw-r--  1 ubuntu ubuntu   109180 Apr  9 11:33 admin_web_src.tar.gz
+-rw-rw-r--  1 ubuntu ubuntu   312356 May  5 19:45 admin_web_table_layout_fix.tar.gz
+-rw-rw-r--  1 ubuntu ubuntu        0 May  8 15:31 _ai_home_config_414.json
+-rw-rw-r--  1 ubuntu ubuntu    11684 May  6 00:44 _android_build_363.log
+-rw-rw-r--  1 ubuntu ubuntu     9807 May 23 12:13 _android_build_363.py
+-rw-rw-r--  1 ubuntu ubuntu      994 May  4 01:03 apk_build_log2.txt
+-rw-rw-r--  1 ubuntu ubuntu      994 May  4 00:29 apk_build_log.txt
+-rw-rw-r--  1 ubuntu ubuntu      154 May  4 00:42 apk_build_remote.txt
+-rw-rw-r--  1 ubuntu ubuntu       56 May  4 00:53 apk_check2.txt
+-rw-rw-r--  1 ubuntu ubuntu       56 May  4 00:58 apk_check3.txt
+-rw-rw-r--  1 ubuntu ubuntu       26 May  4 01:02 apk_check4.txt
+-rw-rw-r--  1 ubuntu ubuntu     3294 May  4 01:03 apk_check5.txt
+-rw-rw-r--  1 ubuntu ubuntu       66 May  4 00:47 apk_check.txt
+drwxrwxr-x  2 ubuntu ubuntu     4096 May 10 20:33 apk_download
+-rw-rw-r--  1 ubuntu ubuntu     4166 May  4 01:03 apk_err2.txt
+-rw-rw-r--  1 ubuntu ubuntu     1038 May  4 01:03 apk_err.txt
+-rw-rw-r--  1 ubuntu ubuntu      192 May  4 00:42 apk_status.txt
+-rw-rw-r--  1 ubuntu ubuntu       46 May 21 02:38 _apk_tag.txt
+-rw-rw-r--  1 ubuntu ubuntu       36 May 10 01:33 .apk_version_tag.txt
+-rw-r--r--  1 ubuntu ubuntu 83793751 May  3 23:13 app_paymentconfig_20260503_231130_e313.apk
+-rw-r--r--  1 ubuntu ubuntu 84698583 May 14 18:12 app_pointsskin_20260514_180959_434b.apk
+-rw-rw-r--  1 ubuntu ubuntu    29665 May 23 12:13 att1.txt
+-rw-rw-r--  1 ubuntu ubuntu    26403 May 23 12:13 att2.txt
+-rw-rw-r--  1 ubuntu ubuntu    50601 Mar 27 09:13 attachment1.docx
+-rw-rw-r--  1 ubuntu ubuntu    27985 Mar 27 09:13 attachment2.docx
+drwx------  8 ubuntu ubuntu     4096 May 24 18:29 backend
+-rw-rw-r--  1 ubuntu ubuntu    85566 Apr  6 14:23 backend_update.tar.gz
+-rw-rw-r--  1 ubuntu ubuntu 84583899 May  8 23:33 bini_health_android-prd429-v20260508-232412-dkhf.apk
+-rw-rw-r--  1 ubuntu ubuntu 83547000 Apr 28 20:58 bini_health_android-v20260428-204908-23d0.apk
+-rw-rw-r--  1 ubuntu ubuntu 83563384 Apr 28 21:36 bini_health_android-v20260428-212613-Gm72.apk
+-rw-rw-r--  1 ubuntu ubuntu 83859287 May  4 02:50 bini_health_android-v20260504-023553-87ac.apk
+-rw-rw-r--  1 ubuntu ubuntu 83973975 May  4 11:53 bini_health_coupon_20260504_114911_54f0.apk
+-rw-rw-r--  1 ubuntu ubuntu     1263 May 23 12:13 _bug401_query_sample.log
+-rw-rw-r--  1 ubuntu ubuntu     1021 May 23 12:13 _bug401_query_sample.py
+-rw-rw-r--  1 ubuntu ubuntu     2715 May 23 12:13 _bug407_deploy.py
+-rw-rw-r--  1 ubuntu ubuntu     5833 May 23 12:13 _bug407_smoke.py
+-rw-rw-r--  1 ubuntu ubuntu      842 May 23 12:13 _bug407_ssh.py
+-rw-rw-r--  1 ubuntu ubuntu     2070 May 23 12:13 _bug432_step0_smoke.py
+drwxrwxr-x  3 ubuntu ubuntu     4096 May 16 10:45 .bug461_backup
+-rw-rw-r--  1 ubuntu ubuntu    20886 May 11 15:37 bug461_tests_run.log
+-rw-rw-r--  1 ubuntu ubuntu    48037 May 23 12:13 _build_apk_bug410.log
+-rw-rw-r--  1 ubuntu ubuntu     9776 May 23 12:13 _build_apk_bug410.py
+-rw-rw-r--  1 ubuntu ubuntu     2065 May 23 12:13 _build_apk_bug410_resume.py
+-rw-rw-r--  1 ubuntu ubuntu     9182 May 23 12:13 _build_apk_bug432_fix.py
+-rw-rw-r--  1 ubuntu ubuntu     1939 May 23 12:13 _build_apk_drawer_v12.log
+-rw-rw-r--  1 ubuntu ubuntu     9969 May 23 12:13 _build_apk_drawer_v12.py
+-rw-rw-r--  1 ubuntu ubuntu    29410 May  5 18:01 build_apk_prd03.log
+-rw-rw-r--  1 ubuntu ubuntu     7029 May 23 12:13 build_apk_prd03_v2.log
+-rw-rw-r--  1 ubuntu ubuntu     7829 May 23 12:13 _build_apk_prd420.log
+-rw-rw-r--  1 ubuntu ubuntu     8568 May 23 12:13 _build_apk_prd420.py
+-rw-rw-r--  1 ubuntu ubuntu     8129 May 23 12:13 _build_apk_prd433.log
+-rw-rw-r--  1 ubuntu ubuntu     9145 May 23 12:13 _build_apk_prd433.py
+-rw-rw-r--  1 ubuntu ubuntu    17314 May  9 15:48 _build_apk_prd433.stdout.log
+-rw-rw-r--  1 ubuntu ubuntu     5842 May 14 22:38 build_apk_promptcfg_20260514_run.log
+-rw-rw-r--  1 ubuntu ubuntu    16041 May 23 12:13 _build_apk_timezone_global_v3.py
+-rw-rw-r--  1 ubuntu ubuntu     9427 May 23 12:13 _build_apk_v3_log.txt
+-rw-rw-r--  1 ubuntu ubuntu      626 May 23 12:13 _build_apk_v3_summary.json
+-rw-rw-r--  1 ubuntu ubuntu    31702 May  7 11:30 _build_app_367.log
+-rw-rw-r--  1 ubuntu ubuntu     6739 May 23 12:13 _build_app_367.py
+-rw-rw-r--  1 ubuntu ubuntu     7208 May 16 01:59 build_ios_prd_aichat_home_grid_v1.log
+-rw-rw-r--  1 ubuntu ubuntu     2918 May 14 22:28 build_ios_promptcfg_20260514.log
+-rw-rw-r--  1 ubuntu ubuntu     9306 May 23 12:13 _build_ipa_bug410.log
+-rw-rw-r--  1 ubuntu ubuntu     8020 May 23 12:13 _build_ipa_bug410.py
+-rw-rw-r--  1 ubuntu ubuntu     4292 May 23 12:13 _build_ipa_bug410_resume.py
+-rw-rw-r--  1 ubuntu ubuntu     9640 May 23 12:13 _build_ipa_bug432_fix.py
+-rw-rw-r--  1 ubuntu ubuntu     8948 May 23 12:13 _build_ipa_prd420.log
+-rw-rw-r--  1 ubuntu ubuntu     7345 May 23 12:13 _build_ipa_prd420.py
+-rw-rw-r--  1 ubuntu ubuntu    10091 May 23 12:13 _build_ipa_prd433.log
+-rw-rw-r--  1 ubuntu ubuntu     9626 May 23 12:13 _build_ipa_prd433.py
+-rw-rw-r--  1 ubuntu ubuntu        0 May  9 15:37 _build_ipa_prd433.stderr.log
+-rw-rw-r--  1 ubuntu ubuntu    22714 May  9 15:44 _build_ipa_prd433.stdout.log
+-rw-rw-r--  1 ubuntu ubuntu    11605 May 23 12:13 _build_ipa_timezone_global_v3.py
+-rw-rw-r--  1 ubuntu ubuntu     2752 May 23 12:13 _build_ipa_v3_log.txt
+-rw-rw-r--  1 ubuntu ubuntu        0 May  5 01:32 .changed_files_assets.txt
+-rw-rw-r--  1 ubuntu ubuntu     1579 May 23 12:13 .changed_files.txt
+drwxrwxr-x  2 ubuntu ubuntu     4096 May 22 17:09 .chat_attachments
+drwxrwxr-x 21 ubuntu ubuntu     4096 May 23 01:44 .chat_output
+drwxrwxr-x  2 ubuntu ubuntu     4096 May 23 01:44 .chat_prompts
+-rw-rw-r--  1 ubuntu ubuntu      545 May 23 12:13 _check_405_fail.py
+-rw-rw-r--  1 ubuntu ubuntu     1066 May 23 12:13 _check_admin_basepath2.py
+-rw-rw-r--  1 ubuntu ubuntu     1601 May 23 12:13 _check_admin_basepath.py
+-rw-rw-r--  1 ubuntu ubuntu    10074 May  6 12:02 _check_admin_build_365.log
+-rw-rw-r--  1 ubuntu ubuntu      593 May 23 12:13 _check_admin_build_365.py
+-rw-rw-r--  1 ubuntu ubuntu     1010 May 23 12:13 _check_admin_env.py
+-rw-rw-r--  1 ubuntu ubuntu     1238 May 23 12:13 _check_admin_mount.py
+-rw-rw-r--  1 ubuntu ubuntu     1793 May 23 12:13 _check_admin_seed_import.py
+-rw-rw-r--  1 ubuntu ubuntu     1774 May 23 12:13 check_api.py
+-rw-rw-r--  1 ubuntu ubuntu     1623 May 23 12:13 _check_apk_route.py
+-rw-rw-r--  1 ubuntu ubuntu      869 May 23 12:13 _check_apk_url.py
+-rw-rw-r--  1 ubuntu ubuntu      808 May 23 12:13 _check_artifacts.py
+-rw-rw-r--  1 ubuntu ubuntu      420 May 23 12:13 _check_backend_log.py
+-rw-rw-r--  1 ubuntu ubuntu      867 May 23 12:13 _check_backend_logs.py
+-rw-rw-r--  1 ubuntu ubuntu      570 May 23 12:13 check_conf.py
+-rw-rw-r--  1 ubuntu ubuntu      952 May 23 12:13 check_container.py
+-rw-rw-r--  1 ubuntu ubuntu     1189 May 23 12:13 _check_db_after_migrate.py
+-rw-rw-r--  1 ubuntu ubuntu     6013 May 23 12:13 _check_deploy_dir.log
+-rw-rw-r--  1 ubuntu ubuntu      777 May 23 12:13 _check_deploy_dir.py
+-rw-rw-r--  1 ubuntu ubuntu     2474 May 23 12:13 _check_dirty_data.py
+-rw-rw-r--  1 ubuntu ubuntu     4426 Apr 19 01:28 .check_e2e.py
+-rw-rw-r--  1 ubuntu ubuntu      862 May  4 23:42 _check_failed_tests.py
+-rw-rw-r--  1 ubuntu ubuntu      259 May 23 12:13 _check_health.py
+-rw-rw-r--  1 ubuntu ubuntu     3321 May 23 12:13 _check_links_355.py
+-rw-rw-r--  1 ubuntu ubuntu      964 May 23 12:13 check_menu_schema.py
+-rw-rw-r--  1 ubuntu ubuntu     2331 May 24 17:32 check_meta2.py
+-rw-rw-r--  1 ubuntu ubuntu     2134 May 24 17:33 check_meta3.py
+-rw-rw-r--  1 ubuntu ubuntu     1080 May 24 17:31 check_meta.py
+-rw-rw-r--  1 ubuntu ubuntu      348 May 23 12:13 _check_nginx_conf_full.py
+-rw-rw-r--  1 ubuntu ubuntu     1040 May 23 12:13 _check_nginx_routes2.py
+-rw-rw-r--  1 ubuntu ubuntu     1040 May 23 12:13 _check_nginx_routes.py
+-rw-rw-r--  1 ubuntu ubuntu      688 May 23 12:13 check_old_404.py
+-rw-rw-r--  1 ubuntu ubuntu      411 May 23 12:13 .check_pages.sh
+-rw-rw-r--  1 ubuntu ubuntu      891 May 23 12:13 _check_ready.py
+-rw-rw-r--  1 ubuntu ubuntu     4469 May 23 12:13 check_results_1.txt
+-rw-rw-r--  1 ubuntu ubuntu     4972 May 23 12:13 check_results_2.txt
+-rw-rw-r--  1 ubuntu ubuntu     4367 May 23 12:13 check_results_3.txt
+-rw-rw-r--  1 ubuntu ubuntu     5661 May 23 12:13 check_results_4.txt
+-rw-rw-r--  1 ubuntu ubuntu     1543 May 23 12:13 _check_schema_changes.py
+-rw-rw-r--  1 ubuntu ubuntu     2350 May 24 17:35 check_session403.py
+-rw-rw-r--  1 ubuntu ubuntu      868 May 23 12:13 check_srv2.py
+-rw-rw-r--  1 ubuntu ubuntu      859 May 23 12:13 check_srv.py
+-rw-rw-r--  1 ubuntu ubuntu      459 May 23 12:13 _check_t02.py
+-rw-rw-r--  1 ubuntu ubuntu    27234 May  7 17:34 _check_test_failures.log
+-rw-rw-r--  1 ubuntu ubuntu      815 May 23 12:13 _check_test_failures.py
+-rw-rw-r--  1 ubuntu ubuntu    26612 May  7 17:36 _check_test_failures_v2.log
+-rw-rw-r--  1 ubuntu ubuntu     1669 Apr 19 01:26 .check_urls.py
+-rw-rw-r--  1 ubuntu ubuntu      654 May 23 12:13 _clean_remote_disk.py
+-rw-rw-r--  1 ubuntu ubuntu     1399 May 23 12:13 _cleanup_legacy_constitution.py
+-rw-rw-r--  1 ubuntu ubuntu      806 May 23 12:13 _cleanup.log
+-rw-rw-r--  1 ubuntu ubuntu      571 May 23 12:13 _cleanup_truncated_apk.py
+-rw-rw-r--  1 ubuntu ubuntu      984 May 17 17:59 .commit_msg_aihome_optim_v1.txt
+-rw-rw-r--  1 ubuntu ubuntu      923 May  5 10:33 .commit_msg_appt_store_unify.txt
+-rw-rw-r--  1 ubuntu ubuntu      936 May  5 10:44 .commit_msg_appt_store_unify_v2.txt
+-rw-rw-r--  1 ubuntu ubuntu     2307 May 11 15:40 .commit_msg_bug461.txt
+-rw-rw-r--  1 ubuntu ubuntu     1732 May 11 17:13 .commit_msg_bug466.txt
+-rw-rw-r--  1 ubuntu ubuntu     1091 May 16 00:05 .commit_msg_bug471_docs.txt
+-rw-rw-r--  1 ubuntu ubuntu     2536 May 15 23:56 .commit_msg_bug471.txt
+-rw-rw-r--  1 ubuntu ubuntu      766 May  5 13:53 .commit_msg_bugfix_336_docs.txt
+-rw-rw-r--  1 ubuntu ubuntu      425 May  5 13:29 .commit_msg_bugfix_336.txt
+-rw-rw-r--  1 ubuntu ubuntu     2134 May 17 02:26 .commit_msg_bug_report_interpret.txt
+-rw-rw-r--  1 ubuntu ubuntu     1125 May 15 11:09 .commit_msg_capsule_v2.txt
+-rw-rw-r--  1 ubuntu ubuntu      422 May 16 20:35 .commit_msg_drug_v5_error.txt
+-rw-rw-r--  1 ubuntu ubuntu      872 May 16 16:00 .commit_msg_drug_vlm2.txt
+-rw-rw-r--  1 ubuntu ubuntu     1004 May 16 15:44 .commit_msg_drug_vlm.txt
+-rw-rw-r--  1 ubuntu ubuntu     1116 May 18 10:45 .commit_msg_family_auth_mp.txt
+-rw-rw-r--  1 ubuntu ubuntu     1928 May 23 12:13 _commit_msg_hsc_fix.txt
+-rw-rw-r--  1 ubuntu ubuntu      390 May  8 12:59 .commit_msg_prd411_doc.txt
+-rw-rw-r--  1 ubuntu ubuntu     1587 May 23 12:13 _commit_msg_prd444.txt
+-rw-rw-r--  1 ubuntu ubuntu      712 May 23 12:13 _commit_msg_prd445_doc.txt
+-rw-rw-r--  1 ubuntu ubuntu      872 May 23 12:13 _commit_msg_prd445.txt
+-rw-rw-r--  1 ubuntu ubuntu     1290 May 10 14:14 .commit_msg_prd446.txt
+-rw-rw-r--  1 ubuntu ubuntu      927 May 10 17:06 .commit_msg_prd447.txt
+-rw-rw-r--  1 ubuntu ubuntu      453 May 10 17:51 .commit_msg_prd448_doc.txt
+-rw-rw-r--  1 ubuntu ubuntu      653 May 10 17:43 .commit_msg_prd448.txt
+-rw-rw-r--  1 ubuntu ubuntu     1081 May 10 18:49 .commit_msg_prd448_v11.txt
+-rw-rw-r--  1 ubuntu ubuntu     1734 May 11 00:18 .commit_msg_prd455.txt
+-rw-rw-r--  1 ubuntu ubuntu     1048 May  5 02:53 .commit_msg_sdk_health_20260505.txt
+-rw-rw-r--  1 ubuntu ubuntu      932 May 23 12:13 _commit_msg_slot_badge.txt
+-rw-rw-r--  1 ubuntu ubuntu      808 May  5 23:48 .commit_msg_stores_fixed_cols_docs.txt
+-rw-rw-r--  1 ubuntu ubuntu      469 May  5 23:37 .commit_msg_stores_fixed_cols.txt
+-rw-rw-r--  1 ubuntu ubuntu      448 May 17 12:57 .commit_msg_timezone_v3.txt
+-rw-rw-r--  1 ubuntu ubuntu      632 May 23 12:13 _commit_msg.txt
+drwxrwxr-x  3 ubuntu ubuntu     4096 Apr  2 12:41 .cursor
+-rw-rw-r--  1 ubuntu ubuntu    19910 May  3 20:09 cursor_prompt_288_20260503200954.txt
+-rw-rw-r--  1 ubuntu ubuntu    11138 May  5 10:08 cursor_prompt_331_20260505100844.txt
+-rw-rw-r--  1 ubuntu ubuntu    18614 May  5 19:17 cursor_prompt_349_20260505191754.txt
+-rw-rw-r--  1 ubuntu ubuntu     3268 May  8 17:01 _debug_t09.log
+-rw-rw-r--  1 ubuntu ubuntu      804 May 23 12:13 _debug_t09.py
+-rw-rw-r--  1 ubuntu ubuntu   139519 May 25 22:42 decouple_v1.tar.gz
+drwxrwxr-x  2 ubuntu ubuntu    36864 May 27 00:05 deploy
+-rw-rw-r--  1 ubuntu ubuntu     7370 May 23 12:13 _deploy_address_nav_button.py
+-rw-rw-r--  1 ubuntu ubuntu    23586 May  5 02:12 deploy_addr_nav.log
+-rw-rw-r--  1 ubuntu ubuntu     3867 May 23 12:13 deploy_admin_web.py
+-rw-rw-r--  1 ubuntu ubuntu     4307 May 23 12:13 deploy_admin_web_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     5951 May 23 12:13 deploy_admin_web_v3.py
+-rw-rw-r--  1 ubuntu ubuntu    11377 May 23 12:13 deploy_aihome_drug_identify_v1.log
+-rw-rw-r--  1 ubuntu ubuntu    10199 May 23 12:13 _deploy_ai_home_optim_final_v2.log
+-rw-rw-r--  1 ubuntu ubuntu     5943 May 23 12:13 _deploy_aihome_optim_v4.py
+-rw-rw-r--  1 ubuntu ubuntu     2217 May 23 12:13 _deploy_ai_page_optim_v1_b.log
+-rw-rw-r--  1 ubuntu ubuntu    11760 May 23 12:13 _deploy_ai_page_optim_v1.log
+-rw-rw-r--  1 ubuntu ubuntu     9014 May 23 12:13 _deploy_ai_page_optim_v1.py
+-rw-rw-r--  1 ubuntu ubuntu    27260 May  5 16:48 _deploy_alipay_narrow.log
+-rw-rw-r--  1 ubuntu ubuntu     4046 May 23 12:13 _deploy_alipay_narrow.py
+-rw-rw-r--  1 ubuntu ubuntu     7164 May 23 12:13 _deploy_alipay_real_payment.py
+-rw-rw-r--  1 ubuntu ubuntu     2014 May  5 14:03 deploy_alipay_rsa_fix.log
+-rw-rw-r--  1 ubuntu ubuntu     4863 May 23 12:13 deploy_alipay_rsa_fix.py
+-rw-rw-r--  1 ubuntu ubuntu    10899 May 23 12:13 deploy_alipay_rsa_fix_v2.log
+-rw-rw-r--  1 ubuntu ubuntu     5303 May 23 12:13 deploy_alipay_rsa_fix_v2.py
+-rw-rw-r--  1 ubuntu ubuntu    13758 May 23 12:13 deploy_alipay_rsa_fix_v3.log
+-rw-rw-r--  1 ubuntu ubuntu     3505 May 23 12:13 deploy_alipay_rsa_fix_v3.py
+-rw-rw-r--  1 ubuntu ubuntu     3479 May 23 12:13 deploy_all.py
+-rw-rw-r--  1 ubuntu ubuntu    10696 May 23 12:13 _deploy_asset_url_bugfix.py
+-rw-rw-r--  1 ubuntu ubuntu    38508 May  5 01:38 deploy_asset_url.log
+-rw-rw-r--  1 ubuntu ubuntu    11987 May 23 12:13 deploy_bell_unified_v1.log
+-rw-rw-r--  1 ubuntu ubuntu     1134 May 23 12:13 _deploy_be_only.py
+-rw-rw-r--  1 ubuntu ubuntu     6687 May 23 12:13 _deploy_bug367.log
+-rw-rw-r--  1 ubuntu ubuntu     4476 May 23 12:13 _deploy_bug367.py
+-rw-rw-r--  1 ubuntu ubuntu    10271 May 23 12:13 _deploy_bug_369.log
+-rw-rw-r--  1 ubuntu ubuntu     6224 May 23 12:13 _deploy_bug_369.py
+-rw-rw-r--  1 ubuntu ubuntu     2222 May 23 12:13 _deploy_bug401_admin.py
+-rw-rw-r--  1 ubuntu ubuntu    11383 May 23 12:13 _deploy_bug401_h5.log
+-rw-rw-r--  1 ubuntu ubuntu     2020 May 23 12:13 _deploy_bug401_h5.py
+-rw-rw-r--  1 ubuntu ubuntu     9981 May 23 12:13 _deploy_bug401.log
+-rw-rw-r--  1 ubuntu ubuntu     4710 May 23 12:13 _deploy_bug401.py
+-rw-rw-r--  1 ubuntu ubuntu     1471 May 23 12:13 _deploy_bug401_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     5215 May 23 12:13 _deploy_bug401_v3.log
+-rw-rw-r--  1 ubuntu ubuntu     2109 May 23 12:13 _deploy_bug401_v3.py
+-rw-rw-r--  1 ubuntu ubuntu    30010 May  7 17:16 _deploy_bug403.log
+-rw-rw-r--  1 ubuntu ubuntu     6826 May 23 12:13 _deploy_bug403.py
+-rw-rw-r--  1 ubuntu ubuntu    30282 May  7 17:34 _deploy_bug404.log
+-rw-rw-r--  1 ubuntu ubuntu     4664 May 23 12:13 _deploy_bug404.py
+-rw-rw-r--  1 ubuntu ubuntu    28798 May  7 17:36 _deploy_bug404_v2.log
+-rw-rw-r--  1 ubuntu ubuntu    28538 May  7 17:38 _deploy_bug404_v3.log
+-rw-rw-r--  1 ubuntu ubuntu    27834 May  8 11:53 _deploy_bug410.log
+-rw-rw-r--  1 ubuntu ubuntu     5217 May 23 12:13 _deploy_bug410.py
+-rw-rw-r--  1 ubuntu ubuntu     3570 May 23 12:13 _deploy_bug417_v2.py
+-rw-rw-r--  1 ubuntu ubuntu    27306 May  8 17:00 _deploy_bug419.log
+-rw-rw-r--  1 ubuntu ubuntu     6028 May 23 12:13 _deploy_bug419.py
+-rw-rw-r--  1 ubuntu ubuntu     5413 May 23 12:13 _deploy_bug428.log
+-rw-rw-r--  1 ubuntu ubuntu     3345 May 23 12:13 _deploy_bug428.py
+-rw-rw-r--  1 ubuntu ubuntu     4087 May 23 12:13 _deploy_bug431.py
+-rw-rw-r--  1 ubuntu ubuntu     3865 May 23 12:13 _deploy_bug432_fix.py
+-rw-rw-r--  1 ubuntu ubuntu     7816 May 23 12:13 _deploy_bug461.py
+-rw-rw-r--  1 ubuntu ubuntu    18884 May 11 15:36 deploy_bug461_run.log
+-rw-rw-r--  1 ubuntu ubuntu    20798 May 11 17:09 deploy_bug466_run.log
+-rw-rw-r--  1 ubuntu ubuntu     2436 May 15 00:35 deploy_bug470_redeploy.log
+-rw-rw-r--  1 ubuntu ubuntu     4162 May 15 00:27 deploy_bug470_run1.log
+-rw-rw-r--  1 ubuntu ubuntu    16640 May 23 12:13 deploy_bug470_test.log
+-rw-rw-r--  1 ubuntu ubuntu    26738 May 23 12:13 _deploy_bug_ai_home_archive_v1.log
+-rw-rw-r--  1 ubuntu ubuntu     4428 May 23 12:13 _deploy_bug_ai_home_archive_v1.py
+-rw-rw-r--  1 ubuntu ubuntu    65776 May  5 13:28 deploy_bugfix_336.log
+-rw-rw-r--  1 ubuntu ubuntu     4894 May 27 00:05 _deploy_bugfix_invite_null_member.py
+-rw-rw-r--  1 ubuntu ubuntu     6449 May 27 00:05 _deploy_bugfix_v12.py
+-rw-rw-r--  1 ubuntu ubuntu     1232 May 23 12:13 _deploy_bugmedv1.sh
+-rw-rw-r--  1 ubuntu ubuntu      738 May 23 12:13 deploy_build.py
+-rw-rw-r--  1 ubuntu ubuntu     7550 May 23 12:13 _deploy_calendar_daily_orders.py
+-rw-rw-r--  1 ubuntu ubuntu     8658 May 23 12:13 _deploy_calendar_dashboard.py
+-rw-rw-r--  1 ubuntu ubuntu     5135 May 23 12:13 _deploy_checkout_slot_grid.py
+-rw-rw-r--  1 ubuntu ubuntu     8065 May 23 12:13 _deploy_coupon_mall_bugfix.py
+-rw-rw-r--  1 ubuntu ubuntu     5804 May 23 12:13 _deploy_coupon_mall_p1bugfix.py
+-rw-rw-r--  1 ubuntu ubuntu     5529 May 23 12:13 _deploy_coupon_usable_bugfix.py
+-rw-rw-r--  1 ubuntu ubuntu     7001 May 23 12:13 _deploy_dashboard_grid9_364.py
+-rw-rw-r--  1 ubuntu ubuntu    19034 May 23 12:13 deploy_dashboard_v1.log
+-rw-rw-r--  1 ubuntu ubuntu     5051 May 23 12:13 _deploy_date_no_slot_bugfix.py
+-rw-rw-r--  1 ubuntu ubuntu     4707 May 23 12:13 deploy_do.py
+-rw-rw-r--  1 ubuntu ubuntu    12798 May 23 12:13 _deploy_drawer_v12.log
+-rw-rw-r--  1 ubuntu ubuntu     7861 May 23 12:13 _deploy_drawer_v12.py
+-rw-rw-r--  1 ubuntu ubuntu     5949 May 23 12:13 _deploy_dual_identity_400.py
+-rw-rw-r--  1 ubuntu ubuntu     5350 May 27 00:05 _deploy_emergency_source_v1.log
+-rw-rw-r--  1 ubuntu ubuntu     7316 May 27 00:05 _deploy_emergency_source_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     9282 May 23 12:13 deploy_exec.py
+-rw-rw-r--  1 ubuntu ubuntu     2937 May 23 12:13 _deploy_family_auth_mp.py
+-rw-rw-r--  1 ubuntu ubuntu     7054 May 23 12:13 deploy_family_v2_r2.log
+-rw-rw-r--  1 ubuntu ubuntu     7181 May 23 12:13 deploy_family_v2_run.log
+-rw-rw-r--  1 ubuntu ubuntu     5251 May 23 12:13 deploy_fix.py
+-rw-rw-r--  1 ubuntu ubuntu    15564 May 23 12:13 _deploy_funccard_v2_design_d_20260520.log
+-rw-rw-r--  1 ubuntu ubuntu     4724 May 27 00:05 _deploy_guardian_v13.py
+-rw-rw-r--  1 ubuntu ubuntu     3702 May 23 22:56 _deploy_guardian_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     5226 May 23 12:13 _deploy_h5_appt_store_contact_20260505.py
+-rw-rw-r--  1 ubuntu ubuntu     1462 May 23 12:13 _deploy_h5_appt_store_contact_check.py
+-rw-rw-r--  1 ubuntu ubuntu     6945 May 23 12:13 _deploy_h5_basepath_bugfix.py
+-rw-rw-r--  1 ubuntu ubuntu      641 May 23 12:13 _deploy_h5_bugmedv1.sh
+-rw-rw-r--  1 ubuntu ubuntu     5835 May 23 12:13 _deploy_h5_pay_link_bugfix.py
+-rw-rw-r--  1 ubuntu ubuntu     1650 May 23 12:13 _deploy_h5_rebuild.py
+-rw-rw-r--  1 ubuntu ubuntu    11259 May 23 12:13 deploy_health_archive_v2_run.log
+-rw-rw-r--  1 ubuntu ubuntu    10811 May 23 12:13 _deploy_health_archive_v5.log
+-rw-rw-r--  1 ubuntu ubuntu     5301 May 23 12:13 _deploy_health_archive_v5.py
+-rw-rw-r--  1 ubuntu ubuntu     7369 May 23 12:13 deploy_health_guide.py
+-rw-rw-r--  1 ubuntu ubuntu     5109 May 23 12:13 deploy_health_v2.py
+-rw-rw-r--  1 ubuntu ubuntu      967 May 23 12:13 _deploy_helper.py
+-rw-rw-r--  1 ubuntu ubuntu     6321 May 23 12:13 _deploy_hsc_ai_real_v1.py
+-rw-rw-r--  1 ubuntu ubuntu    29493 May 23 12:13 _deploy_hsc_fix_v1.log
+-rw-rw-r--  1 ubuntu ubuntu     5286 May 23 12:13 _deploy_hsc_fix_v1.py
+-rw-rw-r--  1 ubuntu ubuntu    11521 May 23 12:13 _deploy_hsc_fix_v2.log
+-rw-rw-r--  1 ubuntu ubuntu     6476 May 23 12:13 _deploy_hsc_fix_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     6437 May 23 12:13 _deploy_hsc_optim_v3.py
+-rw-rw-r--  1 ubuntu ubuntu    11878 May 23 12:13 _deploy_hsc_optim_v3_run1.log
+-rw-rw-r--  1 ubuntu ubuntu     3982 May 23 12:13 _deploy_hsc_v31.py
+-rw-rw-r--  1 ubuntu ubuntu    12186 May 23 12:13 deploy_idle_archive_v1.log
+-rw-rw-r--  1 ubuntu ubuntu    15450 May  6 00:25 deploy_login_layout_363.log
+-rw-rw-r--  1 ubuntu ubuntu    19498 May  4 15:54 deploy_log.txt
+-rw-rw-r--  1 ubuntu ubuntu    10795 May 23 12:13 deploy_med_plan_entry_run2.log
+-rw-rw-r--  1 ubuntu ubuntu      199 May 23 12:13 deploy_med_plan_entry_run3.log
+-rw-rw-r--  1 ubuntu ubuntu     4408 May 23 12:13 deploy_med_plan_entry_run4.log
+-rw-rw-r--  1 ubuntu ubuntu     9854 May 23 12:13 deploy_med_plan_entry_run5.log
+-rw-rw-r--  1 ubuntu ubuntu    13664 May 23 12:13 deploy_med_plan_entry_run6.log
+-rw-rw-r--  1 ubuntu ubuntu    10981 May 23 12:13 deploy_med_plan_entry_run.log
+-rw-rw-r--  1 ubuntu ubuntu     4904 May 27 00:05 _deploy_member_center_v2.py
+-rw-rw-r--  1 ubuntu ubuntu    10938 May 23 12:13 deploy_member_tab_v2_run.log
+-rw-rw-r--  1 ubuntu ubuntu     3553 May 23 12:13 _deploy_modify_appt.py
+-rw-rw-r--  1 ubuntu ubuntu    10632 May 23 12:13 _deploy_my_devices_v1.log
+-rw-rw-r--  1 ubuntu ubuntu     5846 May 23 12:13 _deploy_my_devices_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     7956 May 23 12:13 deploy_new_features.py
+-rw-rw-r--  1 ubuntu ubuntu     6304 May 23 12:13 deploy_notice_feature.py
+-rw-rw-r--  1 ubuntu ubuntu     5648 May 23 12:13 _deploy_now.py
+-rw-rw-r--  1 ubuntu ubuntu     6500 May 23 12:13 deploy_now.py
+-rw-rw-r--  1 ubuntu ubuntu     3999 May 23 12:13 deploy_ocr_details.py
+-rw-rw-r--  1 ubuntu ubuntu    10340 May 23 12:13 deploy_optim_run1.log
+-rw-rw-r--  1 ubuntu ubuntu    81498 May  5 11:28 deploy_order_address.log
+-rw-rw-r--  1 ubuntu ubuntu     7069 May 23 12:13 _deploy_order_address_unify.py
+-rw-rw-r--  1 ubuntu ubuntu     9387 May 23 12:13 _deploy_order_cancel_redemption_sync.py
+-rw-rw-r--  1 ubuntu ubuntu    94776 May  4 01:34 deploy_order_enh.log
+-rw-rw-r--  1 ubuntu ubuntu     4126 May 23 12:13 _deploy_orders_pinned_columns_v1.py
+-rw-rw-r--  1 ubuntu ubuntu  5365760 Apr 11 01:50 deploy_package.tar
+-rw-rw-r--  1 ubuntu ubuntu  1276019 Apr  9 23:02 deploy_package.tar.gz
+-rw-rw-r--  1 ubuntu ubuntu    12337 May 23 12:13 _deploy_page_navigate_url_fix_v1.log
+-rw-rw-r--  1 ubuntu ubuntu     5568 May 23 12:13 _deploy_page_navigate_url_fix_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     4843 May 23 12:13 _deploy_payment_method_normalize.py
+-rw-rw-r--  1 ubuntu ubuntu     4809 May 23 12:13 _deploy_pay_success_page.py
+-rw-rw-r--  1 ubuntu ubuntu  3096746 May 14 17:57 deploy_points_skin_run.log
+-rw-rw-r--  1 ubuntu ubuntu     1156 May 23 12:13 deploy_port_check.py
+-rw-rw-r--  1 ubuntu ubuntu     7974 May  5 18:06 deploy_prd03_ios_build.log
+-rw-rw-r--  1 ubuntu ubuntu    28310 May  5 17:55 deploy_prd03_reschedule.log
+-rw-rw-r--  1 ubuntu ubuntu    53172 May  5 20:28 deploy_prd04_run.log
+-rw-rw-r--  1 ubuntu ubuntu    29884 May  5 18:53 deploy_prd05_run2.log
+-rw-rw-r--  1 ubuntu ubuntu    65752 May  5 18:56 deploy_prd05_run3.log
+-rw-rw-r--  1 ubuntu ubuntu    37230 May  5 18:51 deploy_prd05_run.log
+-rw-rw-r--  1 ubuntu ubuntu     5082 May 23 12:13 _deploy_prd365_order_dashboard.py
+-rw-rw-r--  1 ubuntu ubuntu    20012 May  6 12:00 _deploy_prd365_run2.log
+-rw-rw-r--  1 ubuntu ubuntu    20010 May  6 12:06 _deploy_prd365_run3.log
+-rw-rw-r--  1 ubuntu ubuntu    20392 May  6 11:56 _deploy_prd365_run.log
+-rw-rw-r--  1 ubuntu ubuntu    26384 May  7 11:57 _deploy_prd370.log
+-rw-rw-r--  1 ubuntu ubuntu     6655 May 23 12:13 _deploy_prd370.py
+-rw-rw-r--  1 ubuntu ubuntu    21200 May  7 18:03 _deploy_prd405.log
+-rw-rw-r--  1 ubuntu ubuntu     6258 May 23 12:13 _deploy_prd405.py
+-rw-rw-r--  1 ubuntu ubuntu    14702 May 23 12:13 _deploy_prd406.log
+-rw-rw-r--  1 ubuntu ubuntu     4719 May 23 12:13 _deploy_prd406.py
+-rw-rw-r--  1 ubuntu ubuntu     9271 May 23 12:13 _deploy_prd411.log
+-rw-rw-r--  1 ubuntu ubuntu     3713 May 23 12:13 _deploy_prd411.py
+-rw-rw-r--  1 ubuntu ubuntu    16704 May  8 12:58 _deploy_prd411_run.log
+-rw-rw-r--  1 ubuntu ubuntu    25592 May  8 15:30 _deploy_prd414.log
+-rw-rw-r--  1 ubuntu ubuntu     5017 May 23 12:13 _deploy_prd414.py
+-rw-rw-r--  1 ubuntu ubuntu    24100 May  8 17:33 _deploy_prd420.log
+-rw-rw-r--  1 ubuntu ubuntu     4613 May 23 12:13 _deploy_prd420.py
+-rw-rw-r--  1 ubuntu ubuntu     4559 May 23 12:13 _deploy_prd423.py
+-rw-rw-r--  1 ubuntu ubuntu     1952 May 23 12:13 _deploy_prd423_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     3685 May 23 12:13 _deploy_prd423_v3.py
+-rw-rw-r--  1 ubuntu ubuntu    14336 May  8 22:14 _deploy_prd425.log
+-rw-rw-r--  1 ubuntu ubuntu     5181 May 23 12:13 _deploy_prd425.py
+-rw-rw-r--  1 ubuntu ubuntu    16186 May  8 22:24 _deploy_prd426.log
+-rw-rw-r--  1 ubuntu ubuntu     4495 May 23 12:13 _deploy_prd426.py
+-rw-rw-r--  1 ubuntu ubuntu    12422 May  8 23:14 _deploy_prd429.log
+-rw-rw-r--  1 ubuntu ubuntu     3787 May 23 12:13 _deploy_prd429.py
+-rw-rw-r--  1 ubuntu ubuntu    22600 May  9 00:48 _deploy_prd432.log
+-rw-rw-r--  1 ubuntu ubuntu     5425 May 23 12:13 _deploy_prd432.py
+-rw-rw-r--  1 ubuntu ubuntu   281004 May  9 15:35 _deploy_prd433.log
+-rw-rw-r--  1 ubuntu ubuntu     5470 May 23 12:13 _deploy_prd433.py
+-rw-rw-r--  1 ubuntu ubuntu     6621 May 23 12:13 _deploy_prd439.py
+-rw-rw-r--  1 ubuntu ubuntu     3500 May 23 12:13 _deploy_prd440.py
+-rw-rw-r--  1 ubuntu ubuntu    12184 May 10 10:38 _deploy_prd441.log
+-rw-rw-r--  1 ubuntu ubuntu     6020 May 23 12:13 _deploy_prd441.py
+-rw-rw-r--  1 ubuntu ubuntu     4132 May 10 10:39 _deploy_prd441_v2.log
+-rw-rw-r--  1 ubuntu ubuntu     4231 May 23 12:13 _deploy_prd441_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     3152 May 23 12:13 _deploy_prd442.log
+-rw-rw-r--  1 ubuntu ubuntu     5770 May 23 12:13 _deploy_prd442.py
+-rw-rw-r--  1 ubuntu ubuntu     3302 May 23 12:13 _deploy_prd442_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     4915 May 23 12:13 _deploy_prd443_full_migration.py
+-rw-rw-r--  1 ubuntu ubuntu     9570 May 10 12:47 _deploy_prd444_h5.log
+-rw-rw-r--  1 ubuntu ubuntu     5872 May 23 12:13 _deploy_prd444_h5.py
+-rw-rw-r--  1 ubuntu ubuntu     2149 May 23 12:13 _deploy_prd444_h5_v2_restore_ds.py
+-rw-rw-r--  1 ubuntu ubuntu     5290 May 23 12:13 _deploy_prd447.py
+-rw-rw-r--  1 ubuntu ubuntu     6327 May 23 12:13 _deploy_prd448.log
+-rw-rw-r--  1 ubuntu ubuntu     5450 May 23 12:13 _deploy_prd448.py
+-rw-rw-r--  1 ubuntu ubuntu     5906 May 23 12:13 _deploy_prd449.py
+-rw-rw-r--  1 ubuntu ubuntu     8872 May 23 12:13 deploy_prd455_run.log
+-rw-rw-r--  1 ubuntu ubuntu     6912 May 23 12:13 _deploy_prd_aihome_v1.log
+-rw-rw-r--  1 ubuntu ubuntu     5216 May 23 12:13 _deploy_prd_aihome_v1.py
+-rw-rw-r--  1 ubuntu ubuntu    10438 May 23 12:13 deploy_prompt_config_v1_run.log
+-rw-rw-r--  1 ubuntu ubuntu     6205 May 23 12:13 deploy_prompt_config_v1_test2.log
+-rw-rw-r--  1 ubuntu ubuntu     5053 May 23 12:13 deploy_prompt_config_v1_test3.log
+-rw-rw-r--  1 ubuntu ubuntu     5053 May 23 12:13 deploy_prompt_config_v1_test4.log
+-rw-rw-r--  1 ubuntu ubuntu     5364 May 23 12:13 deploy_prompt_config_v1_test5.log
+-rw-rw-r--  1 ubuntu ubuntu      552 May 23 12:13 deploy_prompt_config_v1_test.log
+-rw-rw-r--  1 ubuntu ubuntu     9183 May 23 12:13 _deploy_qn_autonext_v1.log
+-rw-rw-r--  1 ubuntu ubuntu     8070 May 23 12:13 _deploy_qn_autonext_v1.py
+-rw-rw-r--  1 ubuntu ubuntu    10043 May 23 12:13 _deploy_qn_content_v1.log
+-rw-rw-r--  1 ubuntu ubuntu     4823 May 23 12:13 _deploy_qn_content_v1.py
+-rw-rw-r--  1 ubuntu ubuntu    12670 May 23 12:13 _deploy_qn_drawer_v1.log
+-rw-rw-r--  1 ubuntu ubuntu     8103 May 23 12:13 _deploy_qn_drawer_v1.py
+-rw-rw-r--  1 ubuntu ubuntu    22382 May  7 15:37 _deploy_rebuy_399.log
+-rw-rw-r--  1 ubuntu ubuntu     7391 May 23 12:13 _deploy_rebuy_399.py
+-rw-rw-r--  1 ubuntu ubuntu     2607 Apr 19 01:14 .deploy_remote.py
+-rw-rw-r--  1 ubuntu ubuntu     5373 May 23 12:13 deploy_report_interpret_bugfix.py
+-rw-rw-r--  1 ubuntu ubuntu     6427 May 23 12:13 _deploy_reschedule_overdue.py
+-rw-rw-r--  1 ubuntu ubuntu    34984 May 23 12:13 deploy_run1.txt
+-rw-rw-r--  1 ubuntu ubuntu    22302 May  4 15:27 deploy_run_grid.log
+-rw-rw-r--  1 ubuntu ubuntu    24550 May  4 14:47 deploy_run_p1bugfix.txt
+-rw-rw-r--  1 ubuntu ubuntu     3079 May 23 12:13 deploy_run.py
+-rw-rw-r--  1 ubuntu ubuntu      523 May 23 12:13 .deploy.sh
+-rw-rw-r--  1 ubuntu ubuntu     4892 May 23 12:13 deploy_skeleton_v1.log
+-rw-rw-r--  1 ubuntu ubuntu     4716 May 23 12:13 deploy_skeleton_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     6234 May 23 12:13 _deploy_slot_badge.py
+-rw-rw-r--  1 ubuntu ubuntu    23170 May  4 16:21 deploy_slot_badge_run.log
+-rw-rw-r--  1 ubuntu ubuntu      897 May 23 12:13 deploy_ssh.py
+-rw-rw-r--  1 ubuntu ubuntu     2978 May 23 12:13 _deploy_step2_400.py
+-rw-rw-r--  1 ubuntu ubuntu     6005 May 23 12:13 _deploy_stores_fixed_cols_361.py
+-rw-rw-r--  1 ubuntu ubuntu     6562 May 23 12:13 _deploy_stores_fixed_cols_361_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     2809 May 23 12:13 deploy_sync.py
+-rw-rw-r--  1 ubuntu ubuntu    12684 May  5 19:48 _deploy_table_layout_fix.log
+-rw-rw-r--  1 ubuntu ubuntu     5793 May 23 12:13 _deploy_table_layout_fix.py
+-rw-rw-r--  1 ubuntu ubuntu    17563 May 23 12:13 _deploy_tag_recommend_v1.log
+-rw-rw-r--  1 ubuntu ubuntu     7920 May 23 12:13 _deploy_tag_refactor_v1.log
+-rw-rw-r--  1 ubuntu ubuntu     4867 May 23 12:13 _deploy_tag_refactor_v1.py
+-rw-rw-r--  1 ubuntu ubuntu    13274 May 23 12:13 _deploy_tcm36_bugfix_20260520.log
+-rw-rw-r--  1 ubuntu ubuntu    11412 May 23 12:13 _deploy_tcm_card_msg_protocol_v1.log
+-rw-rw-r--  1 ubuntu ubuntu     6148 May 23 12:13 _deploy_tcm_card_msg_protocol_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     4854 May 23 12:13 _deploy_timezone_global.py
+-rw-rw-r--  1 ubuntu ubuntu     8971 May 23 12:13 _deploy_timezone_global_v3.py
+drwxrwxr-x  2 ubuntu ubuntu     4096 May  4 13:47 _deploy_tmp
+-rw-rw-r--  1 ubuntu ubuntu      779 May 23 12:13 deploy_upload_file.py
+-rw-rw-r--  1 ubuntu ubuntu     6268 May 23 12:13 _deploy_v2.py
+-rw-rw-r--  1 ubuntu ubuntu    29264 May 17 12:27 _deploy_v3_log.txt
+-rw-rw-r--  1 ubuntu ubuntu     5039 May 23 12:13 _deploy_verify_alipay_rsa_349.py
+-rw-rw-r--  1 ubuntu ubuntu     4859 May 23 12:13 _deploy_verify_alipay_rsa_349_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     5019 May 23 12:13 _deploy_zero_order_pm_v22.py
+drwxrwxr-x  3 ubuntu ubuntu     4096 May 10 11:42 design-system
+-rw-rw-r--  1 ubuntu ubuntu       86 May  8 12:56 .develop_start_commit_411.txt
+-rw-rw-r--  1 ubuntu ubuntu       92 May 23 12:13 .develop_start_commit_414.txt
+-rw-rw-r--  1 ubuntu ubuntu       86 May  8 16:02 .develop_start_commit_417.txt
+-rw-rw-r--  1 ubuntu ubuntu       82 May  8 16:46 .develop_start_commit_419.txt
+-rw-rw-r--  1 ubuntu ubuntu       82 May  8 17:18 .develop_start_commit_420.txt
+-rw-rw-r--  1 ubuntu ubuntu       86 May  8 21:23 .develop_start_commit_423.txt
+-rw-rw-r--  1 ubuntu ubuntu       82 May  8 22:05 .develop_start_commit_425.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 23 12:13 .develop_start_commit_426.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 23 12:13 .develop_start_commit_428.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 23 12:13 .develop_start_commit_429.txt
+-rw-rw-r--  1 ubuntu ubuntu       44 May 23 12:13 .develop_start_commit_431.txt
+-rw-rw-r--  1 ubuntu ubuntu       86 May  9 00:25 .develop_start_commit_432.txt
+-rw-rw-r--  1 ubuntu ubuntu       86 May 10 00:30 .develop_start_commit_439.txt
+-rw-rw-r--  1 ubuntu ubuntu       86 May 10 01:18 .develop_start_commit_440.txt
+-rw-rw-r--  1 ubuntu ubuntu       86 May 10 10:22 .develop_start_commit_441.txt
+-rw-rw-r--  1 ubuntu ubuntu       40 May 10 10:50 .develop_start_commit_442.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 23 12:13 .develop_start_commit_443.txt
+-rw-rw-r--  1 ubuntu ubuntu       86 May 10 12:35 .develop_start_commit_444.txt
+-rw-rw-r--  1 ubuntu ubuntu       86 May 10 14:00 .develop_start_commit_446.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 23 12:13 .develop_start_commit_447.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 23 12:13 .develop_start_commit_448.txt
+-rw-rw-r--  1 ubuntu ubuntu       86 May 10 18:14 .develop_start_commit_449.txt
+-rw-rw-r--  1 ubuntu ubuntu       40 May 11 00:07 .develop_start_commit_455.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 23 12:13 .develop_start_commit_461.txt
+-rw-rw-r--  1 ubuntu ubuntu       86 May 11 17:02 .develop_start_commit_466.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 23 12:13 .develop_start_commit_469.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 23 12:13 .develop_start_commit_aichat_capsule_v2.txt
+-rw-rw-r--  1 ubuntu ubuntu       86 May 14 16:41 .develop_start_commit_aichat_optim_fix_v1.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 23 12:13 .develop_start_commit_aichat_optim.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 23 12:13 .develop_start_commit_aihome_optim_20260517.txt
+-rw-rw-r--  1 ubuntu ubuntu       86 May 15 23:50 .develop_start_commit_bug471_chatcard_upload.txt
+-rw-rw-r--  1 ubuntu ubuntu       86 May 15 00:10 .develop_start_commit_bugfix_20260515.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 23 12:13 .develop_start_commit_bug_report_interpret.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 23 12:13 .develop_start_commit_bug_timezone_v3.txt
+-rw-rw-r--  1 ubuntu ubuntu       40 May 16 17:49 .develop_start_commit_drug_card_v3.txt
+-rw-rw-r--  1 ubuntu ubuntu       82 May 16 15:37 .develop_start_commit_drug_vlm.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 23 12:13 .develop_start_commit_family_auth_mp.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 18 19:26 .develop_start_commit_family_member_v2.txt
+-rw-rw-r--  1 ubuntu ubuntu       40 May 16 01:16 .develop_start_commit_health_self_check_3bugs_v2.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 23 12:13 .develop_start_commit_health_self_check.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 23 12:13 .develop_start_commit_hsc_optim_v3.txt
+-rw-rw-r--  1 ubuntu ubuntu       86 May 16 16:04 .develop_start_commit_hsc_sse.txt
+-rw-rw-r--  1 ubuntu ubuntu       86 May 17 00:49 .develop_start_commit_med_plan_entry.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 23 12:13 .develop_start_commit_prd448_v11.txt
+-rw-rw-r--  1 ubuntu ubuntu       86 May 13 16:47 .develop_start_commit_prd469_v2.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 23 12:13 .develop_start_commit_prd_aihome_v1.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 23 12:13 .develop_start_commit_prompt_config_v1.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 21 00:47 .develop_start_commit.txt
+-rw-rw-r--  1 ubuntu ubuntu       41 May 27 00:05 .develop_start_membership_v11.txt
+-rw-rw-r--  1 ubuntu ubuntu       86 May  5 01:55 .dev_start_commit.txt
+-rw-rw-r--  1 ubuntu ubuntu      924 May 23 12:13 _diag_apk_route.py
+-rw-rw-r--  1 ubuntu ubuntu     1206 May 23 12:13 _diag_nginx2.py
+-rw-rw-r--  1 ubuntu ubuntu      723 May 23 12:13 _diag_nginx_apk.py
+-rw-rw-r--  1 ubuntu ubuntu     1457 May 23 12:13 _diag_prd442.py
+-rw-rw-r--  1 ubuntu ubuntu     1576 May 23 12:13 _diag_prd442_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     1280 May 23 12:13 _diag_prd442_v3.py
+-rw-rw-r--  1 ubuntu ubuntu     1566 May 23 12:13 _diag_remote2.py
+-rw-rw-r--  1 ubuntu ubuntu     1484 May 23 12:13 _diag_remote3.py
+-rw-rw-r--  1 ubuntu ubuntu     1098 May 23 12:13 _diag_remote.py
+-rw-rw-r--  1 ubuntu ubuntu        0 May  7 16:21 .diff_client_source.txt
+-rw-rw-r--  1 ubuntu ubuntu        0 May  7 16:21 .diff_h5_api.txt
+-rw-rw-r--  1 ubuntu ubuntu      640 May  8 17:30 _diff_prd420.txt
+-rw-rw-r--  1 ubuntu ubuntu        0 May  7 16:21 .diff_unified_orders.txt
+-rw-rw-r--  1 ubuntu ubuntu     6980 May  9 00:37 _disk_check.log
+-rw-rw-r--  1 ubuntu ubuntu    12646 May  9 00:43 _disk_clean.log
+drwxrwxr-x  2 ubuntu ubuntu     4096 Apr 19 21:22 dist
+-rw-rw-r--  1 ubuntu ubuntu    34218 Mar 27 09:06 doc1.txt
+-rw-rw-r--  1 ubuntu ubuntu    32558 Mar 27 09:06 doc2.txt
+-rw-rw-r--  1 ubuntu ubuntu     4389 May 23 12:13 docker-compose.prod.yml
+-rw-rw-r--  1 ubuntu ubuntu     4309 May 23 12:13 docker-compose.yml
+-rw-rw-r--  1 ubuntu ubuntu     1713 May 23 12:13 _docker_cp_backend.py
+-rw-rw-r--  1 ubuntu ubuntu       47 May 23 12:13 .dockerignore
+drwxrwxr-x  3 ubuntu ubuntu    12288 May 24 10:41 docs
+-rw-rw-r--  1 ubuntu ubuntu     8025 May 23 12:13 do_deploy.py
+-rw-rw-r--  1 ubuntu ubuntu      373 May 23 12:13 do_pack.ps1
+drwxrwxr-x  2 ubuntu ubuntu     4096 May  4 13:48 downloads
+-rw-rw-r--  1 ubuntu ubuntu       97 May 18 10:22 .env
+-rw-rw-r--  1 ubuntu ubuntu     1990 May 23 12:13 .env.example
+-rw-rw-r--  1 ubuntu ubuntu    18709 Mar 29 16:49 error_screenshot.png
+-rw-rw-r--  1 ubuntu ubuntu     4031 May 23 12:13 _final_smoke.log
+-rw-rw-r--  1 ubuntu ubuntu     2512 May 23 12:13 _final_smoke.py
+-rw-rw-r--  1 ubuntu ubuntu      704 May 23 12:13 _find_admin.py
+-rw-rw-r--  1 ubuntu ubuntu      730 May 23 12:13 find_nginx.py
+-rw-rw-r--  1 ubuntu ubuntu     1317 May 23 12:13 _find_static_path.py
+-rw-rw-r--  1 ubuntu ubuntu     9189 May 23 12:13 _fix_502_final.py
+-rw-rw-r--  1 ubuntu ubuntu     7756 May 23 12:13 _fix_502.py
+-rw-rw-r--  1 ubuntu ubuntu     8773 May 23 12:13 _fix_502_sed.py
+-rw-rw-r--  1 ubuntu ubuntu     7454 May 23 12:13 _fix_502_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     7625 May 23 12:13 _fix_502_v3.py
+-rw-rw-r--  1 ubuntu ubuntu     2046 May 23 12:13 _fix_apk_in_container.py
+-rw-rw-r--  1 ubuntu ubuntu     1831 May 23 12:13 _fix_apk_path_drawer_v12.py
+-rw-rw-r--  1 ubuntu ubuntu     1147 May 23 12:13 _fix_apk_path.py
+-rw-rw-r--  1 ubuntu ubuntu     3725 May 23 12:13 _fix_apk_upload_v3.py
+-rw-rw-r--  1 ubuntu ubuntu     3164 May 23 12:13 _fix_brace.py
+-rw-rw-r--  1 ubuntu ubuntu      779 May 23 12:13 fix_db_migration.py
+-rw-rw-r--  1 ubuntu ubuntu     3228 May 23 12:13 _fix_nginx_final.py
+-rw-rw-r--  1 ubuntu ubuntu     2366 May 23 12:13 _fix_nginx.py
+-rw-rw-r--  1 ubuntu ubuntu     1331 May 23 12:13 _fix_pytest_tc10.py
+-rw-rw-r--  1 ubuntu ubuntu      350 May 23 12:13 _fix_restart_next.log
+-rw-rw-r--  1 ubuntu ubuntu     1577 May 23 12:13 _fix_restart_next.py
+drwxrwxr-x  8 ubuntu ubuntu     4096 May 27 00:05 flutter_app
+-rw-rw-r--  1 ubuntu ubuntu   211609 Apr  6 01:52 frontend_upload.tar.gz
+-rw-rw-r--  1 ubuntu ubuntu     3278 May 23 12:13 gateway-routes.conf
+-rw-rw-r--  1 ubuntu ubuntu     7601 May 23 12:13 gen_01_splash_login.py
+-rw-rw-r--  1 ubuntu ubuntu     6404 May 23 12:13 gen_02_home.py
+-rw-rw-r--  1 ubuntu ubuntu     5632 May 23 12:13 gen_03_ai_chat.py
+-rw-rw-r--  1 ubuntu ubuntu     8067 May 23 12:13 gen_04_report.py
+-rw-rw-r--  1 ubuntu ubuntu     8767 May 23 12:13 gen_05_tcm.py
+-rw-rw-r--  1 ubuntu ubuntu     6870 May 23 12:13 gen_06_health_profile.py
+-rw-rw-r--  1 ubuntu ubuntu     7381 May 23 12:13 gen_07_services.py
+-rw-rw-r--  1 ubuntu ubuntu     8649 May 23 12:13 gen_08_health_plan.py
+-rw-rw-r--  1 ubuntu ubuntu     8337 May 23 12:13 gen_09_points_knowledge.py
+-rw-rw-r--  1 ubuntu ubuntu     7171 May 23 12:13 gen_10_profile_messages.py
+-rw-rw-r--  1 ubuntu ubuntu    17242 May 23 12:13 gen_11_admin.py
+-rw-rw-r--  1 ubuntu ubuntu     8135 May 23 12:13 gen_12_verify_cs.py
+-rw-rw-r--  1 ubuntu ubuntu     8396 May 23 12:13 gen_13_expert_sign.py
+-rw-rw-r--  1 ubuntu ubuntu      202 May 23 12:13 _gen_version.py
+-rw-rw-r--  1 ubuntu ubuntu      357 May 23 12:13 _get_err.py
+drwxrwxr-x  8 ubuntu ubuntu     4096 May 27 00:05 .git
+-rw-rw-r--  1 ubuntu ubuntu      428 May 23 12:13 _git_commit.log
+-rw-rw-r--  1 ubuntu ubuntu      791 May 23 12:13 .git_commit_msg_bug401_doc.txt
+-rw-rw-r--  1 ubuntu ubuntu      648 May 23 12:13 .git_commit_msg_bug401.txt
+-rw-rw-r--  1 ubuntu ubuntu     1819 May 23 12:13 .git_commit_msg_bug407.txt
+-rw-rw-r--  1 ubuntu ubuntu     2725 May 23 12:13 .git_commit_msg_bug419.txt
+-rw-rw-r--  1 ubuntu ubuntu     1341 May 23 12:13 .git_commit_msg_bug428.txt
+-rw-rw-r--  1 ubuntu ubuntu      795 May 23 12:13 .git_commit_msg_prd04.txt
+-rw-rw-r--  1 ubuntu ubuntu     1139 May 23 12:13 .git_commit_msg_prd365.txt
+-rw-rw-r--  1 ubuntu ubuntu     2146 May 23 12:13 .git_commit_msg_prd370.txt
+-rw-rw-r--  1 ubuntu ubuntu     1105 May 23 12:13 .git_commit_msg_prd414.txt
+-rw-rw-r--  1 ubuntu ubuntu     3018 May 23 12:13 .git_commit_msg_prd420.txt
+-rw-rw-r--  1 ubuntu ubuntu     1154 May 23 12:13 .git_commit_msg_prd426.txt
+drwxrwxr-x  3 ubuntu ubuntu     4096 Mar 27 12:02 .github
+-rw-rw-r--  1 ubuntu ubuntu     2106 May 24 10:41 .gitignore
+-rw-rw-r--  1 ubuntu ubuntu       20 May 23 12:13 .gitignore_append.txt
+-rw-rw-r--  1 ubuntu ubuntu     1234 May  8 12:55 _git_push3.log
+-rw-rw-r--  1 ubuntu ubuntu     1430 May  8 12:55 _git_push4.log
+-rw-rw-r--  1 ubuntu ubuntu      950 May  8 17:07 _git_push_bug419.log
+-rw-rw-r--  1 ubuntu ubuntu     2187 May 23 12:13 _git_push.log
+-rw-rw-r--  1 ubuntu ubuntu      916 May  8 13:00 _git_push_prd411.log
+-rw-rw-r--  1 ubuntu ubuntu     5175 May 23 12:13 _git_status_pre_commit.txt
+-rw-rw-r--  1 ubuntu ubuntu     4675 May 23 12:13 _git_status_pre_deploy.txt
+drwxrwxr-x  5 ubuntu ubuntu     4096 May 23 22:56 h5-web
+-rw-rw-r--  1 ubuntu ubuntu  1174016 Apr 11 11:25 h5-web-deploy.tar
+-rw-rw-r--  1 ubuntu ubuntu      942 May 23 12:13 _health_check.py
+-rw-rw-r--  1 ubuntu ubuntu     1376 May 23 12:13 hotfix_deploy.py
+-rw-rw-r--  1 ubuntu ubuntu     1164 May 23 12:13 hotfix_rebuild.py
+-rw-rw-r--  1 ubuntu ubuntu    89508 May 25 23:16 _hp_offline.tar.gz
+-rw-rw-r--  1 ubuntu ubuntu    16598 May  5 11:30 _inline_verify.log
+-rw-rw-r--  1 ubuntu ubuntu     5121 May 23 12:13 _inline_verify_order_address.py
+-rw-rw-r--  1 ubuntu ubuntu      600 May 23 12:13 _inspect_h5_container.py
+-rw-rw-r--  1 ubuntu ubuntu    11382 May  6 00:38 _ios_build_363.log
+-rw-rw-r--  1 ubuntu ubuntu     4407 May 23 12:13 _ios_build_363.py
+-rw-rw-r--  1 ubuntu ubuntu      263 May 23 12:13 _ios_build_363_result.txt
+-rw-rw-r--  1 ubuntu ubuntu      405 May 23 12:13 _ios_build_result_v3.json
+-rw-rw-r--  1 ubuntu ubuntu       33 May 14 18:00 .ios_build_start.txt
+-rw-rw-r--  1 ubuntu ubuntu       36 May 14 18:00 .ios_build_tag.txt
+-rw-rw-r--  1 ubuntu ubuntu       11 May  2 15:32 .ios_run_id.txt
+-rw-rw-r--  1 ubuntu ubuntu       11 May 23 12:13 _ios_tag.txt
+-rw-rw-r--  1 ubuntu ubuntu       31 Apr 21 00:41 ios_tag.txt
+-rw-rw-r--  1 ubuntu ubuntu       26 May 23 12:13 _ios_tag_v3.txt
+-rw-rw-r--  1 ubuntu ubuntu       32 May 10 01:33 .ios_version_tag.txt
+-rw-rw-r--  1 ubuntu ubuntu       25 May  2 15:31 .ios_version.txt
+drwxrwxr-x  3 ubuntu ubuntu     4096 May 19 21:57 legacy_backup
+drwxrwxr-x  2 ubuntu ubuntu    12288 May 24 17:37 mem
+drwxrwxr-x  9 ubuntu ubuntu     4096 May 27 00:05 miniprogram
+-rw-rw-r--  1 ubuntu ubuntu   102009 Mar 27 16:39 miniprogram_20260327_163902_ee97.zip
+-rw-rw-r--  1 ubuntu ubuntu   105153 Mar 29 12:26 miniprogram_20260329_122617_9985.zip
+-rw-rw-r--  1 ubuntu ubuntu   102001 Apr  4 21:29 miniprogram_20260404_212930_ZvPY.zip
+-rw-rw-r--  1 ubuntu ubuntu   102001 Apr  4 23:59 miniprogram_20260404_235920_73a5.zip
+-rw-rw-r--  1 ubuntu ubuntu   126423 Apr  7 13:34 miniprogram_20260407_133412_aidq.zip
+-rw-rw-r--  1 ubuntu ubuntu   128345 Apr  8 11:49 miniprogram_20260408_114910_809c.zip
+-rw-rw-r--  1 ubuntu ubuntu   131901 Apr  8 12:36 miniprogram_20260408_123603_937b.zip
+-rw-rw-r--  1 ubuntu ubuntu   131901 Apr  8 12:37 miniprogram_20260408_123718_f468.zip
+-rw-rw-r--  1 ubuntu ubuntu   158956 Apr  8 17:43 miniprogram_20260408_174325_f856.zip
+-rw-rw-r--  1 ubuntu ubuntu   144886 Apr  9 12:55 miniprogram_20260409_125527_df56.zip
+-rw-rw-r--  1 ubuntu ubuntu   153620 Apr  9 23:05 miniprogram_20260409_230548_2d04.zip
+-rw-rw-r--  1 ubuntu ubuntu   153620 Apr  9 23:11 miniprogram_20260409_231132_78t0.zip
+-rw-rw-r--  1 ubuntu ubuntu   153993 Apr 10 01:29 miniprogram_20260410_012921_b620.zip
+-rw-rw-r--  1 ubuntu ubuntu   152327 Apr 10 02:18 miniprogram_20260410_021818_9bb8.zip
+-rw-rw-r--  1 ubuntu ubuntu   162131 Apr 10 11:16 miniprogram_20260410_111600_fc1d.zip
+-rw-rw-r--  1 ubuntu ubuntu   160563 Apr 10 12:32 miniprogram_20260410_123240_a5a5.zip
+-rw-rw-r--  1 ubuntu ubuntu   178364 Apr 10 14:18 miniprogram_20260410_141847_d192.zip
+-rw-rw-r--  1 ubuntu ubuntu   178364 Apr 10 14:24 miniprogram_20260410_142407_af2c.zip
+-rw-rw-r--  1 ubuntu ubuntu   158785 Apr 10 14:40 miniprogram_20260410_144018_0b00.zip
+-rw-rw-r--  1 ubuntu ubuntu   196130 Apr 11 01:20 miniprogram_20260411_012037_801f.zip
+-rw-rw-r--  1 ubuntu ubuntu   205664 Apr 11 01:58 miniprogram_20260411_015837_21c0.zip
+-rw-rw-r--  1 ubuntu ubuntu   205664 Apr 11 01:58 miniprogram_20260411_015847_0191.zip
+-rw-rw-r--  1 ubuntu ubuntu   205664 Apr 11 02:06 miniprogram_20260411_020559_a730.zip
+-rw-rw-r--  1 ubuntu ubuntu   216705 Apr 11 16:05 miniprogram_20260411_160525_gpNS.zip
+-rw-rw-r--  1 ubuntu ubuntu   232582 Apr 11 18:29 miniprogram_20260411_182931_a9b6.zip
+-rw-rw-r--  1 ubuntu ubuntu   229851 Apr 11 22:08 miniprogram_20260411_220800_9026.zip
+-rw-rw-r--  1 ubuntu ubuntu   240480 Apr 12 01:42 miniprogram_20260412_014230_ce34.zip
+-rw-rw-r--  1 ubuntu ubuntu   240586 Apr 14 04:19 miniprogram_20260414_041944_0f14.zip
+-rw-rw-r--  1 ubuntu ubuntu   247497 Apr 15 22:59 miniprogram_20260415_225929_26df.zip
+-rw-rw-r--  1 ubuntu ubuntu   356279 Apr 30 13:27 miniprogram_20260430_132720_9AC8.zip
+-rw-rw-r--  1 ubuntu ubuntu   365719 May  1 02:17 miniprogram_20260501_021722_9267.zip
+-rw-rw-r--  1 ubuntu ubuntu   368556 May  4 02:38 miniprogram_20260504_023553_87ac.zip
+-rw-rw-r--  1 ubuntu ubuntu   368875 May  4 11:03 miniprogram_20260504_110335_417c.zip
+-rw-rw-r--  1 ubuntu ubuntu   369646 May  4 11:39 miniprogram_20260504_113934_be3d.zip
+-rw-rw-r--  1 ubuntu ubuntu   399312 May  5 10:14 miniprogram_20260505_101443_9124.zip
+-rw-rw-r--  1 ubuntu ubuntu   399312 May  5 10:27 miniprogram_20260505_102713_4233.zip
+-rw-rw-r--  1 ubuntu ubuntu   430617 May 10 13:19 miniprogram_20260510_131939_75c2.zip
+-rw-rw-r--  1 ubuntu ubuntu   443474 May 17 02:33 miniprogram_20260517_023326_bug_report_interpret.zip
+-rw-rw-r--  1 ubuntu ubuntu   444662 May 17 11:07 miniprogram_20260517_110717_f4fc_timezone_global.zip
+-rw-rw-r--  1 ubuntu ubuntu   444662 May 17 11:10 miniprogram_20260517_111014_844a_timezone_global.zip
+-rw-rw-r--  1 ubuntu ubuntu   446249 May 17 12:35 miniprogram_20260517_123547_1156.zip
+-rw-rw-r--  1 ubuntu ubuntu   461121 May 17 14:43 miniprogram_20260517_144324_c76c.zip
+-rw-rw-r--  1 ubuntu ubuntu   452673 May 17 14:44 miniprogram_20260517_144414_5aff.zip
+-rw-rw-r--  1 ubuntu ubuntu   485097 May 20 01:15 miniprogram_20260520_011552_0244.zip
+-rw-rw-r--  1 ubuntu ubuntu   485097 May 20 01:17 miniprogram_20260520_011731_87e1.zip
+-rw-rw-r--  1 ubuntu ubuntu   485097 May 20 01:19 miniprogram_20260520_011858_1a48.zip
+-rw-rw-r--  1 ubuntu ubuntu   491061 May 23 12:38 miniprogram_20260523_123833_10a2.zip
+-rw-rw-r--  1 ubuntu ubuntu   495086 May 23 23:01 miniprogram_20260523_230121_4564.zip
+-rw-rw-r--  1 ubuntu ubuntu   391158 May  5 02:39 miniprogram_addressv2_20260505_023951.zip
+-rw-rw-r--  1 ubuntu ubuntu   482466 May 21 02:31 miniprogram_archive_path_fix_20260521_023145_upri.zip
+-rw-rw-r--  1 ubuntu ubuntu   491490 May 21 02:38 miniprogram_archive_path_fix_20260521_023817_jijl.zip
+-rw-rw-r--  1 ubuntu ubuntu   381109 May  5 01:39 miniprogram_asseturl_20260505_013947_ea96.zip
+-rw-rw-r--  1 ubuntu ubuntu   365980 May  3 20:34 miniprogram_book_after_pay_20260503_203459_5d02.zip
+-rw-rw-r--  1 ubuntu ubuntu   395265 May  7 11:20 miniprogram_bug367_20260507_112011.zip
+-rw-rw-r--  1 ubuntu ubuntu   409997 May  7 17:17 miniprogram_bug403_20260507_171712_76b1.zip
+-rw-rw-r--  1 ubuntu ubuntu   409997 May  7 17:18 miniprogram_bug403_20260507_171804_c6c0.zip
+-rw-rw-r--  1 ubuntu ubuntu   402625 May  8 11:57 miniprogram_bug410_20260508_115714_82be.zip
+-rw-rw-r--  1 ubuntu ubuntu   416775 May  9 18:48 miniprogram_bug432fix_20260509_184817_1311.zip
+-rw-rw-r--  1 ubuntu ubuntu   491040 May 21 22:42 miniprogram_bugmedv1_20260521_224213_ca02.zip
+-rw-rw-r--  1 ubuntu ubuntu   451898 May 17 02:24 miniprogram_bug_report_interpret_20260517_022444_1f8c.zip
+-rw-rw-r--  1 ubuntu ubuntu   363913 May  3 19:05 miniprogram_cards_v2_20260503_190523.zip
+-rw-rw-r--  1 ubuntu ubuntu   373395 May  4 13:08 miniprogram_coupon_mall_20260504_130850_82ab.zip
+-rw-rw-r--  1 ubuntu ubuntu   374416 May  4 14:49 miniprogram_coupon_mall_p1bugfix_20260504_144953_8c4f.zip
+-rw-rw-r--  1 ubuntu ubuntu   374416 May  4 14:59 miniprogram_coupon_mall_p1bugfix_20260504_145930_428d.zip
+-rw-rw-r--  1 ubuntu ubuntu   469048 May 18 10:41 miniprogram_family_auth_20260518_104142_19bf.zip
+-rw-rw-r--  1 ubuntu ubuntu   469048 May 18 10:43 miniprogram_family_auth_20260518_104321_70f6.zip
+-rw-rw-r--  1 ubuntu ubuntu   370450 May  4 12:25 miniprogram_h5pay_20260504_122503_d91d.zip
+-rw-rw-r--  1 ubuntu ubuntu   374076 May  4 14:14 miniprogram_h5pay_20260504_141453_c586.zip
+-rw-rw-r--  1 ubuntu ubuntu   394745 May  6 00:30 miniprogram_login_layout_20260506_003000_ef21.zip
+-rw-rw-r--  1 ubuntu ubuntu   470202 May 18 14:52 miniprogram_med_plan_interact_20260518_145235_3628.zip
+-rw-rw-r--  1 ubuntu ubuntu   374199 May  3 22:52 miniprogram_paymentconfig_20260503_225242_36e2.zip
+-rw-rw-r--  1 ubuntu ubuntu   423533 May 14 18:00 miniprogram_pointsskin_20260514_180016_3846.zip
+-rw-rw-r--  1 ubuntu ubuntu   397250 May  7 12:01 miniprogram_prd370_20260507_120144_9ac4.zip
+-rw-rw-r--  1 ubuntu ubuntu   406235 May  8 17:35 miniprogram_prd420_20260508_173532_91c8.zip
+-rw-rw-r--  1 ubuntu ubuntu   407757 May  8 23:15 miniprogram_prd429_20260508_231515_01eb.zip
+-rw-rw-r--  1 ubuntu ubuntu   422702 May  9 00:54 miniprogram_prd432_20260509_005427_4303.zip
+-rw-rw-r--  1 ubuntu ubuntu   414446 May  9 00:56 miniprogram_prd432_20260509_005614_89ad.zip
+-rw-rw-r--  1 ubuntu ubuntu   416076 May  9 15:37 miniprogram_prd433_20260509_153717_863f.zip
+-rw-rw-r--  1 ubuntu ubuntu   418049 May 10 01:33 miniprogram_prd440_20260510_013308_ccbb.zip
+-rw-rw-r--  1 ubuntu ubuntu   420172 May 10 11:07 miniprogram_prd442_20260510110715_72eb.zip
+-rw-rw-r--  1 ubuntu ubuntu   420172 May 10 11:08 miniprogram_prd442_20260510110836_b715.zip
+-rw-rw-r--  1 ubuntu ubuntu   420172 May 10 11:23 miniprogram_prd442_20260510112332_0623.zip
+-rw-rw-r--  1 ubuntu ubuntu   420172 May 10 11:24 miniprogram_prd442_20260510112440_544e.zip
+-rw-rw-r--  1 ubuntu ubuntu   422289 May 10 11:47 miniprogram_prd443_20260510114745_be9e.zip
+-rw-rw-r--  1 ubuntu ubuntu   432273 May 14 22:15 miniprogram_promptcfg_20260514_221544_f82a.zip
+-rw-rw-r--  1 ubuntu ubuntu   432273 May 14 22:18 miniprogram_promptcfg_20260514_221830_4fc2.zip
+-rw-rw-r--  1 ubuntu ubuntu   398449 May  7 15:42 miniprogram_rebuy_20260507_154249_5fbd.zip
+drwxrwxr-x  2 ubuntu ubuntu     4096 May  5 02:40 miniprogram_releases
+-rw-rw-r--  1 ubuntu ubuntu   378058 May  4 22:36 miniprogram_reschedule_20260504_223605_6fdd.zip
+-rw-rw-r--  1 ubuntu ubuntu   376234 May  4 16:22 miniprogram_slot_badge_20260504_162259_c188.zip
+-rw-rw-r--  1 ubuntu ubuntu   376234 May  4 16:26 miniprogram_slot_badge_20260504_162603_bea2.zip
+-rw-rw-r--  1 ubuntu ubuntu   375646 May  4 15:29 miniprogram_slot_grid_20260504_152919_cf2b.zip
+-rw-rw-r--  1 ubuntu ubuntu   211882 Apr 19 01:02 miniprogram_v2.tar.gz
+-rw-rw-r--  1 ubuntu ubuntu       36 May 27 00:05 .miniprogram_zip_v11.txt
+-rw-rw-r--  1 ubuntu ubuntu      137 May 23 12:13 _mp_family_auth_v1_url.txt
+-rw-rw-r--  1 ubuntu ubuntu      143 May 23 12:13 _mp_med_plan_interact_v1_url.txt
+-rw-rw-r--  1 ubuntu ubuntu      129 May 23 12:13 _mp_optim_v1_url.txt
+-rw-rw-r--  1 ubuntu ubuntu      128 May 17 14:44 _mp_zip_url.txt
+-rw-rw-r--  1 ubuntu ubuntu     2619 May 23 12:13 nginx.conf
+drwxrwxr-x  3 ubuntu ubuntu     4096 May 20 17:25 packages
+-rw-rw-r--  1 ubuntu ubuntu     4062 May 23 12:13 _pack_and_upload_miniprogram.py
+-rw-rw-r--  1 ubuntu ubuntu     4230 May 23 12:13 _pack_and_upload_miniprogram_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     5646 May  5 10:16 _pack_apk_appt_store_contact.log
+-rw-rw-r--  1 ubuntu ubuntu     9526 May 23 12:13 _pack_apk_appt_store_contact.py
+-rw-rw-r--  1 ubuntu ubuntu    12120 May  5 10:38 _pack_apk_appt_store_contact_retry.log
+-rw-rw-r--  1 ubuntu ubuntu     9565 May 23 12:13 _pack_apk_h5pay.py
+-rw-rw-r--  1 ubuntu ubuntu     9557 May 23 12:13 _pack_apk_p1bugfix.py
+-rw-rw-r--  1 ubuntu ubuntu    12248 May  4 15:00 pack_apk_p1_run.log
+-rw-rw-r--  1 ubuntu ubuntu     9549 May 23 12:13 _pack_apk_pm_normalize.py
+-rw-rw-r--  1 ubuntu ubuntu    12192 May  4 14:26 pack_apk_pmnorm_run.log
+-rw-rw-r--  1 ubuntu ubuntu     9398 May 23 12:13 _pack_apk_slot_badge.py
+-rw-rw-r--  1 ubuntu ubuntu    12672 May  4 16:34 pack_apk_slot_badge_run.log
+-rw-rw-r--  1 ubuntu ubuntu     9402 May 23 12:13 _pack_apk_slot_grid.py
+-rw-rw-r--  1 ubuntu ubuntu    12258 May  4 15:40 pack_apk_slot_grid_run.log
+-rw-rw-r--  1 ubuntu ubuntu     4721 May 23 12:13 _pack_coupon_mall_mp.py
+-rw-rw-r--  1 ubuntu ubuntu     4730 May 23 12:13 _pack_coupon_mall_p1_mp.py
+-rw-rw-r--  1 ubuntu ubuntu     4709 May 23 12:13 _pack_h5pay_mp.py
+-rw-rw-r--  1 ubuntu ubuntu     4530 May 23 12:13 _pack_ios_h5pay.py
+-rw-rw-r--  1 ubuntu ubuntu     4652 May 23 12:13 _pack_ios_p1bugfix.py
+-rw-rw-r--  1 ubuntu ubuntu     2626 May  4 15:05 pack_ios_p1_run.log
+-rw-rw-r--  1 ubuntu ubuntu     4650 May 23 12:13 _pack_ios_pm_normalize.py
+-rw-rw-r--  1 ubuntu ubuntu     9505 May 23 12:13 _pack_ios_slot_badge.py
+-rw-rw-r--  1 ubuntu ubuntu    11682 May  4 16:32 pack_ios_slot_badge_run.log
+-rw-rw-r--  1 ubuntu ubuntu     9500 May 23 12:13 _pack_ios_slot_grid.py
+-rw-rw-r--  1 ubuntu ubuntu    10552 May  4 15:37 pack_ios_slot_grid_run.log
+-rw-rw-r--  1 ubuntu ubuntu     2472 May  5 10:32 _pack_ios_store_contact.log
+-rw-rw-r--  1 ubuntu ubuntu     4857 May 23 12:13 _pack_ios_store_contact.py
+-rw-rw-r--  1 ubuntu ubuntu     4785 May 23 12:13 _pack_mp_asset_url.py
+-rw-rw-r--  1 ubuntu ubuntu     2350 May 23 12:13 _pack_mp_bug_report_interpret.py
+-rw-rw-r--  1 ubuntu ubuntu     3951 May 23 12:13 _pack_mp_family_auth_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     3386 May 23 12:13 _pack_mp_med_plan_interact_optim_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     2820 May 23 12:13 _pack_mp_optim_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     2382 May  4 14:59 pack_mp_p1_run.log
+-rw-rw-r--  1 ubuntu ubuntu     4968 May 23 12:13 _pack_mp_slot_badge.py
+-rw-rw-r--  1 ubuntu ubuntu     2514 May  4 16:26 pack_mp_slot_badge_run.log
+-rw-rw-r--  1 ubuntu ubuntu     4963 May 23 12:13 _pack_mp_slot_grid.py
+-rw-rw-r--  1 ubuntu ubuntu     2498 May  4 15:29 pack_mp_slot_grid_run.log
+-rw-rw-r--  1 ubuntu ubuntu     2923 May 23 12:13 _pack_mp_timezone_global.py
+-rw-rw-r--  1 ubuntu ubuntu     2214 May 23 12:13 _pack_mp_timezone_global_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     6640 May 23 12:13 _pack_mp_timezone_global_v3.py
+-rw-rw-r--  1 ubuntu ubuntu     9081 May 23 12:13 _pack_prd442_android_finalize.py
+-rw-rw-r--  1 ubuntu ubuntu    12584 May 23 12:13 _pack_prd442_android.log
+-rw-rw-r--  1 ubuntu ubuntu    11748 May 23 12:13 _pack_prd442_android.py
+-rw-rw-r--  1 ubuntu ubuntu     4881 May 23 12:13 _pack_prd442_ios.log
+-rw-rw-r--  1 ubuntu ubuntu     4325 May 23 12:13 _pack_prd442_ios.py
+-rw-rw-r--  1 ubuntu ubuntu     2029 May 23 12:13 _pack_prd442_miniprogram.log
+-rw-rw-r--  1 ubuntu ubuntu     8024 May 23 12:13 _pack_prd442_miniprogram.py
+-rw-rw-r--  1 ubuntu ubuntu     8149 May 23 12:13 _pack_prd443_android.log
+-rw-rw-r--  1 ubuntu ubuntu    11251 May 23 12:13 _pack_prd443_android.py
+-rw-rw-r--  1 ubuntu ubuntu     4498 May 23 12:13 _pack_prd443_ios.log
+-rw-rw-r--  1 ubuntu ubuntu     4456 May 23 12:13 _pack_prd443_ios.py
+-rw-rw-r--  1 ubuntu ubuntu     2029 May 23 12:13 _pack_prd443_miniprogram.log
+-rw-rw-r--  1 ubuntu ubuntu     8024 May 23 12:13 _pack_prd443_miniprogram.py
+-rw-rw-r--  1 ubuntu ubuntu     2457 May 23 12:13 _pack_upload_archive_fix.py
+-rw-rw-r--  1 ubuntu ubuntu     2617 May 23 12:13 _pack_upload_archive_path_fix.py
+-rw-rw-r--  1 ubuntu ubuntu     1406 May  7 17:17 _pack_upload_miniprogram_bug403.log
+-rw-rw-r--  1 ubuntu ubuntu     2713 May 23 12:13 _pack_upload_miniprogram_bug403.py
+-rw-rw-r--  1 ubuntu ubuntu     1298 May  7 17:18 _pack_upload_miniprogram_bug403_v2.log
+-rw-rw-r--  1 ubuntu ubuntu     2600 May  8 11:57 _pack_upload_miniprogram_bug410.log
+-rw-rw-r--  1 ubuntu ubuntu     5225 May 23 12:13 _pack_upload_miniprogram_bug410.py
+-rw-rw-r--  1 ubuntu ubuntu     5719 May 23 12:13 _pack_upload_miniprogram_bug432_fix.py
+-rw-rw-r--  1 ubuntu ubuntu     4564 May 23 12:13 _pack_upload_miniprogram_login_363.py
+-rw-rw-r--  1 ubuntu ubuntu     4766 May 23 12:13 _pack_upload_miniprogram_prd370.py
+-rw-rw-r--  1 ubuntu ubuntu     5388 May 23 12:13 _pack_upload_miniprogram_prd420.py
+-rw-rw-r--  1 ubuntu ubuntu     2686 May  8 23:15 _pack_upload_miniprogram_prd429.log
+-rw-rw-r--  1 ubuntu ubuntu     6048 May 23 12:13 _pack_upload_miniprogram_prd429.py
+-rw-rw-r--  1 ubuntu ubuntu     4166 May  9 15:37 _pack_upload_miniprogram_prd433.log
+-rw-rw-r--  1 ubuntu ubuntu     6051 May 23 12:13 _pack_upload_miniprogram_prd433.py
+-rw-rw-r--  1 ubuntu ubuntu     4566 May 23 12:13 _pack_upload_miniprogram.py
+-rw-rw-r--  1 ubuntu ubuntu     5172 May 23 12:13 _pack_upload_miniprogram_rebuy_399.py
+-rw-rw-r--  1 ubuntu ubuntu     5700 May 23 12:13 _pack_upload_miniprogram_reschedule.py
+-rw-rw-r--  1 ubuntu ubuntu     5549 May 23 12:13 _pack_upload_miniprogram_storerow.py
+-rw-rw-r--  1 ubuntu ubuntu     1351 May 23 12:13 _poll_apk_build.py
+-rw-rw-r--  1 ubuntu ubuntu     1702 May 23 12:13 _poll_build.py
+-rw-rw-r--  1 ubuntu ubuntu     1021 May 23 12:13 _poll_run.ps1
+-rw-rw-r--  1 ubuntu ubuntu       12 May 23 12:13 _prd429_android_runid.txt
+-rw-rw-r--  1 ubuntu ubuntu       37 May 23 12:13 _prd429_android_tag.txt
+-rw-rw-r--  1 ubuntu ubuntu       12 May 23 12:13 _prd429_ios_runid.txt
+-rw-rw-r--  1 ubuntu ubuntu       33 May 23 12:13 _prd429_ios_tag.txt
+-rw-rw-r--  1 ubuntu ubuntu    48130 May 10 00:41 _prd439_pytest.log
+drwxrwxr-x  2 ubuntu ubuntu     4096 May 23 02:16 _prd442_android_dl
+drwxrwxr-x  2 ubuntu ubuntu     4096 May 23 02:15 _prd443_android_dl
+-rw-rw-r--  1 ubuntu ubuntu     5149 May 23 12:13 _prd444_h5_color_migrate.py
+-rw-rw-r--  1 ubuntu ubuntu     1961 May 23 12:13 _prd444_h5_color_migrate_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     2874 May 23 12:13 _prd444_h5_color_migrate_v3.py
+-rw-rw-r--  1 ubuntu ubuntu     1085 May 23 12:13 _prd444_h5_inspect.py
+-rw-rw-r--  1 ubuntu ubuntu     3120 May 23 12:13 _prd445_brand_rollback.py
+-rw-rw-r--  1 ubuntu ubuntu     1276 May 23 12:13 _probe2.py
+-rw-rw-r--  1 ubuntu ubuntu     1063 May 23 12:13 _probe_backend.py
+-rw-rw-r--  1 ubuntu ubuntu      617 May 23 12:13 _probe_h5_nginx2.py
+-rw-rw-r--  1 ubuntu ubuntu     1205 May 23 12:13 _probe_h5_nginx.py
+-rw-rw-r--  1 ubuntu ubuntu      686 May 23 12:13 _probe_mp_path2.py
+-rw-rw-r--  1 ubuntu ubuntu      814 May 23 12:13 _probe_mp_path.py
+-rw-rw-r--  1 ubuntu ubuntu      789 May 23 12:13 _probe_mp_url2.py
+-rw-rw-r--  1 ubuntu ubuntu      747 May 23 12:13 _probe_mp_url.py
+-rw-rw-r--  1 ubuntu ubuntu     1235 May 23 12:13 _probe_routes.py
+-rw-rw-r--  1 ubuntu ubuntu      756 May 23 12:13 _probe_server_h5.py
+-rw-rw-r--  1 ubuntu ubuntu     1624 May 23 12:13 _probe_server.py
+-rw-rw-r--  1 ubuntu ubuntu   101213 May 23 12:13 project-context.mdc
+-rw-rw-r--  1 ubuntu ubuntu     6724 May 23 12:13 pytest_family_v2.log
+-rw-rw-r--  1 ubuntu ubuntu     6381 May 23 12:13 pytest_family_v2_r2.log
+-rw-rw-r--  1 ubuntu ubuntu     7634 May 23 12:13 pytest_family_v2_r3.log
+-rw-rw-r--  1 ubuntu ubuntu     7634 May 23 12:13 pytest_family_v2_r4.log
+-rw-rw-r--  1 ubuntu ubuntu     5579 May 23 12:13 pytest_family_v2_r5.log
+-rw-rw-r--  1 ubuntu ubuntu       29 May 23 12:13 pytest.ini
+-rw-rw-r--  1 ubuntu ubuntu     3814 May 17 12:30 _pytest_log.txt
+-rw-rw-r--  1 ubuntu ubuntu     2855 May  4 23:44 _pytest_output2.txt
+-rw-rw-r--  1 ubuntu ubuntu    84941 May  4 23:43 _pytest_output.txt
+-rw-rw-r--  1 ubuntu ubuntu     4212 May  4 23:45 _pytest_regress.txt
+-rw-rw-r--  1 ubuntu ubuntu     1423 May 23 12:13 _rebuild_admin.py
+-rw-rw-r--  1 ubuntu ubuntu     6519 May 23 12:13 _rebuild_backend2.log
+-rw-rw-r--  1 ubuntu ubuntu     3097 May 23 12:13 _rebuild_backend2.py
+-rw-rw-r--  1 ubuntu ubuntu     1857 May 23 12:13 _rebuild_backend.py
+-rw-rw-r--  1 ubuntu ubuntu     7332 May 23 12:13 _rebuild_compose.log
+-rw-rw-r--  1 ubuntu ubuntu     2471 May 23 12:13 _rebuild_compose.py
+-rw-rw-r--  1 ubuntu ubuntu     1143 May 23 12:13 _redeploy_405.py
+-rw-rw-r--  1 ubuntu ubuntu     1323 May 23 12:13 _redeploy_405_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     2316 May 23 12:13 _redeploy_and_retest.py
+-rw-rw-r--  1 ubuntu ubuntu     2466 May 23 12:13 _redeploy_backend2.py
+-rw-rw-r--  1 ubuntu ubuntu     1736 May 23 12:13 _redeploy_backend_files.py
+-rw-rw-r--  1 ubuntu ubuntu    13240 May 23 12:13 _redeploy_dashboard_grid9_364.log
+-rw-rw-r--  1 ubuntu ubuntu     4475 May 23 12:13 _redeploy_dashboard_grid9_364.py
+-rw-rw-r--  1 ubuntu ubuntu      736 May 23 12:13 _redeploy_one_file.py
+-rw-rw-r--  1 ubuntu ubuntu     5803 May 23 12:13 _redeploy_optim_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     2916 May 23 12:13 _relocate_apk.py
+-rw-rw-r--  1 ubuntu ubuntu     1852 May 23 12:13 _remote_check_db.py
+-rw-rw-r--  1 ubuntu ubuntu     1753 May 23 12:13 _remote_pytest_bug367.log
+-rw-rw-r--  1 ubuntu ubuntu     2625 May 23 12:13 _remote_pytest_bug367.py
+-rw-rw-r--  1 ubuntu ubuntu     1607 May 23 12:13 _remote_pytest_bug417_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     1199 May 23 12:13 _remote_pytest_bug431.py
+-rw-rw-r--  1 ubuntu ubuntu     3853 May 23 12:13 _remote_pytest_bug432_fix.py
+-rw-rw-r--  1 ubuntu ubuntu     1642 May 23 12:13 _remote_pytest_prd426.py
+-rw-rw-r--  1 ubuntu ubuntu     9820 May  9 00:53 _remote_pytest_prd432_regression.log
+-rw-rw-r--  1 ubuntu ubuntu     1804 May 23 12:13 _remote_pytest_prd432_regression.py
+-rw-rw-r--  1 ubuntu ubuntu     6079 May 23 12:13 _remote_pytest_qn_drawer.log
+-rw-rw-r--  1 ubuntu ubuntu     2011 May 23 12:13 _remote_pytest_qn_drawer.py
+-rw-rw-r--  1 ubuntu ubuntu    13592 May 23 12:13 _remote_pytest_tcm36_bugfix.log
+-rw-rw-r--  1 ubuntu ubuntu     4695 May 23 12:13 _remote_pytest_tcm36_bugfix.py
+-rw-rw-r--  1 ubuntu ubuntu     3708 May 23 12:13 _remote_smoke_bug367.py
+-rw-rw-r--  1 ubuntu ubuntu     5452 May 23 12:13 _remote_test_ai_page_optim_v1_b.log
+-rw-rw-r--  1 ubuntu ubuntu     2596 May 23 12:13 _remote_test_ai_page_optim_v1_b.py
+-rw-rw-r--  1 ubuntu ubuntu     1049 May 23 12:13 _remote_test_ai_page_optim_v1.log
+-rw-rw-r--  1 ubuntu ubuntu     2859 May 23 12:13 _remote_test_ai_page_optim_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     1654 May 23 12:13 _remote_test_grid9_364.py
+-rw-rw-r--  1 ubuntu ubuntu     2350 May 23 12:13 _remote_test_grid9_364_v2.py
+-rw-rw-r--  1 ubuntu ubuntu    23039 May 23 12:13 remote_test_run1.txt
+-rw-rw-r--  1 ubuntu ubuntu    24156 May 23 12:13 remote_test_run2.txt
+-rw-rw-r--  1 ubuntu ubuntu     3481 May 23 12:13 _remote_verify_aihome_v2.log
+-rw-rw-r--  1 ubuntu ubuntu     3010 May 23 12:13 _remote_verify_aihome_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     9830 May  9 00:52 _remote_verify_prd432.log
+-rw-rw-r--  1 ubuntu ubuntu     4136 May 23 12:13 _remote_verify_prd432.py
+-rw-rw-r--  1 ubuntu ubuntu     3842 May  8 17:02 _rerun_bug419_tests.log
+-rw-rw-r--  1 ubuntu ubuntu     1277 May 23 12:13 _rerun_bug419_tests.py
+-rw-rw-r--  1 ubuntu ubuntu     1919 May 23 12:13 _restart_backend_full.py
+-rw-rw-r--  1 ubuntu ubuntu     1733 May 23 12:13 _run_bug461_tests.py
+-rw-rw-r--  1 ubuntu ubuntu     9752 May 27 00:05 _run_invite_tests.py
+-rw-rw-r--  1 ubuntu ubuntu    26274 May  5 17:56 run_prd03_pytest.log
+-rw-rw-r--  1 ubuntu ubuntu     1834 May 23 12:13 _run_pytest_400_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     3826 May 23 12:13 _run_pytest_in_container.log
+-rw-rw-r--  1 ubuntu ubuntu     1889 May 23 12:13 _run_pytest_in_container.py
+-rw-rw-r--  1 ubuntu ubuntu      647 May 23 12:13 _run_pytest_pnurl.py
+-rw-rw-r--  1 ubuntu ubuntu     1645 May 23 12:13 _run_pytest_pnurl_redeploy.py
+-rw-rw-r--  1 ubuntu ubuntu      903 May 23 12:13 _run_pytest.py
+-rw-rw-r--  1 ubuntu ubuntu     1823 May 23 12:13 _run_remote_tests.py
+-rw-rw-r--  1 ubuntu ubuntu     5242 May 23 12:13 run_remote_tests.py
+-rw-rw-r--  1 ubuntu ubuntu     1549 May 23 12:13 _run_tests_orders_pinned_columns2.py
+-rw-rw-r--  1 ubuntu ubuntu     1500 May 23 12:13 _run_tests_orders_pinned_columns.py
+-rw-rw-r--  1 ubuntu ubuntu     9328 May 23 12:13 _run_tests.py
+-rw-rw-r--  1 ubuntu ubuntu     1052 May 23 12:13 run_verify_in_container.log
+-rw-rw-r--  1 ubuntu ubuntu     1773 May 23 12:13 run_verify_in_container.py
+-rw-rw-r--  1 ubuntu ubuntu     8441 May 23 12:13 _scp_deploy_dashboard_grid9_364.log
+-rw-rw-r--  1 ubuntu ubuntu     4822 May 23 12:13 _scp_deploy_dashboard_grid9_364.py
+-rw-rw-r--  1 ubuntu ubuntu        0 May  4 01:03 scp_log.txt
+-rw-rw-r--  1 ubuntu ubuntu   140697 Apr  6 20:17 screenshot.png
+drwxrwxr-x  2 ubuntu ubuntu     4096 May 16 16:27 scripts
+-rw-rw-r--  1 ubuntu ubuntu      794 May 23 12:13 setup_apk_nginx.py
+-rw-rw-r--  1 ubuntu ubuntu     1522 May 23 12:13 _sftp_upload.py
+-rw-rw-r--  1 ubuntu ubuntu     1496 May 23 12:13 _sftp_upload_test.py
+-rw-rw-r--  1 ubuntu ubuntu      983 May 23 12:13 _show_pytest_failures.py
+-rw-rw-r--  1 ubuntu ubuntu      900 May 23 12:13 _smoke3.py
+-rw-rw-r--  1 ubuntu ubuntu     2079 May 23 12:13 _smoke_400.py
+-rw-rw-r--  1 ubuntu ubuntu      852 May 23 12:13 _smoke_405.py
+-rw-rw-r--  1 ubuntu ubuntu      743 May 23 12:13 _smoke4.py
+-rw-rw-r--  1 ubuntu ubuntu     1191 May 23 12:13 _smoke5.py
+-rw-rw-r--  1 ubuntu ubuntu     1534 May 23 12:13 _smoke_ai_home_archive_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     1599 May 23 12:13 _smoke_bug401.log
+-rw-rw-r--  1 ubuntu ubuntu     4973 May 23 12:13 _smoke_bug401.py
+-rw-rw-r--  1 ubuntu ubuntu     2918 May  8 17:03 _smoke_bug419.log
+-rw-rw-r--  1 ubuntu ubuntu     3001 May 23 12:13 _smoke_bug419.py
+-rw-rw-r--  1 ubuntu ubuntu     3130 May 23 12:13 _smoke_bug428.py
+-rw-rw-r--  1 ubuntu ubuntu     6111 May 23 12:13 _smoke_drawer_v12.py
+-rw-rw-r--  1 ubuntu ubuntu      579 May 23 12:13 smoke_family_v2.log
+-rw-rw-r--  1 ubuntu ubuntu     7015 May 27 00:05 _smoke_guardian_v13.py
+-rw-rw-r--  1 ubuntu ubuntu     3933 May 23 12:13 _smoke_health_archive_v5.py
+-rw-rw-r--  1 ubuntu ubuntu     3851 May 23 12:13 _smoke_hsc_ai_real_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     4390 May 23 12:13 _smoke_hsc_fix_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     1152 May 23 12:13 _smoke_hsc_fix_v2.log
+-rw-rw-r--  1 ubuntu ubuntu     8714 May 23 12:13 _smoke_hsc_fix_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     5926 May 23 12:13 _smoke_hsc_optim_v3.py
+-rw-rw-r--  1 ubuntu ubuntu      957 May 23 12:13 _smoke_hsc_optim_v3_run1.log
+-rw-rw-r--  1 ubuntu ubuntu     4271 May 23 12:13 _smoke_hsc_optim_v3_run2.log
+-rw-rw-r--  1 ubuntu ubuntu     3636 May 23 12:13 _smoke_med_plan_add_optim.py
+-rw-rw-r--  1 ubuntu ubuntu     2944 May 23 12:13 smoke_med_plan_entry.py
+-rw-rw-r--  1 ubuntu ubuntu     2934 May 23 12:13 _smoke_my_devices_v1.log
+-rw-rw-r--  1 ubuntu ubuntu     8442 May 23 12:13 _smoke_my_devices_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     5415 May 23 12:13 _smoke_optim_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     8255 May 23 12:13 _smoke_prd420.py
+-rw-rw-r--  1 ubuntu ubuntu     3144 May 23 12:13 _smoke_prd423.py
+-rw-rw-r--  1 ubuntu ubuntu      904 May  8 22:15 _smoke_prd425.log
+-rw-rw-r--  1 ubuntu ubuntu     5683 May 23 12:13 _smoke_prd425.py
+-rw-rw-r--  1 ubuntu ubuntu     2395 May 23 12:13 _smoke_prd426.py
+-rw-rw-r--  1 ubuntu ubuntu     2630 May 23 12:13 _smoke_qn_autonext2.py
+-rw-rw-r--  1 ubuntu ubuntu     2648 May 23 12:13 _smoke_qn_autonext.py
+-rw-rw-r--  1 ubuntu ubuntu     4397 May 23 12:13 smoke_skeleton_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     1610 May 23 12:13 _smoke_tag_apis.py
+-rw-rw-r--  1 ubuntu ubuntu     1081 May 23 12:13 _smoke_tcm36_bugfix_20260520.log
+-rw-rw-r--  1 ubuntu ubuntu     8658 May 23 12:13 _smoke_tcm36_bugfix_20260520.py
+-rw-rw-r--  1 ubuntu ubuntu     2744 May 23 12:13 _smoke_test_orders.py
+-rw-rw-r--  1 ubuntu ubuntu    87979 Apr 19 00:56 src_update.tar.gz
+-rw-rw-r--  1 ubuntu ubuntu      665 May 23 12:13 _ssh_front.py
+-rw-rw-r--  1 ubuntu ubuntu     1122 May 23 12:13 start_containers.py
+drwxr-xr-x  7 ubuntu ubuntu     4096 May 26 14:51 static
+-rw-rw-r--  1 ubuntu ubuntu     8330 May 23 12:13 sync_fix_to_server.py
+-rw-rw-r--  1 ubuntu ubuntu      829 May 23 12:13 _test_access.py
+-rw-rw-r--  1 ubuntu ubuntu    17282 May 23 12:13 test_ai_config.py
+-rw-rw-r--  1 ubuntu ubuntu    10699 May 23 12:13 test_api.py
+-rw-rw-r--  1 ubuntu ubuntu     3789 May 23 12:13 test_appt_store_contact_unify.py
+-rw-rw-r--  1 ubuntu ubuntu     1676 May 11 17:10 test_bug466_run.log
+-rw-rw-r--  1 ubuntu ubuntu     9616 May 23 12:13 test_deploy_regression.py
+-rw-rw-r--  1 ubuntu ubuntu     6618 May 23 12:13 test_deploy_verify.py
+-rw-rw-r--  1 ubuntu ubuntu      941 May 23 12:13 _test_detail_debug.py
+-rw-rw-r--  1 ubuntu ubuntu     1906 May 23 12:13 test_emoji_expansion.py
+-rw-rw-r--  1 ubuntu ubuntu     7621 May 23 12:13 test_guide_feature.py
+-rw-rw-r--  1 ubuntu ubuntu     1527 May 23 12:13 test_guide_flow.py
+-rw-rw-r--  1 ubuntu ubuntu    27796 May 27 00:05 test_health_plan_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     6715 May 23 12:13 test_health_v2_server.py
+-rw-rw-r--  1 ubuntu ubuntu     9781 May 23 12:13 test_home_menus_emoji.py
+-rw-rw-r--  1 ubuntu ubuntu     9301 May 23 12:13 _test_hsc_v31.py
+-rw-rw-r--  1 ubuntu ubuntu    57160 May  4 00:20 test_log.txt
+-rw-rw-r--  1 ubuntu ubuntu     1746 May 23 12:13 _test_medoptim_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     9274 May 23 12:13 test_member_levels.py
+-rw-rw-r--  1 ubuntu ubuntu     2595 May 23 12:13 test_message_apis.py
+-rw-rw-r--  1 ubuntu ubuntu    20100 May 23 12:13 test_message_management.py
+-rw-rw-r--  1 ubuntu ubuntu     3261 May 23 12:13 test_message_modules.py
+-rw-rw-r--  1 ubuntu ubuntu    14091 May 23 12:13 test_notice_feature.py
+-rw-rw-r--  1 ubuntu ubuntu     9155 May 23 12:13 test_order_address_unify.py
+-rw-rw-r--  1 ubuntu ubuntu     3601 May 23 12:13 test_prd455_run.log
+-rw-rw-r--  1 ubuntu ubuntu     4668 May  7 15:41 _test_rebuy_399.log
+-rw-rw-r--  1 ubuntu ubuntu     3599 May 23 12:13 _test_rebuy_399.py
+-rw-rw-r--  1 ubuntu ubuntu    16608 May  7 15:41 _test_rebuy_399_v2.log
+-rw-rw-r--  1 ubuntu ubuntu     5782 May 23 12:13 test_results_final.txt
+drwxrwxr-x  2 ubuntu ubuntu     4096 May 27 00:05 tests
+-rw-rw-r--  1 ubuntu ubuntu     7839 May 23 12:13 test_server_ai_config_test.py
+-rw-rw-r--  1 ubuntu ubuntu    20521 May 23 12:13 test_server_bugfix.py
+-rw-rw-r--  1 ubuntu ubuntu    12346 May 23 12:13 test_server_bugfix_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     7769 May 23 12:13 test_server_chat_history.py
+-rw-rw-r--  1 ubuntu ubuntu     2837 May 23 12:13 test_server_deploy.py
+-rw-rw-r--  1 ubuntu ubuntu     3601 May 23 12:13 test_server_drug.py
+-rw-rw-r--  1 ubuntu ubuntu     8580 May 23 12:13 test_server_family_bugfix.py
+-rw-rw-r--  1 ubuntu ubuntu     5702 May 23 12:13 test_server_font_setting.py
+-rw-rw-r--  1 ubuntu ubuntu     9645 May 23 12:13 test_server_knowledge.py
+-rw-rw-r--  1 ubuntu ubuntu     6234 May 23 12:13 test_server_ocr_details.py
+-rw-rw-r--  1 ubuntu ubuntu    12280 May 23 12:13 test_server_ocr_global.py
+-rw-rw-r--  1 ubuntu ubuntu    12395 May 23 12:13 test_server_ocr_multi.py
+-rw-rw-r--  1 ubuntu ubuntu    10921 May 23 12:13 test_server_ocr_optimize.py
+-rw-rw-r--  1 ubuntu ubuntu     5033 May 23 12:13 test_server_prd448.py
+-rw-rw-r--  1 ubuntu ubuntu    20771 May 23 12:13 test_server_report_enhance.py
+-rw-rw-r--  1 ubuntu ubuntu    12679 May 23 12:13 test_server_report_fix.py
+-rw-rw-r--  1 ubuntu ubuntu    12512 May 23 12:13 test_server_report_interpret_intent.py
+-rw-rw-r--  1 ubuntu ubuntu    13061 May 23 12:13 test_server_report.py
+-rw-rw-r--  1 ubuntu ubuntu    18491 May 23 12:13 test_server_search.py
+-rw-rw-r--  1 ubuntu ubuntu     9438 May 23 12:13 test_server_services.py
+-rw-rw-r--  1 ubuntu ubuntu     6452 May 23 12:13 test_server_sms_params.py
+-rw-rw-r--  1 ubuntu ubuntu    11783 May 23 12:13 test_server_sms_verification.py
+-rw-rw-r--  1 ubuntu ubuntu     1252 May 23 12:13 test_server_voice_chat.py
+-rw-rw-r--  1 ubuntu ubuntu    10054 May 23 12:13 test_server_voice_mic.py
+-rw-rw-r--  1 ubuntu ubuntu     2177 May 23 12:13 test_server_voice_search.py
+-rw-rw-r--  1 ubuntu ubuntu     2587 May 23 12:13 test_voice_deploy.py
+-rw-rw-r--  1 ubuntu ubuntu      554 May 23 12:13 .tmp_deploy.sh
+drwxrwxr-x  3 ubuntu ubuntu     4096 May  5 02:34 .tools
+-rw-rw-r--  1 ubuntu ubuntu      555 May 23 12:13 _trigger_workflow.ps1
+drwxrwxr-x  2 ubuntu ubuntu     4096 Mar 27 09:58 ui_design_outputs
+-rw-rw-r--  1 ubuntu ubuntu    12039 May 23 12:13 ui_generator_common.py
+-rw-rw-r--  1 ubuntu ubuntu     8386 May 23 12:13 update_gateway_and_verify.py
+-rw-rw-r--  1 ubuntu ubuntu     1172 May 23 12:13 update_gateway.py
+-rw-rw-r--  1 ubuntu ubuntu     2154 May 23 12:13 _upload_apk_coupon_mall.py
+-rw-rw-r--  1 ubuntu ubuntu     1946 May 23 12:13 _upload_apk_final.py
+-rw-rw-r--  1 ubuntu ubuntu     2203 May 23 12:13 _upload_apk_pointsskin.py
+-rw-rw-r--  1 ubuntu ubuntu     2762 May 23 12:13 _upload_apk_prd429.py
+-rw-rw-r--  1 ubuntu ubuntu     1525 May 23 12:13 _upload_apk_static.py
+-rw-rw-r--  1 ubuntu ubuntu     1190 May 23 12:13 upload_miniprogram.py
+-rw-rw-r--  1 ubuntu ubuntu      691 May 23 12:13 _upload_mp_367.py
+-rw-rw-r--  1 ubuntu ubuntu     2112 May 23 12:13 _upload_new.py
+drwxrwxr-x  4 ubuntu ubuntu     4096 May 25 01:12 uploads
+drwxrwxr-x  2 ubuntu ubuntu    32768 May 27 00:05 user_docs
+-rw-rw-r--  1 ubuntu ubuntu     3223 May 23 12:13 USER_MANUAL_bug433_ai_first_msg_fix.md
+-rw-rw-r--  1 ubuntu ubuntu     6096 May 23 12:13 USER_MANUAL_business_config_unify_v1.md
+-rw-rw-r--  1 ubuntu ubuntu    11858 May 23 12:13 USER_MANUAL.md
+-rw-rw-r--  1 ubuntu ubuntu      987 May 23 12:13 _v31_diag2.py
+-rw-rw-r--  1 ubuntu ubuntu     1496 May 23 12:13 _v31_diag3.py
+-rw-rw-r--  1 ubuntu ubuntu      690 May 23 12:13 _v31_diag4.py
+-rw-rw-r--  1 ubuntu ubuntu     2135 May 23 12:13 _v31_diag.py
+-rw-rw-r--  1 ubuntu ubuntu     2938 May 23 12:13 verify_alipay_save_validation.log
+-rw-rw-r--  1 ubuntu ubuntu     4414 May 23 12:13 verify_alipay_save_validation.py
+-rw-rw-r--  1 ubuntu ubuntu      569 May 23 12:13 verify_and_test.py
+-rw-rw-r--  1 ubuntu ubuntu      691 May 23 12:13 verify_apk_link.py
+-rw-rw-r--  1 ubuntu ubuntu     4199 May 23 12:13 _verify_bug401.log
+-rw-rw-r--  1 ubuntu ubuntu     2454 May 23 12:13 _verify_bug401.py
+-rw-rw-r--  1 ubuntu ubuntu     1484 May 23 12:13 _verify_bug431.py
+-rw-rw-r--  1 ubuntu ubuntu     2254 May 23 12:13 _verify_bug432_fix.py
+-rw-rw-r--  1 ubuntu ubuntu     3449 May 27 00:05 _verify_bugfix_v12.py
+-rw-rw-r--  1 ubuntu ubuntu     2851 May 27 00:05 _verify_emergency_source_v1.log
+-rw-rw-r--  1 ubuntu ubuntu    11099 May 27 00:05 _verify_emergency_source_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     2210 May 23 12:13 _verify_frontend_datetime.js
+-rw-rw-r--  1 ubuntu ubuntu     1629 May 23 12:13 _verify_h5_appt_store_contact.py
+-rw-rw-r--  1 ubuntu ubuntu     1218 May 23 12:13 _verify_login_363.py
+-rw-rw-r--  1 ubuntu ubuntu     1424 May 23 12:13 verify_migration.py
+drwxrwxr-x  4 ubuntu ubuntu     4096 Mar 27 10:38 verify-miniprogram
+-rw-rw-r--  1 ubuntu ubuntu    15646 Apr 14 04:19 verify_miniprogram_20260414_041946_72f6.zip
+-rw-rw-r--  1 ubuntu ubuntu    18531 May  3 19:05 verify_miniprogram_cards_v2_20260503_190523.zip
+-rw-rw-r--  1 ubuntu ubuntu     2404 May 23 12:13 _verify_prd370_chunks.py
+-rw-rw-r--  1 ubuntu ubuntu     2634 May 23 12:13 _verify_prd_aihome_content_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     4687 May 23 12:13 _verify_prd_aihome_content_v2.py
+-rw-rw-r--  1 ubuntu ubuntu     3184 May 23 12:13 _verify_prd_aihome_v1.py
+-rw-rw-r--  1 ubuntu ubuntu     1102 May 23 12:13 _verify_remote_code.py
+-rw-rw-r--  1 ubuntu ubuntu     2946 May 23 12:13 _verify_rsa_in_container.py
+-rw-rw-r--  1 ubuntu ubuntu     3259 May 23 12:13 _verify_timezone_global.py
+-rw-rw-r--  1 ubuntu ubuntu     7048 May 23 12:13 _verify_timezone_global_v3.py
+-rw-rw-r--  1 ubuntu ubuntu    22592 May 17 12:32 _verify_v3_log.txt
+-rw-rw-r--  1 ubuntu ubuntu       32 May  4 11:40 .version_tag.txt
+-rw-rw-r--  1 ubuntu ubuntu     1212 May 23 12:13 wait_build.py
+-rw-rw-r--  1 ubuntu ubuntu      966 May 23 12:13 _warmup_admin.py
+-rw-rw-r--  1 ubuntu ubuntu     1584 May 23 12:13 _zip_and_upload_mp.py
+
+
+==== CMD: cat /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml 2>/dev/null | head -120 
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: bini_health_2026
+      MYSQL_DATABASE: bini_health
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+      TZ: UTC
+    command: --default-time-zone='+00:00'
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - 6b099ed3-7175-4a78-91f4-44570c84ed27-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-backend
+    restart: always
+    environment:
+      DATABASE_URL: mysql+aiomysql://root:bini_health_2026@db:3306/bini_health
+      SECRET_KEY: bini-health-secret-key-2026-very-secure
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_MODEL_NAME: ${AI_MODEL_NAME:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      TENCENT_SMS_SECRET_ID: ${TENCENT_SMS_SECRET_ID:-}
+      TENCENT_SMS_SECRET_KEY: ${TENCENT_SMS_SECRET_KEY:-}
+      TENCENT_SMS_SDK_APP_ID: ${TENCENT_SMS_SDK_APP_ID:-1400920269}
+      TENCENT_SMS_SIGN_NAME: ${TENCENT_SMS_SIGN_NAME:-鍛冨攭甯府缃戠粶}
+      TENCENT_SMS_TEMPLATE_ID: ${TENCENT_SMS_TEMPLATE_ID:-2201340}
+      TENCENT_SMS_APP_KEY: ${TENCENT_SMS_APP_KEY:-7e3c8242bf0799cca367fa18fa47a7ea}
+      # [鏀粯閰嶇疆 PRD v1.0 / Bug 淇] 鏀粯閫氶亾鏁忔劅瀛楁 AES-256-GCM 鍔犲瘑瀵嗛挜锛坆ase64 32 瀛楄妭锛?
+      # 鐢熶骇鐜鍔″繀閫氳繃 .env 瑕嗙洊姝ら粯璁ゅ€硷紝骞跺Ε鍠勪繚绠?
+      PAYMENT_CONFIG_ENCRYPTION_KEY: ${PAYMENT_CONFIG_ENCRYPTION_KEY:-jzsuHsRKWp/Xy01k+8d4R2lNBvb3KQTGJJkxQXRjW2A=}
+      # [鏀粯閰嶇疆 PRD v1.0 / Bug 淇] notify_url 榛樿鍓嶇紑锛堜笉閰嶇疆鍒欑敤 request.base_url锛?
+      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27}
+      # [2026-05-04 H5 鏀粯閾捐矾 BasePath 淇 v1.0]
+      # 鍚庣鍦ㄦ嫾鎺?sandbox 鏀堕摱鍙?pay_url / 鏀粯瀹?return_url 鏃朵娇鐢ㄧ殑 H5 瀹屾暣鍩哄湴鍧€銆?
+      # 蹇呴』涓?H5 瀹瑰櫒鏋勫缓鏃剁殑 NEXT_PUBLIC_BASE_PATH 淇濇寔鍚屼竴鍓嶇紑锛堝煙鍚?+ basePath锛夈€?
+      # 鏈潵鍒囨崲鍒版牴鍩熷悕 / 鐙珛瀛愬煙鍚嶆椂锛屽皢鏈彉閲忔敼涓?https://h5.xxx.com 鍗冲彲锛屼笟鍔￠浂鏀瑰姩銆?
+      PROJECT_BASE_URL: ${PROJECT_BASE_URL:-https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27}
+      # [璁㈠崟鏍搁攢鐮佺姸鎬佷笌鏈敮浠樿秴鏃舵不鐞?v1.0] 鍏ㄥ眬鏀粯瓒呮椂鍒嗛挓鏁帮紙榛樿 15锛?
+      PAYMENT_TIMEOUT_MINUTES: ${PAYMENT_TIMEOUT_MINUTES:-15}
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - 6b099ed3-7175-4a78-91f4-44570c84ed27-network
+
+  admin-web:
+    build:
+      context: ./admin-web
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api
+        - NEXT_PUBLIC_BASE_PATH=/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin
+    container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-admin
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api
+      NEXT_PUBLIC_BASE_PATH: /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - 6b099ed3-7175-4a78-91f4-44570c84ed27-network
+
+  h5-web:
+    build:
+      context: ./h5-web
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api
+        - NEXT_PUBLIC_BASE_PATH=/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27
+    container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api
+      NEXT_PUBLIC_BASE_PATH: /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - 6b099ed3-7175-4a78-91f4-44570c84ed27-network
+
+volumes:
+  mysql_data:
+  uploads_data:
+
+networks:
+  6b099ed3-7175-4a78-91f4-44570c84ed27-network:
+    driver: bridge
+
+
+==== CMD: cat /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/Dockerfile 2>/dev/null | head -60 
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package.json ./
+RUN npm config set registry https://registry.npmmirror.com && npm install --legacy-peer-deps
+COPY . .
+ARG NEXT_PUBLIC_API_URL=""
+ARG NEXT_PUBLIC_BASE_PATH=""
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
+RUN mkdir -p public
+RUN npm run build
+
+FROM node:18-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+EXPOSE 3001
+ENV PORT=3001
+CMD ["node", "server.js"]
+
+
+==== CMD: cat /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/Dockerfile 2>/dev/null | head -60 
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package.json ./
+RUN npm config set registry https://registry.npmmirror.com && npm install --legacy-peer-deps
+COPY . .
+ARG NEXT_PUBLIC_API_URL=""
+ARG NEXT_PUBLIC_BASE_PATH=""
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
+RUN mkdir -p public
+RUN npm run build
+
+FROM node:18-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+EXPOSE 3000
+ENV PORT=3000
+CMD ["node", "server.js"]
+
+
+==== CMD: docker exec gateway sh -c "nginx -T 2>/dev/null | grep -B1 -A3 '6b099ed3-7175-4a78-91f4-44570c84ed27' | head -120" 
+# ===== End Project: 6333c7ee-e664-4874-acb1-75365bd58709 =====
+# configuration file /etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27-toplevel-apk.conf:
+# Direct top-level APK download for project 6b099ed3-7175-4a78-91f4-44570c84ed27
+location ~ ^/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/(app_[A-Za-z0-9_\-]+\.apk)$ {
+    alias /data/static/apk/$1;
+    types {
+        application/vnd.android.package-archive apk;
+--
+
+# configuration file /etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf:
+# ===== Project: 6b099ed3-7175-4a78-91f4-44570c84ed27 =====
+
+# 鍚庣 API锛圔UG 鈶細CSV 瀵煎嚭闇€鍏抽棴缂撳啿锛岄伩鍏嶅ぇ鏂囦欢琚?nginx 缂撳瓨鍛戒腑瓒呮椂锛?
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/ {
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $target_backend 6b099ed3-7175-4a78-91f4-44570c84ed27-backend;
+    rewrite ^/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/(.*) /api/$1 break;
+    proxy_pass http://$target_backend:8000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+--
+# BUG 鈶★細鏂囦欢涓婁紶/涓嬭浇锛堝姞 30 澶╃紦瀛橈紝鍑忓皯鍥炴簮锛?
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/uploads/ {
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $target_backend 6b099ed3-7175-4a78-91f4-44570c84ed27-backend;
+    rewrite ^/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/uploads/(.*) /uploads/$1 break;
+    proxy_pass http://$target_backend:8000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+--
+# 绠＄悊鍚庡彴
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/ {
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $target_admin 6b099ed3-7175-4a78-91f4-44570c84ed27-admin;
+    proxy_pass http://$target_admin:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+--
+# 绠＄悊鍚庡彴 _next 闈欐€佽祫婧?
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/ {
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $target_admin 6b099ed3-7175-4a78-91f4-44570c84ed27-admin;
+    proxy_pass http://$target_admin:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+--
+# 寰俊灏忕▼搴?zip 鍖呬笅杞?
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/ {
+    alias /data/static/miniprogram/;
+    autoindex off;
+    types { application/zip zip; }
+--
+# 瀹夊崜 APK 涓嬭浇
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/ {
+    alias /data/static/apk/;
+    autoindex off;
+    types { application/vnd.android.package-archive apk; }
+--
+# 閫氱敤 downloads 鐩綍锛堟牳閿€灏忕▼搴忋€佸叾浠栧厹搴曚骇鐗╋級
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/downloads/ {
+    alias /data/static/downloads/;
+    autoindex off;
+    add_header Content-Disposition 'attachment';
+--
+# iOS IPA 涓嬭浇锛堝鐢紝涓婚摼璺槸 GitHub Release锛?
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ipa/ {
+    alias /data/static/ipa/;
+    autoindex off;
+    types { application/octet-stream ipa; }
+--
+# 鏍搁攢灏忕▼搴?zip 澶囦唤璺緞
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/verify-miniprogram/ {
+    alias /data/static/verify-miniprogram/;
+    autoindex off;
+    types { application/zip zip; }
+--
+# H5 鐢ㄦ埛绔?
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ {
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $target_h5 6b099ed3-7175-4a78-91f4-44570c84ed27-h5;
+    proxy_pass http://$target_h5:3001;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+--
+# H5 _next 闈欐€佽祫婧?
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/ {
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $target_h5 6b099ed3-7175-4a78-91f4-44570c84ed27-h5;
+    proxy_pass http://$target_h5:3001;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+

@@ -1,0 +1,232 @@
+[deploy_h5_admin_v2] git_sha=e7ca29e56c target=admin
+uploaded deploy_h5_admin_v2.sh -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/deploy_h5_admin_v2.sh
+uploaded rollback_h5_admin_v2.sh -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/rollback_h5_admin_v2.sh
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && bash deploy_h5_admin_v2.sh e7ca29e56c admin
+============================================================
+[deploy_h5_admin_v2] 2026-05-27 00:41:16
+  SERVICE     = admin
+  GIT_SHA     = e7ca29e56c
+  CONTAINER   = 6b099ed3-7175-4a78-91f4-44570c84ed27-admin
+  IMAGE_NEW   = 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:autodev-e7ca29e56c
+  IMAGE_PREV  = 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:autodev-prev
+  CTX         = /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web
+  NETWORK     = 6b099ed3-7175-4a78-91f4-44570c84ed27_6b099ed3-7175-4a78-91f4-44570c84ed27-network
+  HEALTH_URL  = https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/
+============================================================
+[1/6] tag prev image
+    prev image -> 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:autodev-prev tagged as 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:autodev-prev
+[2/6] docker build -> 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:autodev-e7ca29e56c
+    BUILD_ARG: --build-arg NEXT_PUBLIC_BASE_PATH=/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin --build-arg NEXT_PUBLIC_API_URL=/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 653B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/node:18-alpine
+#2 DONE 0.2s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 102B done
+#3 DONE 0.0s
+
+#4 [builder 1/7] FROM docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e
+#4 resolve docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e 0.0s done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 13.96kB 0.1s done
+#5 DONE 0.1s
+
+#6 [builder 2/7] WORKDIR /app
+#6 CACHED
+
+#7 [builder 3/7] COPY package.json ./
+#7 CACHED
+
+#8 [builder 4/7] RUN npm config set registry https://registry.npmmirror.com && npm install --legacy-peer-deps
+#8 CACHED
+
+#9 [builder 5/7] COPY . .
+#9 CACHED
+
+#10 [builder 6/7] RUN mkdir -p public
+#10 DONE 0.3s
+
+#11 [builder 7/7] RUN npm run build
+#11 0.511 
+#11 0.511 > bini-health-admin@1.0.0 build
+#11 0.511 > next build
+#11 0.511 
+#11 1.528 Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#11 1.528 This information is used to shape Next.js' roadmap and prioritize features.
+#11 1.528 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#11 1.528 https://nextjs.org/telemetry
+#11 1.528 
+#11 1.673   鈻?Next.js 14.2.15
+#11 1.673 
+#11 1.807    Creating an optimized production build ...
+#11 91.81  鉁?Compiled successfully
+#11 91.81    Skipping validation of types
+#11 91.81    Linting ...
+#11 92.16    Collecting page data ...
+#11 97.32    Generating static pages (0/101) ...
+#11 103.4    Generating static pages (25/101) 
+
+#11 104.9    Generating static pages (50/101) 
+
+#11 106.5    Generating static pages (75/101) 
+
+#11 109.1  鉁?Generating static pages (101/101)
+#11 109.4    Finalizing page optimization ...
+#11 109.4    Collecting build traces ...
+#11 117.9 
+#11 117.9 Route (app)                                  Size     First Load JS
+#11 117.9 鈹?鈼?/                                        373 B            88 kB
+#11 117.9 鈹?鈼?/_not-found                              880 B          88.5 kB
+#11 117.9 鈹?鈼?/abnormal-thresholds                     11.1 kB         418 kB
+#11 117.9 鈹?鈼?/admin-settlements                       18.8 kB         491 kB
+#11 117.9 鈹?鈼?/ai-call-config                          14.3 kB         457 kB
+#11 117.9 鈹?鈼?/ai-center/disclaimers                   6.81 kB         280 kB
+#11 117.9 鈹?鈼?/ai-center/prompts                       6.67 kB         277 kB
+#11 117.9 鈹?鈼?/ai-center/sensitive-words               6.74 kB         393 kB
+#11 117.9 鈹?鈼?/ai-config                               22.6 kB         430 kB
+#11 117.9 鈹?鈼?/ai-config/chat-timeout                  7.59 kB         301 kB
+#11 117.9 鈹?鈼?/ai-config/video-consult                 10.5 kB         344 kB
+#11 117.9 鈹?鈼?/alert-logs                              6.39 kB         433 kB
+#11 117.9 鈹?鈼?/alert-templates                         11.1 kB         410 kB
+#11 117.9 鈹?鈼?/audit/center                            11.2 kB         404 kB
+#11 117.9 鈹?鈼?/audit/phones                            10.7 kB         397 kB
+#11 117.9 鈹?鈼?/bottom-nav                              12.3 kB         399 kB
+#11 117.9 鈹?鈼?/chat-records                            5.75 kB         414 kB
+#11 117.9 鈹?茠 /chat-records/[id]                       12.3 kB         300 kB
+#11 117.9 鈹?鈼?/checkup-details                         4.99 kB         455 kB
+#11 117.9 鈹?鈼?/city-management                         10.2 kB         384 kB
+#11 117.9 鈹?鈼?/content/articles                        4.99 kB         454 kB
+#11 117.9 鈹?鈼?/content/categories                      10.8 kB         406 kB
+#11 117.9 鈹?鈼?/content/news                            4.93 kB         454 kB
+#11 117.9 鈹?鈼?/cos-config                              22 kB           421 kB
+#11 117.9 鈹?鈼?/customer-service                        10.8 kB         290 kB
+#11 117.9 鈹?鈼?/dashboard                               10.4 kB         380 kB
+#11 117.9 鈹?鈼?/digital-humans                          8.85 kB         406 kB
+#11 117.9 鈹?鈼?/disease-presets                         11.4 kB         406 kB
+#11 117.9 鈹?鈼?/drug-details                            5.79 kB         456 kB
+#11 117.9 鈹?鈼?/email-notify                            15.5 kB         415 kB
+#11 117.9 鈹?鈼?/emergency-sources                       15.9 kB         319 kB
+#11 117.9 鈹?鈼?/experts                                 15.8 kB         402 kB
+#11 117.9 鈹?鈼?/fallback-config                         4.74 kB         391 kB
+#11 117.9 鈹?鈼?/family-management                       27.9 kB         284 kB
+#11 117.9 鈹?鈼?/function-buttons                        26.9 kB         434 kB
+#11 117.9 鈹?鈼?/guardian-relations                      9.38 kB         387 kB
+#11 117.9 鈹?鈼?/health-plan/categories                  9.64 kB         405 kB
+#11 117.9 鈹?鈼?/health-plan/recommended                 12.2 kB         407 kB
+#11 117.9 鈹?茠 /health-plan/recommended/[planId]/tasks  9.59 kB         405 kB
+#11 117.9 鈹?鈼?/health-records                          12.6 kB         400 kB
+#11 117.9 鈹?鈼?/health-records/statistics               10.8 kB         422 kB
+#11 117.9 鈹?鈼?/home-banners                            11.9 kB         436 kB
+#11 117.9 鈹?鈼?/home-settings                           4.7 kB          323 kB
+#11 117.9 鈹?鈼?/home-settings/ai-home-config            23.6 kB         381 kB
+#11 117.9 鈹?鈼?/home-settings/ai-home-config/logs       6.88 kB         422 kB
+#11 117.9 鈹?鈼?/knowledge                               14.5 kB         401 kB
+#11 117.9 鈹?茠 /knowledge/[id]                          13.1 kB         418 kB
+#11 117.9 鈹?鈼?/knowledge/stats                         10.5 kB         386 kB
+#11 117.9 鈹?鈼?/login                                   8.31 kB         288 kB
+#11 117.9 鈹?鈼?/map-config                              14.2 kB         423 kB
+#11 117.9 鈹?鈼?/membership/free-quota                   6.87 kB         302 kB
+#11 117.9 鈹?鈼?/membership/plans                        12.9 kB         415 kB
+#11 117.9 鈹?鈼?/merchant-categories                     8.08 kB         403 kB
+#11 117.9 鈹?鈼?/merchant/accounts                       11.3 kB         417 kB
+#11 117.9 鈹?鈼?/merchant/business-config                16.3 kB         157 kB
+#11 117.9 鈹?鈼?/merchant/stores                         18.8 kB         414 kB
+#11 117.9 鈹?茠 /merchant/stores/[id]/business-config    13.2 kB         443 kB
+#11 117.9 鈹?鈼?/notices                                 9.77 kB         441 kB
+#11 117.9 鈹?鈼?/ocr-config                              17 kB           366 kB
+#11 117.9 鈹?鈼?/ocr-global-config                       14 kB           317 kB
+#11 117.9 鈹?鈼?/payment-config                          17.4 kB         366 kB
+#11 117.9 鈹?鈼?/points/levels                           9.08 kB         404 kB
+#11 117.9 鈹?鈼?/points/mall                             20.7 kB         482 kB
+#11 117.9 鈹?鈼?/points/rules                            10.3 kB         296 kB
+#11 117.9 鈹?鈼?/product-system/appointment-forms        12.2 kB         407 kB
+#11 117.9 鈹?鈼?/product-system/cards                    17.7 kB         413 kB
+#11 117.9 鈹?鈼?/product-system/cards/dashboard          5.04 kB         397 kB
+#11 117.9 鈹?鈼?/product-system/categories               6.22 kB         408 kB
+#11 117.9 鈹?鈼?/product-system/coupons                  36 kB           497 kB
+#11 117.9 鈹?鈼?/product-system/new-user-coupons         14.2 kB         397 kB
+#11 117.9 鈹?鈼?/product-system/orders                   19.8 kB         469 kB
+#11 117.9 鈹?鈼?/product-system/orders/dashboard         16.7 kB         346 kB
+#11 117.9 鈹?鈼?/product-system/partners                 14.6 kB         420 kB
+#11 117.9 鈹?鈼?/product-system/products                 27.6 kB         471 kB
+#11 117.9 鈹?鈼?/product-system/redemptions              7.14 kB         418 kB
+#11 117.9 鈹?鈼?/product-system/statistics               8.87 kB         757 kB
+#11 117.9 鈹?鈼?/product-system/store-bindding           11.9 kB         410 kB
+#11 117.9 鈹?鈼?/product-system/tags                     12.7 kB         411 kB
+#11 117.9 鈹?鈼?/product-system/visits                   10.8 kB         448 kB
+#11 117.9 鈹?鈼?/profile                                 5.07 kB         252 kB
+#11 117.9 鈹?鈼?/profile/change-password                 7.67 kB         287 kB
+#11 117.9 鈹?鈼?/prompt-templates                        14.6 kB         318 kB
+#11 117.9 鈹?鈼?/questionnaire-templates                 15.3 kB         429 kB
+#11 117.9 鈹?鈼?/referral                                7.46 kB         383 kB
+#11 117.9 鈹?鈼?/relation-types                          11.5 kB         406 kB
+#11 117.9 鈹?鈼?/search-config                           12.6 kB         414 kB
+#11 117.9 鈹?鈼?/search/asr-config                       7 kB            297 kB
+#11 117.9 鈹?鈼?/search/block-words                      14.7 kB         401 kB
+#11 117.9 鈹?鈼?/search/recommend                        14.2 kB         409 kB
+#11 117.9 鈹?鈼?/search/statistics                       243 kB         1.09 MB
+#11 117.9 鈹?鈼?/settings                                14.4 kB         369 kB
+#11 117.9 鈹?鈼?/share-config                            4.21 kB         371 kB
+#11 117.9 鈹?鈼?/sms                                     25.1 kB         424 kB
+#11 117.9 鈹?鈼?/system-messages                         11.4 kB         433 kB
+#11 117.9 鈹?鈼?/system-messages/send                    4.93 kB         314 kB
+#11 117.9 鈹?鈼?/system/sdk-health                       17 kB           286 kB
+#11 117.9 鈹?鈼?/system/seed-import                      17.6 kB         408 kB
+#11 117.9 鈹?鈼?/tcm-config                              4.06 kB         284 kB
+#11 117.9 鈹?鈼?/theme-config                            7.6 kB          403 kB
+#11 117.9 鈹?鈼?/tts-config                              5.08 kB         334 kB
+#11 117.9 鈹?鈼?/users                                   17.6 kB         404 kB
+#11 117.9 鈹?鈼?/voice-service                           3.46 kB         346 kB
+#11 117.9 鈹?鈼?/wechat-push                             4.92 kB         291 kB
+#11 117.9 + First Load JS shared by all                87.7 kB
+#11 117.9   鈹?chunks/2117-1ca38137e0e3b541.js          31.9 kB
+#11 117.9   鈹?chunks/fd9d1056-cde8d1c8f42e1127.js      53.6 kB
+#11 117.9   鈹?other shared chunks (total)              2.13 kB
+#11 117.9 
+#11 117.9 
+#11 117.9 鈼? (Static)   prerendered as static content
+#11 117.9 茠  (Dynamic)  server-rendered on demand
+#11 117.9 
+#11 DONE 118.1s
+
+#6 [builder 2/7] WORKDIR /app
+#6 CACHED
+
+#12 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#12 DONE 0.4s
+
+#13 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#13 DONE 0.1s
+
+#14 [runner 5/5] COPY --from=builder /app/public ./public
+#14 DONE 0.1s
+
+#15 exporting to image
+#15 exporting layers
+#15 exporting layers 1.3s done
+#15 exporting manifest sha256:6ab04f096255edcf78c5d915da65f264c735d5eab0da6d124ea0a1c2cdf926fd 0.0s done
+#15 exporting config sha256:69e73601c1819818326a283c257744534d1f6bd401224124fe1a60fec51c0e63 0.0s done
+#15 exporting attestation manifest sha256:23ac039b27e8aa9f93fa8cb60fcddcafb4a80e9ecf5d7224563b6afd2e71d677 0.0s done
+#15 exporting manifest list sha256:024950eb81f5a71746e4a001dd4f15a197266bb2b1e0f35a68d09377820d9ecb 0.0s done
+#15 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:autodev-e7ca29e56c done
+#15 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:autodev-e7ca29e56c
+#15 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:autodev-e7ca29e56c 0.5s done
+#15 DONE 2.0s
+[3/6] stop & rm old container
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin
+[4/6] run new container on network=6b099ed3-7175-4a78-91f4-44570c84ed27_6b099ed3-7175-4a78-91f4-44570c84ed27-network
+36bd0bf02aae28a772a114b1556fbb269b830ac5fbde6978d60d17f4ab5c823c
+[5/6] health check (initial sleep 10s, then max 30 tries * 3s = 90s)
+    鉁?HTTP 200 (try 1/30)
+[6/6] 鉁?deploy SUCCESS: admin -> 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:autodev-e7ca29e56c
+
+鉁?all deploys SUCCESS

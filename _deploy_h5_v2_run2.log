@@ -1,0 +1,120 @@
+[deploy_h5_admin_v2] git_sha=e7ca29e56c target=h5
+uploaded deploy_h5_admin_v2.sh -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/deploy_h5_admin_v2.sh
+uploaded rollback_h5_admin_v2.sh -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/rollback_h5_admin_v2.sh
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && bash deploy_h5_admin_v2.sh e7ca29e56c h5
+============================================================
+[deploy_h5_admin_v2] 2026-05-27 00:27:05
+  SERVICE     = h5
+  GIT_SHA     = e7ca29e56c
+  CONTAINER   = 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+  IMAGE_NEW   = 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-e7ca29e56c
+  IMAGE_PREV  = 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-prev
+  CTX         = /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web
+  NETWORK     = 6b099ed3-7175-4a78-91f4-44570c84ed27-network
+  HEALTH_URL  = https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/i-guard
+============================================================
+[1/6] tag prev image
+    prev image -> 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-prev tagged as 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-prev
+[2/6] docker build -> 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-e7ca29e56c
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 653B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/node:18-alpine
+#2 DONE 0.3s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 102B done
+#3 DONE 0.0s
+
+#4 [builder 1/7] FROM docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e
+#4 resolve docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e 0.0s done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 28.66kB 0.1s done
+#5 DONE 0.1s
+
+#6 [builder 4/7] RUN npm config set registry https://registry.npmmirror.com && npm install --legacy-peer-deps
+#6 CACHED
+
+#7 [builder 7/7] RUN npm run build
+#7 CACHED
+
+#8 [builder 6/7] RUN mkdir -p public
+#8 CACHED
+
+#9 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#9 CACHED
+
+#10 [builder 2/7] WORKDIR /app
+#10 CACHED
+
+#11 [builder 3/7] COPY package.json ./
+#11 CACHED
+
+#12 [builder 5/7] COPY . .
+#12 CACHED
+
+#13 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#13 CACHED
+
+#14 [runner 5/5] COPY --from=builder /app/public ./public
+#14 CACHED
+
+#15 exporting to image
+#15 exporting layers done
+#15 exporting manifest sha256:f3237004008343873317572d5d45e30df7761902745fb38092d865799b4c5518 done
+#15 exporting config sha256:34573e7ecf8874cfce07a5d493e34c4e88ae9b8f1ffbb20518872a4ab3b4ad16 done
+#15 exporting attestation manifest sha256:61c57a3afe08c9522b94ec90ebb725b2a6de1c714b88d22282392a3ba342d5bb 0.0s done
+#15 exporting manifest list sha256:a1899b15421f0c13ed540d9d10102e117a61eb2d2d14508a1aa41cd8bb627fd2 0.0s done
+#15 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-e7ca29e56c done
+#15 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-e7ca29e56c 0.0s done
+#15 DONE 0.1s
+[3/6] stop & rm old container
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+[4/6] run new container on network=6b099ed3-7175-4a78-91f4-44570c84ed27-network
+9f13b0eeeaf77d2f5424719e481670c87bcb2811e75098754ebfba2af7f3d7fc
+[5/6] health check (max 30 tries * 2s = 60s)
+    waiting... HTTP=404000 (try 1/30)
+    waiting... HTTP=404000 (try 2/30)
+    waiting... HTTP=404000 (try 3/30)
+    waiting... HTTP=404000 (try 4/30)
+    waiting... HTTP=404000 (try 5/30)
+    waiting... HTTP=404000 (try 6/30)
+    waiting... HTTP=404000 (try 7/30)
+    waiting... HTTP=404000 (try 8/30)
+    waiting... HTTP=404000 (try 9/30)
+    waiting... HTTP=404000 (try 10/30)
+    waiting... HTTP=404000 (try 11/30)
+    waiting... HTTP=404000 (try 12/30)
+    waiting... HTTP=404000 (try 13/30)
+    waiting... HTTP=404000 (try 14/30)
+    waiting... HTTP=404000 (try 15/30)
+    waiting... HTTP=404000 (try 16/30)
+    waiting... HTTP=404000 (try 17/30)
+    waiting... HTTP=404000 (try 18/30)
+    waiting... HTTP=404000 (try 19/30)
+    waiting... HTTP=404000 (try 20/30)
+    waiting... HTTP=404000 (try 21/30)
+    waiting... HTTP=404000 (try 22/30)
+    waiting... HTTP=404000 (try 23/30)
+    waiting... HTTP=404000 (try 24/30)
+    waiting... HTTP=404000 (try 25/30)
+    waiting... HTTP=404000 (try 26/30)
+    waiting... HTTP=404000 (try 27/30)
+    waiting... HTTP=404000 (try 28/30)
+    waiting... HTTP=404000 (try 29/30)
+    waiting... HTTP=404000 (try 30/30)
+鉂?health check failed after 60s, rolling back to 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-prev
+鈿狅笍  rollback h5 -> 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-prev
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+ddf8e26fb72ce0e7fce6f5fdd44b2f9ce1b6ee6a2d548e360afbe5166b9ba496
+鉁?rolled back to 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:autodev-prev
+
+鉂?deploy h5 FAILED rc=1; rollback should have happened automatically.

@@ -1,0 +1,44 @@
+======================================================================
+PRD 楠屾敹娴嬭瘯  base=https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27  time=2026-05-27 00:45:06
+======================================================================
+
+[ 鑷姩鍖?TC锛? 鏉★級]
+  鉁?[TC-01] 瀹堟姢鍗＄墖 total_count 瀛楁宸插姞鍏?v12 鎺ュ彛: PASS - total_count 鍑虹幇娆℃暟=6锛堣姹?>0锛?
+  鉂?[TC-02] 鏈汉 Tab '鎴戝畧鎶ょ殑浜? 璺宠浆 i-guard: FAIL - 璺敱寮曠敤鏂囦欢: /app/.next/server/app-paths-manifest.json
+/app/.next/server/app/checkup/page_client-reference-manifest.js
+/app/.next/server/app/checkup/result/[id]/page_client-reference-manifest.js
+/app/.next/server/
+  鉁?[TC-03] i-guard 涓嶅啀鍖呭惈銆屼綋楠屽叏鏂般€嶆寜閽? PASS - 浣撻獙鍏ㄦ柊 鍑虹幇 0 娆★紙瑕佹眰 =0锛?
+  鉁?[TC-07] i-guard 杞妯箙 UI 鏂囨宸插氨浣? PASS - 涓诲畧鎶や汉杞 鍑虹幇 4 娆★紙瑕佹眰 >0锛?
+  鉂?[TC-08] v12 transfer/pending|approve|reject|cancel 绔偣鍏ㄩ儴瀛樺湪: FAIL - 4 涓?transfer 绔偣鍑虹幇鎬绘鏁?1锛堣姹?>=4锛?
+  鉁?[TC-09] /health-profile/v13 鈫?404: PASS - 308鈫?04
+  鉁?[TC-10] /guardian-system 鈫?404: PASS - 308鈫?04
+  鉁?[TC-11] admin 瀹堟姢鍏崇郴鏌ヨ鎺ュ彛鍙闂? PASS - HTTP 401锛堣姹?鈭?{200,401,403,422}锛?
+  鉁?[TC-12] 宸插垹闄ょ殑 /api/guardian/list 鈫?404: PASS - HTTP 404锛堣姹?404锛?
+
+[ 閮ㄧ讲鍙揪鎬э紙琛ュ厖锛?]
+  鉁?[TC-IG] i-guard 椤甸潰 HTTP 200: PASS - HTTP 200 鉁?
+  鉁?[TC-AD] admin 棣栭〉 HTTP 200: PASS - HTTP 200 鉁?
+
+[ 鎵嬫祴 TC锛? 鏉★紝闇€鐢ㄦ埛鍦ㄦ祻瑙堝櫒瀹炴搷锛?]
+  馃枑 [TC-04] 闈炴湰浜?Tab 涓嶆覆鏌?鎴戝畧鎶ょ殑浜?鍗＄墖: MANUAL - 闇€鍦ㄦ祻瑙堝櫒鎵嬫祴
+  馃枑 [TC-05] 闈炴湰浜?Tab '瀹堟姢 TA 鐨勪汉'鏃犲啓鎸夐挳: MANUAL - 闇€鍦ㄦ祻瑙堝櫒鎵嬫祴
+  馃枑 [TC-06] 鐐?瀹堟姢 TA 鐨勪汉'鏌愪汉寮瑰嚭 5 瀛楁鍙璇︽儏: MANUAL - 闇€鍦ㄦ祻瑙堝櫒鎵嬫祴
+
+======================================================================
+姹囨€伙細14 鏉★紱閫氳繃 9  澶辫触 2  鎵嬫祴 3
+======================================================================
+  [PASS] TC-01 瀹堟姢鍗＄墖 total_count 瀛楁宸插姞鍏?v12 鎺ュ彛
+  [FAIL] TC-02 鏈汉 Tab '鎴戝畧鎶ょ殑浜? 璺宠浆 i-guard
+  [PASS] TC-03 i-guard 涓嶅啀鍖呭惈銆屼綋楠屽叏鏂般€嶆寜閽?
+  [PASS] TC-07 i-guard 杞妯箙 UI 鏂囨宸插氨浣?
+  [FAIL] TC-08 v12 transfer/pending|approve|reject|cancel 绔偣鍏ㄩ儴瀛樺湪
+  [PASS] TC-09 /health-profile/v13 鈫?404
+  [PASS] TC-10 /guardian-system 鈫?404
+  [PASS] TC-11 admin 瀹堟姢鍏崇郴鏌ヨ鎺ュ彛鍙闂?
+  [PASS] TC-12 宸插垹闄ょ殑 /api/guardian/list 鈫?404
+  [PASS] TC-IG i-guard 椤甸潰 HTTP 200
+  [PASS] TC-AD admin 棣栭〉 HTTP 200
+  [MANUAL] TC-04 闈炴湰浜?Tab 涓嶆覆鏌?鎴戝畧鎶ょ殑浜?鍗＄墖
+  [MANUAL] TC-05 闈炴湰浜?Tab '瀹堟姢 TA 鐨勪汉'鏃犲啓鎸夐挳
+  [MANUAL] TC-06 鐐?瀹堟姢 TA 鐨勪汉'鏌愪汉寮瑰嚭 5 瀛楁鍙璇︽儏

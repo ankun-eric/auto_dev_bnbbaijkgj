@@ -1,0 +1,153 @@
+
+==== CMD: docker exec gateway cat /etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf
+# ===== Project: 6b099ed3-7175-4a78-91f4-44570c84ed27 =====
+
+# 鍚庣 API锛圔UG 鈶細CSV 瀵煎嚭闇€鍏抽棴缂撳啿锛岄伩鍏嶅ぇ鏂囦欢琚?nginx 缂撳瓨鍛戒腑瓒呮椂锛?
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/ {
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $target_backend 6b099ed3-7175-4a78-91f4-44570c84ed27-backend;
+    rewrite ^/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/(.*) /api/$1 break;
+    proxy_pass http://$target_backend:8000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
+    proxy_buffering off;
+    proxy_request_buffering off;
+}
+
+# BUG 鈶★細鏂囦欢涓婁紶/涓嬭浇锛堝姞 30 澶╃紦瀛橈紝鍑忓皯鍥炴簮锛?
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/uploads/ {
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $target_backend 6b099ed3-7175-4a78-91f4-44570c84ed27-backend;
+    rewrite ^/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/uploads/(.*) /uploads/$1 break;
+    proxy_pass http://$target_backend:8000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    expires 30d;
+    add_header Cache-Control "public" always;
+}
+
+# 绠＄悊鍚庡彴
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/ {
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $target_admin 6b099ed3-7175-4a78-91f4-44570c84ed27-admin;
+    proxy_pass http://$target_admin:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_cache_bypass $http_upgrade;
+}
+
+# 绠＄悊鍚庡彴 _next 闈欐€佽祫婧?
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/_next/ {
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $target_admin 6b099ed3-7175-4a78-91f4-44570c84ed27-admin;
+    proxy_pass http://$target_admin:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_cache_bypass $http_upgrade;
+}
+
+
+# ========= 闈欐€佷骇鐗╀笅杞斤紙PRD-03 閲嶆柊浜や粯琛ュ叏锛?=========
+# 寰俊灏忕▼搴?zip 鍖呬笅杞?
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/ {
+    alias /data/static/miniprogram/;
+    autoindex off;
+    types { application/zip zip; }
+    add_header Content-Disposition 'attachment';
+    add_header Cache-Control "public, max-age=86400" always;
+}
+
+# 瀹夊崜 APK 涓嬭浇
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/apk/ {
+    alias /data/static/apk/;
+    autoindex off;
+    types { application/vnd.android.package-archive apk; }
+    add_header Content-Disposition 'attachment';
+    add_header Cache-Control "public, max-age=86400" always;
+}
+
+# 閫氱敤 downloads 鐩綍锛堟牳閿€灏忕▼搴忋€佸叾浠栧厹搴曚骇鐗╋級
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/downloads/ {
+    alias /data/static/downloads/;
+    autoindex off;
+    add_header Content-Disposition 'attachment';
+    add_header Cache-Control "public, max-age=86400" always;
+}
+
+# iOS IPA 涓嬭浇锛堝鐢紝涓婚摼璺槸 GitHub Release锛?
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ipa/ {
+    alias /data/static/ipa/;
+    autoindex off;
+    types { application/octet-stream ipa; }
+    add_header Content-Disposition 'attachment';
+    add_header Cache-Control "public, max-age=86400" always;
+}
+
+# 鏍搁攢灏忕▼搴?zip 澶囦唤璺緞
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/verify-miniprogram/ {
+    alias /data/static/verify-miniprogram/;
+    autoindex off;
+    types { application/zip zip; }
+    add_header Content-Disposition 'attachment';
+    add_header Cache-Control "public, max-age=86400" always;
+}
+# ========= /闈欐€佷骇鐗╀笅杞斤紙PRD-03 閲嶆柊浜や粯琛ュ叏锛?=========
+
+# H5 鐢ㄦ埛绔?
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ {
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $target_h5 6b099ed3-7175-4a78-91f4-44570c84ed27-h5;
+    proxy_pass http://$target_h5:3001;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_cache_bypass $http_upgrade;
+}
+
+# H5 _next 闈欐€佽祫婧?
+location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/_next/ {
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $target_h5 6b099ed3-7175-4a78-91f4-44570c84ed27-h5;
+    proxy_pass http://$target_h5:3001;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_cache_bypass $http_upgrade;
+}
+
+
+==== CMD: docker network inspect gateway-network --format '{{range .Containers}}{{.Name}}\n{{end}}'
+911e7350-7584-4898-bb92-ac568a699575-frontend\nb04670f8-ef50-4fcc-92b5-e25f73121b54-backend\nb04670f8-ef50-4fcc-92b5-e25f73121b54-frontend\n53a8e6ba-479a-48cd-aa4d-00e5d61fec52-frontend\ned7f67c4-b4f4-4e66-9d43-010316c4069e-frontend\ned7f67c4-b4f4-4e66-9d43-010316c4069e-backend\ndeploy_test-db\n8946923e-5887-4d14-a54f-2cb39819c8f2-backend\n911e7350-7584-4898-bb92-ac568a699575-backend\ngateway\n0a31a546-d493-4b60-bbb1-a5f8f7686924-mysql\ndeploy_test-app\n0a31a546-d493-4b60-bbb1-a5f8f7686924-frontend\n20d0760a-5230-4867-a343-a91a95e05d50-backend\n8946923e-5887-4d14-a54f-2cb39819c8f2-frontend\n20d0760a-5230-4867-a343-a91a95e05d50-frontend\n0a31a546-d493-4b60-bbb1-a5f8f7686924-backend\n
+
+
+==== CMD: docker network inspect 6b099ed3-7175-4a78-91f4-44570c84ed27-network --format '{{range .Containers}}{{.Name}}\n{{end}}'
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5\n6b099ed3-7175-4a78-91f4-44570c84ed27-db\n6b099ed3-7175-4a78-91f4-44570c84ed27-backend\ngateway\n
+
+
+==== CMD: docker inspect gateway --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}'
+0451a430-e3c8-49e2-b627-329938d2313d-network 1f2b22da-528e-4e13-acee-6511a7b5b172-network 2c2b48f8-c6fa-4411-b719-8d910baf4f9a-network 309c268a-80c8-431f-9747-e2c53ada724f-network 4ad2bc0a-9c36-4b60-9c81-69e945e53cc4-network 5fa64f53-c6e8-443c-9a5c-611e554ddde1-network 6b099ed3-7175-4a78-91f4-44570c84ed27-network 6b099ed3-7175-4a78-91f4-44570c84ed27_6b099ed3-7175-4a78-91f4-44570c84ed27-network 745ea1f0-7b9d-449c-bd36-a2e4a2599d06-network 85048269-7f40-4ae8-88e2-0f3ce1ce19d1-network 911e7350-7584-4898-bb92-ac568a699575-network 9782217d-bbe9-45df-b57b-6f1db576316c-network a46094c5-4cff-434b-a815-3e73fc6d39a6-network bridge c57cd78e-baf2-4648-be33-611be54734d9-network dce395b9-f2ce-4853-8c63-a7ccdfe5793a-network gateway-network noob_test_a46094c5-4cff-434b-a815-3e73fc6d39a6-network 
+
+
+==== CMD: ls /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.prod.yml 2>/dev/null
+/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.prod.yml
+/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml
+
+
+==== CMD: ls /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/deploy/ 2>/dev/null | grep -iE 'compose|deploy_msg' | head -10
+_bugfix_compose_cat.sh
+
