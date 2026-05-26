@@ -27,7 +27,44 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: 会员中心入口与权益对比 Bug 修复 v1.0（2026-05-26）
+## Latest Update: 守护人体系 v1.3 健康档案融合优化（2026-05-26）
+
+### 一句话结论
+按《PRD：守护人体系 v1.3 — 健康档案融合优化》落地：(1) 后端新增 `backend/app/api/guardian_system_v13.py`（独立 v1.3 路由 `/api/guardian/v13/*`），实现极简两态 Tab 视图 + 邀请生命周期解耦（never_invited/inviting/accepted/rejected/unbound/expired）+ 主代付统一扣费（先本人→后主代付，默认 ON）+ 4 不可删校验；(2) 6 个新接口：`GET /family/list`（含 tab_active_count/tab_pending_count/max_guardians/can_invite_count）、`GET /family/invite-history`（被守护人单向记录）、`POST /family/proxy-pay/toggle`、`GET /family/proxy-pay/detail`、`POST /family/invite/cancel`、`POST /family/remove`；(3) `backend/app/main.py` 注册 `_guardian_v13.router`；(4) 内部工具函数 `deduct_quota_with_proxy_pay(db, managed_user_id, call_type)` 统一扣费逻辑供其他模块复用（先本人→主代付→失败 4 种情况）；(5) H5 新增 `/health-profile/v13` 页面（极简两态 Tab、子状态卡片、金色主徽章、4 不可删校验直接不出现按钮、代付明细弹窗、邀请记录弹窗、温馨提示上限弹窗），旧版 `/health-profile/i-guard` 顶部添加橙色横幅引导跳转；(6) 后端 `backend/tests/test_guardian_system_v13.py` 7 项核心测试用例；(7) 部署后 8/8 HTTP 烟雾测试全部通过（含 401/403 权限校验、cancelled 邀请 lifecycle 状态流转）；(8) 仅后端 + H5 改动，小程序与 Flutter 端 v1.3 不在本期范围。
+
+### 核心变更
+- 后端新建：`backend/app/api/guardian_system_v13.py`（710+ 行，含 v1.3 全部 API + `deduct_quota_with_proxy_pay` 统一扣费工具）
+- 后端：`backend/app/main.py`（注册 guardian_v13 路由）
+- 后端测试：`backend/tests/test_guardian_system_v13.py`（7 项测试）
+- H5 新建：`h5-web/src/app/health-profile/v13/page.tsx`（530+ 行，含 v1.3 全部 UI 与交互）
+- H5：`h5-web/src/app/health-profile/i-guard/page.tsx`（顶部新增 v1.3 入口横幅）
+- 部署脚本：`_deploy_guardian_v13.py`、`_smoke_guardian_v13.py`
+
+### 关键决策
+- **未新建 invite_lifecycle DB 字段**：通过组合 `FamilyManagement.status` + `FamilyInvitation.status` + 过期时间动态推导生命周期，避免破坏性 schema 变更
+- **代付开关默认 ON**：`_is_proxy_pay_enabled` 在无 `GuardianProxyPay` 记录时返回 `True`
+- **4 不可删校验在后端 + 前端双重把关**：返回 `can_remove` 字段，前端按钮直接不显示（非灰显）
+- **孤儿档案直接扣主**：`deduct_quota_with_proxy_pay` 在 `managed_user_id` 找不到 User 时直接扣主守护人额度
+- **v1.3 与 v1.2 并存**：v1.3 是 `/api/guardian/v13/*` 全新路由前缀，v1.2 接口完全不变
+
+### v1.3 接口清单
+| 接口 | 用途 | 权限 |
+|------|------|------|
+| `GET /api/guardian/v13/family/list` | 我守护的人列表（含两 Tab 计数 + lifecycle）| 登录 |
+| `GET /api/guardian/v13/family/invite-history` | 邀请记录（单向）| 登录 |
+| `POST /api/guardian/v13/family/proxy-pay/toggle` | 切换代付开关 | 仅主守护人 |
+| `GET /api/guardian/v13/family/proxy-pay/detail` | 代付明细 | 仅主守护人 |
+| `POST /api/guardian/v13/family/invite/cancel` | 取消邀请 | 邀请发起人 |
+| `POST /api/guardian/v13/family/remove` | 移除卡片（4 不可删）| 登录 |
+
+### 部署后访问入口
+- v1.3 H5 页面：`/health-profile/v13` → 200
+- v1.3 API：`/api/guardian/v13/family/list` → 200（带 token） / 401（无 token）
+- v1.3 权限：`/api/guardian/v13/family/proxy-pay/toggle` 非主守护人 → 403
+
+---
+
+## Previous Update: 会员中心入口与权益对比 Bug 修复 v1.0（2026-05-26）
 
 ### 一句话结论
 按《Bug 修复方案 · 会员中心入口与权益对比 v1.0》落地：(1) H5 顶部「⋯」更多菜单首项「👑 会员中心」加金色文字 + 「新」角标（30 天）；(2) H5 左侧抽屉将「我的设备」快捷入口卡片**替换**为金色「👑 会员中心」入口，跳 `/member-center`；(3) H5 会员中心新增独立「权益对比」组件 `BenefitsCompareTable`（套餐区下方、底部入口区上方），3 行（守护人 / AI 外呼 / 紧急呼叫）× N 列（普通 + 后台所有启用付费套餐），列头颜色按 price_rank 自动渐变（紫→橙黄→橙红→深红），「-1」展示「不限」，窄屏 overflow-x:auto 横向滚动；(4) 微信小程序 AI 主页 (`pages/ai/index.*`) 新增右上角「⋯」更多菜单（4 项），新增 `pages/member-center/index.*` 使用 `web-view` 加载 H5 会员中心（token 透传），`app.json` 注册新路由；(5) Flutter App AI 主页右上角 IconButton 升级为 `PopupMenuButton`（4 项），新增 `screens/member/member_center_webview.dart` 用 `webview_flutter` 加载 H5 会员中心，`pubspec.yaml` 新增 `webview_flutter: ^4.7.0`，`main.dart` 注册 `/member-center` 路由；(6) 后端 0 改动，仅在 `test_member_center_v2.py` 新增一条测试验证 `/api/member/center` 返回的 plans 数组按 sort_order 排序、ranks 字段完整、关键字段（max_managed/ai_outbound_call_count/emergency_ai_call_count）齐备；(7) 部署后 backend pytest 9/9 全绿，H5 build 产物含 `mc-benefits-compare` / `ai-home-more-menu-item` / `bh-entry-member-center` 三处关键字符串；(8) 多端打包成功并上传：小程序 zip + 安卓 APK + iOS IPA。

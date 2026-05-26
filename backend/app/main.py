@@ -2084,6 +2084,9 @@ app.include_router(_guardian_system.router)
 from app.api import guardian_system_v12 as _guardian_v12  # noqa: E402
 app.include_router(_guardian_v12.router)
 app.include_router(_guardian_v12.admin_router)
+# [守护人体系 PRD v1.3 2026-05-26] 健康档案融合优化：守护中/待守护两态 Tab + invite_lifecycle + 主代付统一扣费
+from app.api import guardian_system_v13 as _guardian_v13  # noqa: E402
+app.include_router(_guardian_v13.router)
 # [PRD-REVERSE-GUARDIAN-V1] 反向守护邀请
 from app.api import reverse_guardian as _reverse_guardian  # noqa: E402
 app.include_router(_reverse_guardian.router)

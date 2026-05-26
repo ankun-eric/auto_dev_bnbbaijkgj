@@ -229,6 +229,28 @@ export default function IGuardPage() {
     <div style={{ background: PAGE_BG, minHeight: '100vh', paddingBottom: 32 }}>
       <GreenNavBar>我守护的人</GreenNavBar>
 
+      {/* [PRD-GUARDIAN-V1.3 2026-05-26] 入口：守护中/待守护两态新版 */}
+      <div
+        onClick={() => router.push('/health-profile/v13')}
+        style={{
+          margin: '8px 16px',
+          padding: '10px 14px',
+          background: 'linear-gradient(135deg, #FFB800 0%, #FF8800 100%)',
+          color: '#fff',
+          borderRadius: 12,
+          fontSize: 13,
+          fontWeight: 600,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          cursor: 'pointer',
+          boxShadow: '0 4px 12px rgba(255, 184, 0, 0.3)',
+        }}
+      >
+        <span>✨ 体验全新「守护中 / 待守护」两态视图</span>
+        <span>→</span>
+      </div>
+
       <div style={{ padding: '12px 16px' }}>
         {/* 本人行 */}
         <div style={{
