@@ -229,8 +229,12 @@ function HealthProfileV2PageInner() {
   const [medHero, setMedHero] = useState<{ display_text: string; status: string; remaining_today: number; next_medication_text?: string | null } | null>(null);
   const [medSummary, setMedSummary] = useState<Array<{ id: number; name: string; dosage: string; frequency_text: string; timing_text: string; status_text: string }>>([]);
   const [guardedFlags, setGuardedFlags] = useState<Map<number, { guarded: boolean; managed_user_id: number | null }>>(new Map());
-  const [guardianSummary, setGuardianSummary] = useState<{ managed_count: number }>({ managed_count: 0 });
+  // [健康档案优化 PRD v1.0 §3.1] managed_count 改为统计「所有 status」，与 v12/i-guard.total_count 对齐
+  const [guardianSummary, setGuardianSummary] = useState<{ managed_count: number; active_count: number }>({ managed_count: 0, active_count: 0 });
   const [reverseGuardianCount, setReverseGuardianCount] = useState<number>(0);
+  // [健康档案优化 PRD v1.0 §3.4] 非本人 Tab「守护 TA 的人」只读详情弹窗
+  const [guardianReadonlyList, setGuardianReadonlyList] = useState<any[]>([]);
+  const [guardianReadonlyDetail, setGuardianReadonlyDetail] = useState<any | null>(null);
   const [todayDataUpdatedAt, setTodayDataUpdatedAt] = useState<string>('');
   const searchParams = useSearchParams();
 
@@ -370,12 +374,22 @@ function HealthProfileV2PageInner() {
   }, []);
 
   const fetchGuardianSummary = useCallback(async () => {
+    // [健康档案优化 PRD v1.0 §3.1] 直接从 v12/i-guard 取 total_count（所有 status）
     try {
-      const res: any = await api.get('/api/health-archive/guardian/summary');
+      const res: any = await api.get('/api/guardian/v12/i-guard');
       const data = res.data || res;
-      setGuardianSummary({ managed_count: data.managed_count || 0 });
+      const total = Number(data.total_count ?? data.total ?? 0);
+      const active = Number(data.active_count ?? 0);
+      setGuardianSummary({ managed_count: total, active_count: active });
     } catch {
-      setGuardianSummary({ managed_count: 0 });
+      // 兼容：v12 接口异常时回退老接口
+      try {
+        const res2: any = await api.get('/api/health-archive/guardian/summary');
+        const data2 = res2.data || res2;
+        setGuardianSummary({ managed_count: data2.managed_count || 0, active_count: data2.managed_count || 0 });
+      } catch {
+        setGuardianSummary({ managed_count: 0, active_count: 0 });
+      }
     }
   }, []);
 
@@ -954,55 +968,188 @@ function HealthProfileV2PageInner() {
   };
 
   // ─── F9: Guardian dual cards (我守护的人 + 守护我的人) ──────────
-  // [Bug 修复 v1.2 §11.2] "我守护的人" 双卡片整块改为可点击区域，跳转至 /health-profile/i-guard
-  // 旧逻辑跳到 /family（家庭页），不符合 PRD §11.1 健康档案融合后的入口规范
+  // [健康档案优化 PRD v1.0 2026-05-26 §3.2~3.4]
+  // - 「我守护的人」仅在本人 Tab 显示，直达 /health-profile/i-guard，统计 total_count
+  // - 「守护我的人」在本人 Tab 显示；非本人 Tab 改名为「守护 TA 的人」并切换为只读视图
 
-  const renderDualCards = () => (
-    <div style={{ padding: '0 16px 12px', display: 'flex', gap: 10 }}>
-      <div
-        data-testid='health-profile-i-guard-entry'
-        onClick={() => router.push('/health-profile/i-guard')}
-        style={{
-          flex: 1, background: '#fff', borderRadius: 12, padding: '14px 14px',
-          display: 'flex', alignItems: 'center', gap: 10,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.04)', cursor: 'pointer',
-          transition: 'all 0.2s ease',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(24, 144, 255, 0.12)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)';
-        }}
-      >
-        <div style={{ width: 40, height: 40, borderRadius: 10, background: '#E3F2FD', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <span style={{ fontSize: 20 }}>👨‍👩‍👧</span>
+  const openTaGuardianReadonly = async () => {
+    if (!selectedMember || selectedMember.is_self) return;
+    setGuardianReadonlyDetail(null);
+    setGuardianReadonlyList([]);
+    try {
+      // 取目标用户 ID
+      const flag = guardedFlags.get(selectedMember.id);
+      const managedUid = flag?.managed_user_id;
+      if (!managedUid) {
+        setGuardianReadonlyList([]);
+        return;
+      }
+      const res: any = await api.get(`/api/guardian/v12/managed/${managedUid}/all-guardians`);
+      const data = res.data || res;
+      setGuardianReadonlyList(Array.isArray(data.items) ? data.items : []);
+    } catch {
+      setGuardianReadonlyList([]);
+    }
+  };
+
+  const renderDualCards = () => {
+    const isSelfTab = !!selectedMember?.is_self;
+    const otherSideTitle = isSelfTab ? '守护我的人' : '守护 TA 的人';
+    return (
+      <div style={{ padding: '0 16px 12px', display: 'flex', gap: 10 }}>
+        {/* 「我守护的人」仅本人 Tab 显示 */}
+        {isSelfTab && (
+          <div
+            data-testid='health-profile-i-guard-entry'
+            onClick={() => router.push('/health-profile/i-guard')}
+            style={{
+              flex: 1, background: '#fff', borderRadius: 12, padding: '14px 14px',
+              display: 'flex', alignItems: 'center', gap: 10,
+              boxShadow: '0 1px 4px rgba(0,0,0,0.04)', cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(24, 144, 255, 0.12)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)';
+            }}
+          >
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#E3F2FD', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: 20 }}>👨‍👩‍👧</span>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>我守护的人</div>
+              <div data-testid='i-guard-total-count' style={{ fontSize: 12, color: '#6B7280' }}>{guardianSummary.managed_count}人</div>
+            </div>
+            <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>
+          </div>
+        )}
+        {/* 「守护我的人」/「守护 TA 的人」 */}
+        <div
+          data-testid={isSelfTab ? 'my-guardians-entry' : 'ta-guardians-entry'}
+          onClick={() => {
+            if (isSelfTab) router.push('/health-profile/my-guardians');
+            else openTaGuardianReadonly();
+          }}
+          style={{
+            flex: 1, background: '#fff', borderRadius: 12, padding: '14px 14px',
+            display: 'flex', alignItems: 'center', gap: 10,
+            boxShadow: '0 1px 4px rgba(0,0,0,0.04)', cursor: 'pointer',
+          }}
+        >
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: '#E8F5E9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <span style={{ fontSize: 20 }}>💚</span>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>{otherSideTitle}</div>
+            <div style={{ fontSize: 12, color: '#6B7280' }}>{isSelfTab ? reverseGuardianCount : (guardianReadonlyList.length || '查看')}{isSelfTab ? '人' : ''}</div>
+          </div>
+          <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>我守护的人</div>
-          <div style={{ fontSize: 12, color: '#6B7280' }}>{guardianSummary.managed_count || overview.family_member_count}人</div>
-        </div>
-        <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>
       </div>
+    );
+  };
+
+  // [健康档案优化 PRD v1.0 §3.4] 「守护 TA 的人」只读详情弹窗（5 字段：头像 / 姓名 / 关系 / 主守护人 / 加入时间）
+  const renderTaGuardianReadonlyDrawer = () => {
+    if (selectedMember?.is_self) return null;
+    const list = guardianReadonlyList;
+    const showList = list.length > 0 || guardianReadonlyDetail !== null;
+    if (!showList) return null;
+    const fmt = (s?: string) => {
+      if (!s) return '—';
+      try { return new Date(s).toISOString().slice(0, 10); } catch { return s; }
+    };
+    return (
       <div
-        onClick={() => router.push('/health-profile/my-guardians')}
         style={{
-          flex: 1, background: '#fff', borderRadius: 12, padding: '14px 14px',
-          display: 'flex', alignItems: 'center', gap: 10,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.04)', cursor: 'pointer',
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9999,
+          display: 'flex', alignItems: 'flex-end',
         }}
+        onClick={() => { setGuardianReadonlyList([]); setGuardianReadonlyDetail(null); }}
+        data-testid='ta-guardians-drawer'
       >
-        <div style={{ width: 40, height: 40, borderRadius: 10, background: '#E8F5E9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <span style={{ fontSize: 20 }}>💚</span>
+        <div
+          style={{
+            background: '#fff', width: '100%', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+            padding: '16px 16px 32px', maxHeight: '85vh', overflow: 'auto',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>
+            守护 TA 的人 - {selectedMember?.nickname || '家人'}
+          </div>
+          <div style={{ fontSize: 12, color: '#8C8C8C', marginBottom: 12 }}>仅可查看，不可操作</div>
+          {!guardianReadonlyDetail && list.length === 0 && (
+            <div style={{ padding: 24, textAlign: 'center', color: '#8C8C8C' }}>暂无守护人</div>
+          )}
+          {!guardianReadonlyDetail && list.map((g) => (
+            <div
+              key={g.management_id}
+              data-testid='ta-guardian-item'
+              onClick={() => setGuardianReadonlyDetail(g)}
+              style={{
+                padding: 12, border: '1px solid #f0f0f0', borderRadius: 12, marginBottom: 8,
+                display: 'flex', alignItems: 'center', cursor: 'pointer',
+              }}
+            >
+              <div style={{
+                width: 44, height: 44, borderRadius: '50%', marginRight: 12,
+                background: '#E3F2FD', color: '#1890FF',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 18, fontWeight: 700,
+              }}>{(g.manager_nickname || '?').charAt(0)}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontWeight: 600 }}>{g.manager_nickname || '—'}</span>
+                  {g.is_primary_guardian && (
+                    <span style={{ background: '#FFB800', color: '#fff', borderRadius: 6, padding: '2px 6px', fontSize: 11, fontWeight: 600 }}>👑 主守护人</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: '#8C8C8C', marginTop: 4 }}>
+                  关系：{g.relation_label || '亲友'} · 加入 {fmt(g.created_at)}
+                </div>
+              </div>
+              <span style={{ color: '#9CA3AF' }}>›</span>
+            </div>
+          ))}
+          {guardianReadonlyDetail && (
+            <div data-testid='ta-guardian-detail' style={{ padding: 12, border: '1px solid #f0f0f0', borderRadius: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+                <div style={{
+                  width: 64, height: 64, borderRadius: '50%', marginRight: 14,
+                  background: '#E3F2FD', color: '#1890FF',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 28, fontWeight: 700,
+                }}>{(guardianReadonlyDetail.manager_nickname || '?').charAt(0)}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>
+                    {guardianReadonlyDetail.manager_nickname || '—'}
+                    {guardianReadonlyDetail.is_primary_guardian && (
+                      <span style={{ marginLeft: 8, background: '#FFB800', color: '#fff', borderRadius: 6, padding: '2px 6px', fontSize: 12, fontWeight: 600 }}>👑 主守护人</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 13, color: '#6B7280' }}>关系：{guardianReadonlyDetail.relation_label || '亲友'}</div>
+                  <div style={{ fontSize: 13, color: '#6B7280' }}>加入：{fmt(guardianReadonlyDetail.created_at)}</div>
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: '#8C8C8C' }}>该信息仅供查看，您无权对此守护关系进行修改。</div>
+              <div style={{ marginTop: 12, textAlign: 'right' }}>
+                <button
+                  onClick={() => setGuardianReadonlyDetail(null)}
+                  style={{
+                    background: '#fff', border: '1px solid #d9d9d9', padding: '6px 16px',
+                    borderRadius: 16, cursor: 'pointer', fontSize: 13,
+                  }}
+                >返回列表</button>
+              </div>
+            </div>
+          )}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>守护我的人</div>
-          <div style={{ fontSize: 12, color: '#6B7280' }}>{reverseGuardianCount}人</div>
-        </div>
-        <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderDevicesEntry = () => (
     <div style={{ padding: '0 16px 12px' }}>
@@ -1844,6 +1991,7 @@ function HealthProfileV2PageInner() {
       {renderFamilyFormModal()}
       {renderSurgeryFormModal()}
       {renderRecordDrawer()}
+      {renderTaGuardianReadonlyDrawer()}
     </div>
   );
 }

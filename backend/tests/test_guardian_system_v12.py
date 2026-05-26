@@ -228,8 +228,11 @@ async def test_v12_owner_direct_adjust_set_primary(client: AsyncClient):
     assert r.status_code == 200, r.text
     assert r.json()["action"] == "set_primary"
 
-    # 验证：弟弟现在是主
-    r = await client.get("/api/guardian/list", headers=h_owner)
+    # 验证：弟弟现在是主（用 v12 抽屉接口校验）
+    async with test_session() as s:
+        mama = (await s.execute(select(User).where(User.phone == "13830000001"))).scalar_one()
+        mama_uid = mama.id
+    r = await client.get(f"/api/guardian/v12/managed/{mama_uid}/all-guardians", headers=h_owner)
     items = r.json()["items"]
     primary = next(i for i in items if i["is_primary_guardian"])
     assert primary["manager_nickname"] == "弟弟"
@@ -252,8 +255,11 @@ async def test_v12_owner_direct_adjust_remove(client: AsyncClient):
         headers=h_owner,
     )
     assert r.status_code == 200
-    # 验证：剩 1 个守护人
-    r = await client.get("/api/guardian/list", headers=h_owner)
+    # 验证：剩 1 个守护人（用 v12 抽屉接口校验）
+    async with test_session() as s:
+        mama = (await s.execute(select(User).where(User.phone == "13830100001"))).scalar_one()
+        mama_uid = mama.id
+    r = await client.get(f"/api/guardian/v12/managed/{mama_uid}/all-guardians", headers=h_owner)
     assert r.json()["total"] == 1
 
 
@@ -330,7 +336,8 @@ async def test_v12_ai_call_quota_and_emergency_quota_for_free_user(client: Async
         if not q:
             q = FreeMemberQuota(id=1)
             s.add(q)
-        q.ai_remind_quota = 10
+        # [PRD v1.0 终稿对齐 2026-05-26] 改用新字段 ai_outbound_call_count
+        q.ai_outbound_call_count = 10
         q.emergency_ai_call_count = 3
         q.max_managed = 5
         await s.commit()
@@ -513,18 +520,16 @@ async def test_v12_membership_plan_has_max_managed_field(client: AsyncClient):
     await _make_user("13891100001", "admin2", role=UserRole.admin)
     h_admin = await _admin_headers(client, "13891100001")
 
-    # 创建一个套餐
+    # 创建一个套餐 [PRD v1.0 终稿对齐 2026-05-26]
     r = await client.post(
         "/api/admin/membership/plans",
         json={
-            "plan_code": "test_v12_plan",
             "name": "测试 v1.2 套餐",
-            "price_monthly": 10,
-            "ai_remind_quota": 100,
+            "price_month": 10,
+            "ai_outbound_call_count": 100,
             "emergency_ai_call_count": 50,
-            "max_guardians": 10,
+            "max_managed_by": 10,
             "max_managed": 20,
-            "point_multiplier": 2.0,
             "discount_rate": 0.9,
         },
         headers=h_admin,
@@ -533,7 +538,6 @@ async def test_v12_membership_plan_has_max_managed_field(client: AsyncClient):
     p = r.json()
     assert p["max_managed"] == 20
     assert p["emergency_ai_call_count"] == 50
-    assert p["point_multiplier"] == 2.0
 
 
 # ─────────── T12: 代付开启后被守护人查询提醒抽屉看到代付人 ───────────
@@ -794,3 +798,191 @@ async def test_emergency_source_builtin_seed_text_correct(client: AsyncClient):
             f"source_name 中无 CJK 字符（可能乱码）：{rec['source_name']}"
         assert rec["is_builtin"] is True
         assert rec["is_enabled"] is True
+
+
+# ───────────────────────────────────────────────────────────
+# [健康档案优化 PRD v1.0 2026-05-26] 新增测试：
+# - i-guard total_count 统计所有 status
+# - 转让待确认列表 / 拒绝 / 取消
+# ───────────────────────────────────────────────────────────
+
+
+async def _make_management_with_status(
+    manager_phone: str,
+    managed_phone: str,
+    status: str,
+    is_primary: bool = False,
+) -> int:
+    """构造指定 status 的守护关系（用于 total_count 测试）"""
+    async with test_session() as s:
+        manager = (await s.execute(select(User).where(User.phone == manager_phone))).scalar_one()
+        managed = (await s.execute(select(User).where(User.phone == managed_phone))).scalar_one()
+        m = FamilyMember(
+            user_id=managed.id,
+            nickname=managed.nickname or "本人",
+            relationship_type="本人",
+            is_self=True,
+            member_user_id=managed.id,
+        )
+        s.add(m)
+        await s.flush()
+        mgmt = FamilyManagement(
+            manager_user_id=manager.id,
+            managed_user_id=managed.id,
+            managed_member_id=m.id,
+            status=status,
+            is_primary_guardian=is_primary,
+            priority_order=100,
+            created_at=datetime.utcnow(),
+        )
+        s.add(mgmt)
+        await s.flush()
+        mid = mgmt.id
+        await s.commit()
+        return mid
+
+
+@pytest.mark.asyncio
+async def test_health_archive_v1_i_guard_total_count_includes_all_status(client: AsyncClient):
+    """[健康档案优化 PRD v1.0 §3.1] i-guard 接口返回 total_count（包含所有 status 的记录），同时返回 active_count。"""
+    await _make_user("13860000001", "守护人A")
+    await _make_user("13860000002", "被守护人1")
+    await _make_user("13860000003", "被守护人2")
+    await _make_user("13860000004", "被守护人3")
+
+    await _make_management_with_status("13860000001", "13860000002", status="active", is_primary=True)
+    await _make_management_with_status("13860000001", "13860000003", status="active")
+    await _make_management_with_status("13860000001", "13860000004", status="cancelled")
+
+    headers = await _headers(client, "13860000001")
+    r = await client.get("/api/guardian/v12/i-guard", headers=headers)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data.get("total_count") == 3, f"total_count 应统计所有 status, got {data}"
+    assert data.get("active_count") == 2, f"active_count 应只统计 active, got {data}"
+    statuses = sorted([it["status"] for it in data["items"]])
+    assert statuses == ["active", "active", "cancelled"], f"items 应包含所有状态: {statuses}"
+
+
+@pytest.mark.asyncio
+async def test_health_archive_v1_transfer_pending_list(client: AsyncClient):
+    """[健康档案优化 PRD v1.0 §3.5] /transfer/pending 同时返回当前用户的 sent / received 列表。"""
+    await _make_user("13861000001", "妈妈P")
+    await _make_user("13861000002", "女儿(主)P")
+    await _make_user("13861000003", "弟弟P")
+
+    await _make_management("13861000002", "13861000001", is_primary=True, priority=0, delta_seconds=0)
+    target_mid = await _make_management("13861000003", "13861000001",
+                                         is_primary=False, priority=10, delta_seconds=10)
+
+    h_origin = await _headers(client, "13861000002")
+    r = await client.post(
+        "/api/guardian/v12/transfer/initiate",
+        json={"target_management_id": target_mid},
+        headers=h_origin,
+    )
+    assert r.status_code == 200, r.text
+
+    # 发起者：sent 中能看到这条 pending
+    r = await client.get("/api/guardian/v12/transfer/pending", headers=h_origin)
+    assert r.status_code == 200, r.text
+    d_origin = r.json()
+    assert d_origin["sent_count"] >= 1
+    assert d_origin["received_count"] == 0
+
+    # 接收者：received 中能看到这条 pending
+    h_recv = await _headers(client, "13861000003")
+    r = await client.get("/api/guardian/v12/transfer/pending", headers=h_recv)
+    assert r.status_code == 200, r.text
+    d_recv = r.json()
+    assert d_recv["received_count"] >= 1
+    assert d_recv["sent_count"] == 0
+    item = d_recv["received"][0]
+    assert item["from_user_nickname"] is not None
+    assert item["managed_user_nickname"] is not None
+
+
+@pytest.mark.asyncio
+async def test_health_archive_v1_transfer_reject(client: AsyncClient):
+    """[健康档案优化 PRD v1.0 §3.5] 接收者拒绝主守护人转让。"""
+    await _make_user("13862000001", "妈妈R")
+    await _make_user("13862000002", "女儿(主)R")
+    await _make_user("13862000003", "弟弟R")
+
+    await _make_management("13862000002", "13862000001", is_primary=True, priority=0, delta_seconds=0)
+    target_mid = await _make_management("13862000003", "13862000001",
+                                         is_primary=False, priority=10, delta_seconds=10)
+
+    h_origin = await _headers(client, "13862000002")
+    r = await client.post(
+        "/api/guardian/v12/transfer/initiate",
+        json={"target_management_id": target_mid},
+        headers=h_origin,
+    )
+    transfer_id = r.json()["transfer_id"]
+
+    # 非接收者无权拒绝
+    h_origin2 = await _headers(client, "13862000002")
+    r = await client.post(f"/api/guardian/v12/transfer/{transfer_id}/reject", headers=h_origin2)
+    assert r.status_code == 403
+
+    # 接收者拒绝
+    h_recv = await _headers(client, "13862000003")
+    r = await client.post(f"/api/guardian/v12/transfer/{transfer_id}/reject", headers=h_recv)
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "rejected"
+
+    # 拒绝后该 transfer 已不在 pending 列表
+    r = await client.get("/api/guardian/v12/transfer/pending", headers=h_recv)
+    sent_ids = [t["transfer_id"] for t in r.json()["received"]]
+    assert transfer_id not in sent_ids
+
+
+@pytest.mark.asyncio
+async def test_health_archive_v1_transfer_cancel(client: AsyncClient):
+    """[健康档案优化 PRD v1.0 §3.5] 发起者主动取消转让。"""
+    await _make_user("13863000001", "妈妈C")
+    await _make_user("13863000002", "女儿(主)C")
+    await _make_user("13863000003", "弟弟C")
+
+    await _make_management("13863000002", "13863000001", is_primary=True, priority=0, delta_seconds=0)
+    target_mid = await _make_management("13863000003", "13863000001",
+                                         is_primary=False, priority=10, delta_seconds=10)
+
+    h_origin = await _headers(client, "13863000002")
+    r = await client.post(
+        "/api/guardian/v12/transfer/initiate",
+        json={"target_management_id": target_mid},
+        headers=h_origin,
+    )
+    transfer_id = r.json()["transfer_id"]
+
+    # 非发起者无权取消
+    h_recv = await _headers(client, "13863000003")
+    r = await client.post(f"/api/guardian/v12/transfer/{transfer_id}/cancel", headers=h_recv)
+    assert r.status_code == 403
+
+    # 发起者取消
+    r = await client.post(f"/api/guardian/v12/transfer/{transfer_id}/cancel", headers=h_origin)
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "cancelled"
+
+    # 取消后再次取消应失败（状态非 pending）
+    r = await client.post(f"/api/guardian/v12/transfer/{transfer_id}/cancel", headers=h_origin)
+    assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_health_archive_v1_old_guardian_endpoints_removed(client: AsyncClient):
+    """[健康档案优化 PRD v1.0 §3.7] 旧 C 端接口下线，应返回 404。"""
+    await _make_user("13869000001", "测试X")
+    headers = await _headers(client, "13869000001")
+    for path in [
+        "/api/guardian/list",
+        "/api/guardian/i-guard",
+        "/api/guardian/invitations/records",
+        "/api/guardian/alert-quota",
+        "/api/guardian/transfer/pending",
+    ]:
+        r = await client.get(path, headers=headers)
+        assert r.status_code == 404, f"旧接口 {path} 应已下线（404），实际 {r.status_code}"

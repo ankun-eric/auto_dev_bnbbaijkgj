@@ -181,26 +181,33 @@ async def _get_user_quotas(db: AsyncSession, user_id: int) -> dict:
     """
     plan = await _get_user_plan(db, user_id)
     if plan:
+        # PRD v1.0 字段对齐：使用 ai_outbound_call_count / max_managed_by；保留 ai_remind_quota 键名向后兼容
+        ai_out = int(plan.ai_outbound_call_count or 0)
         return {
             "is_paid_member": True,
             "plan_id": plan.id,
             "plan_name": plan.name,
-            "ai_remind_quota": int(plan.ai_remind_quota or 0),
+            "ai_remind_quota": ai_out,
+            "ai_outbound_call_count": ai_out,
             "emergency_ai_call_count": int(getattr(plan, "emergency_ai_call_count", 0) or 0),
-            "max_managed": int(getattr(plan, "max_managed", 10) or 10),
-            "max_guardians": int(plan.max_guardians or 1),
-            "point_multiplier": float(getattr(plan, "point_multiplier", 1.0) or 1.0),
-            "discount_rate": float(plan.discount_rate or 1.0),
+            "max_managed": int(getattr(plan, "max_managed", 3) or 3),
+            "max_guardians": int(plan.max_managed_by or 3),
+            "max_managed_by": int(plan.max_managed_by or 3),
+            "point_multiplier": 1.0,
+            "discount_rate": float(plan.discount_rate) if plan.discount_rate is not None else 1.0,
         }
     quota = await db.get(FreeMemberQuota, 1)
+    ai_out_free = int(quota.ai_outbound_call_count) if quota else 5
     return {
         "is_paid_member": False,
         "plan_id": None,
         "plan_name": "普通会员",
-        "ai_remind_quota": int(quota.ai_remind_quota) if quota else 0,
+        "ai_remind_quota": ai_out_free,
+        "ai_outbound_call_count": ai_out_free,
         "emergency_ai_call_count": int(getattr(quota, "emergency_ai_call_count", 3)) if quota else 3,
         "max_managed": int(getattr(quota, "max_managed", 3)) if quota else 3,
-        "max_guardians": int(quota.max_guardians) if quota else 1,
+        "max_guardians": int(quota.max_managed_by) if quota else 3,
+        "max_managed_by": int(quota.max_managed_by) if quota else 3,
         "point_multiplier": 1.0,
         "discount_rate": 1.0,
     }
@@ -261,20 +268,32 @@ async def list_people_i_guard_v12(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """[PRD-GUARDIAN-V1.2 §11.2] 我守护的人列表（直筒列表，含关系称呼 + 角色徽章 + 代付状态）"""
+    """[健康档案优化 PRD v1.0 2026-05-26 §3.1]
+    我守护的人列表（直筒列表，含关系称呼 + 角色徽章 + 代付状态）
+
+    变更：返回包含所有 status 的记录（active + cancelled + 其他），并新增 total_count、active_count 字段，
+    供前端按守护中/待守护分组展示，total_count 用于卡片右上角统计。
+    """
     res = await db.execute(
         select(FamilyManagement).where(
             FamilyManagement.manager_user_id == current_user.id,
-            FamilyManagement.status == "active",
-        ).order_by(FamilyManagement.created_at.asc())
+        ).order_by(
+            # active 排在最前
+            FamilyManagement.status.asc(),
+            FamilyManagement.created_at.asc(),
+        )
     )
     items = []
+    active_count = 0
     for mgmt in res.scalars().all():
         managed_user = await db.get(User, mgmt.managed_user_id)
         relation_label = await _resolve_relation_label(db, mgmt)
         is_primary = bool(getattr(mgmt, "is_primary_guardian", False))
+        is_active = (mgmt.status == "active")
+        if is_active:
+            active_count += 1
         proxy_pay = False
-        if is_primary:
+        if is_primary and is_active:
             proxy_pay = await _is_proxy_pay_enabled(db, current_user.id, mgmt.managed_user_id)
         items.append(GuardianRoleV12Item(
             management_id=mgmt.id,
@@ -293,9 +312,13 @@ async def list_people_i_guard_v12(
         ).model_dump())
 
     quotas = await _get_user_quotas(db, current_user.id)
+    total_count = len(items)
     return {
         "items": items,
-        "total": len(items),
+        # total 保留为所有记录数（兼容旧字段），同时新增明确字段
+        "total": total_count,
+        "total_count": total_count,
+        "active_count": active_count,
         "max_managed": quotas["max_managed"],
         "is_paid_member": quotas["is_paid_member"],
     }
@@ -535,6 +558,147 @@ async def transfer_approve_v12(
         "status": "approved",
         "new_primary_management_id": to_mgmt.id,
         "message": "转让完成",
+    }
+
+
+@router.get("/api/guardian/v12/transfer/pending")
+async def transfer_pending_list_v12(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[健康档案优化 PRD v1.0 2026-05-26 §3.5] 当前用户相关的待确认转让列表。
+
+    返回：
+    - sent: 我发起的、尚未被对方确认的转让（用于发起方页面顶部显示"您发起的转让待确认，可取消"）
+    - received: 别人发起、指向我的转让（用于接收方页面顶部显示"XXX 申请将主守护人转让给您"）
+    """
+    now = datetime.utcnow()
+
+    # 查所有 pending 的转让请求，按时间倒序
+    pending = (await db.execute(
+        select(GuardianTransferRequest).where(
+            GuardianTransferRequest.status == "pending",
+        ).order_by(GuardianTransferRequest.created_at.desc())
+    )).scalars().all()
+
+    sent_items: List[dict] = []
+    received_items: List[dict] = []
+    for tr in pending:
+        from_mgmt = await db.get(FamilyManagement, tr.from_management_id)
+        to_mgmt = await db.get(FamilyManagement, tr.to_management_id)
+        if not from_mgmt or not to_mgmt:
+            continue
+        # 处理过期
+        if tr.expires_at and tr.expires_at < now:
+            continue
+        managed_user = await db.get(User, tr.managed_user_id)
+        from_user = await db.get(User, from_mgmt.manager_user_id)
+        to_user = await db.get(User, to_mgmt.manager_user_id)
+        base = {
+            "transfer_id": tr.id,
+            "managed_user_id": tr.managed_user_id,
+            "managed_user_nickname": managed_user.nickname if managed_user else None,
+            "from_user_id": from_mgmt.manager_user_id,
+            "from_user_nickname": from_user.nickname if from_user else None,
+            "to_user_id": to_mgmt.manager_user_id,
+            "to_user_nickname": to_user.nickname if to_user else None,
+            "from_management_id": tr.from_management_id,
+            "to_management_id": tr.to_management_id,
+            "created_at": tr.created_at.isoformat() if tr.created_at else None,
+            "expires_at": tr.expires_at.isoformat() if tr.expires_at else None,
+        }
+        if from_mgmt.manager_user_id == current_user.id:
+            sent_items.append(base)
+        if to_mgmt.manager_user_id == current_user.id:
+            received_items.append(base)
+
+    return {
+        "sent": sent_items,
+        "received": received_items,
+        "sent_count": len(sent_items),
+        "received_count": len(received_items),
+        "total_count": len(sent_items) + len(received_items),
+    }
+
+
+@router.post("/api/guardian/v12/transfer/{transfer_id}/reject")
+async def transfer_reject_v12(
+    transfer_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[健康档案优化 PRD v1.0 2026-05-26 §3.5] 接收者拒绝主守护人转让。"""
+    transfer = await db.get(GuardianTransferRequest, transfer_id)
+    if not transfer:
+        raise HTTPException(status_code=404, detail="转让请求不存在")
+    to_mgmt = await db.get(FamilyManagement, transfer.to_management_id)
+    if not to_mgmt:
+        raise HTTPException(status_code=404, detail="守护关系已失效")
+    if to_mgmt.manager_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="只有接收者本人可以拒绝")
+    if transfer.status != "pending":
+        raise HTTPException(status_code=400, detail=f"该请求已 {transfer.status}")
+
+    transfer.status = "rejected"
+    transfer.cancelled_at = datetime.utcnow()
+
+    # 通知发起者
+    from_mgmt = await db.get(FamilyManagement, transfer.from_management_id)
+    if from_mgmt:
+        from_user = await db.get(User, from_mgmt.manager_user_id)
+        to_nick = current_user.nickname or "接收者"
+        db.add(Notification(
+            user_id=from_mgmt.manager_user_id,
+            title="主守护人转让被拒绝",
+            content=f"{to_nick} 拒绝了您发起的主守护人转让",
+            type=NotificationType.system,
+            extra_data={"type": "guardian_transfer_rejected_v12", "transfer_id": transfer_id},
+        ))
+    await db.flush()
+    return {
+        "transfer_id": transfer_id,
+        "status": "rejected",
+        "message": "已拒绝该转让申请",
+    }
+
+
+@router.post("/api/guardian/v12/transfer/{transfer_id}/cancel")
+async def transfer_cancel_v12(
+    transfer_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[健康档案优化 PRD v1.0 2026-05-26 §3.5] 发起方主动取消主守护人转让申请。"""
+    transfer = await db.get(GuardianTransferRequest, transfer_id)
+    if not transfer:
+        raise HTTPException(status_code=404, detail="转让请求不存在")
+    from_mgmt = await db.get(FamilyManagement, transfer.from_management_id)
+    if not from_mgmt:
+        raise HTTPException(status_code=404, detail="守护关系已失效")
+    if from_mgmt.manager_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="只有发起者本人可以取消")
+    if transfer.status != "pending":
+        raise HTTPException(status_code=400, detail=f"该请求已 {transfer.status}")
+
+    transfer.status = "cancelled"
+    transfer.cancelled_at = datetime.utcnow()
+
+    # 通知接收者
+    to_mgmt = await db.get(FamilyManagement, transfer.to_management_id)
+    if to_mgmt:
+        from_nick = current_user.nickname or "发起者"
+        db.add(Notification(
+            user_id=to_mgmt.manager_user_id,
+            title="主守护人转让已取消",
+            content=f"{from_nick} 取消了发给您的主守护人转让申请",
+            type=NotificationType.system,
+            extra_data={"type": "guardian_transfer_cancelled_v12", "transfer_id": transfer_id},
+        ))
+    await db.flush()
+    return {
+        "transfer_id": transfer_id,
+        "status": "cancelled",
+        "message": "已取消该转让申请",
     }
 
 

@@ -1,8 +1,9 @@
 'use client';
 
 /**
- * [守护人体系 PRD v1.2 2026-05-25]
- * 我守护的人 - 直筒列表（无底部 Tab）
+ * [健康档案优化 PRD v1.0 2026-05-26]
+ * 我守护的人 - 直筒列表（按"守护中/待守护"两态分组）
+ * - 顶部：待确认转让横幅（接收者同意/拒绝；发起者取消）
  * - 本人行：编辑档案 | 邀请记录 | 我的 AI 外呼额度
  * - 被守护人行：查看档案 | 提醒设置 | 守护管理
  */
@@ -22,7 +23,20 @@ interface IGuardItem {
   role_badge: 'primary' | 'normal';
   is_primary_guardian: boolean;
   proxy_pay_enabled: boolean;
+  status: string;
   created_at: string;
+}
+
+interface PendingTransfer {
+  transfer_id: number;
+  managed_user_id: number;
+  managed_user_nickname?: string;
+  from_user_id: number;
+  from_user_nickname?: string;
+  to_user_id: number;
+  to_user_nickname?: string;
+  created_at?: string;
+  expires_at?: string;
 }
 
 interface GuardianInDrawer {
@@ -60,9 +74,15 @@ const SUCCESS = '#52C41A';
 export default function IGuardPage() {
   const router = useRouter();
   const [items, setItems] = useState<IGuardItem[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [activeCount, setActiveCount] = useState<number>(0);
   const [maxManaged, setMaxManaged] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [me, setMe] = useState<{ id: number; nickname?: string }>({ id: 0 });
+
+  // [健康档案优化 PRD v1.0 §3.5] 待确认转让横幅
+  const [pendingSent, setPendingSent] = useState<PendingTransfer[]>([]);
+  const [pendingReceived, setPendingReceived] = useState<PendingTransfer[]>([]);
 
   // 守护管理抽屉
   const [drawerManaged, setDrawerManaged] = useState<IGuardItem | null>(null);
@@ -92,6 +112,8 @@ export default function IGuardPage() {
       const res: any = await api.get('/api/guardian/v12/i-guard');
       const data = res.data || res;
       setItems(Array.isArray(data.items) ? data.items : []);
+      setTotalCount(Number(data.total_count ?? data.total ?? 0));
+      setActiveCount(Number(data.active_count ?? 0));
       setMaxManaged(Number(data.max_managed || 0));
     } catch (e: any) {
       console.error(e);
@@ -101,9 +123,69 @@ export default function IGuardPage() {
     }
   }, []);
 
+  // [健康档案优化 PRD v1.0 §3.5] 拉取待确认转让列表
+  const fetchPendingTransfers = useCallback(async () => {
+    try {
+      const res: any = await api.get('/api/guardian/v12/transfer/pending');
+      const data = res.data || res;
+      setPendingSent(Array.isArray(data.sent) ? data.sent : []);
+      setPendingReceived(Array.isArray(data.received) ? data.received : []);
+    } catch {
+      setPendingSent([]);
+      setPendingReceived([]);
+    }
+  }, []);
+
   useEffect(() => {
     fetchList();
-  }, [fetchList]);
+    fetchPendingTransfers();
+  }, [fetchList, fetchPendingTransfers]);
+
+  const handleApproveTransfer = async (transferId: number) => {
+    const ok = await Dialog.confirm({
+      title: '同意主守护人转让',
+      content: '同意后您将立即成为该被守护人的主守护人',
+    });
+    if (!ok) return;
+    try {
+      await api.post(`/api/guardian/v12/transfer/${transferId}/approve`);
+      showToast('已同意', 'success');
+      fetchList();
+      fetchPendingTransfers();
+    } catch (e: any) {
+      showToast(e?.response?.data?.detail || '操作失败', 'fail');
+    }
+  };
+
+  const handleRejectTransfer = async (transferId: number) => {
+    const ok = await Dialog.confirm({
+      title: '拒绝主守护人转让',
+      content: '拒绝后该申请将作废',
+    });
+    if (!ok) return;
+    try {
+      await api.post(`/api/guardian/v12/transfer/${transferId}/reject`);
+      showToast('已拒绝');
+      fetchPendingTransfers();
+    } catch (e: any) {
+      showToast(e?.response?.data?.detail || '操作失败', 'fail');
+    }
+  };
+
+  const handleCancelTransfer = async (transferId: number) => {
+    const ok = await Dialog.confirm({
+      title: '取消转让申请',
+      content: '取消后该转让申请将作废',
+    });
+    if (!ok) return;
+    try {
+      await api.post(`/api/guardian/v12/transfer/${transferId}/cancel`);
+      showToast('已取消');
+      fetchPendingTransfers();
+    } catch (e: any) {
+      showToast(e?.response?.data?.detail || '操作失败', 'fail');
+    }
+  };
 
   const openGuardianDrawer = async (it: IGuardItem) => {
     setDrawerManaged(it);
@@ -229,27 +311,72 @@ export default function IGuardPage() {
     <div style={{ background: PAGE_BG, minHeight: '100vh', paddingBottom: 32 }}>
       <GreenNavBar>我守护的人</GreenNavBar>
 
-      {/* [PRD-GUARDIAN-V1.3 2026-05-26] 入口：守护中/待守护两态新版 */}
-      <div
-        onClick={() => router.push('/health-profile/v13')}
-        style={{
-          margin: '8px 16px',
-          padding: '10px 14px',
-          background: 'linear-gradient(135deg, #FFB800 0%, #FF8800 100%)',
-          color: '#fff',
-          borderRadius: 12,
-          fontSize: 13,
-          fontWeight: 600,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          cursor: 'pointer',
-          boxShadow: '0 4px 12px rgba(255, 184, 0, 0.3)',
-        }}
-      >
-        <span>✨ 体验全新「守护中 / 待守护」两态视图</span>
-        <span>→</span>
-      </div>
+      {/* [健康档案优化 PRD v1.0 §3.5] 待确认转让横幅 */}
+      {pendingReceived.map((tr) => (
+        <div
+          key={`recv-${tr.transfer_id}`}
+          data-testid='transfer-banner-received'
+          style={{
+            margin: '8px 16px',
+            padding: '12px 14px',
+            background: 'linear-gradient(135deg, #FFE7BA 0%, #FFD591 100%)',
+            color: '#874D00',
+            borderRadius: 12,
+            border: '1px solid #FFC069',
+            boxShadow: '0 4px 12px rgba(250, 173, 20, 0.18)',
+          }}
+        >
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+            🔔 {tr.from_user_nickname || '某守护人'} 申请将{tr.managed_user_nickname ? ` ${tr.managed_user_nickname} 的` : ''}主守护人转让给您
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button
+              size='mini'
+              color='primary'
+              fill='solid'
+              style={{ flex: 1, borderRadius: 22 }}
+              data-testid='transfer-banner-approve'
+              onClick={() => handleApproveTransfer(tr.transfer_id)}
+            >同意</Button>
+            <Button
+              size='mini'
+              color='default'
+              fill='outline'
+              style={{ flex: 1, borderRadius: 22 }}
+              data-testid='transfer-banner-reject'
+              onClick={() => handleRejectTransfer(tr.transfer_id)}
+            >拒绝</Button>
+          </div>
+        </div>
+      ))}
+      {pendingSent.map((tr) => (
+        <div
+          key={`sent-${tr.transfer_id}`}
+          data-testid='transfer-banner-sent'
+          style={{
+            margin: '8px 16px',
+            padding: '12px 14px',
+            background: PRIMARY_BG,
+            color: PRIMARY_DARK,
+            borderRadius: 12,
+            border: `1px solid ${PRIMARY}`,
+          }}
+        >
+          <div style={{ fontSize: 13, marginBottom: 8 }}>
+            ⏳ 您发起的主守护人转让待 {tr.to_user_nickname || '对方'} 确认（{tr.managed_user_nickname ? `被守护人：${tr.managed_user_nickname}` : ''}）
+          </div>
+          <div>
+            <Button
+              size='mini'
+              color='default'
+              fill='outline'
+              style={{ borderRadius: 22 }}
+              data-testid='transfer-banner-cancel'
+              onClick={() => handleCancelTransfer(tr.transfer_id)}
+            >取消转让</Button>
+          </div>
+        </div>
+      ))}
 
       <div style={{ padding: '12px 16px' }}>
         {/* 本人行 */}
@@ -285,16 +412,22 @@ export default function IGuardPage() {
           </div>
         </div>
 
-        {/* 被守护人列表 */}
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#8C8C8C' }}>加载中…</div>
-        ) : items.length === 0 ? (
-          <Empty description="还没有守护的人" />
-        ) : (
-          items.map((it) => (
-            <div key={it.management_id} style={{
+        {/* [健康档案优化 PRD v1.0 §3.6] 被守护人列表（按守护中 / 待守护分组） */}
+        {(() => {
+          if (loading) {
+            return <div style={{ textAlign: 'center', padding: 40, color: '#8C8C8C' }}>加载中…</div>;
+          }
+          if (items.length === 0) {
+            return <Empty description="还没有守护的人" />;
+          }
+          const activeItems = items.filter((it) => it.status === 'active');
+          const pendingItems = items.filter((it) => it.status !== 'active');
+
+          const renderItem = (it: IGuardItem, readOnly: boolean) => (
+            <div key={it.management_id} data-testid={`i-guard-item-${it.management_id}`} style={{
               background: '#fff', borderRadius: 20, padding: 16, marginBottom: 12,
               boxShadow: '0 4px 16px rgba(24, 144, 255, 0.08)',
+              opacity: readOnly ? 0.7 : 1,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
                 <div style={{
@@ -304,7 +437,7 @@ export default function IGuardPage() {
                   fontSize: 18, fontWeight: 700, marginRight: 12,
                 }}>{(it.managed_user_nickname || '?').charAt(0)}</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a' }}>
                       {it.managed_user_nickname || '—'}
                     </span>
@@ -316,33 +449,64 @@ export default function IGuardPage() {
                     {it.proxy_pay_enabled && (
                       <Tag color='warning' style={{ background: WARN }}>代付中</Tag>
                     )}
+                    {readOnly && (
+                      <Tag color='default'>{it.status === 'cancelled' ? '已解除' : '待守护'}</Tag>
+                    )}
                   </div>
                   <div style={{ fontSize: 12, color: '#8C8C8C', marginTop: 4 }}>
                     关系：{it.relation_label || '亲友'} · 守护开始 {fmtDate(it.created_at)}
                   </div>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <Button size='mini' fill='outline' style={{ flex: 1, borderRadius: 22, borderColor: PRIMARY, color: PRIMARY }}
-                  onClick={() => router.push(`/health-profile?member_user_id=${it.managed_user_id}`)}>
-                  查看档案
-                </Button>
-                <Button size='mini' fill='outline' style={{ flex: 1, borderRadius: 22, borderColor: PRIMARY, color: PRIMARY }}
-                  onClick={() => openRemindersDrawer(it)}>
-                  提醒设置
-                </Button>
-                <Button size='mini' fill='solid' style={{ flex: 1, borderRadius: 22, background: PRIMARY }}
-                  onClick={() => openGuardianDrawer(it)}>
-                  守护管理
-                </Button>
-              </div>
+              {!readOnly && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Button size='mini' fill='outline' style={{ flex: 1, borderRadius: 22, borderColor: PRIMARY, color: PRIMARY }}
+                    onClick={() => router.push(`/health-profile?member_user_id=${it.managed_user_id}`)}>
+                    查看档案
+                  </Button>
+                  <Button size='mini' fill='outline' style={{ flex: 1, borderRadius: 22, borderColor: PRIMARY, color: PRIMARY }}
+                    onClick={() => openRemindersDrawer(it)}>
+                    提醒设置
+                  </Button>
+                  <Button size='mini' fill='solid' style={{ flex: 1, borderRadius: 22, background: PRIMARY }}
+                    onClick={() => openGuardianDrawer(it)}>
+                    守护管理
+                  </Button>
+                </div>
+              )}
             </div>
-          ))
-        )}
+          );
+
+          return (
+            <>
+              <div data-testid='i-guard-group-active'>
+                <div style={{ fontSize: 13, fontWeight: 600, color: PRIMARY_DARK, margin: '4px 4px 8px' }}>
+                  ✅ 守护中（{activeItems.length}）
+                </div>
+                {activeItems.length === 0 ? (
+                  <div style={{
+                    padding: 14, marginBottom: 12, borderRadius: 12,
+                    background: '#fff', color: '#8C8C8C', textAlign: 'center', fontSize: 13,
+                  }}>暂无守护中的人</div>
+                ) : (
+                  activeItems.map((it) => renderItem(it, false))
+                )}
+              </div>
+              {pendingItems.length > 0 && (
+                <div data-testid='i-guard-group-pending' style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#8C8C8C', margin: '4px 4px 8px' }}>
+                    ⏸ 待守护 / 已解除（{pendingItems.length}）
+                  </div>
+                  {pendingItems.map((it) => renderItem(it, true))}
+                </div>
+              )}
+            </>
+          );
+        })()}
 
         <div style={{ marginTop: 16, padding: '12px 16px', background: PRIMARY_BG, borderRadius: 12, fontSize: 12, color: PRIMARY_DARK }}>
-          💡 您目前守护 {items.length} 人{maxManaged > 0 ? `（上限 ${maxManaged === -1 ? '不限' : maxManaged}）` : ''}。
-          {maxManaged > 0 && items.length >= maxManaged && maxManaged !== -1 && (
+          💡 您目前守护 {activeCount} 人（共 {totalCount} 条守护记录）{maxManaged > 0 ? `，上限 ${maxManaged === -1 ? '不限' : maxManaged}` : ''}。
+          {maxManaged > 0 && activeCount >= maxManaged && maxManaged !== -1 && (
             <span style={{ color: DANGER, marginLeft: 4 }}>已达上限，可升级会员扩容</span>
           )}
         </div>
