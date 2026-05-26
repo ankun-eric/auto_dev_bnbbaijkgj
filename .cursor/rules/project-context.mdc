@@ -27,7 +27,44 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
-## Latest Update: 会员中心优化 PRD v2.0（2026-05-26）
+## Latest Update: 会员中心入口与权益对比 Bug 修复 v1.0（2026-05-26）
+
+### 一句话结论
+按《Bug 修复方案 · 会员中心入口与权益对比 v1.0》落地：(1) H5 顶部「⋯」更多菜单首项「👑 会员中心」加金色文字 + 「新」角标（30 天）；(2) H5 左侧抽屉将「我的设备」快捷入口卡片**替换**为金色「👑 会员中心」入口，跳 `/member-center`；(3) H5 会员中心新增独立「权益对比」组件 `BenefitsCompareTable`（套餐区下方、底部入口区上方），3 行（守护人 / AI 外呼 / 紧急呼叫）× N 列（普通 + 后台所有启用付费套餐），列头颜色按 price_rank 自动渐变（紫→橙黄→橙红→深红），「-1」展示「不限」，窄屏 overflow-x:auto 横向滚动；(4) 微信小程序 AI 主页 (`pages/ai/index.*`) 新增右上角「⋯」更多菜单（4 项），新增 `pages/member-center/index.*` 使用 `web-view` 加载 H5 会员中心（token 透传），`app.json` 注册新路由；(5) Flutter App AI 主页右上角 IconButton 升级为 `PopupMenuButton`（4 项），新增 `screens/member/member_center_webview.dart` 用 `webview_flutter` 加载 H5 会员中心，`pubspec.yaml` 新增 `webview_flutter: ^4.7.0`，`main.dart` 注册 `/member-center` 路由；(6) 后端 0 改动，仅在 `test_member_center_v2.py` 新增一条测试验证 `/api/member/center` 返回的 plans 数组按 sort_order 排序、ranks 字段完整、关键字段（max_managed/ai_outbound_call_count/emergency_ai_call_count）齐备；(7) 部署后 backend pytest 9/9 全绿，H5 build 产物含 `mc-benefits-compare` / `ai-home-more-menu-item` / `bh-entry-member-center` 三处关键字符串；(8) 多端打包成功并上传：小程序 zip + 安卓 APK + iOS IPA。
+
+### 核心变更
+- H5：`h5-web/src/components/ai-chat/MoreMenu.tsx`（金色文字 + 「新」角标条件渲染）
+- H5：`h5-web/src/components/ai-chat/Sidebar.tsx`（F-07 快捷入口将「我的设备」按钮替换为「会员中心」金色卡片）
+- H5：`h5-web/src/app/member-center/page.tsx`（引入 BenefitsCompareTable 组件）
+- H5：`h5-web/src/app/member-center/components/BenefitsCompareTable.tsx`（新建，权益对比表组件）
+- 小程序：`miniprogram/pages/ai/index.wxml/.js/.wxss`（顶部「更多」按钮 + 弹出菜单 + 4 项交互）
+- 小程序：`miniprogram/pages/member-center/index.{wxml,wxss,js,json}`（新建 web-view 页面）
+- 小程序：`miniprogram/app.json`（注册 `pages/member-center/index`）
+- Flutter：`flutter_app/lib/screens/ai/ai_home_screen.dart`（PopupMenuButton 4 项）
+- Flutter：`flutter_app/lib/screens/member/member_center_webview.dart`（新建 WebView）
+- Flutter：`flutter_app/lib/main.dart`（注册 `/member-center` 路由）
+- Flutter：`flutter_app/pubspec.yaml`（webview_flutter: ^4.7.0）
+- 后端：`backend/tests/test_member_center_v2.py`（新增 `test_center_plans_sorted_by_rank_for_compare_table`）
+
+### 部署后访问入口
+- `/ai-home/` → 200（H5 主页，顶部菜单 + 左侧抽屉新入口生效）
+- `/member-center/` → 200（H5 会员中心，含权益对比表）
+- `/api/member/plans` → 200（对比表列数据源）
+- pytest 9/9 全绿
+
+### 已知设计决策
+- 「新」角标硬编码 deadline 2026-06-25（首次发版起 30 天）
+- 列头渐变色调色板硬编码 5 档：橙黄/橙红/深红/暗红/最深红，超出列数复用最后一档
+- 推荐角标仅在套餐卡片上显示，对比表内**不**重复显示
+- 后端按 `sort_order` 升序返回 plans，与 `_plan_rank`（年价优先）保持档位一致
+- 小程序 web-view + Flutter WebView 均通过 query string 透传 `token`，H5 拦截器消费
+
+### 用户体验手册
+- `user_docs/会员中心入口与权益对比.md`
+
+---
+
+## Previous Update: 会员中心优化 PRD v2.0（2026-05-26）
 
 ### 一句话结论
 按《会员中心优化 PRD v2.0》落地：(1) 新增独立的 `member_center_v2` 后端模块，9 个新接口（`/api/member/center`、`/api/member/order`、`/api/member/order/{id}/pay`、`/api/member/orders`、`/api/member/plans`、`/api/admin/users/{id}/membership`、`/api/admin/users/{id}/membership/adjust`、`/api/member/_internal/cron/expire`、`/api/member/_internal/cron/remind`）；(2) `order_items` 表新增 `membership_plan_id` / `membership_period` 两列，复用 `fulfillment_type='virtual'` 标识权益服务订单，无新增 `order_type` 字段；(3) `order_items.product_id` 改为可空，支持会员费订单无关联实物商品；(4) H5 `MoreMenu.tsx` 将「👑 会员中心」提到第一项；(5) H5 `/member-center` 整体重构为蓝紫主调 + 金色点缀：用户信息卡（蓝紫渐变 + 金色皇冠 + 金色等级胶囊）+ 4 格权益卡（3 实 + 1 占位）+ 动态套餐区（推荐金色描边）+ 底部入口区；(6) 业务规则：同套餐续费时长追加 / 跨套餐升级立即生效旧时长作废 / 降级被拒；(7) `_sync_member_center_v2` 幂等 schema 迁移；(8) 8/8 pytest 全绿（含到期降级 cron 测试）。
