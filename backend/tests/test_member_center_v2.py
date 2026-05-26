@@ -253,6 +253,74 @@ async def test_admin_user_membership_card(
 
 
 @pytest.mark.asyncio
+async def test_center_plans_sorted_by_rank_for_compare_table(
+    client: AsyncClient,
+    auth_headers: dict,
+    admin_headers: dict,
+):
+    """[Bug 修复 v1.0 §3.2 2026-05-26] 权益对比表数据源依赖：
+    - /api/member/center 返回的 plans 数组必须按 sort_order/price_rank 升序输出
+    - ranks 字段必须包含每个 plan 的 rank，供前端按 price_rank 升序排列对比表列
+    - 同时返回 max_managed / ai_outbound_call_count / emergency_ai_call_count 供 3 行展示
+    """
+    # 创建 3 档套餐，故意以错乱顺序（最低 sort_order=3 / 中 sort_order=1 / 最高 sort_order=2）
+    pid_low = await _create_plan(
+        client, admin_headers,
+        plan_code="basic", name="基础版",
+        price_monthly=9.9, price_yearly=99.0,
+        max_managed=3, ai_remind_quota=5, emergency_ai_call_count=3,
+        sort_order=3,
+    )
+    pid_mid = await _create_plan(
+        client, admin_headers,
+        plan_code="guardian2", name="守护版",
+        price_monthly=19.9, price_yearly=199.0,
+        max_managed=5, ai_remind_quota=20, emergency_ai_call_count=10,
+        sort_order=1,
+    )
+    pid_high = await _create_plan(
+        client, admin_headers,
+        plan_code="family", name="家庭版",
+        price_monthly=39.9, price_yearly=399.0,
+        max_managed=-1, ai_remind_quota=-1, emergency_ai_call_count=-1,
+        sort_order=2,
+    )
+
+    r = await client.get("/api/member/center", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    body = r.json()
+
+    plans = body["plans"]
+    assert len(plans) == 3
+    # 按 sort_order 升序：守护版(1) < 家庭版(2) < 基础版(3)
+    assert [p["id"] for p in plans] == [pid_mid, pid_high, pid_low]
+
+    # ranks 字段存在且每个 plan_id 都有 rank
+    ranks = body["ranks"]
+    assert str(pid_mid) in ranks or pid_mid in ranks or any(int(k) == pid_mid for k in ranks)
+
+    # 关键三个字段在每个 plan 中都存在（供对比表 3 行使用）
+    for p in plans:
+        assert "max_managed" in p
+        assert "ai_outbound_call_count" in p
+        assert "emergency_ai_call_count" in p
+
+    # 「-1」按 PRD 前端展示为「不限」，但后端原样返回 -1
+    family_plan = [p for p in plans if p["id"] == pid_high][0]
+    assert family_plan["max_managed"] == -1
+    assert family_plan["ai_outbound_call_count"] == -1
+    assert family_plan["emergency_ai_call_count"] == -1
+
+    # benefits_cards 3 实卡 + 1 占位卡 = 4 项
+    assert len(body["benefits_cards"]) == 4
+    keys = [c["key"] for c in body["benefits_cards"]]
+    assert "max_managed" in keys
+    assert "ai_outbound_call_count" in keys
+    assert "emergency_ai_call_count" in keys
+    assert keys[-1] == "placeholder"
+
+
+@pytest.mark.asyncio
 async def test_cron_expire_job(
     client: AsyncClient,
     auth_headers: dict,

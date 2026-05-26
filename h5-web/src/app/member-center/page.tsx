@@ -20,6 +20,8 @@ import { useRouter } from 'next/navigation';
 import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 import GreenNavBar from '@/components/GreenNavBar';
+// [Bug 修复 v1.0 §3.2 2026-05-26] 新增「权益对比」表
+import BenefitsCompareTable from './components/BenefitsCompareTable';
 
 // ─── 视觉色：蓝紫主调 + 金色点缀 ───
 const PRIMARY = '#5B7CFA';          // 蓝紫主色
@@ -395,7 +397,14 @@ export default function MemberCenterPage() {
         </div>
       )}
 
-      {/* 4. 底部入口区 */}
+      {/* [Bug 修复 v1.0 §3.2 2026-05-26] 4. 权益对比表（套餐区下方、底部入口区上方） */}
+      <BenefitsCompareTable
+        current={current as any}
+        plans={plans as any}
+        ranks={ranks as any}
+      />
+
+      {/* 5. 底部入口区 */}
       <div style={{ margin: '16px 16px 0', background: '#fff', borderRadius: 18, padding: '4px 0', boxShadow: '0 4px 12px rgba(91, 124, 250, 0.06)' }}>
         {[
           { label: '我的订单', icon: '📦', tab: '/orders?tab=membership', testid: 'mc-orders' },
@@ -430,7 +439,7 @@ export default function MemberCenterPage() {
         ))}
       </div>
 
-      {/* 5. 协议提示 */}
+      {/* 6. 协议提示 */}
       <div style={{ textAlign: 'center', marginTop: 24, fontSize: 11, color: TEXT_MUTED, padding: '0 24px' }}>
         开通即同意《会员服务协议》《自动续费协议》
       </div>

@@ -1333,13 +1333,14 @@ export default function Sidebar({
                   </span>
                 </span>
               </button>
+              {/* [Bug 修复 v1.0 §3.1.2] 抽屉快捷入口将「我的设备」替换为「会员中心」，金色皇冠 + 金色背景与顶部菜单一致 */}
               <button
-                onClick={() => navigateTo('/devices')}
+                onClick={() => navigateTo('/member-center')}
                 style={{
                   flex: 1,
-                  background: COLOR.cardBg,
+                  background: 'linear-gradient(135deg, #FFF8E7 0%, #FFEFC8 100%)',
                   borderRadius: 12,
-                  border: 'none',
+                  border: '1px solid #F4D793',
                   padding: '12px 14px',
                   display: 'flex',
                   alignItems: 'center',
@@ -1347,23 +1348,23 @@ export default function Sidebar({
                   cursor: 'pointer',
                   textAlign: 'left',
                 }}
-                data-testid="bh-entry-devices"
+                data-testid="bh-entry-member-center"
               >
-                <span style={{ fontSize: 24, lineHeight: 1, flexShrink: 0 }}>📱</span>
+                <span style={{ fontSize: 24, lineHeight: 1, flexShrink: 0 }}>👑</span>
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span
                     style={{
                       display: 'block',
                       fontSize: 14,
-                      fontWeight: 600,
-                      color: COLOR.textPrimary,
+                      fontWeight: 700,
+                      color: '#5C3B00',
                       lineHeight: 1.2,
                     }}
                   >
-                    我的设备
+                    会员中心
                   </span>
-                  <span style={{ display: 'block', fontSize: 12, color: COLOR.textSecondary, marginTop: 2 }}>
-                    硬件设备管理
+                  <span style={{ display: 'block', fontSize: 12, color: '#8B6914', marginTop: 2 }}>
+                    权益管理与升级
                   </span>
                 </span>
               </button>

@@ -71,6 +71,7 @@
     "pages/refund-list/index",
     "pages/unified-order-detail/index",
     "pages/member-card/index",
+    "pages/member-center/index",
     "pages/my-coupons/index",
     "pages/coupon-center/index",
     "pages/my-favorites/index",

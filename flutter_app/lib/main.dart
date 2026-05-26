@@ -70,6 +70,7 @@ import 'screens/order/review_screen.dart';
 import 'screens/order/refund_screen.dart';
 import 'screens/refund/refund_list_screen.dart';
 import 'screens/member/member_card_screen.dart';
+import 'screens/member/member_center_webview.dart';
 import 'screens/coupon/my_coupons_screen.dart';
 import 'screens/coupon/coupon_center_screen.dart';
 import 'screens/favorites/favorites_screen.dart';
@@ -270,6 +271,8 @@ class BiniHealthApp extends StatelessWidget {
           '/refund': (context) => const RefundScreen(),
           '/refund-list': (context) => const RefundListScreen(),
           '/member-card': (context) => const MemberCardScreen(),
+          // [Bug 修复 v1.0 §3.1.4 2026-05-26] 会员中心 = WebView 加载 H5 版会员中心
+          '/member-center': (context) => const MemberCenterWebView(),
           '/my-coupons': (context) => const MyCouponsScreen(),
           '/coupon-center': (context) => const CouponCenterScreen(),
           '/favorites': (context) => const FavoritesScreen(),

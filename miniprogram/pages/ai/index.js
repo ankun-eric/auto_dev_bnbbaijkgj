@@ -23,7 +23,10 @@ Page({
     allSessions: [],
     orderInfo: null,
     verifying: false,
-    brandLogoUrl: ''
+    brandLogoUrl: '',
+    // [Bug 修复 v1.0 §3.1.3] 「更多」菜单可见态 + 「新」角标可见期（30 天）
+    moreMenuShow: false,
+    showNewBadge: Date.now() < new Date('2026-06-25T00:00:00Z').getTime()
   },
 
   onShow() {
@@ -128,6 +131,46 @@ Page({
   openDrawer() {
     if (!checkLogin()) return;
     this.setData({ drawerShow: true });
+  },
+
+  // [Bug 修复 v1.0 §3.1.3] 「更多」菜单交互
+  openMoreMenu() {
+    this.setData({ moreMenuShow: true });
+  },
+
+  closeMoreMenu() {
+    this.setData({ moreMenuShow: false });
+  },
+
+  onTapMemberCenter() {
+    this.setData({ moreMenuShow: false });
+    if (!checkLogin()) return;
+    wx.navigateTo({ url: '/pages/member-center/index' });
+  },
+
+  onTapScan() {
+    this.setData({ moreMenuShow: false });
+    wx.scanCode({
+      onlyFromCamera: false,
+      success: (res) => {
+        wx.showToast({ title: '扫码成功', icon: 'success' });
+        console.log('[scan]', res);
+      },
+      fail: () => {
+        wx.showToast({ title: '已取消扫码', icon: 'none' });
+      }
+    });
+  },
+
+  onTapFontSize() {
+    this.setData({ moreMenuShow: false });
+    wx.showToast({ title: '字体大小设置开发中', icon: 'none' });
+  },
+
+  onTapShare() {
+    this.setData({ moreMenuShow: false });
+    wx.showShareMenu({ withShareTicket: true });
+    wx.showToast({ title: '请点击右上角分享', icon: 'none' });
   },
 
   onDrawerClose() {

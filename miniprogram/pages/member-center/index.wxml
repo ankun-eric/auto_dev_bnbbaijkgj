@@ -1,0 +1,5 @@
+<!-- [Bug 修复 v1.0 §3.1.3] 小程序会员中心 = web-view 加载 H5 会员中心，token 透传 -->
+<web-view src="{{webUrl}}" wx:if="{{webUrl}}"></web-view>
+<view class="loading" wx:else>
+  <text>加载中…</text>
+</view>

@@ -320,9 +320,101 @@ class _AiHomeScreenState extends State<AiHomeScreen> with WidgetsBindingObserver
           onPressed: () => _scaffoldKey.currentState?.openDrawer(),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.more_horiz),
-            onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+          // [Bug 修复 v1.0 §3.1.4 2026-05-26] 右上角「更多」菜单，首项「👑 会员中心」
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_horiz, color: Colors.white),
+            tooltip: '更多',
+            offset: const Offset(0, 48),
+            onSelected: (value) {
+              switch (value) {
+                case 'member-center':
+                  Navigator.pushNamed(context, '/member-center');
+                  break;
+                case 'scan':
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('扫一扫开发中')),
+                  );
+                  break;
+                case 'font-size':
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('字体大小设置请在「我的-设置」中调整')),
+                  );
+                  break;
+                case 'share':
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('分享开发中')),
+                  );
+                  break;
+              }
+            },
+            itemBuilder: (context) {
+              final now = DateTime.now();
+              final showNew = now.isBefore(DateTime.utc(2026, 6, 25));
+              return [
+                PopupMenuItem<String>(
+                  value: 'member-center',
+                  child: Row(
+                    children: [
+                      const Text('👑 ', style: TextStyle(fontSize: 18)),
+                      const Text(
+                        '会员中心',
+                        style: TextStyle(
+                          color: Color(0xFFE5A23B),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (showNew) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFE5A23B), Color(0xFFF4D793)],
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            '新',
+                            style: TextStyle(
+                              color: Color(0xFF5C3B00),
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'scan',
+                  child: Row(
+                    children: [
+                      Text('📷 ', style: TextStyle(fontSize: 18)),
+                      Text('扫一扫'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'font-size',
+                  child: Row(
+                    children: [
+                      Text('🔤 ', style: TextStyle(fontSize: 18)),
+                      Text('字体大小'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'share',
+                  child: Row(
+                    children: [
+                      Text('📤 ', style: TextStyle(fontSize: 18)),
+                      Text('立即分享'),
+                    ],
+                  ),
+                ),
+              ];
+            },
           ),
         ],
       ),
