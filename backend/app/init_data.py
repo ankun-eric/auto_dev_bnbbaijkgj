@@ -144,7 +144,7 @@ async def _init_member_levels(db: AsyncSession):
 
     levels = [
         {
-            "level_name": "普通会员",
+            "level_name": "免费会员",
             "icon": "🥉",
             "min_points": 0,
             "max_points": 999,

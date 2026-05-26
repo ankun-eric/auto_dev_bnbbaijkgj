@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Input, Space, Tag, Modal, Descriptions, message, Typography, Avatar, Popconfirm, Tooltip, Form } from 'antd';
-import { SearchOutlined, UserOutlined, EyeOutlined, StopOutlined, CheckCircleOutlined, EditOutlined } from '@ant-design/icons';
-import { get, put } from '@/lib/api';
+import { Table, Button, Input, Space, Tag, Modal, Descriptions, message, Typography, Avatar, Popconfirm, Tooltip, Form, Card, InputNumber } from 'antd';
+import { SearchOutlined, UserOutlined, EyeOutlined, StopOutlined, CheckCircleOutlined, EditOutlined, CrownOutlined } from '@ant-design/icons';
+import { get, post, put } from '@/lib/api';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
@@ -60,6 +60,10 @@ export default function UsersPage() {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [detailVisible, setDetailVisible] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserRecord | null>(null);
+  // [会员中心 PRD v1.0] 用户详情会员信息卡片
+  const [memberInfo, setMemberInfo] = useState<any | null>(null);
+  const [memberLoading, setMemberLoading] = useState(false);
+  const [extendDays, setExtendDays] = useState<number>(30);
   const [isSuperuser, setIsSuperuser] = useState(false);
   const [referrerModalVisible, setReferrerModalVisible] = useState(false);
   const [referrerTarget, setReferrerTarget] = useState<UserRecord | null>(null);
@@ -123,6 +127,32 @@ export default function UsersPage() {
     } catch (e: unknown) {
       const err = e as { response?: { data?: { message?: string } }; message?: string };
       message.error(err?.response?.data?.message || err?.message || '操作失败');
+    }
+  };
+
+  const reloadMember = async (userId: number) => {
+    setMemberLoading(true);
+    try {
+      const info = await get<any>(`/api/admin/users/${userId}/membership`);
+      setMemberInfo(info);
+    } finally {
+      setMemberLoading(false);
+    }
+  };
+
+  const handleMemberAdjust = async (action: 'extend' | 'downgrade' | 'reset_quota') => {
+    if (!currentUser) return;
+    try {
+      const body: any = { action };
+      if (action === 'extend') body.days = extendDays;
+      await post(`/api/admin/users/${currentUser.id}/membership/adjust`, body);
+      message.success(
+        action === 'extend' ? `已延长 ${extendDays} 天` :
+        action === 'downgrade' ? '已降级为免费会员' : '已重置额度'
+      );
+      await reloadMember(currentUser.id);
+    } catch (e: any) {
+      message.error(e?.response?.data?.detail || '操作失败');
     }
   };
 
@@ -218,7 +248,20 @@ export default function UsersPage() {
       width: isSuperuser ? 240 : 160,
       render: (_: unknown, record: UserRecord) => (
         <Space>
-          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => { setCurrentUser(record); setDetailVisible(true); }}>
+          <Button type="link" size="small" icon={<EyeOutlined />} onClick={async () => {
+            setCurrentUser(record);
+            setDetailVisible(true);
+            setMemberInfo(null);
+            setMemberLoading(true);
+            try {
+              const info = await get<any>(`/api/admin/users/${record.id}/membership`);
+              setMemberInfo(info);
+            } catch (e) {
+              setMemberInfo({ error: true });
+            } finally {
+              setMemberLoading(false);
+            }
+          }}>
             详情
           </Button>
           <Popconfirm
@@ -300,25 +343,91 @@ export default function UsersPage() {
         open={detailVisible}
         onCancel={() => setDetailVisible(false)}
         footer={null}
-        width={600}
+        width={720}
       >
         {currentUser && (
-          <Descriptions column={2} bordered size="small">
-            <Descriptions.Item label="ID">{currentUser.id}</Descriptions.Item>
-            <Descriptions.Item label="用户编号">{currentUser.userNo}</Descriptions.Item>
-            <Descriptions.Item label="手机号">{currentUser.phone}</Descriptions.Item>
-            <Descriptions.Item label="昵称">{currentUser.nickname}</Descriptions.Item>
-            <Descriptions.Item label="角色">
-              <Tag color={roleMap[currentUser.role]?.color}>{roleMap[currentUser.role]?.text || currentUser.role}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="会员等级">{currentUser.level}</Descriptions.Item>
-            <Descriptions.Item label="积分">{currentUser.points}</Descriptions.Item>
-            <Descriptions.Item label="状态">{statusTag(currentUser.status)}</Descriptions.Item>
-            <Descriptions.Item label="推荐人">
-              {currentUser.referrerNickname ? `${currentUser.referrerNickname} (${currentUser.referrerNo})` : '—'}
-            </Descriptions.Item>
-            <Descriptions.Item label="注册时间">{dayjs(currentUser.createdAt).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
-          </Descriptions>
+          <>
+            <Descriptions column={2} bordered size="small">
+              <Descriptions.Item label="ID">{currentUser.id}</Descriptions.Item>
+              <Descriptions.Item label="用户编号">{currentUser.userNo}</Descriptions.Item>
+              <Descriptions.Item label="手机号">{currentUser.phone}</Descriptions.Item>
+              <Descriptions.Item label="昵称">{currentUser.nickname}</Descriptions.Item>
+              <Descriptions.Item label="角色">
+                <Tag color={roleMap[currentUser.role]?.color}>{roleMap[currentUser.role]?.text || currentUser.role}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="会员等级">{currentUser.level}</Descriptions.Item>
+              <Descriptions.Item label="积分">{currentUser.points}</Descriptions.Item>
+              <Descriptions.Item label="状态">{statusTag(currentUser.status)}</Descriptions.Item>
+              <Descriptions.Item label="推荐人">
+                {currentUser.referrerNickname ? `${currentUser.referrerNickname} (${currentUser.referrerNo})` : '—'}
+              </Descriptions.Item>
+              <Descriptions.Item label="注册时间">{dayjs(currentUser.createdAt).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+            </Descriptions>
+
+            {/* [会员中心 PRD v1.0] 会员信息卡片 */}
+            <Card
+              size="small"
+              loading={memberLoading}
+              style={{ marginTop: 16, borderColor: memberInfo?.membership_level === 'paid' ? '#D4AF37' : undefined }}
+              title={
+                <Space>
+                  <CrownOutlined style={{ color: memberInfo?.membership_level === 'paid' ? '#D4AF37' : '#999' }} />
+                  <span>会员信息</span>
+                  {memberInfo?.membership_level === 'paid' && <Tag color="gold">付费会员</Tag>}
+                  {memberInfo?.membership_level === 'free' && <Tag>免费会员</Tag>}
+                </Space>
+              }
+            >
+              {memberInfo && !memberInfo.error && (
+                <>
+                  <Descriptions column={2} size="small">
+                    <Descriptions.Item label="当前等级">{memberInfo.plan_name || '免费会员'}</Descriptions.Item>
+                    <Descriptions.Item label="有效期">
+                      {memberInfo.expire_at ? (() => {
+                        const days = dayjs(memberInfo.expire_at).diff(dayjs(), 'day');
+                        return `${dayjs(memberInfo.expire_at).format('YYYY-MM-DD')}（剩 ${days} 天）`;
+                      })() : '长期'}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="守护人上限">{memberInfo.max_managed === -1 ? '不限' : memberInfo.max_managed}</Descriptions.Item>
+                    <Descriptions.Item label="被守护上限">{memberInfo.max_managed_by === -1 ? '不限' : memberInfo.max_managed_by}</Descriptions.Item>
+                    <Descriptions.Item label="AI 外呼提醒上限">{memberInfo.ai_outbound_call_count === -1 ? '不限' : `${memberInfo.ai_outbound_call_count} 次/月`}</Descriptions.Item>
+                    <Descriptions.Item label="紧急 AI 呼叫上限">{memberInfo.emergency_ai_call_count === -1 ? '不限' : `${memberInfo.emergency_ai_call_count} 次/月`}</Descriptions.Item>
+                  </Descriptions>
+                  <Space style={{ marginTop: 12 }} wrap>
+                    <Space.Compact>
+                      <InputNumber
+                        min={1}
+                        value={extendDays}
+                        onChange={(v) => setExtendDays(Number(v || 30))}
+                        style={{ width: 80 }}
+                      />
+                      <Popconfirm
+                        title={`延长 ${extendDays} 天会员期？`}
+                        onConfirm={() => handleMemberAdjust('extend')}
+                        disabled={memberInfo.membership_level !== 'paid'}
+                      >
+                        <Button
+                          type="primary"
+                          disabled={memberInfo.membership_level !== 'paid'}
+                        >手动延长会员期</Button>
+                      </Popconfirm>
+                    </Space.Compact>
+                    <Popconfirm title="重置该用户的本月额度？" onConfirm={() => handleMemberAdjust('reset_quota')}>
+                      <Button>手动重置额度</Button>
+                    </Popconfirm>
+                    <Popconfirm
+                      title="降级为免费会员？此操作会立即取消该用户的付费订阅。"
+                      onConfirm={() => handleMemberAdjust('downgrade')}
+                      disabled={memberInfo.membership_level !== 'paid'}
+                    >
+                      <Button danger disabled={memberInfo.membership_level !== 'paid'}>手动降级</Button>
+                    </Popconfirm>
+                  </Space>
+                </>
+              )}
+              {memberInfo?.error && <span style={{ color: '#999' }}>加载会员信息失败</span>}
+            </Card>
+          </>
         )}
       </Modal>
 

@@ -159,7 +159,7 @@ function MembershipBadge({ level, label }: { level: 'normal' | 'health' | 'premi
     : { bg: '#F5F5F5', color: '#595959', border: '#D9D9D9' };
   return (
     <Tag style={{ margin: 0, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, borderRadius: 10 }}>
-      {label || (level === 'premium' ? '尊享会员' : level === 'health' ? '健康会员' : '普通会员')}
+      {label || (level === 'premium' ? '尊享会员' : level === 'health' ? '健康会员' : '免费会员')}
     </Tag>
   );
 }
@@ -401,7 +401,7 @@ function DetailDrawer({
             <SectionTitle icon='💎' text='2. 会员与配额' />
             <Descriptions column={2} size='small' bordered>
               <Descriptions.Item label='套餐名称' span={1}>
-                {data.membership_quota.plan_name || '普通会员'}
+                {data.membership_quota.plan_name || '免费会员'}
               </Descriptions.Item>
               <Descriptions.Item label='会员等级' span={1}>
                 <MembershipBadge level={data.membership_quota.membership_level} label={data.membership_quota.membership_level_label} />

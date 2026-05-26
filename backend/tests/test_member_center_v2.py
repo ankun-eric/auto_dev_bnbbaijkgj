@@ -1,20 +1,15 @@
-"""[会员中心优化 PRD v2.0 2026-05-26] 自动化测试
+"""[会员中心优化 PRD v2.0 2026-05-26] 自动化测试 [部分字段已被 PRD v1.0 终稿对齐取代]
 
-覆盖：
-1. GET /api/member/center 普通会员视图（含 4 格权益卡）
-2. GET /api/member/plans 启用中套餐列表
-3. POST /api/member/order 创建会员订单 → 校验产物 fulfillment_type=virtual + membership_plan_id 填充
-4. POST /api/member/order/{id}/pay 模拟支付 → grant_membership 生效
-5. 续费规则：同套餐续费时长追加
-6. 升降级规则：降级被拒绝
-7. GET /api/member/orders Tab 筛选
-8. 后台接口：GET /api/admin/users/{id}/membership + adjust
-9. 定时任务：到期降级
+⚠️ 本测试文件创建套餐时使用了 plan_code/ai_remind_quota/max_guardians 等老字段，
+已于 2026-05-26 PRD v1.0 终稿对齐时全部物理删除。本文件整体跳过执行；
+新的对齐测试位于 test_member_center_prd_v1_aligned.py。
 """
 
 from datetime import datetime, timedelta
 
 import pytest
+
+pytestmark = pytest.mark.skip(reason="v2.0 老字段已被 PRD v1.0 终稿对齐物理删除；新测试见 test_member_center_prd_v1_aligned.py")
 from httpx import AsyncClient
 from sqlalchemy import select
 
@@ -58,7 +53,7 @@ async def _create_plan(
 
 @pytest.mark.asyncio
 async def test_member_center_free_user(client: AsyncClient, auth_headers: dict):
-    """普通会员视图：默认是 free，benefits_cards 4 项"""
+    """免费会员视图：默认是 free，benefits_cards 4 项"""
     r = await client.get("/api/member/center", headers=auth_headers)
     assert r.status_code == 200, r.text
     body = r.json()

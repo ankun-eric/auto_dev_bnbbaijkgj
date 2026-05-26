@@ -44,15 +44,14 @@ interface BenefitsCard {
 
 interface PlanBrief {
   id: number;
-  plan_code: string;
   name: string;
+  description: string | null;
   price_month: number | null;
   price_year: number | null;
   max_managed: number;
   ai_outbound_call_count: number;
   emergency_ai_call_count: number;
   max_managed_by: number;
-  benefits_desc: string | null;
   is_recommended: boolean;
   sort_order: number;
 }
@@ -71,12 +70,21 @@ interface CenterCurrent {
   expiring_soon: boolean;
 }
 
+// [优化 v1.0 2026-05-27] free_quota 字段：来自管理后台「免费会员额度配置」（free_member_quota 表），
+// 与当前登录用户档位无关，全用户相同。供权益对比表「免费会员」列消费。
+interface FreeQuota {
+  max_managed: number;
+  ai_outbound_call_count: number;
+  emergency_ai_call_count: number;
+}
+
 interface CenterData {
   current: CenterCurrent;
   plans: PlanBrief[];
   current_plan_rank: number | null;
   ranks: Record<string, number>;
   benefits_cards: BenefitsCard[];
+  free_quota?: FreeQuota;
 }
 
 function fmtVal(v: number | null): string {
@@ -145,7 +153,7 @@ export default function MemberCenterPage() {
     );
   }
 
-  const { current, plans, current_plan_rank, ranks, benefits_cards } = data;
+  const { current, plans, current_plan_rank, ranks, benefits_cards, free_quota } = data;
   const isPaid = current.level === 'paid';
 
   return (
@@ -397,18 +405,21 @@ export default function MemberCenterPage() {
         </div>
       )}
 
-      {/* [Bug 修复 v1.0 §3.2 2026-05-26] 4. 权益对比表（套餐区下方、底部入口区上方） */}
+      {/* [Bug 修复 v1.0 §3.2 2026-05-26] [优化 v1.0 2026-05-27] 4. 权益对比表
+          freeQuota 来自后端 free_quota 字段（管理后台「免费会员额度配置」），
+          与当前用户档位无关，付费用户也能看到正确的「免费会员」列数值。 */}
       <BenefitsCompareTable
         current={current as any}
         plans={plans as any}
         ranks={ranks as any}
+        freeQuota={free_quota}
       />
 
       {/* 5. 底部入口区 */}
       <div style={{ margin: '16px 16px 0', background: '#fff', borderRadius: 18, padding: '4px 0', boxShadow: '0 4px 12px rgba(91, 124, 250, 0.06)' }}>
         {[
-          { label: '我的订单', icon: '📦', tab: '/orders?tab=membership', testid: 'mc-orders' },
-          { label: '我的优惠券', icon: '🎫', tab: '/coupons', testid: 'mc-coupons' },
+          { label: '我的订单', icon: '📦', tab: '/unified-orders', testid: 'mc-orders' },
+          { label: '我的优惠券', icon: '🎫', tab: '/my-coupons', testid: 'mc-coupons' },
           { label: '常见问题', icon: '❓', tab: '#faq', testid: 'mc-faq' },
         ].map((item, idx, arr) => (
           <div

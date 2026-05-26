@@ -1116,7 +1116,7 @@ export default function CouponsPage() {
               <Divider plain>标签筛选（可选）</Divider>
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item label="用户等级" name="member_level" extra="0=普通会员，1+=付费/高级">
+                  <Form.Item label="用户等级" name="member_level" extra="0=免费会员，1+=付费/高级">
                     <InputNumber min={0} style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>

@@ -176,7 +176,7 @@ async def get_plan_ai_call(
 
     membership = await _ensure_membership(db, current_user.id)
     level = await _get_level(db, membership.level_code) or AiCallMembershipLevel(
-        level_code="normal", display_name="普通会员", monthly_quota=30
+        level_code="normal", display_name="免费会员", monthly_quota=30
     )
     quota_total = int(level.monthly_quota or 0)
     used = int(membership.ai_call_quota_used_month or 0)
@@ -276,7 +276,7 @@ async def get_quota(
     membership = await _ensure_membership(db, current_user.id)
     level = await _get_level(db, membership.level_code)
     if not level:
-        level = AiCallMembershipLevel(level_code="normal", display_name="普通会员", monthly_quota=30)
+        level = AiCallMembershipLevel(level_code="normal", display_name="免费会员", monthly_quota=30)
     await db.commit()
     return QuotaOut(
         level_code=level.level_code,

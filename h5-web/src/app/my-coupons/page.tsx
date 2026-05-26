@@ -248,12 +248,22 @@ function MyCouponsPage() {
       `}</style>
       <GreenNavBar
         right={
-          <a
-            className="text-white text-sm font-medium cursor-pointer"
-            onClick={handleRedeem}
-          >
-            兑换码
-          </a>
+          <div className="flex items-center gap-3">
+            {/* [优化 v1.0 2026-05-27] 导航栏右侧"回会员中心"快捷入口（A 位置） */}
+            <a
+              className="text-white text-sm font-medium cursor-pointer"
+              onClick={() => router.push('/member-center')}
+              data-testid="coupon-to-member-center"
+            >
+              👑 会员
+            </a>
+            <a
+              className="text-white text-sm font-medium cursor-pointer"
+              onClick={handleRedeem}
+            >
+              兑换码
+            </a>
+          </div>
         }
       >
         我的优惠券
@@ -305,6 +315,15 @@ function MyCouponsPage() {
               style={{ marginTop: 16, borderRadius: 20, color: '#0EA5E9', borderColor: '#0EA5E9' }}
             >
               去领券中心
+            </Button>
+            {/* [优化 v1.0 2026-05-27] 空状态页中央"回会员中心"快捷入口（B 位置） */}
+            <Button
+              size="small"
+              onClick={() => router.push('/member-center')}
+              style={{ marginTop: 8, marginLeft: 8, borderRadius: 20, background: 'linear-gradient(135deg, #0EA5E9, #38BDF8)', color: '#fff', border: 'none' }}
+              data-testid="coupon-empty-to-member-center"
+            >
+              去会员中心看看套餐
             </Button>
           </div>
         ) : (

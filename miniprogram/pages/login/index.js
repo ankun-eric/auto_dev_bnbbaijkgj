@@ -90,7 +90,7 @@ const PRIVACY_POLICY_CONTENT = `隐私政策
  * UI 展示请改用付费会员套餐（/api/membership/me 返回的 plan_name）。
  */
 function formatMemberLevel(level) {
-  // 不再生成"普通会员/银卡/金卡/钻石"等历史标签；返回空字符串避免 UI 误展示。
+  // 不再生成"免费会员/银卡/金卡/钻石"等历史标签；返回空字符串避免 UI 误展示。
   if (level === undefined || level === null) return '';
   return '';
 }

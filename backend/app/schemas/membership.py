@@ -1,7 +1,7 @@
-"""[付费会员体系 PRD v1.1] Schemas"""
+"""[会员中心 PRD v1.0 对齐 - 2026-05-26] Schemas"""
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -10,57 +10,50 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class MembershipPlanCreate(BaseModel):
-    plan_code: str = Field(..., min_length=1, max_length=50)
-    name: str = Field(..., min_length=1, max_length=100)
-    price_monthly: float = 0
-    price_yearly: Optional[float] = None
-    ai_call_quota: int = 0   # v1.2 deprecated 字段，保留兼容
-    ai_alert_quota: int = 0  # v1.2 deprecated 字段，保留兼容
-    ai_remind_quota: int = 0  # AI 外呼提醒额度（次/月），-1=不限
-    emergency_ai_call_count: int = 0  # [v1.2] 紧急 AI 呼叫额度，-1=不限
-    max_guardians: int = 1  # 被绑定守护上限（前端不展示）
-    max_managed: int = 10  # [v1.2] 守护他人上限（前端展示）
-    point_multiplier: float = 1.0  # [v1.2] 积分翻倍
-    discount_rate: float = 1.0
-    benefits_desc: Optional[str] = None
+    """新增付费会员套餐入参（PRD v1.0）"""
+    name: str = Field(..., min_length=1, max_length=50, description="套餐名称")
+    description: Optional[str] = Field(None, max_length=255, description="套餐说明")
+    price_month: Optional[float] = Field(None, ge=0, description="月价（30天），NULL=不支持月购")
+    price_year: Optional[float] = Field(None, ge=0, description="年价（365天），NULL=不支持年购")
+    max_managed: int = Field(3, description="守护人数量上限，-1=不限")
+    ai_outbound_call_count: int = Field(0, description="AI 外呼提醒（次/月），-1=不限")
+    emergency_ai_call_count: int = Field(0, description="紧急 AI 呼叫（次/月），-1=不限")
+    max_managed_by: int = Field(3, description="被管理人数上限，-1=不限")
+    discount_rate: Optional[float] = Field(None, ge=0.0, le=1.0,
+                                           description="商城折扣率（NULL=无折扣，仅后台可配）")
     is_active: bool = True
+    is_recommended: bool = Field(False, description="是否推荐套餐（用户端金色描边+角标）")
     sort_order: int = 0
 
 
 class MembershipPlanUpdate(BaseModel):
-    plan_code: Optional[str] = None
-    name: Optional[str] = None
-    price_monthly: Optional[float] = None
-    price_yearly: Optional[float] = None
-    ai_call_quota: Optional[int] = None
-    ai_alert_quota: Optional[int] = None
-    ai_remind_quota: Optional[int] = None
-    emergency_ai_call_count: Optional[int] = None
-    max_guardians: Optional[int] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=50)
+    description: Optional[str] = None
+    price_month: Optional[float] = None
+    price_year: Optional[float] = None
     max_managed: Optional[int] = None
-    point_multiplier: Optional[float] = None
+    ai_outbound_call_count: Optional[int] = None
+    emergency_ai_call_count: Optional[int] = None
+    max_managed_by: Optional[int] = None
     discount_rate: Optional[float] = None
-    benefits_desc: Optional[str] = None
     is_active: Optional[bool] = None
+    is_recommended: Optional[bool] = None
     sort_order: Optional[int] = None
 
 
 class MembershipPlanResponse(BaseModel):
     id: int
-    plan_code: str
     name: str
-    price_monthly: float
-    price_yearly: Optional[float] = None
-    ai_call_quota: int
-    ai_alert_quota: int
-    ai_remind_quota: int
-    emergency_ai_call_count: int = 0
-    max_guardians: int
-    max_managed: int = 10
-    point_multiplier: float = 1.0
-    discount_rate: float
-    benefits_desc: Optional[str] = None
+    description: Optional[str] = None
+    price_month: Optional[float] = None
+    price_year: Optional[float] = None
+    max_managed: int
+    ai_outbound_call_count: int
+    emergency_ai_call_count: int
+    max_managed_by: int
+    discount_rate: Optional[float] = None
     is_active: bool
+    is_recommended: bool = False
     sort_order: int
     created_at: datetime
     updated_at: datetime
@@ -72,24 +65,18 @@ class MembershipPlanResponse(BaseModel):
 
 
 class FreeMemberQuotaUpdate(BaseModel):
-    ai_call_quota: Optional[int] = None
-    ai_alert_quota: Optional[int] = None
-    ai_remind_quota: Optional[int] = None
-    emergency_ai_call_count: Optional[int] = None
-    max_guardians: Optional[int] = None
     max_managed: Optional[int] = None
-    benefits_desc: Optional[str] = None
+    ai_outbound_call_count: Optional[int] = None
+    emergency_ai_call_count: Optional[int] = None
+    max_managed_by: Optional[int] = None
 
 
 class FreeMemberQuotaResponse(BaseModel):
     id: int
-    ai_call_quota: int
-    ai_alert_quota: int
-    ai_remind_quota: int
-    emergency_ai_call_count: int = 3
-    max_guardians: int
-    max_managed: int = 3
-    benefits_desc: Optional[str] = None
+    max_managed: int
+    ai_outbound_call_count: int
+    emergency_ai_call_count: int
+    max_managed_by: int
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -103,16 +90,15 @@ class UserMembershipResponse(BaseModel):
     user_id: int
     plan_id: int
     plan_name: Optional[str] = None
-    plan_code: Optional[str] = None
     billing_cycle: str
     start_at: datetime
     expire_at: datetime
     status: str
     discount_rate: Optional[float] = None
-    max_guardians: Optional[int] = None
-    ai_call_quota: Optional[int] = None
-    ai_alert_quota: Optional[int] = None
-    ai_remind_quota: Optional[int] = None
+    max_managed: Optional[int] = None
+    max_managed_by: Optional[int] = None
+    ai_outbound_call_count: Optional[int] = None
+    emergency_ai_call_count: Optional[int] = None
     auto_renew: bool
 
     model_config = ConfigDict(from_attributes=True)
@@ -122,17 +108,14 @@ class MembershipMeResponse(BaseModel):
     """当前用户的会员状态简要信息（用户端使用）"""
     is_paid_member: bool
     plan_id: Optional[int] = None
-    plan_code: Optional[str] = None
     plan_name: Optional[str] = None
     expire_at: Optional[datetime] = None
-    discount_rate: float = 1.0
-    max_guardians: int = 1
     max_managed: int = 3
-    ai_call_quota: int = 0
-    ai_alert_quota: int = 0
-    ai_remind_quota: int = 0
+    max_managed_by: int = 3
+    ai_outbound_call_count: int = 5
     emergency_ai_call_count: int = 3
-    benefits_desc: Optional[str] = None
+    # discount_rate 仅后端透传，用户端不渲染
+    discount_rate: Optional[float] = None
 
 
 class MembershipSubscribeRequest(BaseModel):
@@ -140,34 +123,61 @@ class MembershipSubscribeRequest(BaseModel):
     billing_cycle: str = "monthly"  # monthly / yearly
 
 
+# ──────────────── 后台：用户会员卡片 / 调整操作 ────────────────
+
+
+class UserMembershipCardResponse(BaseModel):
+    """后台用户详情 - 会员信息卡片"""
+    user_id: int
+    plan_id: Optional[int] = None
+    plan_name: str = "免费会员"
+    is_paid_member: bool = False
+    expire_at: Optional[datetime] = None
+    days_remaining: Optional[int] = None
+
+    max_managed_limit: int = 3            # 守护人上限
+    max_managed_used: int = 0             # 已守护人数
+    max_managed_by_limit: int = 3         # 被守护上限
+    max_managed_by_used: int = 0          # 已被守护人数
+    ai_outbound_call_limit: int = 5
+    ai_outbound_call_used: int = 0
+    ai_outbound_call_remaining: int = 5
+    emergency_ai_call_limit: int = 3
+    emergency_ai_call_used: int = 0
+    emergency_ai_call_remaining: int = 3
+
+
+class UserMembershipAdjustRequest(BaseModel):
+    """后台会员调整请求"""
+    action: Literal["extend", "downgrade", "reset_quota"]
+    days: Optional[int] = Field(None, ge=1, description="延期天数（action=extend 必填）")
+
+
 # ──────────────── Discount Calculation ────────────────
 
 
 class DiscountCalcRequest(BaseModel):
-    """收银台计算优惠的请求"""
     product_id: int
     quantity: int = 1
-    user_points: Optional[int] = None  # 若不传则从当前用户积分余额读取
+    user_points: Optional[int] = None
 
 
 class DiscountOptionItem(BaseModel):
-    """单个可用的优惠选项"""
-    type: str  # member_discount / points_deduction / none
+    type: str
     label: str
-    discount_amount: float  # 抵扣/折扣金额（正数）
-    final_price: float       # 最终应付
+    discount_amount: float
+    final_price: float
     detail: Optional[str] = None
-    use_points: Optional[int] = None  # 若是积分抵扣，使用的积分数量
+    use_points: Optional[int] = None
 
 
 class DiscountCalcResponse(BaseModel):
-    """收银台优惠计算结果（v1.1：会员折扣 vs 积分抵扣 二选一）"""
     product_id: int
     quantity: int
-    original_price: float       # 单价 * 数量（不打折）
+    original_price: float
     is_paid_member: bool
     user_points: int
     member_discount_eligible: bool
     points_deductible: bool
-    options: list[DiscountOptionItem]    # 可选的优惠方式
-    recommended: str            # 默认推荐：member_discount / points_deduction / none
+    options: list[DiscountOptionItem]
+    recommended: str

@@ -1,20 +1,19 @@
 'use client';
 
 /**
- * [付费会员体系 PRD v1.1] 免费会员额度配置页
+ * [会员中心 PRD v1.0 终稿对齐 2026-05-26] 免费会员额度配置页
  *
  * 路径：/membership/free-quota
- * 功能：维护一份"默认免费会员额度"系统级常量配置（单行 id=1）。
+ * 字段：max_managed / ai_outbound_call_count / emergency_ai_call_count / max_managed_by
  */
 
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Form, Input, InputNumber, Space, Typography, message } from 'antd';
+import { Button, Card, Form, InputNumber, Space, Typography, message, Alert } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { get, put } from '@/lib/api';
 
 const { Title, Paragraph } = Typography;
-const { TextArea } = Input;
 
 export default function FreeQuotaPage() {
   const [form] = Form.useForm();
@@ -24,14 +23,13 @@ export default function FreeQuotaPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await get('/api/admin/membership/free-quota');
+      const res = await get<any>('/api/admin/membership/free-quota');
       if (res) {
         form.setFieldsValue({
-          ai_call_quota: res.ai_call_quota || 0,
-          ai_alert_quota: res.ai_alert_quota || 0,
-          ai_remind_quota: res.ai_remind_quota || 0,
-          max_guardians: res.max_guardians || 1,
-          benefits_desc: res.benefits_desc || '',
+          max_managed: res.max_managed ?? 3,
+          ai_outbound_call_count: res.ai_outbound_call_count ?? 5,
+          emergency_ai_call_count: res.emergency_ai_call_count ?? 3,
+          max_managed_by: res.max_managed_by ?? 3,
         });
       }
     } catch (e) {
@@ -50,7 +48,7 @@ export default function FreeQuotaPage() {
     try {
       const values = await form.validateFields();
       await put('/api/admin/membership/free-quota', values);
-      message.success('已保存');
+      message.success('已保存：所有免费会员的额度立即按新配置生效');
     } catch (e: any) {
       if (!e?.errorFields) message.error('保存失败');
     } finally {
@@ -62,32 +60,36 @@ export default function FreeQuotaPage() {
     <div style={{ padding: 24, maxWidth: 720 }}>
       <Title level={3}>免费会员额度配置</Title>
       <Paragraph type="secondary">
-        系统级常量。所有未购买付费套餐的用户默认享有以下额度。修改后立即对所有免费会员生效。
+        系统级常量。保存后所有免费会员（未购买付费套餐的用户）的额度立即按新配置生效。
         <Link href="/membership/plans" style={{ marginLeft: 12 }}>
-          ← 返回付费会员套餐配置
+          ← 返回付费会员套餐管理
         </Link>
       </Paragraph>
 
+      <Alert
+        type="info"
+        showIcon
+        message="字段值填 -1 表示不限"
+        style={{ marginBottom: 16 }}
+      />
+
       <Card loading={loading}>
         <Form form={form} layout="vertical">
-          <Form.Item label="AI 电话告警额度（次/月）" name="ai_call_quota">
-            <InputNumber min={0} style={{ width: 240 }} />
+          <Form.Item label="守护人数量" name="max_managed" rules={[{ required: true }]}
+            tooltip="免费用户可绑定的守护人数量上限">
+            <InputNumber min={-1} style={{ width: 240 }} />
           </Form.Item>
-          <Form.Item
-            label="AI 异常告警额度（次/月）"
-            name="ai_alert_quota"
-            tooltip="PRD § 七：异常告警电话完全免费、平台兜底，本字段仅控制 App 内告警次数限制"
-          >
-            <InputNumber min={0} style={{ width: 240 }} />
+          <Form.Item label="AI 外呼提醒（次/月）" name="ai_outbound_call_count" rules={[{ required: true }]}
+            tooltip="-1 表示不限">
+            <InputNumber min={-1} style={{ width: 240 }} />
           </Form.Item>
-          <Form.Item label="AI 外呼提醒额度（次/月）" name="ai_remind_quota">
-            <InputNumber min={0} style={{ width: 240 }} />
+          <Form.Item label="紧急 AI 呼叫（次/月）" name="emergency_ai_call_count" rules={[{ required: true }]}
+            tooltip="-1 表示不限">
+            <InputNumber min={-1} style={{ width: 240 }} />
           </Form.Item>
-          <Form.Item label="守护人数量上限" name="max_guardians" rules={[{ required: true }]}>
-            <InputNumber min={1} style={{ width: 240 }} />
-          </Form.Item>
-          <Form.Item label="免费会员权益说明" name="benefits_desc">
-            <TextArea rows={4} placeholder="将展示在用户端的会员卡片/权益页" />
+          <Form.Item label="被管理人数上限" name="max_managed_by" rules={[{ required: true }]}
+            tooltip="免费用户可被多少守护人管理（-1 表示不限）">
+            <InputNumber min={-1} style={{ width: 240 }} />
           </Form.Item>
           <Space>
             <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={onSave}>

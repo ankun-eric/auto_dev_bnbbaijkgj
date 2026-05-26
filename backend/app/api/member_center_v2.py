@@ -9,7 +9,7 @@
 - POST /api/admin/users/{id}/membership/adjust  后台手动调整（延期/重置/降级）
 
 业务规则（按 PRD §7 实现 grant_membership 升级/续费/降级）：
-- 普通会员 → 直接开通付费
+- 免费会员 → 直接开通付费
 - 同套餐续费 → 时长追加（剩余 + 新周期）
 - 跨套餐升级 → 立即生效 + 旧时长作废（仅允许升到更高 rank 的套餐）
 - 降级 → 拒绝（提示"请等当前套餐到期"）
@@ -52,9 +52,9 @@ admin_dep = require_role("admin")
 
 def _plan_rank(plan: MembershipPlan) -> float:
     """计算套餐档次：以年价为优先，否则月价 × 12。用于升级/降级判定。"""
-    if plan.price_yearly is not None and float(plan.price_yearly) > 0:
-        return float(plan.price_yearly)
-    return float(plan.price_monthly or 0) * 12
+    if plan.price_year is not None and float(plan.price_year) > 0:
+        return float(plan.price_year)
+    return float(plan.price_month or 0) * 12
 
 
 def _days_for_period(period: str) -> int:
@@ -88,7 +88,7 @@ async def _grant_membership(
     existing = await _get_active_sub(db, user_id)
 
     if existing is None:
-        # 普通会员 → 开通付费
+        # 免费会员 → 开通付费
         start_at = now
         expire_at = now + timedelta(days=days)
     elif existing.plan_id == plan.id:
@@ -110,7 +110,7 @@ async def _grant_membership(
         start_at=start_at,
         expire_at=expire_at,
         status="active",
-        paid_amount=Decimal(str(plan.price_yearly if period == "year" else plan.price_monthly or 0)),
+        paid_amount=Decimal(str(plan.price_year if period == "year" else plan.price_month or 0)),
     )
     db.add(record)
     await db.flush()
@@ -119,18 +119,18 @@ async def _grant_membership(
 
 
 def _plan_to_brief(p: MembershipPlan, recommended: bool = False) -> dict:
+    # PRD v1.0：移除 plan_code、benefits_desc；is_recommended 改为读取套餐自身字段
     return {
         "id": p.id,
-        "plan_code": p.plan_code,
         "name": p.name,
-        "price_month": float(p.price_monthly) if p.price_monthly is not None and float(p.price_monthly) > 0 else None,
-        "price_year": float(p.price_yearly) if p.price_yearly is not None and float(p.price_yearly) > 0 else None,
+        "description": p.description,
+        "price_month": float(p.price_month) if p.price_month is not None and float(p.price_month) > 0 else None,
+        "price_year": float(p.price_year) if p.price_year is not None and float(p.price_year) > 0 else None,
         "max_managed": int(p.max_managed or 0),
-        "ai_outbound_call_count": int(p.ai_remind_quota or 0),
+        "ai_outbound_call_count": int(p.ai_outbound_call_count or 0),
         "emergency_ai_call_count": int(p.emergency_ai_call_count or 0),
-        "max_managed_by": int(p.max_guardians or 0),
-        "benefits_desc": p.benefits_desc,
-        "is_recommended": recommended,
+        "max_managed_by": int(p.max_managed_by or 0),
+        "is_recommended": bool(p.is_recommended) or recommended,
         "sort_order": int(p.sort_order or 0),
     }
 
@@ -158,9 +158,9 @@ async def get_member_center(
             "expire_at": sub.expire_at.isoformat() if sub.expire_at else None,
             "expire_date": sub.expire_at.strftime("%Y-%m-%d") if sub.expire_at else None,
             "max_managed": int(plan.max_managed or 0),
-            "ai_outbound_call_count": int(plan.ai_remind_quota or 0),
+            "ai_outbound_call_count": int(plan.ai_outbound_call_count or 0),
             "emergency_ai_call_count": int(plan.emergency_ai_call_count or 0),
-            "max_managed_by": int(plan.max_guardians or 0),
+            "max_managed_by": int(plan.max_managed_by or 0),
         }
         # 到期提醒（提前 7/3/1 天）
         days_left = (sub.expire_at - datetime.utcnow()).days if sub.expire_at else None
@@ -170,14 +170,14 @@ async def get_member_center(
         current = {
             "level": "free",
             "plan_id": None,
-            "plan_name": "普通会员",
+            "plan_name": "免费会员",
             "billing_cycle": None,
             "expire_at": None,
             "expire_date": "长期",
             "max_managed": int(quota.max_managed) if quota else 3,
-            "ai_outbound_call_count": int(quota.ai_remind_quota) if quota else 5,
+            "ai_outbound_call_count": int(quota.ai_outbound_call_count) if quota else 5,
             "emergency_ai_call_count": int(quota.emergency_ai_call_count) if quota else 3,
-            "max_managed_by": int(quota.max_guardians) if quota else 3,
+            "max_managed_by": int(quota.max_managed_by) if quota else 3,
             "days_left": None,
             "expiring_soon": False,
         }
@@ -196,6 +196,15 @@ async def get_member_center(
     # 当前套餐的 rank（用于前端判断展示"续费/升级/不可购"按钮）
     current_rank = _plan_rank(sub.plan) if sub and sub.plan else None
 
+    # [优化 v1.0 2026-05-27] free_quota 永远是「免费会员额度配置」表中的全局额度，
+    # 与当前登录用户档位无关。供 H5 权益对比表"免费会员"列消费。
+    # 兜底：若 free_member_quota 记录不存在，返回 0/0/0。
+    free_quota_resp = {
+        "max_managed": int(quota.max_managed) if quota else 0,
+        "ai_outbound_call_count": int(quota.ai_outbound_call_count) if quota else 0,
+        "emergency_ai_call_count": int(quota.emergency_ai_call_count) if quota else 0,
+    }
+
     return {
         "current": current,
         "plans": plan_dicts,
@@ -207,6 +216,7 @@ async def get_member_center(
             {"key": "emergency_ai_call_count", "label": "紧急 AI 呼叫", "value": current["emergency_ai_call_count"], "unit": "次/月"},
             {"key": "placeholder", "label": "更多权益", "value": None, "unit": "敬请期待"},
         ],
+        "free_quota": free_quota_resp,
     }
 
 
@@ -252,7 +262,7 @@ async def create_member_order(
     if not plan or not plan.is_active:
         raise HTTPException(404, "套餐不存在或已下线")
 
-    price = plan.price_yearly if data.period == "year" else plan.price_monthly
+    price = plan.price_year if data.period == "year" else plan.price_month
     if price is None or float(price) <= 0:
         raise HTTPException(400, f"套餐 {plan.name} 不支持{'年' if data.period == 'year' else '月'}付")
 
@@ -440,8 +450,8 @@ async def admin_get_user_membership(
             "plan_name": plan.name,
             "expire_at": sub.expire_at.isoformat() if sub.expire_at else None,
             "max_managed": int(plan.max_managed or 0),
-            "max_managed_by": int(plan.max_guardians or 0),
-            "ai_outbound_call_count": int(plan.ai_remind_quota or 0),
+            "max_managed_by": int(plan.max_managed_by or 0),
+            "ai_outbound_call_count": int(plan.ai_outbound_call_count or 0),
             "emergency_ai_call_count": int(plan.emergency_ai_call_count or 0),
             "sub_id": sub.id,
             "billing_cycle": sub.billing_cycle,
@@ -451,11 +461,11 @@ async def admin_get_user_membership(
         "user_id": user_id,
         "membership_level": "free",
         "plan_id": None,
-        "plan_name": "普通会员",
+        "plan_name": "免费会员",
         "expire_at": None,
         "max_managed": int(quota.max_managed) if quota else 3,
-        "max_managed_by": int(quota.max_guardians) if quota else 3,
-        "ai_outbound_call_count": int(quota.ai_remind_quota) if quota else 5,
+        "max_managed_by": int(quota.max_managed_by) if quota else 3,
+        "ai_outbound_call_count": int(quota.ai_outbound_call_count) if quota else 5,
         "emergency_ai_call_count": int(quota.emergency_ai_call_count) if quota else 3,
         "sub_id": None,
         "billing_cycle": None,
@@ -478,7 +488,7 @@ async def admin_adjust_membership(
     sub = await _get_active_sub(db, user_id)
     if data.action == "extend":
         if not sub:
-            raise HTTPException(400, "用户当前为普通会员，无法延期")
+            raise HTTPException(400, "用户当前为免费会员，无法延期")
         days = int(data.days or 30)
         sub.expire_at = sub.expire_at + timedelta(days=days)
         await db.flush()

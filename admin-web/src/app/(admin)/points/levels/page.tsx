@@ -21,7 +21,7 @@ interface MemberLevel {
 }
 
 const mockLevels: MemberLevel[] = [
-  { id: 1, name: '普通会员', icon: '🥉', minPoints: 0, maxPoints: 999, discount: 100, benefits: '基础健康咨询', color: '#8c8c8c', memberCount: 5230 },
+  { id: 1, name: '免费会员', icon: '🥉', minPoints: 0, maxPoints: 999, discount: 100, benefits: '基础健康咨询', color: '#8c8c8c', memberCount: 5230 },
   { id: 2, name: '白银会员', icon: '🥈', minPoints: 1000, maxPoints: 4999, discount: 95, benefits: '基础健康咨询、优先排队、生日礼包', color: '#a0d911', memberCount: 3150 },
   { id: 3, name: '黄金会员', icon: '🥇', minPoints: 5000, maxPoints: 19999, discount: 90, benefits: '全部白银权益、专属营养方案、月度健康报告', color: '#faad14', memberCount: 2680 },
   { id: 4, name: '钻石会员', icon: '💎', minPoints: 20000, maxPoints: 49999, discount: 85, benefits: '全部黄金权益、专家一对一服务、VIP客服、季度体检提醒', color: '#1890ff', memberCount: 1200 },

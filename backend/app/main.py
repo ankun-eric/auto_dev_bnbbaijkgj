@@ -1503,7 +1503,7 @@ async def _migrate_health_opt_v1_ai_call():
             existing = res.scalar() or 0
             if existing < 2:
                 seed = [
-                    ("normal", "普通会员", 30, 100),
+                    ("normal", "免费会员", 30, 100),
                     ("health", "健康会员", 100, 200),
                 ]
                 for code, name, quota, sort_o in seed:

@@ -27,6 +27,22 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: 会员中心优化 v1.0 — 权益对比数值动态化 / 免费会员改名 / 入口修复（2026-05-27）
+
+本次新增「会员中心优化 v1.0」，关键变更：
+
+- 后端 `GET /api/member/center` 响应新增 `free_quota` 字段（`max_managed / ai_outbound_call_count / emergency_ai_call_count`），来自 `free_member_quota` 表的全局额度，与登录用户档位无关。`backend/app/api/member_center_v2.py`
+- H5 会员中心权益对比表（`h5-web/src/app/member-center/components/BenefitsCompareTable.tsx`）的"免费会员"列改为消费 `free_quota`，且列头由「普通会员」改为「免费会员」
+- 修复 H5 会员中心底部入口 404：
+  - 「我的订单」`/orders?tab=membership` → `/unified-orders`
+  - 「我的优惠券」`/coupons` → `/my-coupons`
+- `/my-coupons` 顶部导航栏新增「👑 会员」入口；空状态页新增「去会员中心看看套餐」按钮
+- 全代码库「普通会员」→「免费会员」一次性替换（仅 UI/接口中文文案；数据库英文枚举 `FREE/NORMAL` 保留）
+- 后端测试 `backend/tests/test_member_center_prd_v1_aligned.py` 新增 4 个测试：`test_center_returns_free_quota` / `test_free_quota_reflects_admin_config` / `test_free_quota_independent_of_user_level` / `test_free_member_plan_name_text`；远程 pytest 17/17 通过
+- 微信小程序同步「免费会员」文案，最新包：`miniprogram_member_free_20260527_012314_ff60.zip`（已上传至 `/static/miniprogram/`）
+
+---
+
 ## Latest Update: 健康档案 PRD 改造部署生效（H5/admin 容器单容器重建上线 · 2026-05-27）
 
 ### 一句话结论

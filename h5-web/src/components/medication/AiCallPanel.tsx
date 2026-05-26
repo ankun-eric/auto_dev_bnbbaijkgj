@@ -121,7 +121,7 @@ export default function AiCallPanel({ planId, draftMode, onDraftChange, initialD
   };
 
   const showQuotaExhaustedDialog = () => {
-    const levelName = quota?.level_display_name || '普通会员';
+    const levelName = quota?.level_display_name || '免费会员';
     const total = quota?.monthly_quota ?? 30;
     showUnifiedDialog({
       title: '本月 AI 外呼额度已用完',

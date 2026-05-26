@@ -201,7 +201,7 @@ async def _get_user_quotas(db: AsyncSession, user_id: int) -> dict:
     return {
         "is_paid_member": False,
         "plan_id": None,
-        "plan_name": "普通会员",
+        "plan_name": "免费会员",
         "ai_remind_quota": ai_out_free,
         "ai_outbound_call_count": ai_out_free,
         "emergency_ai_call_count": int(getattr(quota, "emergency_ai_call_count", 3)) if quota else 3,
@@ -1434,7 +1434,7 @@ async def admin_toggle_emergency_source(
 # 关系称呼到中文的展示映射 - 复用 RELATION_FALLBACKS（已在工具区定义）
 
 MEMBERSHIP_LEVEL_LABELS = {
-    "normal": "普通会员",
+    "normal": "免费会员",
     "health": "健康会员",
     "premium": "尊享会员",
 }
@@ -1488,7 +1488,7 @@ async def _build_family_management_row(
         "is_primary_guardian": is_primary,
         "priority": int(getattr(mgmt, "priority_order", 100) or 100),
         "membership_level": _plan_to_level(quotas["plan_name"]),
-        "membership_level_label": MEMBERSHIP_LEVEL_LABELS.get(_plan_to_level(quotas["plan_name"]), "普通会员"),
+        "membership_level_label": MEMBERSHIP_LEVEL_LABELS.get(_plan_to_level(quotas["plan_name"]), "免费会员"),
         "plan_name": quotas["plan_name"],
         "is_paid_member": bool(quotas["is_paid_member"]),
         "emergency_quota_total": em_total,
@@ -1684,7 +1684,7 @@ async def admin_family_management_detail(
     membership_quota = {
         "plan_name": quotas["plan_name"],
         "membership_level": _plan_to_level(quotas["plan_name"]),
-        "membership_level_label": MEMBERSHIP_LEVEL_LABELS.get(_plan_to_level(quotas["plan_name"]), "普通会员"),
+        "membership_level_label": MEMBERSHIP_LEVEL_LABELS.get(_plan_to_level(quotas["plan_name"]), "免费会员"),
         "is_paid_member": bool(quotas["is_paid_member"]),
         "plan_expire_at": plan_expire_at,
         "emergency_quota_total": em_total,
@@ -1752,7 +1752,7 @@ async def admin_family_management_detail(
             "priority": int(getattr(g, "priority_order", 100) or 100),
             "relation_label": g_relation,
             "membership_level": _plan_to_level(g_quotas["plan_name"]),
-            "membership_level_label": MEMBERSHIP_LEVEL_LABELS.get(_plan_to_level(g_quotas["plan_name"]), "普通会员"),
+            "membership_level_label": MEMBERSHIP_LEVEL_LABELS.get(_plan_to_level(g_quotas["plan_name"]), "免费会员"),
             "plan_name": g_quotas["plan_name"],
             "is_paid_member": bool(g_quotas["is_paid_member"]),
             "is_current": g.id == mgmt.id,
