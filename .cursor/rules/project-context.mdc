@@ -27,6 +27,54 @@ alwaysApply: false
 - Project directory on server: `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
 - DEPLOY_ID: `6b099ed3-7175-4a78-91f4-44570c84ed27`
 
+## Latest Update: AI 首页 5 项完善（H5 顶栏/铃铛/侧栏微调 Bug 修复 · 2026-05-26）
+
+### 一句话结论
+按《Bug 修复方案：AI 首页 5 项完善》落地仅 H5 端的 5 个微调：(1) Bug#1 顶栏汉堡图标三横线**全部左对齐**，第 1/2 条等长（76% 宽度）、第 3 条更短（52% 宽度）形成"阶梯递减"视觉；(2) Bug#2 "小康"标题从靠左渲染改为 `position:absolute; left:50%; translateX(-50%)` 严格水平居中于顶栏；(3) Bug#3a 右上角"⋯"三点按钮替换为微信样式"+加圆圈"SVG 图标（`circle` + 两条 `line`），`onClick` 与菜单弹出逻辑完整保留；(4) Bug#3b 铃铛抽屉 `ReminderDrawer` 通过前端 adapter `adaptMedicationPlansToday()` 把数据源从 `/api/medication-reminder/today` 切换到 `/api/medication-plans/today`（与"用药提醒-全部"页同接口），打卡接口同步切换到 `/api/medication-check-in`，铃铛红点数与"用药提醒-全部"页"待服用"计数永久一致；(5) Bug#4 侧边抽屉会员中心副标题文案 `权益管理与升级` → `权益升级`；(6) Bug#5 删除右上"+"菜单中"会员中心"项右侧的"新"字角标（金色文字 + 皇冠保留）；(7) 仅 4 个 H5 文件改动，后端 / 小程序 / 移动端零改动；(8) 部署到服务器后容器内 `.next` 编译产物 grep 验证全部通过、外部 HTTPS 5 个关键链接均 200。
+
+### 核心变更
+- H5 修改：`h5-web/src/app/(ai-chat)/ai-home/page.tsx`（顶栏三横线 `<rect>` 全部左对齐 + 标题居中容器 + 右上 SVG 圆圈+号）
+- H5 修改：`h5-web/src/components/ai-chat/Sidebar.tsx`（副标题文案）
+- H5 修改：`h5-web/src/components/ai-chat/MoreMenu.tsx`（删除 `NEW_BADGE_DEADLINE` 常量、`showNewBadge` 判定、`badge` 字段、`<span>新</span>` 渲染节点）
+- H5 修改：`h5-web/src/components/ai-chat/ReminderDrawer.tsx`（新增 `adaptMedicationPlansToday` 兼容层、`fetchAll` 接口切换、`handleCheck` 打卡接口切换）
+- 部署脚本：`_deploy_aihome_5bugs.py`、`_redeploy_step2.py`、`_verify_aihome_5bugs.py`
+- 用户手册：`user_docs/AI首页5项完善.md`
+
+### 关键决策
+- **铃铛与用药提醒-全部页对齐采用前端 adapter 方案而非后端接口对齐**：方案文档已给出退路方案（"如果接口字段差异较大无法快速对齐则采用前端兼容层"），后端 `/api/medication-reminder/badge` 与 `/api/medication-plans/today` 实际共用同一 `_list_today_active_reminders` + `_today_checkins` 工具函数计数，**计数口径已天然一致**，无需再改后端
+- **bell badge 不再改动后端**：badge 接口已与 medication-plans/today 同口径，前端 adapter 切换后两端数据自然 100% 一致
+- **顶栏标题最大宽度限制为 `calc(100% - 120px)`**：保证长签名（最多 8 字符 + …）下仍能居中且不与左右两侧按钮重叠
+- **"+"图标采用纯 SVG（circle + 2 line）**：圆形描边 + 中间加号，避免使用 emoji 或 font 字体导致的跨平台显示差异
+
+### 5 项 Bug 一览
+| # | 文件 | 改动要点 |
+|---|------|---------|
+| 1 | `h5-web/src/app/(ai-chat)/ai-home/page.tsx` ~4040 行 | 三条 `<rect>` 全部 `x=0`，width 分别为 `0.76*W / 0.76*W / 0.52*W` |
+| 2 | 同上 ~4095 行 | 标题容器 `left:50% + translateX(-50%) + maxWidth:calc(100%-120px)` |
+| 3a | 同上 ~4165 行 | 替换为 `<svg><circle/><line/><line/></svg>`，`data-testid="ai-home-more-icon-plus-circle"` |
+| 3b | `h5-web/src/components/ai-chat/ReminderDrawer.tsx` | 接口 `medication-plans/today` + adapter + 打卡 `medication-check-in` |
+| 4 | `h5-web/src/components/ai-chat/Sidebar.tsx` 1367 行 | 文案 `权益管理与升级` → `权益升级` |
+| 5 | `h5-web/src/components/ai-chat/MoreMenu.tsx` | 删 `NEW_BADGE_DEADLINE` 常量 + `showNewBadge` + `badge` 字段 + `<span>新</span>` |
+
+### 服务端验证结果（grep 编译产物 + 外部 HTTPS）
+| 检查项 | 期望 | 实际 |
+|--------|------|------|
+| `ai-home-more-icon-plus-circle` | ≥1 | 1 |
+| `ai-home-hamburger-icon` | ≥1 | 1 |
+| `权益升级` | ≥1 | 1 |
+| `权益管理与升级` | =0 | 0 |
+| `新角标` | =0 | 0 |
+| `medication-plans/today` 引用 | ≥1 | 2 |
+| `medication-check-in` 引用 | ≥1 | 1 |
+| 外部 GET `/`、`/ai-home/`、`/ai-home/medication-reminder/`、`/api/health`、`/login/` | HTTP 200 | 全部 200 |
+
+### 部署后访问入口
+- AI 健康管家首页：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home/`
+- 用药提醒-全部（对比铃铛抽屉数据）：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home/medication-reminder/`
+- 用户手册：`user_docs/AI首页5项完善.md`
+
+---
+
 ## Latest Update: 守护人体系 v1.3 健康档案融合优化（2026-05-26）
 
 ### 一句话结论
