@@ -1364,7 +1364,7 @@ export default function Sidebar({
                     会员中心
                   </span>
                   <span style={{ display: 'block', fontSize: 12, color: '#8B6914', marginTop: 2 }}>
-                    权益管理与升级
+                    权益升级
                   </span>
                 </span>
               </button>

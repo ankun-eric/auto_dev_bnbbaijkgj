@@ -22,18 +22,14 @@ const MENU_DIVIDER = '#BAE6FD'; // 主题浅蓝点缀色
 
 // [Bug 修复 v1.0 §3.1.1] 金色（与会员中心皇冠/等级胶囊一致），用于「会员中心」菜单项文字加亮
 const GOLD = '#E5A23B';
-const GOLD_LIGHT = '#F4D793';
-// 「新」角标启用期（自首次发版起 30 天内显示）
-const NEW_BADGE_DEADLINE = new Date('2026-06-25T00:00:00Z').getTime();
 
 export default function MoreMenu({ visible, onClose, onScan, onFontSize, onShare, onMemberCenter }: MoreMenuProps) {
   // [PRD-467 FR-01/FR-02] 「扫一扫」「字体大小」可点击：action 由父组件挂接到 onScan / onFontSize
   // 注意：点击后 onClose 仍会被调用以关闭⋯菜单，与字号 popover 互斥（FR-02）
   // [会员中心优化 PRD v2.0 §3.1] 会员中心提到第一项（替换原"我的设备"语义），并加入金色皇冠图标
-  // [Bug 修复 v1.0 §3.1.1] 会员中心首项：金色文字 + 「新」角标（30 天内）
-  const showNewBadge = Date.now() < NEW_BADGE_DEADLINE;
+  // [BUGFIX-AI-HOME-5ITEMS-V1 2026-05-26 Bug#5] 删除「新」字角标——金色文字+皇冠保留
   const items = [
-    { icon: '👑', label: '会员中心', action: onMemberCenter, gold: true, badge: showNewBadge },
+    { icon: '👑', label: '会员中心', action: onMemberCenter, gold: true },
     { icon: '📷', label: '扫一扫', action: onScan },
     { icon: '🔤', label: '字体大小', action: onFontSize },
     { icon: '📤', label: '立即分享', action: onShare },
@@ -81,22 +77,6 @@ export default function MoreMenu({ visible, onClose, onScan, onFontSize, onShare
               >
                 {item.label}
               </span>
-              {item.badge && (
-                <span
-                  style={{
-                    background: `linear-gradient(90deg, ${GOLD} 0%, ${GOLD_LIGHT} 100%)`,
-                    color: '#5C3B00',
-                    fontSize: 10,
-                    fontWeight: 700,
-                    padding: '1px 6px',
-                    borderRadius: 8,
-                    lineHeight: 1.2,
-                  }}
-                  data-testid="ai-home-more-menu-item-新角标"
-                >
-                  新
-                </span>
-              )}
             </div>
           ))}
         </div>

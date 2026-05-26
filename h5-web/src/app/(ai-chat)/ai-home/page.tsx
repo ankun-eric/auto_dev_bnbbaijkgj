@@ -4037,30 +4037,33 @@ export default function AiHomePage() {
                     aria-hidden="true"
                     data-testid="ai-home-hamburger-icon"
                   >
-                    {/* [PRD-AI-HOME-OPTIM-FINAL-V1 2026-05-19 §3.1] 三横线"右-全-左"错落感 */}
-                    {/* 第 1 条：50% 长度，右对齐 */}
+                    {/* [BUGFIX-AI-HOME-5ITEMS-V1 2026-05-26 Bug#1] 三横线全部左对齐 (x=0)
+                        - 第 1、2 条：等长，约 76% 宽度（≈16px）
+                        - 第 3 条：更短，约 52% 宽度（≈11px）
+                        视觉效果：左侧对齐，向右伸出不同长度，呈"阶梯递减" */}
+                    {/* 第 1 条：76% 长度，左对齐 */}
                     <rect
-                      x={HAMBURGER_WIDTH / 2}
+                      x={0}
                       y={0}
-                      width={HAMBURGER_WIDTH / 2}
+                      width={Math.round(HAMBURGER_WIDTH * 0.76)}
                       height={BAR_HEIGHT}
                       rx={BAR_HEIGHT / 2}
                       fill="currentColor"
                     />
-                    {/* 第 2 条：全长 */}
+                    {/* 第 2 条：76% 长度，左对齐 */}
                     <rect
                       x={0}
                       y={BAR_HEIGHT + GAP}
-                      width={HAMBURGER_WIDTH}
+                      width={Math.round(HAMBURGER_WIDTH * 0.76)}
                       height={BAR_HEIGHT}
                       rx={BAR_HEIGHT / 2}
                       fill="currentColor"
                     />
-                    {/* 第 3 条：50% 长度，左对齐 */}
+                    {/* 第 3 条：52% 长度，左对齐（比 1/2 更短） */}
                     <rect
                       x={0}
                       y={(BAR_HEIGHT + GAP) * 2}
-                      width={HAMBURGER_WIDTH / 2}
+                      width={Math.round(HAMBURGER_WIDTH * 0.52)}
                       height={BAR_HEIGHT}
                       rx={BAR_HEIGHT / 2}
                       fill="currentColor"
@@ -4089,21 +4092,24 @@ export default function AiHomePage() {
               </button>
             ) : null}
 
-            {/* "小康"标题靠左，与 ☰ 间距进一步压缩到 3px（更紧凑）
-                ☰ 按钮在 left:8 + 宽 32px → 紧邻其右 = left:40；paddingLeft 改为 3px 即得 3px 视觉间距。
-                历史轨迹：原 8px → 4px → 现 3px。 */}
+            {/* [BUGFIX-AI-HOME-5ITEMS-V1 2026-05-26 Bug#2] "小康"严格水平居中
+                - 容器改为绝对定位，left:50%; transform:translateX(-50%)；
+                - 与窗口（顶栏 max-width 750px 容器）水平中线对齐；
+                - 不再贴着 ☰，三横线右边那块区域空出不补任何内容；
+                - ☰ 仍保持左上角（left:8）、+ 仍保持右上角（right:8） */}
             <div
               style={{
                 position: 'absolute',
-                left: 40, /* ☰ 按钮右侧紧邻（left:8 + 宽 32 = 40） */
-                right: 56,
+                left: '50%',
+                transform: 'translateX(-50%)',
                 top: 0,
                 bottom: 0,
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'flex-start',
-                paddingLeft: 3, /* ☰ 与"小康"间距 3px（更紧凑） */
+                justifyContent: 'center',
                 minWidth: 0,
+                /* 限制最大宽度，长签名时按原标题截断逻辑（>8 字符已加…），不会顶到左右按钮 */
+                maxWidth: 'calc(100% - 120px)',
               }}
             >
               <span
@@ -4160,10 +4166,12 @@ export default function AiHomePage() {
               </span>
             </button>
 
-            {/* 右：⋯ 更多菜单（绝对定位 right:8） */}
+            {/* [BUGFIX-AI-HOME-5ITEMS-V1 2026-05-26 Bug#3a] "⋯" 改为 "+加圆圈"（微信样式）
+                - 圆形描边、无填充；内部为"+"号；
+                - 颜色 / 点击热区 32x32 / onClick 处理逻辑保持不变，菜单功能完整保留 */}
             {topbarShowMoreMenu ? (
               <button
-                className="flex items-center justify-center tracking-widest"
+                className="flex items-center justify-center"
                 style={{
                   position: 'absolute',
                   right: 8,
@@ -4171,23 +4179,56 @@ export default function AiHomePage() {
                   transform: 'translateY(-50%)',
                   width: 32,
                   height: 32,
-                  fontSize: 22,
                   color: THEME.textPrimary,
                   background: 'transparent',
                   border: 'none',
                   padding: 0,
                   margin: 0,
                   lineHeight: 1,
+                  cursor: 'pointer',
                 }}
                 onClick={() => {
-                  // [PRD-467 状态机 5] popover 打开时再点⋯：popover 关闭并打开⋯菜单（互斥）
+                  // [PRD-467 状态机 5] popover 打开时再点 +：popover 关闭并打开菜单（互斥）
                   if (fontPopoverOpen) setFontPopoverOpen(false);
                   setMoreMenuOpen(true);
                 }}
                 aria-label="更多菜单"
                 data-testid="ai-home-more-btn"
               >
-                ⋯
+                <svg
+                  width={22}
+                  height={22}
+                  viewBox="0 0 22 22"
+                  aria-hidden="true"
+                  data-testid="ai-home-more-icon-plus-circle"
+                >
+                  <circle
+                    cx={11}
+                    cy={11}
+                    r={9.5}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.6}
+                  />
+                  <line
+                    x1={11}
+                    y1={6}
+                    x2={11}
+                    y2={16}
+                    stroke="currentColor"
+                    strokeWidth={1.6}
+                    strokeLinecap="round"
+                  />
+                  <line
+                    x1={6}
+                    y1={11}
+                    x2={16}
+                    y2={11}
+                    stroke="currentColor"
+                    strokeWidth={1.6}
+                    strokeLinecap="round"
+                  />
+                </svg>
               </button>
             ) : null}
 

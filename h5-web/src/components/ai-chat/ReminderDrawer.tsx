@@ -84,6 +84,44 @@ function nowHHMM(): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+/**
+ * [BUGFIX-AI-HOME-5ITEMS-V1 2026-05-26 Bug#3b] 兼容层 adapter
+ * 将 /api/medication-plans/today 的响应（含 banner/upcoming/timeline）
+ * 映射为铃铛抽屉使用的 MedicationItem[] 结构。
+ *
+ * timeline 单元结构（来源：用药提醒-全部 页）：
+ *   { plan_id, scheduled_time, status: 'done'|'upcoming'|'pending'|'overdue',
+ *     actual_time, name, dosage, timing, check_in_id }
+ *
+ * 映射规则：
+ *   - drug_name        = timeline.name
+ *   - dosage           = timeline.dosage (空串兜底)
+ *   - scheduled_time   = timeline.scheduled_time
+ *   - note             = timeline.timing
+ *   - checked          = status === 'done'
+ *   - checked_at       = timeline.actual_time
+ *   - log_id           = timeline.check_in_id
+ *
+ * 这样铃铛抽屉的「待打卡条目数」= timeline 中 status !== 'done' 的项数，
+ * 与「用药提醒-全部」页的"待服用"完全一致。
+ */
+function adaptMedicationPlansToday(resp: any): MedicationItem[] {
+  if (!resp) return [];
+  // 响应可能是 {data: {...}} 或直接 {...}
+  const root = (resp as any)?.data ?? resp;
+  const timeline = Array.isArray(root?.timeline) ? root.timeline : [];
+  return timeline.map((it: any) => ({
+    plan_id: Number(it?.plan_id ?? 0),
+    drug_name: String(it?.name ?? ''),
+    dosage: String(it?.dosage ?? ''),
+    scheduled_time: String(it?.scheduled_time ?? ''),
+    note: it?.timing ?? null,
+    checked: it?.status === 'done',
+    checked_at: it?.actual_time ?? null,
+    log_id: it?.check_in_id ?? null,
+  }));
+}
+
 export default function ReminderDrawer({
   open,
   onClose,
@@ -110,10 +148,14 @@ export default function ReminderDrawer({
     setLoading(true);
     setLoadError(false);
     try {
+      // [BUGFIX-AI-HOME-5ITEMS-V1 2026-05-26 Bug#3b] 铃铛与"用药提醒-全部"页数据源统一
+      //   - 原接口：/api/medication-reminder/today（与列表页字段、状态、计数不一致）
+      //   - 新接口：/api/medication-plans/today（与"档案管理 → 健康数据 → 用药提醒 → 全部"完全相同口径）
+      //   - 通过前端 adapter 把 timeline 数组映射成 MedicationItem 结构，铃铛 UI/交互完全不变
       const medUrl =
         consultantId != null && consultantId > 0
-          ? `/api/medication-reminder/today?consultant_id=${encodeURIComponent(consultantId)}`
-          : '/api/medication-reminder/today';
+          ? `/api/medication-plans/today?consultant_id=${encodeURIComponent(consultantId)}`
+          : '/api/medication-plans/today';
       const apptUrl = `/api/medication-reminder/appointments?status_in=${encodeURIComponent(
         ORDER_STATUSES_PARAM,
       )}`;
@@ -121,9 +163,11 @@ export default function ReminderDrawer({
         api.get<any>(medUrl),
         api.get<any>(apptUrl),
       ]);
-      const medsArr = Array.isArray(m) ? m : (m as any)?.data ?? [];
+
+      // 把 medication-plans/today 响应（含 banner / upcoming / timeline）映射为 MedicationItem[]
+      const medsArr = adaptMedicationPlansToday(m);
       const apptArr = Array.isArray(a) ? a : (a as any)?.data ?? [];
-      setMeds(medsArr as MedicationItem[]);
+      setMeds(medsArr);
       setAppts(apptArr as AppointmentItem[]);
     } catch {
       setLoadError(true);
@@ -151,12 +195,24 @@ export default function ReminderDrawer({
     next[idx] = { ...item, checked: true, checked_at: optimisticTime, log_id: -1 };
     setMeds(next);
     try {
-      const res = await api.post<any>('/api/medication-reminder/check', {
+      // [BUGFIX-AI-HOME-5ITEMS-V1 2026-05-26 Bug#3b] 打卡接口对齐"用药提醒-全部"页
+      //   - 原：/api/medication-reminder/check
+      //   - 新：/api/medication-check-in（与列表页同一接口，确保两端状态完全同步）
+      const res = await api.post<any>('/api/medication-check-in', {
         plan_id: item.plan_id,
         scheduled_time: item.scheduled_time,
       });
-      const log_id = (res as any)?.log_id ?? (res as any)?.data?.log_id;
-      const checked_at = (res as any)?.checked_at ?? (res as any)?.data?.checked_at ?? optimisticTime;
+      const log_id =
+        (res as any)?.check_in_id ??
+        (res as any)?.log_id ??
+        (res as any)?.data?.check_in_id ??
+        (res as any)?.data?.log_id;
+      const checked_at =
+        (res as any)?.actual_time ??
+        (res as any)?.checked_at ??
+        (res as any)?.data?.actual_time ??
+        (res as any)?.data?.checked_at ??
+        optimisticTime;
       const next2 = meds.slice();
       next2[idx] = { ...item, checked: true, checked_at, log_id: log_id ?? -1 };
       setMeds(next2);
