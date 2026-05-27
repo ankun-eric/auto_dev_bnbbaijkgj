@@ -3,6 +3,7 @@
     "pages/home/index",
     "pages/welcome-mode/index",
     "pages/care-home/index",
+    "pages/care-ai-home/index",
     "pages/cards/wallet/index",
     "pages/cards/redeem-code/index",
     "pages/cards/renew/index",

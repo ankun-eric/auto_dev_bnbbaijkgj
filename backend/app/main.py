@@ -114,6 +114,7 @@ from app.api import (
     questionnaire,
     devices_v2,
     ai_home_care_v1,
+    care_ai_home,
 )
 from app.core.database import Base, engine
 from app.core.price_formatter import PriceFormattedJSONResponse
@@ -2199,6 +2200,7 @@ app.include_router(video_consult_config.router)
 app.include_router(feedback.router)
 app.include_router(app_settings.router)
 app.include_router(ai_home_care_v1.router)
+app.include_router(care_ai_home.router)
 # [2026-05-07 PRD-370 H5 登录页设计稿对齐] 远程开关：登录 UI 版本（v1 旧版 / v2 新版）
 app.include_router(login_ui_config.router)
 # [BUG-FIX-RESCHEDULE-V2 2026-05-07] 系统时间接口：供三端改约弹窗按服务器时间过滤过去时段

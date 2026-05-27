@@ -1,0 +1,107 @@
+<!-- [PRD-CARE-AI-HOME 2026-05-27] 关怀模式 AI 主页 v1 -->
+<view class="care-page">
+  <!-- 顶栏 -->
+  <view class="topbar">
+    <view class="topbar-menu" bindtap="navigate" data-url="/pages/profile/index">☰</view>
+    <view class="topbar-center">
+      <text class="topbar-name">小康</text>
+      <view class="online-dot"></view>
+      <text class="online-text">在线</text>
+    </view>
+    <view class="topbar-right">
+      <view class="mode-badge">关怀模式</view>
+      <view class="switch-btn" bindtap="switchMode">切换模式</view>
+    </view>
+  </view>
+
+  <!-- 欢迎区 -->
+  <view class="welcome">
+    <view class="welcome-title">{{greeting}}</view>
+    <view class="welcome-sub">我是小康，有事儿随时问我~</view>
+  </view>
+
+  <!-- 4 个快捷胶囊 -->
+  <view class="quick-grid">
+    <view class="quick-item" bindtap="navigate" data-url="/pages/health-profile/index">
+      <view class="quick-icon">📋</view>
+      <view class="quick-label">健康档案</view>
+    </view>
+    <view class="quick-item" bindtap="goMedication">
+      <view class="quick-icon">💊</view>
+      <view class="quick-label">用药提醒</view>
+    </view>
+    <view class="quick-item" bindtap="takePhoto">
+      <view class="quick-icon">📷</view>
+      <view class="quick-label">拍照问AI</view>
+    </view>
+    <view class="quick-item" bindtap="navigate" data-url="/pages/services/index">
+      <view class="quick-icon">🏥</view>
+      <view class="quick-label">健康服务</view>
+    </view>
+  </view>
+
+  <!-- 卡片流 -->
+  <view class="cards">
+    <!-- 健康简评卡 -->
+    <view class="card" bindtap="goHealthDashboard">
+      <view class="card-head">
+        <text class="card-icon">📊</text>
+        <text class="card-title">健康简评</text>
+      </view>
+      <view class="card-text">{{loading ? '加载中…' : (summary.summary_text || '今日数据尚未生成，请稍后查看 ~')}}</view>
+      <view class="metric-grid" wx:if="{{metrics.length > 0}}">
+        <block wx:for="{{metrics}}" wx:key="type">
+          <view class="metric-item">
+            <view class="metric-label">{{item.label}}</view>
+            <view class="metric-value">{{item.value}}<text class="metric-unit"> {{item.unit}}</text></view>
+            <view class="metric-status" style="color: {{item.statusColor}}; background: {{item.statusColor}}1A;">{{item.status}}</view>
+          </view>
+        </block>
+      </view>
+    </view>
+
+    <!-- 用药提醒卡 -->
+    <view class="card">
+      <view class="card-head">
+        <text class="card-icon">💊</text>
+        <text class="card-title">{{medication ? '该吃药啦' : '今日用药已全部完成 ✅'}}</text>
+      </view>
+      <block wx:if="{{medication}}">
+        <view class="card-text" bindtap="goMedication">
+          {{medication.drug_name || medication.name || '药品'}} · {{medication.remind_time || medication.schedule || ''}} · {{medication.dose || medication.dosage || ''}}
+        </view>
+        <view class="row-buttons">
+          <view class="btn-primary" bindtap="onMedDone">已吃 ✓</view>
+          <view class="btn-outline" bindtap="onMedPostpone" data-minutes="15">推迟15分</view>
+          <view class="btn-outline" bindtap="onMedPostpone" data-minutes="30">推迟30分</view>
+        </view>
+      </block>
+      <view wx:else class="card-text-sm">继续保持，按时服药有助于健康哦 ~</view>
+    </view>
+
+    <!-- SOS 关怀卡 -->
+    <block wx:for="{{alerts}}" wx:key="id">
+      <view class="card sos-card">
+        <view class="card-head">
+          <text class="card-icon">🚨</text>
+          <text class="card-title sos-title">{{item.title}}</text>
+        </view>
+        <view class="card-text">{{item.content}}</view>
+        <view wx:if="{{item.suggestion}}" class="card-text-sm">建议：{{item.suggestion}}</view>
+        <view class="row-buttons">
+          <view class="btn-danger" bindtap="callFamily">📞 呼叫家人</view>
+          <view class="btn-outline" data-id="{{item.id}}" bindtap="onDismissAlert">我没事</view>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <!-- 底部咨询 AI 悬浮球 -->
+  <view class="fab-consult" bindtap="goAiChat">
+    <text class="fab-icon">💬</text>
+    <text>咨询 AI</text>
+  </view>
+
+  <!-- 右下角 SOS 悬浮球 -->
+  <view class="fab-sos" bindtap="onSosFabTap">SOS</view>
+</view>
