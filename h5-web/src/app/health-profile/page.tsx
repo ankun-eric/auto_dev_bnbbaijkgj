@@ -231,7 +231,9 @@ function HealthProfileV2PageInner() {
   const [guardedFlags, setGuardedFlags] = useState<Map<number, { guarded: boolean; managed_user_id: number | null }>>(new Map());
   // [健康档案优化 PRD v1.0 §3.1] managed_count 改为统计「所有 status」，与 v12/i-guard.total_count 对齐
   const [guardianSummary, setGuardianSummary] = useState<{ managed_count: number; active_count: number }>({ managed_count: 0, active_count: 0 });
+  // [BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527] 「守护我的人」拆双数字
   const [reverseGuardianCount, setReverseGuardianCount] = useState<number>(0);
+  const [reverseGuardianSummary, setReverseGuardianSummary] = useState<{ active_count: number; pending_count: number; total_count: number }>({ active_count: 0, pending_count: 0, total_count: 0 });
   // [健康档案优化 PRD v1.0 §3.4] 非本人 Tab「守护 TA 的人」只读详情弹窗
   const [guardianReadonlyList, setGuardianReadonlyList] = useState<any[]>([]);
   const [guardianReadonlyDetail, setGuardianReadonlyDetail] = useState<any | null>(null);
@@ -397,9 +399,14 @@ function HealthProfileV2PageInner() {
     try {
       const res: any = await api.get('/api/reverse-guardian/guardian-count');
       const data = res.data || res;
-      setReverseGuardianCount(data.count || 0);
+      const active = Number(data.active_count ?? data.count ?? 0);
+      const pending = Number(data.pending_count ?? 0);
+      const total = Number(data.total_count ?? (active + pending) ?? 0);
+      setReverseGuardianCount(active);
+      setReverseGuardianSummary({ active_count: active, pending_count: pending, total_count: total });
     } catch {
       setReverseGuardianCount(0);
+      setReverseGuardianSummary({ active_count: 0, pending_count: 0, total_count: 0 });
     }
   }, []);
 
@@ -1043,7 +1050,11 @@ function HealthProfileV2PageInner() {
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>{otherSideTitle}</div>
-            <div style={{ fontSize: 12, color: '#6B7280' }}>{isSelfTab ? reverseGuardianCount : (guardianReadonlyList.length || '查看')}{isSelfTab ? '人' : ''}</div>
+            <div data-testid='my-guardians-dual-count' style={{ fontSize: 12, color: '#6B7280' }}>
+              {isSelfTab
+                ? `已守护 ${reverseGuardianSummary.active_count} 人 / 待确认 ${reverseGuardianSummary.pending_count} 人`
+                : (guardianReadonlyList.length ? `${guardianReadonlyList.length}人` : '查看')}
+            </div>
           </div>
           <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>
         </div>

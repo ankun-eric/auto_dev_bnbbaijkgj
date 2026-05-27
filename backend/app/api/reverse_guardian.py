@@ -84,15 +84,39 @@ async def get_guardian_count(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """获取守护我的人数量。"""
-    result = await db.execute(
+    """[BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527] 获取守护我的人数量。
+
+    返回结构升级为：
+    - count: 兼容旧前端，等于 active_count
+    - active_count: 已生效的守护关系数
+    - pending_count: 当前用户发出的未过期且未用完的反向邀请数（待确认）
+    - total_count: active_count + pending_count
+    """
+    active_result = await db.execute(
         select(func.count(FamilyManagement.id)).where(
             FamilyManagement.managed_user_id == current_user.id,
             FamilyManagement.status == "active",
         )
     )
-    count = result.scalar() or 0
-    return GuardianCountResponse(count=count)
+    active_count = active_result.scalar() or 0
+
+    now = datetime.utcnow()
+    pending_result = await db.execute(
+        select(func.count(ReverseGuardianInvitation.id)).where(
+            ReverseGuardianInvitation.invitee_user_id == current_user.id,
+            ReverseGuardianInvitation.status == "pending",
+            ReverseGuardianInvitation.used_count < ReverseGuardianInvitation.max_uses,
+            ReverseGuardianInvitation.expires_at > now,
+        )
+    )
+    pending_count = pending_result.scalar() or 0
+
+    return GuardianCountResponse(
+        count=active_count,
+        active_count=active_count,
+        pending_count=pending_count,
+        total_count=active_count + pending_count,
+    )
 
 
 @router.post("/remove", response_model=RemoveGuardianResponse)

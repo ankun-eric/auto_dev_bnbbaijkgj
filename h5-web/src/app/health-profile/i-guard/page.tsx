@@ -20,11 +20,14 @@ interface IGuardItem {
   managed_user_id: number;
   managed_user_nickname?: string;
   relation_label?: string;
-  role_badge: 'primary' | 'normal';
+  // [BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527] 后端可能返回 'self'
+  role_badge: 'primary' | 'normal' | 'self';
   is_primary_guardian: boolean;
   proxy_pay_enabled: boolean;
   status: string;
   created_at: string;
+  // [BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527] 后端注入的"本人"虚拟项
+  is_self?: boolean;
 }
 
 interface PendingTransfer {
@@ -393,8 +396,12 @@ export default function IGuardPage() {
               fontSize: 18, fontWeight: 700, marginRight: 12,
             }}>我</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a' }}>
-                {me.nickname || '本人'}（本人）
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a' }}>
+                  {me.nickname || '本人'}
+                </span>
+                {/* [BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527] 本人徽章 */}
+                <Tag data-testid='i-guard-self-badge' color='primary' fill='solid' style={{ background: PRIMARY }}>本人</Tag>
               </div>
               <div style={{ fontSize: 12, color: '#8C8C8C', marginTop: 2 }}>
                 我的健康档案与额度
@@ -403,7 +410,8 @@ export default function IGuardPage() {
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <Button size='mini' color='primary' fill='outline' style={{ flex: 1, borderRadius: 22 }}
-              onClick={() => router.push('/health-profile')}>编辑档案</Button>
+              data-testid='i-guard-self-edit'
+              onClick={() => router.push('/health-profile?member_id=self')}>编辑档案</Button>
             <Button size='mini' color='primary' fill='outline' style={{ flex: 1, borderRadius: 22 }}
               onClick={openInviteRecords}>邀请记录</Button>
             <Button size='mini' color='primary' fill='solid' style={{ flex: 1, borderRadius: 22 }}
@@ -420,8 +428,11 @@ export default function IGuardPage() {
           if (items.length === 0) {
             return <Empty description="还没有守护的人" />;
           }
-          const activeItems = items.filter((it) => it.status === 'active');
-          const pendingItems = items.filter((it) => it.status !== 'active');
+          // [BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527] 后端在 items[0] 注入了"本人"虚拟项；
+          // 顶部已有独立的"本人行"卡片渲染（含编辑档案/邀请记录/外呼额度），这里需排除避免重复显示。
+          const realItems = items.filter((it) => !it.is_self);
+          const activeItems = realItems.filter((it) => it.status === 'active');
+          const pendingItems = realItems.filter((it) => it.status !== 'active');
 
           const renderItem = (it: IGuardItem, readOnly: boolean) => (
             <div key={it.management_id} data-testid={`i-guard-item-${it.management_id}`} style={{

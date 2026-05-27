@@ -5,6 +5,17 @@ alwaysApply: false
 
 # Project Context
 
+## 最近一次变更（2026-05-27）
+
+**BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527 — 健康档案首页守护人双卡片入口口径优化**
+
+- 后端 `backend/app/api/guardian_system_v12.py` `list_people_i_guard_v12`：在 items 头部注入"本人"虚拟项（`is_self=True`、`role_badge="self"`、`relation_label="本人"`），`active_count` / `total_count` 同步 +1，使「我守护的人」数字默认含本人。
+- 后端 `backend/app/api/reverse_guardian.py` `get_guardian_count`：返回结构升级为 `{count, active_count, pending_count, total_count}`。`count` 保留兼容字段（= `active_count`），`pending_count` 统计当前用户发出的、`status=='pending'` 且 `used_count < max_uses` 且 `expires_at > now` 的反向邀请数。
+- 后端 `backend/app/schemas/reverse_guardian.py` `GuardianCountResponse` 新增 `active_count` / `pending_count` / `total_count`（均 `Optional[int] = 0`）。
+- 前端 `h5-web/src/app/health-profile/page.tsx`：`reverseGuardianSummary` state，`fetchReverseGuardianCount` 取双字段；「守护我的人」副标题改为 `已守护 X 人 / 待确认 Y 人`。
+- 前端 `h5-web/src/app/health-profile/i-guard/page.tsx`：列表过滤 `!it.is_self` 避免与顶部本人行重复；顶部本人行加蓝色「本人」徽章；「编辑档案」按钮跳转 `/health-profile?member_id=self`。
+- 测试 `backend/tests/test_reverse_guardian.py` 新增 TC-018~TC-024 共 7 条用例（双数字字段 + i-guard 含本人项），服务器内 24/24 全绿。
+
 ## Project Overview
 
 - Project name: `bini-health`

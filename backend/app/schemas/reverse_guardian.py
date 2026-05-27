@@ -22,7 +22,11 @@ class MyGuardiansResponse(BaseModel):
 
 
 class GuardianCountResponse(BaseModel):
-    count: int
+    # [BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527] 拆双数字：已守护 / 待确认
+    count: int  # 兼容旧前端，= active_count
+    active_count: Optional[int] = 0
+    pending_count: Optional[int] = 0
+    total_count: Optional[int] = 0
 
 
 class RemoveGuardianRequest(BaseModel):

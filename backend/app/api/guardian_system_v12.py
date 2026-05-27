@@ -311,6 +311,27 @@ async def list_people_i_guard_v12(
             proxy_pay_enabled=proxy_pay,
         ).model_dump())
 
+    # [BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527] 在列表头部插入"本人"虚拟项
+    # 健康类产品默认将本人作为家庭档案第一人，使"我守护的人"数字包含本人。
+    self_item = {
+        "management_id": 0,
+        "manager_user_id": current_user.id,
+        "manager_nickname": current_user.nickname,
+        "managed_user_id": current_user.id,
+        "managed_user_nickname": current_user.nickname or "本人",
+        "relation_label": "本人",
+        "role_badge": "self",
+        "is_primary_guardian": False,
+        "priority_order": 0,
+        "is_paid_member": await _is_paid_member(db, current_user.id),
+        "status": "active",
+        "created_at": (current_user.created_at.isoformat() if getattr(current_user, "created_at", None) else None),
+        "proxy_pay_enabled": False,
+        "is_self": True,
+    }
+    items = [self_item] + items
+    active_count += 1
+
     quotas = await _get_user_quotas(db, current_user.id)
     total_count = len(items)
     return {

@@ -324,3 +324,170 @@ async def test_tc017_devices_member_id_nonexist_returns_empty(client: AsyncClien
     data = resp.json()
     assert data["items"] == []
     assert data["total"] == 0
+
+
+# ──────────────────────────────────────────────────────────
+# [BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527]
+# guardian-count 双数字（active_count / pending_count / total_count）
+# ──────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_tc018_guardian_count_dual_fields_zero(client: AsyncClient, auth_headers):
+    """TC-018: 无任何守护关系和邀请时，新增字段均为 0。"""
+    resp = await client.get("/api/reverse-guardian/guardian-count", headers=auth_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["count"] == 0
+    assert data.get("active_count") == 0
+    assert data.get("pending_count") == 0
+    assert data.get("total_count") == 0
+
+
+@pytest.mark.asyncio
+async def test_tc019_guardian_count_with_pending_invite(client: AsyncClient):
+    """TC-019: 有未使用且未过期的反向邀请，pending_count=1。"""
+    user_h = await _register_and_login(client, "13800070001", "双数字测试用户")
+    user_id = await _get_user_id(user_h, client)
+
+    async with test_session() as session:
+        inv = ReverseGuardianInvitation(
+            invite_code="dual_count_pending_001",
+            invitee_user_id=user_id,
+            status="pending",
+            max_uses=3,
+            used_count=0,
+            expires_at=datetime.utcnow() + timedelta(hours=24),
+        )
+        session.add(inv)
+        await session.commit()
+
+    resp = await client.get("/api/reverse-guardian/guardian-count", headers=user_h)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["count"] == 0  # 兼容字段=active_count
+    assert data["active_count"] == 0
+    assert data["pending_count"] == 1
+    assert data["total_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_tc020_guardian_count_expired_invite_not_counted(client: AsyncClient):
+    """TC-020: 已过期邀请不计入 pending_count。"""
+    user_h = await _register_and_login(client, "13800070002", "过期邀请测试")
+    user_id = await _get_user_id(user_h, client)
+
+    async with test_session() as session:
+        inv = ReverseGuardianInvitation(
+            invite_code="dual_count_expired_001",
+            invitee_user_id=user_id,
+            status="pending",
+            max_uses=3,
+            used_count=0,
+            expires_at=datetime.utcnow() - timedelta(hours=1),
+        )
+        session.add(inv)
+        await session.commit()
+
+    resp = await client.get("/api/reverse-guardian/guardian-count", headers=user_h)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["pending_count"] == 0
+    assert data["total_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_tc021_guardian_count_used_up_invite_not_counted(client: AsyncClient):
+    """TC-021: 已用完（used_count >= max_uses）的邀请不计入 pending_count。"""
+    user_h = await _register_and_login(client, "13800070003", "用完邀请测试")
+    user_id = await _get_user_id(user_h, client)
+
+    async with test_session() as session:
+        inv = ReverseGuardianInvitation(
+            invite_code="dual_count_used_up_001",
+            invitee_user_id=user_id,
+            status="pending",
+            max_uses=3,
+            used_count=3,
+            expires_at=datetime.utcnow() + timedelta(hours=24),
+        )
+        session.add(inv)
+        await session.commit()
+
+    resp = await client.get("/api/reverse-guardian/guardian-count", headers=user_h)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["pending_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_tc022_guardian_count_active_plus_pending(client: AsyncClient):
+    """TC-022: 同时有 active 守护关系和 pending 邀请，total_count=active+pending。"""
+    managed_h = await _register_and_login(client, "13800080001", "总数测试-被守护")
+    guardian_h = await _register_and_login(client, "13800080002", "总数测试-守护者")
+
+    managed_id = await _get_user_id(managed_h, client)
+    guardian_id = await _get_user_id(guardian_h, client)
+
+    await _create_guardian_relation(None, guardian_id, managed_id)
+
+    async with test_session() as session:
+        inv = ReverseGuardianInvitation(
+            invite_code="dual_count_combo_001",
+            invitee_user_id=managed_id,
+            status="pending",
+            max_uses=3,
+            used_count=0,
+            expires_at=datetime.utcnow() + timedelta(hours=24),
+        )
+        session.add(inv)
+        await session.commit()
+
+    resp = await client.get("/api/reverse-guardian/guardian-count", headers=managed_h)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["active_count"] == 1
+    assert data["pending_count"] == 1
+    assert data["total_count"] == 2
+    assert data["count"] == 1  # 兼容字段始终等于 active_count
+
+
+# ──────────────────────────────────────────────────────────
+# [BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527]
+# /api/guardian/v12/i-guard 列表包含本人虚拟项
+# ──────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_tc023_i_guard_includes_self_when_no_managed(client: AsyncClient, auth_headers):
+    """TC-023: 无守护人时，i-guard 仍返回 1 条（本人），total_count=1。"""
+    resp = await client.get("/api/guardian/v12/i-guard", headers=auth_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_count"] >= 1
+    assert data["active_count"] >= 1
+    assert len(data["items"]) >= 1
+    first = data["items"][0]
+    assert first.get("is_self") is True
+    assert first.get("relation_label") == "本人"
+    assert first.get("role_badge") == "self"
+
+
+@pytest.mark.asyncio
+async def test_tc024_i_guard_self_plus_managed(client: AsyncClient):
+    """TC-024: 我守护了 1 个人时，total_count=2（本人 + 1 个被守护人），本人置顶。"""
+    me_h = await _register_and_login(client, "13800090001", "我守护测试")
+    other_h = await _register_and_login(client, "13800090002", "被我守护的人")
+
+    me_id = await _get_user_id(me_h, client)
+    other_id = await _get_user_id(other_h, client)
+
+    await _create_guardian_relation(None, me_id, other_id)
+
+    resp = await client.get("/api/guardian/v12/i-guard", headers=me_h)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_count"] == 2
+    assert data["active_count"] == 2
+    assert data["items"][0].get("is_self") is True  # 本人置顶
+    # 第二项应是真实被守护人
+    assert data["items"][1].get("is_self") in (False, None)
+    assert data["items"][1]["managed_user_id"] == other_id
