@@ -1,0 +1,78 @@
+============================================================
+[v1.3.1 SMOKE TEST] 瀹堟姢浜轰綋绯?v1.3.1 杩滅▼ smoke
+============================================================
+
+[T1] 瀹瑰櫒鍐?pytest 娴嬭瘯锛堝鏋?pytest 宸插畨瑁咃級
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose exec -T backend sh -c 'pip install pytest pytest-asyncio httpx 2>/dev/null | tail -3 && python -m pytest tests/test_guardian_syst...
+   鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣 1.2/1.2 MB 17.9 kB/s eta 0:00:00
+Installing collected packages: pygments, pluggy, packaging, iniconfig, pytest, pytest-asyncio
+Successfully installed iniconfig-2.3.0 packaging-26.2 pluggy-1.6.0 pygments-2.20.0 pytest-9.0.3 pytest-asyncio-1.4.0
+ImportError while loading conftest '/app/tests/conftest.py'.
+tests/conftest.py:15: in <module>
+    test_engine = create_async_engine(
+/usr/local/lib/python3.11/site-packages/sqlalchemy/ext/asyncio/engine.py:120: in create_async_engine
+    sync_engine = _create_engine(url, **kw)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/sqlalchemy/util/deprecations.py:281: in warned
+    return fn(*args, **kwargs)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/create.py:599: in create_engine
+    dbapi = dbapi_meth(**dbapi_args)
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/sqlite/aiosqlite.py:374: in import_dbapi
+    __import__("aiosqlite"), __import__("sqlite3")
+    ^^^^^^^^^^^^^^^^^^^^^^^
+E   ModuleNotFoundError: No module named 'aiosqlite'
+
+[stderr] time="2026-05-27T22:34:25+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+
+
+[T2] 鐩存帴楠岃瘉鍚庣浠ｇ爜鍔犺浇 v1.3.1 瀛楁瀹氫箟
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose exec -T backend python -c "from app.api.guardian_system_v13 import FamilyListItemV13, _LIFECYCLE_DISPLAY_LABEL, _OCCUPY_QUOTA_LIF...
+OK v131 fields: ['management_id', 'manager_user_id', 'managed_user_id', 'managed_member_id', 'managed_user_nickname', 'relation_label', 'role_badge', 'is_primary_guardian', 'priority_order', 'status', 'invite_lifecycle', 'bind_status', 'display_substatus_label', 'is_orphan', 'occupies_quota', 'invite_code', 'invite_expires_at', 'invite_remaining_hours', 'proxy_pay_enabled', 'has_bound_device', 'has_active_med_plan', 'can_remove', 'created_at']
+OK display labels: {'accepted': '寤虹珛浜?, 'inviting': '閭€璇蜂腑', 'rejected': '鏆傛湭鍝嶅簲', 'unbound': '宸茶В缁?, 'expired': '宸茶繃鏈?, 'never_invited': '灏氭湭閭€璇?}
+OK occupy quota lifecycles: {'never_invited', 'inviting', 'accepted'}
+
+[stderr] time="2026-05-27T22:36:35+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+
+
+[T3] 楠岃瘉 family_management.py 宸插姩鎬佽鍙栭厤棰?
+$ grep -n 'dynamic_max\|_get_max_guardians' /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/family_management.py | head -10
+130:        from app.api.guardian_system_v13 import _get_max_guardians as _v131_max
+
+131:        dynamic_max = await _v131_max(db, current_user.id)
+
+133:        dynamic_max = MAX_MANAGED_COUNT
+
+135:    if managed_count + pending_invite_count >= dynamic_max:
+
+138:            detail=f"鎮ㄥ綋鍓嶅畧鎶や汉鏁板凡婊★紙{managed_count + pending_invite_count}/{dynamic_max} 浣嶏級锛屽闇€瀹堟姢鏇村瀹朵汉鍙崌绾т細鍛樺椁?,
+
+
+
+[T4] HTTP smoke: 鍏抽敭璺敱鍙揪
+$ curl -s -o /dev/null -w 'family/list 401 -> %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/guardian/v13/family/list
+family/list 401 -> 401
+
+$ curl -s -o /dev/null -w 'h5/i-guard -> %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/h5/health-profile/i-guard
+h5/i-guard -> 308
+
+$ curl -s -o /dev/null -w 'h5/v13 redirect -> %{http_code}\n' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/h5/health-profile/v13
+h5/v13 redirect -> 308
+
+
+[T5] 绔埌绔細娉ㄥ唽 鈫?鐧诲綍 鈫?璋冪敤 family/list 楠岃瘉杩斿洖瀛楁
+$ curl -s -X POST https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/auth/register -H 'Content-Type: application/json' -d '{"phone":"13979892599","password":"p123456","n...
+{"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNDAiLCJleHAiOjE3Nzk5NzkwMDB9.ffoCboY_WuUuNEukgXNCHypQiCOhU5GvTHyonVSf1Vw","token_type":"bearer","user":{"id":140,"phone":"13979892599","nickname":"v131娴嬭瘯","avatar":null,"role":"user","member_card_no":"YWJ89B","member_level":0,"points":0,"status":"active","user_no":"22221913","referrer_no":null,"created_at":"2026-05-27T14:36:40.039113"},"is_new_user":true,"needs_profile_completion":true,"session_context":{"identity_codes":["user"],"can_access_user":true,"can_access_merchant":false,"is_dual_identity":false,"default_entry":"user","merchant_identity_type":null,"show_role_switch":false,"merchant_store_count":0},"merchant_profile":null}
+$ curl -s -X POST https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/auth/login -H 'Content-Type: application/json' -d '{"phone":"13979892599","password":"p123456"}'
+{"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNDAiLCJleHAiOjE3Nzk5NzkwMDB9.ffoCboY_WuUuNEukgXNCHypQiCOhU5GvTHyonVSf1Vw","token_type":"bearer","user":{"id":140,"phone":"13979892599","nickname":"v131娴嬭瘯","avatar":null,"role":"user","member_card_no":"YWJ89B","member_level":0,"points":0,"status":"active","user_no":"22221913","referrer_no":null,"created_at":"2026-05-27T14:36:40"},"is_new_user":false,"needs_profile_completion":true,"session_context":{"identity_codes":["user"],"can_access_user":true,"can_access_merchant":false,"is_dual_identity":false,"default_entry":"user","merchant_identity_type":null,"show_role_switch":false,"merchant_store_count":0},"merchant_profile":null}
+[T5] 鎴愬姛鐧诲綍锛宼oken 闀垮害 121
+$ curl -s https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/guardian/v13/family/list -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxNDAiLCJl...
+{"items":[],"total":0,"tab_active_count":0,"tab_pending_count":0,"active_count":0,"inviting_count":0,"bound_count":0,"unbound_count":0,"quota_used":0,"max_guardians":3,"used":0,"can_invite_count":3,"is_paid_member":false}
+[T5] family/list 杩斿洖瀛楁楠岃瘉閫氳繃锛?
+      bound_count=0, unbound_count=0,
+      quota_used=0, max_guardians=3,
+      can_invite_count=3
+[T5] OK v1.3.1 鎺ュ彛瀛楁瀹屾暣
+
+=== v1.3.1 SMOKE 瀹屾垚 ===

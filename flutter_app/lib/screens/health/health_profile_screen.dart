@@ -42,7 +42,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
     {'id': 'today-data', 'label': '今日数据'},
     {'id': 'health-info', 'label': '健康信息'},
     {'id': 'medication-plan', 'label': '用药计划'},
-    {'id': 'care-reminder', 'label': '共管与提醒'},
+    {'id': 'care-reminder', 'label': '守护与提醒'},
     {'id': 'health-events', 'label': '健康事件'},
   ];
 
@@ -750,10 +750,10 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('🔗 家庭共管', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: _textPrimary)),
+              const Text('🔗 家庭守护', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: _textPrimary)),
               const SizedBox(height: 8),
               if (isSelf)
-                const Text('本人档案默认不需要共管', style: TextStyle(color: _textSecondary, fontSize: 13))
+                const Text('本人档案默认不需要守护关系', style: TextStyle(color: _textSecondary, fontSize: 13))
               else if (!_isLinked) ...[
                 const Text('邀请本人关联后，对方可同步查看和管理此健康档案',
                     style: TextStyle(color: _textSecondary, fontSize: 13)),

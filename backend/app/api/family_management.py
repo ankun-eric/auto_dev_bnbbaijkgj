@@ -125,10 +125,17 @@ async def create_invitation(
     )
     pending_invite_count = int(pending_invite_count_result.scalar() or 0)
 
-    if managed_count + pending_invite_count >= MAX_MANAGED_COUNT:
+    # [PRD-GUARDIAN-V1.3.1] 动态读取 max_guardians（不再写死 10）
+    try:
+        from app.api.guardian_system_v13 import _get_max_guardians as _v131_max
+        dynamic_max = await _v131_max(db, current_user.id)
+    except Exception:
+        dynamic_max = MAX_MANAGED_COUNT
+
+    if managed_count + pending_invite_count >= dynamic_max:
         raise HTTPException(
             status_code=400,
-            detail=f"管理人数已达上限（{MAX_MANAGED_COUNT}人，含进行中的邀请）",
+            detail=f"您当前守护人数已满（{managed_count + pending_invite_count}/{dynamic_max} 位），如需守护更多家人可升级会员套餐",
         )
 
     if member is not None:

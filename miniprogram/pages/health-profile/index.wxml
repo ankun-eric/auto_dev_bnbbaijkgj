@@ -90,7 +90,7 @@
       wx:if="{{!guardedFlags[selectedMember.id]}}"
       class="guardian-invite-btn"
       bindtap="onTapInviteCoManage"
-    >+ 邀请共管</view>
+    >+ 邀请守护</view>
     <view
       wx:else
       class="guardian-manage-btn"

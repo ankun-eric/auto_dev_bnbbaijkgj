@@ -1,22 +1,20 @@
 'use client';
 
 /**
- * [守护人体系 PRD v1.3 2026-05-26] 健康档案融合优化（恢复 v13 完整版 @ 2026-05-27）
- * 我守护的人 - 极简两态 Tab（守护中 / 待守护）+ 子状态卡片
+ * [守护人体系 PRD v1.3.1 2026-05-27] 健康档案统一列表与已绑定/未绑定重构
  *
- * 关键变更：
- * - 最外层仅 守护中 / 待守护 两个 Tab
- * - 卡片按 invite_lifecycle 子状态显示不同操作按钮
- * - 主守护人金色徽章 + 4 不可删校验直接不显示移除按钮
- * - 代付明细 + 代付开关入口
- * - 守护中 Tab 首行：本人虚拟项（编辑档案 / 邀请记录 / 我的 AI 外呼额度）
- *
- * 历史：commit 8181069a 落地的 v13 完整版（733 行）于 commit fdc3d00a 被误删，
- *       此次恢复 v13 原版页面，直接挂载到 /health-profile/i-guard 路径。
+ * v1.3.1 关键变更（在 v1.3 基础上做结构性修订）：
+ * - 取消两 Tab（守护中 / 待守护），整页一个大列表 + 两区色块卡组（已绑定 / 未绑定）
+ * - 系统天蓝色 #0EA5E9 作为主色
+ * - 已绑定卡组浅天蓝色背景（#E0F2FE → #F0F9FF），未绑定卡组浅灰背景（#F1F5F9 → #F8FAFC）
+ * - 用户可见层术语清理：禁用「共管 / 代管 / 已拒绝」，柔化为「建立于 / 由我代为管理 / 暂未响应」
+ * - 顶部一行式统计：「守护 X 位家人 · 还可邀请 Y 位 / 共 Z 位」+ 「本人不占名额」
+ * - 排序：两区都按 created_at ASC 正序（老朋友先）
+ * - 配额公式动态读取后端（不再写死 10）
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Dialog, Tag, Button, Empty, Switch, Tabs, Modal } from 'antd-mobile';
+import { Dialog, Tag, Button, Empty, Switch, Modal } from 'antd-mobile';
 import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
@@ -28,6 +26,8 @@ type Lifecycle =
   | 'rejected'
   | 'unbound'
   | 'expired';
+
+type BindStatus = 'bound' | 'unbound';
 
 interface FamilyItemV13 {
   management_id?: number;
@@ -41,6 +41,12 @@ interface FamilyItemV13 {
   priority_order: number;
   status: 'active' | 'not_active';
   invite_lifecycle: Lifecycle;
+  // v1.3.1 新增
+  bind_status?: BindStatus;
+  display_substatus_label?: string;
+  is_orphan?: boolean;
+  occupies_quota?: boolean;
+
   invite_code?: string;
   invite_expires_at?: string;
   invite_remaining_hours?: number;
@@ -54,34 +60,47 @@ interface FamilyItemV13 {
 interface FamilyListResp {
   items: FamilyItemV13[];
   total: number;
+  // v1.3 兼容
   tab_active_count: number;
   tab_pending_count: number;
+  // v1.3.1 新增
+  bound_count?: number;
+  unbound_count?: number;
+  quota_used?: number;
+  // 配额
   max_guardians: number;
   used: number;
   can_invite_count: number;
   is_paid_member: boolean;
 }
 
-const PRIMARY = '#1890FF';
-const PRIMARY_DARK = '#096DD9';
-const PRIMARY_BG = '#E6F7FF';
-const PAGE_BG = '#F0F8FF';
-const GOLD = '#FFB800';
+// [PRD-V1.3.1 §3.1] 系统天蓝色配色（与 health-profile 主页一致）
+const SKY_500 = '#0EA5E9';   // 主色
+const SKY_700 = '#0369A1';   // 主色深
+const SKY_100 = '#E0F2FE';   // 已绑定卡组背景渐变起
+const SKY_50 = '#F0F9FF';    // 已绑定卡组背景渐变止
+const SKY_BORDER = '#BAE6FD'; // 已绑定描边
+const SLATE_100 = '#F1F5F9'; // 未绑定卡组背景渐变起
+const SLATE_50 = '#F8FAFC';  // 未绑定卡组背景渐变止
+const SLATE_BORDER = '#E2E8F0'; // 未绑定描边
+const PAGE_BG = '#F0F9FF';   // 整页背景：浅天蓝色
+const GOLD = '#FFB800';      // 主守护人徽章金色（保留 v1.3）
 const DANGER = '#FF4D4F';
-const WARN_BG = '#FFF7E6';
+const TEXT_PRIMARY = '#0F172A';
+const TEXT_SECONDARY = '#64748B';
 
-const LIFECYCLE_LABEL: Record<Lifecycle, string> = {
-  never_invited: '未邀请',
+// [PRD-V1.3.1 §1.3] 用户可见层术语映射（柔化）
+const DISPLAY_LIFECYCLE_LABEL: Record<Lifecycle, string> = {
+  never_invited: '尚未邀请',
   inviting: '邀请中',
-  accepted: '已同意',
-  rejected: '已拒绝',
+  accepted: '建立于',  // 禁用「共管」
+  rejected: '暂未响应', // 禁用「已拒绝」
   unbound: '已解绑',
   expired: '已过期',
 };
 
 export default function IGuardPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<'active' | 'pending'>('active');
   const [resp, setResp] = useState<FamilyListResp | null>(null);
   const [loading, setLoading] = useState(true);
   const [me, setMe] = useState<{ id: number; nickname?: string }>({ id: 0 });
@@ -108,7 +127,7 @@ export default function IGuardPage() {
       const data = (res.data || res) as FamilyListResp;
       setResp(data);
     } catch (e: any) {
-      console.error('[v13] fetchList error', e);
+      console.error('[v131] fetchList error', e);
       setResp(null);
     } finally {
       setLoading(false);
@@ -119,12 +138,19 @@ export default function IGuardPage() {
     fetchList();
   }, [fetchList]);
 
-  const filtered = (resp?.items || []).filter((it) =>
-    tab === 'active' ? it.status === 'active' : it.status !== 'active'
-  );
+  // [PRD-V1.3.1 §1.1] 整页一个大列表，无 Tab，按 bind_status 分两区
+  const allItems = resp?.items || [];
+  const boundItems = allItems.filter((it) => (it.bind_status || (it.status === 'active' ? 'bound' : 'unbound')) === 'bound');
+  const unboundItems = allItems.filter((it) => (it.bind_status || (it.status === 'active' ? 'bound' : 'unbound')) === 'unbound');
+
+  // [PRD-V1.3.1 §2.3] 顶部统计公式
+  const guardingCount = (resp?.bound_count ?? boundItems.length) + (resp?.unbound_count ?? unboundItems.length)
+    - allItems.filter((it) => !(it.occupies_quota ?? (it.status === 'active' || it.invite_lifecycle === 'inviting' || it.invite_lifecycle === 'never_invited'))).length;
+  const canInvite = resp?.can_invite_count ?? 0;
+  const maxGuard = resp?.max_guardians ?? 0;
 
   const handleInvite = () => {
-    if (resp && resp.can_invite_count <= 0) {
+    if (canInvite <= 0) {
       setShowLimit(true);
       return;
     }
@@ -160,17 +186,7 @@ export default function IGuardPage() {
       const body: any = {};
       if (it.managed_user_id) body.managed_user_id = it.managed_user_id;
       if (it.managed_member_id) body.managed_member_id = it.managed_member_id;
-      // 纯邀请记录（无 mgmt 也无 member）
       if (!body.managed_user_id && !body.managed_member_id && it.invite_code) {
-        // 通过 invite_code 找到 invitation_id
-        try {
-          const inviteRes: any = await api.get(
-            `/api/guardian/v13/family/invite-history?managed_member_id=0`,
-          );
-          // 由后端直接通过 code 取消已不可能（接口设计），改用列表对应卡片的 management_id
-        } catch {
-          /* ignore */
-        }
         showToast('请先取消邀请', 'fail');
         return;
       }
@@ -182,10 +198,11 @@ export default function IGuardPage() {
     }
   };
 
+  // [PRD-V1.3.1 §1.3] 「解除守护」按钮文案，弹窗内不出现「共管」
   const handleUnGuard = async (it: FamilyItemV13) => {
     const ok = await Dialog.confirm({
       title: '解除守护',
-      content: `将解除与 ${it.managed_user_nickname || 'TA'} 的共管关系，TA 的档案数据完整保留`,
+      content: `将解除与 ${it.managed_user_nickname || 'TA'} 的守护关系，TA 的档案数据完整保留`,
     });
     if (!ok) return;
     try {
@@ -202,7 +219,6 @@ export default function IGuardPage() {
   };
 
   const handleReinvite = async (_it: FamilyItemV13) => {
-    // 再次邀请 = 新建邀请，跳转到邀请页（带 relation 预填可选）
     router.push('/health-profile?action=invite');
   };
 
@@ -250,7 +266,12 @@ export default function IGuardPage() {
         `/api/guardian/v13/family/invite-history${params.length ? '?' + params.join('&') : ''}`,
       );
       const d = res.data || res;
-      setHistory(Array.isArray(d.items) ? d.items : []);
+      // 客户端兜底术语柔化（防后端未升级）
+      const softItems = (Array.isArray(d.items) ? d.items : []).map((x: any) => ({
+        ...x,
+        status_label: x?.status_label === '已拒绝' ? '暂未响应' : x?.status_label,
+      }));
+      setHistory(softItems);
     } catch {
       setHistory([]);
     }
@@ -265,22 +286,63 @@ export default function IGuardPage() {
     }
   };
 
-  // 卡片样式
-  const renderCard = (it: FamilyItemV13, idx: number) => {
-    const isActive = it.status === 'active';
-    const subStatus = isActive ? '' : `（${LIFECYCLE_LABEL[it.invite_lifecycle]}）`;
+  // [PRD-V1.3.1 §1.3] 子状态文案构建（确保不出现「共管 / 代管 / 已拒绝」）
+  const buildSubStatusText = (it: FamilyItemV13): string => {
+    if (it.display_substatus_label) {
+      // 后端已经柔化过的文案，直接使用
+      const base = it.display_substatus_label;
+      if (it.invite_lifecycle === 'accepted' && it.created_at) {
+        return `${base} ${fmtDate(it.created_at)}`;
+      }
+      if (it.invite_lifecycle === 'inviting' && typeof it.invite_remaining_hours === 'number') {
+        return `${base} · 还剩 ${it.invite_remaining_hours} 小时`;
+      }
+      if (it.invite_lifecycle === 'unbound') {
+        return `${base}${it.created_at ? ' · 于 ' + fmtDate(it.created_at) : ''}`;
+      }
+      if (it.invite_lifecycle === 'expired') {
+        return `${base} · 上次邀请已过期`;
+      }
+      if (it.invite_lifecycle === 'rejected' && it.created_at) {
+        return `${base} · 创建于 ${fmtDate(it.created_at)}`;
+      }
+      return base;
+    }
+    // 兜底：自己根据 lifecycle 推导
+    const lbl = DISPLAY_LIFECYCLE_LABEL[it.invite_lifecycle] || '';
+    if (it.invite_lifecycle === 'accepted' && it.created_at) {
+      return `${lbl} ${fmtDate(it.created_at)}`;
+    }
+    if (it.invite_lifecycle === 'inviting' && typeof it.invite_remaining_hours === 'number') {
+      return `${lbl} · 还剩 ${it.invite_remaining_hours} 小时`;
+    }
+    return lbl;
+  };
+
+  // ─── 卡片渲染（v1.3.1：天蓝色 + 已绑定/未绑定子徽标 + 术语清理） ────────────
+  const renderCard = (it: FamilyItemV13, idx: number, zone: 'bound' | 'unbound') => {
+    const isBound = zone === 'bound';
+    const cardBg = '#FFFFFF';
+    const cardBorder = it.is_primary_guardian
+      ? `1.5px solid ${GOLD}`
+      : isBound
+        ? `1px solid ${SKY_BORDER}`
+        : `1px solid ${SLATE_BORDER}`;
+    // 未绑定卡片右上角子状态徽标
+    const subBadgeBg = isBound ? '#E0F2FE' : '#F1F5F9';
+    const subBadgeFg = isBound ? SKY_700 : TEXT_SECONDARY;
 
     return (
       <div
-        key={`${it.management_id || 'inv'}-${idx}`}
-        data-testid={`family-card-v13-${it.invite_lifecycle}`}
+        key={`${zone}-${it.management_id || 'inv'}-${idx}`}
+        data-testid={`family-card-v131-${zone}-${it.invite_lifecycle}`}
         style={{
-          background: '#fff',
-          borderRadius: 20,
-          padding: 16,
-          marginBottom: 12,
-          boxShadow: '0 4px 16px rgba(24, 144, 255, 0.08)',
-          border: it.is_primary_guardian ? `1.5px solid ${GOLD}` : `1px solid ${PRIMARY_BG}`,
+          background: cardBg,
+          borderRadius: 16,
+          padding: 14,
+          marginBottom: 10,
+          boxShadow: '0 2px 8px rgba(14, 165, 233, 0.06)',
+          border: cardBorder,
           position: 'relative',
         }}
       >
@@ -289,56 +351,78 @@ export default function IGuardPage() {
           <div
             style={{
               position: 'absolute',
-              top: 12,
-              right: 12,
+              top: 10,
+              right: 10,
               background: GOLD,
               color: '#fff',
-              borderRadius: 12,
-              padding: '2px 10px',
-              fontSize: 11,
+              borderRadius: 10,
+              padding: '2px 8px',
+              fontSize: 10,
               fontWeight: 700,
               boxShadow: '0 2px 6px rgba(255, 184, 0, 0.4)',
+              zIndex: 2,
             }}
           >
             👑 主
           </div>
         )}
 
+        {/* 未绑定卡片右下角子状态徽标 */}
+        {!isBound && (
+          <div
+            style={{
+              position: 'absolute',
+              top: it.is_primary_guardian ? 38 : 10,
+              right: 10,
+              background: subBadgeBg,
+              color: subBadgeFg,
+              borderRadius: 8,
+              padding: '2px 8px',
+              fontSize: 11,
+              fontWeight: 600,
+              maxWidth: 140,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {buildSubStatusText(it)}
+          </div>
+        )}
+
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
           <div
             style={{
-              width: 48,
-              height: 48,
+              width: 44,
+              height: 44,
               borderRadius: '50%',
-              background: PRIMARY_BG,
-              color: PRIMARY,
+              background: isBound ? SKY_100 : SLATE_100,
+              color: isBound ? SKY_700 : TEXT_SECONDARY,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: 700,
               marginRight: 12,
+              border: `1.5px solid ${isBound ? SKY_BORDER : SLATE_BORDER}`,
             }}
           >
             {(it.managed_user_nickname || it.relation_label || '?').charAt(0)}
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: TEXT_PRIMARY, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {it.managed_user_nickname || it.relation_label || '待邀请家人'}
-            </div>
-            <div style={{ fontSize: 12, color: '#8C8C8C', marginTop: 4 }}>
-              {isActive ? '共管' : '待守护'}
-              {subStatus}
-              {it.invite_lifecycle === 'inviting' && it.invite_remaining_hours !== undefined && (
-                <span style={{ color: GOLD, marginLeft: 4 }}>
-                  · 还剩 {it.invite_remaining_hours} 小时
+              {it.relation_label && it.managed_user_nickname && (
+                <span style={{ fontSize: 12, color: TEXT_SECONDARY, fontWeight: 400, marginLeft: 6 }}>
+                  · {it.relation_label}
                 </span>
               )}
-              {isActive && it.created_at && (
-                <span style={{ marginLeft: 4 }}>· {fmtDate(it.created_at)} 建立</span>
-              )}
-              {it.proxy_pay_enabled && (
-                <Tag color='warning' style={{ marginLeft: 6, background: WARN_BG, color: GOLD }}>
+            </div>
+            <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4 }}>
+              {/* 已绑定卡片在左下角显示「建立于 yyyy-mm-dd」或「由我代为管理」 */}
+              {isBound && (it.is_orphan ? '由我代为管理' : buildSubStatusText(it))}
+              {isBound && it.proxy_pay_enabled && (
+                <Tag color='warning' style={{ marginLeft: 6, background: '#FFF7E6', color: GOLD, border: 'none' }}>
                   代付中
                 </Tag>
               )}
@@ -348,36 +432,49 @@ export default function IGuardPage() {
 
         {/* 按钮区：根据 lifecycle 动态显示 */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {isActive ? (
+          {isBound ? (
             <>
               <Button
                 size='mini'
                 fill='outline'
-                style={{ flex: 1, borderRadius: 22, borderColor: PRIMARY, color: PRIMARY }}
+                style={{ flex: 1, borderRadius: 18, borderColor: SKY_500, color: SKY_500 }}
                 onClick={() =>
                   router.push(`/health-profile?member_user_id=${it.managed_user_id}`)
                 }
               >
                 查看档案
               </Button>
-              {it.is_primary_guardian && (
+              {it.is_primary_guardian && it.managed_user_id && (
                 <Button
                   size='mini'
                   fill='outline'
-                  style={{ flex: 1, borderRadius: 22, borderColor: GOLD, color: GOLD }}
+                  style={{ flex: 1, borderRadius: 18, borderColor: GOLD, color: GOLD }}
                   onClick={() => openPayDetail(it)}
                 >
                   代付明细
                 </Button>
               )}
-              <Button
-                size='mini'
-                fill='outline'
-                style={{ flex: 1, borderRadius: 22, borderColor: DANGER, color: DANGER }}
-                onClick={() => handleUnGuard(it)}
-              >
-                解除守护
-              </Button>
+              {it.is_orphan ? (
+                it.can_remove && (
+                  <Button
+                    size='mini'
+                    fill='outline'
+                    style={{ flex: 1, borderRadius: 18, borderColor: DANGER, color: DANGER }}
+                    onClick={() => handleRemove(it)}
+                  >
+                    移除
+                  </Button>
+                )
+              ) : (
+                <Button
+                  size='mini'
+                  fill='outline'
+                  style={{ flex: 1, borderRadius: 18, borderColor: DANGER, color: DANGER }}
+                  onClick={() => handleUnGuard(it)}
+                >
+                  解除守护
+                </Button>
+              )}
             </>
           ) : (
             <>
@@ -386,7 +483,7 @@ export default function IGuardPage() {
                   <Button
                     size='mini'
                     fill='solid'
-                    style={{ flex: 1, borderRadius: 22, background: PRIMARY }}
+                    style={{ flex: 1, borderRadius: 18, background: SKY_500 }}
                     onClick={() => handleViewQr(it)}
                   >
                     查看二维码
@@ -394,7 +491,7 @@ export default function IGuardPage() {
                   <Button
                     size='mini'
                     fill='outline'
-                    style={{ flex: 1, borderRadius: 22, borderColor: DANGER, color: DANGER }}
+                    style={{ flex: 1, borderRadius: 18, borderColor: DANGER, color: DANGER }}
                     onClick={() => handleCancelInvite(it)}
                   >
                     取消邀请
@@ -408,17 +505,16 @@ export default function IGuardPage() {
                   <Button
                     size='mini'
                     fill='solid'
-                    style={{ flex: 1, borderRadius: 22, background: PRIMARY }}
+                    style={{ flex: 1, borderRadius: 18, background: SKY_500 }}
                     onClick={() => handleReinvite(it)}
                   >
                     再次邀请
                   </Button>
-                  {/* 4 不可删校验通过才显示 */}
                   {it.can_remove && (
                     <Button
                       size='mini'
                       fill='outline'
-                      style={{ flex: 1, borderRadius: 22, borderColor: DANGER, color: DANGER }}
+                      style={{ flex: 1, borderRadius: 18, borderColor: DANGER, color: DANGER }}
                       onClick={() => handleRemove(it)}
                     >
                       移除
@@ -431,7 +527,7 @@ export default function IGuardPage() {
                   <Button
                     size='mini'
                     fill='solid'
-                    style={{ flex: 1, borderRadius: 22, background: PRIMARY }}
+                    style={{ flex: 1, borderRadius: 18, background: SKY_500 }}
                     onClick={handleInvite}
                   >
                     发起邀请
@@ -440,7 +536,7 @@ export default function IGuardPage() {
                     <Button
                       size='mini'
                       fill='outline'
-                      style={{ flex: 1, borderRadius: 22, borderColor: DANGER, color: DANGER }}
+                      style={{ flex: 1, borderRadius: 18, borderColor: DANGER, color: DANGER }}
                       onClick={() => handleRemove(it)}
                     >
                       移除
@@ -448,11 +544,10 @@ export default function IGuardPage() {
                   )}
                 </>
               )}
-              {/* 邀请记录入口 */}
               <Button
                 size='mini'
                 fill='none'
-                style={{ borderRadius: 22, color: PRIMARY, fontSize: 12 }}
+                style={{ borderRadius: 18, color: SKY_500, fontSize: 12 }}
                 onClick={() => openHistory(it)}
               >
                 邀请记录
@@ -468,130 +563,194 @@ export default function IGuardPage() {
     <div style={{ background: PAGE_BG, minHeight: '100vh', paddingBottom: 32 }}>
       <GreenNavBar>我守护的人</GreenNavBar>
 
-      {/* 顶部配额提示 */}
-      {resp && (
-        <div
-          style={{
-            margin: '8px 16px 0',
-            padding: '8px 12px',
-            background: PRIMARY_BG,
-            borderRadius: 8,
-            fontSize: 12,
-            color: PRIMARY_DARK,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <span>
-            您还可邀请 <b style={{ color: PRIMARY_DARK }}>{resp.can_invite_count}</b> 位 / 共{' '}
-            {resp.max_guardians} 位
-          </span>
+      {/* [PRD-V1.3.1 §1.1] 顶部统计栏（一行式） */}
+      <div
+        data-testid='guardian-v131-summary-bar'
+        style={{
+          margin: '8px 16px 0',
+          padding: '12px 14px',
+          background: `linear-gradient(135deg, ${SKY_100} 0%, ${SKY_50} 100%)`,
+          borderRadius: 12,
+          border: `1px solid ${SKY_BORDER}`,
+        }}
+      >
+        <div style={{ fontSize: 14, color: SKY_700, fontWeight: 600, marginBottom: 4 }}>
+          {resp ? (
+            <>
+              守护 <b style={{ color: SKY_700, fontSize: 16 }}>{Math.max(0, guardingCount)}</b> 位家人
+              <span style={{ margin: '0 6px', color: TEXT_SECONDARY }}>·</span>
+              还可邀请 <b style={{ color: SKY_700, fontSize: 16 }}>{canInvite}</b> 位
+              <span style={{ margin: '0 6px', color: TEXT_SECONDARY }}>/</span>
+              共 <b style={{ color: SKY_700, fontSize: 16 }}>{maxGuard}</b> 位
+            </>
+          ) : (
+            <>加载中…</>
+          )}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 11, color: TEXT_SECONDARY }}>本人不占名额</span>
           <Button
             size='mini'
             fill='solid'
-            style={{ background: PRIMARY, borderRadius: 16 }}
+            style={{ background: SKY_500, borderRadius: 14, fontSize: 12 }}
             onClick={handleInvite}
           >
             + 发起邀请
           </Button>
         </div>
-      )}
-
-      {/* 极简两态 Tab */}
-      <Tabs
-        activeKey={tab}
-        onChange={(k) => setTab(k as 'active' | 'pending')}
-        style={{ background: '#fff', marginTop: 8 }}
-      >
-        <Tabs.Tab title={`守护中 (${resp?.tab_active_count || 0})`} key='active' />
-        <Tabs.Tab title={`待守护 (${resp?.tab_pending_count || 0})`} key='pending' />
-      </Tabs>
+      </div>
 
       <div style={{ padding: '12px 16px' }}>
-        {/* 本人行：仅守护中 Tab 显示 */}
-        {tab === 'active' && (
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: 20,
-              padding: 16,
-              marginBottom: 12,
-              boxShadow: '0 4px 16px rgba(24, 144, 255, 0.08)',
-              border: `1px solid ${PRIMARY_BG}`,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: '50%',
-                  background: `linear-gradient(135deg, ${PRIMARY} 0%, ${PRIMARY_DARK} 100%)`,
-                  color: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 18,
-                  fontWeight: 700,
-                  marginRight: 12,
-                }}
-              >
-                我
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a' }}>
-                  {me.nickname || '本人'}（本人）
-                </div>
-                <div style={{ fontSize: 12, color: '#8C8C8C', marginTop: 2 }}>
-                  我的健康档案与额度
-                </div>
-              </div>
+        {/* [PRD-V1.3.1 §1.1] 第 1 行：本人档案（固定首位，永远显示） */}
+        <div
+          data-testid='guardian-v131-self-card'
+          style={{
+            background: '#fff',
+            borderRadius: 16,
+            padding: 14,
+            marginBottom: 14,
+            boxShadow: '0 2px 8px rgba(14, 165, 233, 0.08)',
+            border: `1.5px solid ${SKY_BORDER}`,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: '50%',
+                background: `linear-gradient(135deg, ${SKY_500} 0%, ${SKY_700} 100%)`,
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 16,
+                fontWeight: 700,
+                marginRight: 12,
+              }}
+            >
+              我
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Button
-                size='mini'
-                color='primary'
-                fill='outline'
-                style={{ flex: 1, borderRadius: 22 }}
-                onClick={() => router.push('/health-profile')}
-              >
-                编辑档案
-              </Button>
-              <Button
-                size='mini'
-                color='primary'
-                fill='outline'
-                style={{ flex: 1, borderRadius: 22 }}
-                onClick={() => openHistory({ manager_user_id: me.id } as any)}
-              >
-                邀请记录
-              </Button>
-              <Button
-                size='mini'
-                color='primary'
-                fill='solid'
-                style={{ flex: 1, borderRadius: 22 }}
-                onClick={() => router.push('/member-center#quota')}
-              >
-                我的 AI 外呼额度
-              </Button>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: TEXT_PRIMARY }}>
+                {me.nickname || '本人'}（本人）
+              </div>
+              <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 }}>
+                我的健康档案与额度
+              </div>
             </div>
           </div>
-        )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button
+              size='mini'
+              fill='outline'
+              style={{ flex: 1, borderRadius: 18, borderColor: SKY_500, color: SKY_500 }}
+              onClick={() => router.push('/health-profile')}
+            >
+              编辑档案
+            </Button>
+            <Button
+              size='mini'
+              fill='outline'
+              style={{ flex: 1, borderRadius: 18, borderColor: SKY_500, color: SKY_500 }}
+              onClick={() => openHistory({ manager_user_id: me.id } as any)}
+            >
+              邀请记录
+            </Button>
+            <Button
+              size='mini'
+              fill='solid'
+              style={{ flex: 1, borderRadius: 18, background: SKY_500 }}
+              onClick={() => router.push('/member-center#quota')}
+            >
+              AI 外呼额度
+            </Button>
+          </div>
+        </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#8C8C8C' }}>加载中…</div>
-        ) : filtered.length === 0 ? (
-          <Empty
-            description={tab === 'active' ? '暂无守护中的家人' : '暂无待守护的家人'}
-          />
+          <div style={{ textAlign: 'center', padding: 40, color: TEXT_SECONDARY }}>加载中…</div>
         ) : (
-          filtered.map(renderCard)
+          <>
+            {/* [PRD-V1.3.1 §1.1] 区域 1：已绑定（X 位） — 浅天蓝色卡组 */}
+            <div
+              data-testid='guardian-v131-bound-zone'
+              style={{
+                background: `linear-gradient(135deg, ${SKY_100} 0%, ${SKY_50} 100%)`,
+                border: `1px solid ${SKY_BORDER}`,
+                borderRadius: 16,
+                padding: 12,
+                marginBottom: 14,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: SKY_700,
+                  padding: '4px 4px 8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <span>💙</span>
+                <span>已绑定</span>
+                <span style={{ background: SKY_500, color: '#fff', borderRadius: 10, padding: '1px 8px', fontSize: 11 }}>
+                  {boundItems.length}
+                </span>
+                <span style={{ fontSize: 11, fontWeight: 400, color: TEXT_SECONDARY, marginLeft: 4 }}>位</span>
+              </div>
+              {boundItems.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px 0', color: TEXT_SECONDARY, fontSize: 13 }}>
+                  暂无已绑定的家人，邀请家人开始守护吧
+                </div>
+              ) : (
+                boundItems.map((it, idx) => renderCard(it, idx, 'bound'))
+              )}
+            </div>
+
+            {/* [PRD-V1.3.1 §1.1] 区域 2：未绑定（Y 位） — 浅灰色卡组 */}
+            <div
+              data-testid='guardian-v131-unbound-zone'
+              style={{
+                background: `linear-gradient(135deg, ${SLATE_100} 0%, ${SLATE_50} 100%)`,
+                border: `1px solid ${SLATE_BORDER}`,
+                borderRadius: 16,
+                padding: 12,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: TEXT_PRIMARY,
+                  padding: '4px 4px 8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <span>📋</span>
+                <span>未绑定</span>
+                <span style={{ background: TEXT_SECONDARY, color: '#fff', borderRadius: 10, padding: '1px 8px', fontSize: 11 }}>
+                  {unboundItems.length}
+                </span>
+                <span style={{ fontSize: 11, fontWeight: 400, color: TEXT_SECONDARY, marginLeft: 4 }}>位</span>
+              </div>
+              {unboundItems.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px 0', color: TEXT_SECONDARY, fontSize: 13 }}>
+                  暂无未绑定的家人档案
+                </div>
+              ) : (
+                unboundItems.map((it, idx) => renderCard(it, idx, 'unbound'))
+              )}
+            </div>
+          </>
         )}
       </div>
 
-      {/* 上限弹窗 */}
+      {/* [PRD-V1.3.1 §2.4] 上限弹窗：温馨提示（动态文案） */}
       <Modal
         visible={showLimit}
         title='💝 温馨提示'
@@ -633,52 +792,48 @@ export default function IGuardPage() {
                   alignItems: 'center',
                   marginBottom: 12,
                   padding: 12,
-                  background: WARN_BG,
+                  background: '#FFF7E6',
                   borderRadius: 8,
                 }}
               >
-                <span>AI 呼叫代付开关</span>
+                <span style={{ fontSize: 13 }}>代付开关</span>
                 <Switch
-                  checked={!!payDetail.enabled}
-                  onChange={(c) => payDetailModal && togglePay(payDetailModal, c)}
+                  checked={payDetail.enabled}
+                  onChange={(v) =>
+                    payDetailModal && togglePay(payDetailModal, v)
+                  }
                 />
               </div>
-              <div style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>
-                今日代付 <b>{payDetail.today_count}</b> 次 · 本月代付{' '}
-                <b>{payDetail.month_count}</b> 次
+              <div style={{ marginBottom: 8, fontSize: 13 }}>
+                今日已代付：<b style={{ color: GOLD }}>{payDetail.today_count}</b> 次 · 本月：<b style={{ color: GOLD }}>{payDetail.month_count}</b> 次
               </div>
-              <div
-                style={{
-                  maxHeight: 240,
-                  overflowY: 'auto',
-                  fontSize: 12,
-                  color: '#666',
-                }}
-              >
-                {(payDetail.items || []).length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: 16, color: '#999' }}>
-                    本月暂无代付记录
-                  </div>
-                ) : (
+              <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                {payDetail.items?.length ? (
                   payDetail.items.map((r: any) => (
                     <div
                       key={r.id}
-                      style={{ padding: 8, borderBottom: '1px solid #f0f0f0' }}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        padding: '6px 0',
+                        borderBottom: '1px dashed #eee',
+                        fontSize: 12,
+                      }}
                     >
-                      <div>
-                        {r.call_type_label} · {fmtDate(r.used_at)}
-                      </div>
+                      <span>{r.call_type_label}</span>
+                      <span style={{ color: TEXT_SECONDARY }}>{fmtDate(r.used_at)}</span>
                     </div>
                   ))
+                ) : (
+                  <div style={{ textAlign: 'center', color: TEXT_SECONDARY, padding: 12 }}>本月暂无代付记录</div>
                 )}
               </div>
             </div>
           ) : (
-            <div style={{ padding: 16, textAlign: 'center' }}>加载中…</div>
+            <div style={{ textAlign: 'center', padding: 20 }}>加载中…</div>
           )
         }
-        closeOnAction
-        actions={[{ key: 'ok', text: '关闭' }]}
+        actions={[[{ key: 'close', text: '关闭' }]]}
         onClose={() => {
           setPayDetailModal(null);
           setPayDetail(null);
@@ -690,43 +845,32 @@ export default function IGuardPage() {
         visible={historyModal !== null}
         title='邀请记录'
         content={
-          <div
-            style={{
-              padding: '8px 0',
-              maxHeight: 400,
-              overflowY: 'auto',
-            }}
-          >
+          <div style={{ padding: '8px 0', maxHeight: 320, overflowY: 'auto' }}>
             {history.length === 0 ? (
               <Empty description='暂无邀请记录' />
             ) : (
-              history.map((r: any) => (
+              history.map((h: any) => (
                 <div
-                  key={r.id}
+                  key={h.id}
                   style={{
-                    padding: 12,
-                    borderBottom: '1px solid #f0f0f0',
+                    padding: '8px 0',
+                    borderBottom: '1px dashed #eee',
                     fontSize: 13,
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>{fmtDate(r.created_at)} 发起邀请</span>
-                    <Tag color={r.status_color === 'success' ? 'success' : 'default'}>
-                      {r.status_label}
-                    </Tag>
+                    <span>{h.relation_type || '邀请'}</span>
+                    <Tag color={h.status_color || 'default'}>{h.status_label}</Tag>
                   </div>
-                  {r.relation_type && (
-                    <div style={{ color: '#999', marginTop: 4 }}>
-                      关系：{r.relation_type}
-                    </div>
-                  )}
+                  <div style={{ fontSize: 11, color: TEXT_SECONDARY, marginTop: 2 }}>
+                    {h.created_at ? new Date(h.created_at).toLocaleString() : ''}
+                  </div>
                 </div>
               ))
             )}
           </div>
         }
-        closeOnAction
-        actions={[{ key: 'ok', text: '关闭' }]}
+        actions={[[{ key: 'close', text: '关闭' }]]}
         onClose={() => {
           setHistoryModal(null);
           setHistory([]);

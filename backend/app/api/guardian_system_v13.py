@@ -1,4 +1,13 @@
-"""[守护人体系 PRD v1.3 2026-05-26] 健康档案融合优化
+"""[守护人体系 PRD v1.3 / v1.3.1 2026-05-27] 健康档案融合优化 + 统一列表与已绑定/未绑定重构
+
+v1.3.1 关键变更（在 v1.3 基础上做结构性修订）：
+- 取消两 Tab（守护中 / 待守护），整页一个大列表 + 两区色块卡组（已绑定 / 未绑定）
+- 新增 bind_status (bound / unbound) 字段（v1.3 status: active/not_active 的语义升级，并保留兼容）
+- max_guardians 从 membership_plans.max_managed / free_member_quota.max_managed 动态读取（不再写死 10）
+- 配额公式：本人豁免；已绑定 + 孤儿 + 邀请中 + 尚未邀请 占名额；暂未响应 / 已解绑 / 已过期 不占名额
+- 用户可见层术语清理：禁用 "共管 / 代管 / 已拒绝"，柔化为 "建立于 / 由我代为管理 / 暂未响应"
+- 新增 display_substatus_label 字段，前端可直接渲染柔化后的文案
+- 列表统一按 created_at ASC 正序（老朋友先）
 
 v1.3 关键变更：
 - 信息架构极简：仅保留 守护中 / 待守护 两态 Tab
@@ -6,14 +15,14 @@ v1.3 关键变更：
 - 强化权限边界：普通守护人对被守护人全只读，所有写操作仅主守护人可执行
 - 统一扣费心智：先本人 → 后主代付（默认开关 ON）
 - 新增接口：
-  · GET  /api/guardian/v13/family/list            列表带 invite_lifecycle
+  · GET  /api/guardian/v13/family/list            列表带 invite_lifecycle / bind_status (v1.3.1)
   · GET  /api/guardian/v13/family/invite-history  邀请记录（被守护人行，单向）
   · POST /api/guardian/v13/family/proxy-pay/toggle 切换 AI 呼叫代付
   · GET  /api/guardian/v13/family/proxy-pay/detail 代付明细
   · POST /api/guardian/v13/family/invite/cancel    取消邀请
   · POST /api/guardian/v13/family/remove           移除被守护人卡片（4 不可删校验）
 
-[PRD-GUARDIAN-V1.3 2026-05-26]
+[PRD-GUARDIAN-V1.3 2026-05-26][PRD-GUARDIAN-V1.3.1 2026-05-27]
 """
 from __future__ import annotations
 
@@ -65,7 +74,7 @@ INVITE_LIFECYCLE_HOURS = 24
 
 
 class FamilyListItemV13(BaseModel):
-    """v1.3 我守护的人列表项"""
+    """v1.3 / v1.3.1 我守护的人列表项"""
     management_id: Optional[int] = None
     manager_user_id: int
     managed_user_id: Optional[int] = None
@@ -75,8 +84,14 @@ class FamilyListItemV13(BaseModel):
     role_badge: str = "normal"
     is_primary_guardian: bool = False
     priority_order: int = 100
+    # v1.3 字段（保留向前兼容）
     status: str = "not_active"  # active / not_active
     invite_lifecycle: str = LIFECYCLE_NEVER_INVITED
+    # [v1.3.1] 新增字段
+    bind_status: str = "unbound"  # bound / unbound
+    display_substatus_label: str = ""  # 用户可见层柔化文案：建立于 / 邀请中 / 暂未响应 / 已解绑 / 已过期 / 尚未邀请 / 由我代为管理
+    is_orphan: bool = False  # 是否为孤儿档案（managed_user_id 为空但 managed_member_id 存在）
+    occupies_quota: bool = False  # 是否占用配额（用于前端高亮）
     invite_code: Optional[str] = None
     invite_expires_at: Optional[str] = None
     invite_remaining_hours: Optional[int] = None
@@ -87,6 +102,26 @@ class FamilyListItemV13(BaseModel):
     created_at: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# [v1.3.1] 用户可见层术语映射（柔化）：禁用"共管 / 代管 / 已拒绝"
+_LIFECYCLE_DISPLAY_LABEL: dict = {
+    LIFECYCLE_ACCEPTED: "建立于",
+    LIFECYCLE_INVITING: "邀请中",
+    LIFECYCLE_REJECTED: "暂未响应",
+    LIFECYCLE_UNBOUND: "已解绑",
+    LIFECYCLE_EXPIRED: "已过期",
+    LIFECYCLE_NEVER_INVITED: "尚未邀请",
+}
+
+# [v1.3.1] 占名额口径：
+# 已绑定/accepted、孤儿档案、邀请中、尚未邀请 → 占名额
+# 暂未响应/rejected、已解绑/unbound、已过期/expired → 不占名额
+_OCCUPY_QUOTA_LIFECYCLES = {
+    LIFECYCLE_ACCEPTED,
+    LIFECYCLE_INVITING,
+    LIFECYCLE_NEVER_INVITED,
+}
 
 
 class ProxyPayToggleRequest(BaseModel):
@@ -122,7 +157,13 @@ async def _is_paid_member(db: AsyncSession, user_id: int) -> bool:
 
 
 async def _get_max_guardians(db: AsyncSession, user_id: int) -> int:
-    """获取当前用户可守护人数上限（含已守护 + 邀请中）"""
+    """[v1.3.1] 获取当前用户可守护人数上限。
+
+    动态读取规则：
+    - 会员用户：从 membership_plans.max_managed 取
+    - 普通用户（无会员）：从 free_member_quota.max_managed 取
+    - 都没有：fallback 到 DEFAULT_MAX_GUARDIANS
+    """
     now = datetime.utcnow()
     sub = (await db.execute(
         select(UserMembershipSub).where(
@@ -135,6 +176,17 @@ async def _get_max_guardians(db: AsyncSession, user_id: int) -> int:
         plan = await db.get(MembershipPlan, sub.plan_id)
         if plan and getattr(plan, "max_managed", None):
             return int(plan.max_managed or DEFAULT_MAX_GUARDIANS)
+
+    # [v1.3.1] 无会员时读 free_member_quota.max_managed
+    try:
+        from app.models.membership_plan import FreeMemberQuota  # type: ignore
+        quota = (await db.execute(
+            select(FreeMemberQuota).order_by(FreeMemberQuota.id.asc())
+        )).scalars().first()
+        if quota and getattr(quota, "max_managed", None):
+            return int(quota.max_managed or DEFAULT_MAX_GUARDIANS)
+    except Exception:
+        pass
     return DEFAULT_MAX_GUARDIANS
 
 
@@ -241,11 +293,19 @@ async def list_family_v13(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """[PRD-GUARDIAN-V1.3 §2.1] 我守护的人列表（含 invite_lifecycle，支持 守护中/待守护 Tab 切换）
+    """[PRD-GUARDIAN-V1.3 §2.1 + PRD-GUARDIAN-V1.3.1 §1/§2/§5.1] 我守护的人列表。
+
+    v1.3.1 关键变更：
+    - 取消两 Tab，整页一个大列表（前端按 bind_status 分两区色块卡组渲染）
+    - 列表统一按 created_at ASC 正序（老朋友先）
+    - 新增字段：bind_status / display_substatus_label / occupies_quota / is_orphan
+    - 配额公式：本人豁免；已绑定/孤儿/邀请中/尚未邀请 占名额；暂未响应/已解绑/已过期 不占名额
+    - max_guardians 从 membership_plans / free_member_quota 动态读取
 
     返回字段：
-    - items: List[FamilyListItemV13]
-    - tab_active_count / tab_pending_count: 两个 Tab 的人数
+    - items: List[FamilyListItemV13]，按 created_at ASC 排序
+    - tab_active_count / tab_pending_count: 保留向前兼容
+    - bound_count / unbound_count / quota_used: v1.3.1 新增
     - max_guardians / used / can_invite_count: 配额信息
     """
     now = datetime.utcnow()
@@ -340,6 +400,17 @@ async def list_family_v13(
         key = f"mgmt:{mgmt.id}"
         seen_keys.add(key)
 
+        # [v1.3.1] bind_status / display_substatus_label / is_orphan / occupies_quota
+        is_orphan = bool(mgmt.managed_member_id and not mgmt.managed_user_id)
+        bind_status = "bound" if status_v13 == "active" else "unbound"
+        if is_orphan and bind_status == "bound":
+            display_label = "由我代为管理"
+        else:
+            display_label = _LIFECYCLE_DISPLAY_LABEL.get(lifecycle, "")
+        occupies_quota = (
+            (bind_status == "bound") or (lifecycle in _OCCUPY_QUOTA_LIFECYCLES)
+        )
+
         items.append(FamilyListItemV13(
             management_id=mgmt.id,
             manager_user_id=mgmt.manager_user_id,
@@ -352,6 +423,10 @@ async def list_family_v13(
             priority_order=int(getattr(mgmt, "priority_order", 100) or 100),
             status=status_v13,
             invite_lifecycle=lifecycle,
+            bind_status=bind_status,
+            display_substatus_label=display_label,
+            is_orphan=is_orphan,
+            occupies_quota=occupies_quota,
             invite_code=invite_code,
             invite_expires_at=invite_expires,
             invite_remaining_hours=remaining_hours,
@@ -377,6 +452,10 @@ async def list_family_v13(
             delta = inv.expires_at - now
             remaining_hours = max(0, int(delta.total_seconds() // 3600))
         # 待守护的卡片：管理员尚未指定具体 user
+        # [v1.3.1] 计算 bind_status / display_substatus_label / occupies_quota
+        bind_status_inv = "unbound"
+        display_label_inv = _LIFECYCLE_DISPLAY_LABEL.get(lifecycle, "")
+        occupies_quota_inv = lifecycle in _OCCUPY_QUOTA_LIFECYCLES
         items.append(FamilyListItemV13(
             management_id=None,
             manager_user_id=current_user.id,
@@ -389,6 +468,10 @@ async def list_family_v13(
             priority_order=100,
             status="not_active",
             invite_lifecycle=lifecycle,
+            bind_status=bind_status_inv,
+            display_substatus_label=display_label_inv,
+            is_orphan=False,
+            occupies_quota=occupies_quota_inv,
             invite_code=invite_code,
             invite_expires_at=invite_expires,
             invite_remaining_hours=remaining_hours,
@@ -399,22 +482,40 @@ async def list_family_v13(
             created_at=inv.created_at.isoformat() if inv.created_at else None,
         ).model_dump())
 
-    # 统计两个 Tab 的人数
+    # [v1.3.1] 统一按 created_at ASC 正序（老朋友先）
+    def _sort_key(it: dict):
+        return it.get("created_at") or ""
+    items.sort(key=_sort_key)
+
+    # v1.3 兼容字段：守护中 / 待守护 Tab 计数
     active_count = sum(1 for it in items if it["status"] == "active")
     pending_count = sum(1 for it in items if it["status"] != "active")
     inviting_count = sum(1 for it in items if it["invite_lifecycle"] == LIFECYCLE_INVITING)
 
+    # [v1.3.1] 已绑定 / 未绑定 区计数
+    bound_count = sum(1 for it in items if it.get("bind_status") == "bound")
+    unbound_count = sum(1 for it in items if it.get("bind_status") == "unbound")
+    # [v1.3.1] 占名额数：本人豁免（本接口不包含本人虚拟项，由前端拼接）
+    quota_used = sum(1 for it in items if it.get("occupies_quota"))
+
     max_guardians = await _get_max_guardians(db, current_user.id)
-    used = active_count + inviting_count
-    can_invite_count = max(0, max_guardians - used)
+    # [v1.3.1] used 改为 quota_used；can_invite_count 改为 max_guardians - quota_used
+    used = quota_used
+    can_invite_count = max(0, max_guardians - quota_used)
 
     return {
         "items": items,
         "total": len(items),
+        # v1.3 兼容字段
         "tab_active_count": active_count,
         "tab_pending_count": pending_count,
         "active_count": active_count,
         "inviting_count": inviting_count,
+        # [v1.3.1] 新增字段
+        "bound_count": bound_count,
+        "unbound_count": unbound_count,
+        "quota_used": quota_used,
+        # 配额
         "max_guardians": max_guardians,
         "used": used,
         "can_invite_count": can_invite_count,

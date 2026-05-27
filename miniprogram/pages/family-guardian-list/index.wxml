@@ -26,6 +26,6 @@
   </view>
 
   <view wx:if="{{!loading && items.length === 0}}" class="empty">
-    <text>暂无守护关系，请在「健康档案」中选中家人发起邀请共管。</text>
+    <text>暂无守护关系，请在「健康档案」中选中家人发起邀请。</text>
   </view>
 </view>
