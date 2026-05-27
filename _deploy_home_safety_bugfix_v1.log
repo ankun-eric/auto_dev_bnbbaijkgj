@@ -1,0 +1,130 @@
+[1/7] SSH connect newbb.test.bangbangvip.com
+[2/7] upload changed files
+[UPLOAD] backend/app/api/home_safety_v1.py
+[UPLOAD] backend/tests/test_home_safety_v1.py
+[UPLOAD] h5-web/src/app/home-safety/page.tsx
+[UPLOAD] h5-web/src/lib/datetime.ts
+[UPLOAD] admin-web/src/app/(admin)/home-safety/page.tsx
+[UPLOAD] admin-web/src/lib/datetime.ts
+[3/7] restart backend (no rebuild needed - python hot reload via container restart)
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose restart backend 2>&1 | tail -10
+time="2026-05-27T23:02:55+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Restarting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+
+[4/7] rebuild h5-web container
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build h5-web 2>&1 | tail -30
+#12 95.77 
+#12 DONE 95.9s
+
+#8 [builder 2/7] WORKDIR /app
+#8 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.5s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.2s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.3s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 10.6s done
+#16 exporting manifest sha256:b47b5b88e024574430217f1c861803e9429aadfff1a29f7c1f775d6b369c7d37 0.0s done
+#16 exporting config sha256:175b1b1094ce85660ec0db9c41646bb27c703598f22e74270b4935f306c81d1a 0.0s done
+#16 exporting attestation manifest sha256:5feb08639d581fb09554a566ad3e0849f621cf4b5271e0ee13144891cad42b4f 0.0s done
+#16 exporting manifest list sha256:f5a3013285c5a3555d4969553878ef5e15a08c5ba4335a04fcb9380ce6a9605a 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 2.1s done
+#16 DONE 12.8s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.5s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose up -d h5-web 2>&1 | tail -10
+time="2026-05-27T23:05:03+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+
+[5/7] rebuild admin-web container
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build admin-web 2>&1 | tail -30
+#12 118.6 npm notice
+#12 DONE 118.7s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.6s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.1s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 1.4s done
+#16 exporting manifest sha256:4ed8d8db9334f112555d37ace3d0ed9b751b0bd06421b0cffae38494a835adaf 0.0s done
+#16 exporting config sha256:773b69f9ce6a393051588d17073bb20f2669c00baa72aa6df8874a3a4a054233 0.0s done
+#16 exporting attestation manifest sha256:7b893958967fc9e399c875568845e09a8ab5541ec4f46ed178978a901ed10789 0.0s done
+#16 exporting manifest list sha256:94ba41ed5dcf0060480efe3de4b536b6d065be494010e508c268e5e5e4b15e9f 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.5s done
+#16 DONE 2.0s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built 
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose up -d admin-web 2>&1 | tail -10
+time="2026-05-27T23:07:23+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started 
+
+[6/7] docker compose ps
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose ps
+NAME                                           IMAGE                                            COMMAND                  SERVICE     CREATED          STATUS                  PORTS
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin     6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web   "docker-entrypoint.s鈥?   admin-web   10 seconds ago   Up 8 seconds            3000/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend   6b099ed3-7175-4a78-91f4-44570c84ed27-backend     "uvicorn app.main:ap鈥?   backend     34 minutes ago   Up 4 minutes            8000/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-db        mysql:8.0                                        "docker-entrypoint.s鈥?   db          22 hours ago     Up 22 hours (healthy)   3306/tcp, 33060/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5        6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web      "docker-entrypoint.s鈥?   h5-web      2 minutes ago    Up 2 minutes            3001/tcp
+
+[stderr] time="2026-05-27T23:07:34+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+
+[7/7] HTTP smoke
+$ curl -s -o /dev/null -w '%{http_code}  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/home_safety/dict/device_types\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/home_safety/dict/device_types'
+401  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/home_safety/dict/device_types
+
+$ curl -s -o /dev/null -w '%{http_code}  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/home_safety/devices\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/home_safety/devices'
+401  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/home_safety/devices
+
+$ curl -s -o /dev/null -w '%{http_code}  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/home_safety/callback_config\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/home_safety/callback_config'
+401  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/admin/home_safety/callback_config
+
+$ curl -s -o /dev/null -w '%{http_code}  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/home-safety/\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/home-safety/'
+200  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/home-safety/
+
+$ curl -s -o /dev/null -w '%{http_code}  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/home-safety\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/home-safety'
+308  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/home-safety
+
+
+=== BUGFIX 閮ㄧ讲瀹屾垚 ===
