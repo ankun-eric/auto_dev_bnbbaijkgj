@@ -2943,6 +2943,9 @@ class FamilyManagement(Base):
                                         comment="是否为该被守护人的主守护人（全局唯一）")
     priority_order = mapped_column(Integer, default=100, nullable=False, server_default="100",
                                    comment="串行电话外呼优先级，数字越小越靠前；主守护人固定为 0")
+    # [守护人体系 IGUARD-V2 2026-05-28] 会员权益共享开关：默认开启，主守护人可关闭
+    member_benefit_shared = mapped_column(Boolean, default=True, nullable=False, server_default="1",
+                                          comment="是否向被守护人共享会员权益 IGUARD-V2")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     cancelled_at = mapped_column(DateTime, nullable=True)
     cancelled_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)

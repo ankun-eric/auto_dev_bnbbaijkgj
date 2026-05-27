@@ -2756,26 +2756,26 @@ async def _sync_membership_v1(conn: AsyncConnection) -> None:
     tables, product_cols = await conn.run_sync(_load)
 
     if "membership_plans" not in tables:
+        # [PRD v1.0 终稿对齐 2026-05-26] 新建表时直接使用最终字段集
         await conn.execute(text(
             """
             CREATE TABLE membership_plans (
                 id INT NOT NULL AUTO_INCREMENT,
-                plan_code VARCHAR(50) NOT NULL,
-                name VARCHAR(100) NOT NULL,
-                price_monthly DECIMAL(10,2) NOT NULL DEFAULT 0,
-                price_yearly DECIMAL(10,2) NULL,
-                ai_call_quota INT NOT NULL DEFAULT 0,
-                ai_alert_quota INT NOT NULL DEFAULT 0,
-                ai_remind_quota INT NOT NULL DEFAULT 0,
-                max_guardians INT NOT NULL DEFAULT 1,
-                discount_rate FLOAT NOT NULL DEFAULT 1.0,
-                benefits_desc TEXT NULL,
+                name VARCHAR(50) NOT NULL,
+                description VARCHAR(255) NULL,
+                price_month DECIMAL(10,2) NULL,
+                price_year DECIMAL(10,2) NULL,
+                max_managed INT NOT NULL DEFAULT 3,
+                ai_outbound_call_count INT NOT NULL DEFAULT 0,
+                emergency_ai_call_count INT NOT NULL DEFAULT 0,
+                max_managed_by INT NOT NULL DEFAULT 3,
+                discount_rate FLOAT NULL,
                 is_active TINYINT(1) NOT NULL DEFAULT 1,
+                is_recommended TINYINT(1) NOT NULL DEFAULT 0,
                 sort_order INT NOT NULL DEFAULT 0,
                 created_at DATETIME NULL,
                 updated_at DATETIME NULL,
-                PRIMARY KEY (id),
-                UNIQUE KEY uk_membership_plan_code (plan_code)
+                PRIMARY KEY (id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             """
         ))
@@ -2804,24 +2804,23 @@ async def _sync_membership_v1(conn: AsyncConnection) -> None:
         ))
 
     if "free_member_quota" not in tables:
+        # [PRD v1.0 终稿对齐] 新表直接使用最终字段集
         await conn.execute(text(
             """
             CREATE TABLE free_member_quota (
                 id INT NOT NULL,
-                ai_call_quota INT NOT NULL DEFAULT 0,
-                ai_alert_quota INT NOT NULL DEFAULT 3,
-                ai_remind_quota INT NOT NULL DEFAULT 0,
-                max_guardians INT NOT NULL DEFAULT 1,
-                benefits_desc TEXT NULL,
+                max_managed INT NOT NULL DEFAULT 3,
+                ai_outbound_call_count INT NOT NULL DEFAULT 5,
+                emergency_ai_call_count INT NOT NULL DEFAULT 3,
+                max_managed_by INT NOT NULL DEFAULT 3,
                 updated_at DATETIME NULL,
                 PRIMARY KEY (id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             """
         ))
-        # 插入默认配置 id=1
         await conn.execute(text(
-            "INSERT INTO free_member_quota (id, ai_call_quota, ai_alert_quota, ai_remind_quota, max_guardians, benefits_desc, updated_at) "
-            "VALUES (1, 0, 3, 0, 1, '免费会员默认权益：异常告警 3 次/月', NOW()) "
+            "INSERT INTO free_member_quota (id, max_managed, ai_outbound_call_count, emergency_ai_call_count, max_managed_by, updated_at) "
+            "VALUES (1, 3, 5, 3, 3, NOW()) "
             "ON DUPLICATE KEY UPDATE id=id"
         ))
 
@@ -2855,6 +2854,12 @@ async def _sync_guardian_system_v1(conn: AsyncConnection) -> None:
             await conn.execute(text(
                 "ALTER TABLE family_management ADD COLUMN priority_order INT NOT NULL DEFAULT 100 "
                 "COMMENT '串行外呼优先级(主=0,其他越小越优先) PRD-GUARDIAN-V1'"
+            ))
+        # [守护人体系 IGUARD-V2 2026-05-28] 会员权益共享开关：默认开启，主守护人可关闭
+        if "member_benefit_shared" not in fm_cols:
+            await conn.execute(text(
+                "ALTER TABLE family_management ADD COLUMN member_benefit_shared TINYINT(1) "
+                "NOT NULL DEFAULT 1 COMMENT '是否向被守护人共享会员权益 IGUARD-V2'"
             ))
         # 初始化历史数据：对于每个被守护人，其最早绑定的守护人设为主守护人
         await conn.execute(text(
@@ -3144,6 +3149,218 @@ async def _sync_member_center_v2(conn: AsyncConnection) -> None:
         pass
 
 
+async def _sync_member_center_prd_v1_aligned(conn: AsyncConnection) -> None:
+    """[会员中心 PRD v1.0 终稿对齐 2026-05-26] 物理删除/新增老字段，严格对齐 PRD v1.0 字段集。
+
+    membership_plans：
+      新增: is_recommended / max_managed_by / ai_outbound_call_count / price_month / price_year
+      迁移: ai_remind_quota → ai_outbound_call_count
+             ai_alert_quota  → emergency_ai_call_count
+             price_monthly   → price_month
+             price_yearly    → price_year
+             max_guardians   → max_managed_by
+      物理删除: plan_code / ai_call_quota / ai_alert_quota / ai_remind_quota / max_guardians /
+                 benefits_desc / point_multiplier / price_monthly / price_yearly
+
+    free_member_quota：
+      新增: max_managed_by / ai_outbound_call_count
+      迁移: ai_remind_quota → ai_outbound_call_count
+             max_guardians   → max_managed_by（注：PRD 决策 9-10，并非守护他人）
+      物理删除: ai_call_quota / ai_alert_quota / ai_remind_quota / max_guardians / benefits_desc
+
+    discount_rate 改为 NULLABLE；is_active 默认值改为 1 不变；is_recommended 默认 0。
+    幂等执行：每个 ALTER 操作前都检查列存在性。
+    """
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        mp_cols = (
+            {col["name"] for col in inspector.get_columns("membership_plans")}
+            if "membership_plans" in tables else set()
+        )
+        fmq_cols = (
+            {col["name"] for col in inspector.get_columns("free_member_quota")}
+            if "free_member_quota" in tables else set()
+        )
+        mp_indexes = (
+            [idx for idx in inspector.get_indexes("membership_plans")]
+            if "membership_plans" in tables else []
+        )
+        mp_uks = (
+            [uk for uk in inspector.get_unique_constraints("membership_plans")]
+            if "membership_plans" in tables else []
+        )
+        return tables, mp_cols, fmq_cols, mp_indexes, mp_uks
+
+    tables, mp_cols, fmq_cols, mp_indexes, mp_uks = await conn.run_sync(_load)
+
+    # ───────── membership_plans ─────────
+    if "membership_plans" in tables:
+        # 1. 先新增新列（若不存在）
+        if "is_recommended" not in mp_cols:
+            await conn.execute(text(
+                "ALTER TABLE membership_plans ADD COLUMN is_recommended TINYINT(1) NOT NULL DEFAULT 0 "
+                "COMMENT '[PRD v1.0] 是否推荐套餐（金色描边+角标）'"
+            ))
+        if "max_managed_by" not in mp_cols:
+            await conn.execute(text(
+                "ALTER TABLE membership_plans ADD COLUMN max_managed_by INT NOT NULL DEFAULT 3 "
+                "COMMENT '[PRD v1.0] 被管理人数上限'"
+            ))
+        if "ai_outbound_call_count" not in mp_cols:
+            await conn.execute(text(
+                "ALTER TABLE membership_plans ADD COLUMN ai_outbound_call_count INT NOT NULL DEFAULT 0 "
+                "COMMENT '[PRD v1.0] AI 外呼提醒（次/月），-1=不限'"
+            ))
+        if "price_month" not in mp_cols:
+            await conn.execute(text(
+                "ALTER TABLE membership_plans ADD COLUMN price_month DECIMAL(10,2) NULL "
+                "COMMENT '[PRD v1.0] 月价（30天），NULL=不支持月购'"
+            ))
+        if "price_year" not in mp_cols:
+            await conn.execute(text(
+                "ALTER TABLE membership_plans ADD COLUMN price_year DECIMAL(10,2) NULL "
+                "COMMENT '[PRD v1.0] 年价（365天），NULL=不支持年购'"
+            ))
+        if "description" not in mp_cols:
+            await conn.execute(text(
+                "ALTER TABLE membership_plans ADD COLUMN description VARCHAR(255) NULL "
+                "COMMENT '[PRD v1.0] 套餐说明'"
+            ))
+
+        # 2. 数据迁移（在删除老列之前）
+        if "ai_remind_quota" in mp_cols:
+            await conn.execute(text(
+                "UPDATE membership_plans SET ai_outbound_call_count = COALESCE(ai_remind_quota, 0) "
+                "WHERE ai_outbound_call_count = 0"
+            ))
+        if "ai_alert_quota" in mp_cols:
+            await conn.execute(text(
+                "UPDATE membership_plans SET emergency_ai_call_count = COALESCE(ai_alert_quota, emergency_ai_call_count, 0) "
+                "WHERE emergency_ai_call_count = 0 AND ai_alert_quota IS NOT NULL AND ai_alert_quota > 0"
+            ))
+        if "price_monthly" in mp_cols:
+            await conn.execute(text(
+                "UPDATE membership_plans SET price_month = price_monthly WHERE price_month IS NULL"
+            ))
+        if "price_yearly" in mp_cols:
+            await conn.execute(text(
+                "UPDATE membership_plans SET price_year = price_yearly WHERE price_year IS NULL"
+            ))
+        if "max_guardians" in mp_cols and "max_managed_by" in (mp_cols | {"max_managed_by"}):
+            # PRD v1.0 决策 9-10：max_managed_by = 被管理人数上限；max_guardians 历史是"守护他人/被守护"，
+            # 这里把老的 max_guardians 数据迁到 max_managed_by 作兜底（避免数据丢失）。
+            await conn.execute(text(
+                "UPDATE membership_plans SET max_managed_by = COALESCE(max_guardians, max_managed_by, 3) "
+                "WHERE max_managed_by = 3"
+            ))
+
+        # 3. 删除唯一索引 plan_code（如有）
+        for uk in mp_uks:
+            uk_name = uk.get("name")
+            if uk_name and ("plan_code" in (uk.get("column_names") or []) or uk_name == "uk_membership_plan_code"):
+                try:
+                    await conn.execute(text(f"ALTER TABLE membership_plans DROP INDEX {uk_name}"))
+                except Exception:
+                    pass
+
+        # 4. 物理删除废弃列
+        drop_cols_mp = [
+            "plan_code", "ai_call_quota", "ai_alert_quota", "ai_remind_quota",
+            "max_guardians", "benefits_desc", "point_multiplier",
+            "price_monthly", "price_yearly",
+        ]
+        for col in drop_cols_mp:
+            if col in mp_cols:
+                try:
+                    await conn.execute(text(f"ALTER TABLE membership_plans DROP COLUMN {col}"))
+                except Exception:
+                    # 容错：某些 DB 引擎不支持 DROP COLUMN；测试用 SQLite 会忽略
+                    pass
+
+        # 5. discount_rate 改为 NULLABLE
+        try:
+            await conn.execute(text(
+                "ALTER TABLE membership_plans MODIFY COLUMN discount_rate FLOAT NULL "
+                "COMMENT '[PRD v1.0] 商城折扣率（0.0~1.0，NULL=无折扣）'"
+            ))
+        except Exception:
+            pass
+
+    # ───────── free_member_quota ─────────
+    if "free_member_quota" in tables:
+        if "max_managed_by" not in fmq_cols:
+            await conn.execute(text(
+                "ALTER TABLE free_member_quota ADD COLUMN max_managed_by INT NOT NULL DEFAULT 3 "
+                "COMMENT '[PRD v1.0] 被管理人数上限'"
+            ))
+        if "ai_outbound_call_count" not in fmq_cols:
+            await conn.execute(text(
+                "ALTER TABLE free_member_quota ADD COLUMN ai_outbound_call_count INT NOT NULL DEFAULT 5 "
+                "COMMENT '[PRD v1.0] AI 外呼提醒（次/月）'"
+            ))
+
+        if "ai_remind_quota" in fmq_cols:
+            await conn.execute(text(
+                "UPDATE free_member_quota SET ai_outbound_call_count = COALESCE(ai_remind_quota, 5) "
+                "WHERE ai_outbound_call_count = 5"
+            ))
+        if "max_guardians" in fmq_cols:
+            await conn.execute(text(
+                "UPDATE free_member_quota SET max_managed_by = COALESCE(max_guardians, 3) "
+                "WHERE max_managed_by = 3"
+            ))
+
+        drop_cols_fmq = [
+            "ai_call_quota", "ai_alert_quota", "ai_remind_quota",
+            "max_guardians", "benefits_desc",
+        ]
+        for col in drop_cols_fmq:
+            if col in fmq_cols:
+                try:
+                    await conn.execute(text(f"ALTER TABLE free_member_quota DROP COLUMN {col}"))
+                except Exception:
+                    pass
+
+    # ───────── user_quota_usage（如表存在）─────────
+    def _load_uqu(sync_conn):
+        inspector = inspect(sync_conn)
+        if "user_quota_usage" not in inspector.get_table_names():
+            return None
+        return {col["name"] for col in inspector.get_columns("user_quota_usage")}
+
+    uqu_cols = await conn.run_sync(_load_uqu)
+    if uqu_cols is not None:
+        if "ai_outbound_call_used" not in uqu_cols:
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE user_quota_usage ADD COLUMN ai_outbound_call_used INT NOT NULL DEFAULT 0"
+                ))
+            except Exception:
+                pass
+        if "emergency_ai_call_used" not in uqu_cols:
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE user_quota_usage ADD COLUMN emergency_ai_call_used INT NOT NULL DEFAULT 0"
+                ))
+            except Exception:
+                pass
+        if "ai_chat_used" in uqu_cols:
+            try:
+                await conn.execute(text(
+                    "UPDATE user_quota_usage SET ai_outbound_call_used = COALESCE(ai_chat_used, 0) "
+                    "WHERE ai_outbound_call_used = 0"
+                ))
+                await conn.execute(text("ALTER TABLE user_quota_usage DROP COLUMN ai_chat_used"))
+            except Exception:
+                pass
+        if "ai_phone_alert_used" in uqu_cols:
+            try:
+                await conn.execute(text("ALTER TABLE user_quota_usage DROP COLUMN ai_phone_alert_used"))
+            except Exception:
+                pass
+
+
 async def _sync_decouple_points_mall_from_products_v1(conn: AsyncConnection) -> None:
     """[实物商品与积分商城彻底解耦 v1.0 2026-05-25]
 
@@ -3174,6 +3391,86 @@ async def _sync_decouple_points_mall_from_products_v1(conn: AsyncConnection) -> 
         await conn.execute(text(
             "UPDATE products SET points_price = 0 WHERE points_price IS NOT NULL AND points_price <> 0"
         ))
+
+
+async def _sync_home_safety_v2(conn: AsyncConnection) -> None:
+    """[PRD-HOME-SAFETY-V2 2026-05-27] 扩展 home_safety_callback_config / home_safety_alarm 字段，新建 push_history / callback_log。"""
+    def _load_v2(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        cfg_cols = (
+            {c["name"] for c in inspector.get_columns("home_safety_callback_config")}
+            if "home_safety_callback_config" in tables else None
+        )
+        alarm_cols = (
+            {c["name"] for c in inspector.get_columns("home_safety_alarm")}
+            if "home_safety_alarm" in tables else None
+        )
+        return tables, cfg_cols, alarm_cols
+
+    tables, cfg_cols, alarm_cols = await conn.run_sync(_load_v2)
+
+    # home_safety_callback_config 扩字段
+    if cfg_cols is not None:
+        if "upstream_path" not in cfg_cols:
+            await conn.execute(text("ALTER TABLE home_safety_callback_config ADD COLUMN upstream_path VARCHAR(256) NULL"))
+        if "callback_domain" not in cfg_cols:
+            await conn.execute(text("ALTER TABLE home_safety_callback_config ADD COLUMN callback_domain VARCHAR(256) NULL"))
+        if "callback_path" not in cfg_cols:
+            await conn.execute(text(
+                "ALTER TABLE home_safety_callback_config ADD COLUMN callback_path VARCHAR(256) NULL DEFAULT '/api/home_safety/callback/alarm'"
+            ))
+        if "last_push_status" not in cfg_cols:
+            await conn.execute(text("ALTER TABLE home_safety_callback_config ADD COLUMN last_push_status VARCHAR(16) NULL"))
+        if "last_push_url" not in cfg_cols:
+            await conn.execute(text("ALTER TABLE home_safety_callback_config ADD COLUMN last_push_url VARCHAR(512) NULL"))
+        if "last_push_code" not in cfg_cols:
+            await conn.execute(text("ALTER TABLE home_safety_callback_config ADD COLUMN last_push_code INT NULL"))
+        if "last_push_message" not in cfg_cols:
+            await conn.execute(text("ALTER TABLE home_safety_callback_config ADD COLUMN last_push_message VARCHAR(512) NULL"))
+        if "last_push_raw" not in cfg_cols:
+            await conn.execute(text("ALTER TABLE home_safety_callback_config ADD COLUMN last_push_raw TEXT NULL"))
+        def _check_token_col(sync_conn):
+            inspector = inspect(sync_conn)
+            for col in inspector.get_columns("home_safety_callback_config"):
+                if col["name"] == "auth_token":
+                    return str(col["type"]).upper()
+            return ""
+        token_type = await conn.run_sync(_check_token_col)
+        if token_type and "TEXT" not in token_type and "VARCHAR" in token_type:
+            try:
+                await conn.execute(text("ALTER TABLE home_safety_callback_config MODIFY COLUMN auth_token TEXT NULL"))
+            except Exception:
+                pass
+
+    # home_safety_alarm 扩字段
+    if alarm_cols is not None:
+        if "vendor_msg_id" not in alarm_cols:
+            await conn.execute(text("ALTER TABLE home_safety_alarm ADD COLUMN vendor_msg_id VARCHAR(64) NULL"))
+            try:
+                await conn.execute(text("CREATE UNIQUE INDEX uq_hs_alarm_vendor_msg_id ON home_safety_alarm (vendor_msg_id)"))
+            except Exception:
+                pass
+        if "gw_id" not in alarm_cols:
+            await conn.execute(text("ALTER TABLE home_safety_alarm ADD COLUMN gw_id VARCHAR(64) NULL"))
+        if "dev_name" not in alarm_cols:
+            await conn.execute(text("ALTER TABLE home_safety_alarm ADD COLUMN dev_name VARCHAR(128) NULL"))
+        if "call_type" not in alarm_cols:
+            await conn.execute(text("ALTER TABLE home_safety_alarm ADD COLUMN call_type INT NULL"))
+        if "data_type" not in alarm_cols:
+            await conn.execute(text("ALTER TABLE home_safety_alarm ADD COLUMN data_type VARCHAR(32) NULL"))
+        if "notify_ai_call_status" not in alarm_cols:
+            await conn.execute(text(
+                "ALTER TABLE home_safety_alarm ADD COLUMN notify_ai_call_status VARCHAR(16) NOT NULL DEFAULT 'failed'"
+            ))
+        if "notify_ai_call_fail_reason" not in alarm_cols:
+            await conn.execute(text(
+                "ALTER TABLE home_safety_alarm ADD COLUMN notify_ai_call_fail_reason VARCHAR(256) NULL DEFAULT '本期未对接外呼通道'"
+            ))
+        if "source_ip" not in alarm_cols:
+            await conn.execute(text("ALTER TABLE home_safety_alarm ADD COLUMN source_ip VARCHAR(64) NULL"))
+
+    # 新表 home_safety_callback_push_history / home_safety_callback_log 由 metadata.create_all 创建
 
 
 async def sync_register_schema(conn: AsyncConnection) -> None:
@@ -3255,6 +3552,10 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_drop_default_health_tasks_v1(conn)
     # [会员中心优化 PRD v2.0 2026-05-26] order_items 新增 membership_plan_id / membership_period 列
     await _sync_member_center_v2(conn)
+    # [会员中心 PRD v1.0 终稿对齐 2026-05-26] membership_plans / free_member_quota 字段重命名 + 物理删除老列
+    await _sync_member_center_prd_v1_aligned(conn)
+    # [PRD-HOME-SAFETY-V2 2026-05-27] 居家安全设备外部 API 对接 v2：扩字段 + 新表
+    await _sync_home_safety_v2(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

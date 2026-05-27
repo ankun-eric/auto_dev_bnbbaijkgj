@@ -798,6 +798,92 @@ async def cancel_management(
     return {"message": "已解除守护关系"}
 
 
+@router.put("/api/family/management/{management_id}/share-toggle")
+async def toggle_member_benefit_share(
+    management_id: int,
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[IGUARD-V2 2026-05-28] 切换会员权益共享开关。
+    仅守护人本人可操作，关闭后被守护人将无法使用守护人的会员权益。
+    """
+    enabled = bool(payload.get("enabled", True))
+    result = await db.execute(
+        select(FamilyManagement).where(FamilyManagement.id == management_id)
+    )
+    mgmt = result.scalar_one_or_none()
+    if not mgmt:
+        raise HTTPException(status_code=404, detail="管理关系不存在")
+    if mgmt.manager_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="无权操作此管理关系")
+    if mgmt.status != "active":
+        raise HTTPException(status_code=400, detail="该管理关系已失效")
+
+    mgmt.member_benefit_shared = enabled
+    db.add(ManagementOperationLog(
+        management_id=mgmt.id,
+        operator_user_id=current_user.id,
+        operation_type="share_toggle",
+        operation_detail={"enabled": enabled},
+    ))
+    await db.flush()
+    return {
+        "management_id": mgmt.id,
+        "member_benefit_shared": enabled,
+        "message": "已开启会员权益共享" if enabled else "已关闭会员权益共享",
+    }
+
+
+@router.get("/api/family/management/{management_id}/usage-records")
+async def list_usage_records(
+    management_id: int,
+    limit: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[IGUARD-V2 2026-05-28] 会员权益共享使用明细。
+    返回被守护人使用守护人共享额度的最近 N 条记录（基于 operation_logs，类型=share_used 或 proxy_pay_used）。
+    """
+    result = await db.execute(
+        select(FamilyManagement).where(FamilyManagement.id == management_id)
+    )
+    mgmt = result.scalar_one_or_none()
+    if not mgmt:
+        raise HTTPException(status_code=404, detail="管理关系不存在")
+    if mgmt.manager_user_id != current_user.id and mgmt.managed_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="无权查看")
+
+    logs_result = await db.execute(
+        select(ManagementOperationLog)
+        .where(
+            ManagementOperationLog.management_id == management_id,
+            ManagementOperationLog.operation_type.in_(["share_used", "proxy_pay_used"]),
+        )
+        .order_by(ManagementOperationLog.created_at.desc())
+        .limit(limit)
+    )
+    rows = logs_result.scalars().all()
+    items = []
+    for r in rows:
+        detail = r.operation_detail or {}
+        items.append({
+            "id": r.id,
+            "type": r.operation_type,
+            "label": detail.get("label") or detail.get("call_type_label") or "权益使用",
+            "used_at": r.created_at.isoformat() if r.created_at else None,
+        })
+    # 额度概览
+    total = 5  # 默认 5 次/月（后续可由 system_config 配置）
+    used = sum(1 for r in rows if r.created_at and r.created_at.month == datetime.utcnow().month)
+    return {
+        "management_id": management_id,
+        "share_enabled": bool(mgmt.member_benefit_shared),
+        "quota": {"total": total, "used": used, "remaining": max(0, total - used)},
+        "items": items,
+    }
+
+
 @router.get("/api/family/management/{management_id}/logs")
 async def list_management_logs(
     management_id: int,
