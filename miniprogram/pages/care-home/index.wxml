@@ -1,0 +1,157 @@
+<!-- [PRD-AIHOME-CARE-V1 2026-05-27] 小程序关怀模式首页 -->
+<view class="page" wx:if="{{sosStage === 0}}">
+  <!-- 顶栏 -->
+  <view class="topbar">
+    <text class="menu-btn">☰</text>
+    <view class="brand">
+      <view class="brand-avatar">康</view>
+      <text class="brand-text">宾尼小康</text>
+    </view>
+    <view class="mode-badge" bindtap="toggleSwitch">
+      <text>👵 关怀模式 ▼</text>
+    </view>
+  </view>
+
+  <!-- 切换弹层 -->
+  <view class="switch-mask" wx:if="{{showSwitch}}" bindtap="toggleSwitch">
+    <view class="switch-panel" catchtap="">
+      <view class="switch-head">🔄 切换使用模式</view>
+      <view class="switch-item" data-mode="care" bindtap="switchMode">
+        <view class="switch-item-title care">👵 关怀模式 ✓</view>
+        <view class="switch-item-sub">大字大按钮，语音优先</view>
+      </view>
+      <view class="switch-item" data-mode="standard" bindtap="switchMode">
+        <view class="switch-item-title std">🧑‍💼 标准模式</view>
+        <view class="switch-item-sub">功能更全，操作更高效</view>
+      </view>
+      <view class="switch-foot">切换后立即生效，数据不会丢失</view>
+    </view>
+  </view>
+
+  <!-- 欢迎区 -->
+  <view class="welcome">
+    <view class="welcome-main">{{welcome ? welcome.nickname + '，' + welcome.greeting : '您好，欢迎使用 ☀️'}}</view>
+    <view class="welcome-sub">{{welcome ? welcome.care_text : '今天也要好好照顾自己 ❤'}}</view>
+  </view>
+
+  <!-- 快捷胶囊 -->
+  <view class="quick-row">
+    <view class="quick-cell" bindtap="goProfile"><view class="quick-icon bg-blue">📋</view><text>档案</text></view>
+    <view class="quick-cell" bindtap="goMed"><view class="quick-icon bg-orange">💊</view><text>用药</text></view>
+    <view class="quick-cell" bindtap="goAi"><view class="quick-icon bg-green">📷</view><text>拍照问AI</text></view>
+    <view class="quick-cell" bindtap="goFamily"><view class="quick-icon bg-pink">👨‍👩‍👧</view><text>家人</text></view>
+  </view>
+
+  <!-- 推荐问 -->
+  <scroll-view scroll-x="true" class="recommend-row">
+    <view class="recommend-cell" bindtap="onQuickAsk" data-q="我的血压怎么样？">我的血压怎么样？</view>
+    <view class="recommend-cell" bindtap="onQuickAsk" data-q="最近睡眠如何？">最近睡眠如何？</view>
+    <view class="recommend-cell" bindtap="onQuickAsk" data-q="今天饮食建议？">今天饮食建议？</view>
+    <view class="recommend-cell" bindtap="onQuickAsk" data-q="帮我看看体检报告">帮我看看体检报告</view>
+    <view class="recommend-cell" bindtap="onQuickAsk" data-q="我能吃这个药吗？">我能吃这个药吗？</view>
+    <view class="recommend-cell" bindtap="onQuickAsk" data-q="想问问医生">想问问医生</view>
+  </scroll-view>
+
+  <!-- SOS 关怀卡 -->
+  <view class="card sos-card" wx:if="{{sosCard}}">
+    <view class="card-head red">🔴 SOS 关怀</view>
+    <view class="card-body">我刚刚听到您说"{{sosCard.keyword}}"，您还好吗？</view>
+    <view class="row-btns">
+      <button class="btn-gray" bindtap="dismissSosCard">我没事 ✕</button>
+      <button class="btn-red" bindtap="confirmSosFromCard">我需要帮助 🆘</button>
+    </view>
+  </view>
+
+  <!-- 健康简报 -->
+  <view class="card" wx:if="{{cards && cards.health_brief}}">
+    <view class="card-head green">🟢 健康简报 · 今日</view>
+    <view class="grid-2x2">
+      <view class="grid-cell">
+        <view class="label">🩸 血压</view>
+        <view class="val {{cards.health_brief.blood_pressure.abnormal ? 'abnormal' : ''}}">{{cards.health_brief.blood_pressure.systolic}}/{{cards.health_brief.blood_pressure.diastolic}}</view>
+        <view class="unit">mmHg</view>
+      </view>
+      <view class="grid-cell">
+        <view class="label">🩸 血糖</view>
+        <view class="val {{cards.health_brief.blood_glucose.abnormal ? 'abnormal' : ''}}">{{cards.health_brief.blood_glucose.value}}</view>
+        <view class="unit">{{cards.health_brief.blood_glucose.unit}}</view>
+      </view>
+      <view class="grid-cell">
+        <view class="label">😴 睡眠</view>
+        <view class="val">{{cards.health_brief.sleep.hours}}h</view>
+      </view>
+      <view class="grid-cell">
+        <view class="label">👣 步数</view>
+        <view class="val">{{cards.health_brief.steps.value}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 用药提醒 -->
+  <view class="card" wx:if="{{cards && cards.med_reminder}}">
+    <view class="card-head orange">🟠 用药提醒</view>
+    <view wx:for="{{cards.med_reminder.items}}" wx:key="index" class="med-row">
+      <text>💊 {{item.name}}（{{item.schedule}}）</text>
+      <button class="btn-green-small">已吃 ✓</button>
+    </view>
+  </view>
+
+  <!-- 居家安全 -->
+  <view class="card" wx:if="{{cards && cards.home_safety}}">
+    <view class="card-head teal">🩵 居家安全</view>
+    <view class="device-grid">
+      <view wx:for="{{cards.home_safety.devices}}" wx:key="index" class="device-cell {{item.abnormal ? 'abnormal' : ''}}">
+        <view class="device-name">{{item.type === 'emergency_caller' ? '🆘' : '🚨'}} {{item.name}}</view>
+        <view class="device-status">{{item.status === 'online' ? '在线' : '离线'}} · 电量 {{item.battery}}%</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部输入栏 -->
+  <view class="input-bar">
+    <input class="input-box" placeholder="✏️ 输入或按住右侧说话..." value="{{inputText}}" bindinput="onInput" bindblur="detectSosBlur" />
+    <view class="mic-btn" bindtap="goAi">🎤</view>
+  </view>
+
+  <!-- SOS 悬浮球 -->
+  <view class="sos-ball" bindtap="onSosBall">SOS</view>
+</view>
+
+<!-- SOS 状态 1: 5 秒倒计时 -->
+<view class="sos-stage1" wx:if="{{sosStage === 1}}">
+  <view class="s1-title">正在为您呼叫救援...</view>
+  <view class="s1-num">{{sosCountdown}}</view>
+  <button class="s1-cancel" bindtap="cancelSos">我没事 · 取消</button>
+</view>
+
+<!-- SOS 状态 2: 选呼叫对象 -->
+<view class="sos-stage2" wx:if="{{sosStage === 2}}">
+  <view class="s2-title">请选择呼叫对象</view>
+  <button class="s2-120" bindtap="dispatch120">🔴 呼叫 120 · 急救中心</button>
+  <button class="s2-family" bindtap="dispatchFamily">👨‍👩‍👧 呼叫家人</button>
+  <view class="s2-cancel" bindtap="cancelSos">先取消，我再看看</view>
+</view>
+
+<!-- SOS 状态 3: 呼叫中 -->
+<view class="sos-stage3" wx:if="{{sosStage === 3}}">
+  <view class="s3-title">正在呼叫 120...</view>
+  <view class="s3-spinner"></view>
+  <view class="s3-list">
+    <view>✅ 已发送位置短信</view>
+    <view>✅ 已附健康摘要</view>
+    <view>✅ 已通知家人</view>
+  </view>
+</view>
+
+<!-- SOS 状态 4: 已送达 -->
+<view class="sos-stage4" wx:if="{{sosStage === 4}}">
+  <view class="s4-icon">✅</view>
+  <view class="s4-title">求救已送达</view>
+  <view class="s4-card">
+    <view>📞 120 接听 ✓</view>
+    <view>🚑 救护车出发 ✓</view>
+    <view>⏱ 预计 8 分钟到达</view>
+  </view>
+  <view class="s4-card">👨‍👩‍👧 李子（女儿）已查看 · 正在赶来</view>
+  <button class="s4-safe" bindtap="closeSos">我已安全</button>
+</view>

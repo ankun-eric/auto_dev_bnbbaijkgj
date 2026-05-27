@@ -5,7 +5,43 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-27）
+## 最近一次变更（2026-05-27 · v2）
+
+**PRD-AIHOME-CARE-V1 2026-05-27 — AI 首页优化 · 关怀版 v1.0**
+
+面向 40-75 岁中老年用户的适老化首页改造，提供「关怀模式 / 标准模式」双形态。
+
+### 新增能力
+- **后端 `backend/app/api/ai_home_care_v1.py`**：独立模块，新增 6 张表（`care_v1_user_preferences` / `care_v1_sos_events` / `care_v1_sos_keywords` / `care_v1_proactive_card_logs` / `care_v1_vital_measurements` / `care_v1_user_devices`），通过 SQLAlchemy metadata.create_all 自动建表。挂载到 `app/main.py`。
+- **后端 API**：
+  - `GET/PUT /api/care-v1/user-preferences` 关怀/标准模式 + SOS 悬浮球开关
+  - `GET /api/care-v1/sos/keywords` 关键词热配置下行（含 4 类默认种子词）
+  - `POST/DELETE /api/care-v1/admin/sos/keywords` 后台 CRUD
+  - `POST /api/care-v1/sos/detect` 触发检测（高危词单触 + 双词触发 + 否定/疑问过滤）
+  - `POST/PUT/GET /api/care-v1/sos/events` SOS 事件 4 状态流转
+  - `GET /api/care-v1/home/proactive-cards` 主动卡片聚合（健康简报/用药/居家安全）
+  - `GET /api/care-v1/home/welcome` 时段问候 + 关怀语
+- **H5 `h5-web/src/app/welcome-mode/page.tsx`**：首次进入版本选择页（暖橙 + 大卡片 + 跳过链接）
+- **H5 `h5-web/src/app/care-home/page.tsx`**：关怀版首页（顶栏角标 + 切换弹层 + 欢迎区 + 4 胶囊 + 推荐问 + 3 张主动卡 + SOS 4 状态流程 + 悬浮球）
+- **小程序 `miniprogram/pages/welcome-mode/` 与 `pages/care-home/`**：对应原生页面
+- **Flutter `flutter_app/lib/screens/care/care_home_screen.dart` 与 `welcome_mode_screen.dart`**：独立可路由页面
+- **测试 `backend/tests/test_ai_home_care_v1.py`**：19 个 pytest 用例，本地 + 服务器 100% 通过；同时 `_e2e_care_v1.py` 提供 16 项 HTTPS E2E 验证全过
+
+### 验收覆盖
+- AC2/AC3：模式持久化、默认 standard
+- AC11/AC12/AC13/AC14：SOS 三规则 + 三道防误报
+- AC15：5 秒撤销窗口
+- AC16/AC17：状态 2 仅含 120/家人按钮 + 健康摘要附带
+- AC18：关键词热配置无需发版
+
+### 部署位置
+- 后端容器：`6b099ed3-7175-4a78-91f4-44570c84ed27-backend`（已 rebuild）
+- H5 容器：`6b099ed3-7175-4a78-91f4-44570c84ed27-h5`（已 rebuild）
+- 小程序 zip 下载：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/miniprogram/miniprogram_carev1_20260527_133942_b1b1.zip`
+
+---
+
+## 上一次变更（2026-05-27）
 
 **BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527 — 健康档案首页守护人双卡片入口口径优化**
 

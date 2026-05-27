@@ -1,0 +1,39 @@
+<view class="wm">
+  <view class="brand">宾尼小康</view>
+  <view class="title">您好，欢迎来到宾尼小康 👋</view>
+  <view class="subtitle">为了让您用得更顺手，请先选择一种使用模式。选完之后，随时可在首页右上角切换。</view>
+
+  <view class="card care" data-mode="care" bindtap="choose">
+    <view class="badge">⭐ 推荐</view>
+    <view class="row">
+      <view class="avatar">👵</view>
+      <view class="card-title">关怀模式</view>
+    </view>
+    <view class="desc">为长辈量身打造：字更大、按钮更大、语音优先。小康会主动关心您的健康，关键时刻一键求救，让您和家人都安心。</view>
+    <view class="tags">
+      <text class="tag">超大字</text>
+      <text class="tag">超大按钮</text>
+      <text class="tag">语音优先</text>
+      <text class="tag">AI 主动关怀</text>
+      <text class="tag">SOS 一键求救</text>
+    </view>
+  </view>
+
+  <view class="card std" data-mode="standard" bindtap="choose">
+    <view class="row">
+      <view class="avatar">🧑‍💼</view>
+      <view class="card-title-std">标准模式</view>
+    </view>
+    <view class="desc">为熟悉手机操作的用户准备：常规字号、功能完整、数据可视化更丰富，适合自己管理健康或帮长辈打理档案的子女使用。</view>
+    <view class="tags">
+      <text class="tag-blue">常规字号</text>
+      <text class="tag-blue">功能更全</text>
+      <text class="tag-blue">操作更高效</text>
+      <text class="tag-blue">数据可视化</text>
+    </view>
+  </view>
+
+  <view class="tip">💡 <text class="strong">小康的建议</text>：如果您觉得手机操作有些吃力，或者想给长辈使用，推荐选择「关怀模式」。</view>
+
+  <view class="skip" bindtap="skip">暂不选择，先进去看看 →</view>
+</view>

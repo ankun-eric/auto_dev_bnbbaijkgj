@@ -1,0 +1,20 @@
+page { background: linear-gradient(180deg,#fff5e8 0%,#f0f6fb 100%); }
+.wm { padding: 60rpx 44rpx 80rpx; }
+.brand { text-align: center; font-size: 40rpx; font-weight: 800; color: #ff6b3d; margin-bottom: 30rpx; }
+.title { font-size: 50rpx; font-weight: 800; color: #3d2e1f; margin-bottom: 14rpx; }
+.subtitle { font-size: 28rpx; color: #5a4838; margin-bottom: 40rpx; line-height: 1.7; }
+.card { background: #fff; border-radius: 32rpx; padding: 36rpx; margin-bottom: 28rpx; position: relative; }
+.card.care { border: 4rpx solid #ff9156; box-shadow: 0 12rpx 40rpx rgba(255,107,61,.15); }
+.card.std { border: 4rpx solid #5b8fd6; box-shadow: 0 8rpx 28rpx rgba(91,143,214,.15); }
+.badge { position: absolute; top: 20rpx; right: 20rpx; background: linear-gradient(90deg,#ff9156,#ff6b3d); color: #fff; font-size: 22rpx; padding: 6rpx 18rpx; border-radius: 22rpx; font-weight: 700; }
+.row { display: flex; align-items: center; margin-bottom: 22rpx; }
+.avatar { font-size: 72rpx; margin-right: 24rpx; }
+.card-title { font-size: 42rpx; font-weight: 800; color: #3d2e1f; }
+.card-title-std { font-size: 42rpx; font-weight: 800; color: #2a3a52; }
+.desc { font-size: 28rpx; color: #5a4838; line-height: 1.7; margin-bottom: 22rpx; }
+.tags { display: flex; flex-wrap: wrap; gap: 14rpx; }
+.tag { background: #fff5e8; color: #c95a1d; font-size: 24rpx; padding: 10rpx 22rpx; border-radius: 28rpx; font-weight: 600; }
+.tag-blue { background: #e8f0fb; color: #3865a8; font-size: 24rpx; padding: 10rpx 22rpx; border-radius: 28rpx; font-weight: 600; }
+.tip { background: #fff5e8; padding: 22rpx 28rpx; border-radius: 24rpx; font-size: 26rpx; color: #c95a1d; margin-bottom: 40rpx; line-height: 1.6; }
+.strong { font-weight: 700; }
+.skip { text-align: center; font-size: 26rpx; color: #999; text-decoration: underline dashed; }
