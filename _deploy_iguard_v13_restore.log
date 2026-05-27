@@ -1,0 +1,97 @@
+[1/7] SSH 杩炴帴鍒?newbb.test.bangbangvip.com ...
+[2/7] 妫€鏌ヨ繙绋嬮」鐩洰褰?/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27
+$ ls -la /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 | head -10
+total 624664
+drwxrwxr-x 35 ubuntu ubuntu    61440 May 27 00:23 .
+drwxr-x--- 57 ubuntu ubuntu     4096 May 27 02:44 ..
+-rw-rw-r--  1 ubuntu ubuntu     4383 May 23 12:13 add_apk_route.py
+-rw-rw-r--  1 ubuntu ubuntu     1551 May 23 12:13 _admin_rebuild2.py
+drwxrwxr-x  3 ubuntu ubuntu     4096 May 23 20:48 admin-web
+-rw-rw-r--  1 ubuntu ubuntu   109180 Apr  9 11:33 admin_web_src.tar.gz
+-rw-rw-r--  1 ubuntu ubuntu   312356 May  5 19:45 admin_web_table_layout_fix.tar.gz
+-rw-rw-r--  1 ubuntu ubuntu        0 May  8 15:31 _ai_home_config_414.json
+-rw-rw-r--  1 ubuntu ubuntu    11684 May  6 00:44 _android_build_363.log
+
+[3/7] 涓婁紶 i-guard 椤甸潰鏂扮増锛坴13 瀹屾暣鐗堬級 ...
+[UPLOAD] h5-web/src/app/health-profile/i-guard/page.tsx -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/app/health-profile/i-guard/page.tsx
+[4/7] 纭鍚庣 guardian_system_v13.py 宸叉寕杞斤紙杩滅▼涓嶅姩锛?...
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && grep -n 'guardian_system_v13' backend/app/main.py || true
+2090:from app.api import guardian_system_v13 as _guardian_v13  # noqa: E402
+
+[5/7] 閲嶆柊鏋勫缓骞跺惎鍔?h5-web 瀹瑰櫒 ...
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose build h5-web 2>&1 | tail -30
+#12 95.71 
+#12 DONE 95.9s
+
+#7 [builder 2/7] WORKDIR /app
+#7 CACHED
+
+#13 [runner 3/5] COPY --from=builder /app/.next/standalone ./
+#13 DONE 0.6s
+
+#14 [runner 4/5] COPY --from=builder /app/.next/static ./.next/static
+#14 DONE 0.1s
+
+#15 [runner 5/5] COPY --from=builder /app/public ./public
+#15 DONE 0.4s
+
+#16 exporting to image
+#16 exporting layers
+#16 exporting layers 10.8s done
+#16 exporting manifest sha256:6efd251487b1daa984024d173f894a9b514243701f721caab6a2f59eada4fbd9 0.0s done
+#16 exporting config sha256:75300b0fb061fea0a3c695582157c9695a32f01e1f895a9e7e0be68ba70c3257 done
+#16 exporting attestation manifest sha256:88b7e4e8433de48de94c03c4b1b54401d6244c8be6a4abc8afbf066937032b8f 0.0s done
+#16 exporting manifest list sha256:0523642ff0b8df7ee2adbb3a38651c051086a77f73445c33dbbdc78c81f2f301 0.0s done
+#16 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#16 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 2.0s done
+#16 DONE 12.8s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose up -d h5-web 2>&1 | tail -10
+time="2026-05-27T17:44:41+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+
+[6/7] 閲嶅惎 backend 瀹瑰櫒浠ョ‘淇?v13 璺敱鐢熸晥 ...
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose restart backend 2>&1 | tail -10
+time="2026-05-27T17:44:54+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Restarting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+
+[7/7] 瀹瑰櫒鐘舵€佷笌 HTTP 鐑熼浘娴嬭瘯 ...
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose ps
+NAME                                           IMAGE                                            COMMAND                  SERVICE     CREATED          STATUS                  PORTS
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin     6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web   "docker-entrypoint.s鈥?   admin-web   17 hours ago     Up 17 hours             3000/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend   6b099ed3-7175-4a78-91f4-44570c84ed27-backend     "uvicorn app.main:ap鈥?   backend     4 hours ago      Up 6 seconds            8000/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-db        mysql:8.0                                        "docker-entrypoint.s鈥?   db          17 hours ago     Up 17 hours (healthy)   3306/tcp, 33060/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5        6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web      "docker-entrypoint.s鈥?   h5-web      20 seconds ago   Up 18 seconds           3001/tcp
+
+[stderr] time="2026-05-27T17:45:02+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+
+
+--- HTTP 鎺㈡祴 ---
+$ curl -s -o /dev/null -w '%{http_code}  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/i-guard\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/i-guard'
+308  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/i-guard
+
+$ curl -s -o /dev/null -w '%{http_code}  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/guardian/v13/family/list\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/guardian/v13/family/list'
+502  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/guardian/v13/family/list
+
+$ curl -s -o /dev/null -w '%{http_code}  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/guardian/v13/family/invite-history\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/guardian/v13/family/invite-history'
+401  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/guardian/v13/family/invite-history
+
+$ curl -s -o /dev/null -w '%{http_code}  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/guardian/v13/family/proxy-pay/detail\n' 'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/guardian/v13/family/proxy-pay/detail'
+401  https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/guardian/v13/family/proxy-pay/detail
+
+
+=== 閮ㄧ讲瀹屾垚 ===
+浣撻獙閾炬帴锛歨ttps://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/i-guard

@@ -1,0 +1,139 @@
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose logs --tail=120 backend
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     result = conn.execute(
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |              ^^^^^^^^^^^^^
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     return meth(
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |            ^^^^^
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/sql/elements.py", line 515, in _execute_on_connection
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     return connection._execute_clauseelement(
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1640, in _execute_clauseelement
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     ret = self._execute_context(
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |           ^^^^^^^^^^^^^^^^^^^^^^
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     return self._exec_single_context(
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     self._handle_dbapi_exception(
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     self.dialect.do_execute(
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py", line 941, in do_execute
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     cursor.execute(statement, parameters)
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 95, in execute
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     return self.await_(self._execute_async(operation, parameters))
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 132, in await_only
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/util/_concurrency_py3k.py", line 196, in greenlet_spawn
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     value = await result
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |             ^^^^^^^^^^^^
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/sqlalchemy/dialects/mysql/aiomysql.py", line 104, in _execute_async
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     result = await self._cursor.execute(operation, parameters)
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/aiomysql/cursors.py", line 239, in execute
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     await self._query(query)
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/aiomysql/cursors.py", line 457, in _query
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     await conn.query(q)
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/aiomysql/connection.py", line 469, in query
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     await self._read_query_result(unbuffered=unbuffered)
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/aiomysql/connection.py", line 683, in _read_query_result
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     await result.read()
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/aiomysql/connection.py", line 1164, in read
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     first_packet = await self.connection._read_packet()
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/aiomysql/connection.py", line 652, in _read_packet
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     packet.raise_for_error()
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/pymysql/protocol.py", line 219, in raise_for_error
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     err.raise_mysql_exception(self._data)
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |   File "/usr/local/lib/python3.11/site-packages/pymysql/err.py", line 150, in raise_mysql_exception
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |     raise errorclass(errno, errval)
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (1054, "Unknown column 'updated_at' in 'field list'")
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [SQL: SELECT id, user_id, family_member_id, medicine_name,        updated_at, created_at FROM medication_reminders WHERE status = 'active']
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | (Background on this error at: https://sqlalche.me/e/20/e3q8)
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] prd_med_plan_interact_optim_v1: 杩佺Щ瀹屾垚 stats={'groups_scanned': 0, 'duplicates_soft_deleted': 0, 'names_normalized': 0, 'skipped': False}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] prd_health_archive_optim_v1: 鍚姩杩佺Щ...
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | set flag failed: (pymysql.err.OperationalError) (1054, "Unknown column 'created_at' in 'field list'")
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [SQL: 
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |                     INSERT INTO app_settings (`key`, `value`, `created_at`, `updated_at`)
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |                     VALUES (%s, '1', NOW(), NOW())
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |                     ON DUPLICATE KEY UPDATE `value` = '1', `updated_at` = NOW()
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  |                     ]
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [parameters: ('_migration_done.prd_health_archive_optim_v1',)]
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | (Background on this error at: https://sqlalche.me/e/20/e3q8)
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] prd_health_archive_optim_v1: 杩佺Щ瀹屾垚 stats={'users_seen': 136, 'self_settings_inserted': 0, 'guardian_settings_inserted': 0, 'skipped': False}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] questionnaire_v1: 鍚姩杩佺Щ...
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] questionnaire_v1: 鍚姩
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] questionnaire_v1: 瀹屾垚 stats={"columns_added": 0, "pre_card_backfilled": 0, "questionnaire_mapped": 0, "image_capture_mapped": 0, "templates_seeded": 2}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] questionnaire_v1: 杩佺Щ瀹屾垚 stats={'columns_added': 0, 'pre_card_backfilled': 0, 'questionnaire_mapped': 0, 'image_capture_mapped': 0, 'templates_seeded': 2}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] prd_legacy_home_cleanup_v11: 鍚姩杩佺Щ...
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] prd_legacy_home_cleanup_v11: 杩佺Щ瀹屾垚 stats={'page_style_deleted': 0, 'home_config_kv_deleted': 0, 'banner_link_url_migrated': 0, 'banner_hidden_for_legacy_path': 0, 'audit_rows_inserted': 0, 'skipped': True}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] questionnaire_drawer_v1: 鍚姩杩佺Щ...
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] questionnaire_drawer_v1: 鍚姩
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] questionnaire_drawer_v1: 瀹屾垚 stats={"columns_added": 0, "template_seeded": 0, "questions_created": 0, "questions_updated": 0, "buttons_upgraded": 0, "tcm_button_registered": 0, "reverse_score_marked": 0, "precard_backfilled": 0, "health_self_check_seed_skipped": "by_seed_pack_admin_page", "tcm_button_seed_skipped": "by_seed_pack_admin_page"}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] questionnaire_drawer_v1: 杩佺Щ瀹屾垚 stats={'columns_added': 0, 'template_seeded': 0, 'questions_created': 0, 'questions_updated': 0, 'buttons_upgraded': 0, 'tcm_button_registered': 0, 'reverse_score_marked': 0, 'precard_backfilled': 0, 'health_self_check_seed_skipped': 'by_seed_pack_admin_page', 'tcm_button_seed_skipped': 'by_seed_pack_admin_page'}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] tcm36_drawer_v12: 鍚姩杩佺Щ...
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] tcm36_drawer_v12: 鍚姩
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] tcm36_drawer_v12: 璺宠繃绉嶅瓙鎻掑叆 (tcm_constitution 妯℃澘/36棰?9鍒嗗瀷瑙勫垯)锛岀敱绉嶅瓙瀵煎叆椤佃礋璐?
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] tcm36_drawer_v12: 瀹屾垚 stats={"phase": "tcm36_drawer_v12", "columns_added": {"trigger_by_keyword": false, "trigger_by_intent": false, "trigger_keywords": false, "ai_reference_passive": false, "ai_reference_active": false}, "seed_skipped": "by_seed_pack_admin_page", "trigger_keywords_backfilled": 0}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [tcm36] DDL OK, seed data delegated to seed pack admin page
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] tcm36_drawer_v12: 杩佺Щ瀹屾垚 stats={'phase': 'tcm36_drawer_v12', 'columns_added': {'trigger_by_keyword': False, 'trigger_by_intent': False, 'trigger_keywords': False, 'ai_reference_passive': False, 'ai_reference_active': False}, 'seed_skipped': 'by_seed_pack_admin_page', 'trigger_keywords_backfilled': 0}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] prd_tag_recommend_v1: 鍚姩杩佺Щ...
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] prd_tag_recommend_v1: 杩佺Щ瀹屾垚 stats={'tags_created': 0, 'goods_tags_created': 0, 'recommend_cfg_created': 0, 'template_columns_added': 0, 'tag_columns_added': 0, 'constitution_tags_seeded': 0, 'constitution_tags_skipped': 'by_seed_pack_admin_page', 'constitution_tags_unlocked': 0, 'legacy_service_to_contraindication': 0, 'legacy_other_deactivated': 9, 'tcm_set_triple': 1, 'symptom_tags_migrated': 0, 'symptom_tags_column_missing': 1, 'symptom_tags_column_dropped': 0}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] qn_content_v1: 鍚姩杩佺Щ...
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] qn_content_v1: 鍚姩
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] qn_content_v1: 瀹屾垚 stats={"phase": "qn_content_v1", "columns_added": {"followup_chips_json": false, "cta_list_json": false}, "phq9": {"skipped": "by_seed_pack_admin_page"}, "gad7": {"skipped": "by_seed_pack_admin_page"}, "psqi": {"skipped": "by_seed_pack_admin_page"}, "tcm_chips_cta": {"skipped": "by_seed_pack_admin_page"}, "hsc_v2": {"skipped": "by_seed_pack_admin_page"}}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [qn_content_v1] DDL OK, seed data (PHQ-9/GAD-7/PSQI/hsc_v2) delegated to seed pack admin page
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] qn_content_v1: 杩佺Щ瀹屾垚 stats={'phase': 'qn_content_v1', 'columns_added': {'followup_chips_json': False, 'cta_list_json': False}, 'phq9': {'skipped': 'by_seed_pack_admin_page'}, 'gad7': {'skipped': 'by_seed_pack_admin_page'}, 'psqi': {'skipped': 'by_seed_pack_admin_page'}, 'tcm_chips_cta': {'skipped': 'by_seed_pack_admin_page'}, 'hsc_v2': {'skipped': 'by_seed_pack_admin_page'}}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] questionnaire_autonext_v1: 鍚姩杩佺Щ...
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] questionnaire_autonext_v1: 鍚姩
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] questionnaire_autonext_v1: 瀹屾垚 stats={"columns_added": 0, "container_filled": 0, "qpp_filled": 0, "auto_next_filled": 0}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] questionnaire_autonext_v1: 杩佺Щ瀹屾垚 stats={'columns_added': 0, 'container_filled': 0, 'qpp_filled': 0, 'auto_next_filled': 0}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] health_self_check_fix_v1: 鍚姩杩佺Щ...
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] health_self_check_fix_v1: 鍚姩
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] health_self_check_fix_v1: 宸叉墽琛岃繃锛岃烦杩囨竻绌轰笌閲嶆柊 seed stats={'phase': 'health_self_check_fix_v1', 'ddl': {'template_key_field_codes': 'exists', 'answer_key_summary': 'exists'}, 'skip_reason': 'sentinel_done'}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] health_self_check_fix_v1: 杩佺Щ瀹屾垚 stats={'phase': 'health_self_check_fix_v1', 'ddl': {'template_key_field_codes': 'exists', 'answer_key_summary': 'exists'}, 'skip_reason': 'sentinel_done'}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] hsc_legacy_offline_v1: 鍚姩杩佺Щ...
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] hsc_legacy_offline_v1: 杩佺Щ瀹屾垚 stats={'phase': 'hsc_legacy_offline_v1', 'consistency_ok': True, 'dropped': [], 'skipped': ['dry_run_mode_no_drop'], 'backup': ['health_check_template: rows=1', 'body_part_dict: rows=10'], 'errors': [], 'consistency_msg': "questionnaire_template.code='health_self_check' 宸插瓨鍦?}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] ai_home_archive_path_fix_v1: 鍚姩杩佺Щ...
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] ai_home_archive_path_fix_v1: 鍚姩
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] ai_home_archive_path_fix_v1: 鎵弿 app_settings(key=ai_home_config) 鍏?1 鏉?
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] ai_home_archive_path_fix_v1: archive_path 淇 0 鏉?
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] ai_home_archive_path_fix_v1: 瀹牸 target_path 淇 0 鏉?
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] ai_home_archive_path_fix_v1: done.
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] ai_home_archive_path_fix_v1: 杩佺Щ瀹屾垚 stats={'phase': 'ai_home_archive_path_fix_v1', 'rows_scanned': 1, 'archive_path_fixed': 0, 'grid_target_fixed': 0, 'rows_updated': 0}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] hsc_optim_v3: 鍚姩杩佺Щ...
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] hsc_optim_v3: 杩佺Щ瀹屾垚 stats={'answer_added': 0, 'button_added': 0, 'backfilled': 0}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] hsc_ai_real_v1: 鍚姩杩佺Щ...
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] hsc_ai_real_v1: 杩佺Щ瀹屾垚 stats={'answer_added': 0, 'prompt_updated': 0}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] my_devices_v1: 鍚姩杩佺Щ...
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] my_devices_v1: 杩佺Щ瀹屾垚 stats={'inserted': 0, 'updated': 0, 'total': 17}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] health_archive_v5: 鍚姩杩佺Щ...
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | [migrate] health_archive_v5: 杩佺Щ瀹屾垚 stats={'health_alerts': 0, 'medical_records': 0, 'medical_record_files': 0}
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | INFO:     Application startup complete.
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | INFO:     192.168.32.2:41702 - "GET /api/guardian/v13/family/invite-history HTTP/1.1" 401 Unauthorized
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | INFO:     192.168.32.2:41704 - "GET /api/guardian/v13/family/proxy-pay/detail HTTP/1.1" 401 Unauthorized
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | INFO:     192.168.32.2:37500 - "GET /api/settings/logo HTTP/1.1" 200 OK
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | INFO:     192.168.32.2:37506 - "GET /api/auth/register-settings HTTP/1.1" 200 OK
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend  | INFO:     192.168.32.2:37514 - "GET /uploads/logo/brand_logo.png HTTP/1.1" 200 OK
+
+[stderr] time="2026-05-27T17:45:32+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose exec -T backend curl -s -o /tmp/r.txt -w 'HTTP %{http_code}\n' http://localhost:8000/api/guardian/v13/family/list && docker compose exec -T backend cat /tmp/r.txt | head -100
+OCI runtime exec failed: exec failed: unable to start container process: exec: "curl": executable file not found in $PATH
+
+
+[stderr] time="2026-05-27T17:45:33+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+
+
+$ cd /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27 && docker compose exec -T backend curl -s -o /dev/null -w 'health=%{http_code}\n' http://localhost:8000/api/health
+OCI runtime exec failed: exec failed: unable to start container process: exec: "curl": executable file not found in $PATH
+
+
+[stderr] time="2026-05-27T17:45:33+08:00" level=warning msg="/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+

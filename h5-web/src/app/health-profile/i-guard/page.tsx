@@ -1,109 +1,101 @@
 'use client';
 
 /**
- * [健康档案优化 PRD v1.0 2026-05-26]
- * 我守护的人 - 直筒列表（按"守护中/待守护"两态分组）
- * - 顶部：待确认转让横幅（接收者同意/拒绝；发起者取消）
- * - 本人行：编辑档案 | 邀请记录 | 我的 AI 外呼额度
- * - 被守护人行：查看档案 | 提醒设置 | 守护管理
+ * [守护人体系 PRD v1.3 2026-05-26] 健康档案融合优化（恢复 v13 完整版 @ 2026-05-27）
+ * 我守护的人 - 极简两态 Tab（守护中 / 待守护）+ 子状态卡片
+ *
+ * 关键变更：
+ * - 最外层仅 守护中 / 待守护 两个 Tab
+ * - 卡片按 invite_lifecycle 子状态显示不同操作按钮
+ * - 主守护人金色徽章 + 4 不可删校验直接不显示移除按钮
+ * - 代付明细 + 代付开关入口
+ * - 守护中 Tab 首行：本人虚拟项（编辑档案 / 邀请记录 / 我的 AI 外呼额度）
+ *
+ * 历史：commit 8181069a 落地的 v13 完整版（733 行）于 commit fdc3d00a 被误删，
+ *       此次恢复 v13 原版页面，直接挂载到 /health-profile/i-guard 路径。
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Dialog, Tag, Button, Empty, Switch } from 'antd-mobile';
+import { Dialog, Tag, Button, Empty, Switch, Tabs, Modal } from 'antd-mobile';
 import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 
-interface IGuardItem {
-  management_id: number;
-  manager_user_id: number;
-  managed_user_id: number;
-  managed_user_nickname?: string;
-  relation_label?: string;
-  // [BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527] 后端可能返回 'self'
-  role_badge: 'primary' | 'normal' | 'self';
-  is_primary_guardian: boolean;
-  proxy_pay_enabled: boolean;
-  status: string;
-  created_at: string;
-  // [BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527] 后端注入的"本人"虚拟项
-  is_self?: boolean;
-}
+type Lifecycle =
+  | 'never_invited'
+  | 'inviting'
+  | 'accepted'
+  | 'rejected'
+  | 'unbound'
+  | 'expired';
 
-interface PendingTransfer {
-  transfer_id: number;
-  managed_user_id: number;
-  managed_user_nickname?: string;
-  from_user_id: number;
-  from_user_nickname?: string;
-  to_user_id: number;
-  to_user_nickname?: string;
-  created_at?: string;
-  expires_at?: string;
-}
-
-interface GuardianInDrawer {
-  management_id: number;
+interface FamilyItemV13 {
+  management_id?: number;
   manager_user_id: number;
-  manager_nickname?: string;
-  manager_phone?: string;
+  managed_user_id?: number;
+  managed_member_id?: number;
+  managed_user_nickname?: string;
   relation_label?: string;
   role_badge: 'primary' | 'normal';
   is_primary_guardian: boolean;
-  is_paid_member: boolean;
-  is_self: boolean;
-  created_at: string;
+  priority_order: number;
+  status: 'active' | 'not_active';
+  invite_lifecycle: Lifecycle;
+  invite_code?: string;
+  invite_expires_at?: string;
+  invite_remaining_hours?: number;
+  proxy_pay_enabled: boolean;
+  has_bound_device: boolean;
+  has_active_med_plan: boolean;
+  can_remove: boolean;
+  created_at?: string;
 }
 
-interface Reminder {
-  id: number;
-  setter_user_id: number;
-  setter_nickname?: string;
-  setter_is_me: boolean;
-  title: string;
-  content?: string;
-  reminder_type: string;
-  can_edit: boolean;
+interface FamilyListResp {
+  items: FamilyItemV13[];
+  total: number;
+  tab_active_count: number;
+  tab_pending_count: number;
+  max_guardians: number;
+  used: number;
+  can_invite_count: number;
+  is_paid_member: boolean;
 }
 
 const PRIMARY = '#1890FF';
 const PRIMARY_DARK = '#096DD9';
 const PRIMARY_BG = '#E6F7FF';
 const PAGE_BG = '#F0F8FF';
-const WARN = '#FAAD14';
+const GOLD = '#FFB800';
 const DANGER = '#FF4D4F';
-const SUCCESS = '#52C41A';
+const WARN_BG = '#FFF7E6';
+
+const LIFECYCLE_LABEL: Record<Lifecycle, string> = {
+  never_invited: '未邀请',
+  inviting: '邀请中',
+  accepted: '已同意',
+  rejected: '已拒绝',
+  unbound: '已解绑',
+  expired: '已过期',
+};
 
 export default function IGuardPage() {
   const router = useRouter();
-  const [items, setItems] = useState<IGuardItem[]>([]);
-  const [totalCount, setTotalCount] = useState<number>(0);
-  const [activeCount, setActiveCount] = useState<number>(0);
-  const [maxManaged, setMaxManaged] = useState<number>(0);
+  const [tab, setTab] = useState<'active' | 'pending'>('active');
+  const [resp, setResp] = useState<FamilyListResp | null>(null);
   const [loading, setLoading] = useState(true);
   const [me, setMe] = useState<{ id: number; nickname?: string }>({ id: 0 });
 
-  // [健康档案优化 PRD v1.0 §3.5] 待确认转让横幅
-  const [pendingSent, setPendingSent] = useState<PendingTransfer[]>([]);
-  const [pendingReceived, setPendingReceived] = useState<PendingTransfer[]>([]);
+  // 代付明细弹窗
+  const [payDetailModal, setPayDetailModal] = useState<FamilyItemV13 | null>(null);
+  const [payDetail, setPayDetail] = useState<any | null>(null);
 
-  // 守护管理抽屉
-  const [drawerManaged, setDrawerManaged] = useState<IGuardItem | null>(null);
-  const [drawerGuardians, setDrawerGuardians] = useState<GuardianInDrawer[]>([]);
-  const [drawerProxyPay, setDrawerProxyPay] = useState(false);
+  // 邀请记录弹窗
+  const [historyModal, setHistoryModal] = useState<FamilyItemV13 | null>(null);
+  const [history, setHistory] = useState<any[]>([]);
 
-  // 提醒设置抽屉
-  const [remindManaged, setRemindManaged] = useState<IGuardItem | null>(null);
-  const [reminders, setReminders] = useState<Reminder[]>([]);
-  const [remindMeta, setRemindMeta] = useState<{
-    my_remaining_quota: number;
-    my_total_quota: number;
-    proxy_pay_payer_nickname?: string;
-  } | null>(null);
-
-  // 邀请记录抽屉
-  const [showInviteRec, setShowInviteRec] = useState(false);
-  const [inviteRecords, setInviteRecords] = useState<any[]>([]);
+  // 上限提示弹窗
+  const [showLimit, setShowLimit] = useState(false);
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -112,573 +104,634 @@ export default function IGuardPage() {
       const meData = meRes.data || meRes;
       setMe({ id: meData.id, nickname: meData.nickname });
 
-      const res: any = await api.get('/api/guardian/v12/i-guard');
-      const data = res.data || res;
-      setItems(Array.isArray(data.items) ? data.items : []);
-      setTotalCount(Number(data.total_count ?? data.total ?? 0));
-      setActiveCount(Number(data.active_count ?? 0));
-      setMaxManaged(Number(data.max_managed || 0));
+      const res: any = await api.get('/api/guardian/v13/family/list');
+      const data = (res.data || res) as FamilyListResp;
+      setResp(data);
     } catch (e: any) {
-      console.error(e);
-      setItems([]);
+      console.error('[v13] fetchList error', e);
+      setResp(null);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // [健康档案优化 PRD v1.0 §3.5] 拉取待确认转让列表
-  const fetchPendingTransfers = useCallback(async () => {
-    try {
-      const res: any = await api.get('/api/guardian/v12/transfer/pending');
-      const data = res.data || res;
-      setPendingSent(Array.isArray(data.sent) ? data.sent : []);
-      setPendingReceived(Array.isArray(data.received) ? data.received : []);
-    } catch {
-      setPendingSent([]);
-      setPendingReceived([]);
-    }
-  }, []);
-
   useEffect(() => {
     fetchList();
-    fetchPendingTransfers();
-  }, [fetchList, fetchPendingTransfers]);
+  }, [fetchList]);
 
-  const handleApproveTransfer = async (transferId: number) => {
+  const filtered = (resp?.items || []).filter((it) =>
+    tab === 'active' ? it.status === 'active' : it.status !== 'active'
+  );
+
+  const handleInvite = () => {
+    if (resp && resp.can_invite_count <= 0) {
+      setShowLimit(true);
+      return;
+    }
+    router.push('/health-profile?action=invite');
+  };
+
+  const handleCancelInvite = async (it: FamilyItemV13) => {
+    if (!it.invite_code) return;
     const ok = await Dialog.confirm({
-      title: '同意主守护人转让',
-      content: '同意后您将立即成为该被守护人的主守护人',
+      title: '取消邀请',
+      content: '取消后该邀请将作废，对方扫码会提示无效',
     });
     if (!ok) return;
     try {
-      await api.post(`/api/guardian/v12/transfer/${transferId}/approve`);
-      showToast('已同意', 'success');
-      fetchList();
-      fetchPendingTransfers();
-    } catch (e: any) {
-      showToast(e?.response?.data?.detail || '操作失败', 'fail');
-    }
-  };
-
-  const handleRejectTransfer = async (transferId: number) => {
-    const ok = await Dialog.confirm({
-      title: '拒绝主守护人转让',
-      content: '拒绝后该申请将作废',
-    });
-    if (!ok) return;
-    try {
-      await api.post(`/api/guardian/v12/transfer/${transferId}/reject`);
-      showToast('已拒绝');
-      fetchPendingTransfers();
-    } catch (e: any) {
-      showToast(e?.response?.data?.detail || '操作失败', 'fail');
-    }
-  };
-
-  const handleCancelTransfer = async (transferId: number) => {
-    const ok = await Dialog.confirm({
-      title: '取消转让申请',
-      content: '取消后该转让申请将作废',
-    });
-    if (!ok) return;
-    try {
-      await api.post(`/api/guardian/v12/transfer/${transferId}/cancel`);
-      showToast('已取消');
-      fetchPendingTransfers();
-    } catch (e: any) {
-      showToast(e?.response?.data?.detail || '操作失败', 'fail');
-    }
-  };
-
-  const openGuardianDrawer = async (it: IGuardItem) => {
-    setDrawerManaged(it);
-    setDrawerProxyPay(it.proxy_pay_enabled);
-    try {
-      const res: any = await api.get(`/api/guardian/v12/managed/${it.managed_user_id}/all-guardians`);
-      const data = res.data || res;
-      setDrawerGuardians(Array.isArray(data.items) ? data.items : []);
-    } catch {
-      setDrawerGuardians([]);
-    }
-  };
-
-  const handleProxyPayToggle = async (checked: boolean) => {
-    if (!drawerManaged) return;
-    try {
-      await api.post(`/api/guardian/v12/managed/${drawerManaged.managed_user_id}/proxy-pay`, { enabled: checked });
-      setDrawerProxyPay(checked);
-      showToast(checked ? '已开启代付' : '已关闭代付');
-      fetchList();
-    } catch (e: any) {
-      showToast(e?.response?.data?.detail || '操作失败', 'fail');
-    }
-  };
-
-  const handleTransferPrimary = async (targetMid: number) => {
-    const ok = await Dialog.confirm({
-      title: '转让主守护人',
-      content: '接收者同意后立即生效，确定要转让吗？',
-    });
-    if (!ok) return;
-    try {
-      await api.post('/api/guardian/v12/transfer/initiate', { target_management_id: targetMid });
-      showToast('转让申请已发起，等待接收者确认', 'success');
-      setDrawerManaged(null);
-      fetchList();
-    } catch (e: any) {
-      showToast(e?.response?.data?.detail || '操作失败', 'fail');
-    }
-  };
-
-  const handleExitGuard = async () => {
-    if (!drawerManaged) return;
-    const ok = await Dialog.confirm({
-      title: '退出守护',
-      content: `退出后将无法继续守护 ${drawerManaged.managed_user_nickname || ''}`,
-    });
-    if (!ok) return;
-    try {
-      await api.post('/api/reverse-guardian/remove', { management_id: drawerManaged.management_id });
-      showToast('已退出守护', 'success');
-      setDrawerManaged(null);
-      fetchList();
-    } catch (e: any) {
-      showToast(e?.response?.data?.detail || '操作失败', 'fail');
-    }
-  };
-
-  const handleRemoveOther = async (g: GuardianInDrawer) => {
-    if (!drawerManaged) return;
-    const ok = await Dialog.confirm({
-      title: '移除守护人',
-      content: `确定要移除 ${g.manager_nickname || '该守护人'} 吗？`,
-    });
-    if (!ok) return;
-    try {
-      await api.post('/api/reverse-guardian/remove', { management_id: g.management_id });
-      showToast('已移除', 'success');
-      // 刷新抽屉
-      const res: any = await api.get(`/api/guardian/v12/managed/${drawerManaged.managed_user_id}/all-guardians`);
-      setDrawerGuardians((res.data || res).items || []);
-      fetchList();
-    } catch (e: any) {
-      showToast(e?.response?.data?.detail || '操作失败', 'fail');
-    }
-  };
-
-  const openRemindersDrawer = async (it: IGuardItem) => {
-    setRemindManaged(it);
-    try {
-      const res: any = await api.get(`/api/guardian/v12/reminders/${it.managed_user_id}`);
-      const data = res.data || res;
-      setReminders(Array.isArray(data.items) ? data.items : []);
-      setRemindMeta({
-        my_remaining_quota: data.my_remaining_quota,
-        my_total_quota: data.my_total_quota,
-        proxy_pay_payer_nickname: data.proxy_pay_payer_nickname,
+      await api.post('/api/guardian/v13/family/invite/cancel', {
+        invite_code: it.invite_code,
       });
-    } catch {
-      setReminders([]);
-    }
-  };
-
-  const handleDeleteReminder = async (rid: number) => {
-    const ok = await Dialog.confirm({ title: '删除提醒', content: '确定要删除这条 AI 外呼提醒吗？' });
-    if (!ok) return;
-    try {
-      await api.delete(`/api/guardian/v12/reminders/${rid}`);
-      showToast('已删除');
-      if (remindManaged) openRemindersDrawer(remindManaged);
+      showToast('邀请已取消', 'success');
+      fetchList();
     } catch (e: any) {
       showToast(e?.response?.data?.detail || '操作失败', 'fail');
     }
   };
 
-  const openInviteRecords = async () => {
-    setShowInviteRec(true);
+  const handleRemove = async (it: FamilyItemV13) => {
+    const ok = await Dialog.confirm({
+      title: '移除',
+      content:
+        '移除后，该档案将从您的列表中消失。若 TA 是您自行添加的家人档案，所有资料将一并删除，此操作不可恢复。',
+    });
+    if (!ok) return;
     try {
-      const res: any = await api.get('/api/guardian/v12/invitations/records');
-      const data = res.data || res;
-      setInviteRecords(Array.isArray(data.items) ? data.items : []);
+      const body: any = {};
+      if (it.managed_user_id) body.managed_user_id = it.managed_user_id;
+      if (it.managed_member_id) body.managed_member_id = it.managed_member_id;
+      // 纯邀请记录（无 mgmt 也无 member）
+      if (!body.managed_user_id && !body.managed_member_id && it.invite_code) {
+        // 通过 invite_code 找到 invitation_id
+        try {
+          const inviteRes: any = await api.get(
+            `/api/guardian/v13/family/invite-history?managed_member_id=0`,
+          );
+          // 由后端直接通过 code 取消已不可能（接口设计），改用列表对应卡片的 management_id
+        } catch {
+          /* ignore */
+        }
+        showToast('请先取消邀请', 'fail');
+        return;
+      }
+      await api.post('/api/guardian/v13/family/remove', body);
+      showToast('已移除', 'success');
+      fetchList();
+    } catch (e: any) {
+      showToast(e?.response?.data?.detail || '操作失败', 'fail');
+    }
+  };
+
+  const handleUnGuard = async (it: FamilyItemV13) => {
+    const ok = await Dialog.confirm({
+      title: '解除守护',
+      content: `将解除与 ${it.managed_user_nickname || 'TA'} 的共管关系，TA 的档案数据完整保留`,
+    });
+    if (!ok) return;
+    try {
+      if (it.management_id) {
+        await api.post('/api/reverse-guardian/remove', {
+          management_id: it.management_id,
+        });
+      }
+      showToast('已解除守护', 'success');
+      fetchList();
+    } catch (e: any) {
+      showToast(e?.response?.data?.detail || '操作失败', 'fail');
+    }
+  };
+
+  const handleReinvite = async (_it: FamilyItemV13) => {
+    // 再次邀请 = 新建邀请，跳转到邀请页（带 relation 预填可选）
+    router.push('/health-profile?action=invite');
+  };
+
+  const handleViewQr = (it: FamilyItemV13) => {
+    if (!it.invite_code) return;
+    router.push(`/family-auth?code=${it.invite_code}&role=inviter`);
+  };
+
+  const openPayDetail = async (it: FamilyItemV13) => {
+    setPayDetailModal(it);
+    setPayDetail(null);
+    try {
+      const res: any = await api.get(
+        `/api/guardian/v13/family/proxy-pay/detail?managed_user_id=${it.managed_user_id}`,
+      );
+      setPayDetail(res.data || res);
+    } catch (e: any) {
+      showToast(e?.response?.data?.detail || '加载失败', 'fail');
+    }
+  };
+
+  const togglePay = async (it: FamilyItemV13, enabled: boolean) => {
+    try {
+      await api.post('/api/guardian/v13/family/proxy-pay/toggle', {
+        managed_user_id: it.managed_user_id,
+        enabled,
+      });
+      showToast(enabled ? '已开启代付' : '已关闭代付', 'success');
+      if (payDetail) setPayDetail({ ...payDetail, enabled });
+      fetchList();
+    } catch (e: any) {
+      showToast(e?.response?.data?.detail || '操作失败', 'fail');
+    }
+  };
+
+  const openHistory = async (it: FamilyItemV13) => {
+    setHistoryModal(it);
+    setHistory([]);
+    try {
+      const params: string[] = [];
+      if (it.managed_user_id) params.push(`managed_user_id=${it.managed_user_id}`);
+      if (it.managed_member_id) params.push(`managed_member_id=${it.managed_member_id}`);
+      if (it.relation_label && params.length === 0) params.push(`relation_type=${encodeURIComponent(it.relation_label)}`);
+      const res: any = await api.get(
+        `/api/guardian/v13/family/invite-history${params.length ? '?' + params.join('&') : ''}`,
+      );
+      const d = res.data || res;
+      setHistory(Array.isArray(d.items) ? d.items : []);
     } catch {
-      setInviteRecords([]);
+      setHistory([]);
     }
   };
 
   const fmtDate = (s?: string) => {
     if (!s) return '—';
-    try { return new Date(s).toISOString().slice(0, 10); } catch { return s; }
+    try {
+      return new Date(s).toISOString().slice(0, 10);
+    } catch {
+      return s;
+    }
+  };
+
+  // 卡片样式
+  const renderCard = (it: FamilyItemV13, idx: number) => {
+    const isActive = it.status === 'active';
+    const subStatus = isActive ? '' : `（${LIFECYCLE_LABEL[it.invite_lifecycle]}）`;
+
+    return (
+      <div
+        key={`${it.management_id || 'inv'}-${idx}`}
+        data-testid={`family-card-v13-${it.invite_lifecycle}`}
+        style={{
+          background: '#fff',
+          borderRadius: 20,
+          padding: 16,
+          marginBottom: 12,
+          boxShadow: '0 4px 16px rgba(24, 144, 255, 0.08)',
+          border: it.is_primary_guardian ? `1.5px solid ${GOLD}` : `1px solid ${PRIMARY_BG}`,
+          position: 'relative',
+        }}
+      >
+        {/* 主守护人金色徽章（右上角） */}
+        {it.is_primary_guardian && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 12,
+              right: 12,
+              background: GOLD,
+              color: '#fff',
+              borderRadius: 12,
+              padding: '2px 10px',
+              fontSize: 11,
+              fontWeight: 700,
+              boxShadow: '0 2px 6px rgba(255, 184, 0, 0.4)',
+            }}
+          >
+            👑 主
+          </div>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              background: PRIMARY_BG,
+              color: PRIMARY,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 18,
+              fontWeight: 700,
+              marginRight: 12,
+            }}
+          >
+            {(it.managed_user_nickname || it.relation_label || '?').charAt(0)}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a' }}>
+              {it.managed_user_nickname || it.relation_label || '待邀请家人'}
+            </div>
+            <div style={{ fontSize: 12, color: '#8C8C8C', marginTop: 4 }}>
+              {isActive ? '共管' : '待守护'}
+              {subStatus}
+              {it.invite_lifecycle === 'inviting' && it.invite_remaining_hours !== undefined && (
+                <span style={{ color: GOLD, marginLeft: 4 }}>
+                  · 还剩 {it.invite_remaining_hours} 小时
+                </span>
+              )}
+              {isActive && it.created_at && (
+                <span style={{ marginLeft: 4 }}>· {fmtDate(it.created_at)} 建立</span>
+              )}
+              {it.proxy_pay_enabled && (
+                <Tag color='warning' style={{ marginLeft: 6, background: WARN_BG, color: GOLD }}>
+                  代付中
+                </Tag>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* 按钮区：根据 lifecycle 动态显示 */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {isActive ? (
+            <>
+              <Button
+                size='mini'
+                fill='outline'
+                style={{ flex: 1, borderRadius: 22, borderColor: PRIMARY, color: PRIMARY }}
+                onClick={() =>
+                  router.push(`/health-profile?member_user_id=${it.managed_user_id}`)
+                }
+              >
+                查看档案
+              </Button>
+              {it.is_primary_guardian && (
+                <Button
+                  size='mini'
+                  fill='outline'
+                  style={{ flex: 1, borderRadius: 22, borderColor: GOLD, color: GOLD }}
+                  onClick={() => openPayDetail(it)}
+                >
+                  代付明细
+                </Button>
+              )}
+              <Button
+                size='mini'
+                fill='outline'
+                style={{ flex: 1, borderRadius: 22, borderColor: DANGER, color: DANGER }}
+                onClick={() => handleUnGuard(it)}
+              >
+                解除守护
+              </Button>
+            </>
+          ) : (
+            <>
+              {it.invite_lifecycle === 'inviting' && (
+                <>
+                  <Button
+                    size='mini'
+                    fill='solid'
+                    style={{ flex: 1, borderRadius: 22, background: PRIMARY }}
+                    onClick={() => handleViewQr(it)}
+                  >
+                    查看二维码
+                  </Button>
+                  <Button
+                    size='mini'
+                    fill='outline'
+                    style={{ flex: 1, borderRadius: 22, borderColor: DANGER, color: DANGER }}
+                    onClick={() => handleCancelInvite(it)}
+                  >
+                    取消邀请
+                  </Button>
+                </>
+              )}
+              {(it.invite_lifecycle === 'rejected' ||
+                it.invite_lifecycle === 'unbound' ||
+                it.invite_lifecycle === 'expired') && (
+                <>
+                  <Button
+                    size='mini'
+                    fill='solid'
+                    style={{ flex: 1, borderRadius: 22, background: PRIMARY }}
+                    onClick={() => handleReinvite(it)}
+                  >
+                    再次邀请
+                  </Button>
+                  {/* 4 不可删校验通过才显示 */}
+                  {it.can_remove && (
+                    <Button
+                      size='mini'
+                      fill='outline'
+                      style={{ flex: 1, borderRadius: 22, borderColor: DANGER, color: DANGER }}
+                      onClick={() => handleRemove(it)}
+                    >
+                      移除
+                    </Button>
+                  )}
+                </>
+              )}
+              {it.invite_lifecycle === 'never_invited' && (
+                <>
+                  <Button
+                    size='mini'
+                    fill='solid'
+                    style={{ flex: 1, borderRadius: 22, background: PRIMARY }}
+                    onClick={handleInvite}
+                  >
+                    发起邀请
+                  </Button>
+                  {it.can_remove && (
+                    <Button
+                      size='mini'
+                      fill='outline'
+                      style={{ flex: 1, borderRadius: 22, borderColor: DANGER, color: DANGER }}
+                      onClick={() => handleRemove(it)}
+                    >
+                      移除
+                    </Button>
+                  )}
+                </>
+              )}
+              {/* 邀请记录入口 */}
+              <Button
+                size='mini'
+                fill='none'
+                style={{ borderRadius: 22, color: PRIMARY, fontSize: 12 }}
+                onClick={() => openHistory(it)}
+              >
+                邀请记录
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
     <div style={{ background: PAGE_BG, minHeight: '100vh', paddingBottom: 32 }}>
       <GreenNavBar>我守护的人</GreenNavBar>
 
-      {/* [健康档案优化 PRD v1.0 §3.5] 待确认转让横幅 */}
-      {pendingReceived.map((tr) => (
+      {/* 顶部配额提示 */}
+      {resp && (
         <div
-          key={`recv-${tr.transfer_id}`}
-          data-testid='transfer-banner-received'
           style={{
-            margin: '8px 16px',
-            padding: '12px 14px',
-            background: 'linear-gradient(135deg, #FFE7BA 0%, #FFD591 100%)',
-            color: '#874D00',
-            borderRadius: 12,
-            border: '1px solid #FFC069',
-            boxShadow: '0 4px 12px rgba(250, 173, 20, 0.18)',
-          }}
-        >
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
-            🔔 {tr.from_user_nickname || '某守护人'} 申请将{tr.managed_user_nickname ? ` ${tr.managed_user_nickname} 的` : ''}主守护人转让给您
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button
-              size='mini'
-              color='primary'
-              fill='solid'
-              style={{ flex: 1, borderRadius: 22 }}
-              data-testid='transfer-banner-approve'
-              onClick={() => handleApproveTransfer(tr.transfer_id)}
-            >同意</Button>
-            <Button
-              size='mini'
-              color='default'
-              fill='outline'
-              style={{ flex: 1, borderRadius: 22 }}
-              data-testid='transfer-banner-reject'
-              onClick={() => handleRejectTransfer(tr.transfer_id)}
-            >拒绝</Button>
-          </div>
-        </div>
-      ))}
-      {pendingSent.map((tr) => (
-        <div
-          key={`sent-${tr.transfer_id}`}
-          data-testid='transfer-banner-sent'
-          style={{
-            margin: '8px 16px',
-            padding: '12px 14px',
+            margin: '8px 16px 0',
+            padding: '8px 12px',
             background: PRIMARY_BG,
+            borderRadius: 8,
+            fontSize: 12,
             color: PRIMARY_DARK,
-            borderRadius: 12,
-            border: `1px solid ${PRIMARY}`,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
           }}
         >
-          <div style={{ fontSize: 13, marginBottom: 8 }}>
-            ⏳ 您发起的主守护人转让待 {tr.to_user_nickname || '对方'} 确认（{tr.managed_user_nickname ? `被守护人：${tr.managed_user_nickname}` : ''}）
-          </div>
-          <div>
-            <Button
-              size='mini'
-              color='default'
-              fill='outline'
-              style={{ borderRadius: 22 }}
-              data-testid='transfer-banner-cancel'
-              onClick={() => handleCancelTransfer(tr.transfer_id)}
-            >取消转让</Button>
-          </div>
+          <span>
+            您还可邀请 <b style={{ color: PRIMARY_DARK }}>{resp.can_invite_count}</b> 位 / 共{' '}
+            {resp.max_guardians} 位
+          </span>
+          <Button
+            size='mini'
+            fill='solid'
+            style={{ background: PRIMARY, borderRadius: 16 }}
+            onClick={handleInvite}
+          >
+            + 发起邀请
+          </Button>
         </div>
-      ))}
+      )}
+
+      {/* 极简两态 Tab */}
+      <Tabs
+        activeKey={tab}
+        onChange={(k) => setTab(k as 'active' | 'pending')}
+        style={{ background: '#fff', marginTop: 8 }}
+      >
+        <Tabs.Tab title={`守护中 (${resp?.tab_active_count || 0})`} key='active' />
+        <Tabs.Tab title={`待守护 (${resp?.tab_pending_count || 0})`} key='pending' />
+      </Tabs>
 
       <div style={{ padding: '12px 16px' }}>
-        {/* 本人行 */}
-        <div style={{
-          background: '#fff', borderRadius: 20, padding: 16, marginBottom: 12,
-          boxShadow: '0 4px 16px rgba(24, 144, 255, 0.08)',
-          border: `1px solid ${PRIMARY_BG}`,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-            <div style={{
-              width: 48, height: 48, borderRadius: '50%',
-              background: `linear-gradient(135deg, ${PRIMARY} 0%, ${PRIMARY_DARK} 100%)`,
-              color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 18, fontWeight: 700, marginRight: 12,
-            }}>我</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a' }}>
-                  {me.nickname || '本人'}
-                </span>
-                {/* [BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527] 本人徽章 */}
-                <Tag data-testid='i-guard-self-badge' color='primary' fill='solid' style={{ background: PRIMARY }}>本人</Tag>
-              </div>
-              <div style={{ fontSize: 12, color: '#8C8C8C', marginTop: 2 }}>
-                我的健康档案与额度
-              </div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button size='mini' color='primary' fill='outline' style={{ flex: 1, borderRadius: 22 }}
-              data-testid='i-guard-self-edit'
-              onClick={() => router.push('/health-profile?member_id=self')}>编辑档案</Button>
-            <Button size='mini' color='primary' fill='outline' style={{ flex: 1, borderRadius: 22 }}
-              onClick={openInviteRecords}>邀请记录</Button>
-            <Button size='mini' color='primary' fill='solid' style={{ flex: 1, borderRadius: 22 }}
-              data-testid='i-guard-self-quota-entry'
-              onClick={() => router.push('/member-center#quota')}>我的 AI 外呼额度</Button>
-          </div>
-        </div>
-
-        {/* [健康档案优化 PRD v1.0 §3.6] 被守护人列表（按守护中 / 待守护分组） */}
-        {(() => {
-          if (loading) {
-            return <div style={{ textAlign: 'center', padding: 40, color: '#8C8C8C' }}>加载中…</div>;
-          }
-          if (items.length === 0) {
-            return <Empty description="还没有守护的人" />;
-          }
-          // [BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527] 后端在 items[0] 注入了"本人"虚拟项；
-          // 顶部已有独立的"本人行"卡片渲染（含编辑档案/邀请记录/外呼额度），这里需排除避免重复显示。
-          const realItems = items.filter((it) => !it.is_self);
-          const activeItems = realItems.filter((it) => it.status === 'active');
-          const pendingItems = realItems.filter((it) => it.status !== 'active');
-
-          const renderItem = (it: IGuardItem, readOnly: boolean) => (
-            <div key={it.management_id} data-testid={`i-guard-item-${it.management_id}`} style={{
-              background: '#fff', borderRadius: 20, padding: 16, marginBottom: 12,
+        {/* 本人行：仅守护中 Tab 显示 */}
+        {tab === 'active' && (
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 20,
+              padding: 16,
+              marginBottom: 12,
               boxShadow: '0 4px 16px rgba(24, 144, 255, 0.08)',
-              opacity: readOnly ? 0.7 : 1,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-                <div style={{
-                  width: 48, height: 48, borderRadius: '50%',
-                  background: PRIMARY_BG, color: PRIMARY,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 18, fontWeight: 700, marginRight: 12,
-                }}>{(it.managed_user_nickname || '?').charAt(0)}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a' }}>
-                      {it.managed_user_nickname || '—'}
-                    </span>
-                    {it.role_badge === 'primary' ? (
-                      <Tag color='primary' fill='solid' style={{ background: PRIMARY }}>主守护人</Tag>
-                    ) : (
-                      <Tag color='default'>普通守护人</Tag>
-                    )}
-                    {it.proxy_pay_enabled && (
-                      <Tag color='warning' style={{ background: WARN }}>代付中</Tag>
-                    )}
-                    {readOnly && (
-                      <Tag color='default'>{it.status === 'cancelled' ? '已解除' : '待守护'}</Tag>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#8C8C8C', marginTop: 4 }}>
-                    关系：{it.relation_label || '亲友'} · 守护开始 {fmtDate(it.created_at)}
-                  </div>
+              border: `1px solid ${PRIMARY_BG}`,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${PRIMARY} 0%, ${PRIMARY_DARK} 100%)`,
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 18,
+                  fontWeight: 700,
+                  marginRight: 12,
+                }}
+              >
+                我
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a' }}>
+                  {me.nickname || '本人'}（本人）
+                </div>
+                <div style={{ fontSize: 12, color: '#8C8C8C', marginTop: 2 }}>
+                  我的健康档案与额度
                 </div>
               </div>
-              {!readOnly && (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <Button size='mini' fill='outline' style={{ flex: 1, borderRadius: 22, borderColor: PRIMARY, color: PRIMARY }}
-                    onClick={() => router.push(`/health-profile?member_user_id=${it.managed_user_id}`)}>
-                    查看档案
-                  </Button>
-                  <Button size='mini' fill='outline' style={{ flex: 1, borderRadius: 22, borderColor: PRIMARY, color: PRIMARY }}
-                    onClick={() => openRemindersDrawer(it)}>
-                    提醒设置
-                  </Button>
-                  <Button size='mini' fill='solid' style={{ flex: 1, borderRadius: 22, background: PRIMARY }}
-                    onClick={() => openGuardianDrawer(it)}>
-                    守护管理
-                  </Button>
-                </div>
-              )}
             </div>
-          );
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button
+                size='mini'
+                color='primary'
+                fill='outline'
+                style={{ flex: 1, borderRadius: 22 }}
+                onClick={() => router.push('/health-profile')}
+              >
+                编辑档案
+              </Button>
+              <Button
+                size='mini'
+                color='primary'
+                fill='outline'
+                style={{ flex: 1, borderRadius: 22 }}
+                onClick={() => openHistory({ manager_user_id: me.id } as any)}
+              >
+                邀请记录
+              </Button>
+              <Button
+                size='mini'
+                color='primary'
+                fill='solid'
+                style={{ flex: 1, borderRadius: 22 }}
+                onClick={() => router.push('/member-center#quota')}
+              >
+                我的 AI 外呼额度
+              </Button>
+            </div>
+          </div>
+        )}
 
-          return (
-            <>
-              <div data-testid='i-guard-group-active'>
-                <div style={{ fontSize: 13, fontWeight: 600, color: PRIMARY_DARK, margin: '4px 4px 8px' }}>
-                  ✅ 守护中（{activeItems.length}）
-                </div>
-                {activeItems.length === 0 ? (
-                  <div style={{
-                    padding: 14, marginBottom: 12, borderRadius: 12,
-                    background: '#fff', color: '#8C8C8C', textAlign: 'center', fontSize: 13,
-                  }}>暂无守护中的人</div>
-                ) : (
-                  activeItems.map((it) => renderItem(it, false))
-                )}
-              </div>
-              {pendingItems.length > 0 && (
-                <div data-testid='i-guard-group-pending' style={{ marginTop: 12 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#8C8C8C', margin: '4px 4px 8px' }}>
-                    ⏸ 待守护 / 已解除（{pendingItems.length}）
-                  </div>
-                  {pendingItems.map((it) => renderItem(it, true))}
-                </div>
-              )}
-            </>
-          );
-        })()}
-
-        <div style={{ marginTop: 16, padding: '12px 16px', background: PRIMARY_BG, borderRadius: 12, fontSize: 12, color: PRIMARY_DARK }}>
-          💡 您目前守护 {activeCount} 人（共 {totalCount} 条守护记录）{maxManaged > 0 ? `，上限 ${maxManaged === -1 ? '不限' : maxManaged}` : ''}。
-          {maxManaged > 0 && activeCount >= maxManaged && maxManaged !== -1 && (
-            <span style={{ color: DANGER, marginLeft: 4 }}>已达上限，可升级会员扩容</span>
-          )}
-        </div>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 40, color: '#8C8C8C' }}>加载中…</div>
+        ) : filtered.length === 0 ? (
+          <Empty
+            description={tab === 'active' ? '暂无守护中的家人' : '暂无待守护的家人'}
+          />
+        ) : (
+          filtered.map(renderCard)
+        )}
       </div>
 
-      {/* 守护管理抽屉 */}
-      {drawerManaged && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999,
-          display: 'flex', alignItems: 'flex-end',
-        }} onClick={() => setDrawerManaged(null)}>
-          <div style={{
-            background: '#fff', width: '100%', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-            padding: '16px 16px 32px', maxHeight: '85vh', overflow: 'auto',
-          }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>
-              守护管理 - {drawerManaged.managed_user_nickname || ''}
-            </div>
-
-            {drawerManaged.role_badge === 'primary' && (
-              <div style={{
-                padding: 12, background: PRIMARY_BG, borderRadius: 12, marginBottom: 12,
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>代付该被守护人的 AI 外呼额度</div>
-                  <div style={{ fontSize: 12, color: '#8C8C8C', marginTop: 4 }}>开启后，对方自己设置的提醒扣您的额度</div>
-                </div>
-                <Switch checked={drawerProxyPay} onChange={handleProxyPayToggle} />
-              </div>
-            )}
-
-            {drawerGuardians.map((g) => (
-              <div key={g.management_id} style={{
-                padding: 12, border: '1px solid #f0f0f0', borderRadius: 12, marginBottom: 8,
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontWeight: 600 }}>{g.manager_nickname || '—'}{g.is_self ? '（我）' : ''}</span>
-                    {g.is_primary_guardian ? (
-                      <Tag color='primary' fill='solid' style={{ background: PRIMARY }}>主</Tag>
-                    ) : (
-                      <Tag color='default'>普通</Tag>
-                    )}
-                    {g.is_paid_member && <Tag color='warning'>付费</Tag>}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#8C8C8C', marginTop: 4 }}>
-                    {g.relation_label || '亲友'} · 守护开始 {fmtDate(g.created_at)}
-                  </div>
-                </div>
-                <div>
-                  {g.is_self ? (
-                    g.is_primary_guardian ? (
-                      <Button size='mini' color='primary' onClick={() => {
-                        const others = drawerGuardians.filter(x => !x.is_self);
-                        if (others.length === 0) {
-                          showToast('暂无其他守护人可转让', 'fail');
-                          return;
-                        }
-                        // 简化版：选第一个其他守护人
-                        const tgt = others[0];
-                        Dialog.confirm({
-                          title: '转让主守护人',
-                          content: `转让给 ${tgt.manager_nickname}？接收者同意后立即生效。`,
-                        }).then(ok => ok && handleTransferPrimary(tgt.management_id));
-                      }}>转让主守护人</Button>
-                    ) : (
-                      <Button size='mini' color='danger' onClick={handleExitGuard}>退出守护</Button>
-                    )
-                  ) : drawerManaged.is_primary_guardian && !g.is_primary_guardian ? (
-                    <Button size='mini' color='danger' fill='outline' onClick={() => handleRemoveOther(g)}>移除</Button>
-                  ) : null}
-                </div>
-              </div>
-            ))}
+      {/* 上限弹窗 */}
+      <Modal
+        visible={showLimit}
+        title='💝 温馨提示'
+        content={
+          <div style={{ padding: '8px 0' }}>
+            您当前守护人数已满（{resp?.used || 0}/{resp?.max_guardians || 0} 位）。
+            <br />
+            如需守护更多家人，可升级会员套餐，最高可守护更多位。
           </div>
-        </div>
-      )}
+        }
+        actions={[
+          [
+            { key: 'cancel', text: '再想想' },
+            {
+              key: 'upgrade',
+              text: '升级会员',
+              primary: true,
+              onClick: () => {
+                setShowLimit(false);
+                router.push('/member-center#plans');
+              },
+            },
+          ],
+        ]}
+        onClose={() => setShowLimit(false)}
+      />
 
-      {/* 提醒设置抽屉 */}
-      {remindManaged && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999,
-          display: 'flex', alignItems: 'flex-end',
-        }} onClick={() => setRemindManaged(null)}>
-          <div style={{
-            background: '#fff', width: '100%', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-            padding: '16px 16px 32px', maxHeight: '85vh', overflow: 'auto',
-          }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-              提醒设置 - {remindManaged.managed_user_nickname || ''}
-            </div>
-            {remindMeta && (
-              <div style={{ padding: 10, background: PRIMARY_BG, borderRadius: 8, fontSize: 12, color: PRIMARY_DARK, marginBottom: 12 }}>
-                我的本月 AI 外呼剩余：
-                {remindMeta.my_total_quota === -1 ? '不限' :
-                  <strong style={{ color: remindMeta.my_remaining_quota <= 2 ? WARN : PRIMARY }}>
-                    {' '}{remindMeta.my_remaining_quota} / {remindMeta.my_total_quota}
-                  </strong>
-                }
-                {remindMeta.proxy_pay_payer_nickname && (
-                  <div style={{ marginTop: 4, color: WARN }}>
-                    💰 您的 AI 外呼额度由 {remindMeta.proxy_pay_payer_nickname} 代付中
+      {/* 代付明细弹窗 */}
+      <Modal
+        visible={payDetailModal !== null}
+        title={`${payDetailModal?.managed_user_nickname || ''} · 代付明细`}
+        content={
+          payDetail ? (
+            <div style={{ padding: '8px 0' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                  padding: 12,
+                  background: WARN_BG,
+                  borderRadius: 8,
+                }}
+              >
+                <span>AI 呼叫代付开关</span>
+                <Switch
+                  checked={!!payDetail.enabled}
+                  onChange={(c) => payDetailModal && togglePay(payDetailModal, c)}
+                />
+              </div>
+              <div style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>
+                今日代付 <b>{payDetail.today_count}</b> 次 · 本月代付{' '}
+                <b>{payDetail.month_count}</b> 次
+              </div>
+              <div
+                style={{
+                  maxHeight: 240,
+                  overflowY: 'auto',
+                  fontSize: 12,
+                  color: '#666',
+                }}
+              >
+                {(payDetail.items || []).length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 16, color: '#999' }}>
+                    本月暂无代付记录
                   </div>
+                ) : (
+                  payDetail.items.map((r: any) => (
+                    <div
+                      key={r.id}
+                      style={{ padding: 8, borderBottom: '1px solid #f0f0f0' }}
+                    >
+                      <div>
+                        {r.call_type_label} · {fmtDate(r.used_at)}
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
-            )}
+            </div>
+          ) : (
+            <div style={{ padding: 16, textAlign: 'center' }}>加载中…</div>
+          )
+        }
+        closeOnAction
+        actions={[{ key: 'ok', text: '关闭' }]}
+        onClose={() => {
+          setPayDetailModal(null);
+          setPayDetail(null);
+        }}
+      />
 
-            {reminders.length === 0 ? (
-              <Empty description="还没有 AI 外呼提醒" />
-            ) : reminders.map(r => (
-              <div key={r.id} style={{ padding: 12, border: '1px solid #f0f0f0', borderRadius: 12, marginBottom: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600 }}>{r.title}</div>
-                    {r.content && <div style={{ fontSize: 12, color: '#8C8C8C', marginTop: 4 }}>{r.content}</div>}
-                    <div style={{ fontSize: 12, color: '#8C8C8C', marginTop: 4 }}>
-                      由 {r.setter_nickname || '—'} 设置{r.setter_is_me ? '（我）' : ''}
-                    </div>
+      {/* 邀请记录弹窗 */}
+      <Modal
+        visible={historyModal !== null}
+        title='邀请记录'
+        content={
+          <div
+            style={{
+              padding: '8px 0',
+              maxHeight: 400,
+              overflowY: 'auto',
+            }}
+          >
+            {history.length === 0 ? (
+              <Empty description='暂无邀请记录' />
+            ) : (
+              history.map((r: any) => (
+                <div
+                  key={r.id}
+                  style={{
+                    padding: 12,
+                    borderBottom: '1px solid #f0f0f0',
+                    fontSize: 13,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>{fmtDate(r.created_at)} 发起邀请</span>
+                    <Tag color={r.status_color === 'success' ? 'success' : 'default'}>
+                      {r.status_label}
+                    </Tag>
                   </div>
-                  {r.can_edit && (
-                    <Button size='mini' color='danger' fill='outline' onClick={() => handleDeleteReminder(r.id)}>删除</Button>
+                  {r.relation_type && (
+                    <div style={{ color: '#999', marginTop: 4 }}>
+                      关系：{r.relation_type}
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
-        </div>
-      )}
-
-      {/* 邀请记录抽屉 */}
-      {showInviteRec && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999,
-          display: 'flex', alignItems: 'flex-end',
-        }} onClick={() => setShowInviteRec(false)}>
-          <div style={{
-            background: '#fff', width: '100%', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-            padding: '16px 16px 32px', maxHeight: '85vh', overflow: 'auto',
-          }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>邀请记录</div>
-            {inviteRecords.length === 0 ? <Empty description="暂无邀请记录" /> :
-              inviteRecords.map((rec, idx) => (
-                <div key={idx} style={{ padding: 12, border: '1px solid #f0f0f0', borderRadius: 12, marginBottom: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontWeight: 600 }}>
-                      {rec.direction === 'sent' ? '我发起的' : '别人邀请我的'}
-                    </span>
-                    <Tag color={rec.status_color === 'success' ? 'success'
-                      : rec.status_color === 'warning' ? 'warning'
-                      : rec.status_color === 'info' ? 'primary' : 'default'}>{rec.status_label}</Tag>
-                  </div>
-                  <div style={{ fontSize: 12, color: '#8C8C8C', marginTop: 4 }}>
-                    {rec.relation_type ? `关系：${rec.relation_type}` : ''} · 创建 {fmtDate(rec.created_at)}
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
+        }
+        closeOnAction
+        actions={[{ key: 'ok', text: '关闭' }]}
+        onClose={() => {
+          setHistoryModal(null);
+          setHistory([]);
+        }}
+      />
     </div>
   );
 }

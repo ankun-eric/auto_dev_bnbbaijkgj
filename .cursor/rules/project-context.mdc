@@ -5,7 +5,34 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-27 · v3 / PRD-CARE-AI-HOME v1）
+## 最近一次变更（2026-05-27 · Bug 修复 / 「我守护的人」页面恢复 v13 完整版）
+
+**Bug 修复 - i-guard 页面恢复 v13 完整版（733 行）**
+
+**Bug 现象**：访问 `/health-profile/i-guard` 内容不完整：无两 Tab、无本人行、无金色徽章、无代付明细按钮。
+
+**根因**：commit `8181069a` 落地的 v13 完整版页面 `h5-web/src/app/health-profile/v13/page.tsx`（733 行）+ 6 个后端接口在 commit `fdc3d00a`（收敛）中被误删页面文件；后端 v13 接口完整保留。
+
+**修复动作**：
+- 从 commit `8181069a` 取出 `h5-web/src/app/health-profile/v13/page.tsx` 完整 733 行内容
+- 整份覆盖到 `h5-web/src/app/health-profile/i-guard/page.tsx`（仅改组件名为 `IGuardPage`，删除版本目录信息，无其它改动）
+- 后端 `backend/app/api/guardian_system_v13.py` 自 `8181069a` 起未变动，6 个 v13 接口仍正常挂载（前缀 `/api/guardian/v13`），无需重新部署后端
+- 后端测试 `backend/tests/test_guardian_system_v13.py` 仍在；远程 pytest 9/9 全部通过
+- 数据库无任何 DDL/迁移
+
+**部署与验证**：
+- 部署脚本：`_deploy_iguard_v13_restore.py`（仅重建 h5-web + restart backend）
+- 远程烟雾测试：`_smoke_v13_iguard.py` 7/7 通过（前端页面 200 + 6 个接口 401 鉴权）
+- 体验链接：[https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/i-guard](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/i-guard)
+
+**变更文件清单（本次）**：
+- 修改：`h5-web/src/app/health-profile/i-guard/page.tsx`（266 行融合版 → 738 行 v13 完整版）
+- 新增（部署/测试脚本）：`_deploy_iguard_v13_restore.py`、`_smoke_v13_iguard.py`、`_run_v13_pytest.py`、`_check_v13_502.py`
+- 新增（用户手册）：`user_docs/我守护的人页面恢复v13完整版_manual_20260527_174600_a7b3.md`
+
+---
+
+## 之前变更（2026-05-27 · v3 / PRD-CARE-AI-HOME v1）
 
 **PRD-CARE-AI-HOME 2026-05-27 — 关怀模式 AI 主页 · 最终需求清单 v1（一次性上线）**
 
