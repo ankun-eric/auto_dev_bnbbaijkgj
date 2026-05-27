@@ -5,7 +5,39 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-27 · v2）
+## 最近一次变更（2026-05-27 · v3 / PRD-CARE-AI-HOME v1）
+
+**PRD-CARE-AI-HOME 2026-05-27 — 关怀模式 AI 主页 · 最终需求清单 v1（一次性上线）**
+
+按需求清单 v1 实现"关怀模式 AI 主页"全量需求，与已有 `ai_home_care_v1`（v1.0 SOS 关键词版）共存不冲突。
+
+### 新增能力
+- **后端 `backend/app/api/care_ai_home.py`**：独立模块，新增 2 张表（`care_v2_daily_summary`、`care_v2_alerts`），SQLAlchemy 自动建表，挂载到 `app/main.py`。
+- **后端 API**：
+  - `GET  /api/care/daily-summary` 健康简评卡（AI 每日生成 + 3 项核心指标：血压/心率/睡眠 + 状态标签）
+  - `GET  /api/care/alerts/active` 活跃 SOS 关怀卡列表（24h 内未忽略）
+  - `POST /api/care/alerts/{id}/dismiss` 我没事 → 忽略告警（幂等）
+  - `POST /api/care/alerts/_seed-demo` 演示用例（同类型 24h 去重，仅作联调）
+  - 内部巡检函数 `scan_active_users_and_create_alerts()` 供调度器调用
+- **H5 `h5-web/src/app/care-ai-home/page.tsx`**：完整还原需求清单 v1（顶栏关怀徽章+切换按钮 / 蓝绿渐变欢迎区 / 4 快捷胶囊 / 健康简评卡 / 用药提醒卡（已吃+推迟15/30/60）/ SOS 关怀卡（呼叫家人+我没事）/ 底部"咨询AI"圆形悬浮球+3/4 屏抽屉 / 右下角 SOS 占位悬浮球）。
+- **小程序 `miniprogram/pages/care-ai-home/`**（index.js / index.json / index.wxml / index.wxss）：原生小程序等价页面，已加入 `app.json` 路由。
+- **Flutter `flutter_app/lib/screens/ai/ai_home_screen_care.dart`**：等价 Screen，使用 `showModalBottomSheet` 实现 3/4 屏抽屉。
+- **测试 `backend/tests/test_care_ai_home.py`**：8 个 pytest 用例，本地 + 服务器 100% 通过。
+
+### 部署与产物
+- 后端已通过 docker cp 热更新；H5 已 docker compose 重建；URL 路径 `/care-ai-home/`。
+- 微信小程序 zip：`miniprogram_care_ai_home_20260527_171631_9cf8.zip`（路径 `/miniprogram/`）
+- 安卓 APK：`bini_health_care_ai_home_20260527_1ce0.apk`（路径 `/apk/`，GitHub Actions 远程构建）
+- iOS IPA：GitHub Release tag `v20260527-care-ai-home-1ce0`（含 `bini_health_ios.ipa`）
+- 用户手册：`user_docs/关怀模式AI主页_20260527_173342_138a.md`
+
+### 与 ai_home_care_v1（旧版）关系
+- 两套接口/页面**完全独立共存**：`/api/care-v1/...` + `/care-home` 保留；`/api/care/...` + `/care-ai-home` 为新版需求清单 v1 落地。
+- 数据库表前缀：旧 `care_v1_*`、新 `care_v2_*`，互不影响。
+
+---
+
+## 上一次变更（2026-05-27 · v2）
 
 **PRD-AIHOME-CARE-V1 2026-05-27 — AI 首页优化 · 关怀版 v1.0**
 
