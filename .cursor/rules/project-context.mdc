@@ -5,6 +5,29 @@ alwaysApply: false
 
 # Project Context
 
+## 最近一次变更（2026-05-27 · Bug 修复 / 关怀模式入口缺失修复 H5）
+
+**Bug 现象**：H5 标准模式 AI 主页 `/(ai-chat)/ai-home` 顶栏右上角没有任何入口可切换到关怀模式。
+
+**修复范围**：仅 H5 端（+ 后端最小接口），用户尚未要求覆盖小程序 / Flutter APP。
+
+**变更文件**：
+- 修改：`h5-web/src/app/(ai-chat)/ai-home/page.tsx` —— 顶栏右上角插入「标准模式」徽章 + 绿色「关怀模式」切换按钮（与关怀模式顶栏镜像对称）
+- 新增：`h5-web/src/lib/mode-preference.ts` —— `AppMode` 类型 + `saveModePreference` / `fetchRemoteMode` 工具
+- 新增：`backend/app/api/user_mode_preference.py` —— 新表 `user_mode_preferences`（user_id 唯一），暴露 `GET/POST /api/user/mode-preference`
+- 修改：`backend/app/main.py` —— 注册 `user_mode_preference` 路由
+- 新增：`backend/tests/test_user_mode_preference_h5_carefix.py` —— 5 个用例覆盖默认值/写入/切换/校验/鉴权
+
+**测试结果**：后端 24 个测试用例（19 关怀模式 + 5 新增）全部通过。
+
+**部署验证**：H5 容器重建并验证 `/ai-home`、`/care-ai-home` 可达，`/api/user/mode-preference` 在未鉴权下返回 401。
+
+**体验链接**：[标准模式 AI 主页](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home) · [关怀模式主页](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/care-ai-home)
+
+**唯一变更标记**：`[BUG_FIX_CARE_MODE_ENTRY_H5_20260527]`
+
+---
+
 ## 最近一次变更（2026-05-27 · Bug 修复 / 「我守护的人」页面恢复 v13 完整版）
 
 **Bug 修复 - i-guard 页面恢复 v13 完整版（733 行）**

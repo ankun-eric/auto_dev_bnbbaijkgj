@@ -4166,6 +4166,85 @@ export default function AiHomePage() {
               </span>
             </button>
 
+            {/* [BUG_FIX_CARE_MODE_ENTRY_H5_20260527] 关怀模式入口缺失修复
+                顶栏右上角：标准模式徽章 + 关怀模式切换按钮
+                - 位置：邀请按钮(right:44, w:32)的左侧，整体 absolute 定位 right:80
+                - 视觉与关怀模式顶栏镜像对称：[浅蓝徽章「标准模式」] [绿色按钮「关怀模式」]
+                - 行为：保存偏好(本地+后端，失败不阻塞) → Toast 提示 → 跳 /care-ai-home
+                - 适老化：按钮 minHeight 32，点击热区 ≥44x44（外层 padding 撑开）
+            */}
+            <div
+              style={{
+                position: 'absolute',
+                right: 80,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+              data-testid="ai-home-care-mode-switcher"
+            >
+              <span
+                style={{
+                  background: '#E3F2FD',
+                  color: '#1976D2',
+                  padding: '4px 10px',
+                  borderRadius: 12,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  lineHeight: 1,
+                  whiteSpace: 'nowrap',
+                }}
+                data-testid="ai-home-mode-badge-standard"
+              >
+                标准模式
+              </span>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const { saveModePreference } = await import('@/lib/mode-preference');
+                    await saveModePreference('care');
+                  } catch (e) {
+                    // 静默：偏好保存失败不阻塞跳转
+                    // eslint-disable-next-line no-console
+                    console.warn('[care-mode-switcher] 保存偏好失败', e);
+                  }
+                  try {
+                    showToast('已切换到关怀模式 ✓', { duration: 2000 } as any);
+                  } catch {
+                    // 兼容旧 showToast 签名
+                    try { (showToast as any)('已切换到关怀模式 ✓'); } catch { /* ignore */ }
+                  }
+                  router.push('/care-ai-home');
+                }}
+                style={{
+                  background: '#43A047',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  padding: '6px 12px',
+                  borderRadius: 16,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  minHeight: 32,
+                  lineHeight: 1,
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = '#388E3C';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = '#43A047';
+                }}
+                aria-label="切换到关怀模式"
+                data-testid="ai-home-care-mode-btn"
+              >
+                关怀模式
+              </button>
+            </div>
+
             {/* [BUGFIX-AI-HOME-5ITEMS-V1 2026-05-26 Bug#3a] "⋯" 改为 "+加圆圈"（微信样式）
                 - 圆形描边、无填充；内部为"+"号；
                 - 颜色 / 点击热区 32x32 / onClick 处理逻辑保持不变，菜单功能完整保留 */}

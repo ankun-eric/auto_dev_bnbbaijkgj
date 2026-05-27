@@ -115,6 +115,7 @@ from app.api import (
     devices_v2,
     ai_home_care_v1,
     care_ai_home,
+    home_safety_v1,
 )
 from app.core.database import Base, engine
 from app.core.price_formatter import PriceFormattedJSONResponse
@@ -2201,6 +2202,8 @@ app.include_router(feedback.router)
 app.include_router(app_settings.router)
 app.include_router(ai_home_care_v1.router)
 app.include_router(care_ai_home.router)
+# [PRD-HOME-SAFETY-V1 2026-05-27] 智能硬件绑定 · 居家安全设备 v1.0
+app.include_router(home_safety_v1.router)
 # [2026-05-07 PRD-370 H5 登录页设计稿对齐] 远程开关：登录 UI 版本（v1 旧版 / v2 新版）
 app.include_router(login_ui_config.router)
 # [BUG-FIX-RESCHEDULE-V2 2026-05-07] 系统时间接口：供三端改约弹窗按服务器时间过滤过去时段
@@ -2376,6 +2379,10 @@ app.include_router(_membership.user_router)
 from app.api import member_center_v2 as _member_center_v2  # noqa: E402
 app.include_router(_member_center_v2.router)
 app.include_router(_member_center_v2.admin_router)
+
+# [BUG_FIX_CARE_MODE_ENTRY_H5_20260527] 关怀模式入口缺失修复 - 用户模式偏好接口
+from app.api import user_mode_preference as _user_mode_preference  # noqa: E402
+app.include_router(_user_mode_preference.router)
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
