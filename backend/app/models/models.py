@@ -2966,6 +2966,8 @@ class FamilyInvitation(Base):
     accepted_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     accepted_at = mapped_column(DateTime, nullable=True)
     relation_type = mapped_column(String(50), nullable=True)
+    # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 邀请阶段填写的姓名（必填，accept 后用于建档）
+    nickname = mapped_column(String(50), nullable=False, default="", server_default="")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     inviter = relationship("User", foreign_keys=[inviter_user_id])

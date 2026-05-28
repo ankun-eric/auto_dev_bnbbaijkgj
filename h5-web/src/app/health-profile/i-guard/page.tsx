@@ -58,6 +58,8 @@ interface FamilyItemV13 {
   can_remove: boolean;
   can_remove_reason?: string;
   created_at?: string;
+  // [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 对方已退出（cancelled_by_target）
+  target_left?: boolean;
 }
 
 interface FamilyListResp {
@@ -171,6 +173,11 @@ function InviteGuardianDrawer({ open, mode, presetMember, onClose, onSuccess }: 
   }, [open, mode, presetMember]);
 
   const handleSubmit = async () => {
+    // [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 姓名必填
+    if (!nickname.trim()) {
+      showToast('请填写姓名', 'fail');
+      return;
+    }
     if (!relation.trim()) {
       showToast('请填写关系（如：父亲、母亲）', 'fail');
       return;
@@ -179,8 +186,8 @@ function InviteGuardianDrawer({ open, mode, presetMember, onClose, onSuccess }: 
     try {
       const body: any = {
         relation_type: relation.trim(),
+        nickname: nickname.trim(),
       };
-      if (nickname.trim()) body.nickname = nickname.trim();
       if (mode === 'reinvite' && presetMember?.managed_member_id) {
         body.member_id = presetMember.managed_member_id;
       }
@@ -227,16 +234,22 @@ function InviteGuardianDrawer({ open, mode, presetMember, onClose, onSuccess }: 
         </div>
 
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginBottom: 6 }}>对方称呼（选填）</div>
+          <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginBottom: 6 }}>
+            姓名 <span style={{ color: DANGER }}>*</span>
+          </div>
           <input
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
-            placeholder='如：爸爸 / 妈妈 / 老李'
+            placeholder='如：张妈妈 / 李叔叔'
+            maxLength={20}
             style={{
               width: '100%', padding: '10px 12px', border: '1px solid #E2E8F0',
               borderRadius: 10, fontSize: 14, boxSizing: 'border-box',
             }}
           />
+          {!nickname.trim() && (
+            <div style={{ fontSize: 12, color: DANGER, marginTop: 4 }}>姓名不能为空</div>
+          )}
         </div>
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginBottom: 6 }}>关系 <span style={{ color: DANGER }}>*</span></div>
@@ -760,6 +773,68 @@ export default function IGuardPage() {
     }
   };
 
+  // [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 彻底删除（真删除）
+  const handleHardDelete = async (it: FamilyItemV13) => {
+    if (!it.managed_member_id) {
+      showToast('该记录无法彻底删除', 'fail');
+      return;
+    }
+    // 第一步：获取删除预览
+    let preview: any = null;
+    try {
+      const res: any = await api.get(
+        `/api/guardian/v13/family/member/${it.managed_member_id}/delete-preview`,
+      );
+      preview = res.data || res;
+    } catch (e: any) {
+      showToast(e?.response?.data?.detail || '加载删除预览失败', 'fail');
+      return;
+    }
+    if (!preview) return;
+
+    // 检查闸门
+    if (!preview.can_delete) {
+      const failed = Object.values(preview.gates || {}).find((g: any) => !g.pass) as any;
+      showToast(failed?.message || '请先处理依赖项再删除', 'fail');
+      return;
+    }
+
+    const impact = preview.impact || {};
+    const lines: string[] = [
+      `此操作不可恢复，将永久删除以下数据：`,
+      `• 健康档案 ${impact.health_profile_count || 0} 份`,
+      `• AI 对话历史 ${impact.ai_conversation_count || 0} 条`,
+      `• AI 消息 ${impact.ai_message_count || 0} 条`,
+      `• 用药提醒 ${impact.medication_reminder_count || 0} 条`,
+      `• 紧急联系人引用 ${impact.emergency_contact_ref_count || 0} 处`,
+    ];
+
+    const ok = await Dialog.confirm({
+      title: `⚠️ 彻底删除「${preview.member_nickname || '该家人'}」`,
+      content: lines.join('\n'),
+      confirmText: '确定彻底删除',
+      cancelText: '取消',
+    });
+    if (!ok) return;
+
+    try {
+      const delRes: any = await api.delete(
+        `/api/guardian/v13/family/member/${it.managed_member_id}`,
+      );
+      const d = delRes.data || delRes;
+      showToast(d?.deleted ? '已彻底删除' : '删除完成', 'success');
+      fetchList();
+    } catch (e: any) {
+      const status = e?.response?.status;
+      const detail = e?.response?.data?.detail || '删除失败';
+      if (status === 429) {
+        showToast(String(detail), 'fail');
+      } else {
+        showToast(String(detail), 'fail');
+      }
+    }
+  };
+
   // [Bug 7] 再次邀请：打开公共抽屉，预填
   const handleReinvite = (it: FamilyItemV13) => {
     if (canInvite <= 0) {
@@ -828,12 +903,15 @@ export default function IGuardPage() {
   // ─── 卡片渲染 ────────────
   const renderCard = (it: FamilyItemV13, idx: number, zone: 'bound' | 'unbound') => {
     const isBound = zone === 'bound';
-    const cardBg = '#FFFFFF';
+    // [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 对方已退出 → 整卡置灰
+    const isTargetLeft = !!it.target_left;
+    const cardBg = isTargetLeft ? '#F3F4F6' : '#FFFFFF';
     const cardBorder = it.is_primary_guardian
       ? `1.5px solid ${GOLD}`
+      : isTargetLeft ? '1px solid #D1D5DB'
       : isBound ? `1px solid ${SKY_BORDER}` : `1px solid ${SLATE_BORDER}`;
-    const subBadgeBg = isBound ? '#E0F2FE' : '#F1F5F9';
-    const subBadgeFg = isBound ? SKY_700 : TEXT_SECONDARY;
+    const subBadgeBg = isTargetLeft ? '#E5E7EB' : (isBound ? '#E0F2FE' : '#F1F5F9');
+    const subBadgeFg = isTargetLeft ? '#6B7280' : (isBound ? SKY_700 : TEXT_SECONDARY);
 
     return (
       <div
@@ -853,14 +931,15 @@ export default function IGuardPage() {
           }}>👑 主</div>
         )}
 
-        {!isBound && (
+        {/* [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] target_left 也显示灰标 */}
+        {(!isBound || isTargetLeft) && (
           <div style={{
             position: 'absolute', top: it.is_primary_guardian ? 38 : 10, right: 10,
             background: subBadgeBg, color: subBadgeFg, borderRadius: 8, padding: '2px 8px',
             fontSize: 11, fontWeight: 600, maxWidth: 140, whiteSpace: 'nowrap',
             overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
-            {buildSubStatusText(it)}
+            {isTargetLeft ? '对方已退出' : buildSubStatusText(it)}
           </div>
         )}
 
@@ -914,14 +993,46 @@ export default function IGuardPage() {
                 </button>
               )}
               {it.is_orphan ? (
-                <button
-                  data-testid='btn-remove'
-                  disabled={!it.can_remove}
-                  style={{ ...(it.can_remove ? BTN_STYLES.danger : BTN_STYLES.disabled), flex: 1 }}
-                  onClick={() => it.can_remove ? handleRemove(it) : showRemoveDisabledHint(it)}
-                >
-                  移除
-                </button>
+                <>
+                  <button
+                    data-testid='btn-remove'
+                    disabled={!it.can_remove}
+                    style={{ ...(it.can_remove ? BTN_STYLES.danger : BTN_STYLES.disabled), flex: 1 }}
+                    onClick={() => it.can_remove ? handleRemove(it) : showRemoveDisabledHint(it)}
+                  >
+                    移除
+                  </button>
+                  {/* [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 孤儿档案可彻底删除 */}
+                  {it.managed_member_id && (
+                    <button
+                      data-testid='btn-hard-delete'
+                      style={{ ...BTN_STYLES.danger, flex: 1, background: '#DC2626' }}
+                      onClick={() => handleHardDelete(it)}
+                    >
+                      彻底删除
+                    </button>
+                  )}
+                </>
+              ) : it.target_left ? (
+                <>
+                  {/* [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 对方已退出 → 重新邀请 + 彻底删除 */}
+                  <button
+                    data-testid='btn-reinvite-target-left'
+                    style={{ ...BTN_STYLES.primary, flex: 1 }}
+                    onClick={() => handleReinvite(it)}
+                  >
+                    重新邀请
+                  </button>
+                  {it.managed_member_id && (
+                    <button
+                      data-testid='btn-hard-delete'
+                      style={{ ...BTN_STYLES.danger, flex: 1, background: '#DC2626' }}
+                      onClick={() => handleHardDelete(it)}
+                    >
+                      彻底删除
+                    </button>
+                  )}
+                </>
               ) : (
                 <button
                   data-testid='btn-unguard'
@@ -962,6 +1073,16 @@ export default function IGuardPage() {
                   >
                     移除
                   </button>
+                  {/* [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 彻底删除入口 */}
+                  {it.managed_member_id && (
+                    <button
+                      data-testid='btn-hard-delete'
+                      style={{ ...BTN_STYLES.danger, flex: 1, background: '#DC2626' }}
+                      onClick={() => handleHardDelete(it)}
+                    >
+                      彻底删除
+                    </button>
+                  )}
                 </>
               )}
               {it.invite_lifecycle === 'never_invited' && (
@@ -977,6 +1098,16 @@ export default function IGuardPage() {
                   >
                     移除
                   </button>
+                  {/* [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 彻底删除入口 */}
+                  {it.managed_member_id && (
+                    <button
+                      data-testid='btn-hard-delete'
+                      style={{ ...BTN_STYLES.danger, flex: 1, background: '#DC2626' }}
+                      onClick={() => handleHardDelete(it)}
+                    >
+                      彻底删除
+                    </button>
+                  )}
                 </>
               )}
               <button

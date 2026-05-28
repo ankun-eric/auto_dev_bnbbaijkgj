@@ -3393,6 +3393,37 @@ async def _sync_decouple_points_mall_from_products_v1(conn: AsyncConnection) -> 
         ))
 
 
+async def _sync_guardian_bugfix_v1(conn: AsyncConnection) -> None:
+    """[BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 守护人体系 Bug 修复：
+
+    1. family_invitations 新增 nickname 字段（NOT NULL DEFAULT ''）
+    2. family_management.status 兼容 cancelled_by_target 新枚举（VARCHAR 列已存，无需 DDL）
+    3. 历史悬空 pending 邀请 nickname 回填为 '待激活成员'
+    """
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        cols_inv: set[str] = set()
+        if "family_invitations" in tables:
+            cols_inv = {c["name"] for c in inspector.get_columns("family_invitations")}
+        return tables, cols_inv
+
+    tables, cols_inv = await conn.run_sync(_load)
+    if "family_invitations" not in tables:
+        return
+
+    if "nickname" not in cols_inv:
+        await conn.execute(text(
+            "ALTER TABLE family_invitations ADD COLUMN nickname VARCHAR(50) NOT NULL DEFAULT ''"
+        ))
+        # 回填历史悬空 pending 邀请的 nickname
+        await conn.execute(text(
+            "UPDATE family_invitations SET nickname='待激活成员' "
+            "WHERE (nickname IS NULL OR nickname='') "
+            "AND member_id IS NULL AND status='pending'"
+        ))
+
+
 async def _sync_home_safety_v2(conn: AsyncConnection) -> None:
     """[PRD-HOME-SAFETY-V2 2026-05-27] 扩展 home_safety_callback_config / home_safety_alarm 字段，新建 push_history / callback_log。"""
     def _load_v2(sync_conn):
@@ -3705,6 +3736,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_member_center_prd_v1_aligned(conn)
     # [PRD-HOME-SAFETY-V2 2026-05-27] 居家安全设备外部 API 对接 v2：扩字段 + 新表
     await _sync_home_safety_v2(conn)
+    # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] family_invitations.nickname 字段 + cancelled_by_target 状态兼容
+    await _sync_guardian_bugfix_v1(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

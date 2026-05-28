@@ -5,7 +5,42 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-29 · 新功能 / 健康档案 · 本人资料完善弹窗与抽屉）
+## 最近一次变更（2026-05-29 · Bug 修复 / 守护人体系 · 列表口径一致 + 真删除 + 配额防护）
+
+**PRD 标识**：`[BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29]`
+
+**修复点**：
+1. B1：`GET /api/guardian/v13/family/list` 未过滤 `removed/deleted`，导致软删数据继续出现 → 加 `FamilyManagement.status.notin_(["removed","deleted"])` + 兜底排除 removed mgmt 关联的 family_member（避免被当孤儿重新返回）。
+2. B3：「移除」改名「彻底删除」并改为物理删除：新增 `DELETE /api/guardian/v13/family/member/{member_id}`，级联硬删 8 张表（family_member / family_management / family_invitation / health_profile / medication_reminder / chat_session / chat_message + 断开 home_safety_emergency_contact 引用）。
+3. B5：邀请漏洞修复 —— `POST /api/family/invitation` 入口 2（member_id 为 None）强制 `nickname` 必填（422），并把邀请记录中的 nickname 写入 accept 时建档；新增 `family_invitations.nickname` 字段（schema_sync 自动迁移 + 历史回填"待激活成员"）。
+4. B7：频次防护 —— 内存计数器（Redis 不可用时降级）`invite_create / unguard / delete_member` 每自然日 5 次上限（HTTP 429）。
+5. AI 首页 `/api/family/members` + `/family/list` 同步追加 `target_left` 字段标记"对方已退出"，UI 灰标。
+6. 新增 `GET /family/member/{member_id}/delete-preview` 真删前数据量预览接口（4.5.3 弹窗使用）。
+7. 新增 `POST /family/relation/unguard` 频次受限的解除守护包装接口。
+
+**变更文件**：
+- 新增：`backend/app/api/guardian_bugfix_v1.py` —— 包含频次计数器、R1-R4 闸门、delete-preview、级联硬删 endpoint、unguard endpoint
+- 修改：`backend/app/api/family_management.py` —— invitation 创建强制 nickname + 频次校验；accept 用 invitation.nickname 建档
+- 修改：`backend/app/api/family.py` —— `/api/family/members` 追加 `target_left` 标记
+- 修改：`backend/app/api/guardian_system_v13.py` —— `/family/list` 过滤 removed/deleted + `target_left` 标记 + 兜底排除 removed mgmt 的孤儿
+- 修改：`backend/app/main.py` —— include_router(guardian_bugfix_v1.router)
+- 修改：`backend/app/models/models.py` —— `FamilyInvitation.nickname` 字段
+- 修改：`backend/app/services/schema_sync.py` —— `_sync_guardian_bugfix_v1`：DDL `ALTER TABLE family_invitations ADD COLUMN nickname VARCHAR(50) NOT NULL DEFAULT ''` + 历史回填"待激活成员"
+- 新增：`backend/tests/test_guardian_bugfix_v1_20260529.py` —— TC-INV / TC-DEL / TC-LIST / TC-RATE 14 个用例
+- 修改：`h5-web/src/app/health-profile/i-guard/page.tsx` —— 邀请抽屉 nickname 必填红星；FamilyItemV13 增加 `target_left`；卡片灰标 + 「重新邀请」+「彻底删除」按钮，删除前调 delete-preview 并弹窗确认
+- 新增：`_deploy_guardian_bugfix_v1.py` / `_run_tests_v1.py` / `_h5_rebuild_v1.py` —— SSH 一键部署 + 跑 pytest + h5 rebuild
+- 新增：`user_docs/我守护的人_真删除与配额防护.md` —— 用户体验使用手册
+
+**测试结果**：服务器容器内 pytest 跑 `test_guardian_bugfix_v1_20260529.py` 共 **14 passed, 0 failed**。
+HTTPS smoke：
+- `/api/health` → 200
+- `/health-profile/i-guard/` → 200
+- `/api/family/members` → 401（鉴权）
+- `/api/guardian/v13/family/list` → 401（鉴权）
+
+---
+
+## 上一次变更（2026-05-29 · 新功能 / 健康档案 · 本人资料完善弹窗与抽屉）
 
 **PRD 标识**：`[PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29]`
 

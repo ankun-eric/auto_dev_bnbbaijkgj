@@ -88,6 +88,15 @@ async def create_invitation(
     - 情况 2：不传 member_id（从"+ 新增"入口"去邀请"），邀请阶段不创建 Tab，
       只保存邀请记录 + relation_type，对方接受时再建 FamilyMember + HealthProfile。
     """
+    # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 频次防护：5 次/UID/自然日
+    try:
+        from app.api.guardian_bugfix_v1 import check_and_incr_rate_limit as _rate_check
+        _rate_check("invite_create", current_user.id)
+    except HTTPException:
+        raise
+    except Exception:
+        pass
+
     member: FamilyMember | None = None
     target_member_id: int | None = None
     if data.member_id:
@@ -106,6 +115,9 @@ async def create_invitation(
         # [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 情况 2：邀请阶段不创建 Tab；必须提供关系字段，避免空邀请
         if not (data.relation_type_id or data.relation_type or data.relationship_type):
             raise HTTPException(status_code=400, detail="需要提供关系类型")
+        # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] PRD 4.3：nickname 必填
+        if not (data.nickname and str(data.nickname).strip()):
+            raise HTTPException(status_code=422, detail="姓名不能为空")
 
     # [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 守护人配额 = 已激活管理关系数 + 当前用户进行中（pending 且未过期）的邀请数
     managed_count_result = await db.execute(
@@ -179,6 +191,12 @@ async def create_invitation(
         expires_at=expires_at,
         relation_type=data.relation_type or data.relationship_type,
     )
+    # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 邀请记录附带 nickname（动态属性，模型若无字段则跳过）
+    try:
+        if hasattr(FamilyInvitation, "nickname") and data.nickname:
+            setattr(invitation, "nickname", str(data.nickname).strip())
+    except Exception:
+        pass
     db.add(invitation)
     await db.flush()
 
@@ -401,9 +419,11 @@ async def accept_invitation(
             )
         )
         existing_count = int(existing_count_res.scalar() or 0)
+        # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 使用邀请记录里的 nickname 建档
+        invite_nickname = getattr(invitation, "nickname", None) or (current_user.nickname or current_user.phone or "")
         member = FamilyMember(
             user_id=invitation.inviter_user_id,
-            nickname="",
+            nickname=invite_nickname,
             relationship_type=invitation.relation_type,
             is_self=False,
             avatar_color_index=existing_count % 5,
@@ -414,7 +434,7 @@ async def accept_invitation(
         new_hp = HealthProfile(
             user_id=invitation.inviter_user_id,
             family_member_id=member.id,
-            name="",
+            name=invite_nickname,
         )
         db.add(new_hp)
         await db.flush()

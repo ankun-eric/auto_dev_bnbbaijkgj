@@ -100,6 +100,8 @@ class FamilyListItemV13(BaseModel):
     has_active_med_plan: bool = False
     can_remove: bool = False
     created_at: Optional[str] = None
+    # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 对方已退出标记（cancelled_by_target）
+    target_left: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -396,9 +398,12 @@ async def list_family_v13(
     now = datetime.utcnow()
 
     # 1) 拉取已建立关系（active + 历史 inactive/cancelled）
+    # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 过滤掉 removed/deleted 状态，
+    # 避免软删数据继续出现在列表中
     mgmt_res = await db.execute(
         select(FamilyManagement).where(
             FamilyManagement.manager_user_id == current_user.id,
+            FamilyManagement.status.notin_(["removed", "deleted"]),
         ).order_by(FamilyManagement.created_at.asc())
     )
     mgmts = mgmt_res.scalars().all()
@@ -443,9 +448,14 @@ async def list_family_v13(
         is_primary = bool(getattr(mgmt, "is_primary_guardian", False))
         status_v13 = "active" if mgmt.status == "active" else "not_active"
 
+        # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 「对方已退出」标记
+        is_cancelled_by_target = (mgmt.status == "cancelled_by_target")
+
         # 推导生命周期：active=accepted；其他根据状态
         if status_v13 == "active":
             lifecycle = LIFECYCLE_ACCEPTED
+        elif is_cancelled_by_target:
+            lifecycle = LIFECYCLE_UNBOUND
         else:
             # 历史已解绑/未激活
             lifecycle = LIFECYCLE_UNBOUND if mgmt.status in ("cancelled", "inactive") else LIFECYCLE_NEVER_INVITED
@@ -487,8 +497,14 @@ async def list_family_v13(
 
         # [v1.3.1] bind_status / display_substatus_label / is_orphan / occupies_quota
         is_orphan = bool(mgmt.managed_member_id and not mgmt.managed_user_id)
-        bind_status = "bound" if status_v13 == "active" else "unbound"
-        if is_orphan and bind_status == "bound":
+        # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] cancelled_by_target → 视为 bound（卡片保留）
+        if is_cancelled_by_target:
+            bind_status = "bound"
+        else:
+            bind_status = "bound" if status_v13 == "active" else "unbound"
+        if is_cancelled_by_target:
+            display_label = "对方已退出"
+        elif is_orphan and bind_status == "bound":
             display_label = "由我代为管理"
         else:
             display_label = _LIFECYCLE_DISPLAY_LABEL.get(lifecycle, "")
@@ -520,6 +536,7 @@ async def list_family_v13(
             has_active_med_plan=has_med,
             can_remove=can_remove,
             created_at=mgmt.created_at.isoformat() if mgmt.created_at else None,
+            target_left=is_cancelled_by_target,
         ).model_dump())
 
     # [BUGFIX-MY-GUARDIAN-CARD-2-20260528] 第 5 点兼容层兜底：
@@ -531,6 +548,19 @@ async def list_family_v13(
         for mgmt in mgmts:
             if mgmt.managed_member_id:
                 seen_member_ids.add(int(mgmt.managed_member_id))
+
+        # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 把已过滤的 removed/deleted 的
+        # mgmt.managed_member_id 也排除，避免它们的 family_member 重新被当作"孤儿"返回
+        removed_mgmt_res = await db.execute(
+            select(FamilyManagement.managed_member_id).where(
+                FamilyManagement.manager_user_id == current_user.id,
+                FamilyManagement.status.in_(["removed", "deleted"]),
+                FamilyManagement.managed_member_id.is_not(None),
+            )
+        )
+        for mid in removed_mgmt_res.scalars().all():
+            if mid:
+                seen_member_ids.add(int(mid))
 
         orphan_q = select(FamilyMember).where(
             FamilyMember.user_id == current_user.id,

@@ -106,7 +106,7 @@ async def list_family_members(
     items = [_enrich_member_dict(m, fallback_color_index=idx % 5) for idx, m in enumerate(ordered)]
 
     # [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 注入 pending_invitation 用于"邀请中"置灰
-    from app.models.models import FamilyInvitation as _FamilyInvitation
+    from app.models.models import FamilyInvitation as _FamilyInvitation, FamilyManagement as _FamilyManagement
     from datetime import datetime as _dt2
     pending_res = await db.execute(
         select(_FamilyInvitation).where(
@@ -130,6 +130,20 @@ async def list_family_members(
         }
     for it in items:
         it["pending_invitation"] = pending_by_member.get(it.get("id"))
+
+    # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 为「对方已退出」加灰标，便于 AI 首页选择咨询人识别
+    target_left_res = await db.execute(
+        select(_FamilyManagement).where(
+            _FamilyManagement.manager_user_id == current_user.id,
+            _FamilyManagement.status == "cancelled_by_target",
+        )
+    )
+    target_left_member_ids = set()
+    for mgmt in target_left_res.scalars().all():
+        if mgmt.managed_member_id:
+            target_left_member_ids.add(int(mgmt.managed_member_id))
+    for it in items:
+        it["target_left"] = int(it.get("id", 0)) in target_left_member_ids
 
     return {"items": items, "total": len(items)}
 
