@@ -3430,6 +3430,9 @@ async def _sync_home_safety_v2(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE home_safety_callback_config ADD COLUMN last_push_message VARCHAR(512) NULL"))
         if "last_push_raw" not in cfg_cols:
             await conn.execute(text("ALTER TABLE home_safety_callback_config ADD COLUMN last_push_raw TEXT NULL"))
+        # [BUGFIX HS-V2-ALTER 2026-05-28] 推送判定依据字段（用于 UI 悬浮提示）
+        if "last_push_judge_basis" not in cfg_cols:
+            await conn.execute(text("ALTER TABLE home_safety_callback_config ADD COLUMN last_push_judge_basis TEXT NULL"))
         def _check_token_col(sync_conn):
             inspector = inspect(sync_conn)
             for col in inspector.get_columns("home_safety_callback_config"):
@@ -3471,6 +3474,29 @@ async def _sync_home_safety_v2(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE home_safety_alarm ADD COLUMN source_ip VARCHAR(64) NULL"))
 
     # 新表 home_safety_callback_push_history / home_safety_callback_log 由 metadata.create_all 创建
+
+    # [BUGFIX HS-V2-ALTER 2026-05-28] home_safety_callback_log 表已存在时补齐审计字段，
+    # 避免 SELECT 命中 ORM 新字段但库内无对应列导致 1054 Unknown column / HTTP 500。
+    def _load_log_cols(sync_conn):
+        inspector = inspect(sync_conn)
+        if "home_safety_callback_log" not in set(inspector.get_table_names()):
+            return None
+        return {c["name"] for c in inspector.get_columns("home_safety_callback_log")}
+
+    log_cols = await conn.run_sync(_load_log_cols)
+    if log_cols is not None:
+        if "request_method" not in log_cols:
+            await conn.execute(text("ALTER TABLE home_safety_callback_log ADD COLUMN request_method VARCHAR(8) NULL"))
+        if "request_url" not in log_cols:
+            await conn.execute(text("ALTER TABLE home_safety_callback_log ADD COLUMN request_url VARCHAR(512) NULL"))
+        if "response_status" not in log_cols:
+            await conn.execute(text("ALTER TABLE home_safety_callback_log ADD COLUMN response_status INT NULL"))
+        if "response_body" not in log_cols:
+            await conn.execute(text("ALTER TABLE home_safety_callback_log ADD COLUMN response_body TEXT NULL"))
+        if "processed_at" not in log_cols:
+            await conn.execute(text("ALTER TABLE home_safety_callback_log ADD COLUMN processed_at DATETIME NULL"))
+        if "device_sn" not in log_cols:
+            await conn.execute(text("ALTER TABLE home_safety_callback_log ADD COLUMN device_sn VARCHAR(128) NULL"))
 
 
 async def sync_register_schema(conn: AsyncConnection) -> None:

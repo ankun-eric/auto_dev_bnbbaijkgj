@@ -5,7 +5,38 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-28 · Bug 修复 / 健康档案 · 我的守护人卡片三处 Bug 一次性修复）
+## 最近一次变更（2026-05-28 · Bug 修复 / 居家安全设备 · 回调配置与回调原始记录加载失败修复）
+
+**Bug 现象**：管理后台 → 居家安全设备 → 「回调地址配置」/「回调原始记录」两个 Tab 进入即弹红字「加载失败」，回调地址配置点保存也弹「保存失败」。F12 Network 显示三个接口均返回 HTTP **500**：
+- `GET  /api/admin/home_safety/callback_config`
+- `PUT  /api/admin/home_safety/callback_config`
+- `GET  /api/admin/home_safety/callback_log?page=1&size=20`
+
+**根因**：HOME-SAFETY-V2-REVISION 修复版本（同日上午）发布时，ORM 模型已新增 7 个字段（`home_safety_callback_log` 表 6 个：`request_method/request_url/response_status/response_body/processed_at/device_sn`；`home_safety_callback_config` 表 1 个：`last_push_judge_basis`），但 `_sync_home_safety_v2()` 自动迁移函数遗漏对**已存在表**执行 `ALTER ADD COLUMN`（注释「新表由 metadata.create_all 创建」并未覆盖已有表的字段扩展场景），导致 SQLAlchemy 在 SELECT 时命中 MySQL 1054 `Unknown column`，FastAPI 兜底为 HTTP 500。
+
+**修复方案（防御性自动迁移，零业务改动）**：
+1. **`backend/app/services/schema_sync.py`** —— `_sync_home_safety_v2()` 内补齐：
+   - `home_safety_callback_config.last_push_judge_basis` 的幂等 ADD COLUMN
+   - `home_safety_callback_log` 的 6 个新字段（`request_method` / `request_url` / `response_status` / `response_body` / `processed_at` / `device_sn`）的幂等 ADD COLUMN（先 inspect 表与列，再按需 ALTER，确保已存在的环境也能自动补字段）
+2. **`backend/tests/test_home_safety_callback_schema_sync_v1.py`** —— 静态扫描 schema_sync.py，验证 7 条 ALTER 语句全部存在（7 用例 passed），防止后续同类遗漏。
+3. **线上 DB**：先前已用一次性 ALTER 补齐过，本次重启 backend 后 `_sync_home_safety_v2()` 重跑发现字段已存在，自动跳过（幂等）。
+
+**变更文件**（仅 backend，**未触及 miniprogram / flutter_app / admin-web / h5-web 任何客户端代码**）：
+- 修改：`backend/app/services/schema_sync.py` —— 在 `_sync_home_safety_v2()` 末尾追加 `home_safety_callback_log` 表 6 字段 `ALTER ADD COLUMN` 块；在 `home_safety_callback_config` 字段块末尾追加 `last_push_judge_basis` 的 `ALTER ADD COLUMN`
+- 新增：`backend/tests/test_home_safety_callback_schema_sync_v1.py` —— 7 个回归用例
+- 新增：`user_docs/居家安全设备_回调配置与回调原始记录加载失败_修复手册.md`
+
+**测试结果**：服务器容器内 pytest 跑 `tests/test_home_safety_v1.py + tests/test_home_safety_v2.py + tests/test_home_safety_v2_revision.py + tests/test_home_safety_callback_schema_sync_v1.py` 共 **54 passed**。重启后 backend 启动正常无 OperationalError。HTTP smoke：3 个目标 API 全部从 **HTTP 500 → HTTP 401**（鉴权拦截，业务侧已穿透 nginx → backend → DB 全链路）。
+
+**部署方式**：`docker cp` 热更新 `/app/app/services/schema_sync.py` + `docker restart backend`；测试文件 `docker cp` 到 `/app/tests/`。
+
+**体验链接**：[管理后台 · 居家安全设备](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/home-safety)
+
+**唯一变更标记**：`[BUGFIX HS-V2-ALTER 2026-05-28]`
+
+---
+
+## 上一次变更（2026-05-28 · Bug 修复 / 健康档案 · 我的守护人卡片三处 Bug 一次性修复）
 
 **Bug 背景**：「我守护的人」是「健康档案」首页的入口卡片，本次集中暴露 3 个互相关联问题，按用户要求**强制一期工程一次性全量修复**：
 
@@ -29,7 +60,7 @@ alwaysApply: false
 
 ---
 
-## 上一次变更（2026-05-28 · Bug 修复 / 居家安全设备外部 API 对接 v2 修订版）
+## 上上一次变更（2026-05-28 · Bug 修复 / 居家安全设备外部 API 对接 v2 修订版）
 
 **Bug 现象 + 增量需求**：
 1. Bug 1：上游推送返回 `code=200/message=success`（华为厂商真实契约）被硬编码 `code==0` 误判为 ❌ 失败。
