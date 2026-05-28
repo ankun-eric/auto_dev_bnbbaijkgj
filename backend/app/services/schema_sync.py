@@ -3483,6 +3483,129 @@ async def _sync_home_safety_v2(conn: AsyncConnection) -> None:
             return None
         return {c["name"] for c in inspector.get_columns("home_safety_callback_log")}
 
+    # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] home_safety_device_binding 扩字段
+    def _load_binding_cols(sync_conn):
+        inspector = inspect(sync_conn)
+        if "home_safety_device_binding" not in set(inspector.get_table_names()):
+            return None
+        return {c["name"] for c in inspector.get_columns("home_safety_device_binding")}
+
+    bind_cols = await conn.run_sync(_load_binding_cols)
+    if bind_cols is not None:
+        if "emergency_phone" not in bind_cols:
+            await conn.execute(text(
+                "ALTER TABLE home_safety_device_binding ADD COLUMN emergency_phone VARCHAR(11) NULL"
+            ))
+        if "invalid_reason" not in bind_cols:
+            await conn.execute(text(
+                "ALTER TABLE home_safety_device_binding ADD COLUMN invalid_reason VARCHAR(128) NULL"
+            ))
+        # 收敛 gateway_sn 长度（保留 16 以兼容已有 12 位数据存在，但语义为 8 位大写）
+        # 仅在原长度小于 16 时调整，避免无谓的 DDL
+        try:
+            await conn.execute(text(
+                "ALTER TABLE home_safety_device_binding MODIFY COLUMN gateway_sn VARCHAR(16) NOT NULL"
+            ))
+        except Exception:
+            pass
+
+        # ── 数据迁移：把现有 gateway_sn 截断到前 8 位并转大写；撞号则保留最新条目 ──
+        # 1) 备份 dump 由部署脚本负责，这里只做幂等迁移
+        # 2) 收集当前所有 binding 的 (id, gateway_sn, updated_at, user_id, device_sn, status)
+        try:
+            rows_all = (
+                await conn.execute(text(
+                    "SELECT id, user_id, gateway_sn, device_sn, status, updated_at "
+                    "FROM home_safety_device_binding"
+                ))
+            ).fetchall()
+        except Exception:
+            rows_all = []
+
+        # 把每条记录的 gateway_sn 截断为 8 位大写
+        import re as _re
+        _norm = lambda s: _re.sub(r"[^A-Z0-9]", "", (s or "").upper())[:8]
+        # 按 (user_id, normalized_gw) 分组，保留 updated_at 最新一条为有效（status=1），其它原 status=1 的标记 status=2 invalid
+        group_map: Dict[Any, List[Any]] = {}
+        for r in rows_all:
+            try:
+                rid, uid, old_gw, dev_sn, st, upd = r[0], r[1], r[2], r[3], r[4], r[5]
+            except Exception:
+                continue
+            new_gw = _norm(old_gw)
+            if not new_gw:
+                continue
+            key = (uid, new_gw, dev_sn)
+            group_map.setdefault(key, []).append((rid, st, upd, old_gw, new_gw))
+
+        for key, lst in group_map.items():
+            if not lst:
+                continue
+            # 写回新 gw（所有记录都需更新）
+            for rid, st, upd, old_gw, new_gw in lst:
+                try:
+                    if old_gw != new_gw:
+                        await conn.execute(text(
+                            "UPDATE home_safety_device_binding SET gateway_sn=:gw WHERE id=:id"
+                        ), {"gw": new_gw, "id": rid})
+                except Exception:
+                    pass
+
+            # 仅 status=1 的（已绑定有效）有"撞号"问题；status=0（已解绑）不参与撞号判定
+            actives = [t for t in lst if t[1] == 1]
+            if len(actives) <= 1:
+                continue
+            # 按 updated_at 倒序，保留第一条，其余标 invalid（status=2）
+            try:
+                actives_sorted = sorted(
+                    actives,
+                    key=lambda t: (t[2] is not None, t[2] if t[2] else 0),
+                    reverse=True,
+                )
+            except Exception:
+                actives_sorted = actives
+            for idx, item in enumerate(actives_sorted):
+                if idx == 0:
+                    continue
+                rid = item[0]
+                try:
+                    await conn.execute(text(
+                        "UPDATE home_safety_device_binding SET status=2, invalid_reason=:rs WHERE id=:id"
+                    ), {
+                        "rs": "历史网关SN截断撞号，请重新绑定",
+                        "id": rid,
+                    })
+                except Exception:
+                    pass
+
+    # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] home_safety_alarm 扩字段
+    def _load_alarm_cols2(sync_conn):
+        inspector = inspect(sync_conn)
+        if "home_safety_alarm" not in set(inspector.get_table_names()):
+            return None
+        return {c["name"] for c in inspector.get_columns("home_safety_alarm")}
+
+    alarm_cols2 = await conn.run_sync(_load_alarm_cols2)
+    if alarm_cols2 is not None:
+        if "device_emergency_phone" not in alarm_cols2:
+            await conn.execute(text(
+                "ALTER TABLE home_safety_alarm ADD COLUMN device_emergency_phone VARCHAR(11) NULL"
+            ))
+        if "notify_targets_json" not in alarm_cols2:
+            await conn.execute(text(
+                "ALTER TABLE home_safety_alarm ADD COLUMN notify_targets_json TEXT NULL"
+            ))
+        if "notify_dedup_skipped" not in alarm_cols2:
+            await conn.execute(text(
+                "ALTER TABLE home_safety_alarm ADD COLUMN notify_dedup_skipped INT NULL DEFAULT 0"
+            ))
+        try:
+            await conn.execute(text(
+                "ALTER TABLE home_safety_alarm MODIFY COLUMN gateway_sn VARCHAR(16) NULL"
+            ))
+        except Exception:
+            pass
+
     log_cols = await conn.run_sync(_load_log_cols)
     if log_cols is not None:
         if "request_method" not in log_cols:

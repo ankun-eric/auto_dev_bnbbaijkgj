@@ -265,7 +265,7 @@ async def test_callback_log_written_for_ok_path(client: AsyncClient, auth_header
     """[修 Bug 2] 正常报文：列表能查到，状态 ok。"""
     rb = await client.post(
         "/api/home_safety/devices/bind",
-        json={"device_type": 1, "gateway_sn": "GWLOGOK00001", "device_sn": "LOGOK001"},
+        json={"device_type": 1, "gateway_sn": "GWLOGOK1", "emergency_phone": "13800001234", "device_sn": "LOGOK001"},
         headers=auth_headers,
     )
     assert rb.status_code == 200, rb.text
@@ -351,7 +351,7 @@ async def test_callback_log_for_duplicate_msg(client: AsyncClient, auth_headers)
     """[修 Bug 2] 重复 msgId 应被记录为 duplicate。"""
     rb = await client.post(
         "/api/home_safety/devices/bind",
-        json={"device_type": 1, "gateway_sn": "GWDUPMSG0001", "device_sn": "DUPMSG01"},
+        json={"device_type": 1, "gateway_sn": "GWDUPMS1", "emergency_phone": "13800001234", "device_sn": "DUPMSG01"},
         headers=auth_headers,
     )
     assert rb.status_code == 200, rb.text
@@ -399,7 +399,7 @@ async def test_callback_log_detail_field_mapping(client: AsyncClient, auth_heade
     """[修 Bug 2] 详情接口应返回完整 headers + body + 字段映射。"""
     await client.post(
         "/api/home_safety/devices/bind",
-        json={"device_type": 2, "gateway_sn": "GWMAP00000001", "device_sn": "MAP00001"},
+        json={"device_type": 2, "gateway_sn": "GWMAP001", "emergency_phone": "13800001234", "device_sn": "MAP00001"},
         headers=auth_headers,
     )
     await client.post(
@@ -446,7 +446,7 @@ async def test_callback_log_filters(client: AsyncClient, auth_headers):
     # 准备数据
     await client.post(
         "/api/home_safety/devices/bind",
-        json={"device_type": 7, "gateway_sn": "GWFILTER00001", "device_sn": "FILTER01"},
+        json={"device_type": 7, "gateway_sn": "GWFILT01", "emergency_phone": "13800001234", "device_sn": "FILTER01"},
         headers=auth_headers,
     )
     await client.post(

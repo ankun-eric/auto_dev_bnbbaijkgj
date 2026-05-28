@@ -8,7 +8,11 @@
  * 4 个 Tab：
  *  1. 设备类型字典（只读展示）
  *  2. 设备绑定流水
- *  3. 报警记录流水（v2: 新增 网关 SN / 厂商消息 ID / AI 外呼状态 三列）
+ *  3. 报警记录流水（v2: 新增 网关ID / 厂商消息 ID / AI 外呼状态 三列）
+ *
+ * [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28]
+ *  - 「网关 SN」全部改名为「网关ID」（8 位，大小写不敏感）
+ *  - 设备绑定 Tab 新增「按网关ID 搜索」、「设备紧急联系手机」可见列、「导出 CSV」
  *  4. 回调地址配置（v2: 字段拆分 + 二次确认弹窗 + Token 密文 + 推送历史 + 未保存提示）
  */
 import React, { useCallback, useEffect, useState } from 'react';
@@ -111,62 +115,127 @@ function DictTab() {
 function BindingsTab() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  // [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 网关ID 搜索
+  const [searchGw, setSearchGw] = useState<string>('');
+  // [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 设备紧急联系手机列默认隐藏
+  const [showEphone, setShowEphone] = useState<boolean>(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data: any = await get('/api/admin/home_safety/bindings');
+      const trimmed = (searchGw || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+      let data: any;
+      if (trimmed.length === 8) {
+        data = await get(`/api/admin/home_safety/bindings/search_by_gateway?gateway_id=${trimmed}`);
+      } else {
+        data = await get('/api/admin/home_safety/bindings');
+      }
       setItems(data.items || []);
     } catch (e: any) {
       message.error('加载失败');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [searchGw]);
 
   useEffect(() => {
     load();
   }, [load]);
 
+  const doExport = useCallback(async () => {
+    try {
+      const data: any = await get('/api/admin/home_safety/bindings/export');
+      const rows: any[][] = data.rows || [];
+      const csv = rows.map((row) => row.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `home_safety_bindings_${Date.now()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      message.success('已导出 CSV');
+    } catch (e: any) {
+      message.error('导出失败');
+    }
+  }, []);
+
+  const columns: any[] = [
+    { title: '流水 ID', dataIndex: 'id', width: 80 },
+    {
+      title: '设备类型',
+      dataIndex: 'device_type',
+      width: 160,
+      render: (v: number, r: any) => deviceTag(v, r.device_type_label),
+    },
+    {
+      title: '网关ID',
+      dataIndex: 'gateway_id',
+      width: 120,
+      render: (v: string, r: any) => v || r.gateway_sn || '-',
+    },
+    { title: '设备 SN', dataIndex: 'device_sn', width: 120 },
+    { title: '绑定用户', dataIndex: 'user_id', width: 100 },
+    {
+      title: '操作类型',
+      dataIndex: 'status',
+      width: 110,
+      render: (v: number) =>
+        v === 1 ? <Tag color="success">绑定</Tag> :
+        v === 2 ? <Tag color="warning">失效需重绑</Tag> :
+        <Tag color="default">解绑</Tag>,
+    },
+    {
+      title: '校验结果',
+      dataIndex: 'verify_status',
+      width: 100,
+      render: (v: number) =>
+        v === 1 ? <Tag color="success">通过</Tag> : v === 2 ? <Tag color="error">未通过</Tag> : <Tag>未校验</Tag>,
+    },
+    { title: '绑定时间', dataIndex: 'bound_at', width: 180, render: (v: string) => formatDateTime(v) },
+    { title: '解绑时间', dataIndex: 'unbound_at', width: 180, render: (v: string) => formatDateTime(v) },
+  ];
+  if (showEphone) {
+    columns.push({
+      title: '设备紧急联系手机',
+      dataIndex: 'emergency_phone',
+      width: 160,
+      render: (v: string) => v || '-',
+    });
+  }
+
   return (
     <Card
       title="设备绑定流水"
-      extra={<Button icon={<ReloadOutlined />} onClick={load} loading={loading}>刷新</Button>}
+      extra={
+        <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+          <input
+            value={searchGw}
+            onChange={(e) => setSearchGw(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))}
+            placeholder="按网关ID 搜索(8 位)"
+            style={{
+              padding: '4px 8px',
+              border: '1px solid #d9d9d9',
+              borderRadius: 4,
+              fontSize: 12,
+              width: 180,
+            }}
+          />
+          <Button onClick={load} loading={loading} icon={<ReloadOutlined />}>刷新</Button>
+          <Button onClick={() => setShowEphone((v) => !v)} type={showEphone ? 'primary' : 'default'}>
+            {showEphone ? '隐藏紧急联系手机' : '显示紧急联系手机'}
+          </Button>
+          <Button onClick={doExport}>导出 CSV</Button>
+        </span>
+      }
     >
       <Table
         rowKey="id"
         loading={loading}
         dataSource={items}
         pagination={{ pageSize: 20 }}
-        scroll={{ x: 1200 }}
-        columns={[
-          { title: '流水 ID', dataIndex: 'id', width: 80 },
-          {
-            title: '设备类型',
-            dataIndex: 'device_type',
-            width: 160,
-            render: (v: number, r: any) => deviceTag(v, r.device_type_label),
-          },
-          { title: '网关 SN', dataIndex: 'gateway_sn', width: 140 },
-          { title: '设备 SN', dataIndex: 'device_sn', width: 120 },
-          { title: '绑定用户', dataIndex: 'user_id', width: 100 },
-          {
-            title: '操作类型',
-            dataIndex: 'status',
-            width: 100,
-            render: (v: number, r: any) =>
-              v === 1 ? <Tag color="success">绑定</Tag> : <Tag color="default">解绑</Tag>,
-          },
-          {
-            title: '校验结果',
-            dataIndex: 'verify_status',
-            width: 110,
-            render: (v: number) =>
-              v === 1 ? <Tag color="success">通过</Tag> : v === 2 ? <Tag color="error">未通过</Tag> : <Tag>未校验</Tag>,
-          },
-          { title: '绑定时间', dataIndex: 'bound_at', width: 180, render: (v: string) => formatDateTime(v) },
-          { title: '解绑时间', dataIndex: 'unbound_at', width: 180, render: (v: string) => formatDateTime(v) },
-        ]}
+        scroll={{ x: 1300 }}
+        columns={columns}
       />
     </Card>
   );
@@ -256,11 +325,11 @@ function AlarmsTab() {
               );
             },
           },
-          // [PRD-HOME-SAFETY-V2 2026-05-27] 新增列：网关 SN
+          // [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 列名「网关 SN」→「网关ID」
           {
-            title: '网关 SN',
+            title: '网关ID',
             dataIndex: 'gw_id',
-            width: 140,
+            width: 120,
             render: (v: string) => v || '-',
           },
           // [PRD-HOME-SAFETY-V2 2026-05-27] 新增列：厂商消息 ID

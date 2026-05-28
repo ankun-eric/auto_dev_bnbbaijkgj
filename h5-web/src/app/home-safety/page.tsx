@@ -23,10 +23,17 @@ interface BindingItem {
   device_type: number;
   device_type_label: string;
   gateway_sn: string;
+  gateway_id?: string;
   gateway_sn_mask: string;
   device_sn: string;
   verify_status: number;
   bound_at: string;
+  status?: number;
+  status_label?: string;
+  invalid_reason?: string | null;
+  emergency_phone?: string;
+  emergency_phone_mask?: string;
+  emergency_phone_filled?: boolean;
 }
 interface AlarmItem {
   id: number;
@@ -60,7 +67,17 @@ export default function HomeSafetyPage() {
   const [showBindModal, setShowBindModal] = useState(false);
   const [gw, setGw] = useState('');
   const [dev, setDev] = useState('');
+  // [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 设备级紧急联系手机
+  const [ephone, setEphone] = useState('');
+  const [defaultPhone, setDefaultPhone] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // 修改紧急联系手机的弹窗
+  const [showEditEphone, setShowEditEphone] = useState<null | BindingItem>(null);
+  const [editEphone, setEditEphone] = useState('');
+
+  // 历史 NULL 补填强制弹窗
+  const [forceFillTarget, setForceFillTarget] = useState<BindingItem | null>(null);
 
   const loadAll = useCallback(async (tabOverride?: number) => {
     const tab = tabOverride ?? activeTab;
@@ -88,32 +105,94 @@ export default function HomeSafetyPage() {
     loadAll();
   }, [loadAll]);
 
+  // [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 打开绑定弹窗时拉取注册手机号作为默认紧急联系手机
+  const openBindModal = useCallback(async () => {
+    setGw('');
+    setDev('');
+    setEphone('');
+    setShowBindModal(true);
+    try {
+      const r: any = await api.get('/api/home_safety/devices/bind/defaults');
+      const dp = (r as any)?.default_emergency_phone ?? (r as any)?.data?.default_emergency_phone ?? '';
+      if (dp) {
+        setDefaultPhone(String(dp));
+        setEphone(String(dp));
+      }
+    } catch (e) {
+      // 静默，用户也可手工填
+    }
+  }, []);
+
+  // [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 进入页面时，若存在未补填紧急联系手机的有效绑定，强制弹窗
+  useEffect(() => {
+    const missing = bindings.find(
+      (b) => (b.status ?? 1) === 1 && !b.emergency_phone_filled,
+    );
+    if (missing && !forceFillTarget && !showEditEphone) {
+      setForceFillTarget(missing);
+      setEditEphone('');
+    }
+  }, [bindings, forceFillTarget, showEditEphone]);
+
   const doBind = async () => {
-    if (!/^[A-Za-z0-9]{12}$/.test(gw)) {
-      showToast('网关 SN 必须为 12 位字母+数字');
+    if (!/^[A-Z0-9]{8}$/.test(gw)) {
+      showToast('网关ID 必须为 8 位字母或数字');
       return;
     }
     if (!/^[A-Za-z0-9]{8}$/.test(dev)) {
       showToast('设备 SN 必须为 8 位字母+数字');
       return;
     }
+    if (!/^1[3-9]\d{9}$/.test(ephone)) {
+      showToast('请输入有效的 11 位手机号');
+      return;
+    }
     setLoading(true);
     try {
       await api.post('/api/home_safety/devices/bind', {
         device_type: activeTab,
+        gateway_id: gw,
         gateway_sn: gw,
         device_sn: dev,
+        emergency_phone: ephone,
       });
       showToast('绑定成功');
       setShowBindModal(false);
       setGw('');
       setDev('');
+      setEphone('');
       // [PRD-HOME-SAFETY-V1 BUGFIX] 显式传入 activeTab，避免闭包旧值
       await loadAll(activeTab);
     } catch (e: any) {
-      showToast(e?.response?.data?.detail || '绑定失败');
+      const detail = String(e?.response?.data?.detail || '绑定失败');
+      if (detail.includes('invalid_gateway_id')) showToast('网关ID 必须为 8 位字母或数字');
+      else if (detail.includes('invalid_emergency_phone')) showToast('请输入有效的 11 位手机号');
+      else if (detail.includes('emergency_phone_required')) showToast('紧急联系手机为必填项');
+      else showToast(detail);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 修改紧急联系手机
+  const submitEditEphone = async (binding: BindingItem, phone: string) => {
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+      showToast('请输入有效的 11 位手机号');
+      return;
+    }
+    try {
+      await api.patch(`/api/home_safety/devices/${binding.id}/emergency_phone`, {
+        emergency_phone: phone,
+      });
+      showToast('已保存');
+      setShowEditEphone(null);
+      setForceFillTarget(null);
+      setEditEphone('');
+      await loadAll(activeTab);
+    } catch (e: any) {
+      const detail = String(e?.response?.data?.detail || '保存失败');
+      if (detail.includes('invalid_emergency_phone')) showToast('请输入有效的 11 位手机号');
+      else showToast(detail);
     }
   };
 
@@ -231,7 +310,7 @@ export default function HomeSafetyPage() {
 
       <div style={{ padding: '0 16px' }}>
         <button
-          onClick={() => setShowBindModal(true)}
+          onClick={openBindModal}
           style={{
             width: '100%',
             padding: '12px 0',
@@ -264,43 +343,143 @@ export default function HomeSafetyPage() {
             暂未绑定 {cur.label}
           </div>
         ) : (
-          bindings.map((b) => (
-            <div
-              key={b.id}
-              style={{
-                background: '#fff',
-                padding: 12,
-                borderRadius: 8,
-                marginBottom: 8,
-                borderLeft: `4px solid ${cur.color}`,
-              }}
-            >
-              <div style={{ fontSize: 14, fontWeight: 600 }}>{b.device_type_label}</div>
-              <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
-                网关 SN: {b.gateway_sn_mask}
-              </div>
-              <div style={{ fontSize: 12, color: '#666' }}>设备 SN: {b.device_sn}</div>
-              <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
-                绑定时间: {formatDateTime(b.bound_at)}
-              </div>
-              <div style={{ marginTop: 8 }}>
-                <button
-                  onClick={() => doUnbind(b.id)}
+          [...bindings]
+            .sort((a, b) => {
+              // 撞号失效（status=2）置顶
+              const sa = (a.status ?? 1) === 2 ? 0 : 1;
+              const sb = (b.status ?? 1) === 2 ? 0 : 1;
+              return sa - sb;
+            })
+            .map((b) => {
+              const isInvalid = (b.status ?? 1) === 2;
+              return (
+                <div
+                  key={b.id}
                   style={{
-                    padding: '4px 12px',
-                    fontSize: 12,
-                    background: '#fff',
-                    color: '#E53935',
-                    border: '1px solid #E53935',
-                    borderRadius: 4,
-                    cursor: 'pointer',
+                    background: isInvalid ? '#EFEFEF' : '#fff',
+                    padding: 12,
+                    borderRadius: 8,
+                    marginBottom: 8,
+                    borderLeft: `4px solid ${isInvalid ? '#999' : cur.color}`,
+                    opacity: isInvalid ? 0.85 : 1,
                   }}
                 >
-                  解绑
-                </button>
-              </div>
-            </div>
-          ))
+                  <div
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: isInvalid ? '#777' : '#333',
+                    }}
+                  >
+                    {b.device_type_label}
+                    {isInvalid ? (
+                      <span
+                        style={{
+                          marginLeft: 8,
+                          fontSize: 11,
+                          background: '#EEE',
+                          color: '#777',
+                          padding: '2px 6px',
+                          borderRadius: 4,
+                        }}
+                      >
+                        失效需重绑
+                      </span>
+                    ) : null}
+                  </div>
+                  {isInvalid ? (
+                    <div style={{ fontSize: 12, color: '#E53935', marginTop: 4 }}>
+                      {b.invalid_reason || '此设备需要重新绑定才能继续使用'}
+                    </div>
+                  ) : null}
+                  <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                    网关ID: {b.gateway_id || b.gateway_sn}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#666' }}>设备 SN: {b.device_sn}</div>
+                  {/* [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 紧急联系手机 */}
+                  {b.emergency_phone_filled ? (
+                    <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                      紧急联系手机：{b.emergency_phone_mask}
+                      {!isInvalid ? (
+                        <button
+                          onClick={() => {
+                            setShowEditEphone(b);
+                            setEditEphone(b.emergency_phone || '');
+                          }}
+                          style={{
+                            marginLeft: 8,
+                            padding: '2px 8px',
+                            fontSize: 11,
+                            background: '#fff',
+                            color: '#1F8FE6',
+                            border: '1px solid #1F8FE6',
+                            borderRadius: 4,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          修改
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: '#fff',
+                        background: '#E53935',
+                        marginTop: 4,
+                        padding: '4px 6px',
+                        borderRadius: 4,
+                        display: 'inline-block',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => {
+                        setShowEditEphone(b);
+                        setEditEphone('');
+                      }}
+                    >
+                      紧急联系手机未填写，点击补填
+                    </div>
+                  )}
+                  <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                    绑定时间: {formatDateTime(b.bound_at)}
+                  </div>
+                  <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                    {isInvalid ? (
+                      <button
+                        onClick={openBindModal}
+                        style={{
+                          padding: '4px 12px',
+                          fontSize: 12,
+                          background: cur.color,
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 4,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        重新绑定
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => doUnbind(b.id)}
+                        style={{
+                          padding: '4px 12px',
+                          fontSize: 12,
+                          background: '#fff',
+                          color: '#E53935',
+                          border: '1px solid #E53935',
+                          borderRadius: 4,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        解绑
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
         )}
       </div>
 
@@ -487,12 +666,17 @@ export default function HomeSafetyPage() {
               绑定 {cur.label}
             </div>
             <div style={{ fontSize: 12, color: '#666', marginBottom: 6 }}>
-              网关 SN（12 位字母+数字，手工输入）
+              网关ID（8 位字母或数字，手工输入，大小写不敏感）
             </div>
             <input
               value={gw}
-              onChange={(e) => setGw(e.target.value.trim())}
-              maxLength={12}
+              onChange={(e) => {
+                // [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 自动小写转大写 + 过滤非法字符
+                const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+                setGw(v);
+              }}
+              inputMode="latin"
+              maxLength={8}
               style={{
                 width: '100%',
                 padding: '10px 12px',
@@ -502,7 +686,7 @@ export default function HomeSafetyPage() {
                 marginBottom: 12,
                 boxSizing: 'border-box',
               }}
-              placeholder="例如：ABCD12345678"
+              placeholder="例如：ABCD1234"
             />
             <div style={{ fontSize: 12, color: '#666', marginBottom: 6 }}>
               设备 SN（8 位字母+数字）
@@ -517,11 +701,41 @@ export default function HomeSafetyPage() {
                 fontSize: 14,
                 border: '1px solid #ddd',
                 borderRadius: 6,
-                marginBottom: 16,
+                marginBottom: 12,
                 boxSizing: 'border-box',
               }}
               placeholder="例如：ABCD1234"
             />
+            {/* [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 紧急联系手机 */}
+            <div style={{ fontSize: 12, color: '#666', marginBottom: 6 }}>
+              紧急联系手机（11 位中国大陆手机号，必填）
+            </div>
+            <input
+              value={ephone}
+              onChange={(e) => {
+                const v = e.target.value.replace(/[^\d]/g, '').slice(0, 11);
+                setEphone(v);
+              }}
+              inputMode="tel"
+              maxLength={11}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                fontSize: 14,
+                border: '1px solid #ddd',
+                borderRadius: 6,
+                marginBottom: 6,
+                boxSizing: 'border-box',
+              }}
+              placeholder="如：13800001234"
+            />
+            {defaultPhone ? (
+              <div style={{ fontSize: 11, color: '#999', marginBottom: 16 }}>
+                已自动带入您的注册手机号，可修改
+              </div>
+            ) : (
+              <div style={{ marginBottom: 16 }} />
+            )}
             <div style={{ display: 'flex', gap: 8 }}>
               <button
                 onClick={() => setShowBindModal(false)}
@@ -550,6 +764,175 @@ export default function HomeSafetyPage() {
                 }}
               >
                 {loading ? '提交中…' : '确认绑定'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 修改紧急联系手机弹窗 */}
+      {showEditEphone ? (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => setShowEditEphone(null)}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 12,
+              padding: 20,
+              width: '88%',
+              maxWidth: 360,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>
+              修改紧急联系手机
+            </div>
+            <div style={{ fontSize: 12, color: '#666', marginBottom: 6 }}>
+              请输入 11 位中国大陆手机号
+            </div>
+            <input
+              value={editEphone}
+              onChange={(e) => {
+                const v = e.target.value.replace(/[^\d]/g, '').slice(0, 11);
+                setEditEphone(v);
+              }}
+              inputMode="tel"
+              maxLength={11}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                fontSize: 14,
+                border: '1px solid #ddd',
+                borderRadius: 6,
+                marginBottom: 16,
+                boxSizing: 'border-box',
+              }}
+              placeholder="如：13800001234"
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => setShowEditEphone(null)}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: '#fff',
+                  border: '1px solid #ccc',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                }}
+              >
+                取消
+              </button>
+              <button
+                onClick={() => {
+                  if (showEditEphone) submitEditEphone(showEditEphone, editEphone);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: '#1F8FE6',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                }}
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 强制补填弹窗 */}
+      {forceFillTarget ? (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1100,
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 12,
+              padding: 20,
+              width: '88%',
+              maxWidth: 360,
+            }}
+          >
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+              请补填紧急联系手机
+            </div>
+            <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
+              为了保障告警可及时触达，请先补填本设备（{forceFillTarget.device_type_label}）的紧急联系手机。
+            </div>
+            <input
+              value={editEphone}
+              onChange={(e) => {
+                const v = e.target.value.replace(/[^\d]/g, '').slice(0, 11);
+                setEditEphone(v);
+              }}
+              inputMode="tel"
+              maxLength={11}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                fontSize: 14,
+                border: '1px solid #ddd',
+                borderRadius: 6,
+                marginBottom: 16,
+                boxSizing: 'border-box',
+              }}
+              placeholder="如：13800001234"
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => {
+                  setForceFillTarget(null);
+                  history.back();
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: '#fff',
+                  border: '1px solid #ccc',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                }}
+              >
+                取消
+              </button>
+              <button
+                onClick={() => {
+                  if (forceFillTarget) submitEditEphone(forceFillTarget, editEphone);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: '#E53935',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                }}
+              >
+                立即补填
               </button>
             </div>
           </div>

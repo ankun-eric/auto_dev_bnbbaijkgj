@@ -95,8 +95,22 @@ DEVICE_TYPE_AI_SCRIPT = {
 
 DEDUPE_WINDOW_SECONDS = 5 * 60  # 5 分钟
 
-GATEWAY_SN_REGEX = re.compile(r"^[A-Za-z0-9]{12}$")
+# [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 网关ID 收敛为 8 位（大写存储），紧急联系手机为中国大陆 11 位
+GATEWAY_ID_REGEX = re.compile(r"^[A-Z0-9]{8}$")
+# 旧字段名保留作为兼容别名，但语义已变更
+GATEWAY_SN_REGEX = GATEWAY_ID_REGEX
 DEVICE_SN_REGEX = re.compile(r"^[A-Za-z0-9]{8}$")
+EMERGENCY_PHONE_REGEX = re.compile(r"^1[3-9]\d{9}$")
+
+
+def _normalize_gateway_id(raw: Optional[str]) -> str:
+    """[PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28]
+    网关ID 标准化：去除空白/非字母数字字符并统一转大写。
+    """
+    if not raw:
+        return ""
+    s = str(raw).upper()
+    return re.sub(r"[^A-Z0-9]", "", s)
 
 
 # ────────────── ORM 模型 ──────────────
@@ -109,10 +123,15 @@ class HomeSafetyDeviceBinding(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, nullable=False, index=True)
     device_type = Column(Integer, nullable=False, index=True)
-    gateway_sn = Column(String(12), nullable=False)
+    # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 网关ID 长度由 12 收敛为 8（大写存储）
+    gateway_sn = Column(String(16), nullable=False)
     device_sn = Column(String(16), nullable=False, index=True)
-    status = Column(Integer, nullable=False, default=1)  # 1=有效 0=已解绑
+    status = Column(Integer, nullable=False, default=1)  # 1=有效 0=已解绑 2=失效需重绑（撞号）
     verify_status = Column(Integer, nullable=False, default=0)  # 0=未校验 1=通过 2=未通过
+    # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 设备级紧急联系手机（11 位中国大陆手机号）
+    emergency_phone = Column(String(11), nullable=True)
+    # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 当 status=2 时，记录失效原因，便于前端展示
+    invalid_reason = Column(String(128), nullable=True)
     bound_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     unbound_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -140,7 +159,8 @@ class HomeSafetyAlarm(Base):
     user_id = Column(Integer, nullable=False, index=True)
     device_type = Column(Integer, nullable=False)
     device_sn = Column(String(16), nullable=False, index=True)
-    gateway_sn = Column(String(12), nullable=True)
+    # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 网关ID 长度从 12 → 8（兼容 VARCHAR(16)）
+    gateway_sn = Column(String(16), nullable=True)
     alarm_at = Column(DateTime, nullable=False)
     received_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     dedupe_key = Column(String(96), nullable=False, index=True)
@@ -164,6 +184,12 @@ class HomeSafetyAlarm(Base):
     notify_ai_call_status = Column(String(16), nullable=False, default="failed")
     notify_ai_call_fail_reason = Column(String(256), nullable=True, default="本期未对接外呼通道")
     source_ip = Column(String(64), nullable=True)  # 回调来源 IP
+    # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 设备级紧急联系手机（快照，便于审计）
+    device_emergency_phone = Column(String(11), nullable=True)
+    # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 短信/AI外呼最终目标号码 JSON（已去重）
+    notify_targets_json = Column(Text, nullable=True)
+    # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 通知去重信息：跳过的重复条目数
+    notify_dedup_skipped = Column(Integer, nullable=True, default=0)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -252,8 +278,19 @@ class HomeSafetyAiCallLog(Base):
 # ────────────── Schemas ──────────────
 class BindDeviceReq(BaseModel):
     device_type: int = Field(..., description="1/2/7")
-    gateway_sn: str
+    # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 接受 gateway_sn 与 gateway_id 任意一个
+    gateway_sn: Optional[str] = None
+    gateway_id: Optional[str] = None
     device_sn: str
+    emergency_phone: Optional[str] = Field(default=None, description="11 位中国大陆紧急联系手机号")
+
+    class Config:
+        extra = "allow"
+
+
+class UpdateEmergencyPhoneReq(BaseModel):
+    """[PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 修改设备紧急联系手机"""
+    emergency_phone: str
 
 
 class HandleAlarmReq(BaseModel):
@@ -314,10 +351,38 @@ def _dedupe_key(device_sn: str, ts: datetime) -> str:
 
 
 def _validate_sn(gateway_sn: str, device_sn: str) -> None:
-    if not GATEWAY_SN_REGEX.match(gateway_sn or ""):
-        raise HTTPException(400, "网关 SN 必须为 12 位字母+数字")
+    """[PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28]
+    网关ID：8 位 [A-Z0-9]（已经在外层规范化）。设备 SN：8 位字母+数字。
+    错误码：4001 invalid_gateway_id, 4002（设备 SN 走原 400）。
+    """
+    if not GATEWAY_ID_REGEX.match(gateway_sn or ""):
+        raise HTTPException(400, "invalid_gateway_id:网关ID 必须为 8 位字母或数字")
     if not DEVICE_SN_REGEX.match(device_sn or ""):
         raise HTTPException(400, "设备 SN 必须为 8 位字母+数字")
+
+
+def _validate_emergency_phone(phone: Optional[str], *, required: bool = True) -> str:
+    """[PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 校验紧急联系手机。
+    返回标准化后的手机号；不合法抛出 400。
+    """
+    if phone is None or str(phone).strip() == "":
+        if required:
+            raise HTTPException(400, "emergency_phone_required:紧急联系手机为必填项")
+        return ""
+    p = str(phone).strip()
+    if not EMERGENCY_PHONE_REGEX.match(p):
+        raise HTTPException(400, "invalid_emergency_phone:请输入有效的 11 位手机号")
+    return p
+
+
+def _mask_phone(p: Optional[str]) -> str:
+    """脱敏中间 4 位：138****1234"""
+    if not p:
+        return ""
+    s = str(p)
+    if len(s) != 11:
+        return s
+    return s[:3] + "****" + s[-4:]
 
 
 async def _get_primary_guardian(db: AsyncSession, user_id: int) -> Optional[int]:
@@ -377,6 +442,95 @@ async def _list_guardians(db: AsyncSession, user_id: int) -> List[Dict[str, Any]
         )
     out.sort(key=lambda x: (0 if x["is_primary"] else 1, x["guardian_id"]))
     return out
+
+
+# ────────────── 通知目标汇总（PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28）──────────────
+DEVICE_TYPE_TO_GUARDIAN_FLAG = {
+    DEVICE_TYPE_EMERGENCY: "enabled_for_emergency",
+    DEVICE_TYPE_SMOKE: "enabled_for_smoke",
+    DEVICE_TYPE_WATER: "enabled_for_water",
+}
+
+
+async def collect_alarm_notify_targets(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    device_type: int,
+    device_emergency_phone: Optional[str],
+) -> Dict[str, Any]:
+    """[PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 汇总告警通知目标号码（已去重）。
+
+    返回结构：
+    {
+        "targets": [{"phone": "13...", "role": "self/device_emergency/guardian"}, ...],
+        "dedup_skipped": int  # 因号码重复被去重的次数
+    }
+
+    通道策略（详见 PRD 5.2）：
+    - 站内 / 小程序：本人 + 守护人（设备级紧急联系手机不发）
+    - 短信 / AI 外呼：本人 + 设备级紧急联系手机 + 已启用对应类型的守护人
+    - 同一号码自动去重
+    """
+    raw: List[Dict[str, str]] = []
+
+    self_phone = ""
+    if User is not None:
+        try:
+            u = (
+                await db.execute(select(User).where(User.id == user_id))
+            ).scalar_one_or_none()
+            if u:
+                self_phone = getattr(u, "phone", "") or ""
+        except Exception:
+            self_phone = ""
+    if self_phone:
+        raw.append({"phone": str(self_phone), "role": "self"})
+
+    if device_emergency_phone:
+        raw.append({"phone": str(device_emergency_phone), "role": "device_emergency"})
+
+    # 守护人列表（按设备类型对应的 enabled_for_* 启用项过滤）
+    flag_name = DEVICE_TYPE_TO_GUARDIAN_FLAG.get(device_type)
+    contacts = (
+        await db.execute(
+            select(HomeSafetyEmergencyContact).where(
+                HomeSafetyEmergencyContact.user_id == user_id
+            )
+        )
+    ).scalars().all()
+    for r in contacts:
+        enabled = True
+        if flag_name:
+            enabled = bool(getattr(r, flag_name, 1))
+        if not enabled:
+            continue
+        phone_g = ""
+        if User is not None:
+            try:
+                u = (
+                    await db.execute(select(User).where(User.id == r.guardian_id))
+                ).scalar_one_or_none()
+                if u:
+                    phone_g = getattr(u, "phone", "") or ""
+            except Exception:
+                phone_g = ""
+        if phone_g:
+            raw.append({"phone": str(phone_g), "role": "guardian"})
+
+    # 去重：同一号码只保留第一次出现
+    seen: Dict[str, Dict[str, str]] = {}
+    dedup_skipped = 0
+    targets: List[Dict[str, str]] = []
+    for it in raw:
+        ph = it["phone"]
+        if ph in seen:
+            dedup_skipped += 1
+            continue
+        seen[ph] = it
+        targets.append(it)
+
+    return {"targets": targets, "dedup_skipped": dedup_skipped}
 
 
 # ────────────── v2 工具函数 ──────────────
@@ -459,27 +613,37 @@ async def list_my_devices(
     db: AsyncSession = Depends(get_db),
 ):
     """获取我绑定的所有设备，按设备类型分组。"""
+    # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 同时返回 status=1（有效）与 status=2（撞号失效）记录
     rows = (
         await db.execute(
             select(HomeSafetyDeviceBinding).where(
                 HomeSafetyDeviceBinding.user_id == current_user.id,
-                HomeSafetyDeviceBinding.status == 1,
+                HomeSafetyDeviceBinding.status.in_([1, 2]),
             ).order_by(desc(HomeSafetyDeviceBinding.bound_at))
         )
     ).scalars().all()
 
     groups: Dict[int, List[Dict[str, Any]]] = {t: [] for t in ALL_DEVICE_TYPES}
     for b in rows:
+        ephone = b.emergency_phone or ""
         groups.setdefault(b.device_type, []).append(
             {
                 "id": b.id,
                 "device_type": b.device_type,
                 "device_type_label": _device_label(b.device_type),
+                # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 8 位明文，新增 gateway_id 别名
                 "gateway_sn": b.gateway_sn,
-                "gateway_sn_mask": (b.gateway_sn[:4] + "********") if b.gateway_sn else "",
+                "gateway_id": b.gateway_sn,
+                "gateway_sn_mask": b.gateway_sn or "",
                 "device_sn": b.device_sn,
                 "verify_status": b.verify_status,
                 "bound_at": (b.bound_at.isoformat() + "Z") if b.bound_at else None,
+                "status": b.status,
+                "status_label": "有效" if b.status == 1 else ("失效需重绑" if b.status == 2 else "已解绑"),
+                "invalid_reason": b.invalid_reason if b.status == 2 else None,
+                "emergency_phone": ephone,
+                "emergency_phone_mask": _mask_phone(ephone),
+                "emergency_phone_filled": bool(ephone),
             }
         )
     return {
@@ -504,14 +668,20 @@ async def bind_device(
 ):
     if req.device_type not in ALL_DEVICE_TYPES:
         raise HTTPException(400, "不支持的设备类型")
-    _validate_sn(req.gateway_sn, req.device_sn)
+    # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 标准化网关ID（8 位大写）
+    raw_gw = req.gateway_id or req.gateway_sn or ""
+    gw_id = _normalize_gateway_id(raw_gw)
+    dev_sn = (req.device_sn or "").strip()
+    _validate_sn(gw_id, dev_sn)
+    # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 紧急联系手机必填
+    ephone = _validate_emergency_phone(req.emergency_phone, required=True)
 
     # 同一用户同一 device_sn 不可重复有效绑定
     exists = (
         await db.execute(
             select(HomeSafetyDeviceBinding).where(
                 HomeSafetyDeviceBinding.user_id == current_user.id,
-                HomeSafetyDeviceBinding.device_sn == req.device_sn,
+                HomeSafetyDeviceBinding.device_sn == dev_sn,
                 HomeSafetyDeviceBinding.status == 1,
             )
         )
@@ -522,17 +692,24 @@ async def bind_device(
     binding = HomeSafetyDeviceBinding(
         user_id=current_user.id,
         device_type=req.device_type,
-        gateway_sn=req.gateway_sn,
-        device_sn=req.device_sn,
+        gateway_sn=gw_id,
+        device_sn=dev_sn,
         status=1,
         verify_status=0,
+        emergency_phone=ephone,
         bound_at=datetime.utcnow(),
     )
     db.add(binding)
     await db.commit()
     await db.refresh(binding)
 
-    return {"success": True, "id": binding.id, "verify_status": binding.verify_status}
+    return {
+        "success": True,
+        "id": binding.id,
+        "verify_status": binding.verify_status,
+        "gateway_id": binding.gateway_sn,
+        "emergency_phone": binding.emergency_phone,
+    }
 
 
 @router.post(USER_PREFIX + "/devices/{binding_id}/unbind")
@@ -541,12 +718,13 @@ async def unbind_device(
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 允许解绑 status=1 或 status=2 的记录
     b = (
         await db.execute(
             select(HomeSafetyDeviceBinding).where(
                 HomeSafetyDeviceBinding.id == binding_id,
                 HomeSafetyDeviceBinding.user_id == current_user.id,
-                HomeSafetyDeviceBinding.status == 1,
+                HomeSafetyDeviceBinding.status.in_([1, 2]),
             )
         )
     ).scalar_one_or_none()
@@ -556,6 +734,108 @@ async def unbind_device(
     b.unbound_at = datetime.utcnow()
     await db.commit()
     return {"success": True}
+
+
+# [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 设备详情（仅本人）
+@router.get(USER_PREFIX + "/devices/{binding_id}")
+async def get_my_device_detail(
+    binding_id: int,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    b = (
+        await db.execute(
+            select(HomeSafetyDeviceBinding).where(
+                HomeSafetyDeviceBinding.id == binding_id,
+                HomeSafetyDeviceBinding.user_id == current_user.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not b:
+        raise HTTPException(404, "设备不存在")
+    ephone = b.emergency_phone or ""
+    return {
+        "id": b.id,
+        "device_type": b.device_type,
+        "device_type_label": _device_label(b.device_type),
+        "gateway_id": b.gateway_sn,
+        "gateway_sn": b.gateway_sn,
+        "device_sn": b.device_sn,
+        "status": b.status,
+        "status_label": "有效" if b.status == 1 else ("失效需重绑" if b.status == 2 else "已解绑"),
+        "invalid_reason": b.invalid_reason if b.status == 2 else None,
+        "verify_status": b.verify_status,
+        "emergency_phone": ephone,
+        "emergency_phone_mask": _mask_phone(ephone),
+        "emergency_phone_filled": bool(ephone),
+        "bound_at": (b.bound_at.isoformat() + "Z") if b.bound_at else None,
+        "unbound_at": (b.unbound_at.isoformat() + "Z") if b.unbound_at else None,
+    }
+
+
+@router.patch(USER_PREFIX + "/devices/{binding_id}/emergency_phone")
+async def update_device_emergency_phone(
+    binding_id: int,
+    req: UpdateEmergencyPhoneReq,
+    request: Request,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 修改设备紧急联系手机：
+    - 鉴权：仅设备绑定者本人
+    - 校验：^1[3-9]\\d{9}$
+    - 无需短信验证码（按用户决策 8C）
+    - 审计日志：写入告警日志（轻量）
+    """
+    b = (
+        await db.execute(
+            select(HomeSafetyDeviceBinding).where(
+                HomeSafetyDeviceBinding.id == binding_id,
+                HomeSafetyDeviceBinding.user_id == current_user.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not b:
+        raise HTTPException(404, "设备不存在")
+    if b.status == 0:
+        raise HTTPException(400, "设备已解绑，不可修改")
+    new_phone = _validate_emergency_phone(req.emergency_phone, required=True)
+    old_phone = b.emergency_phone or ""
+    b.emergency_phone = new_phone
+    await db.commit()
+    try:
+        logger.info(
+            "[home_safety_v1][emergency_phone_changed] device_id=%s user_id=%s old=%s new=%s ip=%s ua=%s",
+            binding_id,
+            current_user.id,
+            _mask_phone(old_phone),
+            _mask_phone(new_phone),
+            _extract_source_ip(request),
+            request.headers.get("user-agent", "")[:200],
+        )
+    except Exception:
+        pass
+    return {
+        "ok": True,
+        "success": True,
+        "emergency_phone": new_phone,
+        "emergency_phone_mask": _mask_phone(new_phone),
+    }
+
+
+@router.get(USER_PREFIX + "/devices/bind/defaults")
+async def get_bind_defaults(
+    current_user=Depends(get_current_user),
+):
+    """[PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 绑定页默认值：注册手机号回填。"""
+    phone = getattr(current_user, "phone", None) or ""
+    return {
+        "default_emergency_phone": str(phone) if phone else "",
+        "phone_required": True,
+        "gateway_id_length": 8,
+        "gateway_id_pattern": "^[A-Z0-9]{8}$",
+        "emergency_phone_pattern": "^1[3-9]\\d{9}$",
+    }
 
 
 @router.get(USER_PREFIX + "/alarms")
@@ -985,7 +1265,12 @@ async def upstream_alarm_callback(
         if alarm_at is None:
             alarm_at = datetime.utcnow()
 
-        gw_id = (param.get("gwId") if param else None) or payload.get("gw_id") or payload.get("gateway_sn") or ""
+        raw_gw_id = (param.get("gwId") if param else None) or payload.get("gw_id") or payload.get("gateway_sn") or ""
+        # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] gwId 长度从 12 → 8；若上游仍传 12 位，自动截断前 8 位并大写
+        gw_id_norm = _normalize_gateway_id(raw_gw_id)
+        if len(gw_id_norm) > 8:
+            gw_id_norm = gw_id_norm[:8]
+        gw_id = gw_id_norm
         dev_name = (param.get("devName") if param else None) or payload.get("dev_name")
         if param and "callType" in param:
             raw_call_type = param.get("callType")
@@ -1043,6 +1328,18 @@ async def upstream_alarm_callback(
                     )
                 )
             ).scalars().all()
+            # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 若没有 status=1 但有 status=2（撞号失效），
+            # 视为"已存在但需重绑"，按 PRD 4.3 返回 410 device_rebind_required。
+            invalid_bindings: List[Any] = []
+            if not bindings:
+                invalid_bindings = (
+                    await db.execute(
+                        select(HomeSafetyDeviceBinding).where(
+                            HomeSafetyDeviceBinding.device_sn == device_sn,
+                            HomeSafetyDeviceBinding.status == 2,
+                        )
+                    )
+                ).scalars().all()
         except Exception as e:
             logger.error("[home_safety_v2] 查询绑定异常: %s", e)
             final_status = "internal_error"
@@ -1051,6 +1348,18 @@ async def upstream_alarm_callback(
             raise HTTPException(500, "internal error")
 
         if not bindings:
+            if invalid_bindings:
+                # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 设备记录因撞号失效 → 410
+                final_status = "device_rebind_required"
+                final_reason = f"device_sn={device_sn} 撞号失效，请重新绑定"
+                response_payload = {
+                    "code": 410,
+                    "message": "device_rebind_required",
+                    "success": False,
+                    "matched": 0,
+                }
+                response_status_code = 410
+                return response_payload
             final_status = "unbound"
             final_reason = f"device_sn={device_sn} 未绑定"
             response_payload = {
@@ -1083,6 +1392,22 @@ async def upstream_alarm_callback(
                     if first_alarm_id is None:
                         first_alarm_id = existing.id
                     continue
+                # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 汇总通知目标号码 + 去重
+                notify_info: Dict[str, Any] = {"targets": [], "dedup_skipped": 0}
+                try:
+                    notify_info = await collect_alarm_notify_targets(
+                        db,
+                        user_id=b.user_id,
+                        device_type=device_type or b.device_type,
+                        device_emergency_phone=b.emergency_phone,
+                    )
+                except Exception as _ne:  # pragma: no cover
+                    logger.warning("[home_safety_v1] 通知目标汇总失败: %s", _ne)
+                try:
+                    notify_targets_json = json.dumps(notify_info, ensure_ascii=False)
+                except Exception:
+                    notify_targets_json = None
+
                 rec = HomeSafetyAlarm(
                     user_id=b.user_id,
                     device_type=device_type or b.device_type,
@@ -1107,6 +1432,9 @@ async def upstream_alarm_callback(
                     call_type=call_type,
                     data_type=data_type or "call-msg",
                     source_ip=source_ip,
+                    device_emergency_phone=(b.emergency_phone or None),
+                    notify_targets_json=notify_targets_json,
+                    notify_dedup_skipped=int(notify_info.get("dedup_skipped") or 0),
                 )
                 db.add(rec)
                 await db.flush()
@@ -1232,17 +1560,92 @@ async def admin_list_bindings(
                 "user_id": b.user_id,
                 "device_type": b.device_type,
                 "device_type_label": _device_label(b.device_type),
+                # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 提供 gateway_id 别名
                 "gateway_sn": b.gateway_sn,
+                "gateway_id": b.gateway_sn,
                 "device_sn": b.device_sn,
                 "status": b.status,
-                "status_label": "有效" if b.status == 1 else "已解绑",
+                "status_label": "有效" if b.status == 1 else ("失效需重绑" if b.status == 2 else "已解绑"),
+                "invalid_reason": b.invalid_reason if b.status == 2 else None,
                 "verify_status": b.verify_status,
                 "bound_at": (b.bound_at.isoformat() + "Z") if b.bound_at else None,
                 "unbound_at": (b.unbound_at.isoformat() + "Z") if b.unbound_at else None,
+                # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 紧急联系手机字段（明文，按 4-B：默认隐藏可勾选）
+                "emergency_phone": b.emergency_phone or "",
+                "emergency_phone_mask": _mask_phone(b.emergency_phone),
+                "emergency_phone_filled": bool(b.emergency_phone),
             }
             for b in rows
         ]
     }
+
+
+# [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 管理后台搜索网关ID 接口（基于 gateway_id 8 位查询）
+@router.get(ADMIN_PREFIX + "/bindings/search_by_gateway")
+async def admin_search_by_gateway_id(
+    gateway_id: str = Query(..., description="8 位网关ID"),
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    norm = _normalize_gateway_id(gateway_id)
+    if not GATEWAY_ID_REGEX.match(norm):
+        raise HTTPException(400, "invalid_gateway_id:网关ID 必须为 8 位字母或数字")
+    rows = (
+        await db.execute(
+            select(HomeSafetyDeviceBinding).where(
+                HomeSafetyDeviceBinding.gateway_sn == norm
+            ).order_by(desc(HomeSafetyDeviceBinding.updated_at))
+        )
+    ).scalars().all()
+    return {
+        "items": [
+            {
+                "id": b.id,
+                "user_id": b.user_id,
+                "device_type": b.device_type,
+                "device_type_label": _device_label(b.device_type),
+                "gateway_id": b.gateway_sn,
+                "gateway_sn": b.gateway_sn,
+                "device_sn": b.device_sn,
+                "status": b.status,
+                "status_label": "有效" if b.status == 1 else ("失效需重绑" if b.status == 2 else "已解绑"),
+                "invalid_reason": b.invalid_reason if b.status == 2 else None,
+                "emergency_phone": b.emergency_phone or "",
+                "emergency_phone_mask": _mask_phone(b.emergency_phone),
+                "bound_at": (b.bound_at.isoformat() + "Z") if b.bound_at else None,
+            }
+            for b in rows
+        ]
+    }
+
+
+# [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 管理后台导出 CSV（含网关ID + 紧急联系手机）
+@router.get(ADMIN_PREFIX + "/bindings/export")
+async def admin_export_bindings(
+    device_type: Optional[int] = None,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    q = select(HomeSafetyDeviceBinding)
+    if device_type is not None:
+        q = q.where(HomeSafetyDeviceBinding.device_type == device_type)
+    q = q.order_by(desc(HomeSafetyDeviceBinding.created_at)).limit(10000)
+    rows = (await db.execute(q)).scalars().all()
+    headers = ["流水ID", "用户ID", "设备类型", "网关ID", "设备SN", "设备紧急联系手机", "状态", "绑定时间", "解绑时间"]
+    out_rows: List[List[str]] = [headers]
+    for b in rows:
+        out_rows.append([
+            str(b.id),
+            str(b.user_id),
+            _device_label(b.device_type),
+            b.gateway_sn or "",
+            b.device_sn or "",
+            b.emergency_phone or "",
+            "有效" if b.status == 1 else ("失效需重绑" if b.status == 2 else "已解绑"),
+            (b.bound_at.isoformat() + "Z") if b.bound_at else "",
+            (b.unbound_at.isoformat() + "Z") if b.unbound_at else "",
+        ])
+    return {"headers": headers, "rows": out_rows, "total": len(rows)}
 
 
 @router.get(ADMIN_PREFIX + "/alarms")

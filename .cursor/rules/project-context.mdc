@@ -5,7 +5,62 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-28 · Bug 修复 / 居家安全设备 · 回调配置与回调原始记录加载失败修复）
+## 最近一次变更（2026-05-28 · 新功能 / 居家安全设备 · 网关ID 调整与设备级紧急联系手机）
+
+**PRD 标识**：`[PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28]`
+
+**需求**：
+1. 「网关 SN」改名「网关ID」，长度从 12 位 `[A-Za-z0-9]` 收敛为 8 位 `[A-Z0-9]`，大小写不敏感（统一存大写），用户手工输入；
+2. 每条设备绑定记录新增"设备级紧急联系手机"（必填，默认带入注册手机号，可改），与守护人体系并存；
+3. 告警时本人 / 设备紧急联系手机 / 守护人手机自动合并去重，仅走短信 + AI 外呼。
+
+**变更文件**（仅 backend + admin-web + h5-web 三端，未触及 miniprogram / flutter_app）：
+- 修改：`backend/app/api/home_safety_v1.py`
+  - 新增 `GATEWAY_ID_REGEX = ^[A-Z0-9]{8}$` / `EMERGENCY_PHONE_REGEX = ^1[3-9]\d{9}$` / `_normalize_gateway_id` / `_validate_emergency_phone` / `_mask_phone`
+  - `HomeSafetyDeviceBinding` 表新增字段 `emergency_phone VARCHAR(11)` + `invalid_reason VARCHAR(128)`；status 新增 `2=失效需重绑`
+  - `HomeSafetyAlarm` 表新增字段 `device_emergency_phone` / `notify_targets_json` / `notify_dedup_skipped`
+  - 新增工具函数 `collect_alarm_notify_targets`（合并本人 + device_emergency + guardian 并按手机号去重）
+  - 改造 `bind_device` 接受 gateway_id / gateway_sn 任意字段、必填 emergency_phone；新增 `GET /devices/bind/defaults` / `GET /devices/{id}` / `PATCH /devices/{id}/emergency_phone`
+  - 改造 `admin_list_bindings` 返回 `gateway_id` / `emergency_phone` 字段；新增 `GET /admin/.../bindings/search_by_gateway` / `GET /admin/.../bindings/export`
+  - 外部回调 `upstream_alarm_callback` 兼容 12 位 gwId 自动截断前 8 位；失效绑定（status=2）返回 `code=410 / device_rebind_required`
+- 修改：`backend/app/services/schema_sync.py` —— `_sync_home_safety_v2()` 末尾追加：
+  - `home_safety_device_binding` 表新字段（`emergency_phone` / `invalid_reason`）幂等 ADD COLUMN
+  - 历史数据迁移：截断 `gateway_sn` 为前 8 位大写、按 `(user_id, new_gw, dev_sn)` 撞号判定，保留 `updated_at` 最新一条为 status=1，其余 status=1 → status=2 invalid
+  - `home_safety_alarm` 表新字段（`device_emergency_phone` / `notify_targets_json` / `notify_dedup_skipped`）幂等 ADD COLUMN
+- 修改：`h5-web/src/app/home-safety/page.tsx`
+  - 绑定弹窗：网关ID 输入框自动大写 + 过滤非法字符 + 8 位长度；新增紧急联系手机字段（11 位、自动过滤非数字、默认带入注册手机号）
+  - 设备卡片：8 位网关ID 明文 + 脱敏紧急联系手机 + 修改按钮 + 「未填写，点击补填」红色徽标
+  - 撞号失效卡片：灰色置顶 + 「重新绑定」按钮
+  - 强制补填弹窗 & 修改弹窗
+- 修改：`admin-web/src/app/(admin)/home-safety/page.tsx`
+  - BindingsTab：列名「网关 SN」→「网关ID」、新增「按网关ID 搜索」/「显示紧急联系手机」/「导出 CSV」按钮、状态新增「失效需重绑」标签
+  - AlarmsTab：列名「网关 SN」→「网关ID」
+- 修改：`backend/tests/test_home_safety_v1.py / v2.py / v2_revision.py` —— 所有用例 `gateway_sn` 收敛为 8 位 + 增加 `emergency_phone` 字段
+- 新增：`backend/tests/test_home_safety_gwid_ephone_v1.py` —— 25 个用例覆盖：
+  - 网关ID 长度/字符集/大小写转换/正则
+  - 紧急联系手机必填/格式/默认值/修改/脱敏
+  - 详情接口/列表接口/搜索接口/导出接口
+  - 外部回调 gwId 12→8 截断、通知目标去重
+- 新增：`_deploy_gwid_ephone_v1.py / _run_remote_tests_gwid_ephone.py` 部署 + 回归脚本
+- 新增：`user_docs/居家安全设备_网关ID与紧急联系手机_用户体验手册.md`
+
+**测试结果**：服务器容器内 pytest 跑 5 个文件
+（test_home_safety_v1 + v2 + v2_revision + callback_schema_sync_v1 + gwid_ephone_v1）共 **76 passed, 0 failed**。
+HTTPS smoke：`/home-safety/` → 200、`/admin/home-safety/` → 200、`/api/health` → 200、`/api/home_safety/devices` → 401（鉴权拦截）、`/api/home_safety/devices/bind/defaults` → 401。
+
+**部署方式**：
+1. `docker cp backend 4 个文件 + docker restart backend`（热更新，自动迁移幂等执行）
+2. `docker compose build h5-web && up -d h5-web` + 同样对 admin-web 做重建
+
+**体验链接**：
+- [H5 用户端 · 居家安全设备](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/home-safety/)
+- [管理后台 · 居家安全设备](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/home-safety/)
+
+**唯一变更标记**：`[PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28]`
+
+---
+
+## 上一次变更（2026-05-28 · Bug 修复 / 居家安全设备 · 回调配置与回调原始记录加载失败修复）
 
 **Bug 现象**：管理后台 → 居家安全设备 → 「回调地址配置」/「回调原始记录」两个 Tab 进入即弹红字「加载失败」，回调地址配置点保存也弹「保存失败」。F12 Network 显示三个接口均返回 HTTP **500**：
 - `GET  /api/admin/home_safety/callback_config`
