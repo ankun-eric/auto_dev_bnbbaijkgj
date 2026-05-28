@@ -236,10 +236,11 @@ function HealthProfileV2PageInner() {
     active_count: number;
     archive_record_total: number;
     guarded_count: number;
+    bound_others_count: number;
     max_guardians: number;
     can_invite_count: number;
     is_unlimited: boolean;
-  }>({ managed_count: 0, active_count: 0, archive_record_total: 0, guarded_count: 0, max_guardians: 0, can_invite_count: 0, is_unlimited: false });
+  }>({ managed_count: 0, active_count: 0, archive_record_total: 0, guarded_count: 0, bound_others_count: 0, max_guardians: 0, can_invite_count: 0, is_unlimited: false });
   // [BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527] 「守护我的人」拆双数字
   const [reverseGuardianCount, setReverseGuardianCount] = useState<number>(0);
   const [reverseGuardianSummary, setReverseGuardianSummary] = useState<{ active_count: number; pending_count: number; total_count: number }>({ active_count: 0, pending_count: 0, total_count: 0 });
@@ -396,11 +397,19 @@ function HealthProfileV2PageInner() {
       const maxGuard = Number(data.max_guardians ?? 0);
       const canInv = Number(data.can_invite_count ?? 0);
       const isUnlim = !!data.is_unlimited;
+      // [BUGFIX-MY-PROFILE-4ITEMS-20260528 修复 2] X = 已绑定的非本人档案数（不含本人）
+      const boundOthersCount = Number(
+        data.bound_others_count
+        ?? (Array.isArray(data.items)
+          ? data.items.filter((it: any) => it.bind_status === 'bound' && !it.is_self).length
+          : 0)
+      );
       setGuardianSummary({
         managed_count: archiveTotal,        // 兼容：卡片主显示数字 = 档案记录数
         active_count: Number(data.active_count ?? 0),
         archive_record_total: archiveTotal,
         guarded_count: guardedCount,
+        bound_others_count: boundOthersCount,
         max_guardians: maxGuard,
         can_invite_count: canInv,
         is_unlimited: isUnlim,
@@ -416,12 +425,13 @@ function HealthProfileV2PageInner() {
           active_count: Number(data2.active_count ?? 0),
           archive_record_total: total,
           guarded_count: total,
+          bound_others_count: total,
           max_guardians: 0,
           can_invite_count: 0,
           is_unlimited: false,
         });
       } catch {
-        setGuardianSummary({ managed_count: 0, active_count: 0, archive_record_total: 0, guarded_count: 0, max_guardians: 0, can_invite_count: 0, is_unlimited: false });
+        setGuardianSummary({ managed_count: 0, active_count: 0, archive_record_total: 0, guarded_count: 0, bound_others_count: 0, max_guardians: 0, can_invite_count: 0, is_unlimited: false });
       }
     }
   }, []);
@@ -774,18 +784,18 @@ function HealthProfileV2PageInner() {
                     position: 'absolute',
                     top: -5,
                     right: -8,
-                    background: '#0EA5E9',
-                    color: '#fff',
+                    background: '#FFF3E8',
+                    color: '#FF7A1A',
                     fontSize: 10,
-                    fontWeight: 600,
+                    fontWeight: 700,
                     padding: '0px 4px',
                     borderRadius: 8,
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+                    boxShadow: '0 1px 4px rgba(255,122,26,0.25)',
                     border: '1px solid #fff',
                     whiteSpace: 'nowrap',
                     lineHeight: 1.3,
                   }}
-                >守护中</span>
+                >已绑定</span>
               )}
             </div>
             <span
@@ -1060,8 +1070,13 @@ function HealthProfileV2PageInner() {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>我守护的人</div>
+                {/* [BUGFIX-MY-PROFILE-4ITEMS-20260528 修复 2] subtitle 统一为「已守护 X/Y」
+                    X = 已绑定非本人档案数（不含本人）；Y = max_guardians（会员可守护上限） */}
                 <div data-testid='i-guard-total-count' style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
-                  档案记录数 <b style={{ color: '#0EA5E9' }}>{guardianSummary.archive_record_total}</b>
+                  已守护{' '}
+                  <b style={{ color: '#0EA5E9' }}>{guardianSummary.bound_others_count}</b>
+                  /
+                  <b style={{ color: '#0EA5E9' }}>{guardianSummary.is_unlimited ? '∞' : (guardianSummary.max_guardians ?? 0)}</b>
                 </div>
               </div>
               <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>

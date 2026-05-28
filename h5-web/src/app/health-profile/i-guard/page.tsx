@@ -68,10 +68,13 @@ interface FamilyListResp {
   bound_count?: number;
   unbound_count?: number;
   quota_used?: number;
+  // [BUGFIX-MY-PROFILE-4ITEMS-20260528 修复 2] X 口径：已绑定非本人
+  bound_others_count?: number;
   max_guardians: number;
   used: number;
   can_invite_count: number;
   is_paid_member: boolean;
+  is_unlimited?: boolean;
 }
 
 // 配色
@@ -627,13 +630,15 @@ export default function IGuardPage() {
   const boundItems = allItems.filter((it) => (it.bind_status || (it.status === 'active' ? 'bound' : 'unbound')) === 'bound');
   const unboundItems = allItems.filter((it) => (it.bind_status || (it.status === 'active' ? 'bound' : 'unbound')) === 'unbound');
 
-  // [Bug 1] 卡片人数统计口径修正：已绑定（非本人）+ 全部未绑定邀请记录
+  // [BUGFIX-MY-PROFILE-4ITEMS-20260528 修复 2/3] X 口径 = 已绑定非本人（方案 A，不含本人）；
+  // 优先使用后端 bound_others_count；兜底前端按 bind_status==bound && managed_user_id != me 计算
   const guardCount = useMemo(() => {
-    const boundOthers = boundItems.filter((it) => it.managed_user_id !== me.id).length;
-    const pendingAll = unboundItems.length;
-    return boundOthers + pendingAll;
-  }, [boundItems, unboundItems, me.id]);
+    if (typeof resp?.bound_others_count === 'number') return resp.bound_others_count;
+    return boundItems.filter((it) => it.managed_user_id !== me.id).length;
+  }, [resp?.bound_others_count, boundItems, me.id]);
 
+  // [BUGFIX-MY-PROFILE-4ITEMS-20260528 修复 3] 直接使用后端 can_invite_count，废弃前端自算；
+  // 后端异常时 resp 为 null，canInvite 兜底为 0
   const canInvite = resp?.can_invite_count ?? 0;
   const maxGuard = resp?.max_guardians ?? 0;
 
@@ -1053,23 +1058,50 @@ export default function IGuardPage() {
               </div>
             </div>
           </div>
+          {/* [BUGFIX-MY-PROFILE-4ITEMS-20260528 修复 4] 本人卡片 3 个按钮高度统一为 28px：
+              padding 仅控水平间距，lineHeight=1，box-sizing border-box，避免 primary/secondary
+              因不同 padding 导致高度不齐 */}
           <div style={{ display: 'flex', gap: 8 }}>
             {/* [Bug 2] 本人编辑档案 → Hero 抽屉可编辑 */}
             <button
               data-testid='btn-self-edit'
-              style={{ ...BTN_STYLES.secondary, flex: 1 }}
+              style={{
+                ...BTN_STYLES.secondary,
+                flex: 1,
+                height: 28,
+                lineHeight: '1',
+                padding: '0 14px',
+                fontSize: 12,
+                boxSizing: 'border-box',
+              }}
               onClick={() => setProfileDrawer({ open: true, memberUserId: me.id, readOnly: false })}
             >
               编辑档案
             </button>
             <button
-              style={{ ...BTN_STYLES.secondary, flex: 1 }}
+              style={{
+                ...BTN_STYLES.secondary,
+                flex: 1,
+                height: 28,
+                lineHeight: '1',
+                padding: '0 14px',
+                fontSize: 12,
+                boxSizing: 'border-box',
+              }}
               onClick={() => setHistoryDrawer({ open: true, card: { manager_user_id: me.id } as any })}
             >
               邀请记录
             </button>
             <button
-              style={{ ...BTN_STYLES.primary, flex: 1 }}
+              style={{
+                ...BTN_STYLES.primary,
+                flex: 1,
+                height: 28,
+                lineHeight: '1',
+                padding: '0 14px',
+                fontSize: 12,
+                boxSizing: 'border-box',
+              }}
               onClick={() => router.push('/member-center#quota')}
             >
               AI 外呼额度

@@ -115,12 +115,13 @@ _LIFECYCLE_DISPLAY_LABEL: dict = {
 }
 
 # [v1.3.1] 占名额口径：
-# 已绑定/accepted、孤儿档案、邀请中、尚未邀请 → 占名额
-# 暂未响应/rejected、已解绑/unbound、已过期/expired → 不占名额
+# [BUGFIX-MY-PROFILE-4ITEMS-20260528 修复 3] 仅 bound + inviting（pending 且未过期）占额；
+# 已过期/已失效/未响应/未邀请 → 不占额。
+# 已绑定/accepted、邀请中 → 占名额
+# 暂未响应/rejected、已解绑/unbound、已过期/expired、尚未邀请/never_invited → 不占名额
 _OCCUPY_QUOTA_LIFECYCLES = {
     LIFECYCLE_ACCEPTED,
     LIFECYCLE_INVITING,
-    LIFECYCLE_NEVER_INVITED,
 }
 
 
@@ -650,6 +651,13 @@ async def list_family_v13(
     # [v1.3.1] 已绑定 / 未绑定 区计数
     bound_count = sum(1 for it in items if it.get("bind_status") == "bound")
     unbound_count = sum(1 for it in items if it.get("bind_status") == "unbound")
+    # [BUGFIX-MY-PROFILE-4ITEMS-20260528 修复 2] X = 已绑定的非本人档案数（方案 A，不含本人）
+    # 本接口的 items 本身不含本人虚拟项，所有 bound 项均为"非本人"；保留显式 manager != managed 过滤兜底。
+    bound_others_count = sum(
+        1 for it in items
+        if it.get("bind_status") == "bound"
+        and it.get("managed_user_id") != current_user.id
+    )
     # [v1.3.1] 占名额数：本人豁免（本接口不包含本人虚拟项，由前端拼接）
     quota_used = sum(1 for it in items if it.get("occupies_quota"))
 
@@ -680,6 +688,8 @@ async def list_family_v13(
         "bound_count": bound_count,
         "unbound_count": unbound_count,
         "quota_used": quota_used,
+        # [BUGFIX-MY-PROFILE-4ITEMS-20260528 修复 2] 已绑定非本人数（X 口径，不含本人）
+        "bound_others_count": bound_others_count,
         # 配额
         "max_guardians": max_guardians,
         "used": used,
