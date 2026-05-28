@@ -316,6 +316,16 @@ function HealthProfileV2PageInner() {
   const [recordDrawerItems, setRecordDrawerItems] = useState<any[]>([]);
   const [recordDrawerLoading, setRecordDrawerLoading] = useState(false);
 
+  // [BUGFIX-HEALTH-PROFILE-CLIENT-CRASH 2026-05-29]
+  // selectedMember / memberQs 必须声明在所有 useEffect / useCallback 引用它的地方之前；
+  // 否则在 Next.js 生产构建 (terser + chunk 拆分) 下会触发 TDZ（如：ReferenceError: Cannot access 'tn' before initialization）。
+  // 开发模式下因 HMR 容错看不出来，但生产 SSR/CSR 一旦执行到这些 hook 就立刻崩溃。
+  const selectedMember = useMemo(
+    () => members.find((m) => m.id === selectedMemberId) || null,
+    [members, selectedMemberId]
+  );
+  const memberQs = selectedMemberId && selectedMemberId > 0 ? `?member_id=${selectedMemberId}` : '';
+
   // ─── Fetch functions ────────────────────────────────────────────
 
   const fetchMembers = useCallback(async () => {
@@ -694,12 +704,9 @@ function HealthProfileV2PageInner() {
     };
   }, [fetchReverseGuardianCount, fetchGuardianSummary]);
 
-  const selectedMember = useMemo(
-    () => members.find((m) => m.id === selectedMemberId) || null,
-    [members, selectedMemberId]
-  );
-
-  const memberQs = selectedMemberId && selectedMemberId > 0 ? `?member_id=${selectedMemberId}` : '';
+  // [BUGFIX-HEALTH-PROFILE-CLIENT-CRASH 2026-05-29]
+  // selectedMember / memberQs 已上移到 useState 区段之后、所有 useEffect 之前，避免生产构建 TDZ。
+  // 此处保留兼容性占位（已删除重复声明）。
 
   // ─── Health info tag helpers ────────────────────────────────────
 
