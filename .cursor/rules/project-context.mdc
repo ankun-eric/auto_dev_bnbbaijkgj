@@ -5,7 +5,57 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-28 · 新功能 / 居家安全设备 · 网关ID 调整与设备级紧急联系手机）
+## 最近一次变更（2026-05-29 · 新功能 / 健康档案 · 本人资料完善弹窗与抽屉）
+
+**PRD 标识**：`[PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29]`
+
+**需求**：
+1. 进入「健康档案」本人 Tab 时，姓名/性别/出生日期任一为空 → 延迟 500ms 弹窗强提示完善（同次会话只弹 1 次，下次仍弹直至补齐）。
+2. 弹窗「去完善」打开底部抽屉「完善健康档案」：三项必填默认展开（红星 + 红字校验），其他原有字段默认折叠选填；裁剪掉「去邀请」「成员关系」。
+3. Hero「编辑」按钮原页面 三项升级为全局必填（影响所有用户，含老用户）。
+4. 后端 `GET /api/health-profile/self` 返回 `needComplete` + `missingFields`；`PUT /api/health-profile/self` 三项必填严格校验，并把 `family_members.is_self=1` 那条 同步更新 nickname/gender/birthday，让"本人"Tab 自动改名。
+5. 四端（H5 / 小程序 / iOS / Android）文案与行为一字不差。
+
+**变更文件**（backend + h5-web + miniprogram + flutter_app 四端，未触及 admin-web）：
+- 新增：`backend/app/api/health_profile_self.py` —— `GET/PUT /api/health-profile/self`，`PLACEHOLDER_NAMES`、`_compute_missing_fields`、`_serialize_profile`、`_get_self_profile`，同步 FamilyMember(is_self) nickname/gender/birthday
+- 修改：`backend/app/main.py` —— `app.include_router(health_profile_self.router)`
+- 新增：`backend/tests/test_health_profile_self_complete_v1.py` —— 17 个用例覆盖 GET 缺字段判定 / PUT 校验失败 / 成功后 FamilyMember 同步 / 401 鉴权
+- 新增：`h5-web/src/components/health-profile-v5/CompleteSelfProfileDrawer.tsx` —— 抽屉组件（复用 NewFamilyMemberModal 样式，裁剪 Invite + Relation，三项必填默认展开 + 其他字段折叠）
+- 修改：`h5-web/src/app/health-profile/page.tsx`
+  - 增加 `_selfNeedComplete / _selfMissingFields / showSelfCompleteDialog / showSelfCompleteDrawer / selfInitialForDrawer / selfDialogShownInSessionRef`
+  - `fetchSelfNeedComplete()` 调 `GET /api/health-profile/self`；本人 Tab + needComplete 时延迟 500ms 弹窗
+  - 渲染弹窗 `.self-complete-dialog` 和 `<CompleteSelfProfileDrawer>`
+  - Hero `renderHeroEditModal`：name/gender/birthday 标 `*`、红字、保存按钮置灰直到合规
+- 修改：`miniprogram/pages/health-profile/index.{wxml,wxss,js}`
+  - WXML 增加 `.self-complete-mask/dialog` 与 `.self-drawer-mask/sheet`
+  - WXSS 追加全部新样式
+  - JS：`selfNeedComplete / selfMissingFields / selfFormDraft / selfFormErrs / selfFormCanSubmit / selfDrawerMoreOpen`、`loadSelfNeedComplete`、`maybeShowSelfCompleteDialog`、`onSelfCompleteLater / Go / closeSelfCompleteDrawer / toggleSelfDrawerMore / onSelfFormInput / onSelfGenderPick / onSelfBirthdayPick / recalcSelfFormCanSubmit / onSelfFormSubmit`，并强化 `saveHero` 三项必填
+- 修改：`flutter_app/lib/screens/health/health_profile_screen.dart`
+  - 新增 `_selfNeedComplete / _selfMissingFields / _selfDialogShownInSession / _selfInitialForDrawer`、`_loadSelfNeedComplete / _maybeShowSelfCompleteDialog / _showSelfCompleteDialog / _showSelfCompleteDrawer`
+  - 抽屉用 `showModalBottomSheet`，必填红星 + 红字 + 灰色保存按钮；`_onEditHero` 同步三项必填校验
+- 新增：`_deploy_self_complete_v1.py` —— SSH paramiko 一键部署（backend docker cp 热更 + restart + pytest + h5-web rebuild + smoke 验证）
+- 新增：`user_docs/健康档案_本人资料完善弹窗与抽屉.md` —— 用户体验使用手册
+
+**测试结果**：服务器容器内 pytest 跑 `test_health_profile_self_complete_v1.py` 共 **17 passed, 0 failed**。
+HTTPS smoke：`/health-profile/` → 200、`/api/health` → 200、`/api/health-profile/self` → 401（鉴权拦截，符合 PRD）。
+
+**部署方式**：
+1. `docker cp backend 3 个文件 + docker restart backend`（热更新）
+2. `docker compose build h5-web && up -d h5-web`（重建前端）
+3. h5-web 重建会重启 backend 容器，需要再次 `docker cp` 一次（部署脚本已包含补救步骤）
+
+**体验链接**：
+- [H5 用户端 · 健康档案](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/)
+
+**多端打包产物**：
+- `miniprogram_self_complete_20260529_003441.zip`
+- `flutter_self_complete_20260529_003510.zip`（源文件归档；APK/IPA 由 GitHub Actions `android-build.yml` / `ios-build.yml` 在 push 后自动构建）
+
+**唯一变更标记**：`[PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29]`
+
+---
+
+## 上一次变更（2026-05-28 · 新功能 / 居家安全设备 · 网关ID 调整与设备级紧急联系手机）
 
 **PRD 标识**：`[PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28]`
 

@@ -59,6 +59,12 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
   bool _isLinked = false;
   bool _loadingProfile = false;
 
+  // [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 本人资料完善弹窗 + 抽屉
+  bool _selfNeedComplete = false;
+  List<String> _selfMissingFields = [];
+  bool _selfDialogShownInSession = false;
+  Map<String, dynamic>? _selfInitialForDrawer;
+
   @override
   void initState() {
     super.initState();
@@ -69,6 +75,515 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
       }
     });
     _loadMembers();
+    // [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 拉本人完善状态
+    _loadSelfNeedComplete();
+  }
+
+  Future<void> _loadSelfNeedComplete() async {
+    try {
+      final res = await _apiService.dio.get('/api/health-profile/self');
+      if (!mounted) return;
+      if (res.statusCode == 200 && res.data is Map) {
+        final body = Map<String, dynamic>.from(res.data as Map);
+        final data = body['data'] is Map
+            ? Map<String, dynamic>.from(body['data'] as Map)
+            : body;
+        final need = data['needComplete'] == true;
+        final missing = (data['missingFields'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            <String>[];
+        setState(() {
+          _selfNeedComplete = need;
+          _selfMissingFields = missing;
+          _selfInitialForDrawer = {
+            'name': data['name'],
+            'gender': data['gender'],
+            'birthday': data['birthday'],
+            'height': data['height'],
+            'weight': data['weight'],
+          };
+        });
+        _maybeShowSelfCompleteDialog();
+      }
+    } catch (_) {}
+  }
+
+  void _maybeShowSelfCompleteDialog() {
+    if (_selfDialogShownInSession) return;
+    if (!_selfNeedComplete) return;
+    final m = _members.firstWhere(
+      (x) => x['id'] == _selectedMemberId,
+      orElse: () => <String, dynamic>{},
+    );
+    if (m['is_self'] != true) return;
+    _selfDialogShownInSession = true;
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      _showSelfCompleteDialog();
+    });
+  }
+
+  void _showSelfCompleteDialog() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const Text('完善健康档案',
+                        style: TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.w700, color: _textPrimary)),
+                    Positioned(
+                      right: -8,
+                      top: -10,
+                      child: IconButton(
+                        icon: const Icon(Icons.close, color: Color(0xFF94A3B8)),
+                        onPressed: () => Navigator.pop(ctx),
+                        splashRadius: 18,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  '为了给您提供更精准的健康服务，请先完善您的基本资料（姓名、性别、出生日期）。',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.6),
+                ),
+                const SizedBox(height: 18),
+                Row(children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF1F5F9),
+                        side: BorderSide.none,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(21)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      child: const Text('稍后', style: TextStyle(color: _textPrimary)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _showSelfCompleteDrawer();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _brand500,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(21)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      child: const Text('去完善',
+                          style: TextStyle(fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ]),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSelfCompleteDrawer() {
+    final initial = _selfInitialForDrawer ?? {};
+    final nameCtl = TextEditingController(
+        text: (initial['name'] != null && initial['name'].toString() != '本人')
+            ? initial['name'].toString()
+            : '');
+    final heightCtl = TextEditingController(
+        text: initial['height'] != null ? '${initial['height']}' : '');
+    final weightCtl = TextEditingController(
+        text: initial['weight'] != null ? '${initial['weight']}' : '');
+    String gender = '';
+    final gRaw = initial['gender']?.toString() ?? '';
+    if (gRaw == '男' || gRaw == 'male' || gRaw == 'M') gender = '男';
+    else if (gRaw == '女' || gRaw == 'female' || gRaw == 'F') gender = '女';
+    String birthday = (initial['birthday'] ?? '').toString();
+    if (birthday.length > 10) birthday = birthday.substring(0, 10);
+
+    bool moreOpen = false;
+    bool submitting = false;
+    final errs = {'name': false, 'gender': false, 'birthday': false};
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFFF8FAFC),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setS) {
+          bool nameOk() {
+            final s = nameCtl.text.trim();
+            return s.isNotEmpty && s != '本人' && s.length <= 20;
+          }
+
+          bool canSubmit() => nameOk() && gender.isNotEmpty && birthday.isNotEmpty && !submitting;
+
+          Future<void> doSubmit() async {
+            final s = nameCtl.text.trim();
+            final newErrs = <String, bool>{
+              'name': !(s.isNotEmpty && s != '本人' && s.length <= 20),
+              'gender': gender.isEmpty,
+              'birthday': birthday.isEmpty,
+            };
+            if (newErrs.values.any((v) => v)) {
+              setS(() {
+                errs.addAll(newErrs);
+              });
+              return;
+            }
+            setS(() => submitting = true);
+            try {
+              final body = <String, dynamic>{
+                'name': s,
+                'gender': gender,
+                'birthday': birthday,
+              };
+              if (heightCtl.text.isNotEmpty) {
+                body['height'] = num.tryParse(heightCtl.text);
+              }
+              if (weightCtl.text.isNotEmpty) {
+                body['weight'] = num.tryParse(weightCtl.text);
+              }
+              await _apiService.dio.put('/api/health-profile/self', data: body);
+              if (mounted) {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('保存成功')),
+                );
+                setState(() => _selfNeedComplete = false);
+                _loadMembers();
+                if (_selectedMemberId != null) _loadProfile(_selectedMemberId!);
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('保存失败')),
+                );
+              }
+            } finally {
+              setS(() => submitting = false);
+            }
+          }
+
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            child: Container(
+              constraints:
+                  BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.92),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Head
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                      border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.pop(ctx),
+                          child: const Text('×',
+                              style: TextStyle(fontSize: 22, color: Color(0xFF64748B))),
+                        ),
+                        const Text('完善健康档案',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w700, color: _textPrimary)),
+                        const SizedBox(width: 16),
+                      ],
+                    ),
+                  ),
+                  // Body
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                      child: Column(children: [
+                        // Tip
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            border: Border.all(color: const Color(0xFFBFDBFE)),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Text(
+                            '为了给您提供更精准的健康服务，请先完善您的基本资料（姓名、性别、出生日期）。',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF1E40AF), height: 1.6),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // Name
+                        _completeSelfField(
+                          label: '姓名',
+                          required: true,
+                          hasError: errs['name'] == true,
+                          errMsg: '请填写姓名',
+                          child: TextField(
+                            controller: nameCtl,
+                            maxLength: 20,
+                            decoration: const InputDecoration(
+                              hintText: '请输入姓名',
+                              counterText: '',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.all(Radius.circular(10)),
+                              ),
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            ),
+                            onChanged: (_) => setS(() {
+                              errs['name'] = false;
+                            }),
+                          ),
+                        ),
+                        // Gender
+                        _completeSelfField(
+                          label: '性别',
+                          required: true,
+                          hasError: errs['gender'] == true,
+                          errMsg: '请选择性别',
+                          child: Row(
+                            children: ['男', '女'].map((g) {
+                              final on = gender == g;
+                              return Expanded(
+                                child: Padding(
+                                  padding: EdgeInsets.only(right: g == '男' ? 8 : 0),
+                                  child: GestureDetector(
+                                    onTap: () => setS(() {
+                                      gender = g;
+                                      errs['gender'] = false;
+                                    }),
+                                    child: Container(
+                                      alignment: Alignment.center,
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: on ? const Color(0xFFDBEAFE) : const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: on ? const Color(0xFF38BDF8) : Colors.transparent,
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      child: Text(g,
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              color: on
+                                                  ? const Color(0xFF0284C7)
+                                                  : _textPrimary)),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        // Birthday
+                        _completeSelfField(
+                          label: '出生日期',
+                          required: true,
+                          hasError: errs['birthday'] == true,
+                          errMsg: '请选择出生日期',
+                          child: InkWell(
+                            onTap: () async {
+                              final initial = DateTime.tryParse(birthday) ?? DateTime(1990, 1, 1);
+                              final picked = await showDatePicker(
+                                context: ctx,
+                                initialDate: initial,
+                                firstDate: DateTime(1900),
+                                lastDate: DateTime.now(),
+                              );
+                              if (picked != null) {
+                                setS(() {
+                                  birthday =
+                                      '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+                                  errs['birthday'] = false;
+                                });
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(birthday.isEmpty ? '请选择' : birthday,
+                                      style: TextStyle(
+                                          color: birthday.isEmpty
+                                              ? const Color(0xFF94A3B8)
+                                              : _textPrimary)),
+                                  const Text('›', style: TextStyle(color: Color(0xFF94A3B8))),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Collapsible
+                        Container(
+                          margin: const EdgeInsets.only(top: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Column(children: [
+                            InkWell(
+                              onTap: () => setS(() => moreOpen = !moreOpen),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text('其他（选填）',
+                                        style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF475569))),
+                                    Text(moreOpen ? '⌄' : '›',
+                                        style: const TextStyle(color: Color(0xFF94A3B8))),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            if (moreOpen)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                                child: Column(children: [
+                                  Row(children: [
+                                    Expanded(
+                                      child: TextField(
+                                        controller: heightCtl,
+                                        keyboardType: TextInputType.number,
+                                        decoration: const InputDecoration(
+                                          labelText: '身高(cm)',
+                                          isDense: true,
+                                          border: OutlineInputBorder(),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: weightCtl,
+                                        keyboardType: TextInputType.number,
+                                        decoration: const InputDecoration(
+                                          labelText: '体重(kg)',
+                                          isDense: true,
+                                          border: OutlineInputBorder(),
+                                        ),
+                                      ),
+                                    ),
+                                  ]),
+                                ]),
+                              ),
+                          ]),
+                        ),
+                      ]),
+                    ),
+                  ),
+                  // Foot
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 46,
+                      child: ElevatedButton(
+                        onPressed: canSubmit() ? doSubmit : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _brand500,
+                          disabledBackgroundColor: const Color(0xFFCBD5E1),
+                          foregroundColor: Colors.white,
+                          disabledForegroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(23)),
+                        ),
+                        child: Text(submitting ? '保存中...' : '保存',
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        });
+      },
+    );
+  }
+
+  static Widget _completeSelfField({
+    required String label,
+    bool required = false,
+    required Widget child,
+    bool hasError = false,
+    String errMsg = '',
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 90,
+                child: Row(children: [
+                  if (required)
+                    const Text('*',
+                        style: TextStyle(color: Color(0xFFEF4444), fontSize: 14)),
+                  Text(label,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: hasError
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFF475569))),
+                ]),
+              ),
+              Expanded(child: child),
+            ],
+          ),
+          if (hasError && errMsg.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 90, top: 4),
+              child: Text(errMsg,
+                  style: const TextStyle(fontSize: 11, color: Color(0xFFEF4444))),
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -96,6 +611,8 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
             _selectedMemberId = self['id'] as int?;
           });
           if (_selectedMemberId != null) _loadProfile(_selectedMemberId!);
+          // [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 本人 Tab 激活后尝试弹窗
+          _maybeShowSelfCompleteDialog();
         }
       }
     } catch (_) {}
@@ -1006,7 +1523,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
                     child: Column(children: [
-                      _row('姓名', TextField(controller: nameCtl, decoration: const InputDecoration(hintText: '请输入姓名'))),
+                      _row('姓名', TextField(controller: nameCtl, decoration: const InputDecoration(hintText: '请输入姓名'), maxLength: 20), required: true),
                       _row('性别', Wrap(spacing: 8, children: ['男', '女', '其他'].map((g) {
                         final on = gender == g;
                         return GestureDetector(
@@ -1020,7 +1537,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
                             child: Text(g, style: TextStyle(color: on ? Colors.white : const Color(0xFF4B5563))),
                           ),
                         );
-                      }).toList())),
+                      }).toList()), required: true),
                       _row('生日', InkWell(
                         onTap: () async {
                           final initialDate = DateTime.tryParse(birthday) ?? DateTime(1990);
@@ -1040,7 +1557,7 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
                           child: Text(birthday.isEmpty ? '请选择' : birthday,
                             style: TextStyle(color: birthday.isEmpty ? const Color(0xFF9CA3AF) : _textPrimary)),
                         ),
-                      )),
+                      ), required: true),
                       _row('身高 (cm)', TextField(controller: heightCtl, keyboardType: TextInputType.number)),
                       _row('体重 (kg)', TextField(controller: weightCtl, keyboardType: TextInputType.number)),
                       _row('血型', Wrap(spacing: 8, children: ['A', 'B', 'AB', 'O', '未知'].map((b) {
@@ -1081,6 +1598,26 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () async {
+                          // [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29 §6] Hero 编辑三项必填
+                          final nm = nameCtl.text.trim();
+                          if (nm.isEmpty || nm == '本人' || nm.length > 20) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('请填写姓名')),
+                            );
+                            return;
+                          }
+                          if (gender.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('请选择性别')),
+                            );
+                            return;
+                          }
+                          if (birthday.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('请选择出生日期')),
+                            );
+                            return;
+                          }
                           try {
                             await _apiService.dio.put(
                               '/api/health/profile/member/$_selectedMemberId',
@@ -1126,14 +1663,22 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
     );
   }
 
-  Widget _row(String label, Widget control) {
+  Widget _row(String label, Widget control, {bool required = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6))),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-        SizedBox(width: 100, child: Text(label, style: const TextStyle(color: Color(0xFF4B5563)))),
+        SizedBox(
+          width: 100,
+          child: Row(children: [
+            if (required)
+              const Text('*',
+                  style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w700)),
+            Text(label, style: const TextStyle(color: Color(0xFF4B5563))),
+          ]),
+        ),
         Expanded(child: control),
       ]),
     );

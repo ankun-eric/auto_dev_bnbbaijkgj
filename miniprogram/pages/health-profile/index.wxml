@@ -361,5 +361,101 @@
     </view>
   </view>
 
+  <!-- [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 本人资料完善弹窗 -->
+  <view class="self-complete-mask" wx:if="{{showSelfCompleteDialog}}" bindtap="onSelfCompleteLater">
+    <view class="self-complete-dialog" catchtap="">
+      <text class="self-complete-close" bindtap="onSelfCompleteLater">×</text>
+      <view class="self-complete-title">完善健康档案</view>
+      <view class="self-complete-body">为了给您提供更精准的健康服务，请先完善您的基本资料（姓名、性别、出生日期）。</view>
+      <view class="self-complete-btns">
+        <button class="self-complete-btn-later" bindtap="onSelfCompleteLater">稍后</button>
+        <button class="self-complete-btn-go" bindtap="onSelfCompleteGo">去完善</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 完善健康档案抽屉 -->
+  <view class="self-drawer-mask" wx:if="{{showSelfCompleteDrawer}}" bindtap="closeSelfCompleteDrawer">
+    <view class="self-drawer-sheet" catchtap="">
+      <view class="self-drawer-head">
+        <text class="self-drawer-close" bindtap="closeSelfCompleteDrawer">×</text>
+        <text class="self-drawer-title">完善健康档案</text>
+        <text class="self-drawer-spacer"></text>
+      </view>
+      <view class="self-drawer-tip">为了给您提供更精准的健康服务，请先完善您的基本资料（姓名、性别、出生日期）。</view>
+
+      <scroll-view scroll-y class="self-drawer-body">
+        <!-- 姓名（必填） -->
+        <view class="self-field">
+          <view class="self-field-row">
+            <text class="self-field-label"><text class="self-field-required">*</text>姓名</text>
+            <input class="self-field-input {{selfFormErrs.name ? 'self-field-input-err' : ''}}"
+              placeholder="请输入姓名" maxlength="20"
+              value="{{selfFormDraft.name}}"
+              bindinput="onSelfFormInput" data-field="name" />
+          </view>
+          <view class="self-field-err" wx:if="{{selfFormErrs.name}}">请填写姓名</view>
+        </view>
+
+        <!-- 性别（必填） -->
+        <view class="self-field">
+          <view class="self-field-row">
+            <text class="self-field-label"><text class="self-field-required">*</text>性别</text>
+            <view class="self-gender-group">
+              <view wx:for="{{['男','女']}}" wx:key="*this"
+                class="self-gender-btn {{selfFormDraft.gender === item ? 'self-gender-btn-active' : ''}}"
+                bindtap="onSelfGenderPick" data-value="{{item}}">{{item}}</view>
+            </view>
+          </view>
+          <view class="self-field-err" wx:if="{{selfFormErrs.gender}}">请选择性别</view>
+        </view>
+
+        <!-- 出生日期（必填） -->
+        <view class="self-field">
+          <view class="self-field-row">
+            <text class="self-field-label"><text class="self-field-required">*</text>出生日期</text>
+            <picker mode="date" value="{{selfFormDraft.birthday}}"
+              start="1900-01-01" end="{{todayDateStr}}"
+              bindchange="onSelfBirthdayPick">
+              <text class="self-field-value {{selfFormDraft.birthday ? '' : 'placeholder'}}">{{selfFormDraft.birthday || '请选择'}}</text>
+            </picker>
+          </view>
+          <view class="self-field-err" wx:if="{{selfFormErrs.birthday}}">请选择出生日期</view>
+        </view>
+
+        <!-- 折叠区 -->
+        <view class="self-collapsed-head" bindtap="toggleSelfDrawerMore">
+          <text>其他（选填）</text>
+          <text class="self-collapsed-arrow {{selfDrawerMoreOpen ? 'self-collapsed-arrow-open' : ''}}">›</text>
+        </view>
+        <view class="self-collapsed-body" wx:if="{{selfDrawerMoreOpen}}">
+          <view class="self-field self-field-inline">
+            <view class="self-field-row">
+              <text class="self-field-label">身高(cm)</text>
+              <input class="self-field-input" type="digit" placeholder="0-300"
+                value="{{selfFormDraft.height}}"
+                bindinput="onSelfFormInput" data-field="height" />
+            </view>
+          </view>
+          <view class="self-field self-field-inline">
+            <view class="self-field-row">
+              <text class="self-field-label">体重(kg)</text>
+              <input class="self-field-input" type="digit" placeholder="0-300"
+                value="{{selfFormDraft.weight}}"
+                bindinput="onSelfFormInput" data-field="weight" />
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+
+      <view class="self-drawer-foot">
+        <button class="self-drawer-save {{selfFormCanSubmit ? '' : 'self-drawer-save-disabled'}}"
+          disabled="{{!selfFormCanSubmit}}"
+          loading="{{selfFormSubmitting}}"
+          bindtap="onSelfFormSubmit">保存</button>
+      </view>
+    </view>
+  </view>
+
   <view class="safe-bottom-fix"></view>
 </view>

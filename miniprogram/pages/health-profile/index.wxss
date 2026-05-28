@@ -623,3 +623,140 @@ page {
 }
 
 .safe-bottom-fix { height: env(safe-area-inset-bottom); }
+
+/* [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 本人资料完善弹窗 + 抽屉样式 */
+.self-complete-mask {
+  position: fixed; inset: 0; z-index: 3000;
+  background: rgba(15,23,42,0.55);
+  display: flex; align-items: center; justify-content: center;
+  padding: 48rpx;
+}
+.self-complete-dialog {
+  width: 100%; max-width: 640rpx; background: #fff;
+  border-radius: 24rpx; padding: 44rpx 40rpx 36rpx;
+  box-shadow: 0 24rpx 80rpx rgba(2,132,199,0.25);
+  position: relative;
+}
+.self-complete-close {
+  position: absolute; top: 16rpx; right: 24rpx;
+  font-size: 48rpx; color: #94A3B8; line-height: 1;
+}
+.self-complete-title {
+  font-size: 34rpx; font-weight: 700; color: #0F172A;
+  margin-bottom: 20rpx; text-align: center;
+}
+.self-complete-body {
+  font-size: 26rpx; color: #475569; line-height: 1.6;
+  margin-bottom: 36rpx; text-align: center;
+}
+.self-complete-btns {
+  display: flex; gap: 24rpx;
+}
+.self-complete-btn-later {
+  flex: 1; height: 84rpx; border-radius: 42rpx;
+  background: #F1F5F9; color: #0F172A;
+  font-size: 28rpx; font-weight: 600; border: none;
+}
+.self-complete-btn-go {
+  flex: 1; height: 84rpx; border-radius: 42rpx;
+  background: linear-gradient(135deg, #38BDF8, #0284C7);
+  color: #fff; font-size: 28rpx; font-weight: 700; border: none;
+}
+
+.self-drawer-mask {
+  position: fixed; inset: 0; z-index: 3000;
+  background: rgba(15,23,42,0.55);
+  display: flex; align-items: flex-end;
+}
+.self-drawer-sheet {
+  width: 100%; background: #F8FAFC;
+  border-radius: 40rpx 40rpx 0 0;
+  max-height: 92vh; display: flex; flex-direction: column;
+}
+.self-drawer-head {
+  padding: 28rpx 32rpx;
+  background: #fff;
+  border-radius: 40rpx 40rpx 0 0;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1rpx solid #E2E8F0;
+}
+.self-drawer-close { font-size: 44rpx; color: #64748B; width: 40rpx; }
+.self-drawer-title { font-size: 32rpx; font-weight: 700; color: #0F172A; }
+.self-drawer-spacer { width: 40rpx; }
+.self-drawer-tip {
+  margin: 24rpx 32rpx 16rpx;
+  padding: 20rpx 24rpx;
+  background: #EFF6FF;
+  border: 1rpx solid #BFDBFE;
+  border-radius: 16rpx;
+  font-size: 24rpx; color: #1E40AF; line-height: 1.6;
+}
+.self-drawer-body {
+  flex: 1; padding: 0 32rpx 24rpx;
+}
+.self-field {
+  background: #fff; border-radius: 16rpx;
+  margin-bottom: 16rpx;
+  padding: 24rpx 28rpx;
+}
+.self-field-row {
+  display: flex; align-items: center;
+}
+.self-field-label {
+  width: 180rpx; font-size: 26rpx; color: #475569; font-weight: 600;
+  flex-shrink: 0;
+}
+.self-field-required { color: #EF4444; margin-right: 4rpx; }
+.self-field-input {
+  flex: 1; padding: 14rpx 20rpx; border: 1rpx solid #E2E8F0;
+  border-radius: 16rpx; font-size: 26rpx; background: #fff;
+}
+.self-field-input-err { border-color: #EF4444; }
+.self-field-value { flex: 1; padding: 14rpx 20rpx; border: 1rpx solid #E2E8F0;
+  border-radius: 16rpx; font-size: 26rpx; background: #fff; display: block; }
+.self-field-value.placeholder { color: #94A3B8; }
+.self-field-err {
+  font-size: 22rpx; color: #EF4444; margin-top: 8rpx;
+  padding-left: 180rpx;
+}
+.self-gender-group { flex: 1; display: flex; gap: 16rpx; }
+.self-gender-btn {
+  flex: 1; height: 64rpx; line-height: 64rpx; text-align: center;
+  background: #F1F5F9; color: #0F172A;
+  border-radius: 12rpx; font-size: 28rpx; font-weight: 600;
+}
+.self-gender-btn-active {
+  background: #DBEAFE; color: #0284C7;
+  border: 2rpx solid #38BDF8;
+}
+.self-collapsed-head {
+  background: #fff; border-radius: 16rpx;
+  margin-bottom: 16rpx;
+  padding: 24rpx 28rpx;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 26rpx; color: #475569; font-weight: 600;
+}
+.self-collapsed-arrow {
+  color: #94A3B8; transition: transform 0.2s;
+  display: inline-block;
+}
+.self-collapsed-arrow-open {
+  transform: rotate(90deg);
+}
+.self-collapsed-body {
+  background: #fff; border-radius: 16rpx;
+  margin-bottom: 16rpx; padding: 12rpx 0;
+}
+.self-field-inline { background: transparent; margin-bottom: 0; padding: 12rpx 28rpx; }
+.self-drawer-foot {
+  padding: 20rpx 32rpx 32rpx;
+  background: #fff; border-top: 1rpx solid #E2E8F0;
+}
+.self-drawer-save {
+  width: 100%; height: 92rpx; border-radius: 46rpx;
+  background: linear-gradient(135deg, #38BDF8, #0284C7);
+  color: #fff; font-size: 30rpx; font-weight: 700; border: none;
+}
+.self-drawer-save-disabled {
+  background: #CBD5E1 !important;
+}

@@ -120,6 +120,19 @@ Page({
     heroSaving: false,
     showHeroEdit: false,
     heroEditDraft: null,
+
+    // [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 本人资料完善弹窗 + 抽屉
+    selfNeedComplete: false,
+    selfMissingFields: [],
+    showSelfCompleteDialog: false,
+    showSelfCompleteDrawer: false,
+    selfDialogShownInSession: false,
+    selfFormDraft: { name: '', gender: '', birthday: '', height: '', weight: '' },
+    selfFormErrs: { name: false, gender: false, birthday: false },
+    selfFormCanSubmit: false,
+    selfFormSubmitting: false,
+    selfDrawerMoreOpen: false,
+    todayDateStr: '',
   },
 
   onLoad() {
@@ -130,6 +143,12 @@ Page({
     this.loadGuardianSummary();
     this.loadMyGuardianCount();
     this.loadDeviceCount();
+    // [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 拉本人完善状态
+    this.loadSelfNeedComplete();
+    // 今日日期字符串（出生日期 picker end 上限）
+    const t = new Date();
+    const today = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+    this.setData({ todayDateStr: today });
   },
 
   onShow() {
@@ -290,6 +309,146 @@ Page({
     // [PRD-HEALTH-ARCHIVE-OPTIM-V1 F2] 按选中咨询人加载今日用药数
     const cid = m ? (m.is_self ? 0 : m.id) : -1;
     this.loadMedHero(cid);
+    // [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 本人 Tab 激活 + needComplete=true → 延迟 500ms 弹窗
+    this.maybeShowSelfCompleteDialog();
+  },
+
+  maybeShowSelfCompleteDialog() {
+    if (this.data.selfDialogShownInSession) return;
+    if (!this.data.selfNeedComplete) return;
+    const m = this.data.selectedMember;
+    if (!m || !m.is_self) return;
+    if (this._selfDialogTimer) clearTimeout(this._selfDialogTimer);
+    this._selfDialogTimer = setTimeout(() => {
+      this.setData({
+        showSelfCompleteDialog: true,
+        selfDialogShownInSession: true,
+      });
+    }, 500);
+  },
+
+  async loadSelfNeedComplete() {
+    try {
+      const res = await get('/api/health-profile/self', {}, { showLoading: false, suppressErrorToast: true });
+      const data = (res && (res.data || res)) || {};
+      const need = !!data.needComplete;
+      const missing = Array.isArray(data.missingFields) ? data.missingFields : [];
+      // 抽屉初始 draft
+      const draft = {
+        name: (data.name && data.name !== '本人') ? data.name : '',
+        gender: (data.gender === 'male' || data.gender === 'M') ? '男'
+          : (data.gender === 'female' || data.gender === 'F') ? '女'
+          : (data.gender || ''),
+        birthday: (data.birthday || '').slice(0, 10),
+        height: data.height != null ? String(data.height) : '',
+        weight: data.weight != null ? String(data.weight) : '',
+      };
+      this.setData({
+        selfNeedComplete: need,
+        selfMissingFields: missing,
+        selfFormDraft: draft,
+      });
+      this.recalcSelfFormCanSubmit();
+      // 如果当前已经在本人 Tab，触发弹窗
+      this.maybeShowSelfCompleteDialog();
+    } catch (_) {
+      this.setData({ selfNeedComplete: false, selfMissingFields: [] });
+    }
+  },
+
+  onSelfCompleteLater() {
+    this.setData({ showSelfCompleteDialog: false });
+  },
+
+  onSelfCompleteGo() {
+    this.setData({ showSelfCompleteDialog: false, showSelfCompleteDrawer: true });
+  },
+
+  closeSelfCompleteDrawer() {
+    this.setData({ showSelfCompleteDrawer: false });
+  },
+
+  toggleSelfDrawerMore() {
+    this.setData({ selfDrawerMoreOpen: !this.data.selfDrawerMoreOpen });
+  },
+
+  onSelfFormInput(e) {
+    const field = e.currentTarget.dataset.field;
+    const draft = Object.assign({}, this.data.selfFormDraft, { [field]: e.detail.value });
+    const errs = Object.assign({}, this.data.selfFormErrs);
+    if (field === 'name') errs.name = false;
+    this.setData({ selfFormDraft: draft, selfFormErrs: errs });
+    this.recalcSelfFormCanSubmit();
+  },
+
+  onSelfGenderPick(e) {
+    const value = e.currentTarget.dataset.value;
+    const draft = Object.assign({}, this.data.selfFormDraft, { gender: value });
+    const errs = Object.assign({}, this.data.selfFormErrs, { gender: false });
+    this.setData({ selfFormDraft: draft, selfFormErrs: errs });
+    this.recalcSelfFormCanSubmit();
+  },
+
+  onSelfBirthdayPick(e) {
+    const draft = Object.assign({}, this.data.selfFormDraft, { birthday: e.detail.value });
+    const errs = Object.assign({}, this.data.selfFormErrs, { birthday: false });
+    this.setData({ selfFormDraft: draft, selfFormErrs: errs });
+    this.recalcSelfFormCanSubmit();
+  },
+
+  recalcSelfFormCanSubmit() {
+    const d = this.data.selfFormDraft || {};
+    const name = String(d.name || '').trim();
+    const nameOk = !!name && name !== '本人' && name.length <= 20;
+    const ok = nameOk && !!d.gender && !!d.birthday;
+    this.setData({ selfFormCanSubmit: ok });
+  },
+
+  async onSelfFormSubmit() {
+    const d = this.data.selfFormDraft || {};
+    const name = String(d.name || '').trim();
+    const errs = { name: false, gender: false, birthday: false };
+    if (!name || name === '本人' || name.length > 20) errs.name = true;
+    if (!d.gender) errs.gender = true;
+    if (!d.birthday) errs.birthday = true;
+    if (errs.name || errs.gender || errs.birthday) {
+      this.setData({ selfFormErrs: errs });
+      return;
+    }
+    this.setData({ selfFormSubmitting: true });
+    try {
+      const body = {
+        name,
+        gender: d.gender,
+        birthday: d.birthday,
+      };
+      if (d.height) body.height = Number(d.height);
+      if (d.weight) body.weight = Number(d.weight);
+      await put('/api/health-profile/self', body);
+      wx.showToast({ title: '保存成功', icon: 'success' });
+      this.setData({
+        showSelfCompleteDrawer: false,
+        selfNeedComplete: false,
+      });
+      // 刷新成员列表（本人 Tab 名变更）+ 当前 profile
+      this.loadMembers();
+      if (this.data.selectedMemberId) this.loadProfile(this.data.selectedMemberId);
+    } catch (e) {
+      let msg = '保存失败';
+      const detail = e && e.data && e.data.detail;
+      if (detail && typeof detail === 'object' && detail.field_errors) {
+        const fe = detail.field_errors;
+        this.setData({
+          selfFormErrs: { name: !!fe.name, gender: !!fe.gender, birthday: !!fe.birthday },
+        });
+        msg = detail.message || '请补全必填字段';
+      } else if (typeof detail === 'string') {
+        msg = detail;
+      }
+      wx.showToast({ title: msg, icon: 'none' });
+    } finally {
+      this.setData({ selfFormSubmitting: false });
+    }
   },
 
   async loadProfile(memberId) {
@@ -646,6 +805,20 @@ Page({
   async saveHero() {
     const d = this.data.heroEditDraft;
     if (!d) return;
+    // [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29 §6] Hero 编辑页三项必填
+    const nm = String(d.name || '').trim();
+    if (!nm || nm === '本人' || nm.length > 20) {
+      wx.showToast({ title: '请填写姓名', icon: 'none' });
+      return;
+    }
+    if (!d.gender) {
+      wx.showToast({ title: '请选择性别', icon: 'none' });
+      return;
+    }
+    if (!d.birthday) {
+      wx.showToast({ title: '请选择出生日期', icon: 'none' });
+      return;
+    }
     this.setData({ heroSaving: true });
     try {
       await put(`/api/health/profile/member/${this.data.selectedMemberId}`, {

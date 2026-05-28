@@ -9,6 +9,8 @@ import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMemberModal';
+// [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 本人资料完善弹窗 + 抽屉
+import CompleteSelfProfileDrawer from '@/components/health-profile-v5/CompleteSelfProfileDrawer';
 import MemberBadge from '@/components/family/MemberBadge';
 import { formatGender } from '@/utils/format';
 import { BH_TOKENS } from '@/lib/health-tokens';
@@ -297,6 +299,15 @@ function HealthProfileV2PageInner() {
     trash_count: 0, show_alert_banner: false, banner_text: '',
   });
 
+  // [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 本人资料完善弹窗 + 抽屉
+  const [selfNeedComplete, setSelfNeedComplete] = useState<boolean>(false);
+  const [selfMissingFields, setSelfMissingFields] = useState<string[]>([]);
+  const [showSelfCompleteDialog, setShowSelfCompleteDialog] = useState<boolean>(false);
+  const [showSelfCompleteDrawer, setShowSelfCompleteDrawer] = useState<boolean>(false);
+  const [selfInitialForDrawer, setSelfInitialForDrawer] = useState<any>(null);
+  // 本会话已弹过标志位（来回切 Tab 不重复弹）
+  const selfDialogShownInSessionRef = useRef<boolean>(false);
+
   // Collapsible sections
   const [medExpanded, setMedExpanded] = useState(false);
   const [medShowAll, setMedShowAll] = useState(false);
@@ -542,6 +553,30 @@ function HealthProfileV2PageInner() {
     } catch { /* silent */ }
   }, []);
 
+  // [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 拉取本人 needComplete 状态
+  const fetchSelfNeedComplete = useCallback(async () => {
+    try {
+      const res: any = await api.get('/api/health-profile/self');
+      const data = res?.data?.data || res?.data || res;
+      const need = !!data?.needComplete;
+      const missing: string[] = Array.isArray(data?.missingFields) ? data.missingFields : [];
+      setSelfNeedComplete(need);
+      setSelfMissingFields(missing);
+      setSelfInitialForDrawer({
+        name: data?.name,
+        gender: data?.gender,
+        birthday: data?.birthday,
+        height: data?.height,
+        weight: data?.weight,
+      });
+      return { need, missing };
+    } catch {
+      setSelfNeedComplete(false);
+      setSelfMissingFields([]);
+      return { need: false, missing: [] };
+    }
+  }, []);
+
   const fetchRecordsByCategory = useCallback(async (categoryKey: string, memberId: number | null) => {
     setRecordDrawerLoading(true);
     try {
@@ -561,6 +596,20 @@ function HealthProfileV2PageInner() {
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
   useEffect(() => { fetchGuardedFlags(); fetchGuardianSummary(); fetchReverseGuardianCount(); }, [fetchGuardedFlags, fetchGuardianSummary, fetchReverseGuardianCount]);
+  // [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 进入页面后拉取 needComplete 状态
+  useEffect(() => { fetchSelfNeedComplete(); }, [fetchSelfNeedComplete]);
+
+  // [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 本人 Tab 激活 + needComplete=true → 延迟 500ms 弹窗（本会话只弹 1 次）
+  useEffect(() => {
+    if (!selectedMember || !selectedMember.is_self) return;
+    if (!selfNeedComplete) return;
+    if (selfDialogShownInSessionRef.current) return;
+    const timer = setTimeout(() => {
+      selfDialogShownInSessionRef.current = true;
+      setShowSelfCompleteDialog(true);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [selectedMember, selfNeedComplete]);
 
   useEffect(() => {
     const f = searchParams?.get('focus');
@@ -1803,8 +1852,19 @@ function HealthProfileV2PageInner() {
   const renderHeroEditModal = () => {
     if (!showHeroEdit || !heroEditDraft) return null;
 
+    // [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29 §6] Hero 编辑页三项必填（全局，对老用户同样生效）
+    const nameStr = String(heroEditDraft.name || '').trim();
+    const nameInvalid = !nameStr || nameStr === '本人' || nameStr.length > 20;
+    const genderInvalid = !heroEditDraft.gender;
+    const birthdayInvalid = !heroEditDraft.birthday;
+    const requiredAllOk = !nameInvalid && !genderInvalid && !birthdayInvalid;
+
     const saveAll = async () => {
       if (!heroEditDraft || !selectedMemberId || !profile?.id) return;
+      if (!requiredAllOk) {
+        showToast('请补全姓名、性别、出生日期', 'fail');
+        return;
+      }
       try {
         await Promise.all([
           api.put(`/api/health/profile/member/${selectedMemberId}`, {
@@ -1871,27 +1931,58 @@ function HealthProfileV2PageInner() {
                   )}
                 </div>
               </div>
-              {/* 姓名 */}
-              <div style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
-                <span style={{ width: 70, fontSize: 14, color: '#6b7280', flexShrink: 0 }}>姓名</span>
-                <input type="text" value={heroEditDraft.name || ''} onChange={(e) => setHeroEditDraft({ ...heroEditDraft, name: e.target.value })}
-                  style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, textAlign: 'right', boxSizing: 'border-box' }} />
-              </div>
-              {/* 性别 */}
-              <div style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
-                <span style={{ width: 70, fontSize: 14, color: '#6b7280', flexShrink: 0 }}>性别</span>
-                <div style={{ flex: 1, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                  {['男', '女'].map((o) => (
-                    <button key={o} onClick={() => setHeroEditDraft({ ...heroEditDraft, gender: o })}
-                      style={{ padding: '6px 14px', borderRadius: 14, background: heroEditDraft.gender === o ? T.brand500 : '#f3f4f6', color: heroEditDraft.gender === o ? '#fff' : '#374151', border: 'none', fontSize: 13, cursor: 'pointer' }}>{o}</button>
-                  ))}
+              {/* 姓名（必填） */}
+              <div style={{ padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={{ width: 70, fontSize: 14, color: '#6b7280', flexShrink: 0 }}>
+                    <span style={{ color: '#EF4444', marginRight: 2 }}>*</span>姓名
+                  </span>
+                  <input
+                    type="text" value={heroEditDraft.name || ''}
+                    onChange={(e) => setHeroEditDraft({ ...heroEditDraft, name: e.target.value })}
+                    maxLength={20}
+                    data-testid="hero-edit-name"
+                    style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: nameInvalid ? '1px solid #EF4444' : '1px solid #d1d5db', fontSize: 14, textAlign: 'right', boxSizing: 'border-box' }}
+                  />
                 </div>
+                {nameInvalid && (
+                  <div data-testid="hero-edit-name-err" style={{ fontSize: 11, color: '#EF4444', marginTop: 4, marginLeft: 70 }}>请填写姓名</div>
+                )}
               </div>
-              {/* 生日 */}
-              <div style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
-                <span style={{ width: 70, fontSize: 14, color: '#6b7280', flexShrink: 0 }}>生日</span>
-                <input type="date" value={heroEditDraft.birthday || ''} onChange={(e) => setHeroEditDraft({ ...heroEditDraft, birthday: e.target.value })}
-                  style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, textAlign: 'right', boxSizing: 'border-box' }} />
+              {/* 性别（必填） */}
+              <div style={{ padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={{ width: 70, fontSize: 14, color: '#6b7280', flexShrink: 0 }}>
+                    <span style={{ color: '#EF4444', marginRight: 2 }}>*</span>性别
+                  </span>
+                  <div style={{ flex: 1, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    {['男', '女'].map((o) => (
+                      <button key={o} onClick={() => setHeroEditDraft({ ...heroEditDraft, gender: o })}
+                        data-testid={`hero-edit-gender-${o}`}
+                        style={{ padding: '6px 14px', borderRadius: 14, background: heroEditDraft.gender === o ? T.brand500 : '#f3f4f6', color: heroEditDraft.gender === o ? '#fff' : '#374151', border: 'none', fontSize: 13, cursor: 'pointer' }}>{o}</button>
+                    ))}
+                  </div>
+                </div>
+                {genderInvalid && (
+                  <div data-testid="hero-edit-gender-err" style={{ fontSize: 11, color: '#EF4444', marginTop: 4, marginLeft: 70 }}>请选择性别</div>
+                )}
+              </div>
+              {/* 生日（必填） */}
+              <div style={{ padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={{ width: 70, fontSize: 14, color: '#6b7280', flexShrink: 0 }}>
+                    <span style={{ color: '#EF4444', marginRight: 2 }}>*</span>生日
+                  </span>
+                  <input type="date" value={heroEditDraft.birthday || ''}
+                    onChange={(e) => setHeroEditDraft({ ...heroEditDraft, birthday: e.target.value })}
+                    max={new Date().toISOString().slice(0, 10)}
+                    min="1900-01-01"
+                    data-testid="hero-edit-birthday"
+                    style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: birthdayInvalid ? '1px solid #EF4444' : '1px solid #d1d5db', fontSize: 14, textAlign: 'right', boxSizing: 'border-box' }} />
+                </div>
+                {birthdayInvalid && (
+                  <div data-testid="hero-edit-birthday-err" style={{ fontSize: 11, color: '#EF4444', marginTop: 4, marginLeft: 70 }}>请选择出生日期</div>
+                )}
               </div>
               {/* 身高/体重 同行 */}
               <div style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6', gap: 12 }}>
@@ -2016,8 +2107,17 @@ function HealthProfileV2PageInner() {
           <div style={{ padding: 16, borderTop: `1px solid ${T.brand100}`, display: 'flex', gap: 12 }}>
             <button onClick={() => setShowHeroEdit(false)}
               style={{ flex: 1, padding: '12px 0', borderRadius: 24, background: '#fff', border: `1px solid ${T.brand200}`, fontSize: 15, fontWeight: 600 }}>取消</button>
-            <button onClick={saveAll} data-testid="prd469-hero-save"
-              style={{ flex: 1, padding: '12px 0', borderRadius: 24, background: T.brand500, color: '#fff', border: 'none', fontSize: 15, fontWeight: 600 }}>保存</button>
+            <button
+              onClick={saveAll}
+              data-testid="prd469-hero-save"
+              disabled={!requiredAllOk}
+              style={{
+                flex: 1, padding: '12px 0', borderRadius: 24,
+                background: requiredAllOk ? T.brand500 : '#CBD5E1',
+                color: '#fff', border: 'none', fontSize: 15, fontWeight: 600,
+                cursor: requiredAllOk ? 'pointer' : 'not-allowed',
+              }}
+            >保存</button>
           </div>
         </div>
       </div>
@@ -2220,6 +2320,90 @@ function HealthProfileV2PageInner() {
       {renderSurgeryFormModal()}
       {renderRecordDrawer()}
       {renderTaGuardianReadonlyDrawer()}
+
+      {/* [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 本人资料完善弹窗 */}
+      {showSelfCompleteDialog && (
+        <div
+          data-testid="self-complete-dialog"
+          style={{
+            position: 'fixed', inset: 0, zIndex: 3000,
+            background: 'rgba(15,23,42,0.55)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 24,
+          }}
+          onClick={() => setShowSelfCompleteDialog(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: 340, background: '#fff',
+              borderRadius: 16, padding: '22px 20px 18px',
+              boxShadow: '0 12px 40px rgba(2,132,199,0.25)',
+              position: 'relative',
+            }}
+          >
+            <span
+              data-testid="self-complete-dialog-close"
+              onClick={() => setShowSelfCompleteDialog(false)}
+              style={{
+                position: 'absolute', top: 8, right: 12,
+                fontSize: 24, color: '#94A3B8', cursor: 'pointer',
+                userSelect: 'none', lineHeight: 1,
+              }}
+            >×</span>
+            <div style={{
+              fontSize: 17, fontWeight: 700, color: '#0F172A',
+              marginBottom: 10, textAlign: 'center',
+            }}>完善健康档案</div>
+            <div style={{
+              fontSize: 13, color: '#475569', lineHeight: 1.6,
+              marginBottom: 18, textAlign: 'center',
+            }}>
+              为了给您提供更精准的健康服务，请先完善您的基本资料（姓名、性别、出生日期）。
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                data-testid="self-complete-dialog-later"
+                onClick={() => setShowSelfCompleteDialog(false)}
+                style={{
+                  flex: 1, height: 42, borderRadius: 21,
+                  background: '#F1F5F9', color: '#0F172A',
+                  border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                }}
+              >稍后</button>
+              <button
+                data-testid="self-complete-dialog-go"
+                onClick={() => {
+                  setShowSelfCompleteDialog(false);
+                  setShowSelfCompleteDrawer(true);
+                }}
+                style={{
+                  flex: 1, height: 42, borderRadius: 21,
+                  background: 'linear-gradient(135deg, #38BDF8, #0284C7)',
+                  color: '#fff', border: 'none',
+                  fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(2,132,199,0.3)',
+                }}
+              >去完善</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 完善健康档案抽屉 */}
+      {showSelfCompleteDrawer && (
+        <CompleteSelfProfileDrawer
+          initial={selfInitialForDrawer}
+          onClose={() => setShowSelfCompleteDrawer(false)}
+          onSuccess={async () => {
+            setShowSelfCompleteDrawer(false);
+            // 刷新成员列表（本人 Tab 名变更）+ needComplete 状态
+            await fetchMembers();
+            if (selectedMemberId) await fetchProfile(selectedMemberId);
+            await fetchSelfNeedComplete();
+          }}
+        />
+      )}
     </div>
   );
 }

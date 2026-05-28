@@ -2055,6 +2055,9 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(font_setting.router)
 app.include_router(health_profile.router)
+# [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 本人健康档案完善：/api/health-profile/self
+from app.api import health_profile_self as _health_profile_self  # noqa: E402
+app.include_router(_health_profile_self.router)
 app.include_router(chat.router)
 app.include_router(chat_history.router)
 # [PRD-AI-HOME-OPTIM-V4 2026-05-21] AI 首页 60min 刷新 + 埋点接口
