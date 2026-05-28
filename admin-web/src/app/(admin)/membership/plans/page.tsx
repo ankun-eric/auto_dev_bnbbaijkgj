@@ -1,14 +1,13 @@
 'use client';
 
 /**
- * [付费会员体系 PRD v1.1] 付费会员套餐配置页
+ * [会员中心 PRD v1.0 终稿对齐 2026-05-26] 付费会员套餐管理页
  *
  * 路径：/membership/plans
- * 功能：
- * - 套餐列表（守护版/家庭版/年度版等）
- * - 新增/编辑/软下线套餐
- * - 字段：套餐编码、名称、月/年价格、AI 各类额度、守护人上限、商城折扣率、权益描述、是否启用、排序
- * - 与「免费会员额度」入口（同页右上角入口跳转 /membership/free-quota）
+ * 字段对齐：
+ *   套餐名 name / 套餐说明 description / 月价 price_month / 年价 price_year
+ *   max_managed / ai_outbound_call_count / emergency_ai_call_count / max_managed_by
+ *   discount_rate / is_active / is_recommended / sort_order
  */
 
 import React, { useEffect, useState } from 'react';
@@ -25,8 +24,12 @@ import {
   Tag,
   Typography,
   message,
+  Alert,
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, CrownOutlined, SettingOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined, EditOutlined, DeleteOutlined, CrownOutlined,
+  SettingOutlined, StarFilled, PoweroffOutlined,
+} from '@ant-design/icons';
 import Link from 'next/link';
 import { del, get, post, put } from '@/lib/api';
 
@@ -35,19 +38,30 @@ const { TextArea } = Input;
 
 interface MembershipPlan {
   id: number;
-  plan_code: string;
   name: string;
-  price_monthly: number;
-  price_yearly: number | null;
-  ai_call_quota: number;
-  ai_alert_quota: number;
-  ai_remind_quota: number;
-  max_guardians: number;
-  discount_rate: number;
-  benefits_desc: string | null;
+  description: string | null;
+  price_month: number | null;
+  price_year: number | null;
+  max_managed: number;
+  ai_outbound_call_count: number;
+  emergency_ai_call_count: number;
+  max_managed_by: number;
+  discount_rate: number | null;
   is_active: boolean;
+  is_recommended: boolean;
   sort_order: number;
 }
+
+const fmtLimit = (n: number | null | undefined) => {
+  if (n === -1) return <Tag color="purple">不限</Tag>;
+  if (n === null || n === undefined) return '—';
+  return `${n} 次/月`;
+};
+const fmtPersons = (n: number | null | undefined) => {
+  if (n === -1) return <Tag color="purple">不限</Tag>;
+  if (n === null || n === undefined) return '—';
+  return `${n} 人`;
+};
 
 export default function MembershipPlansPage() {
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
@@ -59,7 +73,7 @@ export default function MembershipPlansPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await get('/api/admin/membership/plans?include_inactive=true');
+      const res = await get<any>('/api/admin/membership/plans?include_inactive=true');
       const list = Array.isArray(res) ? res : res?.items || res?.list || [];
       setPlans(list);
     } catch (e: any) {
@@ -77,14 +91,12 @@ export default function MembershipPlansPage() {
     setEditing(null);
     form.resetFields();
     form.setFieldsValue({
-      price_monthly: 0,
-      price_yearly: null,
-      ai_call_quota: 0,
-      ai_alert_quota: 0,
-      ai_remind_quota: 0,
-      max_guardians: 1,
-      discount_rate: 1.0,
+      max_managed: 3,
+      ai_outbound_call_count: 0,
+      emergency_ai_call_count: 0,
+      max_managed_by: 3,
       is_active: true,
+      is_recommended: false,
       sort_order: 0,
     });
     setModalVisible(true);
@@ -98,11 +110,25 @@ export default function MembershipPlansPage() {
 
   const handleDelete = async (id: number) => {
     try {
-      await del(`/api/admin/membership/plans/${id}`);
-      message.success('已下线（软删除）');
+      const res: any = await del(`/api/admin/membership/plans/${id}`);
+      if (res?.soft_deleted) {
+        message.warning(res.reason || '已有历史订阅引用，仅停用');
+      } else {
+        message.success('已删除');
+      }
       fetchData();
     } catch (e: any) {
-      message.error(e?.response?.data?.detail || '下线失败');
+      message.error(e?.response?.data?.detail || '删除失败');
+    }
+  };
+
+  const handleToggle = async (id: number) => {
+    try {
+      await put(`/api/admin/membership/plans/${id}/toggle`, {});
+      message.success('状态已切换');
+      fetchData();
+    } catch (e: any) {
+      message.error('切换失败');
     }
   };
 
@@ -121,9 +147,7 @@ export default function MembershipPlansPage() {
     } catch (e: any) {
       if (e?.response?.data?.detail) {
         message.error(e.response.data.detail);
-      } else if (e?.errorFields) {
-        // 表单校验错误，UI 已提示
-      } else {
+      } else if (!e?.errorFields) {
         message.error('保存失败');
       }
     }
@@ -131,75 +155,85 @@ export default function MembershipPlansPage() {
 
   const columns = [
     {
-      title: '套餐',
+      title: '#',
+      width: 60,
+      render: (_: any, __: any, idx: number) => idx + 1,
+    },
+    {
+      title: '套餐名',
       dataIndex: 'name',
       width: 180,
       render: (name: string, record: MembershipPlan) => (
         <Space direction="vertical" size={0}>
           <Space>
-            <CrownOutlined style={{ color: '#faad14' }} />
-            <strong>{name}</strong>
-            {!record.is_active && <Tag color="default">已下线</Tag>}
+            <CrownOutlined style={{ color: record.is_recommended ? '#D4AF37' : '#999' }} />
+            <strong style={{ color: record.is_recommended ? '#D4AF37' : undefined }}>
+              {name}
+            </strong>
+            {record.is_recommended && (
+              <Tag color="gold" icon={<StarFilled />}>推荐</Tag>
+            )}
+            {!record.is_active && <Tag color="default">已停用</Tag>}
           </Space>
-          <span style={{ color: '#999', fontSize: 12 }}>code: {record.plan_code}</span>
+          {record.description && (
+            <span style={{ color: '#999', fontSize: 12 }}>{record.description}</span>
+          )}
         </Space>
       ),
     },
     {
-      title: '价格（月/年）',
-      key: 'price',
-      width: 160,
-      render: (_: any, r: MembershipPlan) => (
-        <div>
-          <div>月：¥{Number(r.price_monthly || 0).toFixed(2)}</div>
-          <div style={{ color: '#888' }}>年：{r.price_yearly != null ? `¥${Number(r.price_yearly).toFixed(2)}` : '—'}</div>
-        </div>
-      ),
+      title: '月价',
+      dataIndex: 'price_month',
+      width: 100,
+      render: (v: number | null) => (v != null ? `¥${Number(v).toFixed(2)}` : '—'),
     },
     {
-      title: 'AI 电话告警',
-      dataIndex: 'ai_call_quota',
-      width: 110,
-      render: (n: number) => `${n} 次/月`,
+      title: '年价',
+      dataIndex: 'price_year',
+      width: 100,
+      render: (v: number | null) => (v != null ? `¥${Number(v).toFixed(2)}` : '—'),
     },
-    {
-      title: 'AI 异常告警',
-      dataIndex: 'ai_alert_quota',
-      width: 110,
-      render: (n: number) => `${n} 次/月`,
-    },
-    {
-      title: 'AI 外呼提醒',
-      dataIndex: 'ai_remind_quota',
-      width: 110,
-      render: (n: number) => `${n} 次/月`,
-    },
-    { title: '守护人上限', dataIndex: 'max_guardians', width: 100 },
+    { title: '守护人', dataIndex: 'max_managed', width: 90, render: fmtPersons },
+    { title: 'AI 外呼', dataIndex: 'ai_outbound_call_count', width: 100, render: fmtLimit },
+    { title: '紧急呼叫', dataIndex: 'emergency_ai_call_count', width: 100, render: fmtLimit },
+    { title: '被管理上限', dataIndex: 'max_managed_by', width: 100, render: fmtPersons },
     {
       title: '商城折扣',
       dataIndex: 'discount_rate',
       width: 100,
-      render: (r: number) => <Tag color="blue">{Number(r).toFixed(2)} 折</Tag>,
+      render: (r: number | null) => (r != null ? <Tag color="blue">{Number(r).toFixed(2)} 折</Tag> : '—'),
     },
-    { title: '排序', dataIndex: 'sort_order', width: 80 },
     {
-      title: '启用',
+      title: '状态',
       dataIndex: 'is_active',
       width: 80,
       render: (v: boolean) => (v ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>),
     },
     {
+      title: '推荐',
+      dataIndex: 'is_recommended',
+      width: 70,
+      render: (v: boolean) => (v ? <Tag color="gold" icon={<StarFilled />}>推荐</Tag> : '—'),
+    },
+    {
       title: '操作',
       key: 'action',
-      width: 160,
+      width: 240,
       render: (_: any, r: MembershipPlan) => (
-        <Space>
+        <Space size="small">
           <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(r)}>
             编辑
           </Button>
-          <Popconfirm title="下线该套餐？" onConfirm={() => handleDelete(r.id)}>
+          <Button
+            size="small"
+            icon={<PoweroffOutlined />}
+            onClick={() => handleToggle(r.id)}
+          >
+            {r.is_active ? '停用' : '启用'}
+          </Button>
+          <Popconfirm title="确定删除该套餐？" onConfirm={() => handleDelete(r.id)}>
             <Button size="small" danger icon={<DeleteOutlined />}>
-              下线
+              删除
             </Button>
           </Popconfirm>
         </Space>
@@ -212,10 +246,11 @@ export default function MembershipPlansPage() {
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
         <div>
           <Title level={3} style={{ margin: 0 }}>
-            <CrownOutlined style={{ color: '#faad14' }} /> 付费会员套餐配置
+            <CrownOutlined style={{ color: '#D4AF37' }} /> 付费会员套餐管理
           </Title>
           <Paragraph type="secondary" style={{ marginTop: 4 }}>
-            付费会员体系 v1.1：以付费订阅为核心，提供 AI 电话外呼额度、AI 提醒额度、守护人数量上限、商城折扣等可量化权益。
+            会员中心 PRD v1.0 终稿：套餐字段已对齐为 max_managed / ai_outbound_call_count /
+            emergency_ai_call_count / max_managed_by；推荐套餐用户端展示金色描边 + 推荐角标。
           </Paragraph>
         </div>
         <Space>
@@ -228,65 +263,94 @@ export default function MembershipPlansPage() {
         </Space>
       </Space>
 
-      <Table rowKey="id" columns={columns} dataSource={plans} loading={loading} pagination={false} />
+      <Table
+        rowKey="id"
+        columns={columns}
+        dataSource={plans}
+        loading={loading}
+        pagination={false}
+        rowClassName={(r) => (r.is_recommended ? 'recommended-row' : '')}
+        scroll={{ x: 1400 }}
+      />
+
+      <style jsx global>{`
+        .recommended-row td {
+          background: linear-gradient(90deg, #FFF8E7 0%, #FFFBF0 100%) !important;
+          border-left: 3px solid #D4AF37 !important;
+        }
+        .recommended-row:hover td {
+          background: linear-gradient(90deg, #FFF1D6 0%, #FFF6E0 100%) !important;
+        }
+      `}</style>
 
       <Modal
         title={editing ? '编辑套餐' : '新增套餐'}
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
-        width={720}
+        width={760}
         destroyOnClose
       >
+        <Alert
+          type="info"
+          showIcon
+          message="数量字段填 -1 表示不限；月价/年价留空表示不展示对应购买按钮"
+          style={{ marginBottom: 16 }}
+        />
         <Form form={form} layout="vertical">
+          <Form.Item label="套餐名称" name="name" rules={[{ required: true }]}>
+            <Input placeholder="如 守护版 / 家庭版" maxLength={50} />
+          </Form.Item>
+          <Form.Item label="套餐说明" name="description">
+            <TextArea rows={2} placeholder="简短描述（可选）" maxLength={255} />
+          </Form.Item>
+
           <Space size="large" style={{ width: '100%' }}>
-            <Form.Item label="套餐编码" name="plan_code" rules={[{ required: true }]} style={{ flex: 1 }}>
-              <Input placeholder="如 guardian / family / annual" />
+            <Form.Item label="月价（30 天，留空=不支持月购）" name="price_month">
+              <InputNumber min={0} step={0.01} style={{ width: 200 }} />
             </Form.Item>
-            <Form.Item label="套餐名称" name="name" rules={[{ required: true }]} style={{ flex: 1 }}>
-              <Input placeholder="如 守护版 / 家庭版" />
+            <Form.Item label="年价（365 天，留空=不支持年购）" name="price_year">
+              <InputNumber min={0} step={0.01} style={{ width: 200 }} />
+            </Form.Item>
+            <Form.Item label="商城折扣（0~1，留空=无折扣）" name="discount_rate"
+              tooltip="如 0.9 表示 9 折；仅后台可配，用户端不展示">
+              <InputNumber min={0} max={1} step={0.01} style={{ width: 200 }} />
             </Form.Item>
           </Space>
 
           <Space size="large" style={{ width: '100%' }}>
-            <Form.Item label="月度价格（元）" name="price_monthly" rules={[{ required: true }]}>
-              <InputNumber min={0} step={0.01} style={{ width: 180 }} />
+            <Form.Item label="守护人数量" name="max_managed" rules={[{ required: true }]}
+              tooltip="-1=不限">
+              <InputNumber min={-1} style={{ width: 180 }} />
             </Form.Item>
-            <Form.Item label="年度价格（元，可选）" name="price_yearly">
-              <InputNumber min={0} step={0.01} style={{ width: 180 }} />
-            </Form.Item>
-            <Form.Item label="商城折扣率" name="discount_rate" tooltip="0.9 表示 9 折，1.0 表示无折扣">
-              <InputNumber min={0.01} max={1} step={0.01} style={{ width: 140 }} />
-            </Form.Item>
-          </Space>
-
-          <Space size="large" style={{ width: '100%' }}>
-            <Form.Item label="AI 电话告警额度（次/月）" name="ai_call_quota">
-              <InputNumber min={0} style={{ width: 180 }} />
-            </Form.Item>
-            <Form.Item label="AI 异常告警额度（次/月）" name="ai_alert_quota">
-              <InputNumber min={0} style={{ width: 180 }} />
-            </Form.Item>
-            <Form.Item label="AI 外呼提醒额度（次/月）" name="ai_remind_quota">
-              <InputNumber min={0} style={{ width: 180 }} />
+            <Form.Item label="AI 外呼提醒（次/月）" name="ai_outbound_call_count"
+              rules={[{ required: true }]} tooltip="-1=不限">
+              <InputNumber min={-1} style={{ width: 180 }} />
             </Form.Item>
           </Space>
 
           <Space size="large" style={{ width: '100%' }}>
-            <Form.Item label="守护人数量上限" name="max_guardians" rules={[{ required: true }]}>
-              <InputNumber min={1} style={{ width: 180 }} />
+            <Form.Item label="紧急 AI 呼叫（次/月）" name="emergency_ai_call_count"
+              rules={[{ required: true }]} tooltip="-1=不限">
+              <InputNumber min={-1} style={{ width: 180 }} />
             </Form.Item>
+            <Form.Item label="被管理人数上限" name="max_managed_by"
+              rules={[{ required: true }]} tooltip="-1=不限">
+              <InputNumber min={-1} style={{ width: 180 }} />
+            </Form.Item>
+          </Space>
+
+          <Space size="large" style={{ width: '100%' }}>
             <Form.Item label="排序（越小越靠前）" name="sort_order">
               <InputNumber style={{ width: 180 }} />
             </Form.Item>
             <Form.Item label="是否启用" name="is_active" valuePropName="checked">
               <Switch />
             </Form.Item>
+            <Form.Item label="是否推荐（金色描边+推荐角标）" name="is_recommended" valuePropName="checked">
+              <Switch />
+            </Form.Item>
           </Space>
-
-          <Form.Item label="套餐权益描述" name="benefits_desc">
-            <TextArea rows={4} placeholder="支持纯文本或 HTML，将展示在用户端会员卡片与权益详情页" />
-          </Form.Item>
         </Form>
       </Modal>
     </div>

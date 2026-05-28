@@ -174,17 +174,27 @@ async def test_tc_005_list_products_keyword_search(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_tc_006_list_products_points_exchangeable(client: AsyncClient):
-    """TC-006: 获取商品列表 — 积分可兑换筛选"""
+async def test_tc_006_list_products_points_exchangeable_legacy_compat(client: AsyncClient):
+    """TC-006: 实物商品与积分商城彻底解耦 v1.0 —
+    老版本客户端兼容：传入 points_exchangeable 查询参数后端必须忽略且不报错，
+    返回完整的实物商品列表（不再按该字段过滤）。
+    """
     cat_id = await _seed_category()
     await _seed_product(cat_id, name="普通商品", points_exchangeable=False)
-    await _seed_product(cat_id, name="积分商品", points_exchangeable=True)
+    await _seed_product(cat_id, name="另一个商品", points_exchangeable=True)
 
     resp = await client.get("/api/products", params={"points_exchangeable": True})
     assert resp.status_code == 200
     data = resp.json()
-    assert data["total"] == 1
-    assert data["items"][0]["name"] == "积分商品"
+    # 解耦后：参数被忽略，返回所有商品；同时响应中不再含 points_exchangeable / points_price 字段
+    assert data["total"] == 2
+    for item in data["items"]:
+        assert "points_exchangeable" not in item, (
+            f"商品列表响应不应再含 points_exchangeable 字段，实际：{item}"
+        )
+        assert "points_price" not in item, (
+            f"商品列表响应不应再含 points_price 字段，实际：{item}"
+        )
 
 
 # ═══════════════════════════════════════════════════════

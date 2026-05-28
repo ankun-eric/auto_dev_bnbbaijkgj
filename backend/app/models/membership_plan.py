@@ -1,60 +1,54 @@
-"""[付费会员体系 PRD v1.1] 付费会员套餐与用户订阅模型
+"""[会员中心 PRD v1.0 对齐 - 2026-05-26] 付费会员套餐与用户订阅模型
 
-新增模型：
-- MembershipPlan：付费会员套餐配置（守护版/家庭版/年度版等）
-- UserMembershipSub：用户订阅记录（active/expired/cancelled）。
-  ⚠️ 表名与历史 UserMembership(user_memberships) 冲突，因此采用新表名 user_membership_subs。
-- FreeMemberQuota：免费会员额度配置（单行配置表，id=1）
+本次结构性变更（严格对齐 PRD v1.0）：
+- MembershipPlan：删除 plan_code/ai_call_quota/ai_alert_quota/ai_remind_quota/max_guardians/
+  benefits_desc/point_multiplier/price_monthly/price_yearly；新增 is_recommended/
+  max_managed_by/ai_outbound_call_count/price_month/price_year；保留 discount_rate
+  （仅后台可配，用户端不展示）
+- FreeMemberQuota：删除老字段（ai_call_quota/ai_alert_quota/ai_remind_quota/
+  max_guardians/benefits_desc）；新增 max_managed_by/ai_outbound_call_count
 
-注：旧有 MemberLevel（积分会员等级）与 UserMembership（AI 外呼额度统计）保持表结构不变，
-但新「付费会员订阅」业务以 UserMembershipSub 为主。
+迁移由 backend/app/services/schema_sync._sync_membership_v1_aligned 执行物理 ALTER。
 """
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import mapped_column, relationship
 
 from app.core.database import Base
 
 
 class MembershipPlan(Base):
-    """付费会员套餐配置（守护版/家庭版等）"""
+    """付费会员套餐配置（PRD v1.0 终稿对齐）"""
 
     __tablename__ = "membership_plans"
 
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
-    plan_code = mapped_column(String(50), nullable=False, unique=True, comment="套餐唯一标识，如 guardian/family/annual")
-    name = mapped_column(String(100), nullable=False, comment="套餐名称，如『守护版』")
-    price_monthly = mapped_column(Numeric(10, 2), nullable=False, default=0, comment="月度价格（元）")
-    price_yearly = mapped_column(Numeric(10, 2), nullable=True, comment="年度价格（元），可空")
-    ai_call_quota = mapped_column(Integer, nullable=False, default=0,
-                                  comment="[v1.2 已 deprecated, 与 emergency_ai_call_count 对齐]")
-    ai_alert_quota = mapped_column(Integer, nullable=False, default=0,
-                                   comment="[v1.2 已 deprecated, 与 emergency_ai_call_count 对齐]")
-    ai_remind_quota = mapped_column(Integer, nullable=False, default=0,
-                                    comment="AI 外呼提醒额度（次/月），同 v1.2 ai_call_count")
+    name = mapped_column(String(50), nullable=False, comment="套餐名称")
+    description = mapped_column(String(255), nullable=True, comment="套餐说明")
+    price_month = mapped_column(Numeric(10, 2), nullable=True, comment="月价（30天），NULL=不支持月购")
+    price_year = mapped_column(Numeric(10, 2), nullable=True, comment="年价（365天），NULL=不支持年购")
+    max_managed = mapped_column(Integer, nullable=False, default=3,
+                                comment="守护人数量上限，-1=不限")
+    ai_outbound_call_count = mapped_column(Integer, nullable=False, default=0,
+                                           comment="AI 外呼提醒（次/月），-1=不限")
     emergency_ai_call_count = mapped_column(Integer, nullable=False, default=0,
-                                            comment="[PRD-GUARDIAN-V1.2] 紧急 AI 呼叫额度（次/月），-1=不限")
-    max_guardians = mapped_column(Integer, nullable=False, default=1,
-                                  comment="被绑定守护上限（前端不展示），-1=不限")
-    max_managed = mapped_column(Integer, nullable=False, default=10,
-                                comment="[PRD-GUARDIAN-V1.2] 守护他人上限（前端展示），-1=不限")
-    point_multiplier = mapped_column(Float, nullable=False, default=1.0,
-                                     comment="[PRD-GUARDIAN-V1.2] 积分翻倍倍数")
-    discount_rate = mapped_column(Float, nullable=False, default=1.0, comment="商城折扣率，如 0.9 表示 9 折")
-    benefits_desc = mapped_column(Text, nullable=True, comment="套餐权益描述（富文本/纯文本）")
-    is_active = mapped_column(Boolean, nullable=False, default=True, comment="是否启用（用户端可见可购买）")
-    sort_order = mapped_column(Integer, nullable=False, default=0, comment="列表排序，越小越靠前")
+                                            comment="紧急 AI 呼叫（次/月），-1=不限")
+    max_managed_by = mapped_column(Integer, nullable=False, default=3,
+                                   comment="被管理人数上限，-1=不限")
+    discount_rate = mapped_column(Float, nullable=True, default=None,
+                                  comment="商城折扣率（0.0~1.0，NULL=无折扣，仅后台可配）")
+    is_active = mapped_column(Boolean, nullable=False, default=True, comment="是否启用")
+    is_recommended = mapped_column(Boolean, nullable=False, default=False,
+                                   comment="是否推荐套餐（开启后用户端展示金色描边+推荐角标）")
+    sort_order = mapped_column(Integer, nullable=False, default=0, comment="排序，越小越靠前")
     created_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
 class UserMembershipSub(Base):
-    """用户付费会员订阅记录（PRD v1.1）
-
-    注：表名采用 user_membership_subs，避免与既有 user_memberships（PRD-HEALTH-OPT-V1 AI 外呼配额表）冲突。
-    """
+    """用户付费会员订阅记录"""
 
     __tablename__ = "user_membership_subs"
 
@@ -75,18 +69,17 @@ class UserMembershipSub(Base):
 
 
 class FreeMemberQuota(Base):
-    """免费会员额度配置（系统级单行配置，id 固定为 1）"""
+    """免费会员额度配置（PRD v1.0 终稿对齐，系统级单行配置，id=1）"""
 
     __tablename__ = "free_member_quota"
 
     id = mapped_column(Integer, primary_key=True, autoincrement=False, default=1)
-    ai_call_quota = mapped_column(Integer, nullable=False, default=0, comment="[v1.2 deprecated]")
-    ai_alert_quota = mapped_column(Integer, nullable=False, default=3, comment="[v1.2 deprecated]")
-    ai_remind_quota = mapped_column(Integer, nullable=False, default=0, comment="AI 外呼提醒额度（次/月）")
-    emergency_ai_call_count = mapped_column(Integer, nullable=False, default=3,
-                                            comment="[PRD-GUARDIAN-V1.2] 免费紧急 AI 呼叫额度（次/月）")
-    max_guardians = mapped_column(Integer, nullable=False, default=1, comment="免费用户被绑定守护上限")
     max_managed = mapped_column(Integer, nullable=False, default=3,
-                                comment="[PRD-GUARDIAN-V1.2] 免费用户守护他人上限")
-    benefits_desc = mapped_column(Text, nullable=True, comment="免费会员权益说明")
+                                comment="守护人数量上限")
+    ai_outbound_call_count = mapped_column(Integer, nullable=False, default=5,
+                                           comment="AI 外呼提醒（次/月）")
+    emergency_ai_call_count = mapped_column(Integer, nullable=False, default=3,
+                                            comment="紧急 AI 呼叫（次/月）")
+    max_managed_by = mapped_column(Integer, nullable=False, default=3,
+                                   comment="被管理人数上限")
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

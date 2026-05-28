@@ -281,7 +281,7 @@ async def test_admin_bindings_and_alarms(client: AsyncClient, auth_headers):
 
 # ============== 7. 管理后台：回调配置 ==============
 @pytest.mark.asyncio
-async def test_admin_callback_config(client: AsyncClient, auth_headers):
+async def test_admin_callback_config(client: AsyncClient, auth_headers, monkeypatch):
     # 初始为空
     r0 = await client.get("/api/admin/home_safety/callback_config", headers=auth_headers)
     assert r0.status_code == 200
@@ -307,7 +307,22 @@ async def test_admin_callback_config(client: AsyncClient, auth_headers):
     assert r3.status_code == 200
     assert r3.json()["success"] is True
 
-    # 推送给上游（仅更新 last_pushed_at）
+    # [PRD-HOME-SAFETY-V2 2026-05-27] push_upstream 现在是真实 HTTP 调用
+    # 测试期注入 mock 以避免外网依赖
+    from app.api import home_safety_v1 as _hs
+
+    async def _fake_push(full_url, auth_token, dept_id, callback_url):
+        return {"status": "success", "code": 0, "message": "ok", "raw": '{"code":0,"message":"ok"}'}
+
+    monkeypatch.setattr(_hs, "_PUSH_UPSTREAM_OVERRIDE", _fake_push)
+
+    # v2 还需要 upstream_path 和 callback_domain，先补齐
+    await client.put(
+        "/api/admin/home_safety/callback_config",
+        json={"upstream_path": "/api/cb", "callback_domain": "https://example.com"},
+        headers=auth_headers,
+    )
     r4 = await client.post("/api/admin/home_safety/callback_config/push_upstream", headers=auth_headers)
     assert r4.status_code == 200
     assert r4.json()["success"] is True
+    monkeypatch.setattr(_hs, "_PUSH_UPSTREAM_OVERRIDE", None)

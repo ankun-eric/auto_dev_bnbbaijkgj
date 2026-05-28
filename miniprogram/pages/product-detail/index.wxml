@@ -28,9 +28,8 @@
       </view>
       <text class="sales-text" wx:if="{{product.sales}}">已售{{product.sales}}</text>
     </view>
-    <view class="points-row" wx:if="{{product.points_price}}">
-      <text class="points-text">积分兑换：{{product.points_price}}积分</text>
-    </view>
+    <!-- [实物商品与积分商城彻底解耦 v1.0 2026-05-25] 已隐藏"积分兑换"行，积分商城走独立入口 -->
+    
     <text class="product-title">{{product.name}}</text>
     <view class="tag-row" wx:if="{{product.fulfillment_type}}">
       <text class="detail-tag">{{product.fulfillment_type_label || ff.fulfillmentLabel(product.fulfillment_type)}}</text>

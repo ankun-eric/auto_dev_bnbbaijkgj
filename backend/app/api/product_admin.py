@@ -235,8 +235,9 @@ async def _build_product_response_dict(db: AsyncSession, product: Product) -> di
         "tag_ids": tag_ids,
         "tags": tags_grouped,
         "stock": product.stock or 0,
-        "points_exchangeable": bool(product.points_exchangeable),
-        "points_price": product.points_price or 0,
+        # [实物商品与积分商城彻底解耦 v1.0 2026-05-25]
+        # 已删除 points_exchangeable / points_price 字段。
+        # 实物商品不再与积分商城耦合；积分商城商品由 /points/mall 独立维护。
         "points_deductible": bool(product.points_deductible),
         # [付费会员体系 PRD v1.1] 是否支持付费会员折扣
         "is_member_discount_eligible": bool(getattr(product, "is_member_discount_eligible", False)),
@@ -595,8 +596,8 @@ async def admin_create_product(
         description=data.description,
         # [商品标签体系重构 v1.0] symptom_tags 字段已 drop，统一通过 goods_tags 关联
         stock=data.stock,
-        points_exchangeable=data.points_exchangeable,
-        points_price=data.points_price,
+        # [实物商品与积分商城彻底解耦 v1.0 2026-05-25]
+        # 不再写入 points_exchangeable / points_price；DB 列保留但永远为默认值 False/0
         points_deductible=data.points_deductible,
         # [付费会员体系 PRD v1.1] 是否支持付费会员折扣
         is_member_discount_eligible=bool(getattr(data, "is_member_discount_eligible", False) or False),
@@ -966,6 +967,7 @@ async def admin_list_unified_orders(
     refund_status: Optional[str] = None,
     aftersales_status: Optional[str] = None,  # PRD「我的订单与售后状态体系优化」F-09：4 个统一逻辑筛选
     redemption_code_status: Optional[str] = None,  # PRD V2 新增：核销码 5 态独立筛选
+    fulfillment_type: Optional[str] = None,  # [会员中心 PRD v1.0] 按履约类型筛选（delivery/in_store/on_site/virtual）
     keyword: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
@@ -1071,6 +1073,14 @@ async def admin_list_unified_orders(
         ).distinct().scalar_subquery()
         query = query.where(UnifiedOrder.id.in_(order_ids_subq))
         count_query = count_query.where(UnifiedOrder.id.in_(order_ids_subq))
+    # [会员中心 PRD v1.0] 履约类型筛选
+    if fulfillment_type:
+        ft_values = [v.strip() for v in fulfillment_type.split(",") if v.strip()] if "," in fulfillment_type else [fulfillment_type]
+        ft_order_ids_subq = select(OrderItem.order_id).where(
+            OrderItem.fulfillment_type.in_(ft_values)
+        ).distinct().scalar_subquery()
+        query = query.where(UnifiedOrder.id.in_(ft_order_ids_subq))
+        count_query = count_query.where(UnifiedOrder.id.in_(ft_order_ids_subq))
 
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
@@ -1215,6 +1225,62 @@ async def admin_approve_refund(
         )
 
     return {"message": "退款已批准", "refund_amount_approved": float(refund_req.refund_amount_approved)}
+
+
+@router.post("/orders/unified/{order_id}/refund")
+async def admin_membership_refund(
+    order_id: int,
+    current_user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """[会员中心 PRD v1.0] 会员费订单直接退款：退款成功后立即降级 + 额度归零。
+
+    适用于 virtual + membership_plan_id 非空的会员费订单。
+    """
+    from sqlalchemy.orm import selectinload
+    from app.models.membership_plan import UserMembershipSub
+
+    order_result = await db.execute(
+        select(UnifiedOrder)
+        .options(selectinload(UnifiedOrder.items))
+        .where(UnifiedOrder.id == order_id)
+    )
+    order = order_result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="订单不存在")
+
+    # 校验是否为会员费订单
+    membership_item = None
+    for it in (order.items or []):
+        if getattr(it, "membership_plan_id", None):
+            membership_item = it
+            break
+    if not membership_item:
+        raise HTTPException(status_code=400, detail="该订单不是会员费订单，请使用通用退款流程")
+
+    # 立即降级：将该用户当前 active 订阅置为 cancelled
+    sub_result = await db.execute(
+        select(UserMembershipSub)
+        .where(UserMembershipSub.user_id == order.user_id)
+        .where(UserMembershipSub.status == "active")
+    )
+    cancelled_subs = []
+    for sub in sub_result.scalars().all():
+        sub.status = "cancelled"
+        cancelled_subs.append(sub.id)
+
+    # 标记订单已退款
+    order.refund_status = RefundStatusEnum.refund_success
+    order.status = UnifiedOrderStatus.refunded
+    order.updated_at = datetime.utcnow()
+
+    return {
+        "ok": True,
+        "order_id": order_id,
+        "refunded_amount": float(order.paid_amount or order.total_amount or 0),
+        "downgraded_subs": cancelled_subs,
+        "message": "会员费订单已退款，用户已立即降级为免费会员",
+    }
 
 
 @router.post("/orders/unified/{order_id}/refund/reject")

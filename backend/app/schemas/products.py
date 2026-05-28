@@ -188,6 +188,11 @@ class ProductSkuResponse(BaseModel):
 
 
 class ProductCreate(BaseModel):
+    # [实物商品与积分商城彻底解耦 v1.0] 老版本客户端兼容：
+    # 旧客户端可能继续传 points_exchangeable / points_price，这里设置 extra="ignore"
+    # 让 pydantic 直接静默忽略未知字段，保证老 App 一个发版周期内不会因字段不匹配返回 422
+    model_config = ConfigDict(extra="ignore")
+
     name: str
     category_id: int
     fulfillment_type: str
@@ -201,8 +206,12 @@ class ProductCreate(BaseModel):
     symptom_tags: Optional[Any] = None
     tag_ids: Optional[list[int]] = None  # 商品挂载的 Tag id 列表（全量覆盖）
     stock: int = 0
-    points_exchangeable: bool = False
-    points_price: int = 0
+    # [实物商品与积分商城彻底解耦 v1.0 2026-05-25]
+    # 已删除 points_exchangeable / points_price 两个字段。
+    # 实物商品与积分商城两套体系完全独立：实物商品在 /product-system/products 维护，
+    # 积分商城商品在 /points/mall 独立维护。商品请求体不再接收这两个字段。
+    # 为兼容老版本客户端，老入参若仍传 points_exchangeable / points_price，
+    # 在 API 层使用 model_config extra="ignore" 静默忽略不报错。
     points_deductible: bool = False
     # [付费会员体系 PRD v1.1] 是否支持付费会员折扣
     is_member_discount_eligible: bool = False
@@ -256,6 +265,9 @@ class ProductCreate(BaseModel):
 
 
 class ProductUpdate(BaseModel):
+    # [实物商品与积分商城彻底解耦 v1.0] 老客户端兼容：忽略 points_exchangeable / points_price 等未知字段
+    model_config = ConfigDict(extra="ignore")
+
     name: Optional[str] = None
     category_id: Optional[int] = None
     fulfillment_type: Optional[str] = None
@@ -268,8 +280,8 @@ class ProductUpdate(BaseModel):
     symptom_tags: Optional[Any] = None
     tag_ids: Optional[list[int]] = None  # 商品挂载的 Tag id 列表（全量覆盖）
     stock: Optional[int] = None
-    points_exchangeable: Optional[bool] = None
-    points_price: Optional[int] = None
+    # [实物商品与积分商城彻底解耦 v1.0] points_exchangeable / points_price 已删除，
+    # 老客户端若仍传，下方 model_config extra="ignore" 会静默忽略
     points_deductible: Optional[bool] = None
     # [付费会员体系 PRD v1.1] 是否支持付费会员折扣（PUT 部分更新可不传）
     is_member_discount_eligible: Optional[bool] = None
@@ -386,8 +398,7 @@ class ProductResponse(BaseModel):
     tag_ids: list[int] = []
     tags: dict[str, list[Any]] = {}
     stock: int
-    points_exchangeable: bool
-    points_price: int
+    # [实物商品与积分商城彻底解耦 v1.0] points_exchangeable / points_price 已从响应中移除
     points_deductible: bool
     # [付费会员体系 PRD v1.1] 是否支持付费会员折扣
     is_member_discount_eligible: bool = False

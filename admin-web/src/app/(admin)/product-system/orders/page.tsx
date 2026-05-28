@@ -4,12 +4,12 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Table, Button, Space, Modal, Form, Input, Tabs, Tag, message,
   Typography, Descriptions, Drawer, Row, Col, Card, Statistic,
-  DatePicker, Select, InputNumber, Alert, Spin,
+  DatePicker, Select, InputNumber, Alert, Spin, Popconfirm,
 } from 'antd';
 import {
   EyeOutlined, SearchOutlined, SendOutlined,
   CheckOutlined, CloseOutlined, ShoppingCartOutlined,
-  DollarOutlined, UndoOutlined,
+  DollarOutlined, UndoOutlined, CrownOutlined,
 } from '@ant-design/icons';
 import { get, post } from '@/lib/api';
 import { resolveAssetUrl } from '@/lib/asset-url';
@@ -23,7 +23,7 @@ const { RangePicker } = DatePicker;
 
 interface OrderItem {
   id: number;
-  product_id: number;
+  product_id: number | null;
   product_name: string;
   product_image: string | null;
   product_price: number;
@@ -36,6 +36,9 @@ interface OrderItem {
   appointment_data: any | null;
   appointment_time: string | null;
   appointment_mode?: 'none' | 'date' | 'time_slot' | 'custom_form' | null;
+  // [会员中心 PRD v1.0] virtual 订单专属字段
+  membership_plan_id?: number | null;
+  membership_period?: 'month' | 'year' | null;
 }
 
 interface UnifiedOrder {
@@ -188,7 +191,7 @@ function mapOrder(raw: Record<string, unknown>): UnifiedOrder {
   const items = Array.isArray(raw.items)
     ? raw.items.map((it: any) => ({
         id: Number(it.id),
-        product_id: Number(it.product_id),
+        product_id: it.product_id != null ? Number(it.product_id) : null,
         product_name: String(it.product_name ?? ''),
         product_image: it.product_image ? String(it.product_image) : null,
         product_price: Number(it.product_price ?? 0),
@@ -200,6 +203,8 @@ function mapOrder(raw: Record<string, unknown>): UnifiedOrder {
         used_redeem_count: Number(it.used_redeem_count ?? 0),
         appointment_data: it.appointment_data ?? null,
         appointment_time: it.appointment_time ? String(it.appointment_time) : null,
+        membership_plan_id: it.membership_plan_id ?? null,
+        membership_period: it.membership_period ?? null,
       }))
     : [];
 
@@ -279,6 +284,8 @@ export default function UnifiedOrdersPage() {
   const [filterCategory, setFilterCategory] = useState<string>('');
   // PRD V2: 核销码 5 态独立筛选
   const [filterRedemptionCodeStatus, setFilterRedemptionCodeStatus] = useState('');
+  // [会员中心 PRD v1.0] 履约类型筛选（含 virtual=权益服务）
+  const [filterFulfillmentType, setFilterFulfillmentType] = useState('');
   const [amountMin, setAmountMin] = useState<number | null>(null);
   const [amountMax, setAmountMax] = useState<number | null>(null);
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
@@ -345,6 +352,7 @@ export default function UnifiedOrdersPage() {
       if (filterRefundStatus) params.aftersales_status = filterRefundStatus;
       if (filterCategory) params.category_id = filterCategory;
       if (filterRedemptionCodeStatus) params.redemption_code_status = filterRedemptionCodeStatus;
+      if (filterFulfillmentType) params.fulfillment_type = filterFulfillmentType;
       if (amountMin !== null) params.amount_min = amountMin;
       if (amountMax !== null) params.amount_max = amountMax;
 
@@ -377,7 +385,7 @@ export default function UnifiedOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchText, dateRange, filterStatus, filterPayMethod, filterRefundStatus, filterCategory, filterRedemptionCodeStatus, amountMin, amountMax]);
+  }, [searchText, dateRange, filterStatus, filterPayMethod, filterRefundStatus, filterCategory, filterRedemptionCodeStatus, filterFulfillmentType, amountMin, amountMax]);
 
   useEffect(() => {
     fetchCategories();
@@ -517,16 +525,23 @@ export default function UnifiedOrdersPage() {
       render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
     },
     {
-      title: '商品名称', key: 'products', width: 220,
+      title: '商品名称', key: 'products', width: 240,
       render: (_: unknown, record: UnifiedOrder) => {
         const text = record.items.map(it => it.product_name).join('、') || '-';
+        // [会员中心 PRD v1.0] virtual 订单显示紫色"权益服务"角标
+        const isVirtual = record.items.some((it: any) => it.fulfillment_type === 'virtual');
         return (
-          <Typography.Paragraph
-            ellipsis={{ rows: 2, tooltip: text }}
-            style={{ marginBottom: 0 }}
-          >
-            {text}
-          </Typography.Paragraph>
+          <div>
+            {isVirtual && (
+              <Tag color="purple" style={{ marginBottom: 2 }}>权益服务</Tag>
+            )}
+            <Typography.Paragraph
+              ellipsis={{ rows: 2, tooltip: text }}
+              style={{ marginBottom: 0 }}
+            >
+              {text}
+            </Typography.Paragraph>
+          </div>
         );
       },
     },
@@ -577,30 +592,51 @@ export default function UnifiedOrdersPage() {
       render: (_: unknown, record: UnifiedOrder) => renderStatusTag(record),
     },
     {
-      title: '操作', key: 'action', width: 160, fixed: 'right' as const,
-      render: (_: unknown, record: UnifiedOrder) => (
-        <Space size={0} wrap>
-          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => { setCurrentOrder(record); setDrawerVisible(true); }}>详情</Button>
-          {record.status === 'pending_shipment' && (
-            <Button type="link" size="small" icon={<SendOutlined />}
-              onClick={() => { setCurrentOrder(record); shipForm.resetFields(); setShipVisible(true); }}>
-              发货
-            </Button>
-          )}
-          {record.refund_status === 'applied' && (
-            <>
-              <Button type="link" size="small" icon={<CheckOutlined />} style={{ color: '#52c41a' }}
-                onClick={() => { setCurrentOrder(record); refundForm.resetFields(); fetchRefundDetail(record.id); setRefundApproveVisible(true); }}>
-                批准
+      title: '操作', key: 'action', width: 200, fixed: 'right' as const,
+      render: (_: unknown, record: UnifiedOrder) => {
+        // [会员中心 PRD v1.0] 会员费订单展示直接退款按钮
+        const isMembershipOrder = record.items.some((it: any) => it.membership_plan_id);
+        return (
+          <Space size={0} wrap>
+            <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => { setCurrentOrder(record); setDrawerVisible(true); }}>详情</Button>
+            {record.status === 'pending_shipment' && (
+              <Button type="link" size="small" icon={<SendOutlined />}
+                onClick={() => { setCurrentOrder(record); shipForm.resetFields(); setShipVisible(true); }}>
+                发货
               </Button>
-              <Button type="link" size="small" danger icon={<CloseOutlined />}
-                onClick={() => { setCurrentOrder(record); refundForm.resetFields(); fetchRefundDetail(record.id); setRefundRejectVisible(true); }}>
-                拒绝
-              </Button>
-            </>
-          )}
-        </Space>
-      ),
+            )}
+            {record.refund_status === 'applied' && (
+              <>
+                <Button type="link" size="small" icon={<CheckOutlined />} style={{ color: '#52c41a' }}
+                  onClick={() => { setCurrentOrder(record); refundForm.resetFields(); fetchRefundDetail(record.id); setRefundApproveVisible(true); }}>
+                  批准
+                </Button>
+                <Button type="link" size="small" danger icon={<CloseOutlined />}
+                  onClick={() => { setCurrentOrder(record); refundForm.resetFields(); fetchRefundDetail(record.id); setRefundRejectVisible(true); }}>
+                  拒绝
+                </Button>
+              </>
+            )}
+            {isMembershipOrder && record.status !== 'refunded' && record.refund_status !== 'refund_success' && (
+              <Popconfirm
+                title="退款会员费订单？"
+                description="退款后用户将立即降级为免费会员，额度归零。此操作不可撤销。"
+                onConfirm={async () => {
+                  try {
+                    await post(`/api/admin/orders/unified/${record.id}/refund`, {});
+                    message.success('已退款，用户已立即降级');
+                    fetchData(pagination.current, pagination.pageSize);
+                  } catch (e: any) {
+                    message.error(e?.response?.data?.detail || '退款失败');
+                  }
+                }}
+              >
+                <Button type="link" size="small" danger icon={<UndoOutlined />}>退款</Button>
+              </Popconfirm>
+            )}
+          </Space>
+        );
+      },
     },
   ];
 
@@ -719,6 +755,23 @@ export default function UnifiedOrdersPage() {
             </Select>
           </Col>
           <Col span={4}>
+            {/* [会员中心 PRD v1.0] 履约类型筛选 */}
+            <Select
+              style={{ width: '100%' }}
+              value={filterFulfillmentType}
+              onChange={v => setFilterFulfillmentType(v)}
+              placeholder="履约类型"
+              allowClear
+              onClear={() => setFilterFulfillmentType('')}
+            >
+              <Select.Option value="">全部履约类型</Select.Option>
+              <Select.Option value="in_store">到店服务</Select.Option>
+              <Select.Option value="delivery">配送</Select.Option>
+              <Select.Option value="virtual">权益服务</Select.Option>
+              <Select.Option value="on_site">上门</Select.Option>
+            </Select>
+          </Col>
+          <Col span={4}>
             <Space.Compact style={{ width: '100%' }}>
               <InputNumber
                 style={{ width: '50%' }}
@@ -797,6 +850,33 @@ export default function UnifiedOrdersPage() {
               {currentOrder.cancel_reason && <Descriptions.Item label="取消原因" span={2}>{currentOrder.cancel_reason}</Descriptions.Item>}
               <Descriptions.Item label="备注" span={2}>{currentOrder.notes || '-'}</Descriptions.Item>
             </Descriptions>
+
+            {/* [会员中心 PRD v1.0] virtual 订单展示会员专属字段 */}
+            {(() => {
+              const memItem: any = currentOrder.items.find((it: any) => it.membership_plan_id);
+              if (!memItem) return null;
+              const period = memItem.membership_period === 'year' ? '年卡' : memItem.membership_period === 'month' ? '月卡' : '-';
+              return (
+                <Card
+                  size="small"
+                  style={{ marginTop: 16, borderColor: '#D4AF37' }}
+                  title={<Space><CrownOutlined style={{ color: '#D4AF37' }} /><span>会员费订单专属信息</span><Tag color="purple">权益服务</Tag></Space>}
+                >
+                  <Descriptions column={2} size="small">
+                    <Descriptions.Item label="套餐名">{memItem.product_name?.replace(/^【.*?】/, '') || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="周期">{period}</Descriptions.Item>
+                    <Descriptions.Item label="生效日">{currentOrder.paid_at ? dayjs(currentOrder.paid_at).format('YYYY-MM-DD') : '待支付'}</Descriptions.Item>
+                    <Descriptions.Item label="到期日">
+                      {currentOrder.paid_at
+                        ? dayjs(currentOrder.paid_at).add(memItem.membership_period === 'year' ? 365 : 30, 'day').format('YYYY-MM-DD')
+                        : '-'}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="支付方式">{currentOrder.payment_method ? (payMethodMap[currentOrder.payment_method] || currentOrder.payment_method) : '-'}</Descriptions.Item>
+                    <Descriptions.Item label="金额">¥{Number(currentOrder.paid_amount ?? currentOrder.total_amount ?? 0).toFixed(2)}</Descriptions.Item>
+                  </Descriptions>
+                </Card>
+              );
+            })()}
 
             {/* [订单详情页订单地址展示统一 Bug 修复 v1.0]
                 统一【订单地址】Card：按订单类型差异化展示，与用户端字段口径完全一致。

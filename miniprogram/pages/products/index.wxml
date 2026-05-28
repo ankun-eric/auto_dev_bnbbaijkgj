@@ -77,9 +77,7 @@
           </view>
           <text class="product-sales" wx:if="{{item.sales}}">已售{{item.sales}}</text>
         </view>
-        <view class="product-points" wx:if="{{item.points_price}}">
-          <text>{{item.points_price}}积分可兑</text>
-        </view>
+        <!-- [实物商品与积分商城彻底解耦 v1.0 2026-05-25] 已隐藏列表卡片上的"积分可兑"标签 -->
       </view>
     </view>
   </view>

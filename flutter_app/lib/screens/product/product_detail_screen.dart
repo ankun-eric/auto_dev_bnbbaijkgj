@@ -372,10 +372,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       Row(
                         children: [
                           _buildTag(p.fulfillmentLabel),
-                          if (p.pointsExchangeable) ...[
-                            const SizedBox(width: 6),
-                            _buildTag('积分可兑'),
-                          ],
+                          // [实物商品与积分商城彻底解耦 v1.0 2026-05-25] 已隐藏"积分可兑"标签；积分商城走独立入口
                           if (p.pointsDeductible) ...[
                             const SizedBox(width: 6),
                             _buildTag('积分可抵'),

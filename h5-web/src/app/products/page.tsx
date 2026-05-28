@@ -15,7 +15,6 @@ import {
   InfiniteScroll,
   Empty,
   SpinLoading,
-  Checkbox,
 } from 'antd-mobile';
 import { DownOutline } from 'antd-mobile-icons';
 import api from '@/lib/api';
@@ -37,8 +36,7 @@ interface Product {
   sale_price: number;
   images: string[] | null;
   sales_count: number;
-  points_exchangeable: boolean;
-  points_price: number;
+  // [实物商品与积分商城彻底解耦 v1.0 2026-05-25] 已删除 points_exchangeable / points_price
   status: string;
 }
 
@@ -49,7 +47,7 @@ export default function ProductsPage() {
   const [activeCat, setActiveCat] = useState<string>('all');
   const [activeSubCat, setActiveSubCat] = useState<number | null>(null);
   const [fulfillmentType, setFulfillmentType] = useState<string>('');
-  const [pointsExchangeable, setPointsExchangeable] = useState(false);
+  // [实物商品与积分商城彻底解耦 v1.0 2026-05-25] 已删除"积分可兑"筛选；积分商城走 /points/mall 独立入口
   const [products, setProducts] = useState<Product[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -74,7 +72,7 @@ export default function ProductsPage() {
         params.category_id = activeCat;
       }
       if (fulfillmentType) params.fulfillment_type = fulfillmentType;
-      if (pointsExchangeable) params.points_exchangeable = true;
+      // [实物商品与积分商城彻底解耦 v1.0] 不再传 points_exchangeable 查询参数
       if (keyword) params.keyword = keyword;
 
       const res: any = await api.get('/api/products', { params });
@@ -92,7 +90,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeCat, activeSubCat, fulfillmentType, pointsExchangeable, keyword]);
+  }, [activeCat, activeSubCat, fulfillmentType, keyword]);
 
   useEffect(() => {
     setLoading(true);
@@ -194,13 +192,7 @@ export default function ProductsPage() {
             </div>
           </Dropdown.Item>
         </Dropdown>
-        <Checkbox
-          checked={pointsExchangeable}
-          onChange={setPointsExchangeable}
-          style={{ '--icon-size': '16px', '--font-size': '12px', fontSize: 12 }}
-        >
-          积分可兑
-        </Checkbox>
+        {/* [实物商品与积分商城彻底解耦 v1.0 2026-05-25] 已删除"积分可兑"筛选；积分商城商品请前往 /points/mall */}
       </div>
 
       <div className="px-3 pt-3">
@@ -233,19 +225,7 @@ export default function ProductsPage() {
                 <div className="flex-1 ml-3 min-w-0">
                   <div className="flex items-center">
                     <span className="font-medium text-sm truncate">{p.name}</span>
-                    {p.points_exchangeable && (
-                      <Tag
-                        style={{
-                          '--background-color': '#fa8c1615',
-                          '--text-color': '#fa8c16',
-                          '--border-color': 'transparent',
-                          fontSize: 10,
-                          marginLeft: 6,
-                        }}
-                      >
-                        积分兑
-                      </Tag>
-                    )}
+                    {/* [实物商品与积分商城彻底解耦 v1.0 2026-05-25] 已隐藏"积分兑"标签 */}
                   </div>
                   <div className="text-xs text-gray-400 mt-1">
                     {fulfillmentLabel(p.fulfillment_type)}

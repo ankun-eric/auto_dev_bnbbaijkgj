@@ -318,6 +318,9 @@ def _build_order_response(order) -> UnifiedOrderResponse:
             src = items_by_id.get(resp_item.id)
             if src is None:
                 continue
+            # [会员中心 PRD v1.0] 透传会员套餐字段
+            resp_item.membership_plan_id = getattr(src, "membership_plan_id", None)
+            resp_item.membership_period = getattr(src, "membership_period", None)
             prod = getattr(src, "product", None)
             if prod is None:
                 continue

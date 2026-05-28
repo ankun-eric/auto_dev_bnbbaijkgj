@@ -156,7 +156,10 @@ async def list_products(
     category_id: Optional[str] = None,
     parent_category_id: Optional[int] = None,
     fulfillment_type: Optional[str] = None,
-    points_exchangeable: Optional[bool] = None,
+    # [实物商品与积分商城彻底解耦 v1.0 2026-05-25]
+    # 兼容老版本 H5/小程序/App 仍可能传 points_exchangeable 查询参数：
+    # 接收但完全忽略（不再用于筛选），保证老客户端不会因未知参数报错。
+    points_exchangeable: Optional[bool] = None,  # noqa: ARG001  # 仅用于兼容，逻辑已忽略
     keyword: Optional[str] = None,
     q: Optional[str] = None,
     constitution_type: Optional[str] = None,
@@ -200,9 +203,9 @@ async def list_products(
     if fulfillment_type:
         query = query.where(Product.fulfillment_type == fulfillment_type)
         count_query = count_query.where(Product.fulfillment_type == fulfillment_type)
-    if points_exchangeable is not None:
-        query = query.where(Product.points_exchangeable == points_exchangeable)
-        count_query = count_query.where(Product.points_exchangeable == points_exchangeable)
+    # [实物商品与积分商城彻底解耦 v1.0 2026-05-25]
+    # points_exchangeable 参数已废弃：实物商品不再具备"是否进入积分商城"概念，
+    # 即便老客户端传入该参数也直接忽略，不做任何 SQL 过滤。
 
     final_kw = (q or keyword or "").strip()
     if final_kw:

@@ -96,7 +96,7 @@ class UnifiedOrderCreate(BaseModel):
 class OrderItemResponse(BaseModel):
     id: int
     order_id: int
-    product_id: int
+    product_id: Optional[int] = None  # 会员费订单无关联实物商品
     product_name: str
     product_image: Optional[str] = None
     product_price: float
@@ -115,6 +115,9 @@ class OrderItemResponse(BaseModel):
     # 取值 none / date / time_slot / custom_form，前端据此联动隐藏时段块、跳转自定义表单等
     appointment_mode: Optional[str] = None
     custom_form_id: Optional[int] = None
+    # [会员中心 PRD v1.0] 会员费订单专属字段（virtual + 非空）
+    membership_plan_id: Optional[int] = None
+    membership_period: Optional[str] = None  # month / year
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

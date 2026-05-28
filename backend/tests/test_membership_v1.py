@@ -1,21 +1,16 @@
-"""[付费会员体系 PRD v1.1] 自动化测试
+"""[付费会员体系 PRD v1.1] 自动化测试 [已被 PRD v1.0 终稿对齐取代]
 
-覆盖：
-1. 套餐 CRUD（admin）
-2. 免费额度 GET/PUT
-3. 用户端可见套餐列表
-4. 用户订阅 / 取消
-5. 商品编辑页 is_member_discount_eligible 字段贯通
-6. 收银台优惠计算：
-   - 仅会员折扣可用
-   - 仅积分抵扣可用 + 20% 上限封顶
-   - 同时可用 → 二选一不叠加 → 推荐力度大者
-   - 都不可用 → 原价
+⚠️ 本测试文件中的字段（plan_code/ai_remind_quota/ai_alert_quota/ai_call_quota/
+max_guardians/benefits_desc/price_monthly/price_yearly）已于 2026-05-26
+PRD v1.0 终稿对齐时全部物理删除。本文件整体跳过执行；新的字段对齐测试位于
+test_member_center_prd_v1_aligned.py。
 """
 
 from datetime import datetime, timedelta
 
 import pytest
+
+pytestmark = pytest.mark.skip(reason="v1.1 老字段已被 PRD v1.0 终稿对齐物理删除；新测试见 test_member_center_prd_v1_aligned.py")
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy import select

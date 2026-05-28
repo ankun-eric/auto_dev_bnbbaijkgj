@@ -183,8 +183,8 @@ const menuItems: MenuItem[] = [
     icon: <CrownOutlined />,
     label: '会员管理',
     children: [
-      { key: '/membership/plans', label: '付费会员套餐' },
-      { key: '/membership/free-quota', label: '免费会员额度' },
+      { key: '/membership/plans', label: '付费会员套餐管理' },
+      { key: '/membership/free-quota', label: '免费会员额度配置' },
     ],
   },
   {
@@ -199,6 +199,8 @@ const menuItems: MenuItem[] = [
       { key: '/family-management', label: '守护关系管理' },
       // [PRD-GUARDIAN-V1.2 §12.3] 紧急呼叫触发源管理
       { key: '/emergency-sources', label: '紧急呼叫触发源管理' },
+      // [PRD-HOME-SAFETY-V1 2026-05-27] 居家安全设备管理（紧急呼叫器/烟雾/水位）
+      { key: '/home-safety', label: '居家安全设备管理' },
       // [PRD-HEALTH-PLAN-OFFLINE-V1.0 2026-05-25] 打卡数据统计搬家自原「健康计划管理」
       { key: '/health-records/statistics', label: '打卡数据统计' },
     ],
@@ -282,7 +284,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/search')) return ['search-manage'];
   if (pathname.startsWith('/system-messages') || pathname.startsWith('/alert-templates') || pathname.startsWith('/abnormal-thresholds') || pathname.startsWith('/alert-logs')) return ['messages'];
   if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config') || pathname.startsWith('/map-config') || pathname.startsWith('/system/')) return ['system'];
-  if (pathname.startsWith('/health-records') || pathname.startsWith('/relation-types') || pathname.startsWith('/disease-presets') || pathname.startsWith('/family-management') || pathname.startsWith('/emergency-sources') || pathname.startsWith('/guardian-relations')) return ['health'];
+  if (pathname.startsWith('/health-records') || pathname.startsWith('/relation-types') || pathname.startsWith('/disease-presets') || pathname.startsWith('/family-management') || pathname.startsWith('/emergency-sources') || pathname.startsWith('/home-safety') || pathname.startsWith('/guardian-relations')) return ['health'];
   if (pathname.startsWith('/product-system')) return ['product-system'];
   return [];
 }

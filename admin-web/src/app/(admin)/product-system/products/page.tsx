@@ -45,8 +45,7 @@ interface Product {
   description: string;
   symptom_tags: string[];
   stock: number;
-  points_exchangeable: boolean;
-  points_price: number;
+  // [实物商品与积分商城彻底解耦 v1.0 2026-05-25] 已删除 points_exchangeable / points_price
   points_deductible: boolean;
   // [付费会员体系 PRD v1.1] 是否支持付费会员折扣
   is_member_discount_eligible: boolean;
@@ -113,8 +112,7 @@ function mapProduct(raw: Record<string, any>): Product {
     description: String(raw.description ?? ''),
     symptom_tags: Array.isArray(raw.symptom_tags) ? raw.symptom_tags.map(String) : [],
     stock: Number(raw.stock ?? 0),
-    points_exchangeable: Boolean(raw.points_exchangeable),
-    points_price: Number(raw.points_price ?? 0),
+    // [实物商品与积分商城彻底解耦 v1.0] 不再读取 points_exchangeable / points_price
     points_deductible: Boolean(raw.points_deductible),
     is_member_discount_eligible: Boolean(raw.is_member_discount_eligible),
     redeem_count: Number(raw.redeem_count ?? 1),
@@ -686,7 +684,7 @@ export default function ProductsPage() {
       sort_order: 0,
       redeem_count: 1,
       appointment_mode: 'none',
-      points_exchangeable: false,
+      // [实物商品与积分商城彻底解耦 v1.0] 不再初始化 points_exchangeable
       points_deductible: false,
       is_member_discount_eligible: false,
       spec_mode: 1,
@@ -719,8 +717,7 @@ export default function ProductsPage() {
       sale_price: detail.sale_price,
       selling_point: detail.selling_point || '',
       stock: detail.stock,
-      points_exchangeable: detail.points_exchangeable,
-      points_price: detail.points_price,
+      // [实物商品与积分商城彻底解耦 v1.0] 不再回填 points_exchangeable / points_price
       points_deductible: detail.points_deductible,
       is_member_discount_eligible: !!detail.is_member_discount_eligible,
       redeem_count: detail.redeem_count,
@@ -1000,8 +997,7 @@ export default function ProductsPage() {
       // [商品标签体系重构 v1.0] 旧 symptom_tags / constitution_types 已废弃，统一用 tag_ids
       tag_ids: selectedTagIds,
       stock: specMode === 1 ? (values.stock ?? editingRecord?.stock ?? 0) : totalSkuStock,
-      points_exchangeable: values.points_exchangeable || false,
-      points_price: values.points_price ?? 0,
+      // [实物商品与积分商城彻底解耦 v1.0 2026-05-25] 不再提交 points_exchangeable / points_price
       points_deductible: values.points_deductible || false,
       is_member_discount_eligible: values.is_member_discount_eligible || false,
       redeem_count: values.redeem_count ?? 1,
@@ -1534,25 +1530,14 @@ export default function ProductsPage() {
             <Switch />
           </Form.Item>
 
-          {/* 积分分组 */}
-          <div style={{ padding: '12px 0 8px', color: '#666', fontWeight: 500, borderTop: '1px solid #f0f0f0' }}>积分</div>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="是否进入积分商城（纯积分兑换）"
-                name="points_exchangeable"
-                valuePropName="checked"
-                extra="勾选后，本商品同时显示在【积分商城】，由【积分商城管理】另行配置兑换积分"
-              >
-                <Switch />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="积分商城兑换所需积分" name="points_price">
-                <InputNumber min={0} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
+          {/*
+            [实物商品与积分商城彻底解耦 v1.0 2026-05-25]
+            已删除：
+              · 是否进入积分商城（纯积分兑换）
+              · 积分商城兑换所需积分
+            实物商品与积分商城是两套完全独立的体系，积分商城商品请在【积分商城管理】里独立维护。
+            保留：是否支持积分抵扣订单金额（普通商城下单时的玩法，与积分商城无关）
+          */}
           <Form.Item
             label="是否支持积分抵扣订单金额"
             name="points_deductible"

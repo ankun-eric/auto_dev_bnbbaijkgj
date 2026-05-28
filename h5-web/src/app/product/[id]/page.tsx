@@ -57,8 +57,7 @@ interface ProductDetail {
   skus?: ProductSku[] | null;
   faq: Array<{ question: string; answer: string }> | null;
   sales_count: number;
-  points_exchangeable: boolean;
-  points_price: number;
+  // [实物商品与积分商城彻底解耦 v1.0 2026-05-25] 已删除 points_exchangeable / points_price
   points_deductible: boolean;
   /** [付费会员体系 PRD v1.1] 是否支持付费会员折扣 */
   is_member_discount_eligible?: boolean;
@@ -255,18 +254,8 @@ function ProductDetailPage() {
                 >
                   {fulfillmentLabel(product.fulfillment_type)}
                 </Tag>
-                {product.points_exchangeable && (
-                  <Tag
-                    style={{
-                      '--background-color': '#fa8c1615',
-                      '--text-color': '#fa8c16',
-                      '--border-color': 'transparent',
-                      fontSize: 10,
-                    }}
-                  >
-                    {product.points_price}积分可兑
-                  </Tag>
-                )}
+                {/* [实物商品与积分商城彻底解耦 v1.0 2026-05-25] 已隐藏"积分商城兑换"标签，
+                    积分商城走 /points/mall 独立入口；实物商品只走普通下单流程 */}
                 {product.category_name && (
                   <Tag
                     style={{
