@@ -521,6 +521,77 @@ async def list_family_v13(
             created_at=mgmt.created_at.isoformat() if mgmt.created_at else None,
         ).model_dump())
 
+    # [BUGFIX-MY-GUARDIAN-CARD-2-20260528] 第 5 点兼容层兜底：
+    # 查询当前用户名下、没有任何 FamilyManagement 记录的孤儿 FamilyMember，
+    # 让外部"我的家人"Tab 建档后，「我守护的人」也能立即看到。
+    try:
+        # 已记录过的 member_id（出现在 mgmt 表中即视为已处理）
+        seen_member_ids: set[int] = set()
+        for mgmt in mgmts:
+            if mgmt.managed_member_id:
+                seen_member_ids.add(int(mgmt.managed_member_id))
+
+        orphan_q = select(FamilyMember).where(
+            FamilyMember.user_id == current_user.id,
+            FamilyMember.status == "active",
+            FamilyMember.is_self == False,
+        )
+        if seen_member_ids:
+            orphan_q = orphan_q.where(~FamilyMember.id.in_(seen_member_ids))
+        orphan_members = (await db.execute(orphan_q.order_by(FamilyMember.created_at.asc()))).scalars().all()
+
+        for mb in orphan_members:
+            # 关联的最新邀请（如果有）
+            latest_inv = invs_by_member.get(mb.id)
+            if latest_inv:
+                lifecycle = _calc_invite_lifecycle(latest_inv, now)
+            else:
+                lifecycle = LIFECYCLE_NEVER_INVITED
+
+            invite_code_v = None
+            invite_expires = None
+            remaining_hours = None
+            if lifecycle == LIFECYCLE_INVITING and latest_inv:
+                invite_code_v = latest_inv.invite_code
+                invite_expires = latest_inv.expires_at.isoformat() if latest_inv.expires_at else None
+                if latest_inv.expires_at:
+                    delta = latest_inv.expires_at - now
+                    remaining_hours = max(0, int(delta.total_seconds() // 3600))
+
+            # 孤儿档案（user_id=None）总是未绑定
+            display_label = "由我代为管理" if lifecycle == LIFECYCLE_NEVER_INVITED else _LIFECYCLE_DISPLAY_LABEL.get(lifecycle, "")
+            occupies_quota = lifecycle in _OCCUPY_QUOTA_LIFECYCLES
+
+            relation_label = getattr(mb, "relationship_type", None)
+
+            items.append(FamilyListItemV13(
+                management_id=None,
+                manager_user_id=current_user.id,
+                managed_user_id=None,
+                managed_member_id=mb.id,
+                managed_user_nickname=mb.nickname,
+                relation_label=relation_label,
+                role_badge="normal",
+                is_primary_guardian=False,
+                priority_order=100,
+                status="not_active",
+                invite_lifecycle=lifecycle,
+                bind_status="unbound",
+                display_substatus_label=display_label,
+                is_orphan=True,
+                occupies_quota=occupies_quota,
+                invite_code=invite_code_v,
+                invite_expires_at=invite_expires,
+                invite_remaining_hours=remaining_hours,
+                proxy_pay_enabled=False,
+                has_bound_device=False,
+                has_active_med_plan=False,
+                can_remove=True,
+                created_at=mb.created_at.isoformat() if mb.created_at else None,
+            ).model_dump())
+    except Exception as _e:
+        logger.warning("[guardian_v13] orphan family_member 兜底查询失败: %s", _e)
+
     # 处理"邀请阶段无 member_id"的纯邀请记录（PRD: 待守护-邀请中/已拒绝/已过期/未激活）
     for inv in invitations:
         if inv.member_id:
@@ -823,38 +894,75 @@ async def remove_family_card(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """[PRD-GUARDIAN-V1.3 §4.3] 移除被守护人卡片
+    """[PRD-GUARDIAN-V1.3 §4.3 + BUGFIX-MY-GUARDIAN-CARD-2-20260528] 移除被守护人卡片
 
-    校验 4 项不可删规则：
-    1) 关系=active 不可移除
+    校验 4 项不可删规则（仅在记录"实际仍存在"时校验）：
+    1) 关系=active 不可移除（v1.3.1 起已放开，等同先解除守护再清档）
     2) 已绑定硬件设备不可移除
     3) 邀请生命周期=inviting 不可移除
     4) 在途服药计划不可移除
+
+    [BUGFIX-2 2026-05-28]：
+    - 第 3、4 点：纯 managed_member（孤儿）/ 已过期 invitation 均可受理移除，
+      不再向用户暴露 404；改为幂等返 200，前端按 deleted/should_refresh 字段刷新。
     """
     now = datetime.utcnow()
+    deleted_any = False
+    delete_types: list[str] = []
 
-    # 场景 A：通过 invitation_id 移除纯邀请记录（无 member 的）
-    if payload.invitation_id and not payload.managed_user_id and not payload.managed_member_id:
+    # 分支 A：invitation 直接移除（含 pending/expired/cancelled/rejected）
+    if payload.invitation_id:
         inv = await db.get(FamilyInvitation, payload.invitation_id)
-        if not inv:
-            raise HTTPException(status_code=404, detail="邀请记录不存在")
-        if inv.inviter_user_id != current_user.id:
-            raise HTTPException(status_code=403, detail="只能移除自己发起的邀请")
-        if inv.status == "pending" and (not inv.expires_at or inv.expires_at >= now):
-            raise HTTPException(status_code=400, detail="邀请中状态不允许移除，请先取消邀请")
-        # 标记为 cancelled（视为已解绑/无效）
-        if inv.status == "pending":
-            inv.status = "expired"
-        # 视图删除：作为软删（保留留痕），从前端列表过滤掉
-        inv.member_id = inv.member_id  # 占位
-        await db.flush()
-        # 通过将 invitation 标记为 cancelled 来实现"L3 物理删列表视图"
-        if inv.status not in ("expired",):
-            inv.status = "cancelled"
+        if inv and inv.inviter_user_id == current_user.id:
+            # pending 且未过期 → 不允许（提示前端先取消）
+            if inv.status == "pending" and inv.expires_at and inv.expires_at >= now:
+                raise HTTPException(status_code=400, detail="邀请中状态不允许移除，请先取消邀请")
+            # expired/cancelled/rejected/已自动过期的 pending → 软删（cancelled）
+            if inv.status == "pending":
+                inv.status = "expired"
+            inv.status = "cancelled" if inv.status != "expired" else "expired"
             await db.flush()
-        return {"removed": True, "type": "invitation", "invitation_id": inv.id}
+            deleted_any = True
+            delete_types.append("invitation")
 
-    # 场景 B：通过 managed_user_id / managed_member_id 找 FamilyManagement
+    # 分支 B：纯 managed_member（孤儿 FamilyMember 无 FamilyManagement）移除
+    if payload.managed_member_id:
+        # 关联的 FamilyMember 是否存在
+        fm = await db.get(FamilyMember, payload.managed_member_id)
+        if fm and fm.user_id == current_user.id and fm.status == "active":
+            # 查是否已有对应 FamilyManagement
+            mgmt_check = (await db.execute(
+                select(FamilyManagement).where(
+                    FamilyManagement.manager_user_id == current_user.id,
+                    FamilyManagement.managed_member_id == payload.managed_member_id,
+                )
+            )).scalars().first()
+            if not mgmt_check:
+                # 纯 FamilyMember 孤儿档案 → 软删 + 同步移除关联邀请
+                fm.status = "deleted"
+                # 同步移除关联的 invitation
+                related_invs = (await db.execute(
+                    select(FamilyInvitation).where(
+                        FamilyInvitation.inviter_user_id == current_user.id,
+                        FamilyInvitation.member_id == payload.managed_member_id,
+                    )
+                )).scalars().all()
+                for r_inv in related_invs:
+                    if r_inv.status == "pending":
+                        r_inv.status = "cancelled"
+                await db.flush()
+                deleted_any = True
+                delete_types.append("orphan_member")
+                return {
+                    "removed": True,
+                    "deleted": True,
+                    "should_refresh": True,
+                    "type": "orphan_member",
+                    "managed_member_id": payload.managed_member_id,
+                    "message": "已移除",
+                }
+
+    # 分支 C：通过 managed_user_id / managed_member_id 找 FamilyManagement
     mgmt = None
     if payload.managed_user_id or payload.managed_member_id:
         q = select(FamilyManagement).where(
@@ -867,7 +975,15 @@ async def remove_family_card(
         mgmt = (await db.execute(q.order_by(FamilyManagement.created_at.desc()))).scalars().first()
 
     if not mgmt:
-        raise HTTPException(status_code=404, detail="未找到对应的守护关系")
+        # [BUGFIX-MY-GUARDIAN-CARD-2-20260528] 第 3、4 点核心改造：
+        # 不再返回 404，改为幂等成功 + should_refresh，让前端友好提示并自动刷新列表。
+        return {
+            "removed": deleted_any,
+            "deleted": deleted_any,
+            "should_refresh": True,
+            "type": ("invitation" if deleted_any else "noop"),
+            "message": ("已移除" if deleted_any else "该记录已被移除，列表已刷新"),
+        }
 
     # [BUGFIX-MY-GUARDIAN-CARD-20260528] 不再拦截 active 状态：
     # 用户在"我守护的人"列表对已绑定家人点击移除应直接受理，
@@ -953,6 +1069,8 @@ async def remove_family_card(
 
     return {
         "removed": True,
+        "deleted": True,
+        "should_refresh": True,
         "type": "management",
         "management_id": mgmt.id,
         "is_orphan": is_orphan,

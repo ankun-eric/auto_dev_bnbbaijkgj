@@ -662,7 +662,7 @@ export default function IGuardPage() {
     }
   };
 
-  // [Bug 8] 移除 + 智能级联
+  // [Bug 8 + BUGFIX-MY-GUARDIAN-CARD-2-20260528] 移除 + 智能级联 + 幂等处理
   const handleRemove = async (it: FamilyItemV13) => {
     // 场景 1：pending 未过期 → 级联取消 + 移除
     const isPendingActive = it.invite_lifecycle === 'inviting' && !!it.invite_code;
@@ -676,12 +676,13 @@ export default function IGuardPage() {
       if (!ok) return;
       try {
         await api.post('/api/guardian/v13/family/invite/cancel', { invite_code: it.invite_code });
-        await api.post('/api/guardian/v13/family/remove', {
+        const resp: any = await api.post('/api/guardian/v13/family/remove', {
           invitation_id: it.invitation_id,
           managed_user_id: it.managed_user_id,
           managed_member_id: it.managed_member_id,
         });
-        showToast('已取消邀请并移除', 'success');
+        const d = resp?.data || resp;
+        showToast(d?.deleted === false ? '该记录已被移除，列表已刷新' : '已取消邀请并移除', 'success');
         fetchList();
       } catch (e: any) {
         showToast(e?.response?.data?.detail || '操作失败', 'fail');
@@ -689,7 +690,7 @@ export default function IGuardPage() {
       return;
     }
 
-    // 场景 2/3：纯邀请记录 / 孤儿档案
+    // 场景 2/3：纯邀请记录 / 孤儿档案 / 已过期 / 尚未邀请
     const isInvitationOnly = !it.managed_user_id && !it.management_id;
     const content = isInvitationOnly
       ? '移除后，该邀请记录将从您的列表中消失，已发出的邀请二维码将作废。'
@@ -706,11 +707,20 @@ export default function IGuardPage() {
       if (it.invitation_id) body.invitation_id = it.invitation_id;
       if (it.managed_user_id) body.managed_user_id = it.managed_user_id;
       if (it.managed_member_id) body.managed_member_id = it.managed_member_id;
-      await api.post('/api/guardian/v13/family/remove', body);
-      showToast('已移除', 'success');
+      const resp: any = await api.post('/api/guardian/v13/family/remove', body);
+      const d = resp?.data || resp;
+      // [BUGFIX-2] 幂等返回：deleted=false 表示该记录其实已不存在，给友好提示并刷新
+      showToast(d?.deleted === false ? '该记录已被移除，列表已刷新' : '已移除', 'success');
       fetchList();
     } catch (e: any) {
-      showToast(e?.response?.data?.detail || '操作失败', 'fail');
+      // 对老前端兼容：若后端仍返回 404，依旧友好提示 + 刷新
+      const detail = e?.response?.data?.detail || '操作失败';
+      if (e?.response?.status === 404) {
+        showToast('该记录已被移除，列表已刷新', 'success');
+        fetchList();
+      } else {
+        showToast(detail, 'fail');
+      }
     }
   };
 
@@ -969,7 +979,10 @@ export default function IGuardPage() {
     <div style={{ background: PAGE_BG, minHeight: '100vh', paddingBottom: 32 }}>
       <GreenNavBar>我守护的人</GreenNavBar>
 
-      {/* 顶部统计栏 */}
+      {/* [BUGFIX-MY-GUARDIAN-CARD-2-20260528] 顶部统计栏：
+          - 第 1 点：卡片外面只显示 X/Y（紧凑摘要）
+          - 第 2 点：本人卡片"上方"统计文案改为「守护人：X 人，还可邀请 Y 位，共 M 位」+「本人不占名额」小字
+            （为减少冗余，仅保留一处统计区，文案合并展示） */}
       <div
         data-testid='guardian-v131-summary-bar'
         style={{
@@ -978,20 +991,31 @@ export default function IGuardPage() {
           borderRadius: 12, border: `1px solid ${SKY_BORDER}`,
         }}
       >
-        <div style={{ fontSize: 14, color: SKY_700, fontWeight: 600, marginBottom: 4 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+          <div style={{ fontSize: 16, color: SKY_700, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span>💙</span>
+            <span>我守护的人</span>
+          </div>
+          {/* 第 1 点：紧凑 X/Y */}
+          <div data-testid='guard-xy' style={{ fontSize: 15, color: SKY_700, fontWeight: 700 }}>
+            {resp ? (
+              <>守护人 <b style={{ fontSize: 17 }}>{guardCount}</b>/<b style={{ fontSize: 17 }}>{maxGuard}</b></>
+            ) : (
+              <>加载中…</>
+            )}
+          </div>
+        </div>
+        {/* 第 2 点：本人卡片"上方"完整统计文案 */}
+        <div data-testid='guard-stats-text' style={{ fontSize: 13, color: SKY_700, fontWeight: 500, marginTop: 6 }}>
           {resp ? (
             <>
-              <span data-testid='guard-count'>我守护的人 · <b style={{ color: SKY_700, fontSize: 16 }}>{guardCount}</b> 人</span>
-              <span style={{ margin: '0 6px', color: TEXT_SECONDARY }}>·</span>
-              还可邀请 <b style={{ color: SKY_700, fontSize: 16 }}>{canInvite}</b> 位
-              <span style={{ margin: '0 6px', color: TEXT_SECONDARY }}>/</span>
-              共 <b style={{ color: SKY_700, fontSize: 16 }}>{maxGuard}</b> 位
+              守护人：<b style={{ color: SKY_700 }}>{guardCount}</b> 人，还可邀请{' '}
+              <b style={{ color: SKY_700 }}>{Math.max(0, canInvite)}</b> 位，共{' '}
+              <b style={{ color: SKY_700 }}>{maxGuard}</b> 位
             </>
-          ) : (
-            <>加载中…</>
-          )}
+          ) : null}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
           <span style={{ fontSize: 11, color: TEXT_SECONDARY }}>本人不占名额</span>
           {/* [Bug 4/10] 右上角 + 发起邀请，使用主操作按钮配色 */}
           <button
