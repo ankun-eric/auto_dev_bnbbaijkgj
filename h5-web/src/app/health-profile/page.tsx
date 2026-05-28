@@ -230,7 +230,16 @@ function HealthProfileV2PageInner() {
   const [medSummary, setMedSummary] = useState<Array<{ id: number; name: string; dosage: string; frequency_text: string; timing_text: string; status_text: string }>>([]);
   const [guardedFlags, setGuardedFlags] = useState<Map<number, { guarded: boolean; managed_user_id: number | null }>>(new Map());
   // [健康档案优化 PRD v1.0 §3.1] managed_count 改为统计「所有 status」，与 v12/i-guard.total_count 对齐
-  const [guardianSummary, setGuardianSummary] = useState<{ managed_count: number; active_count: number }>({ managed_count: 0, active_count: 0 });
+  // [BUGFIX-MY-GUARDIAN-CARD-20260528] 卡片口径：archive_record_total（档案记录数）+ 动态额度
+  const [guardianSummary, setGuardianSummary] = useState<{
+    managed_count: number;
+    active_count: number;
+    archive_record_total: number;
+    guarded_count: number;
+    max_guardians: number;
+    can_invite_count: number;
+    is_unlimited: boolean;
+  }>({ managed_count: 0, active_count: 0, archive_record_total: 0, guarded_count: 0, max_guardians: 0, can_invite_count: 0, is_unlimited: false });
   // [BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527] 「守护我的人」拆双数字
   const [reverseGuardianCount, setReverseGuardianCount] = useState<number>(0);
   const [reverseGuardianSummary, setReverseGuardianSummary] = useState<{ active_count: number; pending_count: number; total_count: number }>({ active_count: 0, pending_count: 0, total_count: 0 });
@@ -376,21 +385,43 @@ function HealthProfileV2PageInner() {
   }, []);
 
   const fetchGuardianSummary = useCallback(async () => {
-    // [健康档案优化 PRD v1.0 §3.1] 直接从 v12/i-guard 取 total_count（所有 status）
+    // [BUGFIX-MY-GUARDIAN-CARD-20260528] 卡片改用 v13 /family/list：
+    // - archive_record_total：所有守护对象（不含本人）的档案记录条数
+    // - max_guardians / can_invite_count / is_unlimited：动态额度（按会员等级）
     try {
-      const res: any = await api.get('/api/guardian/v12/i-guard');
+      const res: any = await api.get('/api/guardian/v13/family/list');
       const data = res.data || res;
-      const total = Number(data.total_count ?? data.total ?? 0);
-      const active = Number(data.active_count ?? 0);
-      setGuardianSummary({ managed_count: total, active_count: active });
+      const archiveTotal = Number(data.archive_record_total ?? 0);
+      const guardedCount = Number(data.guarded_count ?? data.quota_used ?? 0);
+      const maxGuard = Number(data.max_guardians ?? 0);
+      const canInv = Number(data.can_invite_count ?? 0);
+      const isUnlim = !!data.is_unlimited;
+      setGuardianSummary({
+        managed_count: archiveTotal,        // 兼容：卡片主显示数字 = 档案记录数
+        active_count: Number(data.active_count ?? 0),
+        archive_record_total: archiveTotal,
+        guarded_count: guardedCount,
+        max_guardians: maxGuard,
+        can_invite_count: canInv,
+        is_unlimited: isUnlim,
+      });
     } catch {
-      // 兼容：v12 接口异常时回退老接口
+      // 兼容：v13 异常时回退到 v12/i-guard
       try {
-        const res2: any = await api.get('/api/health-archive/guardian/summary');
+        const res2: any = await api.get('/api/guardian/v12/i-guard');
         const data2 = res2.data || res2;
-        setGuardianSummary({ managed_count: data2.managed_count || 0, active_count: data2.managed_count || 0 });
+        const total = Number(data2.total_count ?? data2.total ?? 0);
+        setGuardianSummary({
+          managed_count: total,
+          active_count: Number(data2.active_count ?? 0),
+          archive_record_total: total,
+          guarded_count: total,
+          max_guardians: 0,
+          can_invite_count: 0,
+          is_unlimited: false,
+        });
       } catch {
-        setGuardianSummary({ managed_count: 0, active_count: 0 });
+        setGuardianSummary({ managed_count: 0, active_count: 0, archive_record_total: 0, guarded_count: 0, max_guardians: 0, can_invite_count: 0, is_unlimited: false });
       }
     }
   }, []);
@@ -1005,13 +1036,14 @@ function HealthProfileV2PageInner() {
     return (
       <div style={{ padding: '0 16px 12px', display: 'flex', gap: 10 }}>
         {/* 「我守护的人」仅本人 Tab 显示 */}
+        {/* [BUGFIX-MY-GUARDIAN-CARD-20260528] 卡片口径：档案记录数 + 动态邀请额度 + 升级引导 */}
         {isSelfTab && (
           <div
             data-testid='health-profile-i-guard-entry'
             onClick={() => router.push('/health-profile/i-guard')}
             style={{
-              flex: 1, background: '#fff', borderRadius: 12, padding: '14px 14px',
-              display: 'flex', alignItems: 'center', gap: 10,
+              flex: 1, background: '#fff', borderRadius: 12, padding: '12px 12px',
+              display: 'flex', flexDirection: 'column', gap: 6,
               boxShadow: '0 1px 4px rgba(0,0,0,0.04)', cursor: 'pointer',
               transition: 'all 0.2s ease',
             }}
@@ -1022,14 +1054,41 @@ function HealthProfileV2PageInner() {
               e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)';
             }}
           >
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#E3F2FD', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <span style={{ fontSize: 20 }}>👨‍👩‍👧</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: '#E3F2FD', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: 18 }}>👨‍👩‍👧</span>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>我守护的人</div>
+                <div data-testid='i-guard-total-count' style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+                  档案记录数 <b style={{ color: '#0EA5E9' }}>{guardianSummary.archive_record_total}</b>
+                </div>
+              </div>
+              <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>我守护的人</div>
-              <div data-testid='i-guard-total-count' style={{ fontSize: 12, color: '#6B7280' }}>{guardianSummary.managed_count}人</div>
+            {/* 邀请额度行：根据三态渲染 */}
+            <div data-testid='i-guard-quota-line' style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.4 }}>
+              {guardianSummary.is_unlimited ? (
+                <span>已守护 <b style={{ color: '#0EA5E9' }}>{guardianSummary.guarded_count}</b> · 上限 <b style={{ color: '#0EA5E9' }}>不限</b></span>
+              ) : guardianSummary.can_invite_count <= 0 && guardianSummary.max_guardians > 0 ? (
+                <span style={{ color: '#F59E0B' }}>
+                  已达上限（{guardianSummary.guarded_count}/{guardianSummary.max_guardians}），
+                  <span
+                    onClick={(e) => { e.stopPropagation(); router.push('/member-center#plans'); }}
+                    style={{ color: '#F59E0B', textDecoration: 'underline', cursor: 'pointer', marginLeft: 2 }}
+                  >升级会员可邀请更多</span>
+                </span>
+              ) : guardianSummary.max_guardians > 0 ? (
+                <span>
+                  可邀请 <b style={{ color: '#0EA5E9' }}>{guardianSummary.can_invite_count}</b> 人
+                  （已守护 {guardianSummary.guarded_count}/{guardianSummary.max_guardians}）
+                  <span
+                    onClick={(e) => { e.stopPropagation(); router.push('/member-center#plans'); }}
+                    style={{ color: '#0EA5E9', marginLeft: 4, textDecoration: 'underline', cursor: 'pointer' }}
+                  >升级解锁无上限</span>
+                </span>
+              ) : null}
             </div>
-            <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>
           </div>
         )}
         {/* 「守护我的人」/「守护 TA 的人」 */}
@@ -1574,6 +1633,32 @@ function HealthProfileV2PageInner() {
               <div style={{ position: 'absolute', top: 12, right: 12, fontSize: 14, color: T.brand500 }}>›</div>
             </div>
           ))}
+        </div>
+
+        {/* [PRD-HOME-SAFETY-V1 2026-05-27] 居家安全设备入口 */}
+        <div
+          data-testid="home-safety-entry"
+          onClick={() => router.push('/home-safety')}
+          style={{
+            marginTop: 12,
+            background: 'linear-gradient(135deg,#1F8FE6 0%,#2EC4B6 100%)',
+            color: '#fff',
+            borderRadius: 12,
+            padding: '14px 16px',
+            cursor: 'pointer',
+            boxShadow: '0 2px 12px rgba(31,143,230,0.16)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>🛡️ 居家安全设备</div>
+            <div style={{ fontSize: 12, opacity: 0.92, marginTop: 4 }}>
+              紧急呼叫器 / 烟雾报警器 / 水位报警器
+            </div>
+          </div>
+          <div style={{ fontSize: 20 }}>›</div>
         </div>
       </div>
     );

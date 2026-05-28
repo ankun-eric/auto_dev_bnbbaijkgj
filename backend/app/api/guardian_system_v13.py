@@ -190,6 +190,90 @@ async def _get_max_guardians(db: AsyncSession, user_id: int) -> int:
     return DEFAULT_MAX_GUARDIANS
 
 
+async def _is_unlimited_guardians(db: AsyncSession, user_id: int) -> bool:
+    """[BUGFIX-MY-GUARDIAN-CARD-20260528] 判断当前用户是否为"超级 VIP/无上限"等级。
+
+    判定口径：当前生效会员套餐的 `max_managed` 大于等于 9999（按业务约定），
+    或套餐 code/name 含 'super_vip' 等关键字 → 视为无上限。
+    """
+    now = datetime.utcnow()
+    sub = (await db.execute(
+        select(UserMembershipSub).where(
+            UserMembershipSub.user_id == user_id,
+            UserMembershipSub.status == "active",
+            UserMembershipSub.expire_at > now,
+        ).order_by(UserMembershipSub.expire_at.desc())
+    )).scalars().first()
+    if not sub:
+        return False
+    plan = await db.get(MembershipPlan, sub.plan_id)
+    if not plan:
+        return False
+    mm = int(getattr(plan, "max_managed", 0) or 0)
+    if mm >= 9999:
+        return True
+    code = (getattr(plan, "code", "") or "").lower()
+    name = (getattr(plan, "name", "") or "").lower()
+    if "super" in code or "super" in name or "无上限" in (getattr(plan, "name", "") or ""):
+        return True
+    return False
+
+
+async def _calc_archive_record_total(
+    db: AsyncSession,
+    *,
+    manager_user_id: int,
+    items: list[dict],
+) -> int:
+    """[BUGFIX-MY-GUARDIAN-CARD-20260528] 计算"我守护对象（不含本人）"的档案记录条数总和。
+
+    口径（按用户需求）：
+    - 已绑定家人（managed_user_id 存在且非本人）：按 user_id 维度统计 medical_records 中未删除的条数
+    - 已绑定但只有 managed_member_id（孤儿档案）：按 member_id 维度统计
+    - 未绑定（邀请中、未注册、暂未响应等）：按用户口径每人占位 1 条计入
+    """
+    try:
+        from app.models.health_archive_v5 import MedicalRecord  # type: ignore
+    except Exception:
+        MedicalRecord = None  # type: ignore
+
+    total = 0
+    for it in items:
+        managed_uid = it.get("managed_user_id")
+        managed_mid = it.get("managed_member_id")
+        bind_status = it.get("bind_status")
+
+        # 跳过本人卡片（本接口列表本就不含本人，但仍兜底过滤）
+        if managed_uid and managed_uid == manager_user_id:
+            continue
+
+        if bind_status == "bound" and (managed_uid or managed_mid) and MedicalRecord is not None:
+            try:
+                if managed_uid:
+                    cnt_res = await db.execute(
+                        select(func.count(MedicalRecord.id)).where(
+                            MedicalRecord.user_id == managed_uid,
+                            MedicalRecord.is_deleted == 0,
+                        )
+                    )
+                else:
+                    cnt_res = await db.execute(
+                        select(func.count(MedicalRecord.id)).where(
+                            MedicalRecord.member_id == managed_mid,
+                            MedicalRecord.is_deleted == 0,
+                        )
+                    )
+                cnt = int(cnt_res.scalar() or 0)
+            except Exception:
+                cnt = 0
+            # 已绑定档案至少占位 1（即使该家人尚无医疗记录，也算 1 条主档案记录）
+            total += max(cnt, 1)
+        else:
+            # 未绑定（邀请中/未注册/暂未响应/已解绑/已过期）按用户口径每人占位 1 条
+            total += 1
+    return total
+
+
 async def _is_proxy_pay_enabled(db: AsyncSession, primary_uid: int, managed_uid: int) -> bool:
     """主代付开关默认 ON：无记录视为 ON；显式 disable 才关闭"""
     res = await db.execute(
@@ -499,9 +583,19 @@ async def list_family_v13(
     quota_used = sum(1 for it in items if it.get("occupies_quota"))
 
     max_guardians = await _get_max_guardians(db, current_user.id)
+    is_unlimited = await _is_unlimited_guardians(db, current_user.id)
     # [v1.3.1] used 改为 quota_used；can_invite_count 改为 max_guardians - quota_used
     used = quota_used
-    can_invite_count = max(0, max_guardians - quota_used)
+    if is_unlimited:
+        # [BUGFIX-MY-GUARDIAN-CARD-20260528] 超级 VIP 无上限：can_invite_count 用 -1 表示
+        can_invite_count = -1
+    else:
+        can_invite_count = max(0, max_guardians - quota_used)
+
+    # [BUGFIX-MY-GUARDIAN-CARD-20260528] 计算档案记录总数（所有守护对象，不含本人）
+    archive_record_total = await _calc_archive_record_total(
+        db, manager_user_id=current_user.id, items=items
+    )
 
     return {
         "items": items,
@@ -520,6 +614,10 @@ async def list_family_v13(
         "used": used,
         "can_invite_count": can_invite_count,
         "is_paid_member": await _is_paid_member(db, current_user.id),
+        # [BUGFIX-MY-GUARDIAN-CARD-20260528] 新增字段
+        "is_unlimited": is_unlimited,
+        "archive_record_total": archive_record_total,
+        "guarded_count": quota_used,  # 别名，便于前端语义化使用
     }
 
 
@@ -771,15 +869,17 @@ async def remove_family_card(
     if not mgmt:
         raise HTTPException(status_code=404, detail="未找到对应的守护关系")
 
-    # 不可删校验 1：status=active
-    if mgmt.status == "active":
-        raise HTTPException(status_code=400, detail="守护中状态不允许移除，请先解除守护")
+    # [BUGFIX-MY-GUARDIAN-CARD-20260528] 不再拦截 active 状态：
+    # 用户在"我守护的人"列表对已绑定家人点击移除应直接受理，
+    # 等同于"先解除守护再清档"，避免出现"守护中状态不允许移除"的死循环。
+    # 但仍保留对硬件设备/在途服药计划的校验，确保不会误删数据。
+    was_active = (mgmt.status == "active")
 
     # 不可删校验 2：硬件设备
     if mgmt.managed_user_id and await _has_bound_device(db, mgmt.managed_user_id):
-        raise HTTPException(status_code=400, detail="已绑定硬件设备，不允许移除")
+        raise HTTPException(status_code=400, detail="该家人已绑定硬件设备，请先在设备管理中解绑后再移除")
 
-    # 不可删校验 3：邀请中
+    # 不可删校验 3：邀请中（仍生效——邀请中应先取消邀请）
     if mgmt.managed_member_id:
         inviting = (await db.execute(
             select(func.count(FamilyInvitation.id)).where(
@@ -790,16 +890,39 @@ async def remove_family_card(
             )
         )).scalar()
         if int(inviting or 0) > 0:
-            raise HTTPException(status_code=400, detail="邀请中状态不允许移除，请先取消邀请")
+            raise HTTPException(status_code=400, detail="该家人尚有邀请中的记录，请先取消邀请后再移除")
 
     # 不可删校验 4：在途服药计划
     if mgmt.managed_user_id and await _has_active_med_plan(db, mgmt.managed_user_id):
-        raise HTTPException(status_code=400, detail="存在在途服药计划，不允许移除")
+        raise HTTPException(status_code=400, detail="该家人存在在途服药计划，请先终止服药计划后再移除")
 
-    # 执行移除（L2: 软删 cancelled；L3: 视图删除靠前端过滤）
+    # [BUGFIX-MY-GUARDIAN-CARD-20260528] 执行移除：
+    # - active → 直接置 removed（等同于"解除守护"）并写解除通知
+    # - 其他状态 → 保持原有 removed 软删逻辑
     mgmt.status = "removed"
     mgmt.cancelled_at = now
     mgmt.cancelled_by = current_user.id
+
+    # 如果之前是 active，给被守护人发通知（与 DELETE /api/family/management/{id} 行为对齐）
+    if was_active and mgmt.managed_user_id and mgmt.managed_user_id != current_user.id:
+        try:
+            op_name = current_user.nickname or current_user.phone or "对方"
+            db.add(Notification(
+                user_id=mgmt.managed_user_id,
+                title="守护关系已解除",
+                content=f"{op_name} 已解除与您的家庭健康档案守护关系",
+                type=NotificationType.system,
+                extra_data={
+                    "type": "family_management",
+                    "action": "management_cancelled",
+                    "management_id": mgmt.id,
+                    "operator_role": "manager",
+                    "via": "guardian_v13_remove",
+                },
+            ))
+        except Exception:
+            # 通知失败不影响主流程
+            pass
 
     # 孤儿档案判定：managed_user_id 是否有自有账号（v1.3 简化判断 - managed_member_id 存在但 managed_user_id 为 None 或 user 不存在）
     is_orphan = False

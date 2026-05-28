@@ -253,7 +253,7 @@ async def test_v13_proxy_pay_detail(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_v13_remove_active_rejected(client: AsyncClient):
-    """active 状态不允许移除"""
+    """[BUGFIX-MY-GUARDIAN-CARD-20260528] active 状态的关系也允许直接移除（去除原"守护中状态不允许移除"硬拦截）"""
     await _make_user("13900006001", "妈妈")
     await _make_user("13900006002", "女儿主")
     _, mama_uid = await _make_management("13900006002", "13900006001", is_primary=True, status="active")
@@ -264,8 +264,9 @@ async def test_v13_remove_active_rejected(client: AsyncClient):
         headers=headers,
         json={"managed_user_id": mama_uid},
     )
-    assert r.status_code == 400
-    assert "守护中" in r.json().get("detail", "") or "不允许" in r.json().get("detail", "")
+    # 修复后：active 关系应直接受理移除
+    assert r.status_code == 200, r.text
+    assert r.json().get("removed") is True
 
 
 @pytest.mark.asyncio
