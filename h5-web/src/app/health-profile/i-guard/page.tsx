@@ -191,7 +191,19 @@ function InviteGuardianDrawer({ open, mode, presetMember, onClose, onSuccess }: 
       onSuccess?.(code);
       onClose();
     } catch (e: any) {
-      showToast(e?.response?.data?.detail || '邀请创建失败', 'fail');
+      // [PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 解析结构化错误码 WARD_LIMIT_REACHED
+      const detail = e?.response?.data?.detail;
+      let msg = '邀请创建失败';
+      if (detail && typeof detail === 'object') {
+        if (detail.code === 'WARD_LIMIT_REACHED') {
+          msg = detail.message || `我守护的人已达上限（${detail.x}/${detail.y}），请先升级会员或解绑现有守护对象`;
+        } else if (detail.message) {
+          msg = String(detail.message);
+        }
+      } else if (typeof detail === 'string') {
+        msg = detail;
+      }
+      showToast(msg, 'fail');
     } finally {
       setSubmitting(false);
     }

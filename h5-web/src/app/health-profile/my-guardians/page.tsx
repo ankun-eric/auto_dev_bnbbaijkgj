@@ -8,14 +8,20 @@ import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { BH_TOKENS } from '@/lib/health-tokens';
 
+// [PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 守护我的人 详情：合并 active + pending 两类
 interface Guardian {
-  management_id: number;
-  user_id: number;
+  item_type?: 'active' | 'pending';
+  management_id?: number | null;
+  invitation_id?: number | null;
+  invite_code?: string | null;
+  user_id?: number | null;
   nickname: string | null;
   avatar?: string | null;
   guardian_since: string | null;
   permission_scope: string;
   last_viewed_at?: string | null;
+  invite_expires_at?: string | null;
+  invite_status?: string | null;
 }
 
 const T = {
@@ -48,6 +54,7 @@ function MyGuardiansPageInner() {
   }, [fetchGuardians]);
 
   const handleRemove = async (g: Guardian) => {
+    if (!g.management_id) return;
     const confirmed = await Dialog.confirm({
       title: '解除守护',
       content: '解除后，对方将无法查看您的健康数据。确定要解除吗？',
@@ -59,6 +66,28 @@ function MyGuardiansPageInner() {
       fetchGuardians();
     } catch (e: any) {
       const msg = e?.response?.data?.detail || e?.message || '操作失败';
+      showToast(String(msg), 'fail');
+    }
+  };
+
+  // [PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 取消邀请：释放名额
+  const handleCancelInvite = async (g: Guardian) => {
+    if (!g.invitation_id && !g.invite_code) return;
+    const confirmed = await Dialog.confirm({
+      title: '取消邀请',
+      content: '取消后，该邀请将立即失效，您可以重新发起邀请。是否确认取消？',
+    });
+    if (!confirmed) return;
+    try {
+      await api.post('/api/reverse-guardian/invite/cancel', {
+        invitation_id: g.invitation_id ?? undefined,
+        invite_code: g.invite_code ?? undefined,
+      });
+      showToast('已取消邀请');
+      fetchGuardians();
+    } catch (e: any) {
+      const detail = e?.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : (detail?.message || e?.message || '取消失败');
       showToast(String(msg), 'fail');
     }
   };
@@ -107,54 +136,86 @@ function MyGuardiansPageInner() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {guardians.map((g) => (
-              <div
-                key={g.management_id}
-                data-testid={`guardian-card-${g.management_id}`}
-                style={{
-                  background: '#fff', borderRadius: 14, padding: 16,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                }}
-              >
+            {guardians.map((g, idx) => {
+              const isPending = g.item_type === 'pending';
+              const cardKey = isPending
+                ? `pending-${g.invitation_id ?? idx}`
+                : `active-${g.management_id ?? idx}`;
+              return (
+                <div
+                  key={cardKey}
+                  data-testid={isPending ? `guardian-pending-${g.invitation_id}` : `guardian-card-${g.management_id}`}
+                  style={{
+                    background: '#fff', borderRadius: 14, padding: 16,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                    border: isPending ? '1px dashed #F59E0B' : 'none',
+                  }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{
-                    width: 48, height: 48, borderRadius: '50%',
-                    background: '#E8F5E9', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center',
-                    fontSize: 22, fontWeight: 700, color: '#2E7D32', flexShrink: 0,
-                  }}>
-                    {g.avatar ? (
-                      <img src={g.avatar} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} />
+                    <div style={{
+                      width: 48, height: 48, borderRadius: '50%',
+                      background: isPending ? '#FFF7E6' : '#E8F5E9',
+                      display: 'flex',
+                      alignItems: 'center', justifyContent: 'center',
+                      fontSize: 22, fontWeight: 700,
+                      color: isPending ? '#D97706' : '#2E7D32', flexShrink: 0,
+                    }}>
+                      {g.avatar && !isPending ? (
+                        <img src={g.avatar} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} />
+                      ) : (
+                        isPending ? '邀' : (g.nickname || '守')[0]
+                      )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: T.textPrimary, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {isPending ? '邀请中' : (g.nickname || '未知用户')}
+                        {isPending && (
+                          <span style={{
+                            fontSize: 11, padding: '2px 6px', borderRadius: 6,
+                            background: '#FEF3C7', color: '#D97706', fontWeight: 500,
+                          }}>待确认</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>
+                        {isPending
+                          ? `邀请于: ${formatDate(g.guardian_since)}${g.permission_scope && g.permission_scope !== '待确认' ? ` · 关系: ${g.permission_scope}` : ''}`
+                          : `守护开始: ${formatDate(g.guardian_since)}`
+                        }
+                      </div>
+                    </div>
+                    {isPending ? (
+                      <button
+                        data-testid={`cancel-invite-${g.invitation_id}`}
+                        onClick={() => handleCancelInvite(g)}
+                        style={{
+                          padding: '6px 14px', borderRadius: 16,
+                          background: '#FFF7E6', color: '#D97706',
+                          border: '1px solid #F59E0B', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                        }}
+                      >取消邀请</button>
                     ) : (
-                      (g.nickname || '守')[0]
+                      <button
+                        onClick={() => handleRemove(g)}
+                        style={{
+                          padding: '6px 14px', borderRadius: 16,
+                          background: '#FEE2E2', color: '#DC2626',
+                          border: 'none', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                        }}
+                      >解除</button>
                     )}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 16, fontWeight: 600, color: T.textPrimary }}>
-                      {g.nickname || '未知用户'}
+                  {!isPending && (
+                    <div style={{
+                      marginTop: 10, paddingTop: 10, borderTop: '1px solid #F3F4F6',
+                      display: 'flex', justifyContent: 'space-between', fontSize: 12, color: T.textSecondary,
+                    }}>
+                      <span>权限: {formatPermissions(g.permission_scope)}</span>
+                      <span>最近查看: {formatDate(g.last_viewed_at)}</span>
                     </div>
-                    <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>
-                      守护开始: {formatDate(g.guardian_since)}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleRemove(g)}
-                    style={{
-                      padding: '6px 14px', borderRadius: 16,
-                      background: '#FEE2E2', color: '#DC2626',
-                      border: 'none', fontSize: 12, fontWeight: 500, cursor: 'pointer',
-                    }}
-                  >解除</button>
+                  )}
                 </div>
-                <div style={{
-                  marginTop: 10, paddingTop: 10, borderTop: '1px solid #F3F4F6',
-                  display: 'flex', justifyContent: 'space-between', fontSize: 12, color: T.textSecondary,
-                }}>
-                  <span>权限: {formatPermissions(g.permission_scope)}</span>
-                  <span>最近查看: {formatDate(g.last_viewed_at)}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

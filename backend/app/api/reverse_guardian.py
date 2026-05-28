@@ -28,6 +28,8 @@ from app.models.models import (
 )
 from app.schemas.reverse_guardian import (
     AcceptReverseInviteResponse,
+    CancelReverseInviteRequest,
+    CancelReverseInviteResponse,
     GuardianCountResponse,
     GuardianItem,
     MyGuardiansResponse,
@@ -36,6 +38,7 @@ from app.schemas.reverse_guardian import (
     ReverseInviteCreateResponse,
     ReverseInviteDetailResponse,
 )
+from app.models.membership_plan import FreeMemberQuota, MembershipPlan, UserMembershipSub
 
 logger = logging.getLogger(__name__)
 
@@ -45,13 +48,131 @@ INVITE_EXPIRE_HOURS = 24
 MAX_INVITE_USES = 3
 BASE_URL = "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27"
 
+# [PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 错误码常量
+ERR_GUARDIAN_LIMIT_REACHED = "GUARDIAN_LIMIT_REACHED"
+ERR_WARD_LIMIT_REACHED = "WARD_LIMIT_REACHED"
+
+
+# ─────────── 会员配置 helpers（守护我的人卡片专用） ───────────
+
+
+async def _get_user_membership_config(db: AsyncSession, user_id: int) -> dict:
+    """[PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 获取当前用户的会员配置信息。
+
+    返回字段：
+    - max_managed: 管理上限（我守护的人 Y）
+    - max_managed_by: 被管理上限（守护我的人 Y）
+    - is_top_level: 是否顶级会员（按 max_managed_by 是否为该字段在所有 active 套餐中最大值，
+      或者 max_managed_by >= 9999 视为无上限即顶级）
+    - is_unlimited: 是否无上限（max_managed_by >= 9999 或 -1）
+    - member_level: 会员等级名称
+    """
+    now = datetime.utcnow()
+    sub_res = await db.execute(
+        select(UserMembershipSub).where(
+            UserMembershipSub.user_id == user_id,
+            UserMembershipSub.status == "active",
+            UserMembershipSub.expire_at > now,
+        ).order_by(UserMembershipSub.expire_at.desc())
+    )
+    sub = sub_res.scalars().first()
+
+    if sub:
+        plan = await db.get(MembershipPlan, sub.plan_id)
+        if plan:
+            mm_by = int(plan.max_managed_by or 0)
+            mm = int(plan.max_managed or 0)
+            # 顶级判断：max_managed_by 为所有 active 套餐中最大值，或 unlimited
+            is_unlimited = mm_by >= 9999 or mm_by < 0
+            # 查询所有 active 套餐中最大的 max_managed_by
+            max_res = await db.execute(
+                select(func.max(MembershipPlan.max_managed_by)).where(
+                    MembershipPlan.is_active == True  # noqa: E712
+                )
+            )
+            top_mm_by = int(max_res.scalar() or 0)
+            is_top_level = is_unlimited or (mm_by >= top_mm_by and top_mm_by > 0)
+            return {
+                "max_managed": mm if mm > 0 else 3,
+                "max_managed_by": mm_by if mm_by > 0 else 3,
+                "is_top_level": bool(is_top_level),
+                "is_unlimited": bool(is_unlimited),
+                "member_level": plan.name or "paid",
+            }
+
+    # 免费会员
+    quota_res = await db.execute(
+        select(FreeMemberQuota).order_by(FreeMemberQuota.id.asc())
+    )
+    quota = quota_res.scalars().first()
+    if quota:
+        return {
+            "max_managed": int(quota.max_managed or 3),
+            "max_managed_by": int(quota.max_managed_by or 3),
+            "is_top_level": False,
+            "is_unlimited": False,
+            "member_level": "free",
+        }
+    return {
+        "max_managed": 3,
+        "max_managed_by": 3,
+        "is_top_level": False,
+        "is_unlimited": False,
+        "member_level": "free",
+    }
+
+
+async def _count_my_guardians_x(db: AsyncSession, user_id: int) -> tuple[int, int, int]:
+    """[PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 计算「守护我的人」X 值。
+
+    X = active_count + pending_count（已绑定 + 邀请中）
+    返回 (active_count, pending_count, total_x)
+    """
+    active_res = await db.execute(
+        select(func.count(FamilyManagement.id)).where(
+            FamilyManagement.managed_user_id == user_id,
+            FamilyManagement.status == "active",
+        )
+    )
+    active_count = int(active_res.scalar() or 0)
+
+    now = datetime.utcnow()
+    pending_res = await db.execute(
+        select(func.count(ReverseGuardianInvitation.id)).where(
+            ReverseGuardianInvitation.invitee_user_id == user_id,
+            ReverseGuardianInvitation.status == "pending",
+            ReverseGuardianInvitation.used_count < ReverseGuardianInvitation.max_uses,
+            ReverseGuardianInvitation.expires_at > now,
+        )
+    )
+    pending_count = int(pending_res.scalar() or 0)
+    return active_count, pending_count, active_count + pending_count
+
+
+async def _count_bound_others(db: AsyncSession, user_id: int) -> int:
+    """[PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 计算「我守护的人」X 口径（不含本人，仅已绑定）。"""
+    res = await db.execute(
+        select(func.count(FamilyManagement.id)).where(
+            FamilyManagement.manager_user_id == user_id,
+            FamilyManagement.status == "active",
+        )
+    )
+    return int(res.scalar() or 0)
+
 
 @router.get("/my-guardians", response_model=MyGuardiansResponse)
 async def list_my_guardians(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """获取「守护我的人」列表。"""
+    """[PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 获取「守护我的人」列表。
+
+    包含两部分：
+    - active 项：已生效的守护关系（FamilyManagement.status=active）
+    - pending 项：当前用户发出的待确认反向邀请（pending 且未过期未用满）
+    """
+    items: list[GuardianItem] = []
+    # active 项
     result = await db.execute(
         select(FamilyManagement).where(
             FamilyManagement.managed_user_id == current_user.id,
@@ -59,14 +180,14 @@ async def list_my_guardians(
         ).order_by(FamilyManagement.created_at.desc())
     )
     managements = list(result.scalars().all())
-
-    items: list[GuardianItem] = []
+    active_count = 0
     for mgmt in managements:
         guardian_result = await db.execute(
             select(User).where(User.id == mgmt.manager_user_id)
         )
         guardian = guardian_result.scalar_one_or_none()
         items.append(GuardianItem(
+            item_type="active",
             management_id=mgmt.id,
             user_id=mgmt.manager_user_id,
             nickname=guardian.nickname if guardian else None,
@@ -75,8 +196,36 @@ async def list_my_guardians(
             permission_scope="全部健康信息",
             last_viewed_at=None,
         ))
+        active_count += 1
 
-    return MyGuardiansResponse(items=items, total=len(items))
+    # pending 项
+    now = datetime.utcnow()
+    pending_res = await db.execute(
+        select(ReverseGuardianInvitation).where(
+            ReverseGuardianInvitation.invitee_user_id == current_user.id,
+            ReverseGuardianInvitation.status == "pending",
+            ReverseGuardianInvitation.used_count < ReverseGuardianInvitation.max_uses,
+            ReverseGuardianInvitation.expires_at > now,
+        ).order_by(ReverseGuardianInvitation.created_at.desc())
+    )
+    pending_count = 0
+    for inv in pending_res.scalars().all():
+        items.append(GuardianItem(
+            item_type="pending",
+            invitation_id=inv.id,
+            invite_code=inv.invite_code,
+            nickname="待确认",
+            permission_scope=inv.relation_type or "待确认",
+            invite_expires_at=inv.expires_at,
+            invite_status="pending",
+            guardian_since=inv.created_at,
+        ))
+        pending_count += 1
+
+    return MyGuardiansResponse(
+        items=items, total=len(items),
+        active_count=active_count, pending_count=pending_count,
+    )
 
 
 @router.get("/guardian-count", response_model=GuardianCountResponse)
@@ -92,30 +241,22 @@ async def get_guardian_count(
     - pending_count: 当前用户发出的未过期且未用完的反向邀请数（待确认）
     - total_count: active_count + pending_count
     """
-    active_result = await db.execute(
-        select(func.count(FamilyManagement.id)).where(
-            FamilyManagement.managed_user_id == current_user.id,
-            FamilyManagement.status == "active",
-        )
-    )
-    active_count = active_result.scalar() or 0
-
-    now = datetime.utcnow()
-    pending_result = await db.execute(
-        select(func.count(ReverseGuardianInvitation.id)).where(
-            ReverseGuardianInvitation.invitee_user_id == current_user.id,
-            ReverseGuardianInvitation.status == "pending",
-            ReverseGuardianInvitation.used_count < ReverseGuardianInvitation.max_uses,
-            ReverseGuardianInvitation.expires_at > now,
-        )
-    )
-    pending_count = pending_result.scalar() or 0
+    # [PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 守护我的人 X 与上限
+    active_count, pending_count, _ = await _count_my_guardians_x(db, current_user.id)
+    cfg = await _get_user_membership_config(db, current_user.id)
+    bound_others = await _count_bound_others(db, current_user.id)
 
     return GuardianCountResponse(
         count=active_count,
         active_count=active_count,
         pending_count=pending_count,
         total_count=active_count + pending_count,
+        max_guardians_for_me=int(cfg["max_managed_by"]),
+        max_guardians_by_me=int(cfg["max_managed"]),
+        bound_others_count=bound_others,
+        is_top_level=bool(cfg["is_top_level"]),
+        is_unlimited=bool(cfg["is_unlimited"]),
+        member_level=str(cfg["member_level"]),
     )
 
 
@@ -200,7 +341,12 @@ async def create_reverse_invite(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """被守护人生成反向邀请链接。"""
+    """被守护人生成反向邀请链接。
+
+    [PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 校验 X<Y（守护者总数<被管理上限），
+    超额时返回 GUARDIAN_LIMIT_REACHED 错误码（HTTP 400）。
+    """
+    # 先把过期的 pending 清掉，再取消旧 pending（让出名额）
     pending_result = await db.execute(
         select(ReverseGuardianInvitation).where(
             ReverseGuardianInvitation.invitee_user_id == current_user.id,
@@ -212,6 +358,23 @@ async def create_reverse_invite(
             old_inv.status = "expired"
         else:
             old_inv.status = "cancelled"
+    await db.flush()
+
+    # X<Y 校验：active + 剩余 pending（已全部取消，故为 0）
+    active_count, pending_count, total_x = await _count_my_guardians_x(db, current_user.id)
+    cfg = await _get_user_membership_config(db, current_user.id)
+    y_limit = int(cfg["max_managed_by"])
+    is_unlimited = bool(cfg["is_unlimited"])
+    if not is_unlimited and total_x >= y_limit:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": ERR_GUARDIAN_LIMIT_REACHED,
+                "message": f"守护者已达上限（{total_x}/{y_limit}），请先升级会员或解绑现有守护者",
+                "x": total_x,
+                "y": y_limit,
+            },
+        )
 
     invite_code = uuid.uuid4().hex
     expires_at = datetime.utcnow() + timedelta(hours=INVITE_EXPIRE_HOURS)
@@ -432,3 +595,46 @@ async def accept_reverse_invite(
     logger.info("[reverse-guardian/accept] guardian=%s managed=%s mgmt=%s code=%s",
                 current_user.id, invitation.invitee_user_id, management.id, invite_code)
     return AcceptReverseInviteResponse(message="已成为守护者", management_id=management.id)
+
+
+@router.post("/invite/cancel", response_model=CancelReverseInviteResponse)
+async def cancel_reverse_invite(
+    payload: CancelReverseInviteRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 取消反向邀请，释放名额。
+
+    要求：
+    - invitation_id 或 invite_code 至少传一个
+    - 邀请必须属于当前用户（invitee_user_id == current_user.id）
+    - 仅 status=pending 可取消
+    """
+    if not payload.invitation_id and not payload.invite_code:
+        raise HTTPException(status_code=400, detail="invitation_id 或 invite_code 至少传一个")
+
+    inv: ReverseGuardianInvitation | None = None
+    if payload.invitation_id:
+        inv = await db.get(ReverseGuardianInvitation, payload.invitation_id)
+    elif payload.invite_code:
+        res = await db.execute(
+            select(ReverseGuardianInvitation).where(
+                ReverseGuardianInvitation.invite_code == payload.invite_code
+            )
+        )
+        inv = res.scalars().first()
+    if not inv:
+        raise HTTPException(status_code=404, detail="邀请记录不存在")
+    if inv.invitee_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="只能取消自己发起的邀请")
+    if inv.status != "pending":
+        raise HTTPException(status_code=400, detail=f"当前状态 {inv.status} 不可取消")
+    inv.status = "cancelled"
+    await db.flush()
+    logger.info("[reverse-guardian/invite/cancel] user=%s invitation=%s",
+                current_user.id, inv.id)
+    return CancelReverseInviteResponse(
+        invitation_id=inv.id,
+        status="cancelled",
+        message="邀请已取消",
+    )

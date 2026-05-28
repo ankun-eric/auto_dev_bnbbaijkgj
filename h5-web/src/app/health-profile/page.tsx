@@ -243,7 +243,22 @@ function HealthProfileV2PageInner() {
   }>({ managed_count: 0, active_count: 0, archive_record_total: 0, guarded_count: 0, bound_others_count: 0, max_guardians: 0, can_invite_count: 0, is_unlimited: false });
   // [BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527] 「守护我的人」拆双数字
   const [reverseGuardianCount, setReverseGuardianCount] = useState<number>(0);
-  const [reverseGuardianSummary, setReverseGuardianSummary] = useState<{ active_count: number; pending_count: number; total_count: number }>({ active_count: 0, pending_count: 0, total_count: 0 });
+  // [PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 增加 max_guardians_for_me / is_top_level / is_unlimited 等字段
+  const [reverseGuardianSummary, setReverseGuardianSummary] = useState<{
+    active_count: number;
+    pending_count: number;
+    total_count: number;
+    max_guardians_for_me: number;
+    max_guardians_by_me: number;
+    bound_others_count: number;
+    is_top_level: boolean;
+    is_unlimited: boolean;
+    member_level: string;
+  }>({
+    active_count: 0, pending_count: 0, total_count: 0,
+    max_guardians_for_me: 3, max_guardians_by_me: 3, bound_others_count: 0,
+    is_top_level: false, is_unlimited: false, member_level: 'free',
+  });
   // [健康档案优化 PRD v1.0 §3.4] 非本人 Tab「守护 TA 的人」只读详情弹窗
   const [guardianReadonlyList, setGuardianReadonlyList] = useState<any[]>([]);
   const [guardianReadonlyDetail, setGuardianReadonlyDetail] = useState<any | null>(null);
@@ -444,10 +459,24 @@ function HealthProfileV2PageInner() {
       const pending = Number(data.pending_count ?? 0);
       const total = Number(data.total_count ?? (active + pending) ?? 0);
       setReverseGuardianCount(active);
-      setReverseGuardianSummary({ active_count: active, pending_count: pending, total_count: total });
+      setReverseGuardianSummary({
+        active_count: active,
+        pending_count: pending,
+        total_count: total,
+        max_guardians_for_me: Number(data.max_guardians_for_me ?? 3),
+        max_guardians_by_me: Number(data.max_guardians_by_me ?? 3),
+        bound_others_count: Number(data.bound_others_count ?? 0),
+        is_top_level: !!data.is_top_level,
+        is_unlimited: !!data.is_unlimited,
+        member_level: String(data.member_level || 'free'),
+      });
     } catch {
       setReverseGuardianCount(0);
-      setReverseGuardianSummary({ active_count: 0, pending_count: 0, total_count: 0 });
+      setReverseGuardianSummary({
+        active_count: 0, pending_count: 0, total_count: 0,
+        max_guardians_for_me: 3, max_guardians_by_me: 3, bound_others_count: 0,
+        is_top_level: false, is_unlimited: false, member_level: 'free',
+      });
     }
   }, []);
 
@@ -599,6 +628,22 @@ function HealthProfileV2PageInner() {
       window.removeEventListener('focus', onVisible);
     };
   }, [profile?.id, fetchMedication]);
+
+  // [PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 返回首页时强制刷新守护人/守护对象计数
+  useEffect(() => {
+    const refreshGuardianCards = () => {
+      if (document.visibilityState === 'visible') {
+        fetchReverseGuardianCount();
+        fetchGuardianSummary();
+      }
+    };
+    document.addEventListener('visibilitychange', refreshGuardianCards);
+    window.addEventListener('focus', refreshGuardianCards);
+    return () => {
+      document.removeEventListener('visibilitychange', refreshGuardianCards);
+      window.removeEventListener('focus', refreshGuardianCards);
+    };
+  }, [fetchReverseGuardianCount, fetchGuardianSummary]);
 
   const selectedMember = useMemo(
     () => members.find((m) => m.id === selectedMemberId) || null,
@@ -1040,73 +1085,135 @@ function HealthProfileV2PageInner() {
     }
   };
 
+  // [PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 双卡片副标题统一为：
+  //   守护对象/守护者：X 人（上限 Y 人）
+  // 五种按钮状态（本人 Tab）：
+  //   1. 普通会员未满（X<Y）：黑字 + 蓝色【升级会员】可点
+  //   2. 普通会员已满（X=Y）：红字 + 红色【升级会员】可点
+  //   3. 顶级会员未满（X<Y）：黑字 + 无按钮
+  //   4. 顶级会员已满（X=Y）：红字 + 置灰【达上限】不可点
+  //   5. 家人 Tab 只读：黑字 + 无按钮（按钮全部不显示）
   const renderDualCards = () => {
     const isSelfTab = !!selectedMember?.is_self;
     const otherSideTitle = isSelfTab ? '守护我的人' : '守护 TA 的人';
+    const taTitle = isSelfTab ? '我守护的人' : 'TA 守护的人';
+    const isTopLevel = !!reverseGuardianSummary.is_top_level;
+
+    // 「我守护的人」卡片字段
+    const xByMe = guardianSummary.bound_others_count ?? 0;
+    const yByMe = guardianSummary.is_unlimited
+      ? (guardianSummary.max_guardians || reverseGuardianSummary.max_guardians_by_me || 3)
+      : (guardianSummary.max_guardians || reverseGuardianSummary.max_guardians_by_me || 3);
+    const isUnlimitedByMe = !!guardianSummary.is_unlimited;
+    const isFullByMe = !isUnlimitedByMe && xByMe >= yByMe;
+
+    // 「守护我的人」卡片字段
+    const xForMe = reverseGuardianSummary.total_count;
+    const yForMe = reverseGuardianSummary.max_guardians_for_me || 3;
+    const isUnlimitedForMe = !!reverseGuardianSummary.is_unlimited;
+    const isFullForMe = !isUnlimitedForMe && xForMe >= yForMe;
+
+    const renderSubtitleAndButton = (
+      x: number,
+      y: number,
+      isUnlimited: boolean,
+      isFull: boolean,
+    ) => {
+      // 家人 Tab：所有按钮全部不显示，文字黑字
+      if (!isSelfTab) {
+        return {
+          textColor: '#1F2937',
+          subtitle: `${x} 人（上限 ${isUnlimited ? '不限' : y} 人）`,
+          button: null,
+        };
+      }
+      // 本人 Tab
+      const subtitleText = `${x} 人（上限 ${isUnlimited ? '不限' : y} 人）`;
+      const textColor = isFull ? '#DC2626' : '#1F2937'; // 红字 / 黑字
+
+      let button: React.ReactNode = null;
+      if (isTopLevel) {
+        // 顶级会员
+        if (isFull) {
+          // 状态 4：置灰【达上限】不可点
+          button = (
+            <button
+              disabled
+              data-testid='guardian-card-btn-limit'
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#E5E7EB', color: '#9CA3AF',
+                border: 'none', borderRadius: 14, padding: '4px 12px',
+                fontSize: 12, cursor: 'not-allowed', fontWeight: 500,
+                whiteSpace: 'nowrap',
+              }}
+            >达上限</button>
+          );
+        }
+        // 状态 3：未满 → 无按钮
+      } else {
+        // 普通会员
+        const btnBg = isFull ? '#DC2626' : '#1890FF';
+        button = (
+          <button
+            data-testid='guardian-card-btn-upgrade'
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push('/member-center');
+            }}
+            style={{
+              background: btnBg, color: '#fff',
+              border: 'none', borderRadius: 14, padding: '4px 12px',
+              fontSize: 12, cursor: 'pointer', fontWeight: 500,
+              whiteSpace: 'nowrap',
+            }}
+          >升级会员</button>
+        );
+      }
+      return { textColor, subtitle: subtitleText, button };
+    };
+
+    const byMeView = renderSubtitleAndButton(xByMe, yByMe, isUnlimitedByMe, isFullByMe);
+    const forMeView = renderSubtitleAndButton(xForMe, yForMe, isUnlimitedForMe, isFullForMe);
+
     return (
       <div style={{ padding: '0 16px 12px', display: 'flex', gap: 10 }}>
-        {/* 「我守护的人」仅本人 Tab 显示 */}
-        {/* [BUGFIX-MY-GUARDIAN-CARD-20260528] 卡片口径：档案记录数 + 动态邀请额度 + 升级引导 */}
-        {isSelfTab && (
-          <div
-            data-testid='health-profile-i-guard-entry'
-            onClick={() => router.push('/health-profile/i-guard')}
-            style={{
-              flex: 1, background: '#fff', borderRadius: 12, padding: '12px 12px',
-              display: 'flex', flexDirection: 'column', gap: 6,
-              boxShadow: '0 1px 4px rgba(0,0,0,0.04)', cursor: 'pointer',
-              transition: 'all 0.2s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(24, 144, 255, 0.12)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)';
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: '#E3F2FD', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <span style={{ fontSize: 18 }}>👨‍👩‍👧</span>
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>我守护的人</div>
-                {/* [BUGFIX-MY-PROFILE-4ITEMS-20260528 修复 2] subtitle 统一为「已守护 X/Y」
-                    X = 已绑定非本人档案数（不含本人）；Y = max_guardians（会员可守护上限） */}
-                <div data-testid='i-guard-total-count' style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
-                  已守护{' '}
-                  <b style={{ color: '#0EA5E9' }}>{guardianSummary.bound_others_count}</b>
-                  /
-                  <b style={{ color: '#0EA5E9' }}>{guardianSummary.is_unlimited ? '∞' : (guardianSummary.max_guardians ?? 0)}</b>
-                </div>
-              </div>
-              <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>
+        {/* 「我守护的人」/ 家人 Tab「TA 守护的人」 */}
+        <div
+          data-testid={isSelfTab ? 'health-profile-i-guard-entry' : 'ta-i-guard-entry'}
+          onClick={() => {
+            if (isSelfTab) router.push('/health-profile/i-guard');
+          }}
+          style={{
+            flex: 1, background: '#fff', borderRadius: 12, padding: '12px 12px',
+            display: 'flex', flexDirection: 'column', gap: 8,
+            boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+            cursor: isSelfTab ? 'pointer' : 'default',
+            minHeight: 88,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: '#E3F2FD', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: 18 }}>👨‍👩‍👧</span>
             </div>
-            {/* 邀请额度行：根据三态渲染 */}
-            <div data-testid='i-guard-quota-line' style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.4 }}>
-              {guardianSummary.is_unlimited ? (
-                <span>已守护 <b style={{ color: '#0EA5E9' }}>{guardianSummary.guarded_count}</b> · 上限 <b style={{ color: '#0EA5E9' }}>不限</b></span>
-              ) : guardianSummary.can_invite_count <= 0 && guardianSummary.max_guardians > 0 ? (
-                <span style={{ color: '#F59E0B' }}>
-                  已达上限（{guardianSummary.guarded_count}/{guardianSummary.max_guardians}），
-                  <span
-                    onClick={(e) => { e.stopPropagation(); router.push('/member-center#plans'); }}
-                    style={{ color: '#F59E0B', textDecoration: 'underline', cursor: 'pointer', marginLeft: 2 }}
-                  >升级会员可邀请更多</span>
-                </span>
-              ) : guardianSummary.max_guardians > 0 ? (
-                <span>
-                  可邀请 <b style={{ color: '#0EA5E9' }}>{guardianSummary.can_invite_count}</b> 人
-                  （已守护 {guardianSummary.guarded_count}/{guardianSummary.max_guardians}）
-                  <span
-                    onClick={(e) => { e.stopPropagation(); router.push('/member-center#plans'); }}
-                    style={{ color: '#0EA5E9', marginLeft: 4, textDecoration: 'underline', cursor: 'pointer' }}
-                  >升级解锁无上限</span>
-                </span>
-              ) : null}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>{taTitle}</div>
             </div>
+            {isSelfTab && <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>}
           </div>
-        )}
-        {/* 「守护我的人」/「守护 TA 的人」 */}
+          {/* 副标题：守护对象：X 人（上限 Y 人） + 按钮 */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <div
+              data-testid='i-guard-subtitle'
+              style={{ fontSize: 12, color: byMeView.textColor, lineHeight: 1.4, flex: 1, minWidth: 0 }}
+            >
+              守护对象：{byMeView.subtitle}
+            </div>
+            {byMeView.button}
+          </div>
+        </div>
+
+        {/* 「守护我的人」/ 家人 Tab「守护 TA 的人」 */}
         <div
           data-testid={isSelfTab ? 'my-guardians-entry' : 'ta-guardians-entry'}
           onClick={() => {
@@ -1114,23 +1221,33 @@ function HealthProfileV2PageInner() {
             else openTaGuardianReadonly();
           }}
           style={{
-            flex: 1, background: '#fff', borderRadius: 12, padding: '14px 14px',
-            display: 'flex', alignItems: 'center', gap: 10,
+            flex: 1, background: '#fff', borderRadius: 12, padding: '12px 12px',
+            display: 'flex', flexDirection: 'column', gap: 8,
             boxShadow: '0 1px 4px rgba(0,0,0,0.04)', cursor: 'pointer',
+            minHeight: 88,
           }}
         >
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: '#E8F5E9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <span style={{ fontSize: 20 }}>💚</span>
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>{otherSideTitle}</div>
-            <div data-testid='my-guardians-dual-count' style={{ fontSize: 12, color: '#6B7280' }}>
-              {isSelfTab
-                ? `已守护 ${reverseGuardianSummary.active_count} 人 / 待确认 ${reverseGuardianSummary.pending_count} 人`
-                : (guardianReadonlyList.length ? `${guardianReadonlyList.length}人` : '查看')}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: '#E8F5E9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: 18 }}>💚</span>
             </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>{otherSideTitle}</div>
+            </div>
+            <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>
           </div>
-          <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>
+          {/* 副标题：守护者：X 人（上限 Y 人） + 按钮 */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <div
+              data-testid='my-guardians-subtitle'
+              style={{ fontSize: 12, color: forMeView.textColor, lineHeight: 1.4, flex: 1, minWidth: 0 }}
+            >
+              {isSelfTab
+                ? `守护者：${forMeView.subtitle}`
+                : `守护者：${forMeView.subtitle}`}
+            </div>
+            {forMeView.button}
+          </div>
         </div>
       </div>
     );

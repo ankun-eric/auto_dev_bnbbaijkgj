@@ -133,9 +133,16 @@ async def create_invitation(
         dynamic_max = MAX_MANAGED_COUNT
 
     if managed_count + pending_invite_count >= dynamic_max:
+        # [PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 返回结构化错误码 WARD_LIMIT_REACHED
+        total_x = managed_count + pending_invite_count
         raise HTTPException(
             status_code=400,
-            detail=f"您当前守护人数已满（{managed_count + pending_invite_count}/{dynamic_max} 位），如需守护更多家人可升级会员套餐",
+            detail={
+                "code": "WARD_LIMIT_REACHED",
+                "message": f"我守护的人已达上限（{total_x}/{dynamic_max}），请先升级会员或解绑现有守护对象",
+                "x": total_x,
+                "y": int(dynamic_max),
+            },
         )
 
     if member is not None:

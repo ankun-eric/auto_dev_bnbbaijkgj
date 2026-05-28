@@ -96,9 +96,22 @@ function InvitePageInner() {
       const data = res.data || res;
       setInvite(data);
     } catch (e: any) {
-      const msg = e?.response?.data?.detail || e?.message || '生成邀请失败';
-      setError(String(msg));
-      showToast(String(msg), 'fail');
+      // [PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 解析结构化错误码
+      const detail = e?.response?.data?.detail;
+      let msg = '生成邀请失败';
+      if (detail && typeof detail === 'object') {
+        if (detail.code === 'GUARDIAN_LIMIT_REACHED') {
+          msg = detail.message || `守护者已达上限（${detail.x}/${detail.y}），请先升级会员或解绑现有守护者`;
+        } else if (detail.message) {
+          msg = String(detail.message);
+        }
+      } else if (typeof detail === 'string') {
+        msg = detail;
+      } else if (e?.message) {
+        msg = String(e.message);
+      }
+      setError(msg);
+      showToast(msg, 'fail');
     } finally {
       setLoading(false);
     }
