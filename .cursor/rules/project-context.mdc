@@ -5,6 +5,35 @@ alwaysApply: false
 
 # Project Context
 
+## 最近一次变更（2026-05-28 · Bug 修复 / 居家安全设备外部 API 对接 v2 修订版）
+
+**Bug 现象 + 增量需求**：
+1. Bug 1：上游推送返回 `code=200/message=success`（华为厂商真实契约）被硬编码 `code==0` 误判为 ❌ 失败。
+2. Bug 2：厂商已经回调，但后台「告警记录」「回调流水」均空 → 根因是厂商手里的回调 URL 缺失 `/autodev/<deploy-id>/` 命名空间前缀，被 nginx 404 拦截。
+3. 增量需求：管理后台需要一个「回调原始记录」Tab 用于审计厂商回调（之前后端表已落库但前端无入口），并且必须能阻断"漏写前缀"这类配置失误。
+
+**修复方案（4 项）**：
+1. **修复 1（成功白名单）**：上游成功判定改为 `HTTP 200 AND (code ∈ {0,200,"0","200"} OR message ∈ {ok,success,成功})`；UI 新增「判定依据」悬浮提示。
+2. **修复 2（回调流水审计）**：`HomeSafetyCallbackLog` 表扩字段（`request_method/request_url/response_status/response_body/processed_at/device_sn`）；回调入口改为「先写 pending → 业务后 update」模式确保零丢失；新增管理后台 Tab5「回调原始记录」（列表 + 详情抽屉，含字段映射对照）。
+3. **修复 3（回调地址自检）**：推送前自动 5 项自检（URL 格式 / HTTPS / DNS / HEAD 可达 / 自回环 POST `dataType=__precheck__` 命中本项目），fail 阻断、warn 警告但允许继续。
+4. **修复 4（运维兜底）**：`upstream_alarm_callback` 识别 `dataType=__precheck__` 报文并返回 `matched_project: true`，配合自检使用。
+
+**变更文件**：
+- 修改：`backend/app/api/home_safety_v1.py` —— `HomeSafetyCallbackLog` 扩 6 字段（默认 `parse_status='pending'`），`HomeSafetyCallbackConfig` 新增 `last_push_judge_basis`，`_real_push_upstream` 兼容白名单，新增 `_update_callback_log` + 改写 `upstream_alarm_callback` 为先写 pending 模式，新增 3 个管理 API（`callback_log` 列表、`callback_log/{id}` 详情、`callback_config/precheck` 自检）
+- 修改：`admin-web/src/app/(admin)/home-safety/page.tsx` —— 新增 Tab5「回调原始记录」（CallbackLogTab + Drawer 详情 + 5 项筛选 + 分页），CallbackConfigTab 推送前调用 precheck 接口、Modal 展示 5 项自检结果、显示「判定依据」
+- 新增：`backend/tests/test_home_safety_v2_revision.py` —— 13 个新测试用例（兼容白名单 4 个 + 回调流水 5 个 + 自检 4 个）
+- 新增：`user_docs/居家安全设备外部API对接v2修订版_用户体验手册.md`
+
+**测试结果**：服务器容器内 pytest 跑 `tests/test_home_safety_v1.py + tests/test_home_safety_v2_revision.py` 共 **33 passed**（20 原 + 13 新）。HTTP smoke：`/api/admin/home_safety/callback_log` → 401（鉴权拦截，正常），`/api/admin/home_safety/callback_config/precheck` → 401，`/api/home_safety/callback/alarm` POST `__precheck__` → 200 + `{precheck:true, matched_project:true}`，`/admin/home-safety` → 308（Next.js 正常重定向）。
+
+**部署副作用修复**：`docker compose up --build` 重建 backend / admin-web 后旧容器名解析失败 → 把 `gateway-nginx` 加入新生成的 docker-compose v2 网络 `6b099ed3-7175-4a78-91f4-44570c84ed27_6b099ed3-7175-4a78-91f4-44570c84ed27-network` 并 `nginx -s reload` 后恢复。
+
+**体验链接**：[管理后台 · 居家安全设备](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/home-safety) · [回调流水接收](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/home_safety/callback/alarm)
+
+**唯一变更标记**：`[BUGFIX HOME-SAFETY-V2-REVISION 2026-05-28]`
+
+---
+
 ## 最近一次变更（2026-05-28 · Bug 修复 / H5 全站跳转崩溃修复 — datetime 工具函数恢复）
 
 **Bug 现象**：上一次「居家安全设备 v1.0 三 Bug 合并修复」（2026-05-27 提交 `201d506f`）发布后，H5 端除 AI 主页和管理后台外，几乎全部页面（首页、健康自查、体质测评、AI 问答、健康档案、商城、订单、通知、汉堡菜单跳转等）一进就红屏，所有账号、所有手机/浏览器都复现。
