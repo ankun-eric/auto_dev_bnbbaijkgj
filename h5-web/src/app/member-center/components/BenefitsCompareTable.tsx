@@ -66,12 +66,13 @@ function fmtVal(v: number | null | undefined): string {
   return String(v);
 }
 
-// [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 健康档案配额展示：含本人 → +1 份
-// max_managed 字段保留旧含义（仅家人/守护对象计数），展示时 +1 显示含本人后的总份数
+// [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-30 第二轮修复 §1.1]
+// 口径统一：max_managed 即"可管理档案数"，前端不再 +1，不写"含本人/不含本人"
+// -1 或 >=9999 展示「不限」
 function fmtArchiveVal(v: number | null | undefined): string {
   if (v === null || v === undefined) return '--';
   if (v === -1 || (typeof v === 'number' && v >= 9999)) return '不限';
-  return `${v + 1} 份`;
+  return `${v} 人`;
 }
 
 export default function BenefitsCompareTable({ current, plans, ranks, freeQuota }: Props) {
@@ -98,7 +99,8 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
   }
 
   // 行：与「我的会员权益」3 实卡同源；free 列改从 freeQuota（管理后台「免费会员额度配置」）取
-  // [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 资产/配额语境：「守护人上限」→「可管理健康档案（含本人）」
+  // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-30 第二轮修复 §1.1]
+  //   资产/配额语境：「可管理健康档案」，不写"含本人/不含本人"
   const rows: Array<{
     key: string;
     label: string;
@@ -108,7 +110,7 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
   }> = [
     {
       key: 'max_managed',
-      label: '可管理健康档案（含本人）',
+      label: '可管理健康档案',
       free: freeVals.max_managed,
       getPaid: (p: PlanBrief) => p.max_managed,
       fmt: fmtArchiveVal,

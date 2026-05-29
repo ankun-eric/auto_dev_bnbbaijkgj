@@ -1255,18 +1255,22 @@ function HealthProfileV2PageInner() {
             {isSelfTab && <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>}
           </div>
           {/* 副标题：
-              - 本人 Tab（资产/配额）：「健康档案：X 份（含本人，上限 Y 份）」
+              - 本人 Tab（资产/配额）：「已管理 X 人，还可添加 Y-X 人」（口径与档案列表顶部统计条对齐）
               - 家人 Tab（关系/只读）：「守护对象：X 人（上限 Y 人）」保留 */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
             <div
               data-testid='i-guard-subtitle'
               style={{ fontSize: 12, color: byMeView.textColor, lineHeight: 1.4, flex: 1, minWidth: 0 }}
             >
-              {/* [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 验收 8.1#2]
-                  本人 Tab：「{X} 人 / 上限 {Y} 人（不含本人）」，统一不再 +1
+              {/* [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-30 第二轮修复 验收 8.1#2]
+                  本人 Tab：「已管理 {X} 人，还可添加 {Y-X} 人」，与档案列表顶部统计条口径对齐
+                  - 不限套餐（Y=-1/is_unlimited）只显示「已管理 X 人」
+                  - 不写"含本人/不含本人"
                   家人 Tab：保留原副标题（关系语境） */}
               {isSelfTab
-                ? `${xByMe} 人 / 上限 ${isUnlimitedByMe ? '不限' : yByMe} 人（不含本人）`
+                ? (isUnlimitedByMe
+                    ? `已管理 ${xByMe} 人`
+                    : `已管理 ${xByMe} 人，还可添加 ${Math.max(0, yByMe - xByMe)} 人`)
                 : `守护对象：${byMeView.subtitle}`}
             </div>
             {byMeView.button}

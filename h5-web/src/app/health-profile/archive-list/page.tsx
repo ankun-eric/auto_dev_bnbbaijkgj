@@ -7,7 +7,7 @@
  * - 7 种状态卡片渲染（S0~S7），统一标签颜色 + 主按钮 + 次操作
  * - 入口收口：废弃顶部「去邀请」大按钮；新建档案后弹「立即去邀请」抽屉
  * - 统一删除接口：DELETE /api/family/member/{member_id}，返回结构化 reason_code
- * - 配额展示：「{X} 人 / 上限 {Y} 人」（不含本人）
+ * - 配额展示：「已管理 {X} 人 / 上限 {Y} 人，还可添加 {Y-X} 人」
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -623,7 +623,9 @@ export default function ArchiveListPage() {
             <button
               onClick={() => {
                 if (list.quota_remaining <= 0) {
-                  showToast('档案配额已满，请先删除现有档案', 'fail');
+                  // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-30 第二轮修复 §1.1]
+                  // 口径统一：直接用 quota_max（即 max_managed），不 +1，不写"含本人"
+                  showToast(`档案配额已满（上限 ${list.quota_max} 人），请先删除现有档案或升级套餐`, 'fail');
                   return;
                 }
                 setNewMemberOpen(true);

@@ -5,6 +5,41 @@ alwaysApply: false
 
 # Project Context
 
+## 最近一次变更（2026-05-30 · Bug 修复 / 健康档案配额文案口径全产品统一）
+
+**任务标识**：`[BUGFIX-FAMILY-MEMBER-STATE-MACHINE-V1 第二轮 2026-05-30]`
+
+**背景**：《健康档案 PRD v1.0 落地核查 · 第二轮》Bug 修复方案。原 `max_managed` 字段在前端被 `+1` 修正为「含本人」展示，但同页面套餐卡描述行又用原值，导致同一页面出现两个不同数字（如 4 vs 3），且文案中累赘地写出「上限 X 人，不含本人」等让用户困惑的解释。
+
+**口径决议（全产品统一）**：后端 `max_managed` 即「可管理档案总数（已含本人）」，前端**一律不再 +1**，**不再写「含本人 / 不含本人」**。后端配额校验逻辑保持不变，纯前端发版即可。
+
+**修复（H5 前端 4 处）**：
+
+- `h5-web/src/app/member-center/page.tsx`：
+  - 第 274~281 行：顶部权益大数字格子去除 `b.value + 1`，改为直接 `String(b.value)`；
+  - 第 360~364 行：套餐卡描述行从 `${p.max_managed} 人（上限 ${p.max_managed} 人，不含本人）` 简化为 `${p.max_managed} 人`。
+- `h5-web/src/app/member-center/components/BenefitsCompareTable.tsx`：
+  - `fmtArchiveVal` 去除 `v + 1` 的 `+1`，并将单位由「份」改回「人」；
+  - 行标 `可管理健康档案（含本人）` → `可管理健康档案`。
+- `h5-web/src/app/health-profile/page.tsx`：
+  - 第 1265~1270 行本人 Tab 副标题：从 `${xByMe} 人 / 上限 ${yByMe} 人（不含本人）` 改为 `已管理 ${xByMe} 人，还可添加 ${Math.max(0, yByMe - xByMe)} 人`，不限套餐只显示「已管理 N 人」。
+- `h5-web/src/app/health-profile/archive-list/page.tsx`：
+  - 第 626 行 toast：从 `档案配额已满，请先删除现有档案` 改为 `档案配额已满（上限 ${list.quota_max} 人），请先删除现有档案或升级套餐`；
+  - 文件头注释同步更新。
+
+**部署与验证**：
+
+- 通过 SFTP 将 4 个文件上传到远程 `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/src/...`
+- 远程 `docker compose build h5-web` + `docker compose up -d --force-recreate --no-deps h5-web` 重建并启动新容器
+- 通过 chunk JS 抓取验证 4 处文案均已生效，全产品 `含本人 / 不含本人` 0 命中（生产代码）
+- 关键路径 HTTP 返回 200/308，部署成功
+
+**影响范围**：纯 H5 前端，零后端、零数据迁移、零接口变更，无其他端代码改动。
+
+**用户体验手册**：`user_docs/健康档案配额文案口径统一_20260530_002012_b7e1.md`
+
+---
+
 ## 最近一次变更（2026-05-29 · Bug 修复 / 居家安全设备页「+ 添加家人」按钮白屏 gateway ok）
 
 **任务标识**：`[BUGFIX HOME-SAFETY-ADD-MEMBER-WHITESCREEN 2026-05-29]`

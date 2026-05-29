@@ -271,13 +271,13 @@ export default function MemberCenterPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
           {benefits_cards.map((b) => {
             const placeholder = b.key === 'placeholder';
-            // [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] max_managed 资产/配额展示：
-            //   后端 value = 旧 max_managed（仅家人/守护对象计数，不含本人）；前端 +1 含本人
-            //   -1（不限）展示「不限」
+            // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-30 第二轮修复 §1.1]
+            //   口径统一：max_managed 即"可管理档案数"，前端不再 +1，不写"含本人/不含本人"
+            //   -1 或 >=9999 展示「不限」
             let displayValue: any = fmtVal(b.value);
             if (b.key === 'max_managed' && typeof b.value === 'number') {
               if (b.value === -1 || b.value >= 9999) displayValue = '不限';
-              else displayValue = String(b.value + 1);
+              else displayValue = String(b.value);
             }
             return (
               <div
@@ -357,11 +357,10 @@ export default function MemberCenterPage() {
                   <div>
                     <div style={{ fontSize: 17, fontWeight: 700, color: TEXT_DARK }}>{p.name}</div>
                     <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 4 }}>
-                      {/* [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 §5.2 / 验收 8.1#1]
-                          配额文案改为：「可管理健康档案 X 人（上限 Y 人，不含本人）」
-                          - X 即 max_managed 原值，不再 +1 显示
-                          - -1（不限）显示「不限」 */}
-                      可管理健康档案 {p.max_managed === -1 ? '不限' : `${p.max_managed} 人（上限 ${p.max_managed} 人，不含本人）`} · AI 外呼 {fmtVal(p.ai_outbound_call_count)} 次 · 紧急呼叫 {fmtVal(p.emergency_ai_call_count)} 次
+                      {/* [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-30 第二轮修复 §1.1]
+                          口径统一：max_managed 即"可管理档案数（已含本人）"，前端不 +1，不写"含本人/不含本人"
+                          -1（不限）显示「不限」 */}
+                      可管理健康档案 {p.max_managed === -1 ? '不限' : `${p.max_managed} 人`} · AI 外呼 {fmtVal(p.ai_outbound_call_count)} 次 · 紧急呼叫 {fmtVal(p.emergency_ai_call_count)} 次
                     </div>
                   </div>
                 </div>
