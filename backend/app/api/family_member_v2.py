@@ -132,8 +132,11 @@ class MemberStateItem(BaseModel):
 class MemberStateListResponse(BaseModel):
     items: List[MemberStateItem]
     total: int
-    quota_used: int  # 不含本人，按 family_member 计
-    quota_max: int   # 不含本人上限
+    # [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30] 字段口径统一为「含本人」：
+    # quota_used = 已建档家庭成员总数（含本人卡）
+    # quota_max  = 家庭守护成员总人数上限（含本人）= membership_plans.max_managed 原值
+    quota_used: int
+    quota_max: int
     quota_remaining: int
     guarded_count: int  # 仅 S1 计入
     state_counts: dict
@@ -179,8 +182,9 @@ class UnbindRequest(BaseModel):
 
 
 class QuotaResponse(BaseModel):
-    quota_max: int           # 上限（不含本人）
-    quota_used: int          # 已建档案数（不含本人，所有 S1~S7）
+    # [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30] 字段口径统一为「含本人」
+    quota_max: int           # 上限（含本人）= 数据库 max_managed 原值
+    quota_used: int          # 已建档案数（含本人卡）
     quota_remaining: int     # 剩余可添加
     guarded_count: int       # 实际守护中（S1）
     self_member_id: Optional[int] = None
@@ -195,10 +199,18 @@ def _gen_invite_code(length: int = 16) -> str:
 
 
 async def _get_max_members(db: AsyncSession, user_id: int) -> int:
-    """复用 guardian_system_v13 的动态上限逻辑"""
+    """[PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30]
+    返回家庭守护成员总人数上限（**含本人**），与数据库 max_managed 原值一致。
+    - _get_max_guardians 内部已 -1 转为"不含本人上限"供配额比较使用；
+    - 本函数 +1 还原为"含本人上限"，对外暴露给前端原样展示。
+    - 不限档 -1 透传。
+    """
     try:
         from app.api.guardian_system_v13 import _get_max_guardians  # type: ignore
-        return await _get_max_guardians(db, user_id)
+        raw = await _get_max_guardians(db, user_id)
+        if raw == -1:
+            return -1
+        return int(raw) + 1
     except Exception:
         return DEFAULT_MAX_MEMBERS
 
@@ -388,8 +400,9 @@ async def list_member_states(
 
     返回字段：
     - items: List[MemberStateItem]，按 created_at ASC 排序，本人卡片始终置顶
-    - quota_used: 不含本人的已建档案数（所有 S1~S7 状态）
-    - quota_max: 不含本人上限
+    [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30] 字段口径统一为「含本人」：
+    - quota_used: 已建档家庭成员总数（含本人卡）
+    - quota_max: 含本人上限（与 membership_plans.max_managed 数据库原值一致，-1=不限）
     - quota_remaining: 剩余可添加
     - guarded_count: S1 已绑定数（实际守护中）
     - state_counts: 各 state 的统计
@@ -497,11 +510,16 @@ async def list_member_states(
             can_unbind=can_unbind,
         ))
 
-    # 配额（不含本人）
+    # [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30] 配额口径统一为「含本人」：
+    # quota_used = 已建档家庭成员总数（含本人卡）
+    # quota_max  = 含本人上限（与数据库 max_managed 原值一致，-1=不限）
     quota_max = await _get_max_members(db, current_user.id)
-    non_self_count = sum(1 for m in members if not m.is_self)
-    quota_used = non_self_count
-    quota_remaining = max(0, quota_max - quota_used)
+    total_count = len(members)  # 已含本人
+    quota_used = total_count
+    if quota_max == -1:
+        quota_remaining = 9999  # 不限
+    else:
+        quota_remaining = max(0, quota_max - quota_used)
     guarded_count = state_counts.get(STATE_S1_BOUND, 0)
 
     return MemberStateListResponse(
@@ -522,20 +540,20 @@ async def get_member_quota(
 ):
     """[PRD §5] 配额查询接口。
 
-    返回：
-    - quota_max: 上限（不含本人，来自 membership_plan.max_managed / free_member_quota）
-    - quota_used: 已建档案数（不含本人，所有 family_member where deleted_at is null and is_self=false）
-    - quota_remaining: 剩余可添加 = max - used
+    [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30] 字段口径统一为「含本人」：
+    - quota_max: 上限（含本人，来自 membership_plan.max_managed / free_member_quota 原值，-1=不限）
+    - quota_used: 已建档案数（含本人卡，统计 family_member where deleted_at is null）
+    - quota_remaining: 剩余可添加 = max - used（不限时返回 9999）
     - guarded_count: 实际守护中 = count(family_management where status='active')
     - self_member_id: 本人 family_member.id
     """
     quota_max = await _get_max_members(db, current_user.id)
 
+    # quota_used 改为含本人卡总数
     r = await db.execute(
         select(func.count(FamilyMember.id)).where(
             FamilyMember.user_id == current_user.id,
             FamilyMember.status != "deleted",
-            FamilyMember.is_self == False,  # noqa: E712
         )
     )
     quota_used = int(r.scalar() or 0)
@@ -556,10 +574,15 @@ async def get_member_quota(
         )
     )).scalars().first()
 
+    if quota_max == -1:
+        quota_remaining = 9999
+    else:
+        quota_remaining = max(0, quota_max - quota_used)
+
     return QuotaResponse(
         quota_max=quota_max,
         quota_used=quota_used,
-        quota_remaining=max(0, quota_max - quota_used),
+        quota_remaining=quota_remaining,
         guarded_count=guarded_count,
         self_member_id=self_member.id if self_member else None,
     )

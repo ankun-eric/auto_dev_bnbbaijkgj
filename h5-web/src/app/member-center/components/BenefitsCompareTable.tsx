@@ -66,9 +66,9 @@ function fmtVal(v: number | null | undefined): string {
   return String(v);
 }
 
-// [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-30 第二轮修复 §1.1]
-// 口径统一：max_managed 即"可管理档案数"，前端不再 +1，不写"含本人/不含本人"
-// -1 或 >=9999 展示「不限」
+// [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30 C2/C5]
+// 口径统一：max_managed 即"家庭守护成员总人数"（已含本人，数据库迁移后），前端零加工原样展示
+// -1 或 >=9999 展示「不限」；不写"含本人/不含本人"
 function fmtArchiveVal(v: number | null | undefined): string {
   if (v === null || v === undefined) return '--';
   if (v === -1 || (typeof v === 'number' && v >= 9999)) return '不限';
@@ -99,8 +99,8 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
   }
 
   // 行：与「我的会员权益」3 实卡同源；free 列改从 freeQuota（管理后台「免费会员额度配置」）取
-  // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-30 第二轮修复 §1.1]
-  //   资产/配额语境：「可管理健康档案」，不写"含本人/不含本人"
+  // [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30 C2/C5]
+  //   权益项命名：「可管理健康档案」→「家庭守护成员」；不写「含本人/不含本人」
   const rows: Array<{
     key: string;
     label: string;
@@ -110,7 +110,7 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
   }> = [
     {
       key: 'max_managed',
-      label: '可管理健康档案',
+      label: '家庭守护成员',
       free: freeVals.max_managed,
       getPaid: (p: PlanBrief) => p.max_managed,
       fmt: fmtArchiveVal,

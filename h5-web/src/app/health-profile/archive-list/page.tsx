@@ -593,10 +593,29 @@ export default function ArchiveListPage() {
     <div style={{ minHeight: '100vh', background: PAGE_BG, paddingBottom: 100 }}>
       <GreenNavBar title='档案列表' onBack={() => router.back()} />
 
-      {/* 顶部统计：「已管理 X 人，还可添加 Y-X 人」 */}
+      {/* [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30 C4] 档案管理列表页顶部小字 ——
+          仅本页面提示「含本人」规则，权益卡片/套餐对比/套餐详情统统不提；
+          字号 12px、辅助色 #8c8c8c，不带图标、不强调。 */}
+      {list && (
+        <div
+          data-testid="archive-list-quota-tip"
+          style={{
+            margin: '12px 16px 0',
+            fontSize: 12,
+            color: '#8c8c8c',
+            lineHeight: 1.6,
+          }}
+        >
+          {list.quota_max === -1 || list.quota_max >= 9999
+            ? '本套餐可管理家庭成员数量不限（含本人）'
+            : `本套餐可管理 ${list.quota_max} 位家庭成员（含本人）`}
+        </div>
+      )}
+
+      {/* 顶部统计：「已管理 X 人 / 上限 Y 人，还可添加 Y-X 人」（含本人口径） */}
       {list && (
         <div style={{
-          margin: '12px',
+          margin: '8px 12px 12px',
           padding: '16px',
           background: '#FFF',
           borderRadius: 12,
@@ -608,11 +627,11 @@ export default function ArchiveListPage() {
               <div style={{ fontSize: 18, fontWeight: 700, color: TEXT_PRIMARY }}>
                 已管理 <span style={{ color: PRIMARY_COLOR }}>{list.quota_used}</span> 人
                 <span style={{ fontSize: 13, color: TEXT_SECONDARY, fontWeight: 400, marginLeft: 8 }}>
-                  / 上限 {list.quota_max} 人
+                  / 上限 {list.quota_max === -1 || list.quota_max >= 9999 ? '不限' : `${list.quota_max} 人`}
                 </span>
               </div>
               <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4 }}>
-                还可添加 <span style={{ color: ACCENT_COLOR, fontWeight: 600 }}>{list.quota_remaining}</span> 人
+                还可添加 <span style={{ color: ACCENT_COLOR, fontWeight: 600 }}>{list.quota_remaining >= 9999 ? '不限' : list.quota_remaining}</span> 人
                 {list.guarded_count > 0 && (
                   <span style={{ marginLeft: 12 }}>
                     · 守护中 <span style={{ color: '#10B981', fontWeight: 600 }}>{list.guarded_count}</span> 人
@@ -622,10 +641,11 @@ export default function ArchiveListPage() {
             </div>
             <button
               onClick={() => {
-                if (list.quota_remaining <= 0) {
-                  // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-30 第二轮修复 §1.1]
-                  // 口径统一：直接用 quota_max（即 max_managed），不 +1，不写"含本人"
-                  showToast(`档案配额已满（上限 ${list.quota_max} 人），请先删除现有档案或升级套餐`, 'fail');
+                // [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30] 配额 toast 走「含本人」口径
+                // quota_remaining=9999 视为不限档；quota_max=-1/9999 不限档
+                const unlimited = list.quota_max === -1 || list.quota_max >= 9999;
+                if (!unlimited && list.quota_remaining <= 0) {
+                  showToast(`档案配额已满（上限 ${list.quota_max} 人，含本人），请先删除现有档案或升级套餐`, 'fail');
                   return;
                 }
                 setNewMemberOpen(true);

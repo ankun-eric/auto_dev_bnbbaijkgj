@@ -2831,6 +2831,68 @@ async def _sync_membership_v1(conn: AsyncConnection) -> None:
         ))
 
 
+async def _sync_membership_v11_max_managed_include_self_migration(conn: AsyncConnection) -> None:
+    """[PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30] 一次性数据迁移：
+    membership_plans.max_managed 与 free_member_quota.max_managed 由「不含本人」改为「**含本人**」语义。
+    用 schema_migration_log 表 + 标记 key 保证幂等。
+    """
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        return set(inspector.get_table_names())
+
+    tables = await conn.run_sync(_load)
+
+    # 1) 确保迁移日志表存在
+    if "schema_migration_log" not in tables:
+        await conn.execute(text(
+            """
+            CREATE TABLE schema_migration_log (
+                id INT NOT NULL AUTO_INCREMENT,
+                migration_key VARCHAR(128) NOT NULL,
+                applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                detail VARCHAR(500) NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY uk_migration_key (migration_key)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """
+        ))
+
+    MIG_KEY = "membership_v11_max_managed_include_self_20260530"
+
+    # 2) 检查是否已执行
+    r = await conn.execute(
+        text("SELECT COUNT(1) FROM schema_migration_log WHERE migration_key = :k"),
+        {"k": MIG_KEY},
+    )
+    already = int((r.scalar() or 0))
+    if already > 0:
+        return
+
+    # 3) 执行 +1 迁移（-1 不限档保持不变，>=9999 视为已含本人不再 +1）
+    if "membership_plans" in tables:
+        await conn.execute(text(
+            "UPDATE membership_plans SET max_managed = max_managed + 1 "
+            "WHERE max_managed IS NOT NULL AND max_managed >= 0 AND max_managed < 9999"
+        ))
+    if "free_member_quota" in tables:
+        await conn.execute(text(
+            "UPDATE free_member_quota SET max_managed = max_managed + 1 "
+            "WHERE max_managed IS NOT NULL AND max_managed >= 0 AND max_managed < 9999"
+        ))
+
+    # 4) 写入迁移日志，幂等
+    await conn.execute(
+        text(
+            "INSERT INTO schema_migration_log (migration_key, detail) "
+            "VALUES (:k, :d)"
+        ),
+        {
+            "k": MIG_KEY,
+            "d": "max_managed 由不含本人改为含本人语义（+1 一次性迁移）",
+        },
+    )
+
+
 async def _sync_guardian_system_v1(conn: AsyncConnection) -> None:
     """[守护人体系 PRD v1.1 2026-05-25] 在 family_management 表加字段，新建转移与额度表（幂等）。"""
     def _load(sync_conn):
@@ -3816,6 +3878,8 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_home_safety_v2(conn)
     # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] family_invitations.nickname 字段 + cancelled_by_target 状态兼容
     await _sync_guardian_bugfix_v1(conn)
+    # [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30] max_managed 字段口径由「不含本人」改为「含本人」，一次性 +1 数据迁移
+    await _sync_membership_v11_max_managed_include_self_migration(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

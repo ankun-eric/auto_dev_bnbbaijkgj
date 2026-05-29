@@ -271,9 +271,10 @@ export default function MemberCenterPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
           {benefits_cards.map((b) => {
             const placeholder = b.key === 'placeholder';
-            // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-30 第二轮修复 §1.1]
-            //   口径统一：max_managed 即"可管理档案数"，前端不再 +1，不写"含本人/不含本人"
-            //   -1 或 >=9999 展示「不限」
+            // [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30 C2/C5]
+            //   权益卡片仅一行（主文案数字），副文案全部删除；
+            //   value = max_managed 原值（已含本人，数据库迁移后），前端零加工原样展示；
+            //   -1 / >=9999 展示「不限」。不再出现「含本人」字样。
             let displayValue: any = fmtVal(b.value);
             if (b.key === 'max_managed' && typeof b.value === 'number') {
               if (b.value === -1 || b.value >= 9999) displayValue = '不限';
@@ -300,6 +301,9 @@ export default function MemberCenterPage() {
                 >
                   {placeholder ? '✨ 敬请期待' : displayValue}
                 </div>
+                {/* [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30 C2] 权益卡片仅保留主文案，副文案删除：
+                    保留 label（如「家庭守护成员」）作为权益项名称，去掉单位中的「含本人」字样。
+                    max_managed 项的 unit 已统一为「人」，不再出现「含本人」/「不含本人」 */}
                 <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 4 }}>
                   {b.label}
                   {!placeholder && b.unit ? `（${b.unit}）` : ''}
@@ -357,10 +361,11 @@ export default function MemberCenterPage() {
                   <div>
                     <div style={{ fontSize: 17, fontWeight: 700, color: TEXT_DARK }}>{p.name}</div>
                     <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 4 }}>
-                      {/* [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-30 第二轮修复 §1.1]
-                          口径统一：max_managed 即"可管理档案数（已含本人）"，前端不 +1，不写"含本人/不含本人"
-                          -1（不限）显示「不限」 */}
-                      可管理健康档案 {p.max_managed === -1 ? '不限' : `${p.max_managed} 人`} · AI 外呼 {fmtVal(p.ai_outbound_call_count)} 次 · 紧急呼叫 {fmtVal(p.emergency_ai_call_count)} 次
+                      {/* [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30 C2/C5]
+                          权益项命名：「可管理健康档案」→「家庭守护成员」（PRD 规范主文案）
+                          数字：max_managed 数据库原值（已含本人），前端零加工原样展示
+                          -1/>=9999 显示「不限」；不写「含本人/不含本人」 */}
+                      家庭守护成员 {p.max_managed === -1 || p.max_managed >= 9999 ? '不限' : `${p.max_managed} 人`} · AI 外呼 {fmtVal(p.ai_outbound_call_count)} 次 · 紧急呼叫 {fmtVal(p.emergency_ai_call_count)} 次
                     </div>
                   </div>
                 </div>

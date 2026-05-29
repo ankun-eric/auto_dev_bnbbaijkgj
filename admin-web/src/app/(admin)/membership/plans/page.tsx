@@ -91,7 +91,7 @@ export default function MembershipPlansPage() {
     setEditing(null);
     form.resetFields();
     form.setFieldsValue({
-      max_managed: 3,
+      max_managed: 4,
       ai_outbound_call_count: 0,
       emergency_ai_call_count: 0,
       max_managed_by: 3,
@@ -193,7 +193,7 @@ export default function MembershipPlansPage() {
       width: 100,
       render: (v: number | null) => (v != null ? `¥${Number(v).toFixed(2)}` : '—'),
     },
-    { title: '可管理健康档案', dataIndex: 'max_managed', width: 120, render: fmtPersons },
+    { title: '家庭守护成员总人数（含本人）', dataIndex: 'max_managed', width: 180, render: fmtPersons },
     { title: 'AI 外呼', dataIndex: 'ai_outbound_call_count', width: 100, render: fmtLimit },
     { title: '紧急呼叫', dataIndex: 'emergency_ai_call_count', width: 100, render: fmtLimit },
     { title: '被管理上限', dataIndex: 'max_managed_by', width: 100, render: fmtPersons },
@@ -319,9 +319,10 @@ export default function MembershipPlansPage() {
           </Space>
 
           <Space size="large" style={{ width: '100%' }}>
-            <Form.Item label="可管理健康档案数（不含本人）" name="max_managed" rules={[{ required: true }]}
-              tooltip="[PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 字段名保留 max_managed；填写「可管理家人健康档案数」，用户端展示时自动 +1 含本人。-1=不限">
-              <InputNumber min={-1} style={{ width: 220 }} />
+            <Form.Item label="家庭守护成员总人数（含本人）" name="max_managed" rules={[{ required: true }]}
+              tooltip="[PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30] 填几就是几——含主账号本人在内的总人数（用户端原样展示此数字）。-1=不限"
+              extra="请填写包含主账号本人在内的总人数（用户端原样展示此数字）。例如想让用户最多管理 10 人（含本人），就填 10；-1 表示不限。">
+              <InputNumber min={-1} style={{ width: 220 }} placeholder="例如 10（含本人在内的总人数）" />
             </Form.Item>
             <Form.Item label="AI 外呼提醒（次/月）" name="ai_outbound_call_count"
               rules={[{ required: true }]} tooltip="-1=不限">

@@ -1,7 +1,7 @@
 """[PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29] 成员卡片状态机 + 统一删除 测试
 
 TC-FMV2 覆盖：
-- TC-FMV2-01: 仅本人 → state=S0；列表 quota_used=0
+- TC-FMV2-01: 仅本人 → state=S0；列表 quota_used=1（含本人卡，v1.1 新口径）
 - TC-FMV2-02: 新建未邀请档案 → state=S2，可删除
 - TC-FMV2-03: S2 状态直接删除成功，reason_code=OK
 - TC-FMV2-04: S1 已绑定 → 删除返回 HAS_ACTIVE_GUARDIANSHIP
@@ -99,7 +99,7 @@ def _reset_delete_rate_limit():
 
 @pytest.mark.asyncio
 async def test_tc_fmv2_01_only_self_s0(client: AsyncClient):
-    """仅本人 → S0；quota_used=0"""
+    """仅本人 → S0；[v1.1] quota_used=1（含本人卡），quota_max=数据库 max_managed 原值（含本人）"""
     pa = f"+8613{uuid.uuid4().hex[:8]}"
     await _make_user(pa, "A")
     h = await _headers(client, pa)
@@ -110,8 +110,11 @@ async def test_tc_fmv2_01_only_self_s0(client: AsyncClient):
     assert body["total"] == 1
     assert body["items"][0]["state"] == "S0"
     assert body["items"][0]["is_self"] is True
-    assert body["quota_used"] == 0
+    # [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30] quota_used 含本人卡，仅本人=1
+    assert body["quota_used"] == 1
     assert body["guarded_count"] == 0
+    # quota_max 应该 >= 1，且为「含本人」上限
+    assert body["quota_max"] >= 1 or body["quota_max"] == -1
 
 
 @pytest.mark.asyncio
@@ -303,7 +306,7 @@ async def test_tc_fmv2_07_unbind_s1_to_s6(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_tc_fmv2_08_quota_endpoint(client: AsyncClient):
-    """配额接口：不计入本人，已建档案数与档案表对齐"""
+    """配额接口：[v1.1] 含本人卡，已建档案数=本人(1)+非本人(2)=3"""
     pa = f"+8613{uuid.uuid4().hex[:8]}"
     uid = await _make_user(pa, "A")
     h = await _headers(client, pa)
@@ -313,8 +316,9 @@ async def test_tc_fmv2_08_quota_endpoint(client: AsyncClient):
     res = await client.get("/api/family/member/quota", headers=h)
     assert res.status_code == 200, res.text
     body = res.json()
-    assert body["quota_used"] == 2
-    assert body["quota_max"] >= 2
+    # [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30] quota_used 含本人卡：1（本人）+ 2（家人）= 3
+    assert body["quota_used"] == 3
+    assert body["quota_max"] >= 3 or body["quota_max"] == -1
     assert body["guarded_count"] == 0
     assert body["self_member_id"] is not None
 

@@ -160,7 +160,12 @@ async def _is_paid_member(db: AsyncSession, user_id: int) -> bool:
 
 
 async def _get_max_guardians(db: AsyncSession, user_id: int) -> int:
-    """[v1.3.1] 获取当前用户可守护人数上限。
+    """[v1.3.1] 获取当前用户可守护人数上限（**返回"不含本人上限"**，供内部配额比较使用）。
+
+    [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30] 字段口径变更：
+    - membership_plans.max_managed / free_member_quota.max_managed 现存"**含本人**"总人数
+    - 本函数在读取后统一 **-1** 转换为"不含本人上限"，让内部 quota_used (非本人计数) 的
+      比较逻辑零改动。-1=不限继续直接透传。
 
     动态读取规则：
     - 会员用户：从 membership_plans.max_managed 取
@@ -178,16 +183,21 @@ async def _get_max_guardians(db: AsyncSession, user_id: int) -> int:
     if sub:
         plan = await db.get(MembershipPlan, sub.plan_id)
         if plan and getattr(plan, "max_managed", None):
-            return int(plan.max_managed or DEFAULT_MAX_GUARDIANS)
+            raw = int(plan.max_managed or 0)
+            if raw == -1:
+                return -1
+            return max(0, raw - 1)
 
-    # [v1.3.1] 无会员时读 free_member_quota.max_managed
     try:
         from app.models.membership_plan import FreeMemberQuota  # type: ignore
         quota = (await db.execute(
             select(FreeMemberQuota).order_by(FreeMemberQuota.id.asc())
         )).scalars().first()
         if quota and getattr(quota, "max_managed", None):
-            return int(quota.max_managed or DEFAULT_MAX_GUARDIANS)
+            raw = int(quota.max_managed or 0)
+            if raw == -1:
+                return -1
+            return max(0, raw - 1)
     except Exception:
         pass
     return DEFAULT_MAX_GUARDIANS

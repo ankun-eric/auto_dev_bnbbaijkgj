@@ -15,9 +15,9 @@ class MembershipPlanCreate(BaseModel):
     description: Optional[str] = Field(None, max_length=255, description="套餐说明")
     price_month: Optional[float] = Field(None, ge=0, description="月价（30天），NULL=不支持月购")
     price_year: Optional[float] = Field(None, ge=0, description="年价（365天），NULL=不支持年购")
-    # [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 字段名保留 max_managed；
-    # 语义：可管理家人健康档案数（不含本人），用户端展示时 +1 显示「X 份（含本人）」。-1=不限
-    max_managed: int = Field(3, description="可管理家人健康档案数（不含本人，用户端展示 +1 含本人），-1=不限")
+    # [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30] 字段口径变更：
+    # 语义：家庭守护成员总人数（**含主账号本人**），用户端原样展示。-1=不限
+    max_managed: int = Field(4, description="家庭守护成员总人数（含本人，用户端原样展示），-1=不限")
     ai_outbound_call_count: int = Field(0, description="AI 外呼提醒（次/月），-1=不限")
     emergency_ai_call_count: int = Field(0, description="紧急 AI 呼叫（次/月），-1=不限")
     max_managed_by: int = Field(3, description="被管理人数上限，-1=不限")
@@ -137,9 +137,9 @@ class UserMembershipCardResponse(BaseModel):
     expire_at: Optional[datetime] = None
     days_remaining: Optional[int] = None
 
-    # [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 字段名保留；语义=可管理家人健康档案数（不含本人）
-    max_managed_limit: int = 3            # 可管理家人健康档案数上限（不含本人）
-    max_managed_used: int = 0             # 已管理家人健康档案数（不含本人）
+    # [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30] 字段口径变更：家庭守护成员总人数（含本人）
+    max_managed_limit: int = 4            # 家庭守护成员总人数上限（含本人）
+    max_managed_used: int = 0             # 已建档家庭守护成员数（含本人，包括本人卡）
     max_managed_by_limit: int = 3         # 被守护上限
     max_managed_by_used: int = 0          # 已被守护人数
     ai_outbound_call_limit: int = 5

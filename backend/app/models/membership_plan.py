@@ -29,10 +29,11 @@ class MembershipPlan(Base):
     description = mapped_column(String(255), nullable=True, comment="套餐说明")
     price_month = mapped_column(Numeric(10, 2), nullable=True, comment="月价（30天），NULL=不支持月购")
     price_year = mapped_column(Numeric(10, 2), nullable=True, comment="年价（365天），NULL=不支持年购")
-    # [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 字段名保留 max_managed；
-    # 语义：可管理家人健康档案数（不含本人），用户端展示时 +1 显示「X 份（含本人）」。-1=不限
-    max_managed = mapped_column(Integer, nullable=False, default=3,
-                                comment="最大健康档案数（不含本人，用户端展示 +1 含本人），-1=不限")
+    # [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30] 字段口径变更：
+    # 语义：可管理家庭守护成员总人数（**含主账号本人在内**）。前端零加工原样展示。-1=不限。
+    # 注：内部 _get_max_guardians 会自动 -1 转换为「不含本人上限」供配额比较使用。
+    max_managed = mapped_column(Integer, nullable=False, default=4,
+                                comment="家庭守护成员总人数（含本人，用户端原样展示），-1=不限")
     ai_outbound_call_count = mapped_column(Integer, nullable=False, default=0,
                                            comment="AI 外呼提醒（次/月），-1=不限")
     emergency_ai_call_count = mapped_column(Integer, nullable=False, default=0,
@@ -76,10 +77,11 @@ class FreeMemberQuota(Base):
     __tablename__ = "free_member_quota"
 
     id = mapped_column(Integer, primary_key=True, autoincrement=False, default=1)
-    # [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 字段名保留 max_managed；
-    # 语义：免费会员可管理家人健康档案数（不含本人），用户端展示时 +1 显示「X 份（含本人）」
-    max_managed = mapped_column(Integer, nullable=False, default=3,
-                                comment="免费会员最大健康档案数（不含本人，用户端展示 +1 含本人）")
+    # [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30] 字段口径变更：
+    # 语义：免费会员家庭守护成员总人数（**含主账号本人在内**）。前端零加工原样展示。
+    # 注：内部 _get_max_guardians 会自动 -1 转换为「不含本人上限」供配额比较使用。
+    max_managed = mapped_column(Integer, nullable=False, default=4,
+                                comment="免费会员家庭守护成员总人数（含本人，用户端原样展示）")
     ai_outbound_call_count = mapped_column(Integer, nullable=False, default=5,
                                            comment="AI 外呼提醒（次/月）")
     emergency_ai_call_count = mapped_column(Integer, nullable=False, default=3,
