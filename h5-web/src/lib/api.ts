@@ -1,6 +1,78 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import { showToast } from './toast-unified';
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
+/**
+ * [BUGFIX HOME-SAFETY-ADD-MEMBER-WHITESCREEN 2026-05-29]
+ * 网关/反向代理层兜底文本特征列表
+ *
+ * 背景：当请求 URL 未命中 gateway-nginx 已注册路由时，gateway 会返回纯文本
+ * （如 "gateway ok"），且 HTTP 状态码为 200。前端如果将其直接当作业务数据
+ * 渲染，会导致整页白屏只剩一行文字。
+ *
+ * 处理：在响应拦截器中识别这类「成功但非合法 JSON / 命中兜底文本」的响应，
+ * 主动转化为业务错误，弹友好 toast 提示，避免白屏。
+ */
+const GATEWAY_FALLBACK_PATTERNS: RegExp[] = [
+  /^gateway ok\s*$/i,
+  /^ok\s*$/i,
+  /^bad gateway/i,
+  /^gateway timeout/i,
+];
+
+function isGatewayFallback(body: unknown): boolean {
+  if (typeof body !== 'string') return false;
+  const trimmed = body.trim();
+  if (!trimmed) return false;
+  if (trimmed.length > 200) return false;
+  return GATEWAY_FALLBACK_PATTERNS.some((re) => re.test(trimmed));
+}
+
+function isJsonContentType(ct: string | undefined | null): boolean {
+  if (!ct) return false;
+  return /application\/(?:json|.*\+json)/i.test(ct);
+}
+
+/**
+ * 上报前端"网关静默失败"事件，便于主动监控同类问题。
+ * 仅在浏览器环境且 sendBeacon 可用时上报；不影响主流程。
+ */
+function reportGatewayFallback(response: AxiosResponse) {
+  try {
+    if (typeof window === 'undefined') return;
+    const payload = {
+      type: 'gateway_fallback',
+      url: response.config?.url || '',
+      full_url: (response.config?.baseURL || '') + (response.config?.url || ''),
+      method: (response.config?.method || 'GET').toUpperCase(),
+      status: response.status,
+      content_type: response.headers?.['content-type'] || '',
+      body_excerpt: String(response.data || '').slice(0, 200),
+      page_path: window.location?.pathname || '',
+      user_id: (() => {
+        try {
+          return window.localStorage.getItem('user_id') || '';
+        } catch {
+          return '';
+        }
+      })(),
+      ts: new Date().toISOString(),
+    };
+    console.warn('[gateway-fallback]', payload);
+    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+      const url = `${basePath}/api/_frontend_log`;
+      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      try {
+        navigator.sendBeacon(url, blob);
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch {
+    /* swallow to avoid breaking response flow */
+  }
+}
 
 /**
  * 根据当前浏览器 pathname 判定应跳转到哪个登录页，以及应清除的 token key。
@@ -109,7 +181,47 @@ api.interceptors.request.use(
 );
 
 api.interceptors.response.use(
-  (response) => response.data,
+  (response) => {
+    // [BUGFIX HOME-SAFETY-ADD-MEMBER-WHITESCREEN 2026-05-29]
+    // 兜底容错：识别 gateway 兜底文本 / 非 JSON 响应，转为业务错误，避免白屏
+    try {
+      const ct = (response.headers?.['content-type'] as string | undefined) || '';
+      const body = response.data;
+
+      if (isGatewayFallback(body)) {
+        reportGatewayFallback(response);
+        try {
+          showToast('网络异常，请稍后重试');
+        } catch {}
+        return Promise.reject(
+          Object.assign(new Error('gateway_fallback_response'), {
+            isGatewayFallback: true,
+            response,
+          }),
+        );
+      }
+
+      // 期望 JSON 但拿到纯文本（且非空），同样视为异常
+      if (typeof body === 'string' && body.length > 0 && !isJsonContentType(ct)) {
+        const trimmed = body.trim();
+        if (trimmed && trimmed[0] !== '{' && trimmed[0] !== '[') {
+          reportGatewayFallback(response);
+          try {
+            showToast('网络异常，请稍后重试');
+          } catch {}
+          return Promise.reject(
+            Object.assign(new Error('non_json_response'), {
+              isGatewayFallback: true,
+              response,
+            }),
+          );
+        }
+      }
+    } catch {
+      /* 任何兜底判断异常都不影响正常返回 */
+    }
+    return response.data;
+  },
   (error: AxiosError) => {
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {

@@ -2231,6 +2231,14 @@ app.include_router(login_ui_config.router)
 # [BUG-FIX-RESCHEDULE-V2 2026-05-07] 系统时间接口：供三端改约弹窗按服务器时间过滤过去时段
 from app.api import system as _system  # noqa: E402
 app.include_router(_system.router)
+# [BUGFIX HOME-SAFETY-ADD-MEMBER-WHITESCREEN 2026-05-29] 前端兜底响应监控上报接口
+try:
+    from app.api import frontend_log as _frontend_log  # noqa: E402
+    app.include_router(_frontend_log.router)
+except Exception as _e_frontend_log:  # pragma: no cover
+    logging.getLogger(__name__).warning(
+        "[frontend_log] include_router failed: %s", _e_frontend_log
+    )
 # [PRD-405 2026-05-07] AI 对话模式首页配置（admin 后台 + 用户端公共读取 + 操作日志）
 from app.api import ai_home_config as _ai_home_config  # noqa: E402
 app.include_router(_ai_home_config.router)

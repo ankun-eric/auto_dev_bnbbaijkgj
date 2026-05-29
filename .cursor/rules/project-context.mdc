@@ -5,7 +5,37 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-29 · Bug 修复 / 健康档案 PRD v1.0 落地——「完全没生效」6 大硬伤补齐）
+## 最近一次变更（2026-05-29 · Bug 修复 / 居家安全设备页「+ 添加家人」按钮白屏 gateway ok）
+
+**任务标识**：`[BUGFIX HOME-SAFETY-ADD-MEMBER-WHITESCREEN 2026-05-29]`
+
+**Bug 现象**：H5 居家安全设备页（`/home-safety/`）顶部家人头像区末尾的「+ 添加」按钮点击后整页白屏，仅显示一行 `gateway ok`。
+
+**根因**：公共组件 `FamilyMemberTabs.tsx` 的 `handleAdd` 默认行为是 `window.location.href = '/health-profile'`，部署在 basePath `/autodev/{DEPLOY_ID}/` 下时漏掉前缀，请求打到 gateway-nginx 未注册路径 → 网关返回兜底文本 `Gateway OK` → H5 直接渲染该文本导致白屏。
+
+**修复（H5 + 后端 + 监控）**：
+
+- `h5-web/src/components/family/FamilyMemberTabs.tsx`：
+  - 抽出公共「新增家庭成员」逻辑，默认直接打开 `NewFamilyMemberModal` 弹窗（与健康档案页同名按钮一致），不再跳转 URL；
+  - 保留 `onAddClick` 选项供父组件覆盖；
+  - 添加成功后回调 `load()` 重新拉取成员列表 + `showToast('已添加家庭成员')`。
+- `h5-web/src/lib/api.ts`：
+  - 全局响应拦截器新增 `isGatewayFallback()` 兜底检测（命中 `gateway ok` / `ok` / `bad gateway` / `gateway timeout` 等纯文本兜底响应）；
+  - 同时检测 `Content-Type` 非 JSON 且响应体首字符非 `{ [` 的纯文本响应；
+  - 命中时弹友好 toast「网络异常，请稍后重试」并 reject，**绝不允许整页白屏**；
+  - 通过 `navigator.sendBeacon` 异步上报到 `/api/_frontend_log`，含 URL、用户、时间、页面路径等。
+- 后端 `backend/app/api/frontend_log.py`（新增）：
+  - 新增 `POST /api/_frontend_log` 接口，无鉴权、接收前端兜底响应告警；
+  - `gateway_fallback` 事件落 WARN 级日志，方便主动监控同类问题；
+  - 限制 4KB body，避免恶意大包打爆日志。
+- 后端 `backend/app/main.py`：注册 `frontend_log.router`（try/except 保护，include 失败不影响主服务启动）。
+- 测试：新增 `backend/tests/test_frontend_log_gateway_fallback.py`（5 用例：上报正常、空 body、非 JSON、超大 body 截断、无鉴权可上报）。
+- 部署验证：远程 H5 + backend 容器已重建，5 项端到端冒烟测试全部通过，旧 `/health-profile`（无 basePath）确认仍返回 `Gateway OK` 但前端不再因此白屏。
+- 用户手册：`user_docs/居家安全设备添加家人.md`
+
+---
+
+## 上一次变更（2026-05-29 · Bug 修复 / 健康档案 PRD v1.0 落地——「完全没生效」6 大硬伤补齐）
 
 **任务标识**：`[PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 落地补丁]`
 

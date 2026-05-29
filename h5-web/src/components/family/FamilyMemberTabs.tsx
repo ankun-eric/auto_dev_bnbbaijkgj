@@ -4,6 +4,13 @@
  * [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] v1.0
  * [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-V2 2026-05-29] v2.0
  *   - Bug 3：成员 Tab 对齐健康档案 MemberBadge（字徽 + 关系字 + 辈分分色）
+ * [BUGFIX HOME-SAFETY-ADD-MEMBER-WHITESCREEN 2026-05-29] v3.0
+ *   - Bug：居家安全设备页点击「+ 添加」白屏 "gateway ok"
+ *   - 根因：之前 handleAdd 用 window.location.href='/health-profile'
+ *     在 basePath（/autodev/xxx）下漏掉前缀，请求打到网关未注册路径
+ *     得到兜底文本 "gateway ok"，渲染为白屏
+ *   - 修复：抽出公共「新增家庭成员」逻辑——直接打开 NewFamilyMemberModal
+ *     与健康档案页同名按钮行为完全一致（弹窗加家人，不跳页、不绑设备）
  *
  * 公共家庭成员 Tab 组件
  *
@@ -17,7 +24,9 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import api from '@/lib/api';
+import { showToast } from '@/lib/toast-unified';
 import MemberBadge from './MemberBadge';
+import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMemberModal';
 
 export interface FamilyMemberLite {
   id: number;
@@ -53,6 +62,8 @@ export default function FamilyMemberTabs({
   className,
 }: Props) {
   const [members, setMembers] = useState<FamilyMemberLite[]>([]);
+  // [BUGFIX HOME-SAFETY-ADD-MEMBER-WHITESCREEN 2026-05-29] 内嵌新增家庭成员弹窗
+  const [showAddMember, setShowAddMember] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -74,14 +85,21 @@ export default function FamilyMemberTabs({
     load();
   }, [load]);
 
+  // [BUGFIX HOME-SAFETY-ADD-MEMBER-WHITESCREEN 2026-05-29]
+  // 抽出公共「新增家庭成员」逻辑：默认打开 NewFamilyMemberModal 弹窗
+  // 与健康档案页同名按钮一致；父组件可通过 onAddClick 覆盖
   const handleAdd = () => {
     if (onAddClick) {
       onAddClick();
       return;
     }
-    try {
-      window.location.href = '/health-profile';
-    } catch {}
+    setShowAddMember(true);
+  };
+
+  const handleAddSuccess = () => {
+    setShowAddMember(false);
+    showToast('已添加家庭成员');
+    load();
   };
 
   return (
@@ -203,6 +221,13 @@ export default function FamilyMemberTabs({
             添加
           </span>
         </button>
+      ) : null}
+      {/* [BUGFIX HOME-SAFETY-ADD-MEMBER-WHITESCREEN 2026-05-29] 内嵌新增家庭成员弹窗 */}
+      {showAddMember ? (
+        <NewFamilyMemberModal
+          onClose={() => setShowAddMember(false)}
+          onSuccess={handleAddSuccess}
+        />
       ) : null}
     </div>
   );
