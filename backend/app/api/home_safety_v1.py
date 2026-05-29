@@ -1305,6 +1305,53 @@ async def handle_alarm(
     return {"success": True}
 
 
+# [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-V2 2026-05-29]
+# PRD v2.0 锁定接口：PATCH /api/home_safety/alarms/{id}/resolve
+# - 等价于 handle_alarm 的"标记已处理"语义，但走 PATCH 路由 + 幂等返回
+# - 鉴权：仅本人（user_id 匹配）；非属者返回 403
+# - 幂等：handle_status 已为 1 时返回 {code:0, message:"已处理过"} 不报错
+@router.patch(USER_PREFIX + "/alarms/{alarm_id}/resolve")
+async def resolve_alarm(
+    alarm_id: int,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    a = (
+        await db.execute(
+            select(HomeSafetyAlarm).where(HomeSafetyAlarm.id == alarm_id)
+        )
+    ).scalar_one_or_none()
+    if not a:
+        raise HTTPException(404, "报警不存在")
+    if int(a.user_id) != int(current_user.id):
+        # 仅本人或绑定家庭成员可处理；他人返回 403
+        raise HTTPException(status_code=403, detail="forbidden")
+    if int(a.handle_status or 0) == 1:
+        # 幂等：已处理过直接返回
+        return {
+            "code": 0,
+            "message": "已处理过",
+            "data": {
+                "id": a.id,
+                "status": "resolved",
+                "resolved_at": (a.handled_at.isoformat() + "Z") if a.handled_at else None,
+            },
+        }
+    a.handle_status = 1
+    a.handle_by = current_user.id
+    a.handled_at = datetime.utcnow()
+    a.read_status = 1
+    await db.commit()
+    return {
+        "code": 0,
+        "data": {
+            "id": a.id,
+            "status": "resolved",
+            "resolved_at": (a.handled_at.isoformat() + "Z") if a.handled_at else None,
+        },
+    }
+
+
 @router.get(USER_PREFIX + "/emergency_contacts")
 async def get_emergency_contacts(
     current_user=Depends(get_current_user),
