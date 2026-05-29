@@ -578,10 +578,16 @@ export default function ArchiveListPage() {
     }
   };
 
-  // 邀请记录跳转
+  // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 排版修复]
+  // 邀请记录跳转——改为本页内抽屉，避免依赖已下线的 i-guard 页面
+  const [invitationHistoryMember, setInvitationHistoryMember] = useState<MemberStateItem | null>(null);
   const handleViewInvitationHistory = (m: MemberStateItem) => {
-    router.push(`/health-profile/i-guard?invite_history=${m.member_id}`);
+    setInvitationHistoryMember(m);
   };
+
+  // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 PRD §3.1 验收 8.1#5]
+  // 本人卡 S0 的「AI 外呼额度」抽屉入口
+  const [aiQuotaOpen, setAiQuotaOpen] = useState(false);
 
   return (
     <div style={{ minHeight: '100vh', background: PAGE_BG, paddingBottom: 100 }}>
@@ -624,7 +630,7 @@ export default function ArchiveListPage() {
               }}
               data-testid='new-member-btn'
               style={{
-                ...primaryBtnStyle(false),
+                ...primaryBtnStyle(false, false),
                 padding: '10px 18px',
                 fontSize: 14,
               }}
@@ -646,6 +652,7 @@ export default function ArchiveListPage() {
             member={m}
             onPrimaryAction={() => handlePrimaryAction(m)}
             onMoreMenu={() => setMoreMenuMember(m)}
+            onAiQuota={m.is_self && m.state === 'S0' ? () => setAiQuotaOpen(true) : undefined}
           />
         ))}
         {!loading && (!list || list.items.length === 0) && (
@@ -698,7 +705,283 @@ export default function ArchiveListPage() {
         memberName={inviteCodeView?.nickname}
         onClose={() => setInviteCodeView(null)}
       />
+
+      {/* [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 §3.1 验收 8.1#5] AI 外呼额度抽屉 */}
+      <AiQuotaDrawer
+        open={aiQuotaOpen}
+        onClose={() => setAiQuotaOpen(false)}
+        onUpgrade={() => {
+          setAiQuotaOpen(false);
+          router.push('/member-center');
+        }}
+      />
+
+      {/* [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 排版修复] 邀请记录抽屉 */}
+      <InvitationHistoryDrawer
+        member={invitationHistoryMember}
+        onClose={() => setInvitationHistoryMember(null)}
+      />
     </div>
+  );
+}
+
+// ───────────── AI 外呼额度抽屉 ─────────────
+
+interface AiQuotaDrawerProps {
+  open: boolean;
+  onClose: () => void;
+  onUpgrade: () => void;
+}
+
+function AiQuotaDrawer({ open, onClose, onUpgrade }: AiQuotaDrawerProps) {
+  const [loading, setLoading] = useState(false);
+  const [quota, setQuota] = useState<{
+    plan_name?: string;
+    ai_outbound_used?: number;
+    ai_outbound_total?: number;
+    ai_outbound_remaining?: number;
+    emergency_used?: number;
+    emergency_total?: number;
+    emergency_remaining?: number;
+    is_unlimited?: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let aborted = false;
+    (async () => {
+      setLoading(true);
+      // 优先调用专用配额接口；若不存在则降级到会员中心摘要接口
+      const endpoints = [
+        '/api/member/quota/ai-outbound',
+        '/api/user/membership/summary',
+        '/api/membership/current',
+      ];
+      for (const ep of endpoints) {
+        try {
+          const res: any = await api.get(ep);
+          if (aborted) return;
+          const data = res?.data || res;
+          if (data) {
+            setQuota({
+              plan_name: data.plan_name || data.current_plan_name || data.name,
+              ai_outbound_used: data.ai_outbound_used ?? data.ai_outbound_call_used,
+              ai_outbound_total: data.ai_outbound_total ?? data.ai_outbound_call_count,
+              ai_outbound_remaining: data.ai_outbound_remaining ?? data.ai_outbound_call_remaining,
+              emergency_used: data.emergency_used ?? data.emergency_ai_call_used,
+              emergency_total: data.emergency_total ?? data.emergency_ai_call_count,
+              emergency_remaining: data.emergency_remaining ?? data.emergency_ai_call_remaining,
+              is_unlimited: data.is_unlimited === true,
+            });
+            setLoading(false);
+            return;
+          }
+        } catch {
+          // 尝试下一个
+        }
+      }
+      if (!aborted) {
+        setQuota({});
+        setLoading(false);
+      }
+    })();
+    return () => { aborted = true; };
+  }, [open]);
+
+  const fmt = (v?: number | null) => {
+    if (v === undefined || v === null) return '-';
+    if (v === -1) return '不限';
+    return String(v);
+  };
+
+  return (
+    <Popup
+      visible={open}
+      onMaskClick={onClose}
+      position='bottom'
+      bodyStyle={{ borderTopLeftRadius: 20, borderTopRightRadius: 20, minHeight: '40vh' }}
+    >
+      <div data-testid='ai-quota-drawer' style={{ padding: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ fontSize: 17, fontWeight: 700, color: TEXT_PRIMARY }}>
+            📞 AI 外呼额度
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, color: TEXT_SECONDARY, cursor: 'pointer' }}>×</button>
+        </div>
+
+        {loading && (
+          <div style={{ padding: 24, textAlign: 'center', color: TEXT_SECONDARY }}>加载中…</div>
+        )}
+
+        {!loading && (
+          <>
+            {quota?.plan_name && (
+              <div style={{ marginBottom: 12, fontSize: 13, color: TEXT_SECONDARY }}>
+                当前套餐：<span style={{ color: TEXT_PRIMARY, fontWeight: 600 }}>{quota.plan_name}</span>
+              </div>
+            )}
+
+            <div style={{ background: '#F0F9FF', borderRadius: 12, padding: 16, marginBottom: 12 }}>
+              <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginBottom: 6 }}>常规 AI 外呼</div>
+              <div style={{ fontSize: 15, color: TEXT_PRIMARY, fontWeight: 600 }}>
+                已用 {fmt(quota?.ai_outbound_used ?? 0)} / 总额 {fmt(quota?.ai_outbound_total)}
+                {quota?.ai_outbound_remaining !== undefined && (
+                  <span style={{ marginLeft: 8, fontSize: 12, color: ACCENT_COLOR, fontWeight: 500 }}>
+                    剩余 {fmt(quota.ai_outbound_remaining)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div style={{ background: '#FEF2F2', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+              <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginBottom: 6 }}>紧急 AI 呼叫</div>
+              <div style={{ fontSize: 15, color: TEXT_PRIMARY, fontWeight: 600 }}>
+                已用 {fmt(quota?.emergency_used ?? 0)} / 总额 {fmt(quota?.emergency_total)}
+                {quota?.emergency_remaining !== undefined && (
+                  <span style={{ marginLeft: 8, fontSize: 12, color: DANGER, fontWeight: 500 }}>
+                    剩余 {fmt(quota.emergency_remaining)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div style={{ fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.6, marginBottom: 16 }}>
+              提示：AI 外呼额度按月重置，可在「会员中心」升级套餐获得更多额度。
+            </div>
+
+            <button
+              onClick={onUpgrade}
+              data-testid='ai-quota-upgrade-btn'
+              style={primaryBtnStyle(false)}
+            >
+              前往会员中心
+            </button>
+          </>
+        )}
+      </div>
+    </Popup>
+  );
+}
+
+// ───────────── 邀请记录抽屉 ─────────────
+
+interface InvitationHistoryItem {
+  id?: number;
+  invitation_id?: number;
+  invite_code?: string;
+  status?: string;
+  status_label?: string;
+  created_at?: string;
+  expires_at?: string;
+  accepted_at?: string;
+  cancelled_at?: string;
+}
+
+function InvitationHistoryDrawer({
+  member,
+  onClose,
+}: {
+  member: MemberStateItem | null;
+  onClose: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [items, setItems] = useState<InvitationHistoryItem[]>([]);
+  const open = !!member;
+
+  useEffect(() => {
+    if (!member) return;
+    let aborted = false;
+    (async () => {
+      setLoading(true);
+      // 兼容多个可能的后端接口路径
+      const endpoints = [
+        `/api/family/member/${member.member_id}/invitations`,
+        `/api/family/invitations?member_id=${member.member_id}`,
+        `/api/guardian/v13/family/invitations?member_id=${member.member_id}`,
+      ];
+      for (const ep of endpoints) {
+        try {
+          const res: any = await api.get(ep);
+          if (aborted) return;
+          const data = res?.data || res;
+          const list: InvitationHistoryItem[] = Array.isArray(data?.items)
+            ? data.items
+            : Array.isArray(data) ? data : [];
+          setItems(list);
+          setLoading(false);
+          return;
+        } catch {
+          // 尝试下一个
+        }
+      }
+      if (!aborted) {
+        setItems([]);
+        setLoading(false);
+      }
+    })();
+    return () => { aborted = true; };
+  }, [member]);
+
+  const fmtTime = (s?: string) => {
+    if (!s) return '-';
+    try { return new Date(s).toLocaleString('zh-CN'); } catch { return s; }
+  };
+
+  return (
+    <Popup
+      visible={open}
+      onMaskClick={onClose}
+      position='bottom'
+      bodyStyle={{ borderTopLeftRadius: 20, borderTopRightRadius: 20, minHeight: '40vh', maxHeight: '80vh', overflow: 'auto' }}
+    >
+      <div data-testid='invitation-history-drawer' style={{ padding: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ fontSize: 17, fontWeight: 700, color: TEXT_PRIMARY }}>
+            邀请记录{member?.nickname ? ` · ${member.nickname}` : ''}
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, color: TEXT_SECONDARY, cursor: 'pointer' }}>×</button>
+        </div>
+
+        {loading && (
+          <div style={{ padding: 24, textAlign: 'center', color: TEXT_SECONDARY }}>加载中…</div>
+        )}
+
+        {!loading && items.length === 0 && (
+          <div style={{ padding: 36, textAlign: 'center', color: TEXT_SECONDARY }}>
+            暂无邀请记录
+          </div>
+        )}
+
+        {!loading && items.map((it, idx) => (
+          <div
+            key={it.id || it.invitation_id || idx}
+            data-testid='invitation-history-item'
+            style={{
+              padding: 14,
+              border: '1px solid #E2E8F0',
+              borderRadius: 12,
+              marginBottom: 10,
+              background: '#FFF',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span style={{ fontSize: 13, color: TEXT_PRIMARY, fontWeight: 600 }}>
+                {it.invite_code || `#${it.id || it.invitation_id || idx + 1}`}
+              </span>
+              <span style={{ fontSize: 12, color: PRIMARY_COLOR }}>
+                {it.status_label || it.status || '-'}
+              </span>
+            </div>
+            <div style={{ fontSize: 12, color: TEXT_SECONDARY, lineHeight: 1.6 }}>
+              发起：{fmtTime(it.created_at)}
+              {it.expires_at && <> · 过期：{fmtTime(it.expires_at)}</>}
+              {it.accepted_at && <> · 接受：{fmtTime(it.accepted_at)}</>}
+              {it.cancelled_at && <> · 取消：{fmtTime(it.cancelled_at)}</>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Popup>
   );
 }
 
@@ -708,12 +991,16 @@ interface MemberCardProps {
   member: MemberStateItem;
   onPrimaryAction: () => void;
   onMoreMenu: () => void;
+  onAiQuota?: () => void;
 }
 
-function MemberCard({ member, onPrimaryAction, onMoreMenu }: MemberCardProps) {
+function MemberCard({ member, onPrimaryAction, onMoreMenu, onAiQuota }: MemberCardProps) {
   const color = STATE_COLOR_MAP[member.state_color] || STATE_COLOR_MAP.gray;
   const avatarBg = AVATAR_COLORS[member.avatar_color_index || 0];
   const primaryLabel = PRIMARY_ACTION_LABEL[member.primary_action] || '查看';
+  // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 §3.1 验收 8.1#5]
+  // 本人 S0 卡片右下角追加「AI 外呼额度」次按钮（点击弹抽屉）
+  const showAiQuotaBtn = !!member.is_self && member.state === 'S0' && !!onAiQuota;
 
   return (
     <div
@@ -768,18 +1055,44 @@ function MemberCard({ member, onPrimaryAction, onMoreMenu }: MemberCardProps) {
           </div>
           <div style={{ fontSize: 12, color: TEXT_SECONDARY }}>
             {member.relationship_type || '-'}
-            {member.invite_remaining_hours !== undefined && member.invite_remaining_hours !== null && (
+            {/* [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 排版修复]
+                「剩余 Xh」仅在邀请进行中（S3 待接受 / 含有效邀请码）时展示，
+                避免 S4 已拒绝 / S5 未绑定 / S6 已过期 / S7 已取消 仍误展示 */}
+            {member.state === 'S3'
+              && !!member.invite_code
+              && member.invite_remaining_hours !== undefined
+              && member.invite_remaining_hours !== null
+              && member.invite_remaining_hours > 0 && (
               <span style={{ marginLeft: 8 }}>· 剩余 {member.invite_remaining_hours}h</span>
             )}
           </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
+        {showAiQuotaBtn && (
+          <button
+            onClick={onAiQuota}
+            data-testid={`ai-quota-btn-${member.member_id}`}
+            style={{
+              padding: '8px 14px',
+              borderRadius: 14,
+              border: `1px solid ${PRIMARY_COLOR}`,
+              background: '#FFF',
+              color: PRIMARY_COLOR,
+              fontSize: 13,
+              cursor: 'pointer',
+              fontWeight: 500,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            📞 AI 外呼额度
+          </button>
+        )}
         <button
           onClick={onPrimaryAction}
           data-testid={`primary-action-${member.member_id}`}
-          style={primaryBtnStyle(false)}
+          style={primaryBtnStyle(false, false)}
         >
           {primaryLabel}
         </button>
@@ -839,7 +1152,10 @@ function Input({ value, onChange, placeholder, maxLength }: {
   );
 }
 
-function primaryBtnStyle(disabled: boolean): React.CSSProperties {
+// [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 排版修复]
+// 主按钮支持「全宽（抽屉/底部主操作）」与「自适应（卡片右下角）」两种宽度模式
+// 默认 fullWidth=true 兼容历史调用；卡片内主按钮显式传 false 以避免与「⋯」按钮挤压错乱
+function primaryBtnStyle(disabled: boolean, fullWidth: boolean = true): React.CSSProperties {
   return {
     background: ACCENT_COLOR,
     color: '#FFF',
@@ -851,7 +1167,8 @@ function primaryBtnStyle(disabled: boolean): React.CSSProperties {
     fontSize: 13,
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.7 : 1,
-    width: '100%',
+    width: fullWidth ? '100%' : 'auto',
+    whiteSpace: 'nowrap',
   };
 }
 

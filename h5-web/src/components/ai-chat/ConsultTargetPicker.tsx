@@ -25,6 +25,7 @@ import MemberBadge from '@/components/family/MemberBadge';
 import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMemberModal';
 import { calcAge } from '@/lib/family-relation';
 import { formatGender } from '@/utils/format';
+import { useRouter } from 'next/navigation';
 
 export interface FamilyMemberItem {
   id: number;
@@ -59,10 +60,17 @@ export default function ConsultTargetPicker({
   currentMemberId,
   onSelect,
 }: ConsultTargetPickerProps) {
+  const router = useRouter();
   const [members, setMembers] = useState<FamilyMemberItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 §4.1 验收 8.1#7]
+  // 新建咨询人后，弹「立即去邀请」抽屉，引导用户进入档案列表完成邀请
+  const [inviteChoice, setInviteChoice] = useState<{
+    visible: boolean;
+    nickname: string;
+  }>({ visible: false, nickname: '' });
 
   const fetchMembers = async () => {
     setLoading(true);
@@ -101,8 +109,34 @@ export default function ConsultTargetPicker({
 
   const handleAddSuccess = async () => {
     setShowAdd(false);
-    await fetchMembers();
+    // 拉取最新列表（带是否守护过的标记），找出最新建的非本人成员
+    const prevIds = new Set(members.map((m) => m.id));
+    let newMemberNickname = '';
+    try {
+      const res: any = await api.get('/api/family/members');
+      const data = res?.data || res;
+      const list: FamilyMemberItem[] = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+      setMembers(list);
+      const newOne = list.find((m) => !m.is_self && !prevIds.has(m.id));
+      if (newOne) newMemberNickname = newOne.nickname || '';
+    } catch {
+      await fetchMembers();
+    }
     showToast('添加成功');
+    // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 验收 8.1#7]
+    // 新建档案后立即弹「立即去邀请」抽屉
+    setInviteChoice({ visible: true, nickname: newMemberNickname });
+  };
+
+  const handleInviteNow = () => {
+    setInviteChoice({ visible: false, nickname: '' });
+    onClose();
+    // 跳转到档案列表，由 archive-list 统一处理邀请发起
+    router.push('/health-profile/archive-list');
+  };
+
+  const handleInviteSkip = () => {
+    setInviteChoice({ visible: false, nickname: '' });
   };
 
   if (showAdd) {
@@ -328,11 +362,77 @@ export default function ConsultTargetPicker({
                 boxShadow: '0 6px 18px rgba(2,132,199,0.3), inset 0 1px 0 rgba(255,255,255,0.3)',
               }}
             >
-              + 新增家庭成员
+              + 新增咨询人
             </button>
           </div>
         )}
       </div>
+
+      {/* [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 验收 8.1#7]
+          新建咨询人成功 → 立即去邀请抽屉 */}
+      <Popup
+        visible={inviteChoice.visible}
+        onMaskClick={handleInviteSkip}
+        position="bottom"
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, minHeight: '30vh' }}
+      >
+        <div data-testid="consult-invite-now-drawer" style={{ padding: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 17, fontWeight: 700, color: '#0F172A' }}>立即去邀请？</div>
+            <button onClick={handleInviteSkip} style={{ background: 'none', border: 'none', fontSize: 20, color: '#94A3B8', cursor: 'pointer' }}>×</button>
+          </div>
+          <div style={{
+            padding: '20px 16px',
+            background: '#F0F9FF',
+            borderRadius: 12,
+            marginBottom: 20,
+            fontSize: 14,
+            color: '#0F172A',
+            lineHeight: 1.6,
+          }}>
+            档案{inviteChoice.nickname ? `「${inviteChoice.nickname}」` : ''}已创建成功。
+            <br />
+            是否立即去档案列表邀请 TA 接受守护？
+            <br />
+            （您也可以稍后在档案列表中重新邀请）
+          </div>
+          <button
+            onClick={handleInviteNow}
+            data-testid="consult-invite-now-btn"
+            style={{
+              width: '100%',
+              padding: '12px 14px',
+              borderRadius: 18,
+              background: '#FFB800',
+              color: '#fff',
+              fontSize: 14,
+              fontWeight: 600,
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(255,184,0,0.3)',
+            }}
+          >
+            立即去邀请
+          </button>
+          <button
+            onClick={handleInviteSkip}
+            data-testid="consult-invite-skip-btn"
+            style={{
+              width: '100%',
+              marginTop: 10,
+              padding: '10px 14px',
+              borderRadius: 12,
+              background: '#FFFFFF',
+              color: '#0EA5E9',
+              fontSize: 14,
+              border: '1px solid #0EA5E9',
+              cursor: 'pointer',
+            }}
+          >
+            暂不邀请
+          </button>
+        </div>
+      </Popup>
     </Popup>
   );
 }

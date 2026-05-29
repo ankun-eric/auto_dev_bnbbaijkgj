@@ -1094,58 +1094,14 @@ function HealthProfileV2PageInner() {
 
   const showInvite = currentGuardStatus === 'unguarded';
 
+  // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 路口B1 / §4.1]
+  // 健康档案首页的「去邀请 ›」大按钮已按 PRD 删除——所有发起邀请的入口
+  // 现在统一收口到「档案列表」（archive-list）。点击入口卡进入档案列表后，
+  // 按 7 态状态机在卡片上发起或重新邀请。
   const renderInviteArea = () => {
-    // [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 若该成员已有 pending 邀请，按钮置灰并禁用跳转
-    const pending = selectedMember?.pending_invitation || null;
-    const isPending = !!(pending && pending.remaining_hours > 0);
-    const buttonText = isPending
-      ? `邀请中（剩余 ${pending!.remaining_hours} 小时）`
-      : '去邀请 ›';
-
-    const handleClick = () => {
-      if (isPending) {
-        showToast('该成员邀请中，请等待对方接受或邀请过期后重新发起');
-        return;
-      }
-      router.push(`/family-invite${selectedMemberId ? `?member_id=${selectedMemberId}` : ''}`);
-    };
-
-    return (
-      <div
-        data-testid="bh-invite-area"
-        style={{
-          padding: '0 16px 12px',
-          overflow: 'hidden',
-          transition: 'opacity 300ms ease, max-height 300ms ease',
-          opacity: showInvite ? 1 : 0,
-          maxHeight: showInvite ? 120 : 0,
-        }}
-      >
-        <div
-          onClick={handleClick}
-          style={{
-            background: '#FFFFFF',
-            borderLeft: '4px solid #0EA5E9',
-            borderRadius: 12,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            padding: 16,
-            display: 'flex',
-            alignItems: 'center',
-            // [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] pending 状态时整卡置灰、cursor 改为 not-allowed
-            opacity: isPending ? 0.6 : 1,
-            cursor: isPending ? 'not-allowed' : 'pointer',
-          }}
-        >
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 16 }}>💙</span>
-              <span style={{ fontSize: 15, fontWeight: 600, color: '#1E293B' }}>邀请 TA 成为我守护的人</span>
-            </div>
-          </div>
-          <span style={{ fontSize: 14, fontWeight: 500, color: '#0EA5E9', whiteSpace: 'nowrap', marginLeft: 8 }}>{buttonText}</span>
-        </div>
-      </div>
-    );
+    // 显式返回 null 以保留对 showInvite/selectedMember 的引用，避免 TS 未使用变量告警
+    void showInvite;
+    return null;
   };
 
   // ─── F9: 双卡片（健康档案列表 + 守护我的人） ──────────
@@ -1188,9 +1144,10 @@ function HealthProfileV2PageInner() {
   const renderDualCards = () => {
     const isSelfTab = !!selectedMember?.is_self;
     const otherSideTitle = isSelfTab ? '守护我的人' : '守护 TA 的人';
-    // [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 本人 Tab 入口卡资产/配额命名 → 「健康档案列表」；
+    // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 路口C1] 入口卡命名与档案列表页对齐
+    // 本人 Tab 入口卡 → 「档案列表」（直达 /health-profile/archive-list）
     // 家人 Tab 关系视图命名保留 → 「TA 守护的人」（关系语境，不改）
-    const taTitle = isSelfTab ? '健康档案列表' : 'TA 守护的人';
+    const taTitle = isSelfTab ? '档案列表' : 'TA 守护的人';
     const isTopLevel = !!reverseGuardianSummary.is_top_level;
 
     // 「健康档案列表」入口卡字段
@@ -1276,7 +1233,9 @@ function HealthProfileV2PageInner() {
         <div
           data-testid={isSelfTab ? 'health-profile-i-guard-entry' : 'ta-i-guard-entry'}
           onClick={() => {
-            if (isSelfTab) router.push('/health-profile/i-guard');
+            // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 路口A1] 旧 i-guard 整体下线，
+            // 入口卡跳转改为新的 archive-list（7 态状态机版）
+            if (isSelfTab) router.push('/health-profile/archive-list');
           }}
           style={{
             flex: 1, background: '#fff', borderRadius: 12, padding: '12px 12px',
@@ -1303,8 +1262,11 @@ function HealthProfileV2PageInner() {
               data-testid='i-guard-subtitle'
               style={{ fontSize: 12, color: byMeView.textColor, lineHeight: 1.4, flex: 1, minWidth: 0 }}
             >
+              {/* [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 验收 8.1#2]
+                  本人 Tab：「{X} 人 / 上限 {Y} 人（不含本人）」，统一不再 +1
+                  家人 Tab：保留原副标题（关系语境） */}
               {isSelfTab
-                ? `健康档案：${xByMe + 1} 份（含本人，上限 ${isUnlimitedByMe ? '不限' : (yByMe + 1)} 份）`
+                ? `${xByMe} 人 / 上限 ${isUnlimitedByMe ? '不限' : yByMe} 人（不含本人）`
                 : `守护对象：${byMeView.subtitle}`}
             </div>
             {byMeView.button}

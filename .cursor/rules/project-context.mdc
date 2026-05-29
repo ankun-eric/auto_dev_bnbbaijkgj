@@ -5,6 +5,47 @@ alwaysApply: false
 
 # Project Context
 
+## 最近一次变更（2026-05-29 · Bug 修复 / 健康档案 PRD v1.0 落地——「完全没生效」6 大硬伤补齐）
+
+**任务标识**：`[PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 落地补丁]`
+
+**背景**：PRD v1.0 一周前提交后，新页面 `archive-list` 已开发，但旧入口完全没有切换、旧 i-guard 完全没改造、会员中心配额文案完全未动，用户感觉「完全没生效」。本次按 PRD 落地核查报告 6 项 P0/P1/P2 硬伤逐条修复。
+
+**核心交付**（仅 h5-web 5 个文件，零后端改动）：
+
+- 修改：`h5-web/src/app/health-profile/page.tsx`（路口B1+C1）
+  - 入口卡跳转：`/health-profile/i-guard` → `/health-profile/archive-list`
+  - 入口卡名：「健康档案列表」→「档案列表」
+  - 副标题：「健康档案：X+1 份（含本人，上限 Y+1 份）」 → 「{X} 人 / 上限 {Y} 人（不含本人）」
+  - 删除 `renderInviteArea` 「去邀请 ›」常驻大按钮（PRD §4.1）
+- 修改：`h5-web/src/app/health-profile/i-guard/page.tsx`（路口A1）
+  - **整页下线**，改为 `Suspense + useSearchParams + router.replace` 的客户端跳转占位页
+  - 透传 `invite_history` 等 query 参数到 `archive-list`
+  - 旧顶部「+ 发起邀请」大按钮 + 卡片「发起邀请」按钮一并消失
+- 修改：`h5-web/src/app/member-center/page.tsx`（验收 8.1#1）
+  - 配额文案：「可管理健康档案 X+1 份（含本人）」 → 「可管理健康档案 X 人（上限 Y 人，不含本人）」
+- 修改：`h5-web/src/app/health-profile/archive-list/page.tsx`（排版 + S0 入口 + 邀请记录）
+  - `primaryBtnStyle(disabled, fullWidth=true)` 新增 fullWidth 参数；卡片右下主按钮 + 顶部「+ 新增」改为 `fullWidth=false`，不再挤压「⋯」按钮
+  - **新增 `AiQuotaDrawer` 组件**：S0 本人卡右下角追加「📞 AI 外呼额度」次按钮，点击弹抽屉展示常规外呼/紧急呼叫的已用/总额/剩余 + 「前往会员中心」入口（PRD §3.1 验收 8.1#5）
+  - **新增 `InvitationHistoryDrawer` 组件**：取代之前跳转回 i-guard 的逻辑，本页内抽屉拉取 `/api/family/member/{id}/invitations` 等多个候选接口
+  - 「· 剩余 Xh」仅在 `state==='S3' && invite_code && remaining_hours>0` 时展示，避免 S4/S5/S6/S7 误显示
+- 修改：`h5-web/src/components/ai-chat/ConsultTargetPicker.tsx`（验收 8.1#7）
+  - 新增 `useRouter()` 注入 + `inviteChoice` 状态
+  - 「+ 新增咨询人」改造：建档成功后自动弹「立即去邀请？」抽屉，「立即邀请」按钮跳转到 `/health-profile/archive-list`
+  - 入口按钮文案：「+ 新增家庭成员」→「+ 新增咨询人」（与 PRD 用语对齐）
+
+**部署方式**：本地 `npx next build` 通过 → `_deploy_archive_list_fix.py` 通过 SFTP 上传 5 个源文件 → `docker compose build h5-web && up -d` → 容器内 grep 校验 7 项关键字符串均命中。
+
+**冒烟验证**（`_smoke_archive_list_v1.py` 全部 ✅）：
+- 容器内构建产物 grep：7/7 全部命中（AI 外呼额度 / invitation-history-drawer / ai-quota-drawer / /health-profile/archive-list / i-guard-redirect-placeholder / 不含本人 / consult-invite-now-drawer）
+- 页面可达性：`/health-profile/archive-list/`、`/health-profile/i-guard/`、`/health-profile/`、`/member-center/` 全部 HTTP 200
+
+**用户手册**：[user_docs/健康档案PRD落地修复.md](../user_docs/健康档案PRD落地修复.md)
+
+**唯一变更标记**：`[PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 路口A1 / 路口B1 / 路口C1]`
+
+---
+
 ## 最近一次变更（2026-05-29 · 新功能 / 健康档案 — 成员卡片状态机 + 按钮矩阵 + 入口收口 + 接口契约 v1.0）
 
 **PRD 标识**：`[PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29]`
