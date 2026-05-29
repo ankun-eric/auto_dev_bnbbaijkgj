@@ -41,32 +41,33 @@ def main():
         cli.close()
         sys.exit(1)
 
-    # 2) git pull —— 把本次提交的代码同步到服务器（本地未必先推送，所以这里先尝试）
-    run(cli, f"cd {PROJECT_DIR} && git status 2>&1 | head -n 40")
-    rc, out, _ = run(cli, f"cd {PROJECT_DIR} && git fetch --all 2>&1 | tail -n 20")
-    rc, out, _ = run(cli, f"cd {PROJECT_DIR} && git reset --hard origin/master 2>&1 | tail -n 5")
+    # 2) git pull —— 重试拉取最新提交
+    for attempt in range(1, 4):
+        rc, out, _ = run(
+            cli,
+            f"cd {PROJECT_DIR} && git -c http.lowSpeedLimit=0 -c http.lowSpeedTime=0 fetch --all --prune 2>&1 | tail -n 20",
+            timeout=300,
+        )
+        if "fatal" not in out.lower() and "unable to access" not in out.lower():
+            break
+        print(f"== git fetch 第 {attempt} 次失败，10s 后重试 ==", flush=True)
+        time.sleep(10)
+    run(cli, f"cd {PROJECT_DIR} && git reset --hard origin/master 2>&1 | tail -n 5")
+    run(cli, f"cd {PROJECT_DIR} && git log -1 --oneline 2>&1")
 
     # 3) 显示当前 docker-compose 服务
     run(cli, f"cd {PROJECT_DIR} && docker compose ps 2>&1 || docker-compose ps 2>&1")
 
-    # 4) 重新构建 H5 frontend 镜像并启动
+    # 4) 重新构建 H5 镜像（服务名为 h5-web）并启动
     rc, out, err = run(
         cli,
-        f"cd {PROJECT_DIR} && docker compose build frontend 2>&1 | tail -n 60",
-        timeout=900,
+        f"cd {PROJECT_DIR} && docker compose build --no-cache h5-web 2>&1 | tail -n 80",
+        timeout=1500,
     )
-    if rc != 0:
-        rc, out, err = run(
-            cli,
-            f"cd {PROJECT_DIR} && docker-compose build frontend 2>&1 | tail -n 60",
-            timeout=900,
-        )
 
-    rc, _, _ = run(cli, f"cd {PROJECT_DIR} && docker compose up -d frontend 2>&1 | tail -n 30")
-    if rc != 0:
-        run(cli, f"cd {PROJECT_DIR} && docker-compose up -d frontend 2>&1 | tail -n 30")
+    rc, _, _ = run(cli, f"cd {PROJECT_DIR} && docker compose up -d h5-web 2>&1 | tail -n 30")
 
-    time.sleep(5)
+    time.sleep(8)
     run(cli, f"cd {PROJECT_DIR} && docker compose ps 2>&1 || docker-compose ps 2>&1")
 
     # 5) 检查访问

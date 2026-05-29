@@ -5,7 +5,46 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-30 · 新功能 / 会员中心「家庭守护成员」文案规范 v1.1 全产品落地）
+## 最近一次变更（2026-05-30 · 新功能 / 血压卡片优化 v1.0）
+
+**任务标识**：`[PRD-BP-CARD-OPTIMIZE-V1 2026-05-30]`
+
+**背景**：《血压卡片优化 PRD v1.0》。在已有 `[BUGFIX-BP-TAB-OPTIMIZE-V1]` 基础之上，按"严重性提示更直观、数据来源更透明、趋势分析更专业"三条主线，对【健康档案首页 → 血压小卡片】+【血压详情页】两处一次性升级。**详情页顶部主卡片保持原样**，本次只动 ① 首页小卡片 ② 详情页按钮区 ③ 详情页趋势图区。
+
+**核心交付**（仅 H5 一端，零后端 schema 改动 / 零小程序 / 零 Android / iOS / exe 改动）：
+
+- **H5 `h5-web/src/app/health-metric/[type]/page.tsx`**：
+  - 新增导出辅助函数 `formatBpSyncTime` / `formatBpSource` / `formatBpTimeSource` / `bpLevelLabel`，统一首页与详情页的「时间·来源」展示规则（今日 HH:mm / 昨日 HH:mm / X 天前 / MM-dd；手工录入 / 设备名·自动同步）。
+  - `BloodPressurePage`：移除顶部主卡内嵌的「绑定设备 + 手工录入」小按钮（顶部主卡片彻底回归 PRD「保持原样」要求）；在主卡片与趋势图之间**新增并排大按钮区**（`bp-action-row` / `bp-action-manual` 实心主色 + `bp-action-bind` 描边白底 / 高度 44pt）。
+  - `BpTrendRange` 收敛为 `'day' | 'week'`（去掉月、年），分段控件 `bp-range-segmented` 默认 `week`，切换"日"/"周"重绘且 200ms 平滑过渡。
+  - 新增 `BpWeekTrendChart`：周视图——按日聚合 min/max/avg；范围带（SBP `BP_SBP_BAND` / DBP `BP_DBP_BAND`）+ 平均值平滑连线（Catmull-Rom 转 Bezier）+ 数据点（按当日均值档位染色：蓝/黄/橙）；异常天背景 `bp-abnormal-bg`；参考线 `bp-ref-sbp`(140) / `bp-ref-dbp`(90)；Y 轴固定 40-200 mmHg（每 40 一格）。
+  - 新增 `BpDayTrendChart`：日视图——X 轴 0:00-24:00；当日所有测量点散点 + 双线（SBP 深蓝 / DBP 浅蓝）连线；点击点弹窗。
+  - 新增 `BpEmptyState`：空状态插画 + 主副文案（"本周/今日还没有测量记录"）+ 双按钮（立即录入 / 绑定设备）。
+  - 新增 `BpPointPopup`：数据点点击弹窗（详版 6 字段：测量日期+时间 / 收缩压 / 舒张压 / 档位 / 测量时段 / 来源；周视图当日多条记录额外注明"当日共 N 次测量，此处显示均值"）。
+  - 历史记录行的来源/时段展示统一切到 `formatBpSource`。
+- **H5 `h5-web/src/app/health-profile/page.tsx`**：
+  - `vitals` 网格中血压卡片（`prd469-metric-blood_pressure`）专属渲染：右上角胶囊 `bp-mini-capsule`（按 `judgeBp` 判定 + `getBpPalette` 配色）+ 底部分隔线 + `bp-mini-time-source`（"今日 08:30 · 欧姆龙血压计·自动同步" 等格式）。其它 4 个指标卡保持原样。
+- **测试**：
+  - 新增 `h5-web/src/lib/__tests__/run_bp_format_test.mjs`（19 断言全部通过）：覆盖 PRD §3.3 时间格式 5 种规则 + 来源映射 + 完整 "时间·来源" 单行。
+  - 新增 `backend/tests/test_bp_card_optimize_v1_20260530.py`（5 用例全部通过）：验证 records 透传 period / source 字段 + 同日多条全部保留（前端聚合 min/max/avg 需要）+ 日视图字段完整 + 首页 today-metrics 字段。
+  - 回归 `backend/tests/test_bp_tab_trend_v1_20260530.py`（6 用例）+ `bp-level` 判定（19 断言）全部通过。
+- **后端**：未做改动；现有 `MetricHistoryResponse` 已能完整满足前端聚合需要（records 含 systolic/diastolic/period + source + measured_at；trend_systolic / trend_diastolic 已存在）。
+
+**部署方式**：
+- SFTP 上传 4 个源文件到 `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
+- backend `docker compose build --no-cache backend && up -d` + 容器内 `pip install pytest pytest-asyncio httpx aiosqlite`
+- h5-web `docker compose build --no-cache h5-web && up -d`
+- 容器内 pytest：**11 passed, 0 failed**（5 + 6）
+- HTTPS smoke：`/`、`/health-profile/`、`/health-metric/blood_pressure/`、`/login/` 全部 200
+- 详情页 HTML grep 命中：`bp-action-row` / `bp-action-manual` / `bp-action-bind` / `bp-status-card` / `bp-trend-card`
+
+**用户手册**：[user_docs/血压卡片优化_v1.md](../user_docs/血压卡片优化_v1.md)
+
+**唯一变更标记**：`[PRD-BP-CARD-OPTIMIZE-V1 2026-05-30]`
+
+---
+
+## 上一次变更（2026-05-30 · 新功能 / 会员中心「家庭守护成员」文案规范 v1.1 全产品落地）
 
 **任务标识**：`[PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30]`
 
