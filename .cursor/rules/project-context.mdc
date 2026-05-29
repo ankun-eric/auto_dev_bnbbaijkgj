@@ -5,7 +5,53 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-29 · Bug 修复 / 居家安全设备 — 成员 Tab 复用 + 报警记录入口 + 设备备注字段）
+## 最近一次变更（2026-05-29 · 新功能 / 健康档案 — 成员卡片状态机 + 按钮矩阵 + 入口收口 + 接口契约 v1.0）
+
+**PRD 标识**：`[PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29]`
+
+**需求**：把健康档案模块的"5 个删档接口、3 套删除模型、双邀请入口、状态机不统一"4 大顽疾系统化重构为「4 个统一」——状态统一（S0~S7 + R1~R3）、入口统一（废弃无档案直接发邀请）、按钮统一（主+次菜单）、接口统一（删除收口到唯一接口 + reason_code）。
+
+**核心交付**（仅 backend + h5-web 两端，未触及小程序 / Android / iOS / Windows / admin-web）：
+
+- 新增：`backend/app/api/family_member_v2.py` —— 6 个统一接口
+  - `GET    /api/family/member/state/list`：返回 7 状态聚合列表 + 配额（含 quota_used/quota_max/quota_remaining/guarded_count/state_counts）
+  - `GET    /api/family/member/quota`：配额详情（X = `count(family_member where status!=deleted and is_self=false)`，Y = max_managed）
+  - `DELETE /api/family/member/{member_id}`：**唯一删除接口**，返回结构化 `reason_code`（OK / HAS_ACTIVE_GUARDIANSHIP / HAS_PENDING_INVITATION / HAS_BOUND_DEVICE / HAS_ACTIVE_MEDICATION / RATE_LIMIT_EXCEEDED / NOT_FOUND / PERMISSION_DENIED），软删 4 张表（family_member / health_profile / family_invitation→cancelled / family_management→removed）
+  - `POST   /api/family/member/{member_id}/invite`：重新邀请（cancel 旧 pending/rejected/expired + insert 新 pending），生成新邀请码 + 24h 有效期
+  - `POST   /api/family/member/{member_id}/unbind`：解除守护（S1 → S6），写解除通知
+  - `POST   /api/family/member/admin/cleanup-orphan-invitations`：一次性清理孤儿邀请（dry_run 支持）
+- 状态机收敛：S0 本人 / S1 守护中 / S2 未邀请 / S3 邀请中 / S4 已拒绝 / S5 已过期 / S6 已解绑 / S7 已取消，每个状态有独立颜色 + 主按钮 + 闸门规则
+- 删除频次限制：5 次/UID/自然日（内存桶实现）
+- 修改：`backend/app/main.py` —— include_router 注册新模块（失败兜底不影响其他模块）
+- 新增：`h5-web/src/app/health-profile/archive-list/page.tsx` —— v2 状态机版档案列表页（独立路由 `/health-profile/archive-list/`）
+  - 7 种状态卡片渲染（彩色 Tag + 主按钮 + ⋯ 更多菜单）
+  - 顶部「已管理 X 人 / 上限 Y 人 · 还可添加 N 人 · 守护中 K 人」+ 「+ 新增」按钮（唯一新建入口）
+  - **顶部不再有「去邀请」大按钮**（入口 B 已删除）
+  - 新建档案抽屉：姓名 + 关系 + 手机号 + 性别 4 必填 → 保存后弹「立即去邀请？」抽屉（暂不邀请 / 立即邀请）
+  - 重新邀请抽屉、邀请码展示抽屉（含复制链接）、删除确认抽屉、更多操作菜单（删除 / 解除守护 / 取消邀请 / 邀请记录）
+- 新增：`backend/tests/test_family_member_state_machine_v1_20260529.py` —— 14 个 TC-FMV2 用例：S0 本人态、S2 新建态、S3 删除拦截、S1 删除拦截、重新邀请、解除守护、配额、频次限制、权限、404、本人不可删、S5 自动过期、删除后列表不再出现
+- 新增：`_deploy_family_member_v2.py` —— SSH 一键部署脚本（docker cp + restart + h5 rebuild + pytest + smoke）
+- 新增：`user_docs/健康档案-成员卡片状态机与按钮矩阵v1.md` —— 用户体验使用手册
+
+**测试结果**：服务器容器内 `pytest tests/test_family_member_state_machine_v1_20260529.py -v` 跑 **14 passed, 33 warnings in 11.41s**（0 failed）。
+
+**HTTPS smoke**：
+- `/api/health` → 200
+- `/api/family/member/quota` → 401（鉴权拦截，符合预期）
+- `/health-profile/archive-list/` → 200（新页面已可访问）
+- `/health-profile/` → 200（原页面未受影响）
+
+**部署方式**：backend `docker cp + docker restart`（3 个 .py 文件 + 1 个测试文件），h5-web `docker compose build h5-web && up -d`。
+
+**用户手册**：[user_docs/健康档案-成员卡片状态机与按钮矩阵v1.md](../user_docs/健康档案-成员卡片状态机与按钮矩阵v1.md)
+
+**关键决策追溯**：本次实现严格对齐 PRD v1.0 的 17 轮结构化问答确认结果，与华为运动健康/微信家庭群/平安好医生/京东健康等主流健康类产品的"先建档案再邀请"流程对齐。
+
+**唯一变更标记**：`[PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29]`
+
+---
+
+## 上一次变更（2026-05-29 · Bug 修复 / 居家安全设备 — 成员 Tab 复用 + 报警记录入口 + 设备备注字段）
 
 **Bug 标识**：`[BUGFIX HS-MEMBER-TABS-ALARMS-REMARK 2026-05-29]`
 

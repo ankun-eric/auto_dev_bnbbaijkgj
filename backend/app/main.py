@@ -2056,8 +2056,17 @@ app.include_router(auth.router)
 app.include_router(font_setting.router)
 app.include_router(health_profile.router)
 # [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 本人健康档案完善：/api/health-profile/self
-from app.api import health_profile_self as _health_profile_self  # noqa: E402
-app.include_router(_health_profile_self.router)
+# [BUG_FIX 2026-05-29] 改为 importlib 动态加载 + try/except 兜底，避免容器内某些边缘情况下
+# `from app.api import health_profile_self` 解析失败导致 ImportError，整个服务无法启动。
+try:
+    import importlib as _importlib
+    _health_profile_self = _importlib.import_module("app.api.health_profile_self")
+    app.include_router(_health_profile_self.router)
+except Exception as _e_self_complete:  # pragma: no cover - defensive
+    import logging as _lg
+    _lg.getLogger("app.startup").error(
+        "[health_profile_self] include_router failed: %s", _e_self_complete
+    )
 app.include_router(chat.router)
 app.include_router(chat_history.router)
 # [PRD-AI-HOME-OPTIM-V4 2026-05-21] AI 首页 60min 刷新 + 埋点接口
@@ -2075,6 +2084,13 @@ app.include_router(points_exchange.router)
 app.include_router(plan.router)
 app.include_router(family.router)
 app.include_router(family_management.router)
+# [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29] 健康档案成员卡片状态机 + 统一删除接口
+try:
+    from app.api import family_member_v2 as _family_member_v2
+    app.include_router(_family_member_v2.router)
+except Exception as _e_fmv2:
+    import logging as _l
+    _l.getLogger(__name__).warning("[family_member_v2] include_router failed: %s", _e_fmv2)
 app.include_router(family_management.public_protocol_router)
 
 # [守护人体系 PRD v1.1 2026-05-25] guardian_system 路由（主/普通守护人、转移、串行外呼、额度）
