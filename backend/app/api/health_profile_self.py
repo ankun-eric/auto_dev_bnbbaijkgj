@@ -60,7 +60,9 @@ def _is_name_empty(name: Optional[str]) -> bool:
 
 
 def _compute_missing_fields(profile: Optional[HealthProfile]) -> List[str]:
-    """[PRD §3] 计算缺失字段，前端只读 needComplete，避免规则漂移"""
+    """[PRD §3] 计算缺失字段（仅看 health_profiles 本人那条），保留作为 v2 内部步骤
+    [BUG_FIX 2026-05-29] 该函数仍保留供 v2 复用与回滚开关；接口默认走 v2。
+    """
     missing: List[str] = []
     if profile is None:
         return ["name", "gender", "birthday"]
@@ -71,6 +73,111 @@ def _compute_missing_fields(profile: Optional[HealthProfile]) -> List[str]:
     if profile.birthday is None:
         missing.append("birthday")
     return missing
+
+
+async def _compute_missing_fields_v2(
+    db: AsyncSession,
+    user_id: int,
+    profile: Optional[HealthProfile],
+) -> List[str]:
+    """[BUG_FIX 2026-05-29] 放宽判定：跨 health_profiles / family_members(is_self) / users 取并集
+
+    任一来源补齐字段即视为"已完善"，避免旧用户因数据落库位置差异被误弹。
+    判定口径仍要求 name/gender/birthday 三项均非空，仅放宽**取数来源**。
+    """
+    name_ok = bool(profile is not None and not _is_name_empty(profile.name))
+    gender_ok = bool(profile is not None and profile.gender and str(profile.gender).strip())
+    birthday_ok = bool(profile is not None and profile.birthday is not None)
+
+    if not (name_ok and gender_ok and birthday_ok):
+        try:
+            from app.models.models import FamilyMember
+            result = await db.execute(
+                select(FamilyMember).where(
+                    FamilyMember.user_id == user_id,
+                    FamilyMember.is_self.is_(True),
+                )
+            )
+            sm = result.scalar_one_or_none()
+            if sm is not None:
+                if not name_ok and sm.nickname and not _is_name_empty(sm.nickname):
+                    name_ok = True
+                if not gender_ok and sm.gender and str(sm.gender).strip():
+                    gender_ok = True
+                if not birthday_ok and sm.birthday is not None:
+                    birthday_ok = True
+        except Exception:
+            pass
+
+    if not (name_ok and gender_ok and birthday_ok):
+        try:
+            result = await db.execute(select(User).where(User.id == user_id))
+            u = result.scalar_one_or_none()
+            if u is not None:
+                if not name_ok:
+                    rn = getattr(u, "real_name", None) or getattr(u, "nickname", None)
+                    if rn and not _is_name_empty(rn):
+                        name_ok = True
+                if not gender_ok and getattr(u, "gender", None):
+                    gender_ok = True
+                if not birthday_ok and getattr(u, "birthday", None) is not None:
+                    birthday_ok = True
+        except Exception:
+            pass
+
+    missing: List[str] = []
+    if not name_ok:
+        missing.append("name")
+    if not gender_ok:
+        missing.append("gender")
+    if not birthday_ok:
+        missing.append("birthday")
+    return missing
+
+
+async def _serialize_profile_v2(
+    db: AsyncSession, profile: Optional[HealthProfile], current_user: User
+) -> dict:
+    """[BUG_FIX 2026-05-29] 异步序列化版本：missing 计算走 v2 跨表并集"""
+    missing = await _compute_missing_fields_v2(db, current_user.id, profile)
+    if profile is None:
+        return {
+            "id": f"u_{current_user.id}",
+            "name": "本人",
+            "gender": None,
+            "birthday": None,
+            "avatar": "",
+            "phone": current_user.phone or "",
+            "height": None,
+            "weight": None,
+            "blood_type": None,
+            "needComplete": len(missing) > 0,
+            "missingFields": missing,
+        }
+    name_for_display = profile.name if profile.name else "本人"
+    return {
+        "id": f"u_{current_user.id}",
+        "profile_id": profile.id,
+        "name": name_for_display,
+        "gender": profile.gender,
+        "birthday": profile.birthday.isoformat() if profile.birthday else None,
+        "avatar": "",
+        "phone": current_user.phone or "",
+        "height": profile.height,
+        "weight": profile.weight,
+        "blood_type": profile.blood_type,
+        "smoking": profile.smoking,
+        "drinking": profile.drinking,
+        "exercise_habit": profile.exercise_habit,
+        "sleep_habit": profile.sleep_habit,
+        "diet_habit": profile.diet_habit,
+        "chronic_diseases": profile.chronic_diseases or [],
+        "medical_histories": profile.medical_histories or [],
+        "allergies": profile.allergies or [],
+        "genetic_diseases": profile.genetic_diseases or [],
+        "needComplete": len(missing) > 0,
+        "missingFields": missing,
+    }
 
 
 def _serialize_profile(profile: Optional[HealthProfile], current_user: User) -> dict:
@@ -139,7 +246,9 @@ async def get_self_profile(
     - missingFields：缺失字段名列表
     """
     profile = await _get_self_profile(db, current_user.id)
-    return {"code": 0, "data": _serialize_profile(profile, current_user)}
+    # [BUG_FIX 2026-05-29] 走 v2 跨三表（health_profiles / family_members(is_self) / users）取并集
+    data = await _serialize_profile_v2(db, profile, current_user)
+    return {"code": 0, "data": data}
 
 
 @router.put("/self")
@@ -229,12 +338,14 @@ async def update_self_profile(
     except Exception:
         pass
 
-    missing = _compute_missing_fields(profile)
+    # [BUG_FIX 2026-05-29] 保存后用 v2 重算，与 GET 接口口径一致
+    missing = await _compute_missing_fields_v2(db, current_user.id, profile)
+    profile_data = await _serialize_profile_v2(db, profile, current_user)
     return {
         "code": 0,
         "data": {
             "needComplete": len(missing) > 0,
             "missingFields": missing,
-            "profile": _serialize_profile(profile, current_user),
+            "profile": profile_data,
         },
     }

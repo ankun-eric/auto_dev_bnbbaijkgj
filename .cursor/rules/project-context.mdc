@@ -82,7 +82,53 @@ HTTPS smoke：
 
 ---
 
-## 上一次变更（2026-05-29 · 新功能 / 健康档案 · 本人资料完善弹窗与抽屉）
+## 上一次变更（2026-05-29 · BUG 修复 / 健康档案·本人资料完善弹窗误弹与旧用户兼容）
+
+**BUG_FIX 标识**：`[BUG_FIX 2026-05-29] 健康档案 · 本人资料完善弹窗误弹与旧用户兼容`
+
+**Bug 现象**：
+1. 用户已完善本人档案，但因为还有家人档案未完善，每次进入健康档案页都被反复弹"完善资料"。
+2. 旧用户在该功能上线前已填过个人档案，仍被误弹（因新接口只读取 `health_profiles(family_member_id IS NULL)`，旧数据落在 `family_members(is_self=1)` 等位置上读不到）。
+
+**修复策略：C 双保险（数据回填 + 放宽判定逻辑）**
+
+| 层 | 方案 |
+|---|---|
+| 数据层 | 一次性回填迁移：把 `family_members(is_self=1)` 上的旧数据补到 `health_profiles(family_member_id IS NULL)` |
+| 后端逻辑 | 放宽判定：`needComplete` 计算从 `health_profiles` / `family_members(is_self)` / `users` 三表取并集 |
+| 前端逻辑 | 用 `sessionStorage` 替代 `useRef` 实现"会话级防重弹"+ "暂不"24h 软抑制；完善成功后立即清状态并永久标记 |
+
+**变更文件**：
+- 修改：`backend/app/api/health_profile_self.py` —— 新增 `_compute_missing_fields_v2()`（跨三表取并集）+ `_serialize_profile_v2()`；GET / PUT 端点改用 v2；保留旧 `_compute_missing_fields()` 作为内部回滚开关
+- 新增：`backend/migrations/20260529_backfill_self_profile.py` —— 旧用户本人健康档案数据回填脚本（幂等，凑齐三项才写入；只补全空字段，不覆盖既有非空字段）
+- 修改：`backend/tests/test_health_profile_self_complete_v1.py` —— 新增 7 个 BUG_FIX 测试（TC-NEW-02/03/04/05/06/07/08）
+- 修改：`h5-web/src/app/health-profile/page.tsx` —— 增加 `SELF_COMPLETE_DIALOG_SHOWN_KEY` / `SELF_COMPLETE_DIALOG_SNOOZE_UNTIL_KEY` 常量；弹窗触发 useEffect 改用 sessionStorage + 24h snooze；"暂不"/关闭按钮设置 24h 软抑制；完善成功立即关闭弹窗并永久标记
+- 新增：`deploy/_deploy_hp_self_complete_bugfix_20260529.py` —— SSH paramiko 一键部署脚本
+- 新增：`_patch_image_main_with_self.py` —— 兼容性补丁（向镜像内 main.py 末尾追加 importlib + try/except 形式的路由注册，避免直接覆盖触发其他模块 ImportError）
+- 新增：`user_docs/健康档案_本人资料完善弹窗误弹与旧用户兼容修复.md` —— 用户体验使用手册
+
+**部署与回填**：
+- 后端代码 docker cp 热更 + 重启
+- `python /app/migrations/20260529_backfill_self_profile.py` 在容器内一次性回填：`{'users': 160, 'skipped_complete': 0, 'updated': 0, 'created': 156, 'still_partial': 4}`
+- H5 容器 `docker compose build h5-web && up -d h5-web`
+
+**测试结果**：
+- 真实环境 smoke（HTTPS）3 个场景全部 PASS：
+  - 仅 `family_member(is_self)` 有数据 → needComplete=false ✓
+  - 全空（占位） → needComplete=true, missing=["gender","birthday"] ✓
+  - 跨表并集补齐 birthday → needComplete=false ✓
+- HTTPS：`/health-profile` → 200，`/api/health-profile/self` → 401（鉴权拦截，符合预期）
+
+**回滚策略**：
+- 后端：保留 `_compute_missing_fields` 旧函数（不删除）；可通过特性开关回退到旧版判定
+- 前端：sessionStorage 改造与 PRD 原行为兼容，回滚只需还原一次提交
+- 数据：迁移脚本只**新增/补全**记录，不修改既有非空字段，原则上无需回滚
+
+**唯一变更标记**：`[BUG_FIX 2026-05-29] health-profile-self-complete-误弹+旧用户兼容`
+
+---
+
+## 上上次变更（2026-05-29 · 新功能 / 健康档案 · 本人资料完善弹窗与抽屉）
 
 **PRD 标识**：`[PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29]`
 

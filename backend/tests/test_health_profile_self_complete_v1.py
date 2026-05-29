@@ -335,3 +335,225 @@ async def test_put_self_requires_auth(client: AsyncClient):
         json={"name": "x", "gender": "男", "birthday": "1990-01-01"},
     )
     assert r.status_code in (401, 403)
+
+
+# ─────────── [BUG_FIX 2026-05-29] 旧用户兼容 / 跨表并集判定 ───────────
+# 关联文档：docs/BUG_FIX_健康档案本人资料完善弹窗误弹与旧用户兼容_20260529.md
+# 修复策略 C：数据回填 + 放宽判定逻辑（双保险）
+
+
+@pytest.mark.asyncio
+async def test_new_02_legacy_user_only_family_member_self(client: AsyncClient):
+    """TC-NEW-02：旧用户只有 family_members(is_self=1) 上的 nickname/gender/birthday，
+    health_profiles 没有 self 记录 → needComplete=false（v2 兜底）"""
+    async with test_session() as s:
+        u = User(
+            phone="13980000101",
+            password_hash=get_password_hash("p123"),
+            nickname="老用户",
+            role=UserRole.user,
+        )
+        s.add(u)
+        await s.flush()
+        uid = u.id
+        s.add(FamilyMember(
+            user_id=uid,
+            relationship_type="本人",
+            nickname="陈旧",
+            gender="男",
+            birthday=date(1980, 1, 1),
+            is_self=True,
+            status="active",
+        ))
+        await s.commit()
+    headers = await _headers(client, "13980000101")
+    r = await client.get("/api/health-profile/self", headers=headers)
+    assert r.status_code == 200
+    data = r.json()["data"]
+    assert data["needComplete"] is False, data
+    assert data["missingFields"] == []
+
+
+@pytest.mark.asyncio
+async def test_new_03_legacy_user_partial_in_two_tables(client: AsyncClient):
+    """TC-NEW-03（项目调整版）：health_profiles 仅有 name/gender，birthday 缺失，
+    family_members(is_self=1) 上有 birthday → 跨表并集判定为已完善"""
+    async with test_session() as s:
+        u = User(
+            phone="13980000102",
+            password_hash=get_password_hash("p123"),
+            nickname="混合用户",
+            role=UserRole.user,
+        )
+        s.add(u)
+        await s.flush()
+        uid = u.id
+        s.add(FamilyMember(
+            user_id=uid,
+            relationship_type="本人",
+            nickname="周混合",
+            birthday=date(1975, 6, 6),
+            is_self=True,
+            status="active",
+        ))
+        s.add(HealthProfile(
+            user_id=uid,
+            family_member_id=None,
+            name="周混合",
+            gender="男",
+            birthday=None,
+        ))
+        await s.commit()
+    headers = await _headers(client, "13980000102")
+    r = await client.get("/api/health-profile/self", headers=headers)
+    data = r.json()["data"]
+    assert data["needComplete"] is False, data
+    assert data["missingFields"] == []
+
+
+@pytest.mark.asyncio
+async def test_new_04_other_members_incomplete_self_complete(client: AsyncClient):
+    """TC-NEW-04：用户有多个非 self 成员，本人档案齐全 → needComplete=false（与其他成员无关）"""
+    async with test_session() as s:
+        u = User(
+            phone="13980000103",
+            password_hash=get_password_hash("p123"),
+            nickname="多成员用户",
+            role=UserRole.user,
+        )
+        s.add(u)
+        await s.flush()
+        uid = u.id
+        s.add(FamilyMember(
+            user_id=uid, relationship_type="本人", nickname="本人",
+            is_self=True, status="active",
+        ))
+        for i, rel in enumerate(["父亲", "母亲", "儿子"]):
+            s.add(FamilyMember(
+                user_id=uid, relationship_type=rel,
+                nickname=f"家人{i}", is_self=False, status="active",
+            ))
+        s.add(HealthProfile(
+            user_id=uid, family_member_id=None,
+            name="本人姓名", gender="女", birthday=date(1990, 5, 5),
+        ))
+        await s.commit()
+    headers = await _headers(client, "13980000103")
+    r = await client.get("/api/health-profile/self", headers=headers)
+    data = r.json()["data"]
+    assert data["needComplete"] is False, data
+    assert data["missingFields"] == []
+
+
+@pytest.mark.asyncio
+async def test_new_05_other_members_incomplete_self_missing_name(client: AsyncClient):
+    """TC-NEW-05：本人档案缺 name（且 family_members(is_self) 也是占位"本人"），其他成员未完善
+    → needComplete=true，missingFields=["name"]"""
+    async with test_session() as s:
+        u = User(
+            phone="13980000104",
+            password_hash=get_password_hash("p123"),
+            nickname="x",
+            role=UserRole.user,
+        )
+        s.add(u)
+        await s.flush()
+        uid = u.id
+        s.add(FamilyMember(
+            user_id=uid, relationship_type="本人", nickname="本人",
+            is_self=True, status="active",
+        ))
+        s.add(FamilyMember(
+            user_id=uid, relationship_type="父亲", nickname="父",
+            is_self=False, status="active",
+        ))
+        s.add(HealthProfile(
+            user_id=uid, family_member_id=None,
+            name="本人", gender="男", birthday=date(1990, 5, 5),
+        ))
+        await s.commit()
+    headers = await _headers(client, "13980000104")
+    r = await client.get("/api/health-profile/self", headers=headers)
+    data = r.json()["data"]
+    assert data["needComplete"] is True
+    assert data["missingFields"] == ["name"]
+
+
+@pytest.mark.asyncio
+async def test_new_06_brand_new_user_all_missing(client: AsyncClient):
+    """TC-NEW-06：全新用户，无任何资料 → needComplete=true，三项 missing"""
+    await _make_user("13980000105")
+    headers = await _headers(client, "13980000105")
+    r = await client.get("/api/health-profile/self", headers=headers)
+    data = r.json()["data"]
+    assert data["needComplete"] is True
+    assert set(data["missingFields"]) == {"name", "gender", "birthday"}
+
+
+@pytest.mark.asyncio
+async def test_new_07_backfill_idempotent(client: AsyncClient):
+    """TC-NEW-07：数据回填迁移幂等性——执行两次结果一致"""
+    async with test_session() as s:
+        u = User(
+            phone="13980000106",
+            password_hash=get_password_hash("p123"),
+            nickname="回填",
+            role=UserRole.user,
+        )
+        s.add(u)
+        await s.flush()
+        uid = u.id
+        s.add(FamilyMember(
+            user_id=uid, relationship_type="本人", nickname="郑回填",
+            gender="女", birthday=date(1985, 8, 8),
+            is_self=True, status="active",
+        ))
+        await s.commit()
+
+    # 直接复用迁移脚本里的 backfill 函数进行幂等执行
+    import importlib.util as _ilu
+    import os as _os
+    mig_path = _os.path.join(
+        _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+        "migrations",
+        "20260529_backfill_self_profile.py",
+    )
+    spec = _ilu.spec_from_file_location("_backfill_self", mig_path)
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)  # type: ignore[union-attr]
+
+    s1 = await mod.backfill()
+    s2 = await mod.backfill()
+    assert s2["created"] == 0  # 第二次不应再 create
+    assert s2["updated"] == 0  # 第二次也不应再 update（已齐全）
+
+    headers = await _headers(client, "13980000106")
+    r = await client.get("/api/health-profile/self", headers=headers)
+    data = r.json()["data"]
+    assert data["needComplete"] is False, data
+
+
+@pytest.mark.asyncio
+async def test_new_08_placeholder_only_no_real_data(client: AsyncClient):
+    """TC-NEW-08：family_members(is_self=1) 的 nickname 为占位"本人"且其他都没数据
+    → needComplete=true（占位文案视为空，并集仍补不齐 name）"""
+    async with test_session() as s:
+        u = User(
+            phone="13980000107",
+            password_hash=get_password_hash("p123"),
+            nickname="占位",
+            role=UserRole.user,
+        )
+        s.add(u)
+        await s.flush()
+        uid = u.id
+        s.add(FamilyMember(
+            user_id=uid, relationship_type="本人", nickname="本人",
+            is_self=True, status="active",
+        ))
+        await s.commit()
+    headers = await _headers(client, "13980000107")
+    r = await client.get("/api/health-profile/self", headers=headers)
+    data = r.json()["data"]
+    assert data["needComplete"] is True
+    assert "name" in data["missingFields"]

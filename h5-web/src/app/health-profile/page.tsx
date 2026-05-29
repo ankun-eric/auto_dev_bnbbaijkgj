@@ -11,6 +11,10 @@ import api from '@/lib/api';
 import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMemberModal';
 // [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 本人资料完善弹窗 + 抽屉
 import CompleteSelfProfileDrawer from '@/components/health-profile-v5/CompleteSelfProfileDrawer';
+
+// [BUG_FIX 2026-05-29] 会话级 / 24h 软抑制 keys —— 替代 useRef 实现"本会话只弹一次 + 24h snooze"
+const SELF_COMPLETE_DIALOG_SHOWN_KEY = 'self_complete_dialog_shown_v1';
+const SELF_COMPLETE_DIALOG_SNOOZE_UNTIL_KEY = 'self_complete_dialog_snooze_until';
 import MemberBadge from '@/components/family/MemberBadge';
 import { formatGender } from '@/utils/format';
 import { BH_TOKENS } from '@/lib/health-tokens';
@@ -563,6 +567,10 @@ function HealthProfileV2PageInner() {
     } catch { /* silent */ }
   }, []);
 
+  // [BUG_FIX 2026-05-29] 重要：本接口只判定"本人"那条档案是否完善，
+  // 与其他成员（守护对象）档案完全解耦。请勿在前端基于成员列表二次判定。
+  // 后端接口已升级为跨 health_profiles / family_members(is_self) / users 三表取并集，
+  // 旧用户的资料无论落在哪一处，只要凑齐三项即视为已完善，不会再被误弹。
   // [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 拉取本人 needComplete 状态
   const fetchSelfNeedComplete = useCallback(async () => {
     try {
@@ -609,13 +617,37 @@ function HealthProfileV2PageInner() {
   // [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 进入页面后拉取 needComplete 状态
   useEffect(() => { fetchSelfNeedComplete(); }, [fetchSelfNeedComplete]);
 
-  // [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 本人 Tab 激活 + needComplete=true → 延迟 500ms 弹窗（本会话只弹 1 次）
+  // [BUG_FIX 2026-05-29] 会话级防重弹（sessionStorage）+ 24h snooze 软抑制
+  // 取代旧的 useRef 实现，避免 Tab 切换 / 路由刷新引起的"每次进入都弹"问题。
+  // useRef 在隐私模式 / sessionStorage 不可用时仍作为兜底。
   useEffect(() => {
     if (!selectedMember || !selectedMember.is_self) return;
     if (!selfNeedComplete) return;
     if (selfDialogShownInSessionRef.current) return;
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        if (sessionStorage.getItem(SELF_COMPLETE_DIALOG_SHOWN_KEY) === '1') {
+          selfDialogShownInSessionRef.current = true;
+          return;
+        }
+      }
+    } catch { /* ignore */ }
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const snooze = Number(localStorage.getItem(SELF_COMPLETE_DIALOG_SNOOZE_UNTIL_KEY) || 0);
+        if (snooze && snooze > Date.now()) {
+          selfDialogShownInSessionRef.current = true;
+          return;
+        }
+      }
+    } catch { /* ignore */ }
     const timer = setTimeout(() => {
       selfDialogShownInSessionRef.current = true;
+      try {
+        if (typeof window !== 'undefined' && window.sessionStorage) {
+          sessionStorage.setItem(SELF_COMPLETE_DIALOG_SHOWN_KEY, '1');
+        }
+      } catch { /* ignore */ }
       setShowSelfCompleteDialog(true);
     }, 500);
     return () => clearTimeout(timer);
@@ -2338,7 +2370,15 @@ function HealthProfileV2PageInner() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: 24,
           }}
-          onClick={() => setShowSelfCompleteDialog(false)}
+          onClick={() => {
+            // [BUG_FIX 2026-05-29] 点击遮罩关闭：标记本会话已弹过，避免再次进入又弹
+            try {
+              if (typeof window !== 'undefined' && window.sessionStorage) {
+                sessionStorage.setItem(SELF_COMPLETE_DIALOG_SHOWN_KEY, '1');
+              }
+            } catch { /* ignore */ }
+            setShowSelfCompleteDialog(false);
+          }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -2351,7 +2391,20 @@ function HealthProfileV2PageInner() {
           >
             <span
               data-testid="self-complete-dialog-close"
-              onClick={() => setShowSelfCompleteDialog(false)}
+              onClick={() => {
+                try {
+                  if (typeof window !== 'undefined' && window.sessionStorage) {
+                    sessionStorage.setItem(SELF_COMPLETE_DIALOG_SHOWN_KEY, '1');
+                  }
+                  if (typeof window !== 'undefined' && window.localStorage) {
+                    localStorage.setItem(
+                      SELF_COMPLETE_DIALOG_SNOOZE_UNTIL_KEY,
+                      String(Date.now() + 24 * 3600 * 1000),
+                    );
+                  }
+                } catch { /* ignore */ }
+                setShowSelfCompleteDialog(false);
+              }}
               style={{
                 position: 'absolute', top: 8, right: 12,
                 fontSize: 24, color: '#94A3B8', cursor: 'pointer',
@@ -2371,7 +2424,21 @@ function HealthProfileV2PageInner() {
             <div style={{ display: 'flex', gap: 12 }}>
               <button
                 data-testid="self-complete-dialog-later"
-                onClick={() => setShowSelfCompleteDialog(false)}
+                onClick={() => {
+                  // [BUG_FIX 2026-05-29] 暂不填写：会话级标记 + 24h 软抑制
+                  try {
+                    if (typeof window !== 'undefined' && window.sessionStorage) {
+                      sessionStorage.setItem(SELF_COMPLETE_DIALOG_SHOWN_KEY, '1');
+                    }
+                    if (typeof window !== 'undefined' && window.localStorage) {
+                      localStorage.setItem(
+                        SELF_COMPLETE_DIALOG_SNOOZE_UNTIL_KEY,
+                        String(Date.now() + 24 * 3600 * 1000),
+                      );
+                    }
+                  } catch { /* ignore */ }
+                  setShowSelfCompleteDialog(false);
+                }}
                 style={{
                   flex: 1, height: 42, borderRadius: 21,
                   background: '#F1F5F9', color: '#0F172A',
@@ -2403,8 +2470,18 @@ function HealthProfileV2PageInner() {
           initial={selfInitialForDrawer}
           onClose={() => setShowSelfCompleteDrawer(false)}
           onSuccess={async () => {
+            // [BUG_FIX 2026-05-29] 完善成功后：立即关闭弹窗触发条件 + 永久标记本会话已弹
             setShowSelfCompleteDrawer(false);
-            // 刷新成员列表（本人 Tab 名变更）+ needComplete 状态
+            setSelfNeedComplete(false);
+            setSelfMissingFields([]);
+            try {
+              if (typeof window !== 'undefined' && window.sessionStorage) {
+                sessionStorage.setItem(SELF_COMPLETE_DIALOG_SHOWN_KEY, '1');
+              }
+              if (typeof window !== 'undefined' && window.localStorage) {
+                localStorage.removeItem(SELF_COMPLETE_DIALOG_SNOOZE_UNTIL_KEY);
+              }
+            } catch { /* ignore */ }
             await fetchMembers();
             if (selectedMemberId) await fetchProfile(selectedMemberId);
             await fetchSelfNeedComplete();
