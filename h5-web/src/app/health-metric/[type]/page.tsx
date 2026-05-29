@@ -8,12 +8,19 @@
  *
  * 视觉基线：PRD-441/442（11 级天蓝 + 病历卡 + 中老年友好）
  *
- * [BUGFIX-BP-TAB-OPTIMIZE-V1 2026-05-30] 血压 Tab 页面优化：
+ * [BUGFIX-BP-TAB-OPTIMIZE-V1 2026-05-30] 血压 Tab 页面优化（v1）：
  *   1) 顶部超大主数值 + 三档色板（正常蓝 / 警告黄 / 严重橙）联动卡片底色 + 胶囊状态标签
  *   2) 同步信息行嵌入「绑定设备（血压计图标）」+「手工录入」入口
- *      - 绑定设备点击 → Toast「即将上线」（不跳转）
  *   3) 趋势图：标题"最近 7 天趋势"，双曲线（收缩压红 + 舒张压蓝），日/周/月/年切换（默认周）
  *   4) 底部"设备绑定"区块整块下线（与顶部入口功能重复）
+ *
+ * [PRD-BP-CARD-OPTIMIZE-V1 2026-05-30] 血压卡片优化（v2，本次）：
+ *   - 顶部主卡片保持原样（移除其内嵌的小按钮，保留主数值/同步信息/胶囊）
+ *   - 主卡片与趋势图之间新增并排大按钮区：手工录入(实心主色) + 绑定设备(描边白底)
+ *   - 趋势图：仅保留 日/周 两档（默认周）；Y 轴固定 40-200；
+ *           收缩压/舒张压两条线各自范围带 + 平均值连线 + 数据点；
+ *           参考线 SBP=140 / DBP=90；点击数据点弹窗（详细信息）；
+ *           空状态插画 + 双按钮；日视图横轴 0-24h 散点连线。
  *   血糖/心率/睡眠/血氧 Tab 保持原模板不变。
  */
 
@@ -123,7 +130,8 @@ interface MetricHistoryResponse {
   trend_diastolic?: (number | null)[];
 }
 
-type BpTrendRange = 'day' | 'week' | 'month' | 'year';
+// [PRD-BP-CARD-OPTIMIZE-V1 2026-05-30] 血压趋势图仅保留 日/周 两档
+type BpTrendRange = 'day' | 'week';
 
 interface DeviceItem {
   id?: number;
@@ -525,28 +533,77 @@ function PencilIcon({ size = 16, color = '#1B4DA0' }: { size?: number; color?: s
   );
 }
 
+// [PRD-BP-CARD-OPTIMIZE-V1 2026-05-30] 仅保留 日/周 两档
 const BP_RANGE_OPTS: { key: BpTrendRange; label: string }[] = [
   { key: 'day', label: '日' },
   { key: 'week', label: '周' },
-  { key: 'month', label: '月' },
-  { key: 'year', label: '年' },
 ];
 
-function formatBpSyncTime(measuredAt?: string | null): string {
+/**
+ * [PRD-BP-CARD-OPTIMIZE-V1 2026-05-30 §3.3] 首页/详情页统一时间格式化：
+ *   - 当天     → 今日 HH:mm
+ *   - 昨天     → 昨日 HH:mm
+ *   - 2~7 天前 → X 天前
+ *   - 超过 7 天 → MM-dd
+ */
+export function formatBpSyncTime(measuredAt?: string | null): string {
   if (!measuredAt) return '';
   try {
     const d = new Date(measuredAt);
+    if (Number.isNaN(d.getTime())) return '';
     const today = new Date();
-    const isToday = d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
+    const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const startD = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const diffDays = Math.floor((startToday - startD) / 86400000);
     const hh = String(d.getHours()).padStart(2, '0');
     const mm = String(d.getMinutes()).padStart(2, '0');
-    if (isToday) return `今日 ${hh}:${mm}`;
+    if (diffDays === 0) return `今日 ${hh}:${mm}`;
+    if (diffDays === 1) return `昨日 ${hh}:${mm}`;
+    if (diffDays >= 2 && diffDays <= 7) return `${diffDays} 天前`;
     const mo = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
-    return `${mo}-${dd} ${hh}:${mm}`;
+    return `${mo}-${dd}`;
   } catch {
     return formatDateTime(measuredAt);
   }
+}
+
+/**
+ * [PRD-BP-CARD-OPTIMIZE-V1 2026-05-30 §3.3] 来源文案统一格式化：
+ *   - manual              → 手工录入
+ *   - device:{deviceName} → {deviceName}·自动同步
+ *   - 其它非空 source     → {source}·自动同步
+ */
+export function formatBpSource(source?: string | null, deviceName?: string | null): string {
+  if (!source) return '手工录入';
+  const s = String(source).trim();
+  if (!s || s === 'manual') return '手工录入';
+  // 优先取设备名（如有）
+  const dn = (deviceName || '').trim();
+  if (dn) return `${dn}·自动同步`;
+  // 兼容形如 device:omron 或 omron
+  const last = s.split(':').pop() || s;
+  const map: Record<string, string> = {
+    omron: '欧姆龙血压计',
+    huawei_watch: '华为 Watch',
+    xiaomi_band: '小米手环',
+    bp_meter: '血压计',
+  };
+  return `${map[last] || last}·自动同步`;
+}
+
+/** [PRD-BP-CARD-OPTIMIZE-V1 2026-05-30 §3.3] 首页/详情页统一展示「时间 · 来源」单行文案。 */
+export function formatBpTimeSource(measuredAt?: string | null, source?: string | null, deviceName?: string | null): string {
+  const t = formatBpSyncTime(measuredAt);
+  const s = formatBpSource(source, deviceName);
+  if (!t) return s;
+  return `${t} · ${s}`;
+}
+
+/** [PRD-BP-CARD-OPTIMIZE-V1 2026-05-30 §6] 单条记录档位文案（与详情页文案一致）。 */
+export function bpLevelLabel(sbp?: number | null, dbp?: number | null): string {
+  const j = judgeBp(sbp ?? null, dbp ?? null);
+  return j ? j.label : '';
 }
 
 interface BloodPressurePageProps {
@@ -568,7 +625,10 @@ function BloodPressurePage(props: BloodPressurePageProps) {
   const { history, latest, popupVisible, setPopupVisible, formValues, setFormValues,
     periodValue, setPeriodValue, meta, saving, handleSave } = props;
 
+  // [PRD-BP-CARD-OPTIMIZE-V1 2026-05-30 §5.2] 默认选中"周"，仅保留 日/周
   const [range, setRange] = useState<BpTrendRange>('week');
+  // 数据点点击弹窗
+  const [pointPopup, setPointPopup] = useState<BpPointDetail | null>(null);
 
   const sbp = latest?.value?.systolic != null ? Number(latest.value.systolic) : null;
   const dbp = latest?.value?.diastolic != null ? Number(latest.value.diastolic) : null;
@@ -579,17 +639,13 @@ function BloodPressurePage(props: BloodPressurePageProps) {
 
   const syncText = useMemo(() => {
     if (!latest) return '尚无血压记录 · 请录入或绑定设备';
-    const time = formatBpSyncTime(latest.measured_at);
-    const src = latest.source;
-    const srcText = src === 'manual' ? '手工录入' : '欧姆龙血压计自动同步';
-    return `${time} · ${srcText}`;
+    return formatBpTimeSource(latest.measured_at, latest.source);
   }, [latest]);
 
   const handleBindDeviceClick = () => {
     showToast('即将上线', 'success');
     // 埋点（占位）：health_archive.bp.bind_device.click
     try {
-      // 通过 navigator.sendBeacon 静默上报；后端 /api/_frontend_log 已存在
       if (typeof navigator !== 'undefined' && (navigator as any).sendBeacon) {
         const payload = JSON.stringify({
           type: 'event',
@@ -606,11 +662,26 @@ function BloodPressurePage(props: BloodPressurePageProps) {
     }
   };
 
+  // [PRD §5.6] 当前周期是否无任何数据
+  const records: MetricRecord[] = history?.records || [];
+  const isEmptyForRange = useMemo(() => {
+    if (range === 'week') {
+      // 最近 7 天聚合：trend_systolic / trend_diastolic 全为 null
+      const s = history?.trend_systolic || [];
+      const d = history?.trend_diastolic || [];
+      const hasAny = [...s, ...d].some(v => v != null);
+      return !hasAny;
+    }
+    // 日视图：仅看今天的记录
+    const today = new Date();
+    return records.filter(r => isSameDay(new Date(r.measured_at), today)).length === 0;
+  }, [range, history, records]);
+
   return (
     <div data-testid="bp-tab-page" style={{ background: '#F4F7FB', minHeight: '100vh', paddingBottom: 24 }}>
       <GreenNavBar>血压详情</GreenNavBar>
 
-      {/* 顶部状态卡片：背景色随档位联动 */}
+      {/* [PRD §四] 顶部主卡片保持原样：主数值 + 同步信息 + 状态胶囊（移除内嵌小按钮） */}
       <div style={{ padding: '12px 16px 0' }}>
         <div
           data-testid="bp-status-card"
@@ -640,54 +711,16 @@ function BloodPressurePage(props: BloodPressurePageProps) {
             </span>
           </div>
 
-          {/* 同步信息行 + 绑定设备入口 + 手工录入 */}
-          <div style={{
-            marginTop: 14,
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-            flexWrap: 'wrap',
-          }}>
-            <span style={{ fontSize: 13, color: palette.text, opacity: 0.85, flex: 1, minWidth: 0 }}>
+          {/* 同步信息行（仅展示「时间·来源」） */}
+          <div style={{ marginTop: 14, textAlign: 'center' }}>
+            <span data-testid="bp-sync-text" style={{ fontSize: 13, color: palette.text, opacity: 0.85 }}>
               {syncText}
             </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button
-                data-testid="bp-bind-device-btn"
-                aria-label="绑定设备"
-                onClick={handleBindDeviceClick}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                  padding: '6px 10px', borderRadius: 16,
-                  background: 'rgba(255,255,255,0.65)',
-                  border: `1px solid ${palette.border}`,
-                  color: palette.text, fontSize: 12, fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                <BpMeterIcon size={16} color={palette.text} />
-                <span>绑定设备</span>
-              </button>
-              <button
-                data-testid="bp-manual-input-btn"
-                aria-label="手工录入"
-                onClick={() => setPopupVisible(true)}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                  padding: '6px 10px', borderRadius: 16,
-                  background: 'rgba(255,255,255,0.65)',
-                  border: `1px solid ${palette.border}`,
-                  color: palette.text, fontSize: 12, fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                <PencilIcon size={14} color={palette.text} />
-                <span>手工录入</span>
-              </button>
-            </div>
           </div>
 
           {/* 状态胶囊 */}
           {judgement && (
-            <div style={{ marginTop: 14, display: 'flex', justifyContent: 'center' }}>
+            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center' }}>
               <span
                 data-testid="bp-capsule"
                 style={{
@@ -706,7 +739,39 @@ function BloodPressurePage(props: BloodPressurePageProps) {
         </div>
       </div>
 
-      {/* 最近 7 天趋势 */}
+      {/* [PRD §四] 主卡片 ↔ 趋势图之间：并排大按钮（手工录入实心 + 绑定设备描边） */}
+      <div data-testid="bp-action-row" style={{ padding: '12px 16px 0', display: 'flex', gap: 10 }}>
+        <button
+          data-testid="bp-action-manual"
+          onClick={() => setPopupVisible(true)}
+          style={{
+            flex: 1, height: 44, borderRadius: 12, border: 'none',
+            background: '#0EA5E9', color: '#fff',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            fontSize: 15, fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(14,165,233,0.24)',
+          }}
+        >
+          <PencilIcon size={16} color="#fff" />
+          <span>手工录入</span>
+        </button>
+        <button
+          data-testid="bp-action-bind"
+          onClick={handleBindDeviceClick}
+          style={{
+            flex: 1, height: 44, borderRadius: 12,
+            background: '#fff', color: '#0EA5E9',
+            border: '1px solid #0EA5E9',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            fontSize: 15, fontWeight: 700, cursor: 'pointer',
+          }}
+        >
+          <BpMeterIcon size={16} color="#0EA5E9" />
+          <span>绑定设备</span>
+        </button>
+      </div>
+
+      {/* [PRD §五] 最近 7 天趋势 */}
       <div style={{ padding: '12px 16px 0' }}>
         <div
           data-testid="bp-trend-card"
@@ -716,39 +781,61 @@ function BloodPressurePage(props: BloodPressurePageProps) {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E' }}>最近 7 天趋势</span>
-            <div style={{ display: 'flex', gap: 4 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E' }}>
+              {range === 'day' ? '今日趋势' : '最近 7 天趋势'}
+            </span>
+            <div data-testid="bp-range-segmented" style={{ display: 'flex', gap: 4, background: '#F1F5F9', borderRadius: 12, padding: 2 }}>
               {BP_RANGE_OPTS.map(opt => (
                 <button
                   key={opt.key}
                   data-testid={`bp-range-${opt.key}`}
+                  data-active={range === opt.key ? 'true' : 'false'}
                   onClick={() => setRange(opt.key)}
                   style={{
-                    padding: '3px 10px', borderRadius: 12, border: 'none',
-                    background: range === opt.key ? '#0EA5E9' : '#F1F5F9',
+                    padding: '4px 14px', borderRadius: 10, border: 'none',
+                    background: range === opt.key ? '#0EA5E9' : 'transparent',
                     color: range === opt.key ? '#fff' : '#64748B',
-                    fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    transition: 'background 200ms ease',
                   }}
                 >{opt.label}</button>
               ))}
             </div>
           </div>
-          <BpTrendChart
-            sbp={history?.trend_systolic || [null, null, null, null, null, null, null]}
-            dbp={history?.trend_diastolic || [null, null, null, null, null, null, null]}
-            labels={history?.trend_day_labels || ['周三', '周四', '周五', '周六', '周日', '周一', '今日']}
-          />
-          {/* 图例 */}
-          <div style={{ marginTop: 8, display: 'flex', justifyContent: 'center', gap: 18 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151' }}>
-              <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#EF4444', display: 'inline-block' }} />
-              收缩压（高压）
-            </span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151' }}>
-              <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#3B82F6', display: 'inline-block' }} />
-              舒张压（低压）
-            </span>
-          </div>
+
+          {isEmptyForRange ? (
+            <BpEmptyState
+              range={range}
+              onManual={() => setPopupVisible(true)}
+              onBind={handleBindDeviceClick}
+            />
+          ) : range === 'week' ? (
+            <BpWeekTrendChart
+              records={records}
+              labels={history?.trend_day_labels || []}
+              dates={history?.trend_dates || []}
+              onPointClick={setPointPopup}
+            />
+          ) : (
+            <BpDayTrendChart
+              records={records}
+              onPointClick={setPointPopup}
+            />
+          )}
+
+          {/* 图例 + 参考线说明 */}
+          {!isEmptyForRange && (
+            <div style={{ marginTop: 8, display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 14 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151' }}>
+                <span style={{ width: 18, height: 3, background: '#1B4DA0', display: 'inline-block', borderRadius: 2 }} />
+                收缩压（参考线 140）
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151' }}>
+                <span style={{ width: 18, height: 3, background: '#7DB1F2', display: 'inline-block', borderRadius: 2 }} />
+                舒张压（参考线 90）
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -780,7 +867,8 @@ function BloodPressurePage(props: BloodPressurePageProps) {
                       <span style={{ fontSize: 12, color: '#6B7280', marginLeft: 4, fontWeight: 500 }}>mmHg</span>
                     </div>
                     <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
-                      {formatDateTime(r.measured_at)} · {r.source === 'manual' ? '手工' : r.source}
+                      {formatDateTime(r.measured_at)} · {formatBpSource(r.source)}
+                      {r.value?.period ? ` · ${r.value.period}` : ''}
                     </div>
                   </div>
                   {j && (
@@ -852,11 +940,510 @@ function BloodPressurePage(props: BloodPressurePageProps) {
           style={{ '--background-color': '#0ea5e9', '--border-radius': '22px', height: 44, fontSize: 16 } as any}
         >保存</Button>
       </Popup>
+
+      {/* [PRD §5.5] 数据点点击弹窗（详版） */}
+      <BpPointPopup detail={pointPopup} onClose={() => setPointPopup(null)} />
     </div>
   );
 }
 
-/** 血压双曲线 SVG 趋势图（收缩压红 / 舒张压蓝） */
+// [PRD-BP-CARD-OPTIMIZE-V1 2026-05-30] 内部数据结构
+export interface BpPointDetail {
+  measured_at: string;
+  systolic: number | null;
+  diastolic: number | null;
+  label: string;          // 档位名（如 "轻度偏高"）
+  level?: string | null;
+  period?: string | null;  // 测量时段
+  source: string;
+  /** 仅周视图传入：当日所有原始记录数（>1 时弹窗顶部加注释） */
+  recordsCountInDay?: number;
+}
+
+function isSameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear()
+    && a.getMonth() === b.getMonth()
+    && a.getDate() === b.getDate();
+}
+
+function ymd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
+/** [PRD §5.5] 数据点点击弹窗 */
+function BpPointPopup({ detail, onClose }: { detail: BpPointDetail | null; onClose: () => void }) {
+  const j = detail ? judgeBp(detail.systolic, detail.diastolic) : null;
+  const palette = getBpPalette(j?.color ?? 'blue');
+  return (
+    <Popup
+      visible={!!detail}
+      onMaskClick={onClose}
+      bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 18 }}
+    >
+      {detail && (
+        <div data-testid="bp-point-popup">
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E', marginBottom: 10 }}>
+            血压详情
+          </div>
+          <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 8 }}>
+            {formatDateTime(detail.measured_at)}
+          </div>
+          <div style={{ height: 1, background: '#E5E7EB', margin: '8px 0' }} />
+          <DetailRow k="收缩压" v={detail.systolic != null ? `${detail.systolic} mmHg` : '—'} />
+          <DetailRow k="舒张压" v={detail.diastolic != null ? `${detail.diastolic} mmHg` : '—'} />
+          <DetailRow k="档位" v={
+            <span data-testid="bp-point-level" style={{
+              padding: '2px 10px', borderRadius: 999,
+              background: palette.capsuleBg, color: palette.capsuleText,
+              fontSize: 12, fontWeight: 700,
+            }}>{detail.label || '—'}</span>
+          } />
+          {detail.period && <DetailRow k="测量时段" v={detail.period} />}
+          <DetailRow k="来源" v={formatBpSource(detail.source)} />
+          {detail.recordsCountInDay && detail.recordsCountInDay > 1 && (
+            <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 6 }}>
+              当日共 {detail.recordsCountInDay} 次测量，此处显示当日均值
+            </div>
+          )}
+          <Button
+            block color="primary" onClick={onClose}
+            style={{ '--background-color': '#0EA5E9', '--border-radius': '12px', height: 40, fontSize: 14, marginTop: 14 } as any}
+          >知道了</Button>
+        </div>
+      )}
+    </Popup>
+  );
+}
+
+function DetailRow({ k, v }: { k: string; v: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
+      <span style={{ fontSize: 13, color: '#6B7280' }}>{k}</span>
+      <span style={{ fontSize: 14, color: '#0C4A6E', fontWeight: 600 }}>{v}</span>
+    </div>
+  );
+}
+
+/** [PRD §5.6] 趋势图空状态 */
+function BpEmptyState({ range, onManual, onBind }: { range: BpTrendRange; onManual: () => void; onBind: () => void }) {
+  return (
+    <div data-testid="bp-trend-empty" style={{ padding: '20px 8px 8px', textAlign: 'center' }}>
+      {/* 简洁血压计插画（行内 SVG，主色调） */}
+      <svg width="96" height="72" viewBox="0 0 96 72" style={{ display: 'block', margin: '0 auto 8px' }} aria-hidden="true">
+        <rect x="14" y="20" width="52" height="34" rx="6" stroke="#0EA5E9" strokeWidth="1.6" fill="#F0F9FF" />
+        <circle cx="32" cy="37" r="8" stroke="#0EA5E9" strokeWidth="1.6" fill="#fff" />
+        <line x1="32" y1="37" x2="36" y2="32" stroke="#EF4444" strokeWidth="1.6" strokeLinecap="round" />
+        <path d="M66 28 Q 82 28 82 38 Q 82 50 66 50" stroke="#0EA5E9" strokeWidth="1.6" fill="none" />
+        <circle cx="84" cy="55" r="3" stroke="#0EA5E9" strokeWidth="1.6" fill="#fff" />
+        <line x1="48" y1="32" x2="58" y2="32" stroke="#94A3B8" strokeWidth="1.4" />
+        <line x1="48" y1="40" x2="58" y2="40" stroke="#94A3B8" strokeWidth="1.4" />
+        <line x1="48" y1="48" x2="55" y2="48" stroke="#94A3B8" strokeWidth="1.4" />
+      </svg>
+      <div style={{ fontSize: 15, fontWeight: 700, color: '#0C4A6E' }}>
+        {range === 'day' ? '今日还没有测量记录' : '本周还没有测量记录'}
+      </div>
+      <div style={{ fontSize: 13, color: '#6B7280', marginTop: 6 }}>
+        点击上方"手工录入"或"绑定设备"开始记录吧
+      </div>
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 14 }}>
+        <button
+          data-testid="bp-empty-manual"
+          onClick={onManual}
+          style={{
+            padding: '8px 18px', borderRadius: 10, border: 'none',
+            background: '#0EA5E9', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+          }}
+        >立即录入</button>
+        <button
+          data-testid="bp-empty-bind"
+          onClick={onBind}
+          style={{
+            padding: '8px 18px', borderRadius: 10,
+            background: '#fff', color: '#0EA5E9',
+            border: '1px solid #0EA5E9',
+            fontSize: 13, fontWeight: 700, cursor: 'pointer',
+          }}
+        >绑定设备</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── 趋势图常量 ──────────────────────────────────────────────────
+// [PRD §5.3.4] Y 轴固定 40 - 200 mmHg
+const BP_Y_MIN = 40;
+const BP_Y_MAX = 200;
+const BP_Y_TICKS = [40, 80, 120, 160, 200];
+// [PRD §5.3.5] 参考线 SBP=140 / DBP=90
+const BP_REF_SBP = 140;
+const BP_REF_DBP = 90;
+
+const BP_SBP_LINE = '#1B4DA0';   // 收缩压：深蓝
+const BP_DBP_LINE = '#7DB1F2';   // 舒张压：浅蓝
+const BP_SBP_BAND = 'rgba(27,77,160,0.10)';   // 范围带：深蓝 10%
+const BP_DBP_BAND = 'rgba(125,177,242,0.18)'; // 范围带：浅蓝 18%
+
+/** 简单平滑曲线（Catmull-Rom 转 Bezier） */
+function smoothPath(points: { x: number; y: number }[]): string {
+  if (points.length === 0) return '';
+  if (points.length === 1) return `M${points[0].x},${points[0].y}`;
+  const segs: string[] = [`M${points[0].x.toFixed(1)},${points[0].y.toFixed(1)}`];
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[Math.max(i - 1, 0)];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[Math.min(i + 2, points.length - 1)];
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    segs.push(`C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`);
+  }
+  return segs.join(' ');
+}
+
+/** [PRD §5.3] 周视图趋势图：每天范围带 + 平均值平滑连线 + 数据点 */
+function BpWeekTrendChart({
+  records, labels, dates, onPointClick,
+}: {
+  records: MetricRecord[];
+  labels: string[];
+  dates: string[];
+  onPointClick: (d: BpPointDetail) => void;
+}) {
+  const W = 340, H = 220;
+  const PAD = { top: 14, right: 14, bottom: 28, left: 36 };
+  const cw = W - PAD.left - PAD.right;
+  const ch = H - PAD.top - PAD.bottom;
+
+  // 构造最近 7 天日期序列（与后端 trend_dates 对齐；若空则前端兜底生成）
+  const today = new Date();
+  const days: string[] = (dates && dates.length === 7) ? dates : Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (6 - i));
+    return ymd(d);
+  });
+  const dayLabels: string[] = (labels && labels.length === 7) ? labels : days.map((s, i) => i === 6 ? '今日' : s.slice(5).replace('-', '/'));
+
+  // 按日聚合 sbp / dbp 数据
+  type DayAgg = {
+    sbpMin: number | null; sbpMax: number | null; sbpAvg: number | null;
+    dbpMin: number | null; dbpMax: number | null; dbpAvg: number | null;
+    count: number;
+    representative?: MetricRecord;
+  };
+  const aggMap: Record<string, DayAgg> = {};
+  days.forEach(d => {
+    aggMap[d] = { sbpMin: null, sbpMax: null, sbpAvg: null, dbpMin: null, dbpMax: null, dbpAvg: null, count: 0 };
+  });
+  records.forEach(r => {
+    const d = new Date(r.measured_at);
+    const key = ymd(d);
+    if (!(key in aggMap)) return;
+    const agg = aggMap[key];
+    const sv = r.value?.systolic != null ? Number(r.value.systolic) : null;
+    const dv = r.value?.diastolic != null ? Number(r.value.diastolic) : null;
+    if (sv != null && !Number.isNaN(sv)) {
+      agg.sbpMin = agg.sbpMin == null ? sv : Math.min(agg.sbpMin, sv);
+      agg.sbpMax = agg.sbpMax == null ? sv : Math.max(agg.sbpMax, sv);
+      agg.sbpAvg = agg.sbpAvg == null ? sv : agg.sbpAvg + sv; // 累加，下方均值化
+    }
+    if (dv != null && !Number.isNaN(dv)) {
+      agg.dbpMin = agg.dbpMin == null ? dv : Math.min(agg.dbpMin, dv);
+      agg.dbpMax = agg.dbpMax == null ? dv : Math.max(agg.dbpMax, dv);
+      agg.dbpAvg = agg.dbpAvg == null ? dv : agg.dbpAvg + dv;
+    }
+    agg.count += 1;
+    // 取当日最近一条作为代表（records 由后端按 measured_at desc 返回）
+    if (!agg.representative) agg.representative = r;
+  });
+  // 把 sum 转为均值
+  Object.values(aggMap).forEach(a => {
+    if (a.count > 0) {
+      if (a.sbpAvg != null) a.sbpAvg = +(a.sbpAvg / Math.max(a.count, 1)).toFixed(1);
+      if (a.dbpAvg != null) a.dbpAvg = +(a.dbpAvg / Math.max(a.count, 1)).toFixed(1);
+    }
+  });
+
+  const xScale = (i: number) => PAD.left + (i / 6) * cw;
+  const yScale = (v: number) => PAD.top + ch - ((v - BP_Y_MIN) / (BP_Y_MAX - BP_Y_MIN)) * ch;
+
+  // 构造范围带 path（上沿 max → 下沿 min）
+  const buildBand = (kind: 'sbp' | 'dbp'): string => {
+    const ups: { x: number; y: number }[] = [];
+    const downs: { x: number; y: number }[] = [];
+    days.forEach((d, i) => {
+      const a = aggMap[d];
+      const max = kind === 'sbp' ? a.sbpMax : a.dbpMax;
+      const min = kind === 'sbp' ? a.sbpMin : a.dbpMin;
+      if (max != null && min != null && max !== min) {
+        ups.push({ x: xScale(i), y: yScale(max) });
+        downs.push({ x: xScale(i), y: yScale(min) });
+      }
+    });
+    if (ups.length < 2) return '';
+    const upPath = ups.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    const downPath = downs.slice().reverse().map(p => `L${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    return `${upPath} ${downPath} Z`;
+  };
+
+  const sbpAvgPoints: { x: number; y: number; i: number; v: number }[] = [];
+  const dbpAvgPoints: { x: number; y: number; i: number; v: number }[] = [];
+  days.forEach((d, i) => {
+    const a = aggMap[d];
+    if (a.sbpAvg != null) sbpAvgPoints.push({ x: xScale(i), y: yScale(a.sbpAvg), i, v: a.sbpAvg });
+    if (a.dbpAvg != null) dbpAvgPoints.push({ x: xScale(i), y: yScale(a.dbpAvg), i, v: a.dbpAvg });
+  });
+  const sbpLinePath = smoothPath(sbpAvgPoints);
+  const dbpLinePath = smoothPath(dbpAvgPoints);
+
+  // 异常天背景：当日 sbpAvg/dbpAvg 落入"偏高/严重"档
+  const abnormalDays: number[] = [];
+  days.forEach((d, i) => {
+    const a = aggMap[d];
+    const j = judgeBp(a.sbpAvg, a.dbpAvg);
+    if (j && j.level !== 'normal') abnormalDays.push(i);
+  });
+
+  const handlePointClick = (i: number) => {
+    const dKey = days[i];
+    const a = aggMap[dKey];
+    if (!a || a.count === 0) return;
+    const rep = a.representative;
+    const j = judgeBp(a.sbpAvg, a.dbpAvg);
+    onPointClick({
+      measured_at: rep ? rep.measured_at : dKey,
+      systolic: a.sbpAvg,
+      diastolic: a.dbpAvg,
+      label: j ? j.label : '',
+      level: j ? j.level : null,
+      period: rep?.value?.period || rep?.value?.activity || null,
+      source: rep ? rep.source : 'manual',
+      recordsCountInDay: a.count,
+    });
+  };
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      style={{ width: '100%', height: 'auto', display: 'block' }}
+      data-testid="bp-trend-svg"
+      data-bp-range="week"
+    >
+      {/* 异常天背景 */}
+      {abnormalDays.map(i => {
+        const x1 = xScale(Math.max(i - 0.5, 0));
+        const x2 = xScale(Math.min(i + 0.5, 6));
+        return (
+          <rect
+            key={`ab${i}`}
+            data-testid="bp-abnormal-bg"
+            x={x1} y={PAD.top}
+            width={Math.max(x2 - x1, 4)}
+            height={ch}
+            fill="rgba(245,183,61,0.10)"
+          />
+        );
+      })}
+      {/* Y 轴网格 + 标签 */}
+      {BP_Y_TICKS.map(v => {
+        const y = yScale(v);
+        return (
+          <g key={`g${v}`}>
+            <line x1={PAD.left} y1={y} x2={W - PAD.right} y2={y} stroke="#E5E7EB" strokeWidth={0.6} />
+            <text x={PAD.left - 4} y={y + 3} textAnchor="end" fill="#9CA3AF" fontSize={10}>{v}</text>
+          </g>
+        );
+      })}
+      {/* 参考线 SBP=140 / DBP=90 */}
+      <line
+        data-testid="bp-ref-sbp"
+        x1={PAD.left} x2={W - PAD.right}
+        y1={yScale(BP_REF_SBP)} y2={yScale(BP_REF_SBP)}
+        stroke="#9CA3AF" strokeWidth={0.8} strokeDasharray="4 3"
+      />
+      <text x={W - PAD.right - 2} y={yScale(BP_REF_SBP) - 3} textAnchor="end" fill="#9CA3AF" fontSize={9}>SBP 140</text>
+      <line
+        data-testid="bp-ref-dbp"
+        x1={PAD.left} x2={W - PAD.right}
+        y1={yScale(BP_REF_DBP)} y2={yScale(BP_REF_DBP)}
+        stroke="#9CA3AF" strokeWidth={0.8} strokeDasharray="4 3"
+      />
+      <text x={W - PAD.right - 2} y={yScale(BP_REF_DBP) - 3} textAnchor="end" fill="#9CA3AF" fontSize={9}>DBP 90</text>
+      {/* X 轴标签 */}
+      {dayLabels.map((lab, i) => {
+        const isToday = i === 6 || lab === '今日';
+        return (
+          <text
+            key={`x${i}`}
+            x={xScale(i)} y={H - 8}
+            textAnchor="middle"
+            fill={isToday ? '#0EA5E9' : '#9CA3AF'}
+            fontSize={isToday ? 11 : 10}
+            fontWeight={isToday ? 700 : 400}
+          >{lab}</text>
+        );
+      })}
+      {/* 范围带 */}
+      <path data-testid="bp-band-sbp" d={buildBand('sbp')} fill={BP_SBP_BAND} />
+      <path data-testid="bp-band-dbp" d={buildBand('dbp')} fill={BP_DBP_BAND} />
+      {/* 平均值平滑连线 */}
+      {sbpLinePath && <path d={sbpLinePath} fill="none" stroke={BP_SBP_LINE} strokeWidth={2.4} strokeLinecap="round" />}
+      {dbpLinePath && <path d={dbpLinePath} fill="none" stroke={BP_DBP_LINE} strokeWidth={2.4} strokeLinecap="round" />}
+      {/* 数据点（按当日均值档位染色） */}
+      {sbpAvgPoints.map(p => {
+        const a = aggMap[days[p.i]];
+        const j = judgeBp(a.sbpAvg, a.dbpAvg);
+        const fill = j ? getBpPalette(j.color).capsuleBg : '#3B82F6';
+        return (
+          <circle
+            key={`sp${p.i}`}
+            data-testid={`bp-point-sbp-${p.i}`}
+            cx={p.x} cy={p.y} r={4.5}
+            fill={fill} stroke="#fff" strokeWidth={1.5}
+            style={{ cursor: 'pointer' }}
+            onClick={() => handlePointClick(p.i)}
+          />
+        );
+      })}
+      {dbpAvgPoints.map(p => {
+        const a = aggMap[days[p.i]];
+        const j = judgeBp(a.sbpAvg, a.dbpAvg);
+        const fill = j ? getBpPalette(j.color).capsuleBg : '#3B82F6';
+        return (
+          <circle
+            key={`dp${p.i}`}
+            data-testid={`bp-point-dbp-${p.i}`}
+            cx={p.x} cy={p.y} r={3.5}
+            fill={fill} stroke="#fff" strokeWidth={1.2}
+            opacity={0.9}
+            style={{ cursor: 'pointer' }}
+            onClick={() => handlePointClick(p.i)}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
+/** [PRD §5.4] 日视图趋势图：当日 24h 散点 + 双线连线 */
+function BpDayTrendChart({
+  records, onPointClick,
+}: {
+  records: MetricRecord[];
+  onPointClick: (d: BpPointDetail) => void;
+}) {
+  const W = 340, H = 220;
+  const PAD = { top: 14, right: 14, bottom: 28, left: 36 };
+  const cw = W - PAD.left - PAD.right;
+  const ch = H - PAD.top - PAD.bottom;
+
+  const today = new Date();
+  // 当日记录按时间升序
+  const dayRecords = records
+    .filter(r => isSameDay(new Date(r.measured_at), today))
+    .slice()
+    .sort((a, b) => +new Date(a.measured_at) - +new Date(b.measured_at));
+
+  const xScale = (date: Date) => {
+    const minutes = date.getHours() * 60 + date.getMinutes();
+    return PAD.left + (minutes / (24 * 60)) * cw;
+  };
+  const yScale = (v: number) => PAD.top + ch - ((v - BP_Y_MIN) / (BP_Y_MAX - BP_Y_MIN)) * ch;
+
+  const sbpPoints: { x: number; y: number; r: MetricRecord }[] = [];
+  const dbpPoints: { x: number; y: number; r: MetricRecord }[] = [];
+  dayRecords.forEach(r => {
+    const t = new Date(r.measured_at);
+    const sv = r.value?.systolic != null ? Number(r.value.systolic) : null;
+    const dv = r.value?.diastolic != null ? Number(r.value.diastolic) : null;
+    if (sv != null && !Number.isNaN(sv)) sbpPoints.push({ x: xScale(t), y: yScale(sv), r });
+    if (dv != null && !Number.isNaN(dv)) dbpPoints.push({ x: xScale(t), y: yScale(dv), r });
+  });
+
+  const sbpPath = sbpPoints.length >= 2 ? smoothPath(sbpPoints.map(p => ({ x: p.x, y: p.y }))) : '';
+  const dbpPath = dbpPoints.length >= 2 ? smoothPath(dbpPoints.map(p => ({ x: p.x, y: p.y }))) : '';
+
+  const hourTicks = [0, 6, 12, 18, 24];
+
+  const handleClick = (r: MetricRecord) => {
+    const sv = r.value?.systolic != null ? Number(r.value.systolic) : null;
+    const dv = r.value?.diastolic != null ? Number(r.value.diastolic) : null;
+    const j = judgeBp(sv, dv);
+    onPointClick({
+      measured_at: r.measured_at,
+      systolic: sv,
+      diastolic: dv,
+      label: j ? j.label : '',
+      level: j ? j.level : null,
+      period: r.value?.period || r.value?.activity || null,
+      source: r.source,
+    });
+  };
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      style={{ width: '100%', height: 'auto', display: 'block' }}
+      data-testid="bp-trend-svg"
+      data-bp-range="day"
+    >
+      {/* Y 轴网格 + 标签 */}
+      {BP_Y_TICKS.map(v => {
+        const y = yScale(v);
+        return (
+          <g key={`g${v}`}>
+            <line x1={PAD.left} y1={y} x2={W - PAD.right} y2={y} stroke="#E5E7EB" strokeWidth={0.6} />
+            <text x={PAD.left - 4} y={y + 3} textAnchor="end" fill="#9CA3AF" fontSize={10}>{v}</text>
+          </g>
+        );
+      })}
+      {/* 参考线 */}
+      <line x1={PAD.left} x2={W - PAD.right} y1={yScale(BP_REF_SBP)} y2={yScale(BP_REF_SBP)}
+        stroke="#9CA3AF" strokeWidth={0.8} strokeDasharray="4 3" data-testid="bp-ref-sbp" />
+      <line x1={PAD.left} x2={W - PAD.right} y1={yScale(BP_REF_DBP)} y2={yScale(BP_REF_DBP)}
+        stroke="#9CA3AF" strokeWidth={0.8} strokeDasharray="4 3" data-testid="bp-ref-dbp" />
+      {/* X 轴 0:00 - 24:00 */}
+      {hourTicks.map(h => {
+        const x = PAD.left + (h / 24) * cw;
+        return (
+          <text
+            key={`x${h}`}
+            x={x} y={H - 8}
+            textAnchor="middle"
+            fill="#9CA3AF" fontSize={10}
+          >{`${String(h).padStart(2, '0')}:00`}</text>
+        );
+      })}
+      {/* 双线连线 */}
+      {sbpPath && <path d={sbpPath} fill="none" stroke={BP_SBP_LINE} strokeWidth={2.2} strokeLinecap="round" />}
+      {dbpPath && <path d={dbpPath} fill="none" stroke={BP_DBP_LINE} strokeWidth={2.2} strokeLinecap="round" />}
+      {/* 数据点 */}
+      {sbpPoints.map((p, i) => (
+        <circle
+          key={`s${i}`}
+          data-testid={`bp-day-point-sbp-${i}`}
+          cx={p.x} cy={p.y} r={4} fill={BP_SBP_LINE} stroke="#fff" strokeWidth={1.2}
+          style={{ cursor: 'pointer' }}
+          onClick={() => handleClick(p.r)}
+        />
+      ))}
+      {dbpPoints.map((p, i) => (
+        <circle
+          key={`d${i}`}
+          data-testid={`bp-day-point-dbp-${i}`}
+          cx={p.x} cy={p.y} r={4} fill={BP_DBP_LINE} stroke="#fff" strokeWidth={1.2}
+          style={{ cursor: 'pointer' }}
+          onClick={() => handleClick(p.r)}
+        />
+      ))}
+    </svg>
+  );
+}
+
+/** [遗留] 血压双曲线 SVG 趋势图（保留以兼容其它入口；当前血压详情页已切换至 BpWeekTrendChart / BpDayTrendChart） */
 function BpTrendChart({
   sbp, dbp, labels,
 }: {
