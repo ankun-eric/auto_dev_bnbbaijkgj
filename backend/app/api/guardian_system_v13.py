@@ -222,6 +222,45 @@ async def _is_unlimited_guardians(db: AsyncSession, user_id: int) -> bool:
     return False
 
 
+async def _calc_used_quota(db: AsyncSession, *, manager_user_id: int) -> int:
+    """[BUGFIX-GUARDIAN-LIST-CONSISTENCY-V2 2026-05-29 G2]
+    按 v1.3.1 PRD §4.2「蚂蚁阿福派补丁版」公式重算配额已用：
+
+        配额已用 = COUNT(family_member  WHERE user_id = 我 AND status != 'deleted')
+                + COUNT(family_invitation WHERE inviter_id = 我
+                                            AND member_id IS NULL
+                                            AND status = 'pending'
+                                            AND expires_at > now())
+                - 1   # 扣除本人
+
+    与旧实现的差异：
+    - 旧实现把"暂未响应/已过期"也错误地算入悬空 pending（实际不算）；
+      且基于 list 接口聚合后再 sum(occupies_quota)，存在 list 缓存 / 排序边界问题。
+    - 新实现直接 SQL COUNT，更鲁棒；同时把 pending（未过期）的悬空邀请明确算 +1，
+      防"反复邀请-取消"刷接口绕过配额。
+    """
+    now = datetime.utcnow()
+
+    # 1) family_member 中所有 status != 'deleted' 的记录（包含本人 is_self=true）
+    fm_q = select(func.count(FamilyMember.id)).where(
+        FamilyMember.user_id == manager_user_id,
+        FamilyMember.status != "deleted",
+    )
+    fm_count = (await db.execute(fm_q)).scalar() or 0
+
+    # 2) family_invitation 中悬空（member_id IS NULL）且 pending 未过期的邀请
+    inv_q = select(func.count(FamilyInvitation.id)).where(
+        FamilyInvitation.inviter_user_id == manager_user_id,
+        FamilyInvitation.member_id.is_(None),
+        FamilyInvitation.status == "pending",
+        FamilyInvitation.expires_at > now,
+    )
+    inv_count = (await db.execute(inv_q)).scalar() or 0
+
+    # 3) 扣除本人（is_self=true 的那条 family_member）
+    return max(0, int(fm_count) + int(inv_count) - 1)
+
+
 async def _calc_archive_record_total(
     db: AsyncSession,
     *,
@@ -689,7 +728,10 @@ async def list_family_v13(
         and it.get("managed_user_id") != current_user.id
     )
     # [v1.3.1] 占名额数：本人豁免（本接口不包含本人虚拟项，由前端拼接）
-    quota_used = sum(1 for it in items if it.get("occupies_quota"))
+    # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V2 2026-05-29 G2] 改用 PRD §4.2 蚂蚁阿福派补丁版公式
+    # 直接 SQL COUNT family_member + 悬空 pending 未过期邀请 - 本人，确保
+    #   "反复邀请-取消"无法绕过配额，且与 list 接口的可见 occupies_quota 聚合解耦。
+    quota_used = await _calc_used_quota(db, manager_user_id=current_user.id)
 
     max_guardians = await _get_max_guardians(db, current_user.id)
     is_unlimited = await _is_unlimited_guardians(db, current_user.id)

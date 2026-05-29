@@ -22,6 +22,7 @@ import { useRouter } from 'next/navigation';
 import { Popup, DatePicker } from 'antd-mobile';
 import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
+import { validateNickname } from '@/utils/nicknameValidator';
 import {
   RELATION_DEFS,
   findRelationDef,
@@ -192,8 +193,10 @@ export default function NewFamilyMemberModal({ onClose, onSuccess }: Props) {
       const tr = customRelation.trim();
       if (!tr || tr.length < 1 || tr.length > 8) errs.add('customRelation');
     }
-    const n = name.trim();
-    if (!n || n.length < 1 || n.length > 12) errs.add('name');
+    // [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V2 2026-05-29] D5：三端字符级一致校验
+    //   trim 非空 + 长度 1~20 + 不允许纯特殊字符（emoji 允许）
+    const _nv = validateNickname(name);
+    if (!_nv.ok) errs.add('name');
     if (!gender) errs.add('gender');
     if (!birthday) errs.add('birthday');
     // 出生日期上限：≤ 今天

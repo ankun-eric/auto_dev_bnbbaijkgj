@@ -20,6 +20,7 @@ import { Dialog, Tag, Empty, Switch, Modal, Popup, Toast } from 'antd-mobile';
 import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
+import { validateNickname, validateRelation } from '@/utils/nicknameValidator';
 
 type Lifecycle =
   | 'never_invited'
@@ -173,13 +174,16 @@ function InviteGuardianDrawer({ open, mode, presetMember, onClose, onSuccess }: 
   }, [open, mode, presetMember]);
 
   const handleSubmit = async () => {
-    // [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 姓名必填
-    if (!nickname.trim()) {
-      showToast('请填写姓名', 'fail');
+    // [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V2 2026-05-29] D5/D7 三端字符级一致：
+    //   trim 非空 + 长度 1~20 + 不允许纯特殊字符（emoji 允许）
+    const nv = validateNickname(nickname);
+    if (!nv.ok) {
+      showToast(nv.msg, 'fail');
       return;
     }
-    if (!relation.trim()) {
-      showToast('请填写关系（如：父亲、母亲）', 'fail');
+    const rv = validateRelation(relation);
+    if (!rv.ok) {
+      showToast(rv.msg, 'fail');
       return;
     }
     setSubmitting(true);

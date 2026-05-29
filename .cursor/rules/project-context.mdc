@@ -5,7 +5,49 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-29 · Bug 修复 / 守护人体系 · 列表口径一致 + 真删除 + 配额防护）
+## 最近一次变更（2026-05-29 · Bug 修复 / 守护人体系 v1.3.2 补丁 · 列表一致性 v1 二次清扫）
+
+**PRD 标识**：`[BUGFIX-GUARDIAN-LIST-CONSISTENCY-V2 2026-05-29]`
+
+**修复点**（v1.3.1 上线后未落地干净的 3 个漏改）：
+1. **G1**：`/family-invite/` 页面（AI 首页 → 选择咨询人 → 新建 → 顶部【去邀请】跳转的落地页）在无 `member_id` 时**只有关系下拉、缺姓名输入框**，导致后端 422 拦截用户卡死。补改：无 `member_id` 时渲染统一的「姓名 + 关系」两个输入框（红星 *、长度/纯特殊字符校验），UI 与 i-guard 抽屉完全一致；用户主动提交后才生成二维码。
+2. **G2**：后端 `quota_used` 算法把"暂未响应"误算入已用、漏算"悬空 pending 未过期",导致"反复邀请-取消"刷接口配额不涨。新增 `_calc_used_quota(db, manager_user_id)` 函数，按 PRD §4.2「蚂蚁阿福派补丁版」公式重算：`COUNT(family_member where status!=deleted) + COUNT(family_invitation where member_id IS NULL AND pending AND expires_at>now()) - 1`。
+3. **G3**：`ConsultTargetPicker.tsx`（AI 首页选择咨询人抽屉）TS 类型缺 `target_left`、渲染分支无灰标，"对方已退出"的家人按正常彩色卡渲染。补改：`FamilyMemberItem` 接口加 `target_left?: boolean / relation_status?: string`；renderMemberCard 增加灰卡分支（背景 #F5F5F5、头像 grayscale 80%、灰胶囊"对方已退出"、灰标卡片排到末尾视觉降权）；点击灰卡 Toast「该对象已退出守护，无法进行 AI 咨询」早退不进入切换流程。
+4. **附**：i-guard 抽屉 + NewFamilyMemberModal + family-invite 三端姓名校验对齐到 `validateNickname()` 共用工具：trim 非空 + 长度 1–20 + 不允许纯特殊字符（emoji 允许）。
+
+**变更文件**（仅 backend + h5-web 两端，未触及小程序 / Android / iOS / Windows / admin-web）：
+- 修改：`backend/app/api/guardian_system_v13.py` —— 新增 `_calc_used_quota()` 函数；`/family/list` 的 `quota_used`/`used` 字段改用新函数计算
+- 新增：`backend/tests/test_guardian_bugfix_v2_20260529.py` —— 6 个 v2 用例（TC-G2-01~05 配额公式 + TC-G3 target_left 字段回归）
+- 新增：`h5-web/src/utils/nicknameValidator.ts` —— `validateNickname()` / `validateRelation()` 共用校验工具
+- 修改：`h5-web/src/app/family-invite/page.tsx` —— 无 `member_id` 分支新增「姓名+关系」表单 UI + `handleInviteSubmit` 提交逻辑；`createInvitation` 支持 `nicknameOverride` 参数
+- 修改：`h5-web/src/app/health-profile/i-guard/page.tsx` —— InviteGuardianDrawer 接入 `validateNickname` / `validateRelation`
+- 修改：`h5-web/src/components/health-profile-v5/NewFamilyMemberModal.tsx` —— `validate()` 中姓名校验接入 `validateNickname`
+- 修改：`h5-web/src/components/ai-chat/ConsultTargetPicker.tsx` —— `FamilyMemberItem` 接口扩 `target_left/relation_status`；卡片渲染加灰标分支；`handleSelectMember` 早退；按钮区"对方已退出"灰胶囊
+- 新增：`_deploy_guardian_bugfix_v2.py` / `_full_repair_v2.py` —— SSH 一键部署 + 修复脚本
+
+**测试结果**：服务器容器内 pytest 跑 `test_guardian_bugfix_v1_20260529.py + test_guardian_bugfix_v2_20260529.py` 共 **20 passed, 0 failed**（v1 14 条 + v2 6 条）。
+HTTPS smoke：
+- `/api/health` → 200
+- `/health-profile/i-guard/` → 200
+- `/family-invite/` → 200
+- `/api/family/members` → 401（鉴权）
+- `/api/guardian/v13/family/list` → 401（鉴权）
+
+**部署方式**：
+1. `docker cp backend 关键文件 + docker restart backend`（含 `_calc_used_quota` 新函数生效）
+2. `docker compose build h5-web && up -d h5-web`（重建前端，邀请页 UI / ConsultTargetPicker 灰标生效）
+3. h5-web rebuild 会触发 backend 容器重建，需要再次 docker cp 全套 backend 文件并 restart（修复脚本 `_full_repair_v2.py` 已自动化此步骤）
+
+**体验链接**：
+- [H5 用户端 · 我守护的人](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/i-guard/)
+- [H5 用户端 · 邀请页（场景 2）](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/family-invite/)
+- [H5 用户端 · AI 首页](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/)
+
+**唯一变更标记**：`[BUGFIX-GUARDIAN-LIST-CONSISTENCY-V2 2026-05-29]`
+
+---
+
+## 上一次变更（2026-05-29 · Bug 修复 / 守护人体系 · 列表口径一致 + 真删除 + 配额防护）
 
 **PRD 标识**：`[BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29]`
 

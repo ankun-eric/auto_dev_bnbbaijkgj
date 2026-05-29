@@ -34,6 +34,11 @@ export interface FamilyMemberItem {
   birthday?: string;
   gender?: string;
   is_self: boolean;
+  // [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V2 2026-05-29 G3]
+  // 后端 /api/family/members 已返回 target_left=true 标记"对方已退出"
+  target_left?: boolean;
+  // 中文标签（如"对方已退出"），后端可选返回
+  relation_status?: string;
 }
 
 interface ConsultTargetPickerProps {
@@ -79,6 +84,12 @@ export default function ConsultTargetPicker({
   }, [visible]);
 
   const handleSelectMember = (m: FamilyMemberItem) => {
+    // [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V2 2026-05-29 G3] 对方已退出守护：
+    //   不允许选为咨询对象，提示后早退（不进入原切换动画流程）
+    if (m.target_left) {
+      showToast('该对象已退出守护，无法进行 AI 咨询', 'fail');
+      return;
+    }
     // 已选中态：右侧「已选择」按钮置灰禁用，不响应点击
     const isCurrent = m.is_self ? currentMemberId == null : m.id === currentMemberId;
     if (isCurrent) {
@@ -158,7 +169,15 @@ export default function ConsultTargetPicker({
 
         {!loading && !loadFailed && (
           <div className="mt-3 space-y-2">
-            {members.map((m) => {
+            {/* [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V2 2026-05-29 G3] 视觉降权：
+                target_left=true 的灰卡片排到末尾，与 i-guard 体验一致 */}
+            {[...members]
+              .sort((a, b) => {
+                const al = a.target_left ? 1 : 0;
+                const bl = b.target_left ? 1 : 0;
+                return al - bl;
+              })
+              .map((m) => {
               const isCurrent = m.is_self ? currentMemberId == null : m.id === currentMemberId;
               const relationName = m.relation_type_name || m.relationship_type || (m.is_self ? '本人' : '');
               const age = m.birthday ? calcAge(m.birthday) : null;
@@ -170,10 +189,20 @@ export default function ConsultTargetPicker({
               const subText = subParts.filter(Boolean).join(' · ');
               // 主标题：统一「关系 · 姓名」（兜底：关系空则仅姓名）
               const mainText = relationName ? `${relationName} · ${m.nickname}` : m.nickname;
-              // 选中：蓝色渐变；未选中：浅灰
-              const itemBg = isCurrent ? PRIMARY_GRADIENT : '#F8FAFC';
-              const nameColor = isCurrent ? '#fff' : '#0F172A';
-              const subColor = isCurrent ? 'rgba(255,255,255,0.85)' : '#64748B';
+              // [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V2 2026-05-29 G3] 对方已退出灰标
+              const isLeft = !!m.target_left;
+              // 选中：蓝色渐变；对方已退出：浅灰；未选中正常：浅灰
+              const itemBg = isLeft
+                ? '#F5F5F5'
+                : isCurrent
+                ? PRIMARY_GRADIENT
+                : '#F8FAFC';
+              const nameColor = isLeft ? '#999999' : isCurrent ? '#fff' : '#0F172A';
+              const subColor = isLeft
+                ? '#B0B0B0'
+                : isCurrent
+                ? 'rgba(255,255,255,0.85)'
+                : '#64748B';
               return (
                 <div
                   key={`${m.id}-${m.is_self ? 'self' : 'mem'}`}
@@ -181,19 +210,23 @@ export default function ConsultTargetPicker({
                   style={{
                     background: itemBg,
                     border: '1.5px solid transparent',
-                    boxShadow: isCurrent ? '0 4px 14px rgba(2,132,199,0.2)' : 'none',
-                    cursor: isCurrent ? 'default' : 'pointer',
+                    boxShadow: isCurrent && !isLeft ? '0 4px 14px rgba(2,132,199,0.2)' : 'none',
+                    cursor: isLeft ? 'not-allowed' : isCurrent ? 'default' : 'pointer',
+                    opacity: isLeft ? 0.85 : 1,
                   }}
                   onClick={() => handleSelectMember(m)}
                   data-testid="consult-target-item"
                   data-current={isCurrent ? '1' : '0'}
+                  data-target-left={isLeft ? '1' : '0'}
                 >
-                  <MemberBadge
-                    relationName={relationName}
-                    name={m.nickname}
-                    isSelf={m.is_self}
-                    size={42}
-                  />
+                  <div style={{ filter: isLeft ? 'grayscale(80%)' : 'none' }}>
+                    <MemberBadge
+                      relationName={relationName}
+                      name={m.nickname}
+                      isSelf={m.is_self}
+                      size={42}
+                    />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div
                       className="text-sm font-semibold truncate"
@@ -206,7 +239,7 @@ export default function ConsultTargetPicker({
                       className="text-xs mt-1 truncate"
                       style={{ color: subColor }}
                     >
-                      {subText}
+                      {isLeft ? (m.relation_status || '对方已退出') : subText}
                     </div>
                   </div>
                   {/*
@@ -214,7 +247,24 @@ export default function ConsultTargetPicker({
                     - 选中态：白底 + 蓝字「已选择」，置灰禁用、无点击反馈
                     - 未选中态：实心蓝底 + 白字「选择」，可点击切换
                   */}
-                  {isCurrent ? (
+                  {isLeft ? (
+                    <span
+                      data-testid="consult-target-left-tag"
+                      style={{
+                        flexShrink: 0,
+                        padding: '4px 10px',
+                        borderRadius: 12,
+                        background: '#E5E7EB',
+                        color: '#6B7280',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        userSelect: 'none',
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      对方已退出
+                    </span>
+                  ) : isCurrent ? (
                     <span
                       data-testid="consult-target-selected-btn"
                       style={{
