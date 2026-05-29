@@ -95,6 +95,12 @@ DEVICE_TYPE_AI_SCRIPT = {
 
 DEDUPE_WINDOW_SECONDS = 5 * 60  # 5 分钟
 
+# [BUGFIX HS-CALLBACK-DATATYPE 2026-05-29] 厂商回调 dataType 白名单分类
+# - ALERT_DATA_TYPES：走告警链路（新厂商的 new-call-msg + 老厂商兼容的 call-msg）
+# - IGNORED_DATA_TYPES：心跳/实时状态类报文，仅落流水，不视为失败
+ALERT_DATA_TYPES = {"new-call-msg", "call-msg"}
+IGNORED_DATA_TYPES = {"smb-real-time-msg"}
+
 # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 网关ID 收敛为 8 位（大写存储），紧急联系手机为中国大陆 11 位
 GATEWAY_ID_REGEX = re.compile(r"^[A-Z0-9]{8}$")
 # 旧字段名保留作为兼容别名，但语义已变更
@@ -248,7 +254,7 @@ class HomeSafetyCallbackLog(Base):
     request_body = Column(Text, nullable=True)
     parse_status = Column(String(32), nullable=False, default="pending")
     # pending（先写）/ ok / fail / duplicate / unbound / unsupported_type / missing_field
-    # / unknown_devtype / time_parse_fail / internal_error
+    # / unknown_devtype / time_parse_fail / internal_error / ignored（v3 心跳类）
     parse_fail_reason = Column(String(512), nullable=True)
     linked_alarm_id = Column(BigInteger().with_variant(Integer, "sqlite"), nullable=True)
     vendor_msg_id = Column(String(64), nullable=True, index=True)
@@ -259,6 +265,8 @@ class HomeSafetyCallbackLog(Base):
     response_status = Column(Integer, nullable=True)
     response_body = Column(Text, nullable=True)
     processed_at = Column(DateTime, nullable=True)
+    # [BUGFIX HS-CALLBACK-DATATYPE 2026-05-29] 厂商报文 dataType 原值（独立字段，便于筛选）
+    data_type = Column(String(64), nullable=True, index=True)
 
 
 class HomeSafetyAiCallLog(Base):
@@ -1055,9 +1063,11 @@ async def _log_callback(
     response_body: Optional[str] = None,
     processed_at: Optional[datetime] = None,
     device_sn: Optional[str] = None,
+    data_type: Optional[str] = None,
 ) -> Optional[int]:
     """[PRD-HOME-SAFETY-V2] 落库回调流水（含异常），独立提交避免事务回滚连带丢失日志。
     [BUGFIX HOME-SAFETY-V2-REVISION 2026-05-28] 返回插入的 log id 以支持"先写后改"模式。
+    [BUGFIX HS-CALLBACK-DATATYPE 2026-05-29] 新增 data_type 字段独立落库。
     """
     try:
         log = HomeSafetyCallbackLog(
@@ -1075,6 +1085,7 @@ async def _log_callback(
             response_body=response_body[:4000] if response_body else None,
             processed_at=processed_at,
             device_sn=device_sn[:32] if device_sn else None,
+            data_type=data_type[:64] if data_type else None,
         )
         db.add(log)
         await db.commit()
@@ -1100,8 +1111,11 @@ async def _update_callback_log(
     response_status: Optional[int] = None,
     response_body: Optional[str] = None,
     device_sn: Optional[str] = None,
+    data_type: Optional[str] = None,
 ) -> None:
-    """[BUGFIX V2-REVISION] 更新已落库的流水记录（先写 pending → 业务后 update）。"""
+    """[BUGFIX V2-REVISION] 更新已落库的流水记录（先写 pending → 业务后 update）。
+    [BUGFIX HS-CALLBACK-DATATYPE 2026-05-29] 新增 data_type 字段更新。
+    """
     try:
         log = (
             await db.execute(
@@ -1123,6 +1137,8 @@ async def _update_callback_log(
             log.response_body = response_body[:4000]
         if device_sn is not None:
             log.device_sn = device_sn[:32]
+        if data_type is not None and not log.data_type:
+            log.data_type = data_type[:64]
         log.processed_at = datetime.utcnow()
         await db.commit()
     except Exception as e:  # pragma: no cover
@@ -1192,6 +1208,7 @@ async def upstream_alarm_callback(
     final_alarm_id: Optional[int] = None
     final_vendor_msg_id: Optional[str] = None
     final_device_sn: Optional[str] = None
+    final_data_type: Optional[str] = None
     raised_exc: Optional[BaseException] = None
     response_status_code = 200
 
@@ -1236,7 +1253,22 @@ async def upstream_alarm_callback(
         vendor_msg_id = payload.get("msgId") or payload.get("vendor_msg_id")
         final_vendor_msg_id = vendor_msg_id
         data_type = payload.get("dataType")
+        final_data_type = str(data_type) if data_type is not None else None
         param = payload.get("param") if isinstance(payload.get("param"), dict) else {}
+
+        # ── [BUGFIX HS-CALLBACK-DATATYPE 2026-05-29] 心跳/实时状态类报文优先短路 ──
+        # smb-real-time-msg 等心跳类报文不走告警业务，直接标记 ignored，parse_fail_reason 留空，
+        # 避免污染"回调原始流水"的失败原因列。
+        if data_type in IGNORED_DATA_TYPES:
+            final_status = "ignored"
+            final_reason = None  # 心跳/已忽略类型，失败原因必须留空
+            response_payload = {
+                "code": 0,
+                "message": "ok",
+                "ignored": True,
+                "data_type": data_type,
+            }
+            return response_payload
 
         device_sn = (param.get("devId") if param else None) or payload.get("device_sn") or ""
         final_device_sn = device_sn or None
@@ -1303,10 +1335,12 @@ async def upstream_alarm_callback(
                 final_alarm_id = dup.id
                 return response_payload
 
-        # ── 异常场景 2：dataType 不支持 ──
-        if data_type and data_type != "call-msg":
+        # ── [BUGFIX HS-CALLBACK-DATATYPE 2026-05-29] dataType 白名单校验 ──
+        # ALERT_DATA_TYPES（{new-call-msg, call-msg}）走告警链路；
+        # 其它已传入的 dataType（且非已知忽略类型）视为未识别 → failed。
+        if data_type and data_type not in ALERT_DATA_TYPES:
             final_status = "unsupported_type"
-            final_reason = f"dataType={data_type}"
+            final_reason = f"未识别 dataType: {data_type}"
             return response_payload
 
         # ── 异常场景 3：devType 不在 {1,2,7} ──
@@ -1430,7 +1464,7 @@ async def upstream_alarm_callback(
                     gw_id=gw_id,
                     dev_name=dev_name,
                     call_type=call_type,
-                    data_type=data_type or "call-msg",
+                    data_type=data_type or "new-call-msg",
                     source_ip=source_ip,
                     device_emergency_phone=(b.emergency_phone or None),
                     notify_targets_json=notify_targets_json,
@@ -1497,6 +1531,7 @@ async def upstream_alarm_callback(
                     response_status=response_status_code,
                     response_body=resp_body_text,
                     device_sn=final_device_sn,
+                    data_type=final_data_type,
                 )
             except Exception as ue:  # pragma: no cover
                 logger.warning("[home_safety_v2] finally 更新流水失败: %s", ue)
@@ -2027,12 +2062,16 @@ async def admin_list_callback_log(
     device_sn: Optional[str] = None,
     source_ip: Optional[str] = None,
     keyword: Optional[str] = None,
+    data_type: Optional[str] = None,
     page: int = Query(default=1, ge=1),
     size: int = Query(default=20, ge=1, le=200),
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """[BUGFIX V2-REVISION] 回调原始记录列表查询，支持时间/状态/设备SN/来源IP/关键字/分页。"""
+    """[BUGFIX V2-REVISION] 回调原始记录列表查询，支持时间/状态/设备SN/来源IP/关键字/分页。
+    [BUGFIX HS-CALLBACK-DATATYPE 2026-05-29] 新增 data_type 筛选（new-call-msg / call-msg
+    / smb-real-time-msg / __other__ 其它）。
+    """
     q = select(HomeSafetyCallbackLog)
     cnt_q = select(func.count(HomeSafetyCallbackLog.id))
 
@@ -2059,6 +2098,19 @@ async def admin_list_callback_log(
         conds.append(HomeSafetyCallbackLog.source_ip == source_ip)
     if keyword:
         conds.append(HomeSafetyCallbackLog.request_body.like(f"%{keyword}%"))
+    # [BUGFIX HS-CALLBACK-DATATYPE 2026-05-29] data_type 筛选
+    if data_type and data_type != "all":
+        KNOWN_DATA_TYPES = {"new-call-msg", "call-msg", "smb-real-time-msg"}
+        if data_type == "__other__":
+            # 其它：既不在已知列表，也不为 NULL（保留原始未空但非已知的）
+            conds.append(
+                and_(
+                    HomeSafetyCallbackLog.data_type.is_not(None),
+                    HomeSafetyCallbackLog.data_type.notin_(list(KNOWN_DATA_TYPES)),
+                )
+            )
+        else:
+            conds.append(HomeSafetyCallbackLog.data_type == data_type)
 
     if conds:
         q = q.where(and_(*conds))
@@ -2087,6 +2139,8 @@ async def admin_list_callback_log(
                 "request_method": r.request_method,
                 "request_url": r.request_url,
                 "response_status": r.response_status,
+                # [BUGFIX HS-CALLBACK-DATATYPE 2026-05-29] 报文类型独立字段
+                "data_type": r.data_type,
             }
             for r in rows
         ],
@@ -2157,6 +2211,8 @@ async def admin_get_callback_log_detail(
         "linked_alarm_id": row.linked_alarm_id,
         "response_status": row.response_status,
         "response_body": row.response_body,
+        # [BUGFIX HS-CALLBACK-DATATYPE 2026-05-29] 报文类型独立字段
+        "data_type": row.data_type,
     }
 
 

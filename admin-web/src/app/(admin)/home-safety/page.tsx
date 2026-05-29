@@ -724,6 +724,8 @@ function CallbackConfigTab() {
 const PARSE_STATUS_OPTIONS = [
   { value: 'all', label: '全部' },
   { value: 'ok', label: '✅ 成功' },
+  // [BUGFIX HS-CALLBACK-DATATYPE 2026-05-29] 新增"已忽略"状态（心跳类报文）
+  { value: 'ignored', label: '⏸️ 已忽略' },
   { value: 'pending', label: '⏳ 处理中' },
   { value: 'duplicate', label: '🔁 重复' },
   { value: 'unbound', label: '🚫 未绑定' },
@@ -736,9 +738,20 @@ const PARSE_STATUS_OPTIONS = [
   { value: 'precheck', label: '🛠️ 自检' },
 ];
 
+// [BUGFIX HS-CALLBACK-DATATYPE 2026-05-29] 报文类型固定四选项 + 全部
+const DATA_TYPE_OPTIONS = [
+  { value: 'all', label: '全部报文类型' },
+  { value: 'new-call-msg', label: 'new-call-msg（新版告警）' },
+  { value: 'call-msg', label: 'call-msg（旧版告警）' },
+  { value: 'smb-real-time-msg', label: 'smb-real-time-msg（心跳）' },
+  { value: '__other__', label: '其它' },
+];
+
 function ParseStatusTag({ s }: { s: string }) {
   const map: Record<string, { color: string; text: string }> = {
-    ok: { color: 'success', text: '✅ ok' },
+    ok: { color: 'success', text: '✅ 成功' },
+    // [BUGFIX HS-CALLBACK-DATATYPE 2026-05-29] 已忽略徽标用灰色，与失败的红色徽标区分
+    ignored: { color: 'default', text: '⏸️ 已忽略' },
     pending: { color: 'processing', text: '⏳ pending' },
     duplicate: { color: 'cyan', text: '🔁 duplicate' },
     unbound: { color: 'gold', text: '🚫 unbound' },
@@ -763,6 +776,7 @@ function CallbackLogTab() {
 
   const [filters, setFilters] = useState<{
     parse_status: string;
+    data_type: string;
     device_sn: string;
     source_ip: string;
     keyword: string;
@@ -770,6 +784,7 @@ function CallbackLogTab() {
     end_at?: string;
   }>({
     parse_status: 'all',
+    data_type: 'all',
     device_sn: '',
     source_ip: '',
     keyword: '',
@@ -787,6 +802,7 @@ function CallbackLogTab() {
         params.set('page', String(p));
         params.set('size', String(s));
         if (f.parse_status && f.parse_status !== 'all') params.set('parse_status', f.parse_status);
+        if (f.data_type && f.data_type !== 'all') params.set('data_type', f.data_type);
         if (f.device_sn) params.set('device_sn', f.device_sn);
         if (f.source_ip) params.set('source_ip', f.source_ip);
         if (f.keyword) params.set('keyword', f.keyword);
@@ -846,8 +862,11 @@ function CallbackLogTab() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="本页展示厂商云端推送给我方的所有原始回调流水，包括解析成功、重复、未绑定、字段缺失、不支持类型等全部场景，便于审计是否有回调以及回调内容是否正确。"
+        message="本页展示厂商云端推送给我方的所有原始回调流水，包括解析成功、重复、未绑定、字段缺失、不支持类型等全部场景，便于审计是否有回调以及回调内容是否正确。心跳/实时状态报文（如 smb-real-time-msg）会被标记为「已忽略」并以浅灰底色区分。"
       />
+
+      {/* [BUGFIX HS-CALLBACK-DATATYPE 2026-05-29] ignored 行底色浅灰，与失败行视觉区分 */}
+      <style>{`.hs-callback-row-ignored td { background: #f5f5f5 !important; color: #888; }`}</style>
 
       {/* 筛选区 */}
       <Space wrap style={{ marginBottom: 16 }}>
@@ -856,6 +875,13 @@ function CallbackLogTab() {
           value={filters.parse_status}
           options={PARSE_STATUS_OPTIONS}
           onChange={(v) => setFilters({ ...filters, parse_status: v })}
+        />
+        {/* [BUGFIX HS-CALLBACK-DATATYPE 2026-05-29] 报文类型筛选 */}
+        <Select
+          style={{ width: 240 }}
+          value={filters.data_type}
+          options={DATA_TYPE_OPTIONS}
+          onChange={(v) => setFilters({ ...filters, data_type: v })}
         />
         <Input
           placeholder="设备 SN（模糊）"
@@ -883,7 +909,13 @@ function CallbackLogTab() {
         </Button>
         <Button
           onClick={() => {
-            const f = { parse_status: 'all', device_sn: '', source_ip: '', keyword: '' };
+            const f = {
+              parse_status: 'all',
+              data_type: 'all',
+              device_sn: '',
+              source_ip: '',
+              keyword: '',
+            };
             setFilters(f);
             setPage(1);
             load(1, size, f);
@@ -909,6 +941,9 @@ function CallbackLogTab() {
             load(p, s, filters);
           },
         }}
+        rowClassName={(record: any) =>
+          record?.parse_status === 'ignored' ? 'hs-callback-row-ignored' : ''
+        }
         columns={[
           { title: 'ID', dataIndex: 'id', width: 80 },
           {
@@ -916,6 +951,22 @@ function CallbackLogTab() {
             dataIndex: 'received_at',
             width: 180,
             render: (v: string) => formatDateTime(v),
+          },
+          // [BUGFIX HS-CALLBACK-DATATYPE 2026-05-29] 新增"报文类型"列，紧跟接收时间之后
+          {
+            title: '报文类型',
+            dataIndex: 'data_type',
+            width: 180,
+            render: (v: string) => (
+              <span
+                style={{
+                  fontFamily: 'Menlo, Consolas, monospace',
+                  color: v ? undefined : '#999',
+                }}
+              >
+                {v || '-'}
+              </span>
+            ),
           },
           { title: '来源 IP', dataIndex: 'source_ip', width: 140 },
           {
@@ -936,7 +987,12 @@ function CallbackLogTab() {
             title: '失败原因',
             dataIndex: 'parse_fail_reason',
             ellipsis: true,
-            render: (v) => v || '-',
+            // [BUGFIX HS-CALLBACK-DATATYPE 2026-05-29]
+            // ignored（心跳）行的失败原因严格留空，不显示任何文本
+            render: (v: string, r: any) => {
+              if (r?.parse_status === 'ignored') return '';
+              return v || '-';
+            },
           },
           {
             title: '响应',

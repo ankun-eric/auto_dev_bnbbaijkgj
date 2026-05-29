@@ -3651,6 +3651,17 @@ async def _sync_home_safety_v2(conn: AsyncConnection) -> None:
             await conn.execute(text("ALTER TABLE home_safety_callback_log ADD COLUMN processed_at DATETIME NULL"))
         if "device_sn" not in log_cols:
             await conn.execute(text("ALTER TABLE home_safety_callback_log ADD COLUMN device_sn VARCHAR(128) NULL"))
+        # [BUGFIX HS-CALLBACK-DATATYPE 2026-05-29] 新增 data_type 列 + 普通索引
+        if "data_type" not in log_cols:
+            await conn.execute(text(
+                "ALTER TABLE home_safety_callback_log ADD COLUMN data_type VARCHAR(64) NULL"
+            ))
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE home_safety_callback_log ADD INDEX idx_hsl_data_type (data_type)"
+                ))
+            except Exception:
+                pass
 
 
 async def sync_register_schema(conn: AsyncConnection) -> None:

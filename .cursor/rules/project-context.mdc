@@ -5,6 +5,49 @@ alwaysApply: false
 
 # Project Context
 
+## 最近一次变更（2026-05-29 · Bug 修复 / 紧急呼叫器厂商回调 dataType 升级兼容 + 回调原始流水"失败原因"治理）
+
+**Bug 标识**：`[BUGFIX HS-CALLBACK-DATATYPE 2026-05-29]`
+
+**问题现象**：
+1. **核心业务事故**：厂商将回调报文 `dataType` 由旧值 `call-msg` 升级为 `new-call-msg`，旧后端只识别 `call-msg`，**新版告警报文进入后端后无法识别，未触发任何告警业务流程**。
+2. **运维体验事故**：厂商同时持续推送 `smb-real-time-msg` 心跳/实时状态报文，旧后端一刀切标记为"解析失败"，污染管理后台「回调原始流水」失败原因列，**真实业务失败被淹没在心跳噪声里**。
+
+**修复内容（后端 + 管理后台 Web 两端）**：
+
+- 修改：`backend/app/api/home_safety_v1.py` ——
+  - 新增 `ALERT_DATA_TYPES = {"new-call-msg", "call-msg"}` 与 `IGNORED_DATA_TYPES = {"smb-real-time-msg"}` 两个白名单常量
+  - `HomeSafetyCallbackLog` ORM 模型新增 `data_type VARCHAR(64)` 字段 + 索引
+  - `_log_callback` / `_update_callback_log` 新增 `data_type` 参数
+  - `upstream_alarm_callback` 入口：心跳类报文优先短路 → `parse_status=ignored`、`parse_fail_reason=None`；其它未识别 dataType → `parse_status=unsupported_type`、原因含"未识别 dataType"；告警类（new-call-msg / call-msg）走原有告警链路
+  - `HomeSafetyAlarm.data_type` 默认值由 `"call-msg"` 改为 `"new-call-msg"`
+  - `admin_list_callback_log` 列表 API 新增 `data_type` 查询参数（支持 4 个固定选项 + `__other__`）和返回字段
+  - `admin_get_callback_log_detail` 详情 API 新增 `data_type` 返回字段
+- 修改：`backend/app/services/schema_sync.py` —— 在 `_sync_home_safety_v2` 中增加 `home_safety_callback_log.data_type` 列的幂等 `ALTER ADD COLUMN` 与索引（历史数据不回刷）
+- 新增：`backend/tests/test_home_safety_callback_datatype_v1.py` —— 7 个 TC-CALLBACK-DT 用例（新版告警、旧版兼容、心跳忽略、未知类型、data_type 筛选、alertState/voltageState 不入业务、详情返回 data_type）
+- 修改：`admin-web/src/app/(admin)/home-safety/page.tsx` ——
+  - 新增「报文类型」列（紧跟"接收时间"之后），等宽字体展示 dataType 原值
+  - 新增「报文类型」筛选下拉框（5 选项：全部 / new-call-msg / call-msg / smb-real-time-msg / 其它）
+  - 解析状态新增 `⏸️ 已忽略`（灰色徽标）选项；ignored 行底色用浅灰 `#f5f5f5`
+  - 失败原因列在 ignored 行严格留空
+- 新增：`_deploy_callback_datatype_fix.py`、`_run_callback_datatype_tests.py`、`_run_regression_tests.py`、`_rebuild_admin_image.py` 等部署与验证脚本
+- 新增：`user_docs/厂商回调dataType兼容与流水失败原因治理_用户体验手册.md`
+
+**决策共识（7 项）**：
+1. `devType` 字段语义不变（仍为 1=紧急呼叫器/2=烟雾/7=水位）
+2. `dataType` 同时认 new-call-msg + call-msg
+3. 心跳标 ignored + 新增独立 data_type 字段 + 失败原因仅记真实失败
+4. `alertState/voltageState` 不入库、不参与业务，仅保留在 raw_body
+5. 管理后台 data_type 列置于最左侧（紧跟接收时间）
+6. dataType 筛选固定 4 选项
+7. 历史数据不回刷
+
+**测试结果**：服务器容器内 pytest 跑 `test_home_safety_v1.py + test_home_safety_v2.py + test_home_safety_v2_revision.py + test_home_safety_gwid_ephone_v1.py + test_home_safety_callback_schema_sync_v1.py + test_home_safety_callback_datatype_v1.py` 共 **83 passed, 0 failed**（新增 7 + 既有回归 76）。
+
+部署：HTTPS 入口 `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/home-safety` 返回 200，后端 `/api/health` 200，admin-web 镜像通过 `docker compose build admin-web` 重建（121.5s）并热重启。
+
+---
+
 ## 最近一次变更（2026-05-29 · 新功能 / 健康档案管理优化 · 资产语境改名 v1）
 
 **PRD 标识**：`[PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29]`
