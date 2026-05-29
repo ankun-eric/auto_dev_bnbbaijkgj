@@ -21,7 +21,7 @@ async def test_v2_vendor_payload_field_mapping(client: AsyncClient, auth_headers
     # 先绑定设备
     await client.post(
         "/api/home_safety/devices/bind",
-        json={"device_type": 1, "gateway_sn": "GW123456", "emergency_phone": "13800001234", "device_sn": "00084bd7"},
+        json={"device_type": 1, "gateway_sn": "GW123456", "emergency_phone": "13800001234", "remark": "测试备注", "device_sn": "00084bd7"},
         headers=auth_headers,
     )
     # 发送厂商真实报文
@@ -71,7 +71,7 @@ async def test_v2_idempotent_by_vendor_msg_id(client: AsyncClient, auth_headers)
     """[F9] msgId 重复推送 → 直接返回 200，不重复落库"""
     await client.post(
         "/api/home_safety/devices/bind",
-        json={"device_type": 2, "gateway_sn": "GWIDEMP1", "emergency_phone": "13800001234", "device_sn": "IDEMP001"},
+        json={"device_type": 2, "gateway_sn": "GWIDEMP1", "emergency_phone": "13800001234", "remark": "测试备注", "device_sn": "IDEMP001"},
         headers=auth_headers,
     )
     payload = {
@@ -150,7 +150,7 @@ async def test_v2_compat_flat_payload(client: AsyncClient, auth_headers):
     """v1 旧契约（扁平字段）仍能正确处理"""
     await client.post(
         "/api/home_safety/devices/bind",
-        json={"device_type": 7, "gateway_sn": "GWCOMPT1", "emergency_phone": "13800001234", "device_sn": "COMPAT01"},
+        json={"device_type": 7, "gateway_sn": "GWCOMPT1", "emergency_phone": "13800001234", "remark": "测试备注", "device_sn": "COMPAT01"},
         headers=auth_headers,
     )
     r = await client.post(
@@ -327,7 +327,7 @@ async def test_v2_backward_compat_two_callback_paths(client: AsyncClient, auth_h
     """[兼容性] /api/home_safety/callback/alarm 和 /callback/home_safety/alarm 均可用"""
     await client.post(
         "/api/home_safety/devices/bind",
-        json={"device_type": 1, "gateway_sn": "GWBC1000", "emergency_phone": "13800001234", "device_sn": "BCPATH01"},
+        json={"device_type": 1, "gateway_sn": "GWBC1000", "emergency_phone": "13800001234", "remark": "测试备注", "device_sn": "BCPATH01"},
         headers=auth_headers,
     )
     # 路径 A

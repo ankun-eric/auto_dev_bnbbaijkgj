@@ -5,6 +5,36 @@ alwaysApply: false
 
 # Project Context
 
+## 最近一次变更（2026-05-29 · Bug 修复 / 居家安全设备 — 成员 Tab 复用 + 报警记录入口 + 设备备注字段）
+
+**Bug 标识**：`[BUGFIX HS-MEMBER-TABS-ALARMS-REMARK 2026-05-29]`
+
+**问题现象**：
+1. H5 `/home-safety` 的成员 Tab 是独立实现，与健康档案不一致；
+2. H5 `/home-safety` 页面没有"报警记录"入口，无法在 H5 查看报警历史；
+3. 设备绑定缺少"备注"字段，老/新设备难以辨认。
+
+**修复内容（H5 + 后端 + 管理后台 + DB）**：
+
+- 新增 H5 公共组件：`h5-web/src/components/family/FamilyMemberTabs.tsx`（统一数据源 `/api/family/members`），居家安全页已引用，健康档案保持兼容。
+- 新增 H5 组件：`h5-web/src/app/home-safety/components/AlarmList.tsx`（按成员、彩色 Tag、相对时间、外呼通知脱敏号、SN、空状态、分页加载）。
+- 改造 `h5-web/src/app/home-safety/page.tsx`：成员 Tab 下方新增「设备列表 / 报警记录」一级 Tab；绑定表单新增"设备备注"必填（≤20 字、placeholder「如：爸爸家」、字数计数、按钮置灰、纯空格不允许）；老设备卡片显示"未命名" + 「✎ 编辑备注」按钮 + 编辑弹窗调用新接口。
+- 后端 `backend/app/api/home_safety_v1.py`：
+  - `HomeSafetyDeviceBinding` 新增 `remark VARCHAR(64)`；
+  - `BindDeviceReq` 增 `remark`（必填，1~20 字、`_validate_remark` 校验，失败返回 `40001`）；
+  - 新增 `PATCH /api/home_safety/devices/{binding_id}/remark`（`UpdateDeviceRemarkReq`）；
+  - `list_my_devices` / `list_my_alarms` 响应增加 `remark` / `device_remark` / `member_name` / `notify_phone_mask` / `notify_status` 等，并补全 `total / page / size`；
+  - `GET /api/home_safety/members` 标记 `deprecated=True` + `replaced_by: /api/family/members`。
+- Schema 同步：`backend/app/services/schema_sync.py` `_sync_home_safety_v2` 中幂等 `ALTER TABLE home_safety_device_binding ADD COLUMN remark VARCHAR(64) NULL`。
+- 管理后台：`admin-web/src/app/(admin)/home-safety/page.tsx` 「设备绑定」/「告警记录」Tab 新增"备注"/"设备备注"列（140px、Tooltip、未命名灰字）。
+- 测试：
+  - 新增 `backend/tests/test_home_safety_remark_alarms_v1_20260529.py`（13 用例：remark 校验、PATCH 备注、列表字段、deprecated 接口、admin 字段）；
+  - 既有 home_safety 全套回归 + 新用例 **95 passed**（容器内通过 `python -m pytest`）。
+- 部署：远程容器更新 `home_safety_v1.py` / `schema_sync.py` / 测试文件 + H5/admin-web docker compose 重建；HTTPS 入口 `/api/health` / `/home-safety/` / `/admin/home-safety/` 均 200。
+- 用户手册：`user_docs/居家安全设备-成员Tab与报警记录.md`
+
+---
+
 ## 最近一次变更（2026-05-29 · 新功能 / 居家安全设备管理优化 v2.1 · 按家庭成员隔离 + 彩色 Tag + 历史迁移）
 
 **PRD 标识**：`[PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29]`

@@ -3686,6 +3686,11 @@ async def _sync_home_safety_v2(conn: AsyncConnection) -> None:
             await conn.execute(text(
                 "ALTER TABLE home_safety_device_binding ADD COLUMN migrated_to_self TINYINT(1) NOT NULL DEFAULT 0"
             ))
+        # [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] 设备备注名
+        if "remark" not in bind_cols_v3:
+            await conn.execute(text(
+                "ALTER TABLE home_safety_device_binding ADD COLUMN remark VARCHAR(64) DEFAULT NULL COMMENT '设备备注名，≤20字，如「爸爸家」'"
+            ))
 
     def _load_alarm_cols_v3(sync_conn):
         inspector = inspect(sync_conn)

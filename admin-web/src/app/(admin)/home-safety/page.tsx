@@ -183,6 +183,21 @@ function BindingsTab() {
       render: (v: string, r: any) => v || r.gateway_sn || '-',
     },
     { title: '设备 SN', dataIndex: 'device_sn', width: 120 },
+    // [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] 新增备注列
+    {
+      title: '备注',
+      dataIndex: 'remark',
+      width: 140,
+      ellipsis: true,
+      render: (v: string) =>
+        v ? (
+          <Tooltip title={v}>
+            <span>{v}</span>
+          </Tooltip>
+        ) : (
+          <Tag color="default">未命名</Tag>
+        ),
+    },
     { title: '绑定用户', dataIndex: 'user_id', width: 100 },
     // [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 归属成员列
     {
@@ -305,6 +320,21 @@ function AlarmsTab() {
         columns={[
           { title: '报警 ID', dataIndex: 'id', width: 80 },
           { title: '设备 SN', dataIndex: 'device_sn', width: 120 },
+          // [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] 新增设备备注列
+          {
+            title: '设备备注',
+            dataIndex: 'device_remark',
+            width: 140,
+            ellipsis: true,
+            render: (v: string) =>
+              v ? (
+                <Tooltip title={v}>
+                  <span>{v}</span>
+                </Tooltip>
+              ) : (
+                <Tag color="default">未命名</Tag>
+              ),
+          },
           {
             title: '设备类型',
             dataIndex: 'device_type',

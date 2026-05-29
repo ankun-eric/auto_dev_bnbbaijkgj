@@ -142,6 +142,8 @@ class HomeSafetyDeviceBinding(Base):
     member_id = Column(Integer, nullable=True, index=True)
     # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 是否由迁移脚本自动归属"本人"
     migrated_to_self = Column(Boolean, nullable=False, default=False)
+    # [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] 设备备注名（≤20 字，新设备必填，老设备可空）
+    remark = Column(String(64), nullable=True)
     bound_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     unbound_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -301,6 +303,8 @@ class BindDeviceReq(BaseModel):
     emergency_phone: Optional[str] = Field(default=None, description="11 位中国大陆紧急联系手机号")
     # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 归属家庭成员 ID（可选，兼容期可不传，默认回落本人）
     member_id: Optional[int] = Field(default=None, description="设备归属家庭成员 ID")
+    # [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] 设备备注名（新设备必填，≤20 字）
+    remark: Optional[str] = Field(default=None, description="设备备注名，≤20 字，如「爸爸家」")
 
     class Config:
         extra = "allow"
@@ -309,6 +313,11 @@ class BindDeviceReq(BaseModel):
 class TransferDeviceReq(BaseModel):
     """[PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 调整设备归属请求体"""
     member_id: int = Field(..., description="新归属家庭成员 ID")
+
+
+class UpdateDeviceRemarkReq(BaseModel):
+    """[BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] 单独修改设备备注"""
+    remark: str = Field(..., description="设备备注名，≤20 字，不允许仅空白")
 
 
 class UpdateEmergencyPhoneReq(BaseModel):
@@ -406,6 +415,29 @@ def _mask_phone(p: Optional[str]) -> str:
     if len(s) != 11:
         return s
     return s[:3] + "****" + s[-4:]
+
+
+def _validate_remark(raw: Optional[str], *, required: bool = True) -> str:
+    """[BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] 校验设备备注名。
+    - trim 后长度 1~20
+    - 不允许仅空白
+    - required=False 时允许为空（仅 PATCH 接口的少数场景；本期仍要求必填）
+    返回 trim 后的备注字符串。
+    """
+    s = (str(raw) if raw is not None else "").strip()
+    if not s:
+        if required:
+            raise HTTPException(
+                400,
+                "remark_required:设备备注不能为空，且长度不超过 20 字",
+            )
+        return ""
+    if len(s) > 20:
+        raise HTTPException(
+            400,
+            "remark_too_long:设备备注不超过 20 字",
+        )
+    return s
 
 
 async def _get_primary_guardian(db: AsyncSession, user_id: int) -> Optional[int]:
@@ -810,6 +842,8 @@ async def list_my_devices(
                 # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 归属信息
                 "member_id": getattr(b, "member_id", None),
                 "migrated_to_self": bool(getattr(b, "migrated_to_self", False)),
+                # [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] 备注名
+                "remark": getattr(b, "remark", None),
             }
         )
     return {
@@ -829,17 +863,26 @@ async def list_my_devices(
     }
 
 
-@router.get(USER_PREFIX + "/members")
+@router.get(USER_PREFIX + "/members", deprecated=True)
 async def list_my_members_for_home_safety(
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """[PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 居家安全顶部成员 Tab 数据来源。
-    优先确保"本人"成员存在。
+    """[DEPRECATED 2026-05-29] 该接口将于 30 天后下线，前端请改用 /api/family/members。
+
+    [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 居家安全顶部成员 Tab 数据来源。
+    [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] 过渡期内继续返回与 /api/family/members
+    一致的成员列表，并在响应增加 `deprecated`/`replaced_by` 标记。
     """
     await _ensure_self_member(db, current_user.id)
     items = await _list_user_members(db, current_user.id)
-    return {"items": items, "total": len(items)}
+    return {
+        "items": items,
+        "total": len(items),
+        "deprecated": True,
+        "replaced_by": "/api/family/members",
+        "deprecation_note": "此接口将于 30 天后下线，请改用 /api/family/members",
+    }
 
 
 @router.post(USER_PREFIX + "/devices/bind")
@@ -857,6 +900,8 @@ async def bind_device(
     _validate_sn(gw_id, dev_sn)
     # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 紧急联系手机必填
     ephone = _validate_emergency_phone(req.emergency_phone, required=True)
+    # [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] 设备备注必填
+    remark_value = _validate_remark(req.remark, required=True)
 
     # 同一用户同一 device_sn 不可重复有效绑定
     exists = (
@@ -884,6 +929,7 @@ async def bind_device(
         emergency_phone=ephone,
         member_id=member_id_resolved,
         migrated_to_self=False,
+        remark=remark_value,
         bound_at=datetime.utcnow(),
     )
     db.add(binding)
@@ -897,6 +943,7 @@ async def bind_device(
         "gateway_id": binding.gateway_sn,
         "emergency_phone": binding.emergency_phone,
         "member_id": binding.member_id,
+        "remark": binding.remark,
     }
 
 
@@ -927,6 +974,36 @@ async def transfer_device_member(
     b.migrated_to_self = False
     await db.commit()
     return {"success": True, "id": b.id, "member_id": b.member_id}
+
+
+# [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] 单独修改设备备注接口
+@router.patch(USER_PREFIX + "/devices/{binding_id}/remark")
+async def update_device_remark(
+    binding_id: int,
+    req: UpdateDeviceRemarkReq,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] 单独修改设备备注。
+    - 鉴权：仅设备绑定者本人
+    - 校验：备注 trim 后长度 1~20
+    - 与 transfer 接口独立，便于审计与权限分离
+    """
+    b = (
+        await db.execute(
+            select(HomeSafetyDeviceBinding).where(
+                HomeSafetyDeviceBinding.id == binding_id,
+                HomeSafetyDeviceBinding.user_id == current_user.id,
+                HomeSafetyDeviceBinding.status.in_([1, 2]),
+            )
+        )
+    ).scalar_one_or_none()
+    if not b:
+        raise HTTPException(404, "设备不存在或已解绑")
+    new_remark = _validate_remark(req.remark, required=True)
+    b.remark = new_remark
+    await db.commit()
+    return {"success": True, "id": b.id, "remark": b.remark}
 
 
 @router.post(USER_PREFIX + "/devices/{binding_id}/unbind")
@@ -1064,9 +1141,11 @@ async def list_my_alarms(
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    q = select(HomeSafetyAlarm).where(HomeSafetyAlarm.user_id == current_user.id)
+    base = select(HomeSafetyAlarm).where(HomeSafetyAlarm.user_id == current_user.id)
+    total_q = select(func.count(HomeSafetyAlarm.id)).where(HomeSafetyAlarm.user_id == current_user.id)
     if device_type is not None:
-        q = q.where(HomeSafetyAlarm.device_type == device_type)
+        base = base.where(HomeSafetyAlarm.device_type == device_type)
+        total_q = total_q.where(HomeSafetyAlarm.device_type == device_type)
     # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 按成员过滤：本人 Tab 兼容 member_id IS NULL
     if member_id is not None:
         target_mid = await _resolve_member_id(db, current_user.id, member_id)
@@ -1083,18 +1162,86 @@ async def list_my_alarms(
         except Exception:
             self_id = None
         if self_id is not None and target_mid == self_id:
-            q = q.where(or_(HomeSafetyAlarm.member_id == target_mid, HomeSafetyAlarm.member_id.is_(None)))
+            cond = or_(HomeSafetyAlarm.member_id == target_mid, HomeSafetyAlarm.member_id.is_(None))
         else:
-            q = q.where(HomeSafetyAlarm.member_id == target_mid)
-    q = q.order_by(desc(HomeSafetyAlarm.alarm_at)).limit(size).offset((page - 1) * size)
+            cond = HomeSafetyAlarm.member_id == target_mid
+        base = base.where(cond)
+        total_q = total_q.where(cond)
+
+    # [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] 分页 total
+    try:
+        total = int((await db.execute(total_q)).scalar() or 0)
+    except Exception:
+        total = 0
+
+    q = base.order_by(desc(HomeSafetyAlarm.alarm_at)).limit(size).offset((page - 1) * size)
     rows = (await db.execute(q)).scalars().all()
-    return {
-        "items": [
+
+    # [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] 批量关联设备备注 + 成员名
+    device_sn_set = {a.device_sn for a in rows if a.device_sn}
+    remark_by_sn: Dict[str, str] = {}
+    if device_sn_set:
+        try:
+            brows = (
+                await db.execute(
+                    select(HomeSafetyDeviceBinding).where(
+                        HomeSafetyDeviceBinding.user_id == current_user.id,
+                        HomeSafetyDeviceBinding.device_sn.in_(list(device_sn_set)),
+                    )
+                )
+            ).scalars().all()
+            for bd in brows:
+                if bd.device_sn:
+                    # 同一 device_sn 多条以最近绑定为准
+                    if bd.device_sn not in remark_by_sn or (bd.status == 1):
+                        remark_by_sn[bd.device_sn] = getattr(bd, "remark", None) or ""
+        except Exception:
+            pass
+
+    member_id_set: set = {int(a.member_id) for a in rows if getattr(a, "member_id", None)}
+    member_name_map: Dict[int, str] = {}
+    if member_id_set:
+        try:
+            from app.models.models import FamilyMember as _FM  # type: ignore
+            mrows = (
+                await db.execute(
+                    select(_FM).where(_FM.id.in_(list(member_id_set)))
+                )
+            ).scalars().all()
+            for m in mrows:
+                member_name_map[int(m.id)] = (
+                    "本人"
+                    if bool(getattr(m, "is_self", False))
+                    else (
+                        getattr(m, "nickname", None)
+                        or getattr(m, "relationship_type", None)
+                        or f"成员{m.id}"
+                    )
+                )
+        except Exception:
+            pass
+
+    items = []
+    for a in rows:
+        mid = getattr(a, "member_id", None)
+        # [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] notify_phone_mask 优先取设备级紧急联系手机
+        device_phone = getattr(a, "device_emergency_phone", None) or ""
+        notify_status_raw = getattr(a, "notify_ai_call_status", "failed") or "failed"
+        # 兼容多种状态：sent/ok/success → 视为已通知
+        notify_ok = notify_status_raw in ("sent", "ok", "success")
+        items.append(
             {
                 "id": a.id,
                 "device_type": a.device_type,
                 "device_type_label": _device_label(a.device_type),
                 "device_sn": a.device_sn,
+                # [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] 新字段
+                "device_remark": remark_by_sn.get(a.device_sn or "", "") or None,
+                "member_id": mid,
+                "member_name": member_name_map.get(int(mid)) if mid else None,
+                "notify_phone_mask": _mask_phone(device_phone) if device_phone else None,
+                "notify_status": "sent" if notify_ok else (notify_status_raw or "none"),
+                "notify_ai_call_status": notify_status_raw,
                 "alarm_at": (a.alarm_at.isoformat() + "Z") if a.alarm_at else None,
                 "dedupe_count": a.dedupe_count,
                 "read_status": a.read_status,
@@ -1102,8 +1249,12 @@ async def list_my_alarms(
                 "handle_note": a.handle_note,
                 "notify_ai_call": a.notify_ai_call,
             }
-            for a in rows
-        ]
+        )
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "size": size,
     }
 
 
@@ -1869,6 +2020,8 @@ async def admin_list_bindings(
                 "member_id": getattr(b, "member_id", None),
                 "member_name": member_name_map.get(int(getattr(b, "member_id", 0) or 0)) if getattr(b, "member_id", None) else None,
                 "migrated_to_self": bool(getattr(b, "migrated_to_self", False)),
+                # [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] 设备备注
+                "remark": getattr(b, "remark", None),
             }
             for b in rows
         ]
@@ -2081,6 +2234,26 @@ async def admin_list_alarms(
         q = q.where(HomeSafetyAlarm.user_id == user_id)
     q = q.order_by(desc(HomeSafetyAlarm.alarm_at)).limit(size).offset((page - 1) * size)
     rows = (await db.execute(q)).scalars().all()
+
+    # [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] 批量关联设备备注（管理后台告警记录"设备备注"列）
+    device_sn_set = {a.device_sn for a in rows if a.device_sn}
+    remark_by_sn: Dict[str, str] = {}
+    if device_sn_set:
+        try:
+            brows = (
+                await db.execute(
+                    select(HomeSafetyDeviceBinding).where(
+                        HomeSafetyDeviceBinding.device_sn.in_(list(device_sn_set))
+                    )
+                )
+            ).scalars().all()
+            for bd in brows:
+                if bd.device_sn:
+                    if bd.device_sn not in remark_by_sn or bd.status == 1:
+                        remark_by_sn[bd.device_sn] = getattr(bd, "remark", None) or ""
+        except Exception:
+            pass
+
     return {
         "items": [
             {
@@ -2089,6 +2262,8 @@ async def admin_list_alarms(
                 "device_type": a.device_type,
                 "device_type_label": _device_label(a.device_type),
                 "device_sn": a.device_sn,
+                # [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] 设备备注（无备注返回 None）
+                "device_remark": remark_by_sn.get(a.device_sn or "", "") or None,
                 "alarm_at": (a.alarm_at.isoformat() + "Z") if a.alarm_at else None,
                 "received_at": (a.received_at.isoformat() + "Z") if a.received_at else None,
                 "dedupe_count": a.dedupe_count,

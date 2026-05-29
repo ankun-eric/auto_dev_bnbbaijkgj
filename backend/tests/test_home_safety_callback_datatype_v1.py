@@ -25,7 +25,7 @@ async def test_callback_new_call_msg_treated_as_alert(client: AsyncClient, auth_
         json={
             "device_type": 1,
             "gateway_sn": "GWNEW001",
-            "emergency_phone": "13800001234",
+            "emergency_phone": "13800001234", "remark": "测试备注",
             "device_sn": "NEWCM001",
         },
         headers=auth_headers,
@@ -73,7 +73,7 @@ async def test_callback_legacy_call_msg_still_supported(client: AsyncClient, aut
         json={
             "device_type": 1,
             "gateway_sn": "GWOLD001",
-            "emergency_phone": "13800001234",
+            "emergency_phone": "13800001234", "remark": "测试备注",
             "device_sn": "OLDCM001",
         },
         headers=auth_headers,
@@ -165,7 +165,7 @@ async def test_callback_log_list_supports_data_type_filter(client: AsyncClient, 
         json={
             "device_type": 1,
             "gateway_sn": "GWFLT001",
-            "emergency_phone": "13800001234",
+            "emergency_phone": "13800001234", "remark": "测试备注",
             "device_sn": "FLTDEV01",
         },
         headers=auth_headers,
@@ -226,7 +226,7 @@ async def test_callback_alertstate_voltagestate_not_in_business(client: AsyncCli
         json={
             "device_type": 1,
             "gateway_sn": "GWAVS001",
-            "emergency_phone": "13800001234",
+            "emergency_phone": "13800001234", "remark": "测试备注",
             "device_sn": "AVSDEV01",
         },
         headers=auth_headers,

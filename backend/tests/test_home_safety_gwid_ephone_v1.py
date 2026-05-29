@@ -32,7 +32,7 @@ async def test_gateway_id_must_be_8_chars(client: AsyncClient, auth_headers):
     # 7 位 → 400
     rsp = await client.post(
         "/api/home_safety/devices/bind",
-        json={"device_type": 1, "gateway_id": "ABC1234", "device_sn": "DEVSHORT", "emergency_phone": "13800001234"},
+        json={"device_type": 1, "gateway_id": "ABC1234", "device_sn": "DEVSHORT", "emergency_phone": "13800001234",  "remark": "测试备注",},
         headers=auth_headers,
     )
     assert rsp.status_code == 400
@@ -41,7 +41,7 @@ async def test_gateway_id_must_be_8_chars(client: AsyncClient, auth_headers):
     # 12 位 → 400（按新规则不再接受 12 位写入）
     rsp = await client.post(
         "/api/home_safety/devices/bind",
-        json={"device_type": 1, "gateway_id": "ABCD12345678", "device_sn": "DEVLONG1", "emergency_phone": "13800001234"},
+        json={"device_type": 1, "gateway_id": "ABCD12345678", "device_sn": "DEVLONG1", "emergency_phone": "13800001234",  "remark": "测试备注",},
         headers=auth_headers,
     )
     assert rsp.status_code == 400
@@ -53,7 +53,7 @@ async def test_gateway_id_case_insensitive_stored_upper(client: AsyncClient, aut
     rsp = await _bind(
         client,
         auth_headers,
-        {"device_type": 1, "gateway_id": "abcd1234", "device_sn": "DEVUPPER", "emergency_phone": "13800001234"},
+        {"device_type": 1, "gateway_id": "abcd1234", "device_sn": "DEVUPPER", "emergency_phone": "13800001234",  "remark": "测试备注",},
     )
     assert rsp.json()["gateway_id"] == "ABCD1234"
 
@@ -69,7 +69,7 @@ async def test_gateway_id_alias_gateway_sn(client: AsyncClient, auth_headers):
     rsp = await _bind(
         client,
         auth_headers,
-        {"device_type": 2, "gateway_sn": "GW8DIGI1", "device_sn": "DEVALIAS", "emergency_phone": "13800001234"},
+        {"device_type": 2, "gateway_sn": "GW8DIGI1", "device_sn": "DEVALIAS", "emergency_phone": "13800001234",  "remark": "测试备注",},
     )
     assert rsp.json()["gateway_id"] == "GW8DIGI1"
 
@@ -94,7 +94,7 @@ async def test_emergency_phone_format(client: AsyncClient, auth_headers):
             "device_type": 1,
             "gateway_id": "FORMAT01",
             "device_sn": "DEVPFMT1",
-            "emergency_phone": "12345678901",
+            "emergency_phone": "12345678901", "remark": "测试备注",
         },
         headers=auth_headers,
     )
@@ -120,7 +120,7 @@ async def test_update_emergency_phone_no_sms_required(client: AsyncClient, auth_
     rsp = await _bind(
         client,
         auth_headers,
-        {"device_type": 1, "gateway_id": "UPDPH001", "device_sn": "UPDPDEV1", "emergency_phone": "13800001234"},
+        {"device_type": 1, "gateway_id": "UPDPH001", "device_sn": "UPDPDEV1", "emergency_phone": "13800001234",  "remark": "测试备注",},
     )
     binding_id = rsp.json()["id"]
 
@@ -145,7 +145,7 @@ async def test_update_emergency_phone_invalid_format(client: AsyncClient, auth_h
     rsp = await _bind(
         client,
         auth_headers,
-        {"device_type": 1, "gateway_id": "BADUP001", "device_sn": "BADPDEV1", "emergency_phone": "13800001234"},
+        {"device_type": 1, "gateway_id": "BADUP001", "device_sn": "BADPDEV1", "emergency_phone": "13800001234",  "remark": "测试备注",},
     )
     bid = rsp.json()["id"]
     r = await client.patch(
@@ -161,7 +161,7 @@ async def test_emergency_phone_visible_in_list_with_mask(client: AsyncClient, au
     await _bind(
         client,
         auth_headers,
-        {"device_type": 1, "gateway_id": "LISTMSK1", "device_sn": "LISTPDV1", "emergency_phone": "13812345678"},
+        {"device_type": 1, "gateway_id": "LISTMSK1", "device_sn": "LISTPDV1", "emergency_phone": "13812345678",  "remark": "测试备注",},
     )
     r = await client.get("/api/home_safety/devices", headers=auth_headers)
     em = next(g for g in r.json()["groups"] if g["device_type"] == 1)
@@ -179,7 +179,7 @@ async def test_callback_gwid_12_truncated_to_8(client: AsyncClient, auth_headers
     await _bind(
         client,
         auth_headers,
-        {"device_type": 1, "gateway_id": "GW12CB01", "device_sn": "CB12DEV1", "emergency_phone": "13800001234"},
+        {"device_type": 1, "gateway_id": "GW12CB01", "device_sn": "CB12DEV1", "emergency_phone": "13800001234",  "remark": "测试备注",},
     )
     # 厂商推送 12 位 gwId
     r = await client.post(
@@ -219,7 +219,7 @@ async def test_notify_targets_dedup_when_same_phone(client: AsyncClient, auth_he
             "device_type": 1,
             "gateway_id": "DEDUP001",
             "device_sn": "DEDDEV01",
-            "emergency_phone": "13800001234",
+            "emergency_phone": "13800001234", "remark": "测试备注",
         },
     )
     # 触发回调
@@ -274,7 +274,7 @@ async def test_device_detail_returns_emergency_phone(client: AsyncClient, auth_h
     rsp = await _bind(
         client,
         auth_headers,
-        {"device_type": 1, "gateway_id": "DETAIL01", "device_sn": "DTDEV001", "emergency_phone": "13700001111"},
+        {"device_type": 1, "gateway_id": "DETAIL01", "device_sn": "DTDEV001", "emergency_phone": "13700001111",  "remark": "测试备注",},
     )
     bid = rsp.json()["id"]
     r = await client.get(f"/api/home_safety/devices/{bid}", headers=auth_headers)
@@ -300,7 +300,7 @@ async def test_admin_search_by_gateway_id(client: AsyncClient, auth_headers):
     await _bind(
         client,
         auth_headers,
-        {"device_type": 1, "gateway_id": "ADMSCH01", "device_sn": "ADMSDEV1", "emergency_phone": "13800001234"},
+        {"device_type": 1, "gateway_id": "ADMSCH01", "device_sn": "ADMSDEV1", "emergency_phone": "13800001234",  "remark": "测试备注",},
     )
     r = await client.get(
         "/api/admin/home_safety/bindings/search_by_gateway?gateway_id=admsch01",  # 小写也命中
@@ -325,7 +325,7 @@ async def test_admin_export_bindings_includes_new_columns(client: AsyncClient, a
     await _bind(
         client,
         auth_headers,
-        {"device_type": 1, "gateway_id": "EXPORT01", "device_sn": "EXPDEV01", "emergency_phone": "13800002222"},
+        {"device_type": 1, "gateway_id": "EXPORT01", "device_sn": "EXPDEV01", "emergency_phone": "13800002222",  "remark": "测试备注",},
     )
     r = await client.get("/api/admin/home_safety/bindings/export", headers=auth_headers)
     assert r.status_code == 200, r.text
@@ -345,7 +345,7 @@ async def test_admin_bindings_returns_emergency_phone_field(client: AsyncClient,
     await _bind(
         client,
         auth_headers,
-        {"device_type": 2, "gateway_id": "ADMPH001", "device_sn": "ADMPDEV1", "emergency_phone": "13811112222"},
+        {"device_type": 2, "gateway_id": "ADMPH001", "device_sn": "ADMPDEV1", "emergency_phone": "13811112222",  "remark": "测试备注",},
     )
     r = await client.get("/api/admin/home_safety/bindings", headers=auth_headers)
     items = r.json()["items"]

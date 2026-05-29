@@ -40,6 +40,7 @@ async def test_bind_default_member_is_self(client: AsyncClient, auth_headers):
             "gateway_sn": "MBRTEST1",
             "device_sn": "MBRDEVS1",
             "emergency_phone": "13800001234",
+            "remark": "本人测试设备",
         },
         headers=auth_headers,
     )
@@ -64,6 +65,7 @@ async def test_devices_filter_by_member(client: AsyncClient, auth_headers):
             "gateway_sn": "FILTER01",
             "device_sn": "FILTDEV1",
             "emergency_phone": "13800001234",
+            "remark": "客厅烟雾报警",
         },
         headers=auth_headers,
     )
@@ -117,6 +119,7 @@ async def test_transfer_endpoint_changes_member(client: AsyncClient, auth_header
             "device_sn": "TRDEV001",
             "emergency_phone": "13800001234",
             "member_id": self_id,
+            "remark": "测试水位",
         },
         headers=auth_headers,
     )
@@ -157,6 +160,7 @@ async def test_admin_bindings_include_member_fields(client: AsyncClient, auth_he
             "gateway_sn": "ADMNTAG1",
             "device_sn": "ADMNDEV1",
             "emergency_phone": "13800001234",
+            "remark": "管理后台测试",
         },
         headers=auth_headers,
     )

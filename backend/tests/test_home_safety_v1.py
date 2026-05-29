@@ -43,7 +43,7 @@ async def test_dict_device_types(client: AsyncClient, auth_headers):
 async def test_bind_unbind_devices(client: AsyncClient, auth_headers):
     rsp = await client.post(
         "/api/home_safety/devices/bind",
-        json={"device_type": 1, "gateway_sn": "GW123456", "device_sn": "DEV12345", "emergency_phone": "13800001234"},
+        json={"device_type": 1, "gateway_sn": "GW123456", "device_sn": "DEV12345", "emergency_phone": "13800001234",  "remark": "测试备注",},
         headers=auth_headers,
     )
     assert rsp.status_code == 200, rsp.text
@@ -73,7 +73,7 @@ async def test_bind_returns_iso_with_z_suffix(client: AsyncClient, auth_headers)
     避免前端按本地时区误解析（北京时间显示需 +8h）。"""
     rsp = await client.post(
         "/api/home_safety/devices/bind",
-        json={"device_type": 1, "gateway_sn": "GWZSUFF1", "device_sn": "ZSUFFIX1", "emergency_phone": "13800001234"},
+        json={"device_type": 1, "gateway_sn": "GWZSUFF1", "device_sn": "ZSUFFIX1", "emergency_phone": "13800001234",  "remark": "测试备注",},
         headers=auth_headers,
     )
     assert rsp.status_code == 200, rsp.text
@@ -99,7 +99,7 @@ async def test_admin_alarms_time_fields_with_z_suffix(client: AsyncClient, auth_
     """[BUGFIX · Bug 2] 管理后台报警流水的 alarm_at / received_at 必须以 'Z' 结尾。"""
     await client.post(
         "/api/home_safety/devices/bind",
-        json={"device_type": 2, "gateway_sn": "GWTIMEZ1", "device_sn": "TIMEZ001", "emergency_phone": "13800001234"},
+        json={"device_type": 2, "gateway_sn": "GWTIMEZ1", "device_sn": "TIMEZ001", "emergency_phone": "13800001234",  "remark": "测试备注",},
         headers=auth_headers,
     )
     await client.post(
@@ -139,7 +139,7 @@ async def test_callback_config_time_fields_with_z_suffix(client: AsyncClient, au
 async def test_bind_invalid_sn_rejected(client: AsyncClient, auth_headers):
     rsp = await client.post(
         "/api/home_safety/devices/bind",
-        json={"device_type": 1, "gateway_sn": "short", "device_sn": "DEV12345", "emergency_phone": "13800001234"},
+        json={"device_type": 1, "gateway_sn": "short", "device_sn": "DEV12345", "emergency_phone": "13800001234",  "remark": "测试备注",},
         headers=auth_headers,
     )
     assert rsp.status_code == 400
@@ -147,7 +147,7 @@ async def test_bind_invalid_sn_rejected(client: AsyncClient, auth_headers):
 
 @pytest.mark.asyncio
 async def test_bind_duplicate_rejected(client: AsyncClient, auth_headers):
-    body = {"device_type": 2, "gateway_sn": "GW222222", "device_sn": "SMOKE001", "emergency_phone": "13800001234"}
+    body = {"device_type": 2, "gateway_sn": "GW222222", "device_sn": "SMOKE001", "emergency_phone": "13800001234", "remark": "测试备注"}
     r1 = await client.post("/api/home_safety/devices/bind", json=body, headers=auth_headers)
     assert r1.status_code == 200
     r2 = await client.post("/api/home_safety/devices/bind", json=body, headers=auth_headers)
@@ -160,7 +160,7 @@ async def test_upstream_alarm_callback_and_dedupe(client: AsyncClient, auth_head
     # 先绑设备
     await client.post(
         "/api/home_safety/devices/bind",
-        json={"device_type": 7, "gateway_sn": "GWWATER1", "device_sn": "WATER001", "emergency_phone": "13800001234"},
+        json={"device_type": 7, "gateway_sn": "GWWATER1", "device_sn": "WATER001", "emergency_phone": "13800001234",  "remark": "测试备注",},
         headers=auth_headers,
     )
     # 上游推送（用网关友好的 /api 前缀路径）
@@ -211,7 +211,7 @@ async def test_ai_call_callback_no_error(client: AsyncClient):
 async def test_alarm_read_and_handle(client: AsyncClient, auth_headers):
     await client.post(
         "/api/home_safety/devices/bind",
-        json={"device_type": 1, "gateway_sn": "GWEMERG1", "device_sn": "EMERG001", "emergency_phone": "13800001234"},
+        json={"device_type": 1, "gateway_sn": "GWEMERG1", "device_sn": "EMERG001", "emergency_phone": "13800001234",  "remark": "测试备注",},
         headers=auth_headers,
     )
     await client.post(
@@ -265,7 +265,7 @@ async def test_admin_bindings_and_alarms(client: AsyncClient, auth_headers):
     # 绑一台、报一次警
     await client.post(
         "/api/home_safety/devices/bind",
-        json={"device_type": 2, "gateway_sn": "GWSMOKE1", "device_sn": "SMOK0001", "emergency_phone": "13800001234"},
+        json={"device_type": 2, "gateway_sn": "GWSMOKE1", "device_sn": "SMOK0001", "emergency_phone": "13800001234",  "remark": "测试备注",},
         headers=auth_headers,
     )
     await client.post(
