@@ -138,6 +138,10 @@ class HomeSafetyDeviceBinding(Base):
     emergency_phone = Column(String(11), nullable=True)
     # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 当 status=2 时，记录失效原因，便于前端展示
     invalid_reason = Column(String(128), nullable=True)
+    # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 设备归属家庭成员
+    member_id = Column(Integer, nullable=True, index=True)
+    # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 是否由迁移脚本自动归属"本人"
+    migrated_to_self = Column(Boolean, nullable=False, default=False)
     bound_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     unbound_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -154,6 +158,8 @@ class HomeSafetyEmergencyContact(Base):
     enabled_for_emergency = Column(Integer, nullable=False, default=1)
     enabled_for_smoke = Column(Integer, nullable=False, default=1)
     enabled_for_water = Column(Integer, nullable=False, default=1)
+    # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 紧急联系人按家庭成员隔离
+    member_id = Column(Integer, nullable=True, index=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -196,6 +202,8 @@ class HomeSafetyAlarm(Base):
     notify_targets_json = Column(Text, nullable=True)
     # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 通知去重信息：跳过的重复条目数
     notify_dedup_skipped = Column(Integer, nullable=True, default=0)
+    # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 触发告警的设备归属成员（冗余字段，便于按成员查询）
+    member_id = Column(Integer, nullable=True, index=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -291,9 +299,16 @@ class BindDeviceReq(BaseModel):
     gateway_id: Optional[str] = None
     device_sn: str
     emergency_phone: Optional[str] = Field(default=None, description="11 位中国大陆紧急联系手机号")
+    # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 归属家庭成员 ID（可选，兼容期可不传，默认回落本人）
+    member_id: Optional[int] = Field(default=None, description="设备归属家庭成员 ID")
 
     class Config:
         extra = "allow"
+
+
+class TransferDeviceReq(BaseModel):
+    """[PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 调整设备归属请求体"""
+    member_id: int = Field(..., description="新归属家庭成员 ID")
 
 
 class UpdateEmergencyPhoneReq(BaseModel):
@@ -450,6 +465,112 @@ async def _list_guardians(db: AsyncSession, user_id: int) -> List[Dict[str, Any]
         )
     out.sort(key=lambda x: (0 if x["is_primary"] else 1, x["guardian_id"]))
     return out
+
+
+# ────────────── 家庭成员辅助（PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29）──────────────
+async def _ensure_self_member(db: AsyncSession, user_id: int) -> Optional[int]:
+    """[PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 确保该用户存在"本人"成员，返回其 id。
+    若 family_members 表/关系不可用则返回 None（兼容老库）。
+    """
+    try:
+        from app.models.models import FamilyMember as _FM, User as _U  # type: ignore
+    except Exception:
+        return None
+    try:
+        row = (
+            await db.execute(
+                select(_FM).where(_FM.user_id == user_id, _FM.is_self == True)  # noqa: E712
+            )
+        ).scalar_one_or_none()
+        if row:
+            return int(row.id)
+        # 创建本人成员
+        nickname = None
+        try:
+            u = (await db.execute(select(_U).where(_U.id == user_id))).scalar_one_or_none()
+            if u:
+                nickname = getattr(u, "nickname", None)
+        except Exception:
+            pass
+        new_self = _FM(
+            user_id=user_id,
+            relationship_type="self",
+            nickname=nickname or "本人",
+            is_self=True,
+            status="active",
+        )
+        db.add(new_self)
+        await db.commit()
+        await db.refresh(new_self)
+        return int(new_self.id)
+    except Exception as e:
+        logger.warning("[home_safety_v1][member] _ensure_self_member fail: %s", e)
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+        return None
+
+
+async def _list_user_members(db: AsyncSession, user_id: int) -> List[Dict[str, Any]]:
+    """[PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 列出该账号下所有家庭成员（含本人在前）。"""
+    try:
+        from app.models.models import FamilyMember as _FM  # type: ignore
+    except Exception:
+        return []
+    try:
+        rows = (
+            await db.execute(
+                select(_FM).where(
+                    _FM.user_id == user_id,
+                    _FM.status == "active",
+                )
+            )
+        ).scalars().all()
+    except Exception:
+        return []
+    items: List[Dict[str, Any]] = []
+    for m in rows:
+        items.append(
+            {
+                "id": int(m.id),
+                "nickname": getattr(m, "nickname", None) or "成员",
+                "relationship_type": getattr(m, "relationship_type", None) or "",
+                "is_self": bool(getattr(m, "is_self", False)),
+            }
+        )
+    items.sort(key=lambda x: (0 if x["is_self"] else 1, x["id"]))
+    return items
+
+
+async def _resolve_member_id(
+    db: AsyncSession, user_id: int, member_id: Optional[int]
+) -> Optional[int]:
+    """[PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 解析 member_id：
+    - 传入 None 则回退为"本人"成员 id（自动确保存在）
+    - 传入具体 id 则校验属于本账号；不属于则抛 400
+    """
+    if member_id is None:
+        return await _ensure_self_member(db, user_id)
+    try:
+        from app.models.models import FamilyMember as _FM  # type: ignore
+    except Exception:
+        return member_id
+    try:
+        row = (
+            await db.execute(
+                select(_FM).where(
+                    _FM.id == int(member_id), _FM.user_id == user_id
+                )
+            )
+        ).scalar_one_or_none()
+        if not row:
+            raise HTTPException(400, "member_not_found:成员不存在或不属于当前账号")
+        return int(row.id)
+    except HTTPException:
+        raise
+    except Exception:
+        return member_id
 
 
 # ────────────── 通知目标汇总（PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28）──────────────
@@ -617,22 +738,56 @@ USER_PREFIX = "/api/home_safety"
 
 @router.get(USER_PREFIX + "/devices")
 async def list_my_devices(
+    member_id: Optional[int] = Query(default=None, description="家庭成员 ID；不传按本人过滤"),
+    all: int = Query(default=0, description="管理后台用 ?all=1 拉全部，不按成员过滤"),
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """获取我绑定的所有设备，按设备类型分组。"""
+    """获取我绑定的所有设备，按设备类型分组。
+    [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 支持按家庭成员过滤。
+    - all=1：拉本账号全部设备（不按成员过滤）
+    - 否则：按 member_id 过滤；不传时默认本人成员
+    """
     # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 同时返回 status=1（有效）与 status=2（撞号失效）记录
-    rows = (
-        await db.execute(
-            select(HomeSafetyDeviceBinding).where(
-                HomeSafetyDeviceBinding.user_id == current_user.id,
-                HomeSafetyDeviceBinding.status.in_([1, 2]),
-            ).order_by(desc(HomeSafetyDeviceBinding.bound_at))
-        )
-    ).scalars().all()
+    q = select(HomeSafetyDeviceBinding).where(
+        HomeSafetyDeviceBinding.user_id == current_user.id,
+        HomeSafetyDeviceBinding.status.in_([1, 2]),
+    )
+    target_member_id: Optional[int] = None
+    has_migrated_to_self_devices = False
+    if not all:
+        target_member_id = await _resolve_member_id(db, current_user.id, member_id)
+        if target_member_id is not None:
+            # 兼容：member_id 列还未填的旧设备也归到"本人"
+            try:
+                from app.models.models import FamilyMember as _FM  # type: ignore
+                self_row = (
+                    await db.execute(
+                        select(_FM).where(
+                            _FM.user_id == current_user.id, _FM.is_self == True  # noqa: E712
+                        )
+                    )
+                ).scalar_one_or_none()
+                self_id = int(self_row.id) if self_row else None
+            except Exception:
+                self_id = None
+            if self_id is not None and target_member_id == self_id:
+                q = q.where(
+                    or_(
+                        HomeSafetyDeviceBinding.member_id == target_member_id,
+                        HomeSafetyDeviceBinding.member_id.is_(None),
+                    )
+                )
+            else:
+                q = q.where(HomeSafetyDeviceBinding.member_id == target_member_id)
+
+    q = q.order_by(desc(HomeSafetyDeviceBinding.bound_at))
+    rows = (await db.execute(q)).scalars().all()
 
     groups: Dict[int, List[Dict[str, Any]]] = {t: [] for t in ALL_DEVICE_TYPES}
     for b in rows:
+        if bool(getattr(b, "migrated_to_self", False)):
+            has_migrated_to_self_devices = True
         ephone = b.emergency_phone or ""
         groups.setdefault(b.device_type, []).append(
             {
@@ -652,6 +807,9 @@ async def list_my_devices(
                 "emergency_phone": ephone,
                 "emergency_phone_mask": _mask_phone(ephone),
                 "emergency_phone_filled": bool(ephone),
+                # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 归属信息
+                "member_id": getattr(b, "member_id", None),
+                "migrated_to_self": bool(getattr(b, "migrated_to_self", False)),
             }
         )
     return {
@@ -664,8 +822,24 @@ async def list_my_devices(
                 "items": groups.get(t, []),
             }
             for t in ALL_DEVICE_TYPES
-        ]
+        ],
+        # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 当前过滤的成员 + 是否包含迁移设备（供前端提示条判断）
+        "active_member_id": target_member_id,
+        "has_migrated_to_self_devices": has_migrated_to_self_devices,
     }
+
+
+@router.get(USER_PREFIX + "/members")
+async def list_my_members_for_home_safety(
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 居家安全顶部成员 Tab 数据来源。
+    优先确保"本人"成员存在。
+    """
+    await _ensure_self_member(db, current_user.id)
+    items = await _list_user_members(db, current_user.id)
+    return {"items": items, "total": len(items)}
 
 
 @router.post(USER_PREFIX + "/devices/bind")
@@ -697,6 +871,9 @@ async def bind_device(
     if exists:
         raise HTTPException(409, "您已绑定该设备")
 
+    # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 解析归属成员（不传则默认本人；传了校验属当前账号）
+    member_id_resolved = await _resolve_member_id(db, current_user.id, req.member_id)
+
     binding = HomeSafetyDeviceBinding(
         user_id=current_user.id,
         device_type=req.device_type,
@@ -705,6 +882,8 @@ async def bind_device(
         status=1,
         verify_status=0,
         emergency_phone=ephone,
+        member_id=member_id_resolved,
+        migrated_to_self=False,
         bound_at=datetime.utcnow(),
     )
     db.add(binding)
@@ -717,7 +896,37 @@ async def bind_device(
         "verify_status": binding.verify_status,
         "gateway_id": binding.gateway_sn,
         "emergency_phone": binding.emergency_phone,
+        "member_id": binding.member_id,
     }
+
+
+@router.patch(USER_PREFIX + "/devices/{binding_id}/transfer")
+async def transfer_device_member(
+    binding_id: int,
+    req: TransferDeviceReq,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 调整设备归属（"调整归属"功能用）。"""
+    b = (
+        await db.execute(
+            select(HomeSafetyDeviceBinding).where(
+                HomeSafetyDeviceBinding.id == binding_id,
+                HomeSafetyDeviceBinding.user_id == current_user.id,
+                HomeSafetyDeviceBinding.status.in_([1, 2]),
+            )
+        )
+    ).scalar_one_or_none()
+    if not b:
+        raise HTTPException(404, "设备不存在或已解绑")
+    new_member_id = await _resolve_member_id(db, current_user.id, req.member_id)
+    if new_member_id is None:
+        raise HTTPException(400, "member_id_required:必须提供合法的成员 ID")
+    b.member_id = new_member_id
+    # 调整归属即视为用户已确认，不再视作迁移产生
+    b.migrated_to_self = False
+    await db.commit()
+    return {"success": True, "id": b.id, "member_id": b.member_id}
 
 
 @router.post(USER_PREFIX + "/devices/{binding_id}/unbind")
@@ -849,6 +1058,7 @@ async def get_bind_defaults(
 @router.get(USER_PREFIX + "/alarms")
 async def list_my_alarms(
     device_type: Optional[int] = None,
+    member_id: Optional[int] = Query(default=None, description="按家庭成员过滤"),
     page: int = 1,
     size: int = 20,
     current_user=Depends(get_current_user),
@@ -857,6 +1067,25 @@ async def list_my_alarms(
     q = select(HomeSafetyAlarm).where(HomeSafetyAlarm.user_id == current_user.id)
     if device_type is not None:
         q = q.where(HomeSafetyAlarm.device_type == device_type)
+    # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 按成员过滤：本人 Tab 兼容 member_id IS NULL
+    if member_id is not None:
+        target_mid = await _resolve_member_id(db, current_user.id, member_id)
+        try:
+            from app.models.models import FamilyMember as _FM  # type: ignore
+            self_row = (
+                await db.execute(
+                    select(_FM).where(
+                        _FM.user_id == current_user.id, _FM.is_self == True  # noqa: E712
+                    )
+                )
+            ).scalar_one_or_none()
+            self_id = int(self_row.id) if self_row else None
+        except Exception:
+            self_id = None
+        if self_id is not None and target_mid == self_id:
+            q = q.where(or_(HomeSafetyAlarm.member_id == target_mid, HomeSafetyAlarm.member_id.is_(None)))
+        else:
+            q = q.where(HomeSafetyAlarm.member_id == target_mid)
     q = q.order_by(desc(HomeSafetyAlarm.alarm_at)).limit(size).offset((page - 1) * size)
     rows = (await db.execute(q)).scalars().all()
     return {
@@ -1469,6 +1698,8 @@ async def upstream_alarm_callback(
                     device_emergency_phone=(b.emergency_phone or None),
                     notify_targets_json=notify_targets_json,
                     notify_dedup_skipped=int(notify_info.get("dedup_skipped") or 0),
+                    # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 冗余设备所属成员
+                    member_id=getattr(b, "member_id", None),
                 )
                 db.add(rec)
                 await db.flush()
@@ -1576,6 +1807,7 @@ async def admin_get_device_types(current_user=Depends(get_current_user)):
 async def admin_list_bindings(
     device_type: Optional[int] = None,
     user_id: Optional[int] = None,
+    member_id: Optional[int] = None,
     page: int = 1,
     size: int = 50,
     current_user=Depends(get_current_user),
@@ -1586,8 +1818,31 @@ async def admin_list_bindings(
         q = q.where(HomeSafetyDeviceBinding.device_type == device_type)
     if user_id is not None:
         q = q.where(HomeSafetyDeviceBinding.user_id == user_id)
+    # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 管理后台支持按归属成员过滤
+    if member_id is not None:
+        q = q.where(HomeSafetyDeviceBinding.member_id == member_id)
     q = q.order_by(desc(HomeSafetyDeviceBinding.created_at)).limit(size).offset((page - 1) * size)
     rows = (await db.execute(q)).scalars().all()
+
+    # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 批量填充成员名称
+    member_id_set = {b.member_id for b in rows if getattr(b, "member_id", None)}
+    member_name_map: Dict[int, str] = {}
+    if member_id_set:
+        try:
+            from app.models.models import FamilyMember as _FM  # type: ignore
+            mrows = (
+                await db.execute(
+                    select(_FM).where(_FM.id.in_(list(member_id_set)))
+                )
+            ).scalars().all()
+            for m in mrows:
+                member_name_map[int(m.id)] = (
+                    "本人" if bool(getattr(m, "is_self", False))
+                    else (getattr(m, "nickname", None) or getattr(m, "relationship_type", None) or f"成员{m.id}")
+                )
+        except Exception:
+            pass
+
     return {
         "items": [
             {
@@ -1595,6 +1850,7 @@ async def admin_list_bindings(
                 "user_id": b.user_id,
                 "device_type": b.device_type,
                 "device_type_label": _device_label(b.device_type),
+                "device_type_color": DEVICE_TYPE_COLOR.get(b.device_type),
                 # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 提供 gateway_id 别名
                 "gateway_sn": b.gateway_sn,
                 "gateway_id": b.gateway_sn,
@@ -1609,10 +1865,136 @@ async def admin_list_bindings(
                 "emergency_phone": b.emergency_phone or "",
                 "emergency_phone_mask": _mask_phone(b.emergency_phone),
                 "emergency_phone_filled": bool(b.emergency_phone),
+                # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 归属成员字段
+                "member_id": getattr(b, "member_id", None),
+                "member_name": member_name_map.get(int(getattr(b, "member_id", 0) or 0)) if getattr(b, "member_id", None) else None,
+                "migrated_to_self": bool(getattr(b, "migrated_to_self", False)),
             }
             for b in rows
         ]
     }
+
+
+# [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 一次性数据迁移接口（idempotent）
+@router.post(ADMIN_PREFIX + "/migrate_member_id")
+async def admin_migrate_member_id(
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 历史数据一次性迁移：
+    - 为每个 user 确保存在"本人"成员
+    - 将 home_safety_device_binding.member_id IS NULL 的记录迁到该用户的"本人"成员
+       并设置 migrated_to_self=1
+    - 同步 home_safety_alarm.member_id（基于 device_sn 关联）
+    - 同步 home_safety_emergency_contact.member_id 到本人
+    可重复调用（幂等）。
+    """
+    summary = {
+        "self_members_created": 0,
+        "bindings_migrated": 0,
+        "alarms_migrated": 0,
+        "contacts_migrated": 0,
+    }
+    try:
+        from app.models.models import FamilyMember as _FM  # type: ignore
+    except Exception:
+        raise HTTPException(500, "FamilyMember 模型不可用，无法迁移")
+
+    # Step 1: 收集所有需要处理的 user_id（在三张表里均可能出现）
+    user_ids: set = set()
+    for tbl in (HomeSafetyDeviceBinding, HomeSafetyAlarm, HomeSafetyEmergencyContact):
+        try:
+            uids = (await db.execute(select(tbl.user_id).distinct())).scalars().all()
+            for u in uids:
+                if u:
+                    user_ids.add(int(u))
+        except Exception:
+            pass
+
+    # Step 1b: 为每个 user 确保本人成员
+    user_self_map: Dict[int, int] = {}
+    for uid in user_ids:
+        existing = (
+            await db.execute(
+                select(_FM).where(_FM.user_id == uid, _FM.is_self == True)  # noqa: E712
+            )
+        ).scalar_one_or_none()
+        if existing:
+            user_self_map[uid] = int(existing.id)
+            continue
+        new_self = _FM(
+            user_id=uid,
+            relationship_type="self",
+            nickname="本人",
+            is_self=True,
+            status="active",
+        )
+        db.add(new_self)
+        await db.flush()
+        user_self_map[uid] = int(new_self.id)
+        summary["self_members_created"] += 1
+    await db.commit()
+
+    # Step 2: 迁移 binding
+    null_bindings = (
+        await db.execute(
+            select(HomeSafetyDeviceBinding).where(
+                HomeSafetyDeviceBinding.member_id.is_(None)
+            )
+        )
+    ).scalars().all()
+    for b in null_bindings:
+        sid = user_self_map.get(int(b.user_id))
+        if sid is None:
+            continue
+        b.member_id = sid
+        b.migrated_to_self = True
+        summary["bindings_migrated"] += 1
+    await db.commit()
+
+    # Step 3: 同步 alarm（只迁 NULL 的，保持幂等）
+    null_alarms = (
+        await db.execute(
+            select(HomeSafetyAlarm).where(HomeSafetyAlarm.member_id.is_(None))
+        )
+    ).scalars().all()
+    # 优先按 device_sn 关联到对应 binding 的 member_id；找不到再用本人兜底
+    bind_by_sn: Dict[str, int] = {}
+    for b in (
+        await db.execute(
+            select(HomeSafetyDeviceBinding).where(
+                HomeSafetyDeviceBinding.member_id.is_not(None)
+            )
+        )
+    ).scalars().all():
+        bind_by_sn.setdefault(b.device_sn or "", int(b.member_id))
+    for a in null_alarms:
+        mid = bind_by_sn.get(a.device_sn or "")
+        if mid is None:
+            mid = user_self_map.get(int(a.user_id))
+        if mid is None:
+            continue
+        a.member_id = mid
+        summary["alarms_migrated"] += 1
+    await db.commit()
+
+    # Step 4: 同步 emergency contacts
+    null_contacts = (
+        await db.execute(
+            select(HomeSafetyEmergencyContact).where(
+                HomeSafetyEmergencyContact.member_id.is_(None)
+            )
+        )
+    ).scalars().all()
+    for c in null_contacts:
+        sid = user_self_map.get(int(c.user_id))
+        if sid is None:
+            continue
+        c.member_id = sid
+        summary["contacts_migrated"] += 1
+    await db.commit()
+
+    return {"success": True, **summary}
 
 
 # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 管理后台搜索网关ID 接口（基于 gateway_id 8 位查询）

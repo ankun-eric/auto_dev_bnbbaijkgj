@@ -43,9 +43,17 @@ import { formatDateTime } from '@/lib/datetime';
 const { Title, Paragraph, Text } = Typography;
 
 const DEVICE_COLOR: Record<number, string> = { 1: 'red', 2: 'orange', 7: 'gold' };
+// [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 行左侧 3px 细色条
+const DEVICE_BAR_COLOR: Record<number, string> = { 1: '#E53935', 2: '#FB8C00', 7: '#FBC02D' };
 
 function deviceTag(t: number, label?: string) {
   return <Tag color={DEVICE_COLOR[t] || 'default'}>{label || `type=${t}`}</Tag>;
+}
+
+function deviceRowProps(record: any) {
+  const t = Number(record?.device_type);
+  const color = DEVICE_BAR_COLOR[t] || 'transparent';
+  return { style: { borderLeft: `3px solid ${color}` } as React.CSSProperties };
 }
 
 function StatusYN({ v }: { v: number }) {
@@ -176,6 +184,26 @@ function BindingsTab() {
     },
     { title: '设备 SN', dataIndex: 'device_sn', width: 120 },
     { title: '绑定用户', dataIndex: 'user_id', width: 100 },
+    // [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 归属成员列
+    {
+      title: '归属成员',
+      dataIndex: 'member_name',
+      width: 110,
+      render: (v: string, r: any) => {
+        if (!v && !r.member_id) return <Tag>未归属</Tag>;
+        const isSelf = v === '本人';
+        const tag = (
+          <Tag color={isSelf ? 'blue' : 'cyan'}>
+            {v || `成员#${r.member_id}`}
+          </Tag>
+        );
+        return r.migrated_to_self ? (
+          <Tooltip title="由迁移脚本自动归属到本人">
+            <span>{tag}<sup style={{ color: '#FAA' }}>·迁</sup></span>
+          </Tooltip>
+        ) : tag;
+      },
+    },
     {
       title: '操作类型',
       dataIndex: 'status',
@@ -236,6 +264,7 @@ function BindingsTab() {
         pagination={{ pageSize: 20 }}
         scroll={{ x: 1300 }}
         columns={columns}
+        onRow={deviceRowProps}
       />
     </Card>
   );
@@ -272,6 +301,7 @@ function AlarmsTab() {
         dataSource={items}
         pagination={{ pageSize: 20 }}
         scroll={{ x: 1600 }}
+        onRow={deviceRowProps}
         columns={[
           { title: '报警 ID', dataIndex: 'id', width: 80 },
           { title: '设备 SN', dataIndex: 'device_sn', width: 120 },
@@ -944,6 +974,7 @@ function CallbackLogTab() {
         rowClassName={(record: any) =>
           record?.parse_status === 'ignored' ? 'hs-callback-row-ignored' : ''
         }
+        onRow={deviceRowProps}
         columns={[
           { title: 'ID', dataIndex: 'id', width: 80 },
           {

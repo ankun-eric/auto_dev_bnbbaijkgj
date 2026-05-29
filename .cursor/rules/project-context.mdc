@@ -5,6 +5,40 @@ alwaysApply: false
 
 # Project Context
 
+## 最近一次变更（2026-05-29 · 新功能 / 居家安全设备管理优化 v2.1 · 按家庭成员隔离 + 彩色 Tag + 历史迁移）
+
+**PRD 标识**：`[PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29]`
+
+**需求**：「居家安全设备管理」（紧急呼叫器/烟雾报警器/水位报警器）从"账号级"升级为"家庭成员级"，对齐健康档案的"按成员"认知；同时优化管理后台与 H5 的视觉与排版。
+
+**核心实现**（后端 + H5 + 管理后台）：
+
+- 后端：`backend/app/api/home_safety_v1.py`
+  - `HomeSafetyDeviceBinding` 模型新增 `member_id`（索引）+ `migrated_to_self` 标志
+  - `HomeSafetyEmergencyContact` / `HomeSafetyAlarm` 新增 `member_id`
+  - 新增帮助函数 `_ensure_self_member` / `_list_user_members` / `_resolve_member_id`
+  - 新增 API：`GET /api/home_safety/members`、`PATCH /api/home_safety/devices/{id}/transfer`、`POST /api/admin/home_safety/migrate_member_id`（一次性历史数据迁移，幂等）
+  - 改造 API：`GET /api/home_safety/devices`（新增 `member_id` / `all` 参数 + 响应增加 `active_member_id` / `has_migrated_to_self_devices`）；`POST /api/home_safety/devices/bind` 支持 `member_id`；`GET /api/home_safety/alarms` 支持 `member_id`；`GET /api/admin/home_safety/bindings` 响应增加 `member_name` / `device_type_color` / `migrated_to_self`
+- Schema 同步：`backend/app/services/schema_sync.py` 新增 `_load_bind_cols_v3` / `_load_alarm_cols_v3` / `_load_contact_cols_v3` 与对应幂等 `ALTER ADD COLUMN` + 索引
+- H5：`h5-web/src/app/home-safety/page.tsx`
+  - 顶部横向滚动「成员 Tab」（本人/父亲/母亲/配偶/+ 添加）
+  - 历史迁移提示条（仅本人 Tab，配合 `localStorage` 永久关闭）
+  - 设备分组卡片（红/橙/黄渐变分组头 + 序号药丸 + 在线状态点）
+  - 添加设备 Modal 增「归属家庭成员」必填项
+  - 调整归属 Modal（PATCH transfer）
+  - URL 切 Tab 不更新（v2.1 锁定策略）；用 `<Suspense>` 包裹解决 Next.js 静态预渲染 `useSearchParams` 报错
+- 管理后台：`admin-web/src/app/(admin)/home-safety/page.tsx`
+  - 三个 Tab 设备类型保留彩色 Tag（red/orange/gold）
+  - 三个 Tab 表格行新增 `onRow` 渲染 3px 左侧细色条（`#E53935` / `#FB8C00` / `#FBC02D`）
+  - 「设备绑定」Tab 新增「归属成员」列（蓝/青 Tag + 「·迁」上标徽标）
+- 测试：`backend/tests/test_home_safety_member_v21.py` 新增 6 个用例（members 端点、绑定默认 self、按 member_id 过滤、transfer、admin 字段、迁移幂等）；既有 home_safety 全套回归 **83 passed**
+
+**部署唯一标识**：`6b099ed3-7175-4a78-91f4-44570c84ed27`，HTTPS 入口 `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27`，`/api/health` / `/home-safety` / `/admin/home-safety` 均返回 200。
+
+**用户手册**：`user_docs/居家安全设备管理优化v2.1.md`
+
+---
+
 ## 最近一次变更（2026-05-29 · Bug 修复 / 紧急呼叫器厂商回调 dataType 升级兼容 + 回调原始流水"失败原因"治理）
 
 **Bug 标识**：`[BUGFIX HS-CALLBACK-DATATYPE 2026-05-29]`

@@ -3663,6 +3663,68 @@ async def _sync_home_safety_v2(conn: AsyncConnection) -> None:
             except Exception:
                 pass
 
+    # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] member_id / migrated_to_self 扩字段
+    def _load_bind_cols_v3(sync_conn):
+        inspector = inspect(sync_conn)
+        if "home_safety_device_binding" not in set(inspector.get_table_names()):
+            return None
+        return {c["name"] for c in inspector.get_columns("home_safety_device_binding")}
+
+    bind_cols_v3 = await conn.run_sync(_load_bind_cols_v3)
+    if bind_cols_v3 is not None:
+        if "member_id" not in bind_cols_v3:
+            await conn.execute(text(
+                "ALTER TABLE home_safety_device_binding ADD COLUMN member_id INT NULL"
+            ))
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE home_safety_device_binding ADD INDEX idx_hsdb_member_id (member_id)"
+                ))
+            except Exception:
+                pass
+        if "migrated_to_self" not in bind_cols_v3:
+            await conn.execute(text(
+                "ALTER TABLE home_safety_device_binding ADD COLUMN migrated_to_self TINYINT(1) NOT NULL DEFAULT 0"
+            ))
+
+    def _load_alarm_cols_v3(sync_conn):
+        inspector = inspect(sync_conn)
+        if "home_safety_alarm" not in set(inspector.get_table_names()):
+            return None
+        return {c["name"] for c in inspector.get_columns("home_safety_alarm")}
+
+    alarm_cols_v3 = await conn.run_sync(_load_alarm_cols_v3)
+    if alarm_cols_v3 is not None:
+        if "member_id" not in alarm_cols_v3:
+            await conn.execute(text(
+                "ALTER TABLE home_safety_alarm ADD COLUMN member_id INT NULL"
+            ))
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE home_safety_alarm ADD INDEX idx_hsa_member_id (member_id)"
+                ))
+            except Exception:
+                pass
+
+    def _load_contact_cols_v3(sync_conn):
+        inspector = inspect(sync_conn)
+        if "home_safety_emergency_contact" not in set(inspector.get_table_names()):
+            return None
+        return {c["name"] for c in inspector.get_columns("home_safety_emergency_contact")}
+
+    contact_cols_v3 = await conn.run_sync(_load_contact_cols_v3)
+    if contact_cols_v3 is not None:
+        if "member_id" not in contact_cols_v3:
+            await conn.execute(text(
+                "ALTER TABLE home_safety_emergency_contact ADD COLUMN member_id INT NULL"
+            ))
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE home_safety_emergency_contact ADD INDEX idx_hsec_member_id (member_id)"
+                ))
+            except Exception:
+                pass
+
 
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
