@@ -210,8 +210,11 @@ async def get_member_center(
         "plans": plan_dicts,
         "current_plan_rank": current_rank,
         "ranks": {p.id: _plan_rank(p) for p in plans},
+        # [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 资产/配额语境：「守护人数量」→「可管理健康档案」
+        # value 字段保留原始 max_managed（仅家人/守护对象计数，不含本人），前端展示时 +1 显示含本人后的总份数；
+        # unit 从「人」改为「份（含本人）」与主流产品（京东/平安/丁香）口径对齐。
         "benefits_cards": [
-            {"key": "max_managed", "label": "守护人数量", "value": current["max_managed"], "unit": "人"},
+            {"key": "max_managed", "label": "可管理健康档案", "value": current["max_managed"], "unit": "份（含本人）"},
             {"key": "ai_outbound_call_count", "label": "AI 外呼提醒", "value": current["ai_outbound_call_count"], "unit": "次/月"},
             {"key": "emergency_ai_call_count", "label": "紧急 AI 呼叫", "value": current["emergency_ai_call_count"], "unit": "次/月"},
             {"key": "placeholder", "label": "更多权益", "value": None, "unit": "敬请期待"},

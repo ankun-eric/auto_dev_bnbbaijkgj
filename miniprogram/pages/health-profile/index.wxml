@@ -71,7 +71,7 @@
         <view class="guardian-card-icon-wrap guardian-card-icon-orange">
           <text class="guardian-card-icon">🛡️</text>
         </view>
-        <text class="guardian-card-title">我守护的人</text>
+        <text class="guardian-card-title">健康档案列表</text>
         <text class="guardian-card-count">{{managedCount || 0}}</text>
       </view>
       <view class="guardian-card guardian-card-green" bindtap="onTapMyGuardians">

@@ -1148,9 +1148,13 @@ function HealthProfileV2PageInner() {
     );
   };
 
-  // ─── F9: Guardian dual cards (我守护的人 + 守护我的人) ──────────
+  // ─── F9: 双卡片（健康档案列表 + 守护我的人） ──────────
+  // [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29]
+  //   资产/配额语境改名：「我守护的人」→「健康档案列表」（左侧入口卡）
+  //   关系/邀请语境保留：右侧「守护我的人」/「守护 TA 的人」不变
+  // 入口卡片直达 /health-profile/i-guard
   // [健康档案优化 PRD v1.0 2026-05-26 §3.2~3.4]
-  // - 「我守护的人」仅在本人 Tab 显示，直达 /health-profile/i-guard，统计 total_count
+  // - 「健康档案列表」仅在本人 Tab 显示，直达 /health-profile/i-guard，统计 total_count
   // - 「守护我的人」在本人 Tab 显示；非本人 Tab 改名为「守护 TA 的人」并切换为只读视图
 
   const openTaGuardianReadonly = async () => {
@@ -1184,10 +1188,12 @@ function HealthProfileV2PageInner() {
   const renderDualCards = () => {
     const isSelfTab = !!selectedMember?.is_self;
     const otherSideTitle = isSelfTab ? '守护我的人' : '守护 TA 的人';
-    const taTitle = isSelfTab ? '我守护的人' : 'TA 守护的人';
+    // [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 本人 Tab 入口卡资产/配额命名 → 「健康档案列表」；
+    // 家人 Tab 关系视图命名保留 → 「TA 守护的人」（关系语境，不改）
+    const taTitle = isSelfTab ? '健康档案列表' : 'TA 守护的人';
     const isTopLevel = !!reverseGuardianSummary.is_top_level;
 
-    // 「我守护的人」卡片字段
+    // 「健康档案列表」入口卡字段
     const xByMe = guardianSummary.bound_others_count ?? 0;
     const yByMe = guardianSummary.is_unlimited
       ? (guardianSummary.max_guardians || reverseGuardianSummary.max_guardians_by_me || 3)
@@ -1217,7 +1223,7 @@ function HealthProfileV2PageInner() {
       }
       // 本人 Tab
       const subtitleText = `${x} 人（上限 ${isUnlimited ? '不限' : y} 人）`;
-      const textColor = isFull ? '#DC2626' : '#1F2937'; // 红字 / 黑字
+      const textColor = isFull ? '#DC2626' : '#1F2937';
 
       let button: React.ReactNode = null;
       if (isTopLevel) {
@@ -1289,13 +1295,17 @@ function HealthProfileV2PageInner() {
             </div>
             {isSelfTab && <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>}
           </div>
-          {/* 副标题：守护对象：X 人（上限 Y 人） + 按钮 */}
+          {/* 副标题：
+              - 本人 Tab（资产/配额）：「健康档案：X 份（含本人，上限 Y 份）」
+              - 家人 Tab（关系/只读）：「守护对象：X 人（上限 Y 人）」保留 */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
             <div
               data-testid='i-guard-subtitle'
               style={{ fontSize: 12, color: byMeView.textColor, lineHeight: 1.4, flex: 1, minWidth: 0 }}
             >
-              守护对象：{byMeView.subtitle}
+              {isSelfTab
+                ? `健康档案：${xByMe + 1} 份（含本人，上限 ${isUnlimitedByMe ? '不限' : (yByMe + 1)} 份）`
+                : `守护对象：${byMeView.subtitle}`}
             </div>
             {byMeView.button}
           </div>

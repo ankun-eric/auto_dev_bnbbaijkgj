@@ -207,7 +207,8 @@ function InviteGuardianDrawer({ open, mode, presetMember, onClose, onSuccess }: 
       let msg = '邀请创建失败';
       if (detail && typeof detail === 'object') {
         if (detail.code === 'WARD_LIMIT_REACHED') {
-          msg = detail.message || `我守护的人已达上限（${detail.x}/${detail.y}），请先升级会员或解绑现有守护对象`;
+          // [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 文案：健康档案已满
+          msg = detail.message || `健康档案已满（${detail.x}/${detail.y}），请先升级会员或删除现有档案`;
         } else if (detail.message) {
           msg = String(detail.message);
         }
@@ -630,8 +631,41 @@ export default function IGuardPage() {
   const [profileDrawer, setProfileDrawer] = useState<{ open: boolean; memberUserId?: number; memberId?: number; readOnly: boolean }>({ open: false, readOnly: false });
   const [historyDrawer, setHistoryDrawer] = useState<{ open: boolean; card: FamilyItemV13 | null }>({ open: false, card: null });
 
-  // 上限提示弹窗
+  // [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 达上限弹窗 —— C 方案：场景化标题 + 升级套餐预览
+  // scene: 'list'（列表页 + 新增）/ 'invite'（添加成员页 邀请按钮，本页保留 'list'，h5-web 默认 list 场景）
   const [showLimit, setShowLimit] = useState(false);
+  const [limitScene, setLimitScene] = useState<'list' | 'invite'>('list');
+  const [upgradePlans, setUpgradePlans] = useState<Array<{ id: number; name: string; max_managed: number }>>([]);
+  const [isTopLevel, setIsTopLevel] = useState(false);
+
+  // 拉取套餐列表用于上限弹窗"升级 VIP/SVIP 可管理 X 份"展示
+  const fetchUpgradePlans = useCallback(async () => {
+    try {
+      const res: any = await api.get('/api/member/center');
+      const data = res.data || res;
+      const current = data.current || {};
+      const plans = Array.isArray(data.plans) ? data.plans : [];
+      const ranks = data.ranks || {};
+      // 比当前用户档位高的套餐
+      const currentRank = data.current_plan_rank;
+      const higherPlans = plans
+        .filter((p: any) => {
+          if (currentRank === null || currentRank === undefined) return true;
+          const r = ranks[String(p.id)];
+          return r !== undefined && r > currentRank;
+        })
+        .sort((a: any, b: any) => (ranks[String(a.id)] || 0) - (ranks[String(b.id)] || 0));
+      setUpgradePlans(higherPlans.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        max_managed: Number(p.max_managed) || 0,
+      })));
+      setIsTopLevel(higherPlans.length === 0 && current.level === 'paid');
+    } catch (e) {
+      console.warn('[iguard-v2] fetchUpgradePlans error', e);
+      setUpgradePlans([]);
+    }
+  }, []);
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -672,8 +706,11 @@ export default function IGuardPage() {
   const maxGuard = resp?.max_guardians ?? 0;
 
   // [Bug 4] 「+发起邀请」打开公共抽屉
+  // [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 上限时弹出 C 方案弹窗（场景：列表页 + 新增档案）
   const handleInvite = () => {
     if (canInvite <= 0) {
+      setLimitScene('list');
+      fetchUpgradePlans();
       setShowLimit(true);
       return;
     }
@@ -840,8 +877,11 @@ export default function IGuardPage() {
   };
 
   // [Bug 7] 再次邀请：打开公共抽屉，预填
+  // [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 上限时复用 C 方案弹窗（再次邀请属于添加成员场景）
   const handleReinvite = (it: FamilyItemV13) => {
     if (canInvite <= 0) {
+      setLimitScene('invite');
+      fetchUpgradePlans();
       setShowLimit(true);
       return;
     }
@@ -1129,12 +1169,12 @@ export default function IGuardPage() {
 
   return (
     <div style={{ background: PAGE_BG, minHeight: '100vh', paddingBottom: 32 }}>
-      <GreenNavBar>我守护的人</GreenNavBar>
+      {/* [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 资产/配额语境：标题改为「健康档案列表」 */}
+      <GreenNavBar>健康档案列表</GreenNavBar>
 
-      {/* [BUGFIX-MY-GUARDIAN-CARD-2-20260528] 顶部统计栏：
-          - 第 1 点：卡片外面只显示 X/Y（紧凑摘要）
-          - 第 2 点：本人卡片"上方"统计文案改为「守护人：X 人，还可邀请 Y 位，共 M 位」+「本人不占名额」小字
-            （为减少冗余，仅保留一处统计区，文案合并展示） */}
+      {/* [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 顶部统计栏：
+          - 标题改为「健康档案列表」
+          - 统计单位改为「份」，X = 已管理档案份数（含本人），Y = 当前会员档配额 */}
       <div
         data-testid='guardian-v131-summary-bar'
         style={{
@@ -1145,30 +1185,29 @@ export default function IGuardPage() {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
           <div style={{ fontSize: 16, color: SKY_700, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span>💙</span>
-            <span>我守护的人</span>
+            <span>📋</span>
+            <span>健康档案列表</span>
           </div>
-          {/* 第 1 点：紧凑 X/Y */}
+          {/* 紧凑 X/Y 份（含本人） */}
           <div data-testid='guard-xy' style={{ fontSize: 15, color: SKY_700, fontWeight: 700 }}>
             {resp ? (
-              <>守护人 <b style={{ fontSize: 17 }}>{guardCount}</b>/<b style={{ fontSize: 17 }}>{maxGuard}</b></>
+              <>已管理 <b style={{ fontSize: 17 }}>{guardCount + 1}</b>/<b style={{ fontSize: 17 }}>{maxGuard + 1}</b> 份</>
             ) : (
               <>加载中…</>
             )}
           </div>
         </div>
-        {/* 第 2 点：本人卡片"上方"完整统计文案 */}
+        {/* 完整统计文案：已管理 X 份档案（含本人），还可新增 Y 份 */}
         <div data-testid='guard-stats-text' style={{ fontSize: 13, color: SKY_700, fontWeight: 500, marginTop: 6 }}>
           {resp ? (
             <>
-              守护人：<b style={{ color: SKY_700 }}>{guardCount}</b> 人，还可邀请{' '}
-              <b style={{ color: SKY_700 }}>{Math.max(0, canInvite)}</b> 位，共{' '}
-              <b style={{ color: SKY_700 }}>{maxGuard}</b> 位
+              已管理 <b style={{ color: SKY_700 }}>{guardCount + 1}</b> 份档案（含本人），还可新增{' '}
+              <b style={{ color: SKY_700 }}>{Math.max(0, canInvite)}</b> 份
             </>
           ) : null}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-          <span style={{ fontSize: 11, color: TEXT_SECONDARY }}>本人不占名额</span>
+          <span style={{ fontSize: 11, color: TEXT_SECONDARY }}>本人档案计入配额</span>
           {/* [Bug 4/10] 右上角 + 发起邀请，使用主操作按钮配色 */}
           <button
             data-testid='top-invite-btn'
@@ -1275,7 +1314,7 @@ export default function IGuardPage() {
               </div>
               {boundItems.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '20px 0', color: TEXT_SECONDARY, fontSize: 13 }}>
-                  暂无已绑定的家人，邀请家人开始守护吧
+                  暂无已绑定的家人档案，邀请家人开始守护吧
                 </div>
               ) : (
                 boundItems.map((it, idx) => renderCard(it, idx, 'bound'))
@@ -1297,7 +1336,7 @@ export default function IGuardPage() {
               </div>
               {unboundItems.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '20px 0', color: TEXT_SECONDARY, fontSize: 13 }}>
-                  暂无未绑定的家人档案
+                  暂无未绑定的家人档案，点击上方「+ 发起邀请」新建
                 </div>
               ) : (
                 unboundItems.map((it, idx) => renderCard(it, idx, 'unbound'))
@@ -1307,23 +1346,50 @@ export default function IGuardPage() {
         )}
       </div>
 
-      {/* 上限弹窗 */}
+      {/* [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 达上限弹窗 —— C 方案 + 场景化标题
+          - 列表页场景：标题「健康档案已满（X/Y）」
+          - 添加成员场景：标题「守护人名额已满（X/Y）」
+          - 已是最高档：标题「健康档案已满 · 您已是最高档会员」+「联系客服」按钮 */}
       <Modal
         visible={showLimit}
-        title='💝 温馨提示'
+        title={
+          isTopLevel
+            ? `健康档案已满（${(resp?.used || 0) + 1}/${(resp?.max_guardians || 0) + 1}）`
+            : limitScene === 'invite'
+              ? `守护人名额已满（${(resp?.used || 0) + 1}/${(resp?.max_guardians || 0) + 1}）`
+              : `健康档案已满（${(resp?.used || 0) + 1}/${(resp?.max_guardians || 0) + 1}）`
+        }
         content={
-          <div style={{ padding: '8px 0' }}>
-            您当前守护人数已满（{resp?.used || 0}/{resp?.max_guardians || 0} 位）。
-            <br />
-            如需守护更多家人，可升级会员套餐，最高可守护更多位。
+          <div data-testid='limit-dialog-content' style={{ padding: '8px 0', lineHeight: 1.6 }}>
+            {isTopLevel ? (
+              <div>您已是最高档会员，可联系客服申请扩容。</div>
+            ) : (
+              <>
+                {upgradePlans.length === 0 ? (
+                  <div>升级会员可管理更多健康档案。</div>
+                ) : (
+                  upgradePlans.map((p) => (
+                    <div key={p.id} data-testid={`limit-plan-${p.id}`}>
+                      升级 {p.name} 可{p.max_managed >= 9999 ? '不限管理' : `管理 ${p.max_managed + 1} 份`}
+                    </div>
+                  ))
+                )}
+                <div style={{ marginTop: 6 }}>升级后可继续为更多家人建立健康档案。</div>
+              </>
+            )}
           </div>
         }
-        actions={[
-          [
-            { key: 'cancel', text: '再想想' },
-            { key: 'upgrade', text: '升级会员', primary: true, onClick: () => { setShowLimit(false); router.push('/member-center#plans'); } },
-          ],
-        ]}
+        actions={
+          isTopLevel
+            ? [[
+                { key: 'cancel', text: '取消' },
+                { key: 'contact', text: '联系客服', primary: true, onClick: () => { setShowLimit(false); showToast('请添加客服微信或拨打客服热线', 'info'); } },
+              ]]
+            : [[
+                { key: 'cancel', text: '取消' },
+                { key: 'upgrade', text: '查看会员权益', primary: true, onClick: () => { setShowLimit(false); router.push('/member-center#plans'); } },
+              ]]
+        }
         onClose={() => setShowLimit(false)}
       />
 

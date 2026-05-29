@@ -29,8 +29,10 @@ class MembershipPlan(Base):
     description = mapped_column(String(255), nullable=True, comment="套餐说明")
     price_month = mapped_column(Numeric(10, 2), nullable=True, comment="月价（30天），NULL=不支持月购")
     price_year = mapped_column(Numeric(10, 2), nullable=True, comment="年价（365天），NULL=不支持年购")
+    # [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 字段名保留 max_managed；
+    # 语义：可管理家人健康档案数（不含本人），用户端展示时 +1 显示「X 份（含本人）」。-1=不限
     max_managed = mapped_column(Integer, nullable=False, default=3,
-                                comment="守护人数量上限，-1=不限")
+                                comment="最大健康档案数（不含本人，用户端展示 +1 含本人），-1=不限")
     ai_outbound_call_count = mapped_column(Integer, nullable=False, default=0,
                                            comment="AI 外呼提醒（次/月），-1=不限")
     emergency_ai_call_count = mapped_column(Integer, nullable=False, default=0,
@@ -74,8 +76,10 @@ class FreeMemberQuota(Base):
     __tablename__ = "free_member_quota"
 
     id = mapped_column(Integer, primary_key=True, autoincrement=False, default=1)
+    # [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 字段名保留 max_managed；
+    # 语义：免费会员可管理家人健康档案数（不含本人），用户端展示时 +1 显示「X 份（含本人）」
     max_managed = mapped_column(Integer, nullable=False, default=3,
-                                comment="守护人数量上限")
+                                comment="免费会员最大健康档案数（不含本人，用户端展示 +1 含本人）")
     ai_outbound_call_count = mapped_column(Integer, nullable=False, default=5,
                                            comment="AI 外呼提醒（次/月）")
     emergency_ai_call_count = mapped_column(Integer, nullable=False, default=3,

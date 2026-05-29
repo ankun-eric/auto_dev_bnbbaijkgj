@@ -423,9 +423,10 @@ function DetailDrawer({
                   {data.membership_quota.ai_call_quota_remaining < 0 ? '不限' : data.membership_quota.ai_call_quota_remaining}
                 </Text>
               </Descriptions.Item>
-              <Descriptions.Item label='守护他人上限' span={2}>
-                已守护 <Text strong>{data.membership_quota.max_managed_used}</Text>
-                {' / '}总上限 {data.membership_quota.max_managed_total}
+              <Descriptions.Item label='健康档案配额（不含本人）' span={2}>
+                {/* [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 资产/配额语境：「已守护 X / 总上限 Y」→「已管理 X 份家人档案 / 配额 Y 份」（字段名不变） */}
+                已管理 <Text strong>{data.membership_quota.max_managed_used}</Text> 份家人档案
+                {' / '}配额 {data.membership_quota.max_managed_total} 份
               </Descriptions.Item>
             </Descriptions>
 

@@ -75,8 +75,8 @@ export default function FreeQuotaPage() {
 
       <Card loading={loading}>
         <Form form={form} layout="vertical">
-          <Form.Item label="守护人数量" name="max_managed" rules={[{ required: true }]}
-            tooltip="免费用户可绑定的守护人数量上限">
+          <Form.Item label="可管理健康档案数（不含本人）" name="max_managed" rules={[{ required: true }]}
+            tooltip="[PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 字段名保留 max_managed；填写「可管理家人健康档案数」，用户端展示时自动 +1 含本人。-1 表示不限。">
             <InputNumber min={-1} style={{ width: 240 }} />
           </Form.Item>
           <Form.Item label="AI 外呼提醒（次/月）" name="ai_outbound_call_count" rules={[{ required: true }]}

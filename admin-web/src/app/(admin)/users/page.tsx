@@ -388,7 +388,7 @@ export default function UsersPage() {
                         return `${dayjs(memberInfo.expire_at).format('YYYY-MM-DD')}（剩 ${days} 天）`;
                       })() : '长期'}
                     </Descriptions.Item>
-                    <Descriptions.Item label="守护人上限">{memberInfo.max_managed === -1 ? '不限' : memberInfo.max_managed}</Descriptions.Item>
+                    <Descriptions.Item label="健康档案配额（不含本人）">{memberInfo.max_managed === -1 ? '不限' : memberInfo.max_managed}</Descriptions.Item>
                     <Descriptions.Item label="被守护上限">{memberInfo.max_managed_by === -1 ? '不限' : memberInfo.max_managed_by}</Descriptions.Item>
                     <Descriptions.Item label="AI 外呼提醒上限">{memberInfo.ai_outbound_call_count === -1 ? '不限' : `${memberInfo.ai_outbound_call_count} 次/月`}</Descriptions.Item>
                     <Descriptions.Item label="紧急 AI 呼叫上限">{memberInfo.emergency_ai_call_count === -1 ? '不限' : `${memberInfo.emergency_ai_call_count} 次/月`}</Descriptions.Item>

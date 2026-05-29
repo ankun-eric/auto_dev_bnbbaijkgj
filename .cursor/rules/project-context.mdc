@@ -5,7 +5,73 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-29 · Bug 修复 / 守护人体系 v1.3.2 补丁 · 列表一致性 v1 二次清扫）
+## 最近一次变更（2026-05-29 · 新功能 / 健康档案管理优化 · 资产语境改名 v1）
+
+**PRD 标识**：`[PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29]`
+
+**需求**：把多年沿用的「我守护的人」概念在**资产/配额语境**下统一升级为「健康档案列表」，与京东健康、平安健康、丁香、微医对齐——把"档案"作为长期持有的资产单位（**份**），关系/邀请语境保留「守护人」措辞。
+
+**12 项核心决策**（详见 PRD）：
+1. 入口/页面命名：「我守护的人」→「健康档案列表」
+2. 计数语义：「守护人数」→「健康档案份数（含本人）」
+3. 计数口径：建档即占名额；档案删除才释放名额
+4. 邀请异常态：被拒/退出/过期 → 名额继续占用
+5. 本人档案：计入配额
+6. 字段名 `max_managed` 不动（零迁移成本）
+7. 权益展示：「可管理健康档案：X 份（含本人）」
+8. 达上限弹窗：C 方案 + 场景化标题（列表页「健康档案已满」/ 添加成员页「守护人名额已满」）
+9. 邀请页文案保留（「添加成员」、「邀请 TA 成为我守护的人」）
+
+**变更文件**（backend + h5-web + admin-web + miniprogram 四端，Flutter 端未触及）：
+- 修改：`backend/app/api/member_center_v2.py` —— `benefits_cards` 中 `max_managed` 卡 `label: 守护人数量 → 可管理健康档案`，`unit: 人 → 份（含本人）`，`value` 保留旧 `max_managed` 原始语义（前端 +1 含本人展示）
+- 修改：`backend/app/models/membership_plan.py` —— `MembershipPlan.max_managed` 与 `FreeMemberQuota.max_managed` 注释升级为「最大健康档案数（不含本人，用户端展示 +1 含本人），-1=不限」
+- 修改：`backend/app/schemas/membership.py` —— `max_managed` 字段 description 与 `UserMembershipCardResponse.max_managed_limit/used` 注释升级
+- 新增：`backend/tests/test_health_archive_mgr_v1_20260529.py` —— 6 个 TC-ARCH 用例（benefits_cards label/unit 对齐 + 字段名零变更回归 + 不限场景）
+- 修改：`h5-web/src/app/health-profile/page.tsx` —— 入口卡片 `taTitle` 本人 Tab 改为「健康档案列表」；副标题本人 Tab 改为「健康档案：X 份（含本人，上限 Y 份）」
+- 修改：`h5-web/src/app/health-profile/i-guard/page.tsx` —— `GreenNavBar` 「我守护的人」→「健康档案列表」；顶部统计栏改为「📋 健康档案列表」+「已管理 X+1/Y+1 份」+「已管理 X+1 份档案（含本人），还可新增 N 份」+「本人档案计入配额」；新增 C 方案达上限弹窗（场景化标题：list/invite）+ 拉取套餐列表展示升级路径 + 最高档变体（联系客服）；空状态文案微调；`WARD_LIMIT_REACHED` 错误文案改为「健康档案已满」
+- 修改：`h5-web/src/app/health-profile/v13/page.tsx` —— 跳转提示「我守护的人」→「健康档案列表」
+- 修改：`h5-web/src/app/member-center/page.tsx` —— 套餐描述行：「守护 X 人」→「可管理健康档案 X+1 份（含本人）」；权益卡 `max_managed` 自动 +1 展示
+- 修改：`h5-web/src/app/member-center/components/BenefitsCompareTable.tsx` —— 权益对比表第一行标签：「守护人上限」→「可管理健康档案（含本人）」+ 新增 `fmtArchiveVal` 统一 +1 含本人格式化
+- 修改：`miniprogram/pages/health-profile/index.wxml` —— 入口卡 `.guardian-card-title`「我守护的人」→「健康档案列表」
+- 修改：`miniprogram/pages/health-profile/index.js` —— 注释升级
+- 修改：`admin-web/src/app/(admin)/membership/plans/page.tsx` —— 列「守护人」→「可管理健康档案」；表单字段 `max_managed` label 升级 + tooltip 说明
+- 修改：`admin-web/src/app/(admin)/membership/free-quota/page.tsx` —— 同上 free_quota
+- 修改：`admin-web/src/app/(admin)/users/page.tsx` —— 用户详情「守护人上限」→「健康档案配额（不含本人）」
+- 修改：`admin-web/src/app/(admin)/family-management/page.tsx` —— 「守护他人上限 / 已守护 X / 总上限 Y」→「健康档案配额（不含本人）/ 已管理 X 份家人档案 / 配额 Y 份」
+- 新增：`_deploy_health_archive_mgr_v1.py` —— SSH 一键部署脚本（backend docker cp + h5-web/admin-web rebuild + pytest）
+- 新增：`_pack_mp_archive_mgr_v2.py` —— 小程序 zip 打包脚本（通过 backend `/uploads/` 路由暴露下载链接）
+- 新增：`user_docs/健康档案管理优化.md` —— 用户体验使用手册
+
+**测试结果**：服务器容器内 pytest 跑 `test_health_archive_mgr_v1_20260529.py + test_member_center_prd_v1_aligned.py` 共 **23 passed, 0 failed**（新增 6 + 既有对齐回归 17）。
+
+HTTPS smoke：
+- `/api/health` → 200
+- `/health-profile/` → 200
+- `/health-profile/i-guard/` → 200
+- `/member-center/` → 200
+- `/api/member/center`（不带 token）→ 401（鉴权拦截，符合预期）
+
+**部署方式**：
+1. backend 走 `docker cp` 热更 + `docker restart`（3 个 .py 文件 + 1 个测试文件）
+2. h5-web `docker compose build h5-web && up -d`
+3. admin-web `docker compose build admin-web && up -d`
+4. rebuild 触发 backend 容器重启，需再次 docker cp backend 文件并 restart（部署脚本已自动化）
+
+**多端打包产物**：
+- 微信小程序：[miniprogram_archive_mgr_20260529_160056_f596.zip](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/uploads/miniprogram_archive_mgr_20260529_160056_f596.zip)（通过 backend `/uploads/` 路由暴露，HTTP 200 验证通过）
+- 安卓/iOS/Windows/Flutter：**未涉及代码改动**，无需重新打包
+
+**体验链接**：
+- [H5 用户端 · 健康档案首页](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/)
+- [H5 用户端 · 健康档案列表](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile/i-guard/)
+- [H5 用户端 · 会员中心](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/member-center/)
+- [管理后台 · 套餐管理](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/membership/plans/)
+
+**唯一变更标记**：`[PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29]`
+
+---
+
+## 上一次变更（2026-05-29 · Bug 修复 / 守护人体系 v1.3.2 补丁 · 列表一致性 v1 二次清扫）
 
 **PRD 标识**：`[BUGFIX-GUARDIAN-LIST-CONSISTENCY-V2 2026-05-29]`
 

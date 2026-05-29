@@ -19,7 +19,7 @@ export default function HealthProfileV13Redirect() {
   }, [router]);
   return (
     <div style={{ padding: 40, textAlign: 'center', color: '#64748B', fontSize: 14 }}>
-      正在跳转到「我守护的人」…
+      正在跳转到「健康档案列表」…
     </div>
   );
 }

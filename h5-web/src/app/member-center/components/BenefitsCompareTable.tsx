@@ -66,6 +66,14 @@ function fmtVal(v: number | null | undefined): string {
   return String(v);
 }
 
+// [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 健康档案配额展示：含本人 → +1 份
+// max_managed 字段保留旧含义（仅家人/守护对象计数），展示时 +1 显示含本人后的总份数
+function fmtArchiveVal(v: number | null | undefined): string {
+  if (v === null || v === undefined) return '--';
+  if (v === -1 || (typeof v === 'number' && v >= 9999)) return '不限';
+  return `${v + 1} 份`;
+}
+
 export default function BenefitsCompareTable({ current, plans, ranks, freeQuota }: Props) {
   // [优化 v1.0 2026-05-27] 「免费会员」列必须来自管理后台「免费会员额度配置」（free_member_quota 表）。
   // 兜底：若后端未下发 free_quota，回退到 current（仅免费用户场景下正确，付费用户场景下会显示其档位额度，
@@ -90,12 +98,20 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
   }
 
   // 行：与「我的会员权益」3 实卡同源；free 列改从 freeQuota（管理后台「免费会员额度配置」）取
-  const rows = [
+  // [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 资产/配额语境：「守护人上限」→「可管理健康档案（含本人）」
+  const rows: Array<{
+    key: string;
+    label: string;
+    free: number;
+    getPaid: (p: PlanBrief) => number;
+    fmt?: (v: number | null | undefined) => string;
+  }> = [
     {
       key: 'max_managed',
-      label: '守护人上限',
+      label: '可管理健康档案（含本人）',
       free: freeVals.max_managed,
       getPaid: (p: PlanBrief) => p.max_managed,
+      fmt: fmtArchiveVal,
     },
     {
       key: 'ai_outbound_call_count',
@@ -240,7 +256,7 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {fmtVal(r.free)}
+                  {(r.fmt || fmtVal)(r.free)}
                 </td>
                 {sortedPaidPlans.map((p, idx) => {
                   const color = getPaidColor(idx);
@@ -257,7 +273,7 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
                       }}
                       data-testid={`mc-compare-cell-${r.key}-${p.id}`}
                     >
-                      {fmtVal(r.getPaid(p))}
+                      {(r.fmt || fmtVal)(r.getPaid(p))}
                     </td>
                   );
                 })}

@@ -176,7 +176,8 @@ Page({
     } catch (_) {}
   },
 
-  // [PRD-HEALTH-ARCHIVE-OPTIM-V1 F5] 已守护 N 人摘要
+  // [PRD-HEALTH-ARCHIVE-OPTIM-V1 F5] 已管理 N 份档案摘要
+  // [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 资产/配额语境改名：已守护 N 人 → 已管理 N 份档案（含本人）
   async loadGuardianSummary() {
     try {
       const res = await get('/api/health-archive/guardian/summary', {}, { showLoading: false, suppressErrorToast: true });
