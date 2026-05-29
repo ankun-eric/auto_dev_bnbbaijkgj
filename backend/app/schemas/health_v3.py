@@ -57,6 +57,11 @@ class MetricHistoryResponse(BaseModel):
     trend_7days: List[Optional[float]] = Field(default_factory=list, description="近 7 日主指标点位（无数据为 null）")
     records: List[MetricRecordOut] = Field(default_factory=list)
     total: int = 0
+    trend_dates: List[str] = Field(default_factory=list, description="近 7 日对应日期 YYYY-MM-DD（最右一日为今天）")
+    trend_day_labels: List[str] = Field(default_factory=list, description="近 7 日 X 轴展示文案（如 周三/周四/.../今日）")
+    # 血压专用：sbp/dbp 双曲线点位（与 trend_dates 对齐）
+    trend_systolic: List[Optional[float]] = Field(default_factory=list, description="近 7 日收缩压均值，仅血压有效")
+    trend_diastolic: List[Optional[float]] = Field(default_factory=list, description="近 7 日舒张压均值，仅血压有效")
 
 
 # ─── 设备 ────────────────────────────────────────────────────────────────

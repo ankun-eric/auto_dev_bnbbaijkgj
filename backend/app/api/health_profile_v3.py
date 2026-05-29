@@ -302,16 +302,48 @@ async def get_metric_history(
     )
     trend_records = (await db.execute(trend_stmt)).scalars().all()
     by_day: Dict[str, List[float]] = {}
+    # 血压专用 sbp/dbp 双数列
+    sbp_by_day: Dict[str, List[float]] = {}
+    dbp_by_day: Dict[str, List[float]] = {}
     for r in trend_records:
         key = r.measured_at.strftime("%Y-%m-%d")
-        v = _principal_value(metric_type, r.value_json or {})
+        vjson = r.value_json or {}
+        v = _principal_value(metric_type, vjson)
         if v is not None:
             by_day.setdefault(key, []).append(v)
+        if metric_type == "blood_pressure":
+            sbp = vjson.get("systolic")
+            dbp = vjson.get("diastolic")
+            try:
+                if sbp is not None:
+                    sbp_by_day.setdefault(key, []).append(float(sbp))
+            except (TypeError, ValueError):
+                pass
+            try:
+                if dbp is not None:
+                    dbp_by_day.setdefault(key, []).append(float(dbp))
+            except (TypeError, ValueError):
+                pass
+
     trend_7days: List[Optional[float]] = []
+    trend_dates: List[str] = []
+    trend_day_labels: List[str] = []
+    trend_systolic: List[Optional[float]] = []
+    trend_diastolic: List[Optional[float]] = []
+    # 周几标签（周一~周日），最后一天用"今日"
+    _CN_WEEK = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
     for i in range(7):
         d = today - timedelta(days=6 - i)
-        vals = by_day.get(d.strftime("%Y-%m-%d"))
+        ds = d.strftime("%Y-%m-%d")
+        trend_dates.append(ds)
+        trend_day_labels.append("今日" if i == 6 else _CN_WEEK[d.weekday()])
+        vals = by_day.get(ds)
         trend_7days.append(round(sum(vals) / len(vals), 2) if vals else None)
+        if metric_type == "blood_pressure":
+            svals = sbp_by_day.get(ds)
+            dvals = dbp_by_day.get(ds)
+            trend_systolic.append(round(sum(svals) / len(svals), 2) if svals else None)
+            trend_diastolic.append(round(sum(dvals) / len(dvals), 2) if dvals else None)
 
     # 历史分页
     total_stmt = select(func.count(HealthMetricRecord.id)).where(
@@ -349,6 +381,10 @@ async def get_metric_history(
         trend_7days=trend_7days,
         records=records,
         total=int(total),
+        trend_dates=trend_dates,
+        trend_day_labels=trend_day_labels,
+        trend_systolic=trend_systolic,
+        trend_diastolic=trend_diastolic,
     )
 
 

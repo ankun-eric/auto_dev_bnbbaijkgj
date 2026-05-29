@@ -5,7 +5,47 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-30 · Bug 修复 / 健康档案配额文案口径全产品统一）
+## 最近一次变更（2026-05-30 · Bug 修复 / 健康档案血压 Tab 页面优化）
+
+**任务标识**：`[BUGFIX-BP-TAB-OPTIMIZE-V1 2026-05-30]`
+
+**背景**：《Bug 修复 / 优化方案 — 健康档案 · 血压 Tab 页面优化 v1.0》。原血压 Tab 视觉散乱、无医学语义颜色区分、绑定设备入口语义不明、趋势图仅单条曲线、底部设备绑定区与顶部重复占用屏幕。本次按 PRD 4 项问题一次性补齐。
+
+**修复点（后端 + H5 两端，零小程序/Android/iOS/Windows 改动）**：
+
+- **后端 `backend/app/api/health_profile_v3.py`** + **`backend/app/schemas/health_v3.py`**：
+  - `MetricHistoryResponse` 新增 4 个字段（向后兼容）：
+    - `trend_dates: List[str]`：近 7 日日期（YYYY-MM-DD，最后一项为今天）
+    - `trend_day_labels: List[str]`：近 7 日 X 轴标签（周三 / 周四 / … / 今日）
+    - `trend_systolic: List[Optional[float]]`：近 7 日 SBP 均值（仅血压有效）
+    - `trend_diastolic: List[Optional[float]]`：近 7 日 DBP 均值（仅血压有效）
+  - `get_metric_history` 增加 SBP/DBP 双数列聚合逻辑（同日多条取均值），仅当 metric_type=blood_pressure 时填充
+- **H5 `h5-web/src/lib/bp-level.ts`**（新增，纯函数）：
+  - `judgeBp(sbp, dbp)`：根据《中国高血压防治指南》5 档判定（偏低 / 正常 / 轻度 / 中度 / 严重偏高），SBP 与 DBP 取「或」关系定级
+  - `getBpPalette(color)`：三档色板（🔵 #E8F2FF / 🟡 #FFF4D1 / 🟠 #FFE2C7 卡片底色 + 配套字色/胶囊/边框）
+- **H5 `h5-web/src/app/health-metric/[type]/page.tsx`**：
+  - 仅当 `metricType === 'blood_pressure'` 时走 `BloodPressurePage` 新组件，其他指标维持原模板（零回归）
+  - 顶部状态卡片：超大主数值（56px）、`mmHg` 弱化、同步信息行（今日 HH:mm · 设备名称 / 手工录入）、嵌入血压计 SVG 图标「绑定设备」按钮（点击 `showToast('即将上线')` 不跳转 + `navigator.sendBeacon` 上报 `health_archive.bp.bind_device.click` 埋点）、胶囊状态标签
+  - 「最近 7 天趋势」卡片：`BpTrendChart` 双曲线（SBP 红 #EF4444 / DBP 蓝 #3B82F6）+ 底部图例 + X 轴最右日「今日」高亮 + 日/周/月/年切换控件（默认周）
+  - 历史记录列表追加彩色档位标签
+  - **底部「设备绑定」区整块下线**（功能与顶部重复）
+- **测试**：
+  - 新增 `backend/tests/test_bp_tab_trend_v1_20260530.py`（6 用例，全部通过）：新字段存在性、多日 SBP/DBP 聚合、同日均值、records 完整透传、非 BP 指标向后兼容、验收 DoD「6 组数据」录入
+  - 新增 `h5-web/src/lib/__tests__/run_bp_level_test.mjs`（19 断言，全部通过）：覆盖 DoD「6 组测试数据」+ 关键边界值 + 「或」关系 + 空值
+
+**部署方式**：
+- SFTP 上传 5 个源文件到 `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
+- backend：`docker cp` 进容器 + `docker restart`
+- h5-web：`docker compose build h5-web && up -d --force-recreate`
+- 容器内 pytest 6 passed；H5 构建产物 grep 命中 6 个关键文案；HTTPS `/health-metric/blood_pressure/` 200
+
+**用户手册**：[user_docs/健康档案血压Tab优化_20260530.md](../user_docs/健康档案血压Tab优化_20260530.md)
+
+**唯一变更标记**：`[BUGFIX-BP-TAB-OPTIMIZE-V1 2026-05-30]`
+
+---
+
+## 上一次变更（2026-05-30 · Bug 修复 / 健康档案配额文案口径全产品统一）
 
 **任务标识**：`[BUGFIX-FAMILY-MEMBER-STATE-MACHINE-V1 第二轮 2026-05-30]`
 
