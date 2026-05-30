@@ -1265,15 +1265,15 @@ function HealthProfileV2PageInner() {
               data-testid='i-guard-subtitle'
               style={{ fontSize: 12, color: byMeView.textColor, lineHeight: 1.4, flex: 1, minWidth: 0 }}
             >
-              {/* [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-30 第二轮修复 验收 8.1#2]
-                  本人 Tab：「已管理 {X} 人，还可添加 {Y-X} 人」，与档案列表顶部统计条口径对齐
-                  - 不限套餐（Y=-1/is_unlimited）只显示「已管理 X 人」
-                  - 不写"含本人/不含本人"
+              {/* [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #1]
+                  本人 Tab：纯数字斜杠格式「已管理 X/Y」，与档案列表内页对齐，去除冗长文案
+                  - 不限套餐（Y=-1/is_unlimited）只显示「已管理 X」
+                  - 不再展示「还可添加 N 人」「含本人/不含本人」等附加文案
                   家人 Tab：保留原副标题（关系语境） */}
               {isSelfTab
                 ? (isUnlimitedByMe
-                    ? `已管理 ${xByMe} 人`
-                    : `已管理 ${xByMe} 人，还可添加 ${Math.max(0, yByMe - xByMe)} 人`)
+                    ? `已管理 ${xByMe}`
+                    : `已管理 ${xByMe}/${yByMe}`)
                 : `守护对象：${byMeView.subtitle}`}
             </div>
             {byMeView.button}

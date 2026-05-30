@@ -30,15 +30,16 @@ function computeCardState(quotaUsed, quotaMax) {
   return isFullState(quotaUsed, quotaMax) ? 'full' : 'normal';
 }
 
-function formatBenefitPhrase(quotaMax) {
-  if (isUnlimitedQuota(quotaMax)) return '不限家人数';
-  if (quotaMax === null || quotaMax === undefined) return '可管理家人';
-  return `可管理 ${quotaMax} 位家人`;
+// [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #3]
+// 主标题去除「可管理 N 位家人」拼接，仅展示套餐名，避免截断 + 与"已管理 X/Y"重复信息。
+function formatBenefitPhrase(_quotaMax) {
+  return '';
 }
 
 function formatTitleLine(planName, quotaMax) {
   const name = (planName && String(planName).trim()) || '会员套餐';
-  return `${name} · ${formatBenefitPhrase(quotaMax)}`;
+  const phrase = formatBenefitPhrase(quotaMax);
+  return phrase ? `${name} · ${phrase}` : name;
 }
 
 function formatQuotaLine(quotaUsed, quotaMax) {
@@ -176,7 +177,8 @@ console.log('\n[v1.1 §2.3 AC-22] 双位置视觉文案一致');
 const titleA = formatTitleLine('家庭版', 10);
 const titleB = formatTitleLine('家庭版', 10);
 assertEq(titleA, titleB, '同套餐档位下，两位置主标题文案完全一致');
-assertEq(titleA, '家庭版 · 可管理 10 位家人', '主标题文案符合 PRD 模板');
+// [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #3] 主标题仅显示套餐名，去掉"可管理 N..."拼接
+assertEq(titleA, '家庭版', '主标题仅显示套餐名（不再拼接可管理文案，防截断 + 防冗余）');
 
 const quotaA = formatQuotaLine(5, 10);
 const quotaB = formatQuotaLine(5, 10);
@@ -237,9 +239,10 @@ assertEq(
 // ────── 兜底：plan_name 缺失时走「会员套餐」兜底 ──────
 
 console.log('\n[v1.1 §9 异常处理] plan_name 缺失兜底');
-assertEq(formatTitleLine('', 10), '会员套餐 · 可管理 10 位家人', '空字符串 plan_name → 兜底');
-assertEq(formatTitleLine(null, 10), '会员套餐 · 可管理 10 位家人', 'null plan_name → 兜底');
-assertEq(formatTitleLine(undefined, 10), '会员套餐 · 可管理 10 位家人', 'undefined plan_name → 兜底');
+// [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #3] 兜底文案同步简化为仅显示套餐名
+assertEq(formatTitleLine('', 10), '会员套餐', '空字符串 plan_name → 兜底「会员套餐」');
+assertEq(formatTitleLine(null, 10), '会员套餐', 'null plan_name → 兜底「会员套餐」');
+assertEq(formatTitleLine(undefined, 10), '会员套餐', 'undefined plan_name → 兜底「会员套餐」');
 
 // ────── 总结 ──────
 

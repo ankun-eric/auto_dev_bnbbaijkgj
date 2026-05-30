@@ -28,15 +28,20 @@ function computeCardState(quotaUsed, quotaMax) {
   return isFullState(quotaUsed, quotaMax) ? 'full' : 'normal';
 }
 
-function formatBenefitPhrase(quotaMax) {
-  if (isUnlimitedQuota(quotaMax)) return '不限家人数';
-  if (quotaMax === null || quotaMax === undefined) return '可管理家人';
-  return `可管理 ${quotaMax} 位家人`;
+// [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #3]
+// 历史："可管理 N 位家人" / "不限家人数" / "可管理家人"
+// 现状：会员级别行在档案列表/会员中心两处均会被容器宽度截断（如"普通会员 · 可管理 10..."），
+//       且数字已在顶部"已管理 X/Y"卡片中清晰呈现，重复信息。
+// 修复：formatBenefitPhrase 一律返回空串，主标题仅显示套餐名（"家庭版" / "尊享版"），
+//       formatTitleLine 当 phrase 为空时不再拼接" · "。
+function formatBenefitPhrase(_quotaMax) {
+  return '';
 }
 
 function formatTitleLine(planName, quotaMax) {
   const name = (planName && String(planName).trim()) || '会员套餐';
-  return `${name} · ${formatBenefitPhrase(quotaMax)}`;
+  const phrase = formatBenefitPhrase(quotaMax);
+  return phrase ? `${name} · ${phrase}` : name;
 }
 
 function formatQuotaLine(quotaUsed, quotaMax) {
@@ -88,20 +93,20 @@ assertEq(computeCardState(3, 10), 'normal', '3/10 normal');
 assertEq(computeCardState(10, 10), 'full', '10/10 full');
 assertEq(computeCardState(20, 9999), 'normal', '不限档不会 full');
 
-console.log('\n[InviteFamilyCard] 权益短语');
-assertEq(formatBenefitPhrase(10), '可管理 10 位家人', '有限档 10');
-assertEq(formatBenefitPhrase(20), '可管理 20 位家人', '有限档 20');
-assertEq(formatBenefitPhrase(-1), '不限家人数', '不限档 -1');
-assertEq(formatBenefitPhrase(9999), '不限家人数', '不限档 9999');
-assertEq(formatBenefitPhrase(null), '可管理家人', '空 max 兜底文案');
+console.log('\n[InviteFamilyCard] 权益短语（#3 修复后：一律返回空串，去重 + 防截断）');
+assertEq(formatBenefitPhrase(10), '', '有限档 10：不再展示「可管理 N 位家人」');
+assertEq(formatBenefitPhrase(20), '', '有限档 20：不再展示「可管理 N 位家人」');
+assertEq(formatBenefitPhrase(-1), '', '不限档 -1：不再展示「不限家人数」');
+assertEq(formatBenefitPhrase(9999), '', '不限档 9999：不再展示「不限家人数」');
+assertEq(formatBenefitPhrase(null), '', '空 max：不再展示兜底文案');
 
-console.log('\n[InviteFamilyCard] 主标题');
-assertEq(formatTitleLine('家庭版', 10), '家庭版 · 可管理 10 位家人', '家庭版 · 10');
-assertEq(formatTitleLine('尊享版', 20), '尊享版 · 可管理 20 位家人', '尊享版 · 20');
-assertEq(formatTitleLine('尊享版', 9999), '尊享版 · 不限家人数', '尊享版 · 不限');
-assertEq(formatTitleLine('', 10), '会员套餐 · 可管理 10 位家人', '空套餐名走兜底「会员套餐」');
-assertEq(formatTitleLine(null, 10), '会员套餐 · 可管理 10 位家人', 'null 套餐名走兜底');
-assertEq(formatTitleLine(undefined, undefined), '会员套餐 · 可管理家人', '套餐名+max 都缺失');
+console.log('\n[InviteFamilyCard] 主标题（#3 修复后：仅展示套餐名，去掉" · 可管理 N..."避免截断）');
+assertEq(formatTitleLine('家庭版', 10), '家庭版', '家庭版（不再拼可管理文案）');
+assertEq(formatTitleLine('尊享版', 20), '尊享版', '尊享版（不再拼可管理文案）');
+assertEq(formatTitleLine('尊享版', 9999), '尊享版', '尊享版（不限档同样仅显示套餐名）');
+assertEq(formatTitleLine('', 10), '会员套餐', '空套餐名走兜底「会员套餐」');
+assertEq(formatTitleLine(null, 10), '会员套餐', 'null 套餐名走兜底「会员套餐」');
+assertEq(formatTitleLine(undefined, undefined), '会员套餐', '套餐名+max 都缺失走兜底');
 
 console.log('\n[InviteFamilyCard] 用量行');
 assertEq(formatQuotaLine(3, 10), '已管理 3 / 上限 10', '已管理 3 / 上限 10');

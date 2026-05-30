@@ -5,7 +5,41 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-30 · 新功能 / 邀请家人入口卡片 v1.1 位置调整补丁）
+## 最近一次变更（2026-05-30 · Bug 修复 / 健康管理-档案列表 UI 优化）
+
+**任务标识**：`[BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30]`
+
+**背景**：用户反馈"健康管理 → 档案列表"页存在 5 项主要 UI/文案问题 + 1 项附加优化，集中在「文案冗余/截断」「视觉层次混乱」「⋯ 折叠菜单可发现性差 + 黄色按钮刺眼」。本次修复**仅 UI 层面、零功能逻辑变更、零后端改动**。
+
+**核心交付**（仅 H5 一端；小程序无对应页面、Android/iOS 通过 WebView 加载 H5 自动同步生效，无需重新打包）：
+
+- **H5 `h5-web/src/app/health-profile/page.tsx`（修改 · 优化点 #1）**：健康档案首页「档案列表」入口卡片副标题由"已管理 X 人，还可添加 Y-X 人"改为纯数字斜杠格式 **"已管理 X/Y"**（不限档简化为"已管理 X"），与档案列表内页统计口径完全对齐。
+- **H5 `h5-web/src/app/health-profile/archive-list/page.tsx`（修改 · 优化点 #2 #4 #5 #6）**：
+  - **#2**：完整删除顶部"本套餐可管理 X 位家庭成员（含本人）"灰字横条 + 不限档版本，DOM 节点一并移除避免留白
+  - **#4**：页面背景 `PAGE_BG` 由 `#F0F9FF`（淡蓝）改为 **`#F5F7FA`（浅灰）**；蓝色会员卡片与下方卡片间距由 0 增至 16px（卡片列表容器 `paddingTop:16`）；每张成员卡 `marginBottom` 由 10px 统一为 **12px**；卡片圆角 14→12px；卡片边框由状态色边框统一为中性 `#EEF0F3`
+  - **#5**：完全去掉 `MoreMenu` 折叠抽屉调用，将其中的「删除 / 解除守护 / 取消邀请 / 邀请记录」全部平铺到 `MemberCard` 操作区；引入两个通用函数 `pillPrimary()` / `pillSecondary()` 按需吐出胶囊样式（高度 30px / 圆角 999px / 字号 13px / 横纵 8px 间距 / `flex-wrap:wrap`）；主操作蓝色实心胶囊（`#1677FF` 底 + 白字）、次要操作蓝色描边胶囊；删除/解除/取消邀请类沿用红色描边以保留危险提示
+  - **#6**：本人 S0 成员卡的状态徽章背景统一改为灰色（`#F1F5F9` 底 / `#64748B` 字 / `#E2E8F0` 边），与"姓名旁灰色本人标签"需求一致；其余非本人成员卡保持原状态色徽章不变
+  - 主色 `PRIMARY_COLOR` 常量由 `#0EA5E9`（青蓝）改为 **`#1677FF`（产品蓝）**，所有平铺胶囊按钮统一使用此色
+- **H5 `h5-web/src/app/member-center/components/InviteFamilyCard.tsx`（修改 · 优化点 #3）**：
+  - `formatBenefitPhrase()` 一律返回空串（历史："不限家人数" / "可管理 N 位家人" / "可管理家人"）
+  - `formatTitleLine()` 当 phrase 为空时不再拼接" · "，主标题仅展示套餐名（如"普通会员"）
+  - 解决两大痛点：(a) 容器宽度不足时"普通会员 · 可管理 10..."被截断；(b) 与顶部"已管理 X/Y"信息重复。会员中心位 + 健康档案位**两处同步生效**
+- **测试**：
+  - `h5-web/src/lib/__tests__/run_invite_card_test.mjs`（39 用例）：更新权益短语 / 主标题断言，全部通过
+  - `h5-web/src/lib/__tests__/run_invite_card_v11_test.mjs`（29 用例）：更新双位置主标题一致性 + 兜底断言，全部通过
+- **后端**：未做改动；现有 `/api/family/member/state/list` + `/api/member/center` 接口零字段变更
+
+**部署方式**：
+- 部署脚本 `_deploy_archive_list_ui_optim.py`：tar 打包 `h5-web/` → SFTP 上传 → 服务器解压（备份为 `h5-web.bak_<ts>`）→ `docker compose build h5-web` → `docker compose up -d h5-web`
+- 服务器烟雾测试：HTTP 200/308 全部可达（`/` / `/health-profile` / `/health-profile/archive-list` / `/member-center`），容器内编译产物含 `#1677FF` / `#F5F7FA` / `secondary-action` 标识；服务器 docker node 容器内单元测试 39+29=68 用例全过
+
+**用户手册**：[user_docs/健康管理-档案列表UI优化.md](../user_docs/健康管理-档案列表UI优化.md)
+
+**唯一变更标记**：`[BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30]`
+
+---
+
+## 上一次变更（2026-05-30 · 新功能 / 邀请家人入口卡片 v1.1 位置调整补丁）
 
 **任务标识**：`[PRD-INVITE-FAMILY-CARD-V1.1 2026-05-30]`
 

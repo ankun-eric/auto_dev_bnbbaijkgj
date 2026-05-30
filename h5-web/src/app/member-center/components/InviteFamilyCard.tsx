@@ -64,17 +64,28 @@ export function computeCardState(
   return isFullState(quotaUsed, quotaMax) ? 'full' : 'normal';
 }
 
-/** 渲染权益短语 */
-export function formatBenefitPhrase(quotaMax: number | null | undefined): string {
-  if (isUnlimitedQuota(quotaMax)) return '不限家人数';
-  if (quotaMax === null || quotaMax === undefined) return '可管理家人';
-  return `可管理 ${quotaMax} 位家人`;
+/** 渲染权益短语
+ *
+ * [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #3]
+ * 历史："不限家人数" / "可管理 N 位家人"
+ * 现状：主标题（会员级别行）在档案列表/会员中心两处均会被容器宽度截断（如"普通会员 · 可管理 10..."），
+ *       且"可管理 X 人"已在顶部卡片"已管理 X/Y"中清晰呈现，重复信息。
+ * 修复：直接返回空串，从而让 formatTitleLine 仅展示套餐名（"普通会员"），杜绝截断与冗余。
+ * 兼容：保留函数与导出签名不变，便于既有测试 / 业务代码无感升级。
+ */
+export function formatBenefitPhrase(_quotaMax: number | null | undefined): string {
+  return '';
 }
 
-/** 渲染套餐名+权益短语主标题 */
+/** 渲染套餐名+权益短语主标题
+ *
+ * [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #3]
+ * 当权益短语为空（默认情况）时，主标题仅显示套餐名，不再拼接" · 可管理 N 位家人"。
+ */
 export function formatTitleLine(planName: string | null | undefined, quotaMax: number | null | undefined): string {
   const name = (planName && planName.trim()) || '会员套餐';
-  return `${name} · ${formatBenefitPhrase(quotaMax)}`;
+  const phrase = formatBenefitPhrase(quotaMax);
+  return phrase ? `${name} · ${phrase}` : name;
 }
 
 /** 渲染用量行 */

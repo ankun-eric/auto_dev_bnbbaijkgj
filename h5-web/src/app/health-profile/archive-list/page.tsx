@@ -64,11 +64,14 @@ const STATE_COLOR_MAP: Record<string, { bg: string; border: string; text: string
   lightgray: { bg: '#F5F5F5', border: '#E5E7EB', text: '#94A3B8' },
 };
 
-const PRIMARY_COLOR = '#0EA5E9';
+// [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #4 #5]
+// - 主色 PRIMARY_COLOR 由 #0EA5E9（青蓝）统一为 #1677FF（产品蓝），用于所有平铺胶囊按钮
+// - 页面背景由 #F0F9FF 改为 #F5F7FA 浅灰，与白色卡片形成清晰层次
+const PRIMARY_COLOR = '#1677FF';
 const ACCENT_COLOR = '#FFB800';
 const TEXT_PRIMARY = '#0F172A';
 const TEXT_SECONDARY = '#64748B';
-const PAGE_BG = '#F0F9FF';
+const PAGE_BG = '#F5F7FA';
 const DANGER = '#EF4444';
 
 const AVATAR_COLORS = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
@@ -630,24 +633,9 @@ export default function ArchiveListPage() {
     <div style={{ minHeight: '100vh', background: PAGE_BG, paddingBottom: 100 }}>
       <GreenNavBar title='档案列表' onBack={() => router.back()} />
 
-      {/* [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30 C4] 档案管理列表页顶部小字 ——
-          仅本页面提示「含本人」规则，权益卡片/套餐对比/套餐详情统统不提；
-          字号 12px、辅助色 #8c8c8c，不带图标、不强调。 */}
-      {list && (
-        <div
-          data-testid="archive-list-quota-tip"
-          style={{
-            margin: '12px 16px 0',
-            fontSize: 12,
-            color: '#8c8c8c',
-            lineHeight: 1.6,
-          }}
-        >
-          {list.quota_max === -1 || list.quota_max >= 9999
-            ? '本套餐可管理家庭成员数量不限（含本人）'
-            : `本套餐可管理 ${list.quota_max} 位家庭成员（含本人）`}
-        </div>
-      )}
+      {/* [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #2]
+          删除「本套餐可管理 X 人」横条 —— 顶部入口卡片已展示「已管理 X/Y」，此处冗余。
+          DOM 节点一并移除，避免留白。 */}
 
       {/* [PRD-INVITE-FAMILY-CARD-V1.1 2026-05-30 §3.1] 健康档案位概览块完整替换为「邀请家人入口卡片」
           删除清单（橙圈 ①~⑤）：
@@ -677,14 +665,29 @@ export default function ArchiveListPage() {
       {/* 注意：不再有「去邀请」大按钮（入口 B 已删除） */}
 
       {/* 卡片列表 */}
-      <div style={{ padding: '0 12px' }}>
+      {/* [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #4]
+          顶部蓝色会员卡片与下方本人/成员卡之间额外保留 16px 纵向间距（paddingTop:16），
+          配合页面浅灰底色 #F5F7FA + 卡片白色背景，形成清晰层次，告别"挤成一团"。 */}
+      <div style={{ padding: '16px 12px 0' }}>
         {loading && <div style={{ padding: 40, textAlign: 'center', color: TEXT_SECONDARY }}>加载中…</div>}
         {!loading && list?.items.map((m) => (
           <MemberCard
             key={m.member_id}
             member={m}
             onPrimaryAction={() => handlePrimaryAction(m)}
-            onMoreMenu={() => setMoreMenuMember(m)}
+            // [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #5]
+            // 平铺次要按钮直接派发动作，不再走 MoreMenu 折叠抽屉。
+            onMoreMenu={(action) => {
+              if (action === 'delete') {
+                setDeleteMember(m);
+              } else if (action === 'unbind') {
+                handleUnbind(m);
+              } else if (action === 'cancel_invite') {
+                handleCancelInvite(m);
+              } else if (action === 'invitation_history') {
+                handleViewInvitationHistory(m);
+              }
+            }}
             onAiQuota={m.is_self && m.state === 'S0' ? () => setAiQuotaOpen(true) : undefined}
           />
         ))}
@@ -702,24 +705,9 @@ export default function ArchiveListPage() {
         onSuccess={handleNewMemberSuccess}
       />
 
-      {/* 更多操作菜单 */}
-      <MoreMenu
-        open={!!moreMenuMember}
-        member={moreMenuMember}
-        onClose={() => setMoreMenuMember(null)}
-        onAction={(action) => {
-          if (!moreMenuMember) return;
-          if (action === 'delete') {
-            setDeleteMember(moreMenuMember);
-          } else if (action === 'unbind') {
-            handleUnbind(moreMenuMember);
-          } else if (action === 'cancel_invite') {
-            handleCancelInvite(moreMenuMember);
-          } else if (action === 'invitation_history') {
-            handleViewInvitationHistory(moreMenuMember);
-          }
-        }}
-      />
+      {/* [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #5]
+          原 MoreMenu 折叠菜单已下线，操作平铺在各成员卡片底部，不再渲染。
+          组件定义保留供历史代码引用与潜在回滚，但不再使用。 */}
 
       {/* 删除确认 */}
       <DeleteConfirmDrawer
@@ -1023,8 +1011,59 @@ function InvitationHistoryDrawer({
 interface MemberCardProps {
   member: MemberStateItem;
   onPrimaryAction: () => void;
-  onMoreMenu: () => void;
+  // [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #5]
+  // 由原"⋯ 折叠菜单"演变为「点击具体次要操作时回调」。
+  // 保留参数名 onMoreMenu 以最小化扩散改动，签名升级为带 action 参数。
+  onMoreMenu: (action: 'delete' | 'unbind' | 'cancel_invite' | 'invitation_history') => void;
   onAiQuota?: () => void;
+}
+
+// [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #5] 蓝色胶囊按钮样式（统一规范）
+// - 主操作（实心）：背景 #1677FF / 白字 / 无边框 / 圆角胶囊
+// - 次要操作（描边）：透明背景 / 1px #1677FF 边框 / 蓝字 / 圆角胶囊
+// - 高度 30px，水平内边距 14px，字号 13px，圆角 999px
+const PILL_HEIGHT = 30;
+const PILL_PADDING_H = 14;
+const PILL_FONT_SIZE = 13;
+const PILL_RADIUS = 999;
+
+function pillPrimary(): React.CSSProperties {
+  return {
+    height: PILL_HEIGHT,
+    padding: `0 ${PILL_PADDING_H}px`,
+    borderRadius: PILL_RADIUS,
+    border: 'none',
+    background: PRIMARY_COLOR,
+    color: '#FFFFFF',
+    fontSize: PILL_FONT_SIZE,
+    fontWeight: 600,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    lineHeight: `${PILL_HEIGHT}px`,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  };
+}
+
+function pillSecondary(danger: boolean = false): React.CSSProperties {
+  const c = danger ? DANGER : PRIMARY_COLOR;
+  return {
+    height: PILL_HEIGHT,
+    padding: `0 ${PILL_PADDING_H}px`,
+    borderRadius: PILL_RADIUS,
+    border: `1px solid ${c}`,
+    background: 'transparent',
+    color: c,
+    fontSize: PILL_FONT_SIZE,
+    fontWeight: 500,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    lineHeight: `${PILL_HEIGHT - 2}px`,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  };
 }
 
 function MemberCard({ member, onPrimaryAction, onMoreMenu, onAiQuota }: MemberCardProps) {
@@ -1032,20 +1071,46 @@ function MemberCard({ member, onPrimaryAction, onMoreMenu, onAiQuota }: MemberCa
   const avatarBg = AVATAR_COLORS[member.avatar_color_index || 0];
   const primaryLabel = PRIMARY_ACTION_LABEL[member.primary_action] || '查看';
   // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 §3.1 验收 8.1#5]
-  // 本人 S0 卡片右下角追加「AI 外呼额度」次按钮（点击弹抽屉）
+  // 本人 S0 卡片追加「AI 外呼额度」次按钮（点击弹抽屉）
   const showAiQuotaBtn = !!member.is_self && member.state === 'S0' && !!onAiQuota;
+
+  // [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #5]
+  // 将原 MoreMenu 折叠操作平铺为独立次要按钮：
+  // - 删除（非 S0/S1/S3 可见）
+  // - 解除守护（S1 可见）
+  // - 取消邀请（S3 可见）
+  // - 邀请记录（invitation_count > 0 可见）
+  const secondaryItems: { key: 'delete' | 'unbind' | 'cancel_invite' | 'invitation_history'; label: string; danger?: boolean; show: boolean }[] = [
+    { key: 'unbind', label: '解除守护', danger: true, show: member.state === 'S1' && !member.is_self },
+    { key: 'cancel_invite', label: '取消邀请', danger: true, show: member.state === 'S3' && !member.is_self },
+    { key: 'invitation_history', label: '邀请记录', show: (member.invitation_count || 0) > 0 && !member.is_self },
+    { key: 'delete', label: '删除', danger: true, show: !['S0', 'S1', 'S3'].includes(member.state) && !member.is_self },
+  ].filter((x) => x.show);
+
+  // [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #6]
+  // 本人卡片：仅在姓名旁保留灰色「本人」标签（来自后端 state_label）；
+  // 不再在头像下方或其他位置重复展示「本人」文字。
+  // 本人 S0 的状态徽章统一改为灰色（背景 #F1F5F9 / 文字 #64748B / 边框 #E2E8F0），与"灰色本人标签"需求一致。
+  const isSelfTag = !!member.is_self && member.state === 'S0';
+  const tagBg = isSelfTag ? '#F1F5F9' : color.bg;
+  const tagText = isSelfTag ? '#64748B' : color.text;
+  const tagBorder = isSelfTag ? '#E2E8F0' : color.border;
 
   return (
     <div
       data-testid={`member-card-${member.member_id}`}
       data-state={member.state}
       style={{
-        background: '#FFF',
-        borderRadius: 14,
+        background: '#FFFFFF',
+        // [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 §四 视觉规范] 卡片圆角统一 12px
+        borderRadius: 12,
         padding: 14,
-        marginBottom: 10,
+        // [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #4]
+        // 卡片间距统一 12px，避免局部紧凑/局部松散
+        marginBottom: 12,
         boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-        border: `1px solid ${color.border}`,
+        // 由原状态色边框（如 S0 蓝色）改为统一中性边框，避免与浅灰背景叠色
+        border: '1px solid #EEF0F3',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1077,9 +1142,9 @@ function MemberCard({ member, onPrimaryAction, onMoreMenu, onAiQuota }: MemberCa
                 padding: '2px 8px',
                 borderRadius: 6,
                 fontSize: 11,
-                background: color.bg,
-                color: color.text,
-                border: `1px solid ${color.border}`,
+                background: tagBg,
+                color: tagText,
+                border: `1px solid ${tagBorder}`,
                 flexShrink: 0,
               }}
             >
@@ -1089,8 +1154,7 @@ function MemberCard({ member, onPrimaryAction, onMoreMenu, onAiQuota }: MemberCa
           <div style={{ fontSize: 12, color: TEXT_SECONDARY }}>
             {member.relationship_type || '-'}
             {/* [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 排版修复]
-                「剩余 Xh」仅在邀请进行中（S3 待接受 / 含有效邀请码）时展示，
-                避免 S4 已拒绝 / S5 未绑定 / S6 已过期 / S7 已取消 仍误展示 */}
+                「剩余 Xh」仅在邀请进行中（S3 待接受 / 含有效邀请码）时展示 */}
             {member.state === 'S3'
               && !!member.invite_code
               && member.invite_remaining_hours !== undefined
@@ -1102,50 +1166,48 @@ function MemberCard({ member, onPrimaryAction, onMoreMenu, onAiQuota }: MemberCa
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
+      {/* [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #5]
+          操作区：所有可用操作平铺为独立胶囊按钮，一行放不下时自动换行。
+          - 主操作：实心蓝色胶囊（#1677FF / 白字）
+          - 次要操作：蓝色描边胶囊；删除/解除/取消邀请类用红色描边以保留危险提示 */}
+      <div
+        data-testid={`member-card-actions-${member.member_id}`}
+        style={{
+          display: 'flex',
+          gap: 8,
+          marginTop: 12,
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          rowGap: 8,
+        }}
+      >
         {showAiQuotaBtn && (
           <button
             onClick={onAiQuota}
             data-testid={`ai-quota-btn-${member.member_id}`}
-            style={{
-              padding: '8px 14px',
-              borderRadius: 14,
-              border: `1px solid ${PRIMARY_COLOR}`,
-              background: '#FFF',
-              color: PRIMARY_COLOR,
-              fontSize: 13,
-              cursor: 'pointer',
-              fontWeight: 500,
-              whiteSpace: 'nowrap',
-            }}
+            style={pillSecondary(false)}
           >
-            📞 AI 外呼额度
+            AI 外呼额度
           </button>
         )}
+        {secondaryItems.map((it) => (
+          <button
+            key={it.key}
+            onClick={() => onMoreMenu(it.key)}
+            data-testid={`secondary-action-${it.key}-${member.member_id}`}
+            style={pillSecondary(!!it.danger)}
+          >
+            {it.label}
+          </button>
+        ))}
         <button
           onClick={onPrimaryAction}
           data-testid={`primary-action-${member.member_id}`}
-          style={primaryBtnStyle(false, false)}
+          style={pillPrimary()}
         >
           {primaryLabel}
         </button>
-        {!member.is_self && (
-          <button
-            onClick={onMoreMenu}
-            data-testid={`more-menu-${member.member_id}`}
-            style={{
-              padding: '8px 14px',
-              borderRadius: 12,
-              border: '1px solid #E2E8F0',
-              background: '#FFF',
-              color: TEXT_SECONDARY,
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
-            ⋯
-          </button>
-        )}
       </div>
     </div>
   );
