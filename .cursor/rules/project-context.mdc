@@ -5,7 +5,62 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-30 · 新功能 / 会员中心付费态蓝紫主题 v1.0）
+## 最近一次变更（2026-05-30 · 新功能 / 血糖卡片优化 PRD v1.0）
+
+**任务标识**：`[PRD-GLUCOSE-CARD-OPTIMIZE-V1 2026-05-30]`
+
+**背景**：原血糖卡片存在「危象」吓人用词、「编辑保存=新增记录」脏数据 Bug、AI 解读为前端规则拼字符串而非真大模型、测量类型非必选且只 4 种（缺餐后 1h / 凌晨）、卡片不显示测量类型标签等 6 个问题。本次按 PRD v1.0 一次性全部解决，并新增管理后台 AI 提示词配置中心。
+
+**核心交付**：
+
+- **后端 `backend/app/api/glucose_v1.py`（重写）**：
+  - 判定档位升级为 **5 档**（low_critical / low / normal / high / high_critical），新增 `LEVEL_KEY` / `LEVEL_LABEL` / `LEVEL_COLOR` 完整映射；用词从「危象」→「重度偏低 / 重度偏高」
+  - 测量类型扩展到 **6 类**（新增 `after_meal_1h` 餐后1h、`dawn` 凌晨），新增 `SCENE_KEY_TO_CODE` / `SCENE_CODE_TO_KEY` 双向映射；`_normalize_scene` 同时接受 int / 新 key / legacy key（`after_meal` → `after_meal_2h`、`bedtime` → `before_sleep`）；`scene` 字段改为**必传**
+  - `SCENE_THRESHOLDS` 按 PRD §3.2 完整 6×5 阈值表重写
+  - `GlucoseRecordOut` 新增 `period` / `period_label` / `level_key` 字段；`build_alert_message` 完全去除「危象」字眼
+  - **新增 `PUT /api/glucose-v1/records/{record_id}`**：真改记录（值/类型/时间/备注），自动重算 level 与 crisis（PRD P2 致命 Bug 修复）
+  - **新增 `POST /api/glucose-v1/ai-explain-single` / `ai-explain-trend`**：复用 `ai_service.call_ai_model` 调大模型；3 秒超时降级到规则文案；内存缓存 `_ai_cache`；命中时 `from_cache=true`、降级时 `fallback=true`
+  - **新增 `GET/PUT/POST /api/glucose-v1/admin/ai-prompts`**：管理后台提示词 CRUD + 测试调用接口；版本自动 +1；写入 `ai_prompt_config_history` 历史表；缓存自动失效
+
+- **后端 `backend/app/api/health_profile_v3.py`（修改）**：
+  - **新增 `PUT /{profile_id}/metric/{metric_type}/{record_id}`**：通用指标真改接口（blood_glucose 含 period/measured_at/remark 同步）
+  - **新增 `DELETE /{profile_id}/metric/{metric_type}/{record_id}`**：物理删除（PRD P2 + 左滑删除）
+
+- **后端 `backend/app/main.py`（修改）**：
+  - `_migrate_glucose_v1` 新增 `CREATE TABLE IF NOT EXISTS ai_prompt_config` + `ai_prompt_config_history` 自动建表
+  - 调用 `_ensure_glucose_prompts(db)` 自动 seed 两条初始提示词（`glucose_single_explain` / `glucose_trend_explain`）
+
+- **H5 `h5-web/src/lib/bg-level.ts`（重写）**：
+  - 类型升级：`BgLevel = 5 档 union`、`BgScene = 6 类 union`；`LEGACY_TO_NEW` 兼容旧值
+  - `BG_SCENE_CODE` / `BG_SCENE_LABEL` / `BG_SCENE_OPTIONS` 完整覆盖 6 类
+  - `SCENE_THRESHOLDS` / `BG_TARGET_RANGE` 按 PRD §3.2 重写
+  - `LEVEL_META` 用新中文用词 + 5 个具体 hex 色
+  - `judgeBg` 实现 6 类 × 5 档完整判定；`sceneKeyToCode` 辅助后端请求
+
+- **H5 `h5-web/src/app/health-metric/[type]/page.tsx`（重写）**：
+  - 录入：6 个测量类型胶囊；未选则保存按钮置灰 + 红字提示；保存同时 POST `/health-profile-v3` 与 `/glucose-v1/records`
+  - 编辑：调 `PUT /health-profile-v3/...`，失败兜底 `PUT /glucose-v1/records/...`；支持改值/类型/时间/备注
+  - 删除：左滑列表项露红色"删除" + 二次确认弹窗；调 `DELETE /health-profile-v3/...` 失败兜底 `/glucose-v1/...`
+  - AI 解读：单次/趋势按钮均改调后端真 AI 接口；`from_cache` / `fallback` 标记可视化
+  - 卡片 + 历史列表均显示「测量类型」胶囊 + 「档位」胶囊（PRD §4.2 / §4.3 / §4.4）
+
+- **后端测试 `backend/tests/test_glucose_card_optimize_v2.py`（新增）**：覆盖 AC-01 ~ AC-15 全部 15 个验收点
+  - 6×5 判定矩阵 / 必选 scene 校验 / PUT 真改 / DELETE 物理删 / AI 单次/趋势接口 + 缓存 + fallback / 管理后台提示词 CRUD + 版本递增 / legacy scene 兼容 / 文案不含「危象」
+  - 远程容器内 pytest **74/74 全过**（含回归 `test_glucose_v1_20260530.py`）
+
+**部署方式**：
+- 部署脚本：`_deploy_glucose_v2.py`（后端 docker cp）+ `_deploy_h5_full.py`（H5 standalone tar 全量替换）
+- 流程：本地 `npm run build`（注入 `NEXT_PUBLIC_BASE_PATH=/autodev/<id>`）→ tar 打包 standalone+static+public → SFTP 上传 → 容器内解压 → 重启
+- 服务器烟测：`AC-11` 列出 2 条已发布提示词 ✓；`AC-01` 缺 scene → 401 ✓；`PUT/DELETE/AI-explain` 接口存在 ✓；H5 首页 / 健康档案 / 血糖详情页 HTTP 200 ✓
+- 远程容器内 pytest 74/74 全过
+
+**用户手册**：[user_docs/血糖卡片优化.md](../user_docs/血糖卡片优化.md)
+
+**唯一变更标记**：`[PRD-GLUCOSE-CARD-OPTIMIZE-V1 2026-05-30]`
+
+---
+
+## 历史变更（2026-05-30 · 新功能 / 会员中心付费态蓝紫主题 v1.0）
 
 **任务标识**：`[PRD-MEMBER-PURPLE-THEME-V1 2026-05-30]`
 

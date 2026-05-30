@@ -34,7 +34,7 @@ import { formatDateTime, parseServerTime, formatFriendlyTime } from '@/lib/datet
 import { judgeBp, getBpPalette, type BpJudgement } from '@/lib/bp-level';
 import {
   judgeBg, getBgPalette, normalizeScene, BG_SCENE_LABEL, BG_TARGET_RANGE,
-  BG_SCENE_CODE, formatBgSourceCapsule,
+  BG_SCENE_CODE, BG_SCENE_OPTIONS, formatBgSourceCapsule, sceneKeyToCode,
   type BgJudgement, type BgScene,
 } from '@/lib/bg-level';
 
@@ -1603,17 +1603,23 @@ interface BloodGlucosePageProps {
 function BloodGlucosePage({ history, latest, profileId, devices, refresh }: BloodGlucosePageProps) {
   const router = useRouter();
 
-  // 录入抽屉
+  // 录入抽屉 — [PRD-GLUCOSE-CARD-OPTIMIZE-V2] 测量类型默认不选中
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [inputTab, setInputTab] = useState<'manual' | 'device'>('manual');
   const [bgValue, setBgValue] = useState('');
-  const [bgScene, setBgScene] = useState<BgScene>('after_meal');
+  const [bgScene, setBgScene] = useState<BgScene | null>(null);
   const [bgNote, setBgNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const [sceneError, setSceneError] = useState(false);
 
-  // 编辑历史记录
+  // 编辑历史记录 — 支持完整修改 value + scene + measured_at
   const [editRecord, setEditRecord] = useState<MetricRecord | null>(null);
   const [editScene, setEditScene] = useState<BgScene>('random');
+  const [editValue, setEditValue] = useState('');
+
+  // 删除二次确认
+  const [deletingRecord, setDeletingRecord] = useState<MetricRecord | null>(null);
+  const [swipedRowId, setSwipedRowId] = useState<number | null>(null);
 
   // AI 解读抽屉
   const [aiDrawer, setAiDrawer] = useState<{ mode: 'single' | 'trend'; loading: boolean; text: string } | null>(null);
@@ -1652,17 +1658,31 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
       showToast('数值应在 0.5–35 之间', 'fail');
       return;
     }
+    if (!bgScene) {
+      setSceneError(true);
+      showToast('请选择测量类型', 'fail');
+      return;
+    }
     setSaving(true);
     try {
-      await api.post(`/api/health-profile-v3/${profileId}/metric/blood_glucose`, {
-        value: { value: v, period: BG_SCENE_LABEL[bgScene] },
-        source: inputTab === 'device' ? 'device:glucometer' : 'manual',
-        note: bgNote.trim() || undefined,
-      });
+      await Promise.all([
+        api.post(`/api/health-profile-v3/${profileId}/metric/blood_glucose`, {
+          value: { value: v, period: bgScene, period_label: BG_SCENE_LABEL[bgScene] },
+          source: inputTab === 'device' ? 'device:glucometer' : 'manual',
+          note: bgNote.trim() || undefined,
+        }),
+        api.post(`/api/glucose-v1/records`, {
+          value: v,
+          scene: bgScene,
+          note: bgNote.trim() || undefined,
+        }).catch(() => null),
+      ]);
       showToast('已保存', 'success');
       setDrawerVisible(false);
       setBgValue('');
       setBgNote('');
+      setBgScene(null);
+      setSceneError(false);
       await refresh();
     } catch {
       showToast('保存失败，请重试', 'fail');
@@ -1671,27 +1691,53 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
     }
   }, [bgValue, bgScene, bgNote, inputTab, profileId, refresh]);
 
+  // [PRD-GLUCOSE-CARD-OPTIMIZE-V2 AC-06] 编辑保存：完整修改原记录（PUT），不再"新增一条"
   const handleEditSave = useCallback(async () => {
     if (!editRecord || !profileId) return;
+    const v = Number(editValue || editRecord.value?.value);
+    if (Number.isNaN(v) || v < 0.5 || v > 35) {
+      showToast('数值应在 0.5–35 之间', 'fail');
+      return;
+    }
     try {
-      const rec = editRecord;
-      // 使用 v3 endpoint POST（追加新记录代替编辑，原因：当前 v3 metric API 未提供 PUT）
-      // 为保持"修改测量类型 → 重算严重程度"语义，这里同步删除旧记录后新增
-      // 但为了稳健，本次仅再次 POST 同值，覆盖 period 字段；旧记录通过历史展示仍可见
-      await api.post(`/api/health-profile-v3/${profileId}/metric/blood_glucose`, {
-        value: { ...rec.value, period: BG_SCENE_LABEL[editScene] },
-        source: rec.source,
-        note: rec.value?.note,
+      await api.put(`/api/health-profile-v3/${profileId}/metric/blood_glucose/${editRecord.id}`, {
+        value: v,
+        period: editScene,
+        measured_at: editRecord.measured_at,
+        remark: editRecord.value?.note || '',
+      }).catch(async () => {
+        // 兜底：调用 glucose-v1 PUT
+        await api.put(`/api/glucose-v1/records/${editRecord.id}`, {
+          value: v,
+          scene: editScene,
+        });
       });
       showToast('已更新', 'success');
       setEditRecord(null);
+      setEditValue('');
       await refresh();
     } catch {
       showToast('更新失败', 'fail');
     }
-  }, [editRecord, editScene, profileId, refresh]);
+  }, [editRecord, editScene, editValue, profileId, refresh]);
 
-  // AI 解读
+  // [PRD-GLUCOSE-CARD-OPTIMIZE-V2 AC-07] 删除记录
+  const handleDelete = useCallback(async (record: MetricRecord) => {
+    if (!profileId) return;
+    try {
+      await api.delete(`/api/health-profile-v3/${profileId}/metric/blood_glucose/${record.id}`).catch(async () => {
+        await api.delete(`/api/glucose-v1/records/${record.id}`);
+      });
+      showToast('已删除', 'success');
+      setDeletingRecord(null);
+      setSwipedRowId(null);
+      await refresh();
+    } catch {
+      showToast('删除失败', 'fail');
+    }
+  }, [profileId, refresh]);
+
+  // [PRD-GLUCOSE-CARD-OPTIMIZE-V2 §五/§七] AI 解读 — 接入真实大模型，规则文案降级
   const requestAi = useCallback(async (mode: 'single' | 'trend') => {
     const cacheKey = mode === 'single' ? `single:${latest?.id ?? 0}` : `trend:${range}`;
     const cached = aiCacheRef.get(cacheKey);
@@ -1701,39 +1747,56 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
     }
     setAiDrawer({ mode, loading: true, text: '' });
     try {
-      // 复用现有 glucose-v1 ai-advice 接口（趋势）；单次解读做本地规则兜底
       let text = '';
-      if (mode === 'trend') {
-        const days = range === 'today' ? 7 : range === 'week' ? 7 : 30;
-        try {
-          const r: any = await api.get(`/api/glucose-v1/ai-advice?days=${Math.max(days, 7)}`);
-          const data = r.data || r;
-          const lines: string[] = [];
-          if (Array.isArray(data?.summary_lines)) lines.push(...data.summary_lines);
-          if (Array.isArray(data?.trend_lines)) lines.push('', ...data.trend_lines);
-          if (Array.isArray(data?.advice_lines)) lines.push('', '建议：', ...data.advice_lines.map((s: string) => `· ${s}`));
-          text = lines.join('\n');
-        } catch {
-          text = '基于近期数据，建议保持规律饮食与适量运动，每周记录 3 次以上空腹与餐后血糖。';
-        }
-      } else {
-        const v = latestValue;
-        const sc = latestScene;
-        if (v == null) {
+      if (mode === 'single') {
+        if (!latest?.id) {
           text = '暂无血糖记录，请先录入一次再点击解读。';
         } else {
-          const j = judgeBg(v, sc);
-          const target = BG_TARGET_RANGE[sc];
-          const cn = BG_SCENE_LABEL[sc];
-          if (j?.level === 'normal') {
-            text = `你这次${cn}血糖是 ${v} mmol/L，在正常范围内（${target.label}），不用太担心。建议：保持当前饮食与运动节奏，继续规律监测。`;
-          } else if (j?.level === 'low') {
-            text = `你这次${cn}血糖是 ${v} mmol/L，处于偏低区间（建议 ${target.label}）。建议：立即补充含糖食物（糖水/糖果/果汁），15 分钟后复测；后续避免空腹剧烈运动。`;
-          } else if (j?.level === 'high') {
-            text = `你这次${cn}血糖是 ${v} mmol/L，处于偏高区间（建议 ${target.label}）。建议：减少精制主食与含糖饮料，餐后 30 分钟轻度散步 20 分钟，2 小时后复测。`;
-          } else {
-            text = `你这次${cn}血糖是 ${v} mmol/L，已进入危象区间，请立即采取应对措施（高糖：多饮水并就医；低糖：立即补糖），并通知家人或守护人。`;
+          try {
+            const r: any = await api.post('/api/glucose-v1/ai-explain-single', {
+              record_id: Number(latest.id),
+              profile_id: profileId,
+            });
+            const d = r?.data?.data ?? r?.data ?? r;
+            text = d?.content || '';
+            if (!text) throw new Error('empty');
+          } catch {
+            // 网络异常兜底：本地规则文案
+            const v = latestValue;
+            const sc = latestScene;
+            const j = v != null ? judgeBg(v, sc) : null;
+            const cn = BG_SCENE_LABEL[sc];
+            if (j?.level === 'normal') {
+              text = `本次${cn}血糖 ${v} mmol/L，属于正常范围。建议保持规律饮食与适量运动，继续按当前节奏监测。`;
+            } else if (j?.level === 'low') {
+              text = `本次${cn}血糖 ${v} mmol/L，略低于推荐范围。建议立即少量补充含糖食物（糖水/果汁），15 分钟后复测。`;
+            } else if (j?.level === 'high') {
+              text = `本次${cn}血糖 ${v} mmol/L，略高于推荐范围。建议减少精制主食与含糖饮料，餐后散步 20 分钟，2 小时后复测。`;
+            } else if (j?.level === 'low_critical') {
+              text = `本次${cn}血糖 ${v} mmol/L，明显偏低，请立即补糖；必要时联系家人或就医。`;
+            } else if (j?.level === 'high_critical') {
+              text = `本次${cn}血糖 ${v} mmol/L，明显偏高，建议尽快就医评估，可多饮温水。`;
+            } else {
+              text = '暂无可解读数据。';
+            }
           }
+        }
+      } else {
+        const rangeKey = range === 'today' ? '7d' : range === 'week' ? '7d' : '30d';
+        try {
+          const r: any = await api.post('/api/glucose-v1/ai-explain-trend', {
+            range: rangeKey,
+            profile_id: profileId,
+          });
+          const d = r?.data?.data ?? r?.data ?? r;
+          const lines: string[] = [];
+          if (d?.summary) lines.push(d.summary);
+          if (d?.trend) lines.push('', d.trend);
+          if (d?.advice) lines.push('', '建议：', d.advice);
+          text = lines.join('\n');
+          if (!text.trim()) throw new Error('empty');
+        } catch {
+          text = '基于近期数据，建议保持规律饮食与适量运动，每周记录 3 次以上空腹与餐后血糖。';
         }
       }
       aiCacheRef.set(cacheKey, { ts: Date.now(), text });
@@ -1741,7 +1804,7 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
     } catch {
       setAiDrawer({ mode, loading: false, text: '解读失败，请稍后重试。' });
     }
-  }, [latest, latestValue, latestScene, range, aiCacheRef]);
+  }, [latest, latestValue, latestScene, range, aiCacheRef, profileId]);
 
   // 趋势图分线数据（空腹/餐后/睡前）
   const trendData = useMemo(() => {
@@ -1772,9 +1835,9 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
         ? (dBj.getUTCHours() + dBj.getUTCMinutes() / 60)
         : (cutoffDays - 1 - Math.floor(diffMs / (24 * 3600 * 1000)));
       if (sc === 'fasting') buckets.fasting.push({ x, y: v, raw: r });
-      else if (sc === 'after_meal') buckets.after_meal.push({ x, y: v, raw: r });
-      else if (sc === 'bedtime') buckets.bedtime.push({ x, y: v, raw: r });
-      // random 不入图，但展示在历史
+      else if (sc === 'after_meal_2h' || sc === 'after_meal_1h') buckets.after_meal.push({ x, y: v, raw: r });
+      else if (sc === 'before_sleep') buckets.bedtime.push({ x, y: v, raw: r });
+      // random / dawn 不入图，但展示在历史
     });
     return buckets;
   }, [records, range]);
@@ -1819,7 +1882,7 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
             </span>
           </div>
 
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center', gap: 8 }}>
+          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
             {judgement && (
               <span
                 data-testid="bg-capsule"
@@ -1832,7 +1895,21 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
                 }}
               >
                 <span aria-hidden="true">{judgement.icon}</span>
-                <span>{judgement.capsuleLabel}</span>
+                <span>{judgement.label}</span>
+              </span>
+            )}
+            {/* [PRD-GLUCOSE-CARD-OPTIMIZE-V2 AC-13] 主卡片显示测量类型标签 */}
+            {latest && (
+              <span
+                data-testid="bg-period-capsule"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  padding: '6px 12px', borderRadius: 999,
+                  background: '#F1F5F9', color: '#0C4A6E',
+                  fontSize: 12, fontWeight: 700,
+                }}
+              >
+                🩸 {BG_SCENE_LABEL[latestScene]}
               </span>
             )}
             {latest && (
@@ -1858,7 +1935,7 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
         <div data-testid="bg-target-card" style={{ background: '#fff', borderRadius: 14, padding: '12px 14px', boxShadow: '0 2px 10px rgba(14,165,233,0.06)' }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: '#0C4A6E', marginBottom: 6 }}>📏 目标范围（医学标准）</div>
           <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
-            空腹 {BG_TARGET_RANGE.fasting.label.replace('空腹 ', '')}　·　餐后 2h {BG_TARGET_RANGE.after_meal.label.replace('餐后 2h ', '')}　·　睡前 {BG_TARGET_RANGE.bedtime.label.replace('睡前 ', '')}
+            空腹 {BG_TARGET_RANGE.fasting.label.replace('空腹 ', '')}　·　餐后 2h {BG_TARGET_RANGE.after_meal_2h.label.replace('餐后 2h ', '')}　·　睡前 {BG_TARGET_RANGE.before_sleep.label.replace('睡前 ', '')}
           </div>
         </div>
       </div>
@@ -1949,37 +2026,69 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
               const j = judgeBg(v, sc);
               const rowPalette = getBgPalette(j?.color ?? 'blue');
               const src = formatBgSourceCapsule(r.source);
+              const isSwiped = swipedRowId === r.id;
               return (
                 <div
                   key={r.id}
                   data-testid={`bg-history-row-${r.id}`}
-                  onClick={() => { setEditRecord(r); setEditScene(sc); }}
-                  style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '10px 0', borderBottom: '1px solid #E5E7EB', cursor: 'pointer',
+                  style={{ position: 'relative', overflow: 'hidden', borderBottom: '1px solid #E5E7EB' }}
+                  onTouchStart={(e) => { (e.currentTarget as any)._sx = e.touches[0].clientX; }}
+                  onTouchEnd={(e) => {
+                    const sx = (e.currentTarget as any)._sx;
+                    const dx = sx ? sx - e.changedTouches[0].clientX : 0;
+                    if (dx > 40) setSwipedRowId(r.id);
+                    else if (dx < -40) setSwipedRowId(null);
                   }}
                 >
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: '#0C4A6E' }}>
-                      {formatDateTime(r.measured_at)?.slice(11, 16) || ''}　{v != null ? v.toFixed(1) : '-'}
-                      <span style={{ fontSize: 11, color: '#6B7280', marginLeft: 4, fontWeight: 500 }}>mmol/L</span>
+                  <div
+                    onClick={() => {
+                      if (isSwiped) { setSwipedRowId(null); return; }
+                      setEditRecord(r);
+                      setEditScene(sc);
+                      setEditValue(String(v ?? ''));
+                    }}
+                    style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '10px 0', cursor: 'pointer',
+                      transform: isSwiped ? 'translateX(-72px)' : 'translateX(0)',
+                      transition: 'transform 0.2s',
+                      background: '#fff',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: '#0C4A6E' }}>
+                        {formatDateTime(r.measured_at)?.slice(11, 16) || ''}　{v != null ? v.toFixed(1) : '-'}
+                        <span style={{ fontSize: 11, color: '#6B7280', marginLeft: 4, fontWeight: 500 }}>mmol/L</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <span data-testid={`bg-row-period-${r.id}`} style={{ padding: '1px 8px', background: '#F1F5F9', borderRadius: 999 }}>{BG_SCENE_LABEL[sc]}</span>
+                        <span style={{ padding: '1px 8px', background: src.isDevice ? '#DBEAFE' : '#F1F5F9', color: src.isDevice ? '#1E40AF' : '#475569', borderRadius: 999 }}>{src.label}</span>
+                      </div>
                     </div>
-                    <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ padding: '1px 8px', background: '#F1F5F9', borderRadius: 999 }}>{BG_SCENE_LABEL[sc]}</span>
-                      <span style={{ padding: '1px 8px', background: src.isDevice ? '#DBEAFE' : '#F1F5F9', color: src.isDevice ? '#1E40AF' : '#475569', borderRadius: 999 }}>{src.label}</span>
-                    </div>
+                    {j && (
+                      <span
+                        style={{
+                          fontSize: 11, fontWeight: 700,
+                          padding: '3px 10px', borderRadius: 999,
+                          background: rowPalette.capsuleBg, color: rowPalette.capsuleText,
+                        }}
+                      >
+                        {j.label}
+                      </span>
+                    )}
                   </div>
-                  {j && (
-                    <span
-                      style={{
-                        fontSize: 11, fontWeight: 700,
-                        padding: '3px 10px', borderRadius: 999,
-                        background: rowPalette.capsuleBg, color: rowPalette.capsuleText,
-                      }}
-                    >
-                      {j.label}
-                    </span>
-                  )}
+                  {/* 左滑显示的删除按钮 */}
+                  <button
+                    data-testid={`bg-row-delete-${r.id}`}
+                    onClick={(e) => { e.stopPropagation(); setDeletingRecord(r); }}
+                    style={{
+                      position: 'absolute', top: 0, right: 0, bottom: 0, width: 64,
+                      background: '#DC2626', color: '#fff', border: 'none', cursor: 'pointer',
+                      fontSize: 13, fontWeight: 600,
+                      transform: isSwiped ? 'translateX(0)' : 'translateX(64px)',
+                      transition: 'transform 0.2s',
+                    }}
+                  >删除</button>
                 </div>
               );
             })
@@ -2055,24 +2164,35 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
             <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>单位：mmol/L，合理范围 0.5–35</div>
           </div>
 
-          {/* 测量类型 */}
+          {/* [PRD-GLUCOSE-CARD-OPTIMIZE-V2 AC-01/AC-02] 测量类型 6 种 + 强制必选 */}
           <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>测量类型</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {(['fasting', 'after_meal', 'bedtime', 'random'] as BgScene[]).map(sc => (
+            <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>
+              测量类型 <span style={{ color: '#DC2626' }}>*</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              {BG_SCENE_OPTIONS.map(sc => (
                 <button
                   key={sc}
                   data-testid={`bg-scene-${sc}`}
-                  onClick={() => setBgScene(sc)}
+                  onClick={() => { setBgScene(sc); setSceneError(false); }}
                   style={{
-                    padding: '6px 14px',
+                    padding: '8px 0',
                     background: bgScene === sc ? '#0ea5e9' : '#e0f2fe',
                     color: bgScene === sc ? '#fff' : '#0369a1',
-                    border: 'none', borderRadius: 18, fontSize: 14, cursor: 'pointer',
+                    border: sceneError && !bgScene ? '1px solid #DC2626' : 'none',
+                    borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer',
                   }}
                 >{BG_SCENE_LABEL[sc]}</button>
               ))}
             </div>
+            {sceneError && !bgScene && (
+              <div data-testid="bg-scene-error" style={{ marginTop: 6, fontSize: 12, color: '#DC2626' }}>
+                ⚠ 请选择测量类型
+              </div>
+            )}
+            {!bgScene && !sceneError && (
+              <div style={{ marginTop: 6, fontSize: 11, color: '#9CA3AF' }}>请选择测量类型</div>
+            )}
           </div>
 
           {/* 备注 */}
@@ -2088,42 +2208,107 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
 
           <Button
             data-testid="bg-input-save"
+            data-disabled={!bgScene || !bgValue ? 'true' : 'false'}
             block color="primary" loading={saving} onClick={handleSave}
-            style={{ '--background-color': '#0ea5e9', '--border-radius': '22px', height: 44, fontSize: 16 } as any}
+            style={{
+              '--background-color': (!bgScene || !bgValue) ? '#94A3B8' : '#0ea5e9',
+              '--border-radius': '22px', height: 44, fontSize: 16,
+              opacity: (!bgScene || !bgValue) ? 0.7 : 1,
+            } as any}
           >保存</Button>
         </div>
       </Popup>
 
-      {/* 编辑历史记录 - 测量类型 */}
+      {/* [PRD-GLUCOSE-CARD-OPTIMIZE-V2 AC-06] 编辑历史记录 - 完整修改 + 删除 */}
       <Popup
         visible={!!editRecord}
-        onMaskClick={() => setEditRecord(null)}
-        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20 }}
+        onMaskClick={() => { setEditRecord(null); setEditValue(''); }}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '85vh', overflowY: 'auto' }}
       >
         {editRecord && (
           <div data-testid="bg-edit-popup">
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E', marginBottom: 10 }}>修改测量类型</div>
-            <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>
-              {formatDateTime(editRecord.measured_at)} · {editRecord.value?.value} mmol/L
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E' }}>编辑血糖记录</span>
+              <button onClick={() => { setEditRecord(null); setEditValue(''); }} style={{ background: 'transparent', border: 'none', fontSize: 18, color: '#9CA3AF', cursor: 'pointer' }}>✕</button>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-              {(['fasting', 'after_meal', 'bedtime', 'random'] as BgScene[]).map(sc => (
+            <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>
+              {formatDateTime(editRecord.measured_at)}
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>数值（mmol/L）</div>
+              <Input
+                data-testid="bg-edit-value"
+                type="number"
+                value={editValue || String(editRecord.value?.value || '')}
+                onChange={(v) => setEditValue(v)}
+                style={{ '--font-size': '16px', padding: '10px 12px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' } as any}
+              />
+            </div>
+
+            <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>测量类型</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
+              {BG_SCENE_OPTIONS.map(sc => (
                 <button
                   key={sc}
+                  data-testid={`bg-edit-scene-${sc}`}
                   onClick={() => setEditScene(sc)}
                   style={{
-                    padding: '6px 14px',
+                    padding: '8px 0',
                     background: editScene === sc ? '#0ea5e9' : '#e0f2fe',
                     color: editScene === sc ? '#fff' : '#0369a1',
-                    border: 'none', borderRadius: 18, fontSize: 14, cursor: 'pointer',
+                    border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer',
                   }}
                 >{BG_SCENE_LABEL[sc]}</button>
               ))}
             </div>
-            <Button
-              block color="primary" onClick={handleEditSave}
-              style={{ '--background-color': '#0ea5e9', '--border-radius': '12px', height: 40, fontSize: 14 } as any}
-            >保存</Button>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                data-testid="bg-edit-delete"
+                onClick={() => setDeletingRecord(editRecord)}
+                style={{ flex: 1, padding: '10px 0', background: '#fff', color: '#DC2626',
+                  border: '1px solid #DC2626', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >删除</button>
+              <button
+                data-testid="bg-edit-save"
+                onClick={handleEditSave}
+                style={{ flex: 2, padding: '10px 0', background: '#0ea5e9', color: '#fff',
+                  border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >保存</button>
+            </div>
+          </div>
+        )}
+      </Popup>
+
+      {/* [PRD-GLUCOSE-CARD-OPTIMIZE-V2 AC-07] 删除二次确认 */}
+      <Popup
+        visible={!!deletingRecord}
+        onMaskClick={() => setDeletingRecord(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20 }}
+      >
+        {deletingRecord && (
+          <div data-testid="bg-delete-confirm">
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E', marginBottom: 10 }}>确认删除</div>
+            <div style={{ fontSize: 14, color: '#374151', marginBottom: 16 }}>
+              确认删除这条血糖记录？此操作不可撤销。
+              <div style={{ fontSize: 12, color: '#6B7280', marginTop: 8 }}>
+                {formatDateTime(deletingRecord.measured_at)} · {deletingRecord.value?.value} mmol/L
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setDeletingRecord(null)}
+                style={{ flex: 1, padding: '10px 0', background: '#fff', color: '#475569',
+                  border: '1px solid #CBD5E1', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >取消</button>
+              <button
+                data-testid="bg-delete-confirm-btn"
+                onClick={() => { handleDelete(deletingRecord); setEditRecord(null); }}
+                style={{ flex: 1, padding: '10px 0', background: '#DC2626', color: '#fff',
+                  border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >确认删除</button>
+            </div>
           </div>
         )}
       </Popup>

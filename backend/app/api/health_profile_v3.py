@@ -440,6 +440,99 @@ async def create_metric(
     )
 
 
+# [PRD-GLUCOSE-CARD-OPTIMIZE-V2 2026-05-30 §5.1.1] 修改 metric 记录
+@router.put("/{profile_id}/metric/{metric_type}/{record_id}", response_model=MetricRecordOut)
+async def update_metric(
+    profile_id: int,
+    metric_type: str,
+    record_id: int,
+    body: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD §5.1.1] 修改 metric 记录（含 blood_glucose）。
+
+    Body 支持：value(数字或对象) / period / measured_at / remark
+    """
+    if metric_type not in METRIC_TYPES:
+        raise HTTPException(status_code=400, detail=f"未知 metric_type: {metric_type}")
+    await _verify_profile_access(db, profile_id, current_user)
+
+    rec = (await db.execute(
+        select(HealthMetricRecord).where(
+            HealthMetricRecord.id == record_id,
+            HealthMetricRecord.profile_id == profile_id,
+            HealthMetricRecord.metric_type == metric_type,
+        )
+    )).scalar_one_or_none()
+    if not rec:
+        raise HTTPException(status_code=404, detail="记录不存在")
+
+    new_value = dict(rec.value_json or {})
+    raw_val = body.get("value")
+    if isinstance(raw_val, dict):
+        new_value.update(raw_val)
+    elif raw_val is not None:
+        new_value["value"] = raw_val
+    if body.get("period") is not None:
+        new_value["period"] = body["period"]
+    if body.get("period_label") is not None:
+        new_value["period_label"] = body["period_label"]
+    if body.get("remark") is not None or body.get("note") is not None:
+        new_value["note"] = body.get("remark") if body.get("remark") is not None else body.get("note")
+    rec.value_json = new_value
+
+    if body.get("measured_at"):
+        try:
+            ma = body["measured_at"]
+            if isinstance(ma, str):
+                s = ma.replace("T", " ").replace("Z", "")[:19]
+                rec.measured_at = datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
+        except Exception:
+            pass
+
+    await db.commit()
+    await db.refresh(rec)
+    return MetricRecordOut(
+        id=rec.id,
+        profile_id=rec.profile_id,
+        metric_type=rec.metric_type,
+        value=rec.value_json or {},
+        source=rec.source,
+        measured_at=rec.measured_at,
+        created_at=rec.created_at,
+    )
+
+
+# [PRD-GLUCOSE-CARD-OPTIMIZE-V2 2026-05-30 §5.1.2] 删除 metric 记录
+@router.delete("/{profile_id}/metric/{metric_type}/{record_id}")
+async def delete_metric(
+    profile_id: int,
+    metric_type: str,
+    record_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD §5.1.2] 物理删除 metric 记录。"""
+    if metric_type not in METRIC_TYPES:
+        raise HTTPException(status_code=400, detail=f"未知 metric_type: {metric_type}")
+    await _verify_profile_access(db, profile_id, current_user)
+
+    rec = (await db.execute(
+        select(HealthMetricRecord).where(
+            HealthMetricRecord.id == record_id,
+            HealthMetricRecord.profile_id == profile_id,
+            HealthMetricRecord.metric_type == metric_type,
+        )
+    )).scalar_one_or_none()
+    if not rec:
+        raise HTTPException(status_code=404, detail="记录不存在")
+
+    await db.delete(rec)
+    await db.commit()
+    return {"code": 0, "message": "删除成功", "id": record_id}
+
+
 # ─── 设备绑定 ────────────────────────────────────────────────────────────
 
 @router.get("/devices", response_model=DevicesListResponse)

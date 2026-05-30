@@ -38,39 +38,77 @@ router = APIRouter(prefix="/api/glucose-v1", tags=["PRD-GLUCOSE-V1 血糖管理"
 
 # ─── 五档阈值与判定 ───────────────────────────────────────────────────
 
-SCENE_FASTING = 1     # 空腹
-SCENE_AFTER_MEAL = 2  # 餐后 2h
-SCENE_RANDOM = 3      # 随机
-SCENE_BEDTIME = 4     # 睡前
+SCENE_FASTING = 1        # 空腹
+SCENE_AFTER_MEAL_2H = 2  # 餐后 2h
+SCENE_RANDOM = 3         # 随机
+SCENE_BEDTIME = 4        # 睡前
+# [PRD-GLUCOSE-CARD-OPTIMIZE-V2 2026-05-30] 新增 2 个测量类型
+SCENE_AFTER_MEAL_1H = 5  # 餐后 1h
+SCENE_DAWN = 6           # 凌晨
+
+# 向后兼容旧别名
+SCENE_AFTER_MEAL = SCENE_AFTER_MEAL_2H
 
 SCENE_NAME = {
     SCENE_FASTING: "空腹",
-    SCENE_AFTER_MEAL: "餐后2h",
+    SCENE_AFTER_MEAL_2H: "餐后2h",
     SCENE_RANDOM: "随机",
     SCENE_BEDTIME: "睡前",
+    SCENE_AFTER_MEAL_1H: "餐后1h",
+    SCENE_DAWN: "凌晨",
 }
 
-# 档位编码（PRD §3.1）
-LEVEL_VERY_LOW = 1   # 严重偏低
+# 字符串 key -> 编码（用于 H5 端传 string）
+SCENE_KEY_TO_CODE = {
+    "fasting": SCENE_FASTING,
+    "after_meal_2h": SCENE_AFTER_MEAL_2H,
+    "after_meal": SCENE_AFTER_MEAL_2H,  # 兼容旧值
+    "random": SCENE_RANDOM,
+    "before_sleep": SCENE_BEDTIME,
+    "bedtime": SCENE_BEDTIME,
+    "after_meal_1h": SCENE_AFTER_MEAL_1H,
+    "dawn": SCENE_DAWN,
+}
+
+SCENE_CODE_TO_KEY = {
+    SCENE_FASTING: "fasting",
+    SCENE_AFTER_MEAL_2H: "after_meal_2h",
+    SCENE_RANDOM: "random",
+    SCENE_BEDTIME: "before_sleep",
+    SCENE_AFTER_MEAL_1H: "after_meal_1h",
+    SCENE_DAWN: "dawn",
+}
+
+# 档位编码（PRD §3.1，五档制）— 用词更新：「严重」→「重度」，去除「危象」字眼
+LEVEL_VERY_LOW = 1   # 重度偏低
 LEVEL_LOW = 2        # 偏低
 LEVEL_NORMAL = 3     # 正常
 LEVEL_HIGH = 4       # 偏高
-LEVEL_VERY_HIGH = 5  # 严重偏高
+LEVEL_VERY_HIGH = 5  # 重度偏高
 
 LEVEL_LABEL = {
-    LEVEL_VERY_LOW: "严重偏低",
+    LEVEL_VERY_LOW: "重度偏低",
     LEVEL_LOW: "偏低",
     LEVEL_NORMAL: "正常",
     LEVEL_HIGH: "偏高",
-    LEVEL_VERY_HIGH: "严重偏高",
+    LEVEL_VERY_HIGH: "重度偏高",
+}
+
+# 后端返回给前端的 level key（语义化字符串，便于前端切换文案与色板）
+LEVEL_KEY = {
+    LEVEL_VERY_LOW: "low_critical",
+    LEVEL_LOW: "low",
+    LEVEL_NORMAL: "normal",
+    LEVEL_HIGH: "high",
+    LEVEL_VERY_HIGH: "high_critical",
 }
 
 LEVEL_COLOR = {
-    LEVEL_VERY_LOW: "deep_red",
-    LEVEL_LOW: "orange",
-    LEVEL_NORMAL: "green",
-    LEVEL_HIGH: "orange",
-    LEVEL_VERY_HIGH: "red",
+    LEVEL_VERY_LOW: "#DC2626",   # 红色 - 重度偏低
+    LEVEL_LOW: "#F59E0B",        # 黄色 - 偏低
+    LEVEL_NORMAL: "#10B981",     # 绿色 - 正常
+    LEVEL_HIGH: "#FF8C00",       # 橙色 - 偏高
+    LEVEL_VERY_HIGH: "#DC2626",  # 红色 - 重度偏高
 }
 
 # 危象编码（PRD §3.2 + §10.2）
@@ -87,29 +125,41 @@ CRISIS_HIGH_THRESHOLD = 16.7
 CRISIS_LOW_THRESHOLD = 2.8
 
 
+# [PRD-GLUCOSE-CARD-OPTIMIZE-V2 2026-05-30 §3.2] 六类型五档阈值表（mmol/L）
+# 区间：前闭后开 [low, high)；任何类型 <2.8 一律重度偏低
+# scene_code -> (low_max(2->3), normal_max(3->4), high_max(4->5))
+# 重度偏低区间：< 2.8
+# 偏低区间：[2.8, low_max)
+# 正常区间：[low_max, normal_max)
+# 偏高区间：[normal_max, high_max)
+# 重度偏高区间：>= high_max
+SCENE_THRESHOLDS = {
+    SCENE_FASTING:        (3.9, 6.1, 7.0),    # 空腹
+    SCENE_AFTER_MEAL_1H:  (3.9, 9.0, 11.1),   # 餐后 1h
+    SCENE_AFTER_MEAL_2H:  (3.9, 7.8, 11.1),   # 餐后 2h
+    SCENE_BEDTIME:        (4.4, 6.7, 10.0),   # 睡前
+    SCENE_DAWN:           (3.9, 5.6, 7.0),    # 凌晨
+    SCENE_RANDOM:         (3.9, 11.1, 16.7),  # 随机
+}
+
+
 def judge_level(value: float, scene: int) -> int:
-    """根据场景套用五档阈值（PRD §3.1）。
+    """[PRD-GLUCOSE-CARD-OPTIMIZE-V2 2026-05-30] 根据 6 种测量类型套用五档阈值。
 
-    规则（mmol/L）：
-    - 空腹：<2.8 严重偏低 | 2.8~3.9 偏低 | 3.9~6.1 正常 | 6.1~7.0 偏高 | >=7.0 严重偏高
-    - 餐后2h/随机/睡前：<2.8 严重偏低 | 2.8~3.9 偏低 | 3.9~7.8 正常 | 7.8~11.1 偏高 | >=11.1 严重偏高
-      （随机/睡前 简化为同餐后2h 阈值，见 PRD 说明）
+    阈值表见 PRD §3.2。
     """
-    if value < CRISIS_LOW_THRESHOLD:  # < 2.8
+    # 任何类型 <2.8 一律判为重度偏低
+    if value < CRISIS_LOW_THRESHOLD:
         return LEVEL_VERY_LOW
-    if value < 3.9:
-        return LEVEL_LOW
 
-    if scene == SCENE_FASTING:
-        if value < 6.1:
-            return LEVEL_NORMAL
-        if value < 7.0:
-            return LEVEL_HIGH
-        return LEVEL_VERY_HIGH
-    # 餐后/随机/睡前
-    if value < 7.8:
+    th = SCENE_THRESHOLDS.get(scene) or SCENE_THRESHOLDS[SCENE_RANDOM]
+    low_max, normal_max, high_max = th
+
+    if value < low_max:
+        return LEVEL_LOW
+    if value < normal_max:
         return LEVEL_NORMAL
-    if value < 11.1:
+    if value < high_max:
         return LEVEL_HIGH
     return LEVEL_VERY_HIGH
 
@@ -124,15 +174,15 @@ def judge_crisis(value: float) -> int:
 
 
 def build_alert_message(value: float, scene: int, crisis: int) -> str:
-    """为危象事件生成给守护人 / 弹窗使用的建议文案。"""
+    """[PRD-GLUCOSE-CARD-OPTIMIZE-V2] 去除"危象"字眼，改为更友好的提示文案。"""
     if crisis == CRISIS_HIGH:
         return (
-            f"⚠️ 检测到高糖危象 {value} mmol/L（{SCENE_NAME.get(scene, '随机')}）。"
+            f"⚠️ 血糖严重偏高 {value} mmol/L（{SCENE_NAME.get(scene, '随机')}）。"
             "建议立即就医，避免剧烈运动，多喝水。"
         )
     if crisis == CRISIS_LOW:
         return (
-            f"⚠️ 检测到低糖危象 {value} mmol/L（{SCENE_NAME.get(scene, '随机')}）。"
+            f"⚠️ 血糖严重偏低 {value} mmol/L（{SCENE_NAME.get(scene, '随机')}）。"
             "建议立即补充含糖食物（糖水、糖果、果汁），并尽快联系家人或就医。"
         )
     return ""
@@ -142,9 +192,33 @@ def build_alert_message(value: float, scene: int, crisis: int) -> str:
 
 class GlucoseRecordCreate(BaseModel):
     value: float = Field(..., description="血糖值 mmol/L，0.5~35.0")
-    scene: int = Field(..., description="1=空腹 2=餐后2h 3=随机 4=睡前")
+    # [PRD-GLUCOSE-CARD-OPTIMIZE-V2 2026-05-30] 同时支持 int (1~6) 与 string key
+    scene: Any = Field(..., description="1=空腹 2=餐后2h 3=随机 4=睡前 5=餐后1h 6=凌晨；或字符串 key")
     measure_time: Optional[str] = Field(None, description="测量时间 ISO 字符串，默认当前时间")
     note: Optional[str] = Field(None, max_length=200, description="备注")
+
+
+def _normalize_scene(value: Any) -> int:
+    """[PRD-GLUCOSE-CARD-OPTIMIZE-V2] 将 int / string / None 统一为 int 编码。
+    无效或缺失时抛出 HTTPException 400。
+    """
+    if value is None or value == "":
+        raise HTTPException(status_code=400, detail="测量类型必填（period/scene 不能为空）")
+    if isinstance(value, bool):  # 避免 True/False 被识别为 int
+        raise HTTPException(status_code=400, detail="scene 类型非法")
+    if isinstance(value, int):
+        if value in SCENE_NAME:
+            return value
+        raise HTTPException(status_code=400, detail="scene 取值非法（1~6）")
+    if isinstance(value, str):
+        key = value.strip().lower()
+        if key in SCENE_KEY_TO_CODE:
+            return SCENE_KEY_TO_CODE[key]
+        # 兼容数字字符串
+        if key.isdigit() and int(key) in SCENE_NAME:
+            return int(key)
+        raise HTTPException(status_code=400, detail=f"测量类型非法：{value}")
+    raise HTTPException(status_code=400, detail="测量类型类型非法")
 
 
 class GlucoseRecordOut(BaseModel):
@@ -153,7 +227,12 @@ class GlucoseRecordOut(BaseModel):
     value: float
     scene: int
     scene_label: str
+    # [PRD-GLUCOSE-CARD-OPTIMIZE-V2 2026-05-30] 同时返回字符串 key，便于前端使用
+    scene_key: str = "random"
+    period: str = "random"  # 别名兼容 PRD §5.1.1 接口
+    period_label: str = ""
     level: int
+    level_key: str = "normal"
     level_label: str
     level_color: str
     is_crisis: int
@@ -239,18 +318,26 @@ def _fmt_dt(v: Any) -> str:
 
 def _row_to_record_out(row: Any) -> GlucoseRecordOut:
     rid, uid, value, scene, level, is_crisis, measure_time, note, create_time = row
+    sc = int(scene)
+    lv = int(level)
+    sk = SCENE_CODE_TO_KEY.get(sc, "random")
     return GlucoseRecordOut(
         id=int(rid),
         user_id=int(uid),
         value=float(value),
-        scene=int(scene),
-        scene_label=SCENE_NAME.get(int(scene), "随机"),
-        level=int(level),
-        level_label=LEVEL_LABEL.get(int(level), "正常"),
-        level_color=LEVEL_COLOR.get(int(level), "green"),
+        scene=sc,
+        scene_label=SCENE_NAME.get(sc, "随机"),
+        scene_key=sk,
+        period=sk,
+        period_label=SCENE_NAME.get(sc, "随机"),
+        level=lv,
+        level_key=LEVEL_KEY.get(lv, "normal"),
+        level_label=LEVEL_LABEL.get(lv, "正常"),
+        level_color=LEVEL_COLOR.get(lv, "#10B981"),
         is_crisis=int(is_crisis or 0),
-        crisis_label=("高糖危象" if int(is_crisis or 0) == CRISIS_HIGH
-                      else "低糖危象" if int(is_crisis or 0) == CRISIS_LOW else ""),
+        # [PRD-GLUCOSE-CARD-OPTIMIZE-V2] 去除"危象"字眼
+        crisis_label=("严重偏高" if int(is_crisis or 0) == CRISIS_HIGH
+                      else "严重偏低" if int(is_crisis or 0) == CRISIS_LOW else ""),
         measure_time=_fmt_dt(measure_time),
         note=note,
         create_time=_fmt_dt(create_time),
@@ -331,14 +418,12 @@ async def create_record(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # 字段合法性
-    if body.scene not in SCENE_NAME:
-        raise HTTPException(status_code=400, detail="scene 取值非法（1/2/3/4）")
+    # 字段合法性 — [PRD-GLUCOSE-CARD-OPTIMIZE-V2] 测量类型强制必填，支持 6 种类型
+    scene = _normalize_scene(body.scene)
     if body.value is None or body.value < VALUE_MIN or body.value > VALUE_MAX:
         raise HTTPException(status_code=400, detail=f"数值不在合理范围（{VALUE_MIN}~{VALUE_MAX}）")
 
     value = round(float(body.value), 1)
-    scene = int(body.scene)
     measure_time = _parse_measure_time(body.measure_time)
     note = (body.note or "").strip()[:200] or None
 
@@ -383,18 +468,23 @@ async def create_record(
         if row:
             new_id = int(row[0])
 
+    sk = SCENE_CODE_TO_KEY.get(scene, "random")
     record_out = GlucoseRecordOut(
         id=new_id,
         user_id=current_user.id,
         value=value,
         scene=scene,
         scene_label=SCENE_NAME[scene],
+        scene_key=sk,
+        period=sk,
+        period_label=SCENE_NAME[scene],
         level=level,
+        level_key=LEVEL_KEY.get(level, "normal"),
         level_label=LEVEL_LABEL[level],
         level_color=LEVEL_COLOR[level],
         is_crisis=is_crisis,
-        crisis_label=("高糖危象" if is_crisis == CRISIS_HIGH
-                      else "低糖危象" if is_crisis == CRISIS_LOW else ""),
+        crisis_label=("严重偏高" if is_crisis == CRISIS_HIGH
+                      else "严重偏低" if is_crisis == CRISIS_LOW else ""),
         measure_time=measure_time.strftime("%Y-%m-%d %H:%M:%S"),
         note=note,
         create_time=now.strftime("%Y-%m-%d %H:%M:%S"),
@@ -413,7 +503,7 @@ async def create_record(
             "must_popup": True,
             "alert_id": alert_id,
             "alert_type": is_crisis,
-            "alert_label": "高糖危象" if is_crisis == CRISIS_HIGH else "低糖危象",
+            "alert_label": "严重偏高" if is_crisis == CRISIS_HIGH else "严重偏低",
             "title": "⚠️ 检测到血糖严重异常",
             "message": msg,
             "guardian_notified": True,
@@ -629,8 +719,8 @@ async def list_alerts(
     )).fetchall()
 
     label_map = {
-        CRISIS_HIGH: "高糖危象",
-        CRISIS_LOW: "低糖危象",
+        CRISIS_HIGH: "严重偏高",
+        CRISIS_LOW: "严重偏低",
         3: "严重偏高",
         4: "严重偏低",
     }
@@ -847,9 +937,7 @@ async def update_record_scene(
 
     Request body: {"scene": 1|2|3|4}
     """
-    new_scene = int(payload.get("scene") or 0)
-    if new_scene not in SCENE_NAME:
-        raise HTTPException(status_code=400, detail="scene 取值非法（1/2/3/4）")
+    new_scene = _normalize_scene(payload.get("scene") if "scene" in payload else payload.get("period"))
     row = (await db.execute(
         text(
             "SELECT user_id, value FROM health_glucose_record WHERE id=:rid"
@@ -971,3 +1059,651 @@ async def set_reminder(
         )
     await db.commit()
     return body
+
+
+# ────────────────────────────────────────────────────────────────────
+# [PRD-GLUCOSE-CARD-OPTIMIZE-V2 2026-05-30] 完整修改/AI 解读接口
+# ────────────────────────────────────────────────────────────────────
+
+class GlucoseRecordUpdate(BaseModel):
+    """PRD §5.1.1 修改血糖记录请求体。"""
+    value: Optional[float] = None
+    scene: Optional[Any] = None    # 兼容 int 或 string key
+    period: Optional[Any] = None   # PRD §5.1.1 用 period 字段名
+    measure_time: Optional[str] = None
+    measured_at: Optional[str] = None  # 别名
+    note: Optional[str] = None
+    remark: Optional[str] = None       # 别名
+
+
+@router.put("/records/{record_id}", response_model=GlucoseRecordOut)
+async def update_record(
+    record_id: int,
+    body: GlucoseRecordUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD §5.1.1] 完整修改血糖记录（不再以"新增一条"绕过）。
+
+    支持修改 value / scene / measure_time / note，level/is_crisis 自动重算。
+    """
+    row = (await db.execute(
+        text("SELECT user_id, value, scene, measure_time, note "
+             "FROM health_glucose_record WHERE id=:rid"),
+        {"rid": record_id},
+    )).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="记录不存在")
+    if int(row[0]) != current_user.id:
+        raise HTTPException(status_code=403, detail="无权操作该记录")
+
+    # 取新值，未传则保留原值
+    new_value = round(float(body.value), 1) if body.value is not None else float(row[1])
+    if new_value < VALUE_MIN or new_value > VALUE_MAX:
+        raise HTTPException(status_code=400, detail=f"数值不在合理范围（{VALUE_MIN}~{VALUE_MAX}）")
+
+    scene_input = body.scene if body.scene is not None else body.period
+    if scene_input is not None:
+        new_scene = _normalize_scene(scene_input)
+    else:
+        new_scene = int(row[2])
+
+    mt_str = body.measure_time or body.measured_at
+    new_mt = _parse_measure_time(mt_str) if mt_str else row[3]
+
+    note_val = body.note if body.note is not None else body.remark
+    new_note = (note_val.strip()[:200] if note_val else (row[4] if note_val is None else None)) or None
+
+    new_level = judge_level(new_value, new_scene)
+    new_crisis = judge_crisis(new_value)
+
+    await db.execute(
+        text(
+            "UPDATE health_glucose_record SET value=:v, scene=:s, level=:l, "
+            "is_crisis=:c, measure_time=:mt, note=:n WHERE id=:rid"
+        ),
+        {
+            "v": new_value, "s": new_scene, "l": new_level, "c": new_crisis,
+            "mt": new_mt, "n": new_note, "rid": record_id,
+        },
+    )
+    await db.commit()
+
+    out_row = (await db.execute(
+        text("SELECT id, user_id, value, scene, level, is_crisis, measure_time, note, create_time "
+             "FROM health_glucose_record WHERE id=:rid"),
+        {"rid": record_id},
+    )).fetchone()
+    return _row_to_record_out(out_row)
+
+
+# ────────────────────────────────────────────────────────────────────
+# [PRD §6] AI 解读 - 单次 / 趋势
+# ────────────────────────────────────────────────────────────────────
+
+class AiExplainSingleRequest(BaseModel):
+    record_id: int
+    profile_id: Optional[int] = None
+
+
+class AiExplainTrendRequest(BaseModel):
+    range: str = Field("7d", description="7d / 14d / 30d")
+    profile_id: Optional[int] = None
+
+
+def _range_to_days(rng: str) -> int:
+    rng = (rng or "7d").lower().strip()
+    if rng in ("today", "1d"):
+        return 1
+    if rng in ("7d", "week"):
+        return 7
+    if rng in ("14d", "two_weeks"):
+        return 14
+    if rng in ("30d", "month"):
+        return 30
+    try:
+        return max(1, min(90, int(rng.rstrip("d"))))
+    except Exception:
+        return 7
+
+
+def _fallback_single_explain(value: float, scene: int, level: int) -> str:
+    """[PRD §7.2] 大模型不可用时的规则文案降级。"""
+    cn = SCENE_NAME.get(scene, "随机")
+    label = LEVEL_LABEL.get(level, "正常")
+    base = f"本次血糖 {value} mmol/L，属于{cn}「{label}」。"
+    if level == LEVEL_NORMAL:
+        return base + "属于正常范围。建议：保持规律饮食与适量运动，继续按当前节奏监测。"
+    if level == LEVEL_LOW:
+        return base + "数值略低于推荐范围。建议：立即少量补充含糖食物（糖水/果汁），15 分钟后复测。"
+    if level == LEVEL_HIGH:
+        return base + "数值略高于推荐范围。建议：减少精制主食与含糖饮料，餐后 30 分钟散步 20 分钟，2 小时后复测。"
+    if level == LEVEL_VERY_LOW:
+        return base + "数值明显偏低，需要立即处理。建议：立即补糖，必要时联系家人或拨打 120。"
+    return base + "数值明显偏高，建议尽快就医评估。可多饮温水，避免剧烈运动。"
+
+
+def _fallback_trend_explain(days: int, rows: List[Any]) -> Dict[str, str]:
+    if not rows:
+        return {
+            "summary": f"近 {days} 天暂无血糖记录。",
+            "trend": "数据不足，无法分析趋势。",
+            "advice": "建议每周至少记录 3 次空腹与餐后血糖，便于评估。",
+        }
+    vals = [float(r[0]) for r in rows]
+    levels = [int(r[2]) for r in rows]
+    avg = round(sum(vals) / len(vals), 2)
+    mn = round(min(vals), 1)
+    mx = round(max(vals), 1)
+    target_n = sum(1 for lv in levels if lv == LEVEL_NORMAL)
+    rate = round(target_n * 100 / len(rows), 1)
+    high_scene_count: Dict[int, int] = {}
+    for r in rows:
+        if int(r[2]) in (LEVEL_HIGH, LEVEL_VERY_HIGH):
+            sc = int(r[1])
+            high_scene_count[sc] = high_scene_count.get(sc, 0) + 1
+    top_scene = ""
+    if high_scene_count:
+        sc, _n = max(high_scene_count.items(), key=lambda kv: kv[1])
+        top_scene = SCENE_NAME.get(sc, "")
+    summary = (
+        f"近 {days} 天共记录 {len(rows)} 次，平均 {avg} mmol/L，"
+        f"波动范围 {mn}~{mx} mmol/L，达标率约 {rate}%。"
+    )
+    trend = (
+        f"整体呈相对稳定状态。" if rate >= 80
+        else f"波动偏大，偏高时段最常出现于「{top_scene or '餐后'}」。"
+    )
+    advice = (
+        "建议：1) 三餐定时定量；2) 减少精制主食与含糖饮料；"
+        "3) 每天散步 30 分钟；4) 每周至少 3 次空腹+餐后监测；"
+        "5) 如近期持续偏高请尽快就诊。"
+    )
+    return {"summary": summary, "trend": trend, "advice": advice}
+
+
+async def _load_glucose_prompt(db: AsyncSession, prompt_key: str) -> Optional[str]:
+    """[PRD §8.4] 从 ai_prompt_config 表读取已发布的提示词。
+
+    若表不存在或未配置则返回 None，由调用方走降级。
+    """
+    try:
+        row = (await db.execute(
+            text(
+                "SELECT content FROM ai_prompt_config "
+                "WHERE prompt_key=:k AND status=1 ORDER BY version DESC LIMIT 1"
+            ),
+            {"k": prompt_key},
+        )).fetchone()
+        if row and row[0]:
+            return str(row[0])
+    except Exception as exc:
+        logger.debug("[GLUCOSE-AI] load_prompt_failed key=%s err=%s", prompt_key, exc)
+    return None
+
+
+async def _call_ai_with_timeout(prompt_text: str, timeout_s: float = 3.0) -> Optional[str]:
+    """[PRD §7.2] 调用大模型，3s 超时即降级。
+
+    复用 app.services.ai_service.call_ai_model 的标准签名：
+        messages: List[Dict[str, str]], system_prompt: str = "", ...
+    """
+    import asyncio
+    try:
+        from app.services.ai_service import call_ai_model  # type: ignore
+    except Exception:
+        return None
+    try:
+        messages = [{"role": "user", "content": prompt_text}]
+        result = await asyncio.wait_for(
+            call_ai_model(messages=messages, system_prompt=""),
+            timeout=timeout_s,
+        )
+        if isinstance(result, str):
+            txt = result
+        elif isinstance(result, dict):
+            txt = result.get("content") or result.get("text") or ""
+        else:
+            txt = str(result) if result else ""
+        if not txt or "未配置" in txt or "未配置AI" in txt:
+            return None
+        return txt
+    except asyncio.TimeoutError:
+        logger.warning("[GLUCOSE-AI] call timeout, fallback to rules")
+        return None
+    except Exception as exc:
+        logger.warning("[GLUCOSE-AI] call_failed: %s", exc)
+        return None
+
+
+# 简单进程内缓存（生产环境可替换为 Redis）
+_ai_cache: Dict[str, Dict[str, Any]] = {}
+
+
+def _cache_get(key: str, ttl_s: int) -> Optional[Dict[str, Any]]:
+    item = _ai_cache.get(key)
+    if not item:
+        return None
+    if ttl_s > 0 and (datetime.utcnow().timestamp() - item.get("_ts", 0)) > ttl_s:
+        _ai_cache.pop(key, None)
+        return None
+    return item
+
+
+def _cache_set(key: str, data: Dict[str, Any]) -> None:
+    data["_ts"] = datetime.utcnow().timestamp()
+    _ai_cache[key] = data
+
+
+PROMPT_VERSION = "v3"
+
+
+@router.post("/ai-explain-single")
+async def ai_explain_single(
+    body: AiExplainSingleRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD §5.1.3] AI 解读单次血糖。
+
+    Response 字段：from_cache / model / prompt_version / content / generated_at
+    """
+    # 1) 读记录
+    row = (await db.execute(
+        text("SELECT id, user_id, value, scene, level, is_crisis, measure_time, note, create_time "
+             "FROM health_glucose_record WHERE id=:rid"),
+        {"rid": body.record_id},
+    )).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="记录不存在")
+    if int(row[1]) != current_user.id:
+        raise HTTPException(status_code=403, detail="无权解读该记录")
+
+    rec = _row_to_record_out(row)
+
+    cache_key = f"glucose:ai:single:{rec.id}:{PROMPT_VERSION}"
+    cached = _cache_get(cache_key, ttl_s=0)  # 永久缓存
+    if cached:
+        return {"code": 0, "data": {
+            "from_cache": True, "model": cached.get("model", "rules"),
+            "prompt_version": PROMPT_VERSION,
+            "content": cached["content"],
+            "generated_at": cached.get("generated_at"),
+        }}
+
+    # 2) 装填提示词
+    prompt_tpl = await _load_glucose_prompt(db, "glucose_single_explain")
+    if not prompt_tpl:
+        prompt_tpl = DEFAULT_SINGLE_PROMPT
+
+    # 用户信息（性别/年龄/糖尿病史） — 尽力而为
+    gender = getattr(current_user, "gender", None) or "未填"
+    age = getattr(current_user, "age", None) or "未填"
+    has_diabetes = "未知"
+
+    prompt_text = (
+        prompt_tpl
+        .replace("{gender}", str(gender))
+        .replace("{age}", str(age))
+        .replace("{has_diabetes}", str(has_diabetes))
+        .replace("{value}", str(rec.value))
+        .replace("{period_label}", rec.period_label)
+        .replace("{measured_at}", rec.measure_time)
+        .replace("{level_label}", rec.level_label)
+    )
+
+    # 3) 调用大模型（3s 超时）
+    ai_text = await _call_ai_with_timeout(prompt_text)
+
+    used_model = "qwen-max"
+    if not ai_text:
+        ai_text = _fallback_single_explain(rec.value, rec.scene, rec.level)
+        used_model = "rules-fallback"
+
+    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    payload = {
+        "from_cache": False,
+        "model": used_model,
+        "prompt_version": PROMPT_VERSION,
+        "content": ai_text,
+        "generated_at": now_str,
+    }
+    _cache_set(cache_key, {"content": ai_text, "model": used_model, "generated_at": now_str})
+    return {"code": 0, "data": payload}
+
+
+@router.post("/ai-explain-trend")
+async def ai_explain_trend(
+    body: AiExplainTrendRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD §5.1.4] AI 解读血糖趋势。"""
+    days = _range_to_days(body.range)
+    start = datetime.utcnow() - timedelta(days=days)
+
+    rows = (await db.execute(
+        text(
+            "SELECT value, scene, level, measure_time FROM health_glucose_record "
+            "WHERE user_id=:uid AND measure_time>=:start "
+            "ORDER BY measure_time DESC LIMIT 200"
+        ),
+        {"uid": current_user.id, "start": start},
+    )).fetchall()
+
+    cache_key = f"glucose:ai:trend:{current_user.id}:{days}:{PROMPT_VERSION}"
+    cached = _cache_get(cache_key, ttl_s=300)  # 5 min 缓存
+    if cached:
+        return {"code": 0, "data": {
+            "from_cache": True,
+            "model": cached.get("model", "rules"),
+            "prompt_version": PROMPT_VERSION,
+            "summary": cached["summary"],
+            "trend": cached["trend"],
+            "advice": cached["advice"],
+            "generated_at": cached.get("generated_at"),
+        }}
+
+    prompt_tpl = await _load_glucose_prompt(db, "glucose_trend_explain")
+    if not prompt_tpl:
+        prompt_tpl = DEFAULT_TREND_PROMPT
+
+    gender = getattr(current_user, "gender", None) or "未填"
+    age = getattr(current_user, "age", None) or "未填"
+    records_text = "\n".join([
+        f"- {_fmt_dt(r[3])} {SCENE_NAME.get(int(r[1]), '随机')} {float(r[0])} mmol/L ({LEVEL_LABEL.get(int(r[2]), '正常')})"
+        for r in rows[:60]
+    ]) or "（无记录）"
+
+    prompt_text = (
+        prompt_tpl
+        .replace("{range}", f"{days}天")
+        .replace("{gender}", str(gender))
+        .replace("{age}", str(age))
+        .replace("{has_diabetes}", "未知")
+        .replace("{records_json}", records_text)
+    )
+
+    ai_text = await _call_ai_with_timeout(prompt_text)
+    used_model = "qwen-max"
+    summary = trend = advice = ""
+    if ai_text:
+        # 尝试 JSON 解析
+        try:
+            import json as _json
+            # 容错：去除 ```json 包裹
+            s = ai_text.strip()
+            if s.startswith("```"):
+                s = s.strip("`")
+                if s.startswith("json"):
+                    s = s[4:]
+            data = _json.loads(s)
+            summary = str(data.get("summary", ""))[:500]
+            trend = str(data.get("trend", ""))[:500]
+            advice = str(data.get("advice", ""))[:1000]
+        except Exception:
+            summary = ai_text[:500]
+            trend = ""
+            advice = ""
+
+    if not summary:
+        # 降级
+        rule = _fallback_trend_explain(days, rows)
+        summary, trend, advice = rule["summary"], rule["trend"], rule["advice"]
+        used_model = "rules-fallback"
+
+    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    _cache_set(cache_key, {
+        "summary": summary, "trend": trend, "advice": advice,
+        "model": used_model, "generated_at": now_str,
+    })
+    return {"code": 0, "data": {
+        "from_cache": False,
+        "model": used_model,
+        "prompt_version": PROMPT_VERSION,
+        "summary": summary,
+        "trend": trend,
+        "advice": advice,
+        "generated_at": now_str,
+    }}
+
+
+# [PRD §6.1/6.2] 默认提示词（同时作为 ai_prompt_config 初始化数据）
+DEFAULT_SINGLE_PROMPT = """你是一名资深内分泌科医生兼健康管理师，请根据以下用户的本次血糖测量结果，给出一段 80–150 字的通俗易懂的解读，
+要求：
+1. 用中文，老人也能看懂；
+2. 第一句先复述本次结果（数值 + 测量类型 + 状态档位）；
+3. 第二句解释为什么是这个档位，结合医学常识；
+4. 第三句给出 1–2 条具体可执行的建议（饮食/运动/复测/就医）；
+5. 不要使用"危象"等吓人字眼；
+6. 不要给出诊断结论，只能给出建议。
+
+【用户基本信息】
+- 性别：{gender}
+- 年龄：{age}
+- 是否糖尿病史：{has_diabetes}
+
+【本次血糖】
+- 数值：{value} mmol/L
+- 测量类型：{period_label}
+- 测量时间：{measured_at}
+- 状态档位：{level_label}
+
+请直接输出解读文本，不要任何前缀。"""
+
+
+DEFAULT_TREND_PROMPT = """你是一名资深内分泌科医生兼健康管理师，请根据以下用户最近 {range} 的血糖记录，输出三段文本：
+
+【summary】（2–3 句）：总体情况概括，包括平均值、波动范围、达标率。
+【trend】（2–3 句）：趋势分析，是稳定/上升/下降/波动大，并指出最常出现偏高的测量类型。
+【advice】（3–5 条）：针对性建议，每条 1 句，覆盖饮食、运动、监测频率、就医建议。
+
+要求：
+1. 中文，通俗易懂；
+2. 不要使用"危象"等吓人字眼；
+3. 不要给出诊断结论。
+
+【用户基本信息】
+- 性别：{gender}
+- 年龄：{age}
+- 是否糖尿病史：{has_diabetes}
+
+【最近 {range} 血糖记录】
+{records_json}
+
+请按以下 JSON 格式严格输出（不要 markdown 代码块包裹）：
+{"summary": "...", "trend": "...", "advice": "..."}"""
+
+
+# ────────────────────────────────────────────────────────────────────
+# [PRD §8] AI 提示词配置（管理后台 CRUD + 版本）
+# ────────────────────────────────────────────────────────────────────
+
+GLUCOSE_PROMPT_KEYS = ("glucose_single_explain", "glucose_trend_explain")
+GLUCOSE_PROMPT_NAMES = {
+    "glucose_single_explain": "血糖_单次解读",
+    "glucose_trend_explain": "血糖_趋势解读",
+}
+
+
+async def _ensure_glucose_prompts(db: AsyncSession) -> None:
+    """[PRD §8.5] 部署时自动 insert 两条记录，幂等。"""
+    defaults = {
+        "glucose_single_explain": DEFAULT_SINGLE_PROMPT,
+        "glucose_trend_explain": DEFAULT_TREND_PROMPT,
+    }
+    try:
+        for key, content in defaults.items():
+            row = (await db.execute(
+                text("SELECT id FROM ai_prompt_config WHERE prompt_key=:k"),
+                {"k": key},
+            )).fetchone()
+            if row:
+                continue
+            await db.execute(
+                text(
+                    "INSERT INTO ai_prompt_config "
+                    "(prompt_key, name, content, version, status, model_key, "
+                    " updated_by, updated_at, created_at) "
+                    "VALUES (:k, :n, :c, 1, 1, NULL, 'system', :ct, :ct)"
+                ),
+                {
+                    "k": key, "n": GLUCOSE_PROMPT_NAMES[key],
+                    "c": content, "ct": datetime.utcnow(),
+                },
+            )
+        await db.commit()
+    except Exception as exc:
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+        logger.warning("[GLUCOSE-AI] ensure_prompts_failed: %s", exc)
+
+
+@router.get("/admin/ai-prompts")
+async def admin_list_prompts(
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD §8.2] 列表页（仅返回血糖两条）。"""
+    await _ensure_glucose_prompts(db)
+    rows = (await db.execute(
+        text(
+            "SELECT id, prompt_key, name, content, version, status, "
+            "       model_key, updated_by, updated_at "
+            "FROM ai_prompt_config WHERE prompt_key IN "
+            "('glucose_single_explain','glucose_trend_explain')"
+        ),
+    )).fetchall()
+    items = [{
+        "id": int(r[0]), "prompt_key": r[1], "name": r[2], "content": r[3],
+        "version": int(r[4] or 1), "status": int(r[5] or 1),
+        "model_key": r[6], "updated_by": r[7],
+        "updated_at": _fmt_dt(r[8]),
+    } for r in rows]
+    return {"code": 0, "data": {"items": items}}
+
+
+class PromptUpdateRequest(BaseModel):
+    content: str
+    name: Optional[str] = None
+    updated_by: Optional[str] = None
+
+
+@router.put("/admin/ai-prompts/{prompt_key}")
+async def admin_update_prompt(
+    prompt_key: str,
+    body: PromptUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD §8.3] 编辑/发布新版本。"""
+    if prompt_key not in GLUCOSE_PROMPT_KEYS:
+        raise HTTPException(status_code=400, detail="prompt_key 非法")
+    await _ensure_glucose_prompts(db)
+    cur = (await db.execute(
+        text("SELECT id, version FROM ai_prompt_config WHERE prompt_key=:k"),
+        {"k": prompt_key},
+    )).fetchone()
+    if not cur:
+        raise HTTPException(status_code=404, detail="提示词不存在")
+    new_ver = int(cur[1] or 1) + 1
+    # 历史快照
+    try:
+        old_content = (await db.execute(
+            text("SELECT content FROM ai_prompt_config WHERE id=:i"),
+            {"i": int(cur[0])},
+        )).scalar() or ""
+        await db.execute(
+            text(
+                "INSERT INTO ai_prompt_config_history "
+                "(prompt_key, version, content, updated_by, updated_at) "
+                "VALUES (:k, :v, :c, :u, :t)"
+            ),
+            {
+                "k": prompt_key, "v": int(cur[1] or 1),
+                "c": old_content,
+                "u": body.updated_by or "admin",
+                "t": datetime.utcnow(),
+            },
+        )
+    except Exception as exc:
+        logger.debug("[GLUCOSE-AI] history snapshot failed: %s", exc)
+
+    await db.execute(
+        text(
+            "UPDATE ai_prompt_config SET content=:c, name=COALESCE(:n, name), "
+            "version=:v, status=1, updated_by=:u, updated_at=:t WHERE prompt_key=:k"
+        ),
+        {
+            "c": body.content, "n": body.name, "v": new_ver,
+            "u": body.updated_by or "admin", "t": datetime.utcnow(),
+            "k": prompt_key,
+        },
+    )
+    await db.commit()
+    # 清掉缓存
+    keys_to_del = [k for k in list(_ai_cache.keys())
+                   if k.startswith(f"glucose:ai:{'single' if prompt_key == 'glucose_single_explain' else 'trend'}:")]
+    for k in keys_to_del:
+        _ai_cache.pop(k, None)
+    return {"code": 0, "data": {"prompt_key": prompt_key, "version": new_ver}}
+
+
+class PromptTestRequest(BaseModel):
+    content: str
+    test_value: Optional[float] = 8.0
+    test_scene: Optional[str] = "after_meal_2h"
+
+
+@router.post("/admin/ai-prompts/{prompt_key}/test")
+async def admin_test_prompt(
+    prompt_key: str,
+    body: PromptTestRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD §8.3] 测试调用：用给定提示词内容渲染样例数据并调用大模型。"""
+    if prompt_key not in GLUCOSE_PROMPT_KEYS:
+        raise HTTPException(status_code=400, detail="prompt_key 非法")
+
+    if prompt_key == "glucose_single_explain":
+        scene = _normalize_scene(body.test_scene or "after_meal_2h")
+        value = float(body.test_value or 8.0)
+        level = judge_level(value, scene)
+        prompt_text = (
+            body.content
+            .replace("{gender}", "男")
+            .replace("{age}", "62")
+            .replace("{has_diabetes}", "是")
+            .replace("{value}", str(value))
+            .replace("{period_label}", SCENE_NAME.get(scene, "随机"))
+            .replace("{measured_at}", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
+            .replace("{level_label}", LEVEL_LABEL.get(level, "正常"))
+        )
+        ai_text = await _call_ai_with_timeout(prompt_text, timeout_s=6.0)
+        if not ai_text:
+            ai_text = _fallback_single_explain(value, scene, level) + "\n（注：当前为规则降级，未调用大模型）"
+        return {"code": 0, "data": {"output": ai_text, "rendered_prompt": prompt_text}}
+
+    # trend
+    sample_records = "\n".join([
+        "- 2026-05-29 07:30 空腹 6.4 mmol/L (偏高)",
+        "- 2026-05-29 09:30 餐后1h 9.8 mmol/L (偏高)",
+        "- 2026-05-28 21:00 睡前 5.8 mmol/L (正常)",
+    ])
+    prompt_text = (
+        body.content
+        .replace("{range}", "7天")
+        .replace("{gender}", "男")
+        .replace("{age}", "62")
+        .replace("{has_diabetes}", "是")
+        .replace("{records_json}", sample_records)
+    )
+    ai_text = await _call_ai_with_timeout(prompt_text, timeout_s=6.0)
+    if not ai_text:
+        ai_text = (
+            '{"summary":"测试样例 - 近 7 天平均 7.3，达标率 33%",'
+            '"trend":"波动偏大，偏高集中在餐后1h",'
+            '"advice":"减少精制主食；散步 30 分钟；3 次/周监测"}'
+            "\n（注：当前为规则降级，未调用大模型）"
+        )
+    return {"code": 0, "data": {"output": ai_text, "rendered_prompt": prompt_text}}

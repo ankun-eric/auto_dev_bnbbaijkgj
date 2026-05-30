@@ -127,11 +127,16 @@ class TestJudgeLevelAfterMeal:
 
 
 class TestJudgeLevelRandomBedtime:
-    def test_random_uses_after_meal_thresholds(self):
-        # 随机/睡前简化为同餐后2h阈值
+    def test_random_uses_independent_thresholds(self):
+        # [PRD-GLUCOSE-CARD-OPTIMIZE-V2] 随机：3.9~11.1 正常, 11.1~16.7 偏高, >=16.7 重度偏高
         assert judge_level(7.0, SCENE_RANDOM) == LEVEL_NORMAL
-        assert judge_level(8.0, SCENE_RANDOM) == LEVEL_HIGH
-        assert judge_level(7.0, SCENE_BEDTIME) == LEVEL_NORMAL
+        assert judge_level(10.0, SCENE_RANDOM) == LEVEL_NORMAL
+        assert judge_level(11.1, SCENE_RANDOM) == LEVEL_HIGH
+        assert judge_level(16.7, SCENE_RANDOM) == LEVEL_VERY_HIGH
+        # 睡前：4.4~6.7 正常, 6.7~10.0 偏高, >=10.0 重度偏高
+        assert judge_level(5.0, SCENE_BEDTIME) == LEVEL_NORMAL
+        assert judge_level(6.7, SCENE_BEDTIME) == LEVEL_HIGH
+        assert judge_level(10.0, SCENE_BEDTIME) == LEVEL_VERY_HIGH
         assert judge_level(12.0, SCENE_BEDTIME) == LEVEL_VERY_HIGH
 
 
@@ -242,7 +247,8 @@ async def test_create_high_glucose_crisis(client: AsyncClient, auth_headers):
     assert data["record"]["is_crisis"] == CRISIS_HIGH
     assert data["alert"] is not None
     assert data["alert"]["must_popup"] is True
-    assert data["alert"]["alert_label"] == "高糖危象"
+    # [PRD-GLUCOSE-CARD-OPTIMIZE-V2] 去除"危象"字眼
+    assert data["alert"]["alert_label"] == "严重偏高"
     assert data["alert"]["guardian_notified"] is True
 
 
@@ -257,7 +263,8 @@ async def test_create_low_glucose_crisis(client: AsyncClient, auth_headers):
     assert data["record"]["is_crisis"] == CRISIS_LOW
     assert data["alert"] is not None
     assert data["alert"]["must_popup"] is True
-    assert data["alert"]["alert_label"] == "低糖危象"
+    # [PRD-GLUCOSE-CARD-OPTIMIZE-V2] 去除"危象"字眼
+    assert data["alert"]["alert_label"] == "严重偏低"
 
 
 # ──────────────── 列表 / 统计 ────────────────
@@ -314,7 +321,8 @@ async def test_alerts_list_after_crisis(client: AsyncClient, auth_headers):
     data = r.json()
     assert data["total"] >= 1
     item = data["items"][0]
-    assert item["alert_label"] == "高糖危象"
+    # [PRD-GLUCOSE-CARD-OPTIMIZE-V2] 去除"危象"字眼
+    assert item["alert_label"] == "严重偏高"
 
 
 @pytest.mark.asyncio
@@ -411,7 +419,7 @@ async def test_latest_record_returns_most_recent(client: AsyncClient, auth_heade
     assert body is not None
     assert body["value"] == 8.2
     assert body["scene"] == 2
-    assert body["level_label"] in ("正常", "偏高", "严重偏高", "偏低", "严重偏低")
+    assert body["level_label"] in ("正常", "偏高", "重度偏高", "偏低", "重度偏低")
 
 
 @pytest.mark.asyncio
@@ -440,7 +448,8 @@ async def test_update_record_scene_recalculates_level(client: AsyncClient, auth_
     body = r.json()
     assert body["scene"] == 1
     assert body["level"] == LEVEL_VERY_HIGH
-    assert body["level_label"] == "严重偏高"
+    # [PRD-GLUCOSE-CARD-OPTIMIZE-V2] 用词更新为"重度"
+    assert body["level_label"] == "重度偏高"
 
 
 @pytest.mark.asyncio

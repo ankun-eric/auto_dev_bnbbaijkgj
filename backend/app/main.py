@@ -962,7 +962,42 @@ async def _migrate_glucose_v1():
                     " UNIQUE KEY uk_reminder_user (user_id)"
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
                 ))
+                # [PRD-GLUCOSE-CARD-OPTIMIZE-V2 2026-05-30 §8.4] AI 提示词配置表
+                await db.execute(text(
+                    "CREATE TABLE IF NOT EXISTS ai_prompt_config ("
+                    " id BIGINT NOT NULL AUTO_INCREMENT,"
+                    " prompt_key VARCHAR(64) NOT NULL,"
+                    " name VARCHAR(128) NOT NULL,"
+                    " content TEXT NOT NULL,"
+                    " version INT NOT NULL DEFAULT 1,"
+                    " status TINYINT NOT NULL DEFAULT 1 COMMENT '1=已发布 0=草稿',"
+                    " model_key VARCHAR(64) NULL,"
+                    " updated_by VARCHAR(64) NULL,"
+                    " updated_at DATETIME NULL,"
+                    " created_at DATETIME NULL,"
+                    " PRIMARY KEY (id),"
+                    " UNIQUE KEY uk_prompt_key (prompt_key)"
+                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+                ))
+                await db.execute(text(
+                    "CREATE TABLE IF NOT EXISTS ai_prompt_config_history ("
+                    " id BIGINT NOT NULL AUTO_INCREMENT,"
+                    " prompt_key VARCHAR(64) NOT NULL,"
+                    " version INT NOT NULL,"
+                    " content TEXT NOT NULL,"
+                    " updated_by VARCHAR(64) NULL,"
+                    " updated_at DATETIME NULL,"
+                    " PRIMARY KEY (id),"
+                    " KEY idx_key_version (prompt_key, version)"
+                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+                ))
                 await db.commit()
+                # 自动初始化两条提示词
+                try:
+                    from app.api.glucose_v1 import _ensure_glucose_prompts as _ensure_gp
+                    await _ensure_gp(db)
+                except Exception as _e:
+                    _logger.debug("[PRD-GLUCOSE-CARD-OPTIMIZE-V2] ensure_prompts skip: %s", _e)
                 _logger.info("[PRD-GLUCOSE-V1] migration done")
             except Exception as e:
                 await db.rollback()
