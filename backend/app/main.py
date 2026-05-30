@@ -900,6 +900,77 @@ def _scan_route_conflicts(app: "FastAPI") -> list[dict]:
     return conflicts
 
 
+async def _migrate_glucose_v1():
+    """[PRD-GLUCOSE-V1 2026-05-30] 血糖闭环模块建表（幂等）。
+
+    新增 3 张表：
+    - health_glucose_record    血糖记录
+    - health_glucose_alert     预警事件
+    - health_glucose_reminder  餐后提醒配置
+    """
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text
+            try:
+                await db.execute(text(
+                    "CREATE TABLE IF NOT EXISTS health_glucose_record ("
+                    " id BIGINT NOT NULL AUTO_INCREMENT,"
+                    " user_id BIGINT NOT NULL,"
+                    " value DECIMAL(4,1) NOT NULL,"
+                    " scene TINYINT NOT NULL COMMENT '1=空腹 2=餐后2h 3=随机 4=睡前',"
+                    " level TINYINT NOT NULL COMMENT '1=严重偏低 2=偏低 3=正常 4=偏高 5=严重偏高',"
+                    " is_crisis TINYINT NOT NULL DEFAULT 0 COMMENT '0=否 1=高糖危象 2=低糖危象',"
+                    " measure_time DATETIME NOT NULL,"
+                    " note VARCHAR(200) NULL,"
+                    " create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+                    " PRIMARY KEY (id),"
+                    " KEY idx_glucose_user_time (user_id, measure_time),"
+                    " KEY idx_glucose_user_scene (user_id, scene),"
+                    " KEY idx_glucose_crisis (user_id, is_crisis)"
+                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+                ))
+                await db.execute(text(
+                    "CREATE TABLE IF NOT EXISTS health_glucose_alert ("
+                    " id BIGINT NOT NULL AUTO_INCREMENT,"
+                    " record_id BIGINT NOT NULL,"
+                    " user_id BIGINT NOT NULL,"
+                    " alert_type TINYINT NOT NULL COMMENT '1=低糖危象 2=高糖危象 3=严重偏高 4=严重偏低',"
+                    " push_status TINYINT NOT NULL DEFAULT 0 COMMENT '0=待推 1=已推 2=失败',"
+                    " guardian_confirmed TINYINT NOT NULL DEFAULT 0 COMMENT '0=未确认 1=已确认',"
+                    " message VARCHAR(512) NULL,"
+                    " guardian_ids VARCHAR(512) NULL COMMENT '逗号分隔守护人 user_id 列表',"
+                    " create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+                    " PRIMARY KEY (id),"
+                    " KEY idx_alert_user_time (user_id, create_time),"
+                    " KEY idx_alert_record (record_id)"
+                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+                ))
+                await db.execute(text(
+                    "CREATE TABLE IF NOT EXISTS health_glucose_reminder ("
+                    " id BIGINT NOT NULL AUTO_INCREMENT,"
+                    " user_id BIGINT NOT NULL,"
+                    " breakfast VARCHAR(8) NULL COMMENT 'HH:MM 早餐时间',"
+                    " lunch VARCHAR(8) NULL,"
+                    " dinner VARCHAR(8) NULL,"
+                    " enabled TINYINT NOT NULL DEFAULT 0,"
+                    " created_at DATETIME NULL,"
+                    " updated_at DATETIME NULL,"
+                    " PRIMARY KEY (id),"
+                    " UNIQUE KEY uk_reminder_user (user_id)"
+                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+                ))
+                await db.commit()
+                _logger.info("[PRD-GLUCOSE-V1] migration done")
+            except Exception as e:
+                await db.rollback()
+                _logger.debug("[PRD-GLUCOSE-V1] skip: %s", e)
+    except Exception as e:
+        _logger.error("[PRD-GLUCOSE-V1] migration error: %s", e)
+
+
 async def _migrate_prd468_health_v3():
     """[PRD-468 2026-05-12] health_metric_record / device_binding."""
     import logging as _l
@@ -1725,6 +1796,8 @@ async def lifespan(app: FastAPI):
     await _migrate_prd439_medication_reminder()
     # [PRD-468 2026-05-12] health_metric_record / device_binding
     await _migrate_prd468_health_v3()
+    # [PRD-GLUCOSE-V1 2026-05-30] 血糖管理模块：health_glucose_record / health_glucose_alert / health_glucose_reminder
+    await _migrate_glucose_v1()
     # [AI对话模式优化 PRD v1.0 2026-05-14] chat_function_buttons 8 字段 + medication_library.barcode
     await _migrate_aichat_optim_v1()
     # [AICHAT-OPTIM-FIX-V1 2026-05-14] chat_function_buttons 加 icon 字段 + 自动回填 Emoji + func_grid 简化
@@ -2280,6 +2353,9 @@ app.include_router(medication_add_optim_v1.router)
 app.include_router(medication_today_v1.router)
 # [PRD-468 2026-05-12] 健康档案改版 v3
 app.include_router(health_profile_v3.router)
+# [PRD-GLUCOSE-V1 2026-05-30] 血糖闭环管理模块
+from app.api import glucose_v1 as _glucose_v1  # noqa: E402
+app.include_router(_glucose_v1.router)
 app.include_router(health_archive_optim_v1.router)  # [PRD-HEALTH-ARCHIVE-OPTIM-V1] 健康档案页面优化 V1
 # [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 通用问卷 API
 app.include_router(questionnaire.router)
