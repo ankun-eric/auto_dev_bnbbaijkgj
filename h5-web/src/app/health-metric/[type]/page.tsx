@@ -30,7 +30,7 @@ import { Popup, Input, Button } from 'antd-mobile';
 import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
-import { formatDateTime } from '@/lib/datetime';
+import { formatDateTime, parseServerTime, formatFriendlyTime } from '@/lib/datetime';
 import { judgeBp, getBpPalette, type BpJudgement } from '@/lib/bp-level';
 
 const T = {
@@ -540,32 +540,21 @@ const BP_RANGE_OPTS: { key: BpTrendRange; label: string }[] = [
 ];
 
 /**
- * [PRD-BP-CARD-OPTIMIZE-V1 2026-05-30 §3.3] 首页/详情页统一时间格式化：
+ * [PRD-BP-CARD-OPTIMIZE-V1 2026-05-30 §3.3] 首页/详情页统一时间格式化（北京时间口径）：
  *   - 当天     → 今日 HH:mm
  *   - 昨天     → 昨日 HH:mm
- *   - 2~7 天前 → X 天前
- *   - 超过 7 天 → MM-dd
+ *   - 2~6 天前 → X 天前
+ *   - 同年超过 6 天 → MM-DD
+ *   - 跨年       → YYYY-MM-DD
+ *
+ * [BUG_FIX_TIMEZONE_BJ_UNIFIED_20260530] 改为统一调用 formatFriendlyTime（北京时间口径），
+ * 修复"今日 HH:mm 少 8 小时"的时区 Bug。
  */
 export function formatBpSyncTime(measuredAt?: string | null): string {
   if (!measuredAt) return '';
-  try {
-    const d = new Date(measuredAt);
-    if (Number.isNaN(d.getTime())) return '';
-    const today = new Date();
-    const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-    const startD = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-    const diffDays = Math.floor((startToday - startD) / 86400000);
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mm = String(d.getMinutes()).padStart(2, '0');
-    if (diffDays === 0) return `今日 ${hh}:${mm}`;
-    if (diffDays === 1) return `昨日 ${hh}:${mm}`;
-    if (diffDays >= 2 && diffDays <= 7) return `${diffDays} 天前`;
-    const mo = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${mo}-${dd}`;
-  } catch {
-    return formatDateTime(measuredAt);
-  }
+  const text = formatFriendlyTime(measuredAt);
+  if (!text) return '';
+  return text;
 }
 
 /**
@@ -672,9 +661,17 @@ function BloodPressurePage(props: BloodPressurePageProps) {
       const hasAny = [...s, ...d].some(v => v != null);
       return !hasAny;
     }
-    // 日视图：仅看今天的记录
+    // 日视图：仅看今天的记录（按北京时间口径）
     const today = new Date();
-    return records.filter(r => isSameDay(new Date(r.measured_at), today)).length === 0;
+    const todayBj = new Date(today.getTime() + 8 * 60 * 60 * 1000);
+    return records.filter(r => {
+      const d = parseServerTime(r.measured_at);
+      if (!d) return false;
+      const bj = new Date(d.getTime() + 8 * 60 * 60 * 1000);
+      return bj.getUTCFullYear() === todayBj.getUTCFullYear()
+        && bj.getUTCMonth() === todayBj.getUTCMonth()
+        && bj.getUTCDate() === todayBj.getUTCDate();
+    }).length === 0;
   }, [range, history, records]);
 
   return (
@@ -1119,11 +1116,15 @@ function BpWeekTrendChart({
   const cw = W - PAD.left - PAD.right;
   const ch = H - PAD.top - PAD.bottom;
 
-  // 构造最近 7 天日期序列（与后端 trend_dates 对齐；若空则前端兜底生成）
+  // 构造最近 7 天日期序列（按北京时间口径；与后端 trend_dates 对齐；若空则前端兜底生成）
   const today = new Date();
+  const todayBj = new Date(today.getTime() + 8 * 60 * 60 * 1000);
   const days: string[] = (dates && dates.length === 7) ? dates : Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (6 - i));
-    return ymd(d);
+    const d = new Date(Date.UTC(todayBj.getUTCFullYear(), todayBj.getUTCMonth(), todayBj.getUTCDate() - (6 - i)));
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${dd}`;
   });
   const dayLabels: string[] = (labels && labels.length === 7) ? labels : days.map((s, i) => i === 6 ? '今日' : s.slice(5).replace('-', '/'));
 
@@ -1139,8 +1140,13 @@ function BpWeekTrendChart({
     aggMap[d] = { sbpMin: null, sbpMax: null, sbpAvg: null, dbpMin: null, dbpMax: null, dbpAvg: null, count: 0 };
   });
   records.forEach(r => {
-    const d = new Date(r.measured_at);
-    const key = ymd(d);
+    const dRaw = parseServerTime(r.measured_at);
+    if (!dRaw) return;
+    const dBj = new Date(dRaw.getTime() + 8 * 60 * 60 * 1000);
+    const y = dBj.getUTCFullYear();
+    const m = String(dBj.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(dBj.getUTCDate()).padStart(2, '0');
+    const key = `${y}-${m}-${dd}`;
     if (!(key in aggMap)) return;
     const agg = aggMap[key];
     const sv = r.value?.systolic != null ? Number(r.value.systolic) : null;
@@ -1341,14 +1347,33 @@ function BpDayTrendChart({
   const ch = H - PAD.top - PAD.bottom;
 
   const today = new Date();
+  // [BUG_FIX_TIMEZONE_BJ_UNIFIED_20260530] 按北京时间口径过滤"今日"并构造坐标
+  const bjOf = (iso?: string | null): Date | null => {
+    const d = parseServerTime(iso);
+    if (!d) return null;
+    return new Date(d.getTime() + 8 * 60 * 60 * 1000);
+  };
+  const todayBj = new Date(today.getTime() + 8 * 60 * 60 * 1000);
+  const isSameBjDay = (a: Date, b: Date) =>
+    a.getUTCFullYear() === b.getUTCFullYear() &&
+    a.getUTCMonth() === b.getUTCMonth() &&
+    a.getUTCDate() === b.getUTCDate();
   // 当日记录按时间升序
   const dayRecords = records
-    .filter(r => isSameDay(new Date(r.measured_at), today))
+    .filter(r => {
+      const t = bjOf(r.measured_at);
+      return t != null && isSameBjDay(t, todayBj);
+    })
     .slice()
-    .sort((a, b) => +new Date(a.measured_at) - +new Date(b.measured_at));
+    .sort((a, b) => {
+      const ta = parseServerTime(a.measured_at);
+      const tb = parseServerTime(b.measured_at);
+      return (ta ? ta.getTime() : 0) - (tb ? tb.getTime() : 0);
+    });
 
   const xScale = (date: Date) => {
-    const minutes = date.getHours() * 60 + date.getMinutes();
+    // date 已经是"北京时间口径"的 Date（用 UTC 字段读取北京时分）
+    const minutes = date.getUTCHours() * 60 + date.getUTCMinutes();
     return PAD.left + (minutes / (24 * 60)) * cw;
   };
   const yScale = (v: number) => PAD.top + ch - ((v - BP_Y_MIN) / (BP_Y_MAX - BP_Y_MIN)) * ch;
@@ -1356,7 +1381,8 @@ function BpDayTrendChart({
   const sbpPoints: { x: number; y: number; r: MetricRecord }[] = [];
   const dbpPoints: { x: number; y: number; r: MetricRecord }[] = [];
   dayRecords.forEach(r => {
-    const t = new Date(r.measured_at);
+    const t = bjOf(r.measured_at);
+    if (!t) return;
     const sv = r.value?.systolic != null ? Number(r.value.systolic) : null;
     const dv = r.value?.diastolic != null ? Number(r.value.diastolic) : null;
     if (sv != null && !Number.isNaN(sv)) sbpPoints.push({ x: xScale(t), y: yScale(sv), r });
