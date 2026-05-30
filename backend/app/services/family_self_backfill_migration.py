@@ -20,11 +20,12 @@ async def migrate_family_self() -> None:
     try:
         async with async_session() as db:
             # 1) 先选出需要回填的用户清单（小批，避免长事务）
+            # [BUG_FIX-FAMILY-NICKNAME-DEFAULT-20260530] 同步取 phone，用于兜底姓名生成
             rows = (
                 await db.execute(
                     text(
                         """
-                        SELECT u.id AS uid, u.nickname AS nickname
+                        SELECT u.id AS uid, u.nickname AS nickname, u.phone AS phone
                         FROM users u
                         WHERE NOT EXISTS (
                             SELECT 1 FROM family_members fm
@@ -42,7 +43,16 @@ async def migrate_family_self() -> None:
             inserted = 0
             for r in rows:
                 uid = r[0]
-                nickname = r[1] or "本人"
+                raw_nick = (r[1] or "").strip() if r[1] is not None else ""
+                phone = (r[2] or "").strip() if r[2] is not None else ""
+                # [BUG_FIX-FAMILY-NICKNAME-DEFAULT-20260530] 统一兜底规则：
+                # 1) 先用 users.nickname；2) 否则用「用户{后4位}」；3) 兜底「用户{uid}」
+                if raw_nick:
+                    nickname = raw_nick
+                elif phone and len(phone) >= 4:
+                    nickname = f"用户{phone[-4:]}"
+                else:
+                    nickname = f"用户{uid}"
                 try:
                     await db.execute(
                         text(

@@ -162,7 +162,11 @@ async def add_family_member(
         if not result.scalar_one_or_none():
             raise HTTPException(status_code=404, detail="关联用户不存在")
 
-    nickname = data.nickname or data.name or ""
+    # [BUG_FIX-FAMILY-NICKNAME-NOTNULL-20260530] 姓名必填强校验：
+    # 不允许 None / 空串 / 纯空格；统一返回 400 "姓名不能为空"。
+    nickname = ((data.nickname or data.name) or "").strip()
+    if not nickname:
+        raise HTTPException(status_code=400, detail="姓名不能为空")
 
     # [BUGFIX-HEALTH-ARCHIVE-MEMBER-TAB-V2 2026-05-19] 新成员入档时分配 avatar_color_index：
     # 当前用户已入档成员数（含本人） % 5
@@ -252,6 +256,19 @@ async def update_family_member(
         raise HTTPException(status_code=404, detail="家庭成员不存在")
 
     update_data = data.model_dump(exclude_unset=True)
+    # [BUG_FIX-FAMILY-NICKNAME-NOTNULL-20260530] 编辑档案时若显式传入 nickname/name，
+    # 必须 trim 校验，避免被改为空串；未传则不动原值。
+    if "nickname" in update_data:
+        nv = (update_data.get("nickname") or "").strip()
+        if not nv:
+            raise HTTPException(status_code=400, detail="姓名不能为空")
+        update_data["nickname"] = nv
+    if "name" in update_data:
+        nv = (update_data.get("name") or "").strip()
+        if not nv:
+            raise HTTPException(status_code=400, detail="姓名不能为空")
+        update_data["name"] = nv
+
     for key, value in update_data.items():
         setattr(member, key, value)
 

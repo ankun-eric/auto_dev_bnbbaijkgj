@@ -371,7 +371,11 @@ class FamilyMember(Base):
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     member_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     relationship_type = mapped_column(String(50), nullable=False)
-    nickname = mapped_column(String(100), nullable=True)
+    # [BUG_FIX-FAMILY-NICKNAME-NOTNULL-20260530] 姓名强制非空：
+    # - 数据库层 NOT NULL（配合 ALTER TABLE 一并落地）
+    # - API/服务层在写入前必须 trim 校验，不允许空串/纯空格
+    # - 默认值统一为「用户{手机号后4位}」或「用户{user_id}」，详见 auth.ensure_self_family_member
+    nickname = mapped_column(String(100), nullable=False)
     birthday = mapped_column(Date, nullable=True)
     gender = mapped_column(String(10), nullable=True)
     height = mapped_column(Float, nullable=True)

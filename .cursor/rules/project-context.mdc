@@ -5,6 +5,34 @@ alwaysApply: false
 
 # Project Context
 
+## 最近一次变更（2026-05-30 · Bug 修复 / 健康档案空姓名脏数据清理）
+
+**任务标识**：`[BUG_FIX-FAMILY-NICKNAME-NOTNULL-20260530]`
+
+**背景**：健康管理 → 健康档案 → 档案列表中存在 16 条姓名为空（NULL / 空串 / 纯空格）的脏档案（其中 2 条 active 前端可见，14 条历史残留，全部为 `is_self=0` 非本人档）。根因为 `family_members.nickname` 数据库字段未设 NOT NULL、API 层未做姓名 trim 校验、注册自动建本人档默认值与用户主表口径不一致（旧值 "本人" vs 主表 "用户{后4位}"）。
+
+**核心交付**（仅 backend + h5-web 两端；APP/小程序/桌面端本次无改动，跳过打包）：
+
+- **后端模型 `backend/app/models/models.py` · 367-399 行 `FamilyMember`**：`nickname` 列改为 `nullable=False`
+- **后端注册逻辑 `backend/app/api/auth.py` · 58-110 行**：新增 `_default_self_member_nickname(user, user_id)` 工具函数，统一规则为：1) 优先 `user.nickname` trim 非空；2) 否则 `用户{phone[-4:]}`；3) 兜底 `用户{user_id}`；`ensure_self_family_member` 改用此规则，废弃硬编码 "本人"
+- **后端家庭成员接口 `backend/app/api/family.py`**：
+  - `POST /api/family/members`（~160 行）：新增 trim 校验，姓名为空返回 `HTTP 400 "姓名不能为空"`
+  - `PUT /api/family/members/{id}`（~250 行）：编辑时若显式传入 nickname/name，也做 trim 校验
+- **后端清理迁移 `backend/app/services/family_member_nickname_cleanup_migration.py`（新增）**：启动时自动级联清理空姓名脏档案 + ALTER nickname NOT NULL，幂等可重复执行。处理顺序：先删 health_profiles 的孙表（health_info_extra/health_events/medical_record_cards）→ 再删 health_profiles → 再删 family_management 的孙表（management_operation_logs）→ 再删 family_management → 其余子表（family_invitations/chat_sessions/checkup_reports 等共 10 张）→ 删 family_members 主档 → ALTER NOT NULL
+- **后端回填迁移 `backend/app/services/family_self_backfill_migration.py`（修改）**：兜底姓名规则同步统一为 `用户{后4位}` / `用户{user_id}`
+- **后端启动入口 `backend/app/main.py` · lifespan 内**：在 `migrate_family_self()` 之后追加调用 `migrate_family_member_nickname_cleanup()`
+- **后端测试 `backend/tests/test_family_nickname_notnull_20260530.py`（新增）**：7 个用例覆盖创建/编辑/默认值/非空兜底（本次远程 pytest 执行 **7/7 全部通过**；family 主测试集 **19/19 全部通过**）
+- **后端测试 `backend/tests/test_family.py`（修改）**：`test_auto_create_self_member` 断言由 `nickname == "本人"` 改为「非空且非'本人'」
+- **H5 前端 `h5-web/src/app/health-profile/archive-list/page.tsx`（修改）**：`fetchList` 在 setList 前对 items 做空姓名兜底过滤，双保险
+
+**数据库验证（生产数据库）**：
+- 修复前：`SELECT COUNT(*) FROM family_members WHERE nickname IS NULL OR TRIM(nickname)=''` → **16**
+- 修复后：同 SQL → **0**；`DESC family_members` 中 `nickname VARCHAR(100) NOT NULL`
+
+**用户文档**：`user_docs/健康档案空姓名脏数据清理_20260530.md`
+
+---
+
 ## 最近一次变更（2026-05-30 · 功能开发 / 血糖卡片与详情页优化）
 
 **任务标识**：`[PRD-GLUCOSE-CARD-OPTIMIZE-V1 2026-05-30]`

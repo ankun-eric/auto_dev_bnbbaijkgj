@@ -1775,6 +1775,18 @@ async def lifespan(app: FastAPI):
     except Exception as _e:
         import logging as _l
         _l.getLogger(__name__).error("family_self_backfill 异常（不影响启动）: %s", _e)
+    # [BUG_FIX-FAMILY-NICKNAME-NOTNULL-20260530] 健康档案空姓名脏数据清理 + ALTER NOT NULL
+    # 必须放在 family_self_backfill 之后，以确保本人档已被回填（避免误判脏数据）
+    try:
+        from app.services.family_member_nickname_cleanup_migration import (
+            migrate_family_member_nickname_cleanup,
+        )
+        await migrate_family_member_nickname_cleanup()
+    except Exception as _e:
+        import logging as _l
+        _l.getLogger(__name__).error(
+            "family_member_nickname_cleanup 异常（不影响启动）: %s", _e
+        )
     await migrate_bottom_nav_order_path()
     await migrate_points_mall_v31()
     await migrate_points_mall_v11()

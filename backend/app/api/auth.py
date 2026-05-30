@@ -55,6 +55,25 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["认证"])
 
 
+def _default_self_member_nickname(user: User | None, user_id: int) -> str:
+    """[BUG_FIX-FAMILY-NICKNAME-DEFAULT-20260530] 统一「本人档案」默认姓名规则：
+    1) 优先取 user.nickname（trim 非空）
+    2) 否则取「用户{手机号后4位}」（手机号长度 >= 4）
+    3) 兜底「用户{user_id}」（无手机号或不足 4 位）
+
+    历史上默认值为 "本人"，与 users 表 nickname 规则（用户{后4位}）不一致，
+    且会在「档案列表」展示为"本人"字样脏数据，本次彻底改用上述统一规则。
+    """
+    if user is not None:
+        existing = (getattr(user, "nickname", None) or "").strip()
+        if existing:
+            return existing
+        phone = (getattr(user, "phone", None) or "").strip()
+        if phone and len(phone) >= 4:
+            return f"用户{phone[-4:]}"
+    return f"用户{user_id}"
+
+
 async def ensure_self_family_member(db: AsyncSession, user_id: int) -> None:
     result = await db.execute(
         select(FamilyMember).where(
@@ -73,10 +92,15 @@ async def ensure_self_family_member(db: AsyncSession, user_id: int) -> None:
     if rt:
         relation_type_id = rt.id
 
+    # [BUG_FIX-FAMILY-NICKNAME-DEFAULT-20260530] 取 user 用于生成默认 nickname
+    user_res = await db.execute(select(User).where(User.id == user_id))
+    user_obj = user_res.scalar_one_or_none()
+    default_nickname = _default_self_member_nickname(user_obj, user_id)
+
     db.add(FamilyMember(
         user_id=user_id,
         relationship_type="本人",
-        nickname="本人",
+        nickname=default_nickname,
         is_self=True,
         status="active",
         relation_type_id=relation_type_id,

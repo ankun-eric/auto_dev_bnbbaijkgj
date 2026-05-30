@@ -485,7 +485,23 @@ export default function ArchiveListPage() {
     setLoading(true);
     try {
       const res: any = await api.get('/api/family/member/state/list');
-      setList(res.data || res);
+      const raw: StateListResp | null = (res.data || res) as StateListResp;
+      // [BUG_FIX-FAMILY-NICKNAME-NOTNULL-20260530 H5 兜底]
+      // 即使后端历史脏数据漏过，前端也强制过滤掉「姓名为空 / NULL / 纯空格」的档案，
+      // 双保险，避免用户看到无名档案。
+      if (raw && Array.isArray(raw.items)) {
+        const filtered = raw.items.filter(
+          (m) => m && typeof m.nickname === 'string' && m.nickname.trim().length > 0,
+        );
+        const removed = raw.items.length - filtered.length;
+        setList({
+          ...raw,
+          items: filtered,
+          total: typeof raw.total === 'number' ? Math.max(0, raw.total - removed) : filtered.length,
+        });
+      } else {
+        setList(raw);
+      }
     } catch (e: any) {
       const status = e?.response?.status;
       const detail = e?.response?.data?.detail;

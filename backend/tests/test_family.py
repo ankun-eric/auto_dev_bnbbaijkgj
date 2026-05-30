@@ -139,7 +139,11 @@ async def test_auto_create_self_member(client: AsyncClient, auth_headers):
     assert data["total"] >= 1
     self_members = [m for m in data["items"] if m["is_self"] is True]
     assert len(self_members) == 1
-    assert self_members[0]["nickname"] == "本人"
+    # [BUG_FIX-FAMILY-NICKNAME-DEFAULT-20260530] 默认 nickname 由 "本人" 改为
+    # 「用户{手机号后4位}」或 user.nickname；这里只断言非空非"本人"占位
+    assert self_members[0]["nickname"]
+    assert self_members[0]["nickname"].strip() != ""
+    assert self_members[0]["nickname"] != "本人"
     assert self_members[0]["relationship_type"] == "本人"
 
 
