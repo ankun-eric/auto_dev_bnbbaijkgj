@@ -157,6 +157,109 @@ function MedicalCard({ children, style }: { children: React.ReactNode; style?: R
   );
 }
 
+// [PRD-HEALTH-METRIC-CARD-UNIFY-V1 §七] AI 解读组件（本次 / 趋势），四指标通用
+function MetricAiBlock({ profileId, metricType, latestId, metricLabel }: {
+  profileId: number;
+  metricType: string;
+  latestId: number;
+  metricLabel: string;
+}) {
+  const [drawer, setDrawer] = useState<null | { mode: 'single' | 'trend'; loading: boolean; content: string }>(null);
+  const [range, setRange] = useState<'7d' | '30d' | '90d'>('7d');
+
+  const callApi = async (mode: 'single' | 'trend') => {
+    setDrawer({ mode, loading: true, content: '' });
+    try {
+      if (mode === 'single') {
+        const r: any = await api.post(
+          `/api/health-metric-v1/${profileId}/${metricType}/ai-explain-single`,
+          { record_id: latestId }
+        );
+        const d = r?.data?.data ?? r?.data ?? r;
+        setDrawer({ mode, loading: false, content: d?.content || '' });
+      } else {
+        const r: any = await api.post(
+          `/api/health-metric-v1/${profileId}/${metricType}/ai-explain-trend`,
+          { range }
+        );
+        const d = r?.data?.data ?? r?.data ?? r;
+        const text = [d?.summary, d?.trend && '', d?.trend, d?.advice && '\n建议：', d?.advice]
+          .filter(Boolean).join('\n');
+        setDrawer({ mode, loading: false, content: text });
+      }
+    } catch {
+      setDrawer({ mode, loading: false, content: '解读失败，请稍后重试。' });
+    }
+  };
+
+  return (
+    <MedicalCard>
+      <div style={{ fontSize: 16, fontWeight: 600, color: T.brand700, marginBottom: 8 }}>🤖 AI 解读</div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <button
+          data-testid={`metric-ai-single-${metricType}`}
+          onClick={() => callApi('single')}
+          style={{
+            flex: 1, padding: '10px 0',
+            background: 'linear-gradient(135deg, #38BDF8 0%, #0EA5E9 100%)',
+            color: '#fff', border: 'none', borderRadius: 10,
+            fontSize: 13, fontWeight: 700, cursor: 'pointer',
+          }}
+        >🤖 解读本次{metricLabel}</button>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 4, background: '#F1F5F9', borderRadius: 10, padding: 2, flexShrink: 0 }}>
+          {(['7d', '30d', '90d'] as const).map(k => (
+            <button
+              key={k}
+              data-testid={`metric-ai-range-${k}-${metricType}`}
+              onClick={() => setRange(k)}
+              style={{
+                padding: '4px 10px', borderRadius: 8, border: 'none',
+                background: range === k ? '#0EA5E9' : 'transparent',
+                color: range === k ? '#fff' : '#64748B',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              }}
+            >{k === '7d' ? '7天' : k === '30d' ? '30天' : '90天'}</button>
+          ))}
+        </div>
+        <button
+          data-testid={`metric-ai-trend-${metricType}`}
+          onClick={() => callApi('trend')}
+          style={{
+            flex: 1, padding: '8px 0',
+            background: '#fff', color: '#0EA5E9',
+            border: '1px solid #0EA5E9', borderRadius: 10,
+            fontSize: 13, fontWeight: 600, cursor: 'pointer',
+          }}
+        >📈 解读 {range === '7d' ? '7' : range === '30d' ? '30' : '90'} 天趋势</button>
+      </div>
+      <Popup
+        visible={!!drawer}
+        onMaskClick={() => setDrawer(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '70vh', overflowY: 'auto' }}
+      >
+        {drawer && (
+          <div data-testid="metric-ai-drawer">
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: '#0C4A6E' }}>
+                🤖 AI 解读{drawer.mode === 'single' ? '本次' : '趋势'}
+              </span>
+              <button onClick={() => setDrawer(null)} style={{ background: 'transparent', border: 'none', fontSize: 20, color: '#9CA3AF', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ background: '#F8FAFC', borderRadius: 12, padding: 14, minHeight: 100, fontSize: 14, color: '#0F172A', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
+              {drawer.loading ? '正在分析…' : drawer.content}
+            </div>
+            <div style={{ marginTop: 12, fontSize: 11, color: '#9CA3AF', textAlign: 'center' }}>
+              ⚠️ AI 建议仅供参考，不能替代医生诊断
+            </div>
+          </div>
+        )}
+      </Popup>
+    </MedicalCard>
+  );
+}
+
 export default function HealthMetricDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -390,16 +493,23 @@ export default function HealthMetricDetailPage() {
         </MedicalCard>
       </div>
 
-      {/* 历史记录 */}
+      {/* 历史记录（PRD-HEALTH-METRIC-CARD-UNIFY-V1 §4：最近 5 条 + 全部入口） */}
       <div style={{ padding: '12px 16px' }}>
         <MedicalCard>
-          <div style={{ fontSize: 16, fontWeight: 600, color: T.brand700, marginBottom: 10 }}>历史记录</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: 16, fontWeight: 600, color: T.brand700 }}>历史记录</span>
+            <span
+              data-testid="metric-history-all-entry"
+              onClick={() => router.push(`/health-metric/${metricType}/history?profileId=${profileId}`)}
+              style={{ fontSize: 13, color: T.brand500, cursor: 'pointer', fontWeight: 600 }}
+            >全部 ›</span>
+          </div>
           {(history?.records || []).length === 0 ? (
             <div style={{ fontSize: 14, color: T.brand800, textAlign: 'center', padding: '24px 0' }}>
-              暂无记录
+              暂无记录，点击右上角「+录入」开始记录
             </div>
           ) : (
-            (history?.records || []).map((r) => (
+            (history?.records || []).slice(0, 5).map((r) => (
               <div
                 key={r.id}
                 style={{
@@ -409,30 +519,44 @@ export default function HealthMetricDetailPage() {
               >
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: T.brand700 }}>
+                    {(formatDateTime(r.measured_at) || '').slice(11, 16)}　
                     {metricType === 'blood_pressure'
                       ? `${r.value?.systolic}/${r.value?.diastolic}`
                       : r.value?.[meta.principalKey]}
                     <span style={{ fontSize: 12, color: T.brand800, marginLeft: 4 }}>{meta.unit}</span>
                   </div>
-                  <div style={{ fontSize: 12, color: T.brand600, marginTop: 2 }}>
-                    {formatDateTime(r.measured_at)}
+                  <div style={{ fontSize: 12, color: T.brand600, marginTop: 2, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {(r.value?.period || r.value?.activity) && (
+                      <span style={{ padding: '1px 6px', background: T.brand100, borderRadius: 999 }}>
+                        {r.value?.period || r.value?.activity}
+                      </span>
+                    )}
+                    <span style={{
+                      padding: '1px 6px', borderRadius: 999,
+                      background: r.source === 'manual' ? T.brand100 : '#d1fae5',
+                      color: r.source === 'manual' ? T.brand700 : '#065f46',
+                    }}>
+                      {r.source === 'manual' ? '手工录入' : '设备同步'}
+                    </span>
                   </div>
                 </div>
-                <span
-                  style={{
-                    fontSize: 11, fontWeight: 600,
-                    padding: '3px 8px', borderRadius: 10,
-                    background: r.source === 'manual' ? T.brand100 : '#d1fae5',
-                    color: r.source === 'manual' ? T.brand700 : '#065f46',
-                  }}
-                >
-                  {r.source === 'manual' ? '✎ 手工' : `⌚ ${r.source}`}
-                </span>
               </div>
             ))
           )}
         </MedicalCard>
       </div>
+
+      {/* 🤖 AI 解读（PRD §七：四指标全覆盖） */}
+      {latest && (
+        <div style={{ padding: '12px 16px' }}>
+          <MetricAiBlock
+            profileId={profileId}
+            metricType={metricType}
+            latestId={latest.id}
+            metricLabel={meta.label}
+          />
+        </div>
+      )}
 
       {/* 设备绑定 */}
       <div style={{ padding: '12px 16px' }}>
@@ -854,16 +978,23 @@ function BloodPressurePage(props: BloodPressurePageProps) {
         </div>
       </div>
 
-      {/* 历史记录 */}
+      {/* 历史记录（PRD-HEALTH-METRIC-CARD-UNIFY-V1 §4：最近 5 条 + 全部入口） */}
       <div style={{ padding: '12px 16px 0' }}>
         <div style={{ background: '#fff', borderRadius: 16, padding: '14px 14px', boxShadow: '0 2px 10px rgba(14,165,233,0.06)' }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E', marginBottom: 10 }}>历史记录</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E' }}>历史记录</span>
+            <span
+              data-testid="bp-history-all-entry"
+              onClick={() => { if (typeof window !== 'undefined') window.location.href = `/health-metric/blood_pressure/history?profileId=${props.profileId}`; }}
+              style={{ fontSize: 13, color: '#0EA5E9', cursor: 'pointer', fontWeight: 600 }}
+            >全部 ›</span>
+          </div>
           {(history?.records || []).length === 0 ? (
             <div style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', padding: '24px 0' }}>
-              暂无记录
+              暂无记录，点击右上角「+录入」开始记录
             </div>
           ) : (
-            (history?.records || []).map((r) => {
+            (history?.records || []).slice(0, 5).map((r) => {
               const rSbp = r.value?.systolic != null ? Number(r.value.systolic) : null;
               const rDbp = r.value?.diastolic != null ? Number(r.value.diastolic) : null;
               const j = judgeBp(rSbp, rDbp);
@@ -2011,16 +2142,23 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
         </div>
       </div>
 
-      {/* 历史记录 */}
+      {/* 历史记录（PRD-HEALTH-METRIC-CARD-UNIFY-V1 §4：最近 5 条 + 全部入口） */}
       <div style={{ padding: '12px 16px 0' }}>
         <div style={{ background: '#fff', borderRadius: 16, padding: '14px 14px', boxShadow: '0 2px 10px rgba(14,165,233,0.06)' }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E', marginBottom: 10 }}>📋 历史记录</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E' }}>历史记录</span>
+            <span
+              data-testid="bg-history-all-entry"
+              onClick={() => router.push(`/health-metric/blood_glucose/history?profileId=${profileId}`)}
+              style={{ fontSize: 13, color: '#0EA5E9', cursor: 'pointer', fontWeight: 600 }}
+            >全部 ›</span>
+          </div>
           {records.length === 0 ? (
             <div style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', padding: '24px 0' }}>
               暂无记录，点击右上角「+录入」开始记录
             </div>
           ) : (
-            records.map(r => {
+            records.slice(0, 5).map(r => {
               const v = r.value?.value != null ? Number(r.value.value) : null;
               const sc = normalizeScene(r.value?.period ?? r.value?.scene);
               const j = judgeBg(v, sc);

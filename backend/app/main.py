@@ -2403,6 +2403,9 @@ app.include_router(health_profile_v3.router)
 # [PRD-GLUCOSE-V1 2026-05-30] 血糖闭环管理模块
 from app.api import glucose_v1 as _glucose_v1  # noqa: E402
 app.include_router(_glucose_v1.router)
+# [PRD-HEALTH-METRIC-CARD-UNIFY-V1 2026-05-31] 健康指标卡片统一改造（血压/血糖/心率/血氧）
+from app.api import health_metric_card_v1 as _health_metric_card_v1  # noqa: E402
+app.include_router(_health_metric_card_v1.router)
 app.include_router(health_archive_optim_v1.router)  # [PRD-HEALTH-ARCHIVE-OPTIM-V1] 健康档案页面优化 V1
 # [PRD-QUESTIONNAIRE-IMAGE-CAPTURE-V1 2026-05-19] 通用问卷 API
 app.include_router(questionnaire.router)
