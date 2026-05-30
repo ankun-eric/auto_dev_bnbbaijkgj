@@ -1,41 +1,42 @@
 'use client';
 
 /**
- * [会员中心优化 PRD v2.0 2026-05-26] 会员中心新版
+ * [PRD-MEMBER-PURPLE-THEME-V1 2026-05-30] 会员中心『付费态蓝紫主题』
  *
- * 设计规范：方案一 蓝紫主调 + 金色点缀
+ * 在 v2.0 蓝紫主调基础上做全面深化：
+ * - 顶部 Banner：付费态使用 PRD §F2 三段渐变 + 光斑 + 几何装饰；未付费态浅灰
+ * - 新增「本月配额」卡（F3），从 /api/member/quota-usage 取已用值，total 来自 /api/member/center
+ * - 等级徽章按 PRD §5.5 配色：尊享=金 / 健康=紫 / 普通=灰
+ * - 即将到期（30 天内）橙黄状态条；已过期 主题降级为浅灰 + 红色状态条
+ * - CTA 文案按 PRD §F5：
+ *     · 普通用户 → 立即开通会员
+ *     · 健康会员 → 升级到尊享会员
+ *     · 尊享会员 → 续费 1 年
+ *     · 已过期    → 立即续费，恢复权益
  *
- * 页面结构（自上而下）：
- * 1. 顶部导航栏（返回 / 标题"会员中心" / 更多按钮）
- * 2. 用户信息卡（蓝紫渐变，金色皇冠 + 等级胶囊 + 有效期）
- * 3. 我的会员权益（4 格：守护人 / AI 外呼 / 紧急 AI 呼叫 / 占位卡）
- * 4. 升级享更多权益（动态拉取启用中套餐 + 推荐角标 + 月/年价按钮）
- * 5. 底部入口区（我的订单 / 我的优惠券 / 常见问题）
- * 6. 协议提示
- *
- * 接口：/api/member/center 一次性聚合 + /api/member/order + /api/member/order/{id}/pay
+ * 接口：
+ * - /api/member/center 一次性聚合（已存在）
+ * - /api/member/quota-usage 本月使用量（本次新增轻量只读接口）
+ * - /api/family/member/quota 家庭守护配额（已存在）
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 import GreenNavBar from '@/components/GreenNavBar';
-// [Bug 修复 v1.0 §3.2 2026-05-26] 新增「权益对比」表
 import BenefitsCompareTable from './components/BenefitsCompareTable';
-// [PRD-INVITE-FAMILY-CARD-V1 2026-05-30] 新增「邀请家人入口卡片」
 import InviteFamilyCard from './components/InviteFamilyCard';
-
-// ─── 视觉色：蓝紫主调 + 金色点缀 ───
-const PRIMARY = '#5B7CFA';          // 蓝紫主色
-const PRIMARY_DARK = '#3E5BD9';     // 蓝紫深
-const PRIMARY_BG = '#EEF2FF';       // 蓝紫底
-const GOLD = '#E5A23B';             // 金色（皇冠 + 等级胶囊）
-const GOLD_LIGHT = '#F4D793';       // 浅金（渐变）
-const GOLD_BG = 'rgba(229, 162, 59, 0.12)';
-const PAGE_BG = '#F5F4FB';          // 蓝紫浅底
-const DANGER = '#FF4D4F';
-const TEXT_DARK = '#1a1a1a';
-const TEXT_MUTED = '#8C8C8C';
+import MonthlyQuotaCard from './components/MonthlyQuotaCard';
+import {
+  PURPLE_THEME,
+  computeThemeState,
+  computeLevelKey,
+  getBadgePalette,
+  getCtaText,
+  isPurpleThemeEnabled,
+  normalizeLevelLabel,
+  type ThemeState,
+} from './theme-purple';
 
 interface BenefitsCard {
   key: string;
@@ -72,8 +73,6 @@ interface CenterCurrent {
   expiring_soon: boolean;
 }
 
-// [优化 v1.0 2026-05-27] free_quota 字段：来自管理后台「免费会员额度配置」（free_member_quota 表），
-// 与当前登录用户档位无关，全用户相同。供权益对比表「免费会员」列消费。
 interface FreeQuota {
   max_managed: number;
   ai_outbound_call_count: number;
@@ -89,8 +88,13 @@ interface CenterData {
   free_quota?: FreeQuota;
 }
 
-// [PRD-INVITE-FAMILY-CARD-V1 2026-05-30] /api/family/member/quota 响应字段
-// quota_used / quota_max 均为「含本人」口径（v1.1 已统一）
+interface QuotaUsageResp {
+  ai_outbound_call_used: number;
+  emergency_ai_call_used: number;
+  max_managed_used: number;
+  period_month: string;
+}
+
 interface FamilyQuotaResp {
   quota_used: number;
   quota_max: number;
@@ -99,17 +103,17 @@ interface FamilyQuotaResp {
 
 function fmtVal(v: number | null): string {
   if (v === null) return '--';
-  if (v === -1) return '不限';
+  if (v === -1 || v >= 9999) return '不限';
   return String(v);
 }
 
 export default function MemberCenterPage() {
   const router = useRouter();
   const [data, setData] = useState<CenterData | null>(null);
+  const [usage, setUsage] = useState<QuotaUsageResp | null>(null);
+  const [familyQuota, setFamilyQuota] = useState<FamilyQuotaResp | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  // [PRD-INVITE-FAMILY-CARD-V1 2026-05-30] 邀请家人入口卡片所需的家庭成员配额
-  const [familyQuota, setFamilyQuota] = useState<FamilyQuotaResp | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -123,8 +127,17 @@ export default function MemberCenterPage() {
         setLoading(false);
       }
     })();
-    // [PRD-INVITE-FAMILY-CARD-V1 2026-05-30] 并行拉取家庭成员配额，
-    // 失败时静默兜底（卡片自身有兜底逻辑），不影响会员中心主流程
+    (async () => {
+      try {
+        const r: any = await api.get('/api/member/quota-usage');
+        const payload = r?.data || r;
+        if (payload && typeof payload.ai_outbound_call_used === 'number') {
+          setUsage(payload as QuotaUsageResp);
+        }
+      } catch {
+        /* 静默兜底 */
+      }
+    })();
     (async () => {
       try {
         const r: any = await api.get('/api/family/member/quota');
@@ -132,11 +145,29 @@ export default function MemberCenterPage() {
         if (payload && typeof payload.quota_max === 'number') {
           setFamilyQuota(payload as FamilyQuotaResp);
         }
-      } catch (e) {
-        // 静默：未登录 / 接口异常时卡片走兜底
+      } catch {
+        /* 静默兜底 */
       }
     })();
   }, []);
+
+  // ─── 主题与等级判定 ───
+  const themeState: ThemeState = useMemo(() => {
+    if (!data) return 'unpaid';
+    return computeThemeState({
+      level: data.current.level,
+      expireAt: data.current.expire_at,
+      daysLeft: data.current.days_left,
+      expiringSoon: data.current.expiring_soon,
+    });
+  }, [data]);
+
+  const levelKey = useMemo(
+    () => computeLevelKey(data?.current.plan_name || null, data?.current.level || 'free'),
+    [data]
+  );
+  const purple = isPurpleThemeEnabled(themeState);
+  const PAGE_BG = purple ? '#FFFFFF' : PURPLE_THEME.UNPAID_BG;
 
   const handleBuy = async (plan: PlanBrief, period: 'month' | 'year') => {
     if (busy) return;
@@ -147,10 +178,8 @@ export default function MemberCenterPage() {
         period,
       });
       const order = createRes.data || createRes;
-      // 模拟支付
       await api.post(`/api/member/order/${order.order_id}/pay`, { simulate: true });
       showToast('开通成功', 'success');
-      // 重新拉取
       const res = await api.get('/api/member/center');
       setData((res as any).data || res);
     } catch (e: any) {
@@ -162,18 +191,18 @@ export default function MemberCenterPage() {
 
   if (loading) {
     return (
-      <div style={{ background: PAGE_BG, minHeight: '100vh' }}>
+      <div style={{ background: PURPLE_THEME.UNPAID_BG, minHeight: '100vh' }}>
         <GreenNavBar>会员中心</GreenNavBar>
-        <div style={{ textAlign: 'center', padding: 40, color: TEXT_MUTED }}>加载中…</div>
+        <div style={{ textAlign: 'center', padding: 40, color: PURPLE_THEME.TEXT_MUTED }}>加载中…</div>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div style={{ background: PAGE_BG, minHeight: '100vh' }}>
+      <div style={{ background: PURPLE_THEME.UNPAID_BG, minHeight: '100vh' }}>
         <GreenNavBar>会员中心</GreenNavBar>
-        <div style={{ textAlign: 'center', padding: 40, color: TEXT_MUTED }}>加载失败，请稍后重试</div>
+        <div style={{ textAlign: 'center', padding: 40, color: PURPLE_THEME.TEXT_MUTED }}>加载失败，请稍后重试</div>
       </div>
     );
   }
@@ -181,103 +210,180 @@ export default function MemberCenterPage() {
   const { current, plans, current_plan_rank, ranks, benefits_cards, free_quota } = data;
   const isPaid = current.level === 'paid';
 
+  // ─── Banner 样式 ───
+  const bannerBgStyle: React.CSSProperties = purple
+    ? {
+        background: PURPLE_THEME.BANNER_GRADIENT,
+        color: '#fff',
+        boxShadow: '0 8px 24px rgba(91,108,255,0.25)',
+      }
+    : {
+        background: PURPLE_THEME.UNPAID_BG,
+        color: PURPLE_THEME.TEXT_DARK,
+        border: `1px solid ${PURPLE_THEME.BORDER_LIGHT}`,
+      };
+
+  const badge = getBadgePalette(levelKey);
+
+  // 状态条
+  const showExpiringBar = themeState === 'paid_expiring' && current.days_left !== null;
+  const showExpiredBar = themeState === 'expired';
+
+  // CTA
+  const ctaText = getCtaText({ themeState, levelKey });
+
   return (
-    <div style={{ background: PAGE_BG, minHeight: '100vh', paddingBottom: 32 }}>
+    <div
+      data-testid="member-center-root"
+      data-theme-state={themeState}
+      data-level-key={levelKey}
+      style={{ background: PAGE_BG, minHeight: '100vh', paddingBottom: 96 }}
+    >
       <GreenNavBar>会员中心</GreenNavBar>
 
-      {/* 1. 用户信息卡（蓝紫渐变 + 金色点缀） */}
+      {/* 1. 顶部 Banner（F2） */}
       <div
         data-testid="mc-user-card"
         style={{
           margin: '12px 16px 0',
-          background: `linear-gradient(135deg, ${PRIMARY} 0%, ${PRIMARY_DARK} 100%)`,
           borderRadius: 20,
           padding: '20px 18px 24px',
-          color: '#fff',
-          boxShadow: '0 8px 24px rgba(91, 124, 250, 0.25)',
           position: 'relative',
           overflow: 'hidden',
+          ...bannerBgStyle,
         }}
       >
-        {/* 到期红色横幅 */}
-        {isPaid && current.expiring_soon && current.days_left !== null && (
+        {/* 装饰：径向白光 + 几何点阵（仅付费态） */}
+        {purple && (
+          <>
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                top: -40,
+                right: -40,
+                width: 160,
+                height: 160,
+                background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 70%)',
+                pointerEvents: 'none',
+              }}
+            />
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: 60,
+                background:
+                  'radial-gradient(circle at 20% 80%, rgba(255,255,255,0.08) 1px, transparent 1px), radial-gradient(circle at 60% 30%, rgba(255,255,255,0.06) 1px, transparent 1px)',
+                backgroundSize: '24px 24px',
+                pointerEvents: 'none',
+              }}
+            />
+          </>
+        )}
+
+        {/* 即将到期 状态条（付费态） */}
+        {showExpiringBar && (
           <div
-            style={{
-              background: DANGER,
-              color: '#fff',
-              padding: '6px 12px',
-              borderRadius: 8,
-              fontSize: 12,
-              marginBottom: 12,
-              textAlign: 'center',
-            }}
             data-testid="mc-expire-warn"
+            style={{
+              position: 'relative',
+              zIndex: 1,
+              background: PURPLE_THEME.WARN_ORANGE,
+              color: '#fff',
+              padding: '8px 12px',
+              borderRadius: 8,
+              fontSize: 13,
+              marginBottom: 14,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              fontWeight: 600,
+            }}
           >
-            ⚠️ 您的会员将于 {current.days_left} 天后到期，立即续费
+            <span style={{ fontSize: 16 }}>⚠️</span>
+            <span>您的会员将于 {current.days_left} 天后到期</span>
+            <span style={{ marginLeft: 'auto', fontSize: 12, opacity: 0.95, textDecoration: 'underline' }}>立即续费 →</span>
           </div>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* 头像占位 + 金色皇冠 */}
+        {/* 已过期 状态条 */}
+        {showExpiredBar && (
+          <div
+            data-testid="mc-expired-bar"
+            style={{
+              position: 'relative',
+              zIndex: 1,
+              background: PURPLE_THEME.ERR_RED,
+              color: '#fff',
+              padding: '8px 12px',
+              borderRadius: 8,
+              fontSize: 13,
+              marginBottom: 14,
+              fontWeight: 600,
+            }}
+          >
+            您的会员已于 {current.days_left !== null ? Math.abs(current.days_left) : 0} 天前到期
+          </div>
+        )}
+
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
           <div
             style={{
               width: 60,
               height: 60,
               borderRadius: '50%',
-              background: 'rgba(255,255,255,0.2)',
-              border: `2px solid ${isPaid ? GOLD : '#fff'}`,
+              background: purple ? 'rgba(255,255,255,0.2)' : '#FFFFFF',
+              border: `2px solid ${purple ? '#FFFFFF' : PURPLE_THEME.BORDER_LIGHT}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 28,
-              position: 'relative',
+              flexShrink: 0,
             }}
           >
             👤
-            <span
-              style={{
-                position: 'absolute',
-                top: -8,
-                right: -4,
-                fontSize: 20,
-                filter: isPaid ? 'none' : 'grayscale(0.5)',
-              }}
-            >
-              👑
-            </span>
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 17, fontWeight: 700 }}>{(current as any).nickname || '尊贵会员'}</div>
-            {/* 等级胶囊（金色） */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 18, fontWeight: 700 }} data-testid="mc-user-nick">
+              {(current as any).nickname || '尊贵会员'}
+            </div>
             <div
+              data-testid="mc-level-tag"
+              data-level-key={levelKey}
               style={{
                 display: 'inline-block',
-                background: `linear-gradient(90deg, ${GOLD} 0%, ${GOLD_LIGHT} 100%)`,
-                color: '#5C3B00',
+                background: badge.bg,
+                color: badge.text,
                 fontSize: 12,
                 fontWeight: 700,
                 padding: '3px 10px',
                 borderRadius: 12,
                 marginTop: 6,
+                border: `1px solid ${badge.border}`,
               }}
-              data-testid="mc-level-tag"
             >
-              {current.plan_name}
+              {normalizeLevelLabel(current.plan_name, current.level)}
             </div>
-            <div style={{ fontSize: 12, marginTop: 8, opacity: 0.85 }} data-testid="mc-expire">
-              有效期：{current.expire_date}
+            <div
+              style={{
+                fontSize: 13,
+                marginTop: 8,
+                opacity: purple ? 0.9 : 1,
+                color: purple ? '#fff' : PURPLE_THEME.TEXT_MUTED,
+              }}
+              data-testid="mc-expire"
+            >
+              {isPaid ? `有效期至 ${current.expire_date}` : '开通会员，享 AI 外呼/紧急呼叫等权益'}
             </div>
           </div>
         </div>
       </div>
 
-      {/* [PRD-INVITE-FAMILY-CARD-V1 2026-05-30] 邀请家人入口卡片
-          位置：保持在原"邀请家人入口"在会员中心页内的位置（用户信息卡之后、权益区之前）。
-          数据：planName 来自 current.plan_name；quotaMax / quotaUsed 来自 /api/family/member/quota（含本人）。
-          交互：
-            - 点击主按钮"邀请家人" → 跳转既有「邀请家人」流程页（/health-profile/my-guardians/invite）；
-            - 达上限态点击「升级套餐」 → 跳转既有会员套餐购买页（/checkout 或本页向下滚动到「升级享更多权益」）。
-          兜底：如配额接口失败，把上限取自 current.max_managed（含本人），quotaUsed 为 0（不会进入达上限态）。 */}
+      {/* 2. 邀请家人入口（保留） */}
       <InviteFamilyCard
         planName={current.plan_name}
         quotaMax={(familyQuota && typeof familyQuota.quota_max === 'number') ? familyQuota.quota_max : current.max_managed}
@@ -296,22 +402,37 @@ export default function MemberCenterPage() {
         }}
       />
 
-      {/* 2. 我的会员权益（4 格） */}
+      {/* 3. 本月配额卡（F3） */}
+      <MonthlyQuotaCard
+        themeState={themeState}
+        aiOutbound={{
+          used: usage?.ai_outbound_call_used ?? 0,
+          total: current.ai_outbound_call_count,
+        }}
+        emergencyAi={{
+          used: usage?.emergency_ai_call_used ?? 0,
+          total: current.emergency_ai_call_count,
+        }}
+        manageMember={{
+          used: usage?.max_managed_used ?? (familyQuota ? Math.max(0, (familyQuota.quota_used || 1) - 1) : 0),
+          total: current.max_managed,
+        }}
+      />
+
+      {/* 4. 我的会员权益（4 格） */}
       <div
         style={{
           margin: '12px 16px 0',
           background: '#fff',
-          borderRadius: 20,
+          borderRadius: 16,
           padding: '18px 16px',
-          boxShadow: '0 4px 16px rgba(91, 124, 250, 0.10)',
-          position: 'relative',
-          zIndex: 1,
+          border: `1px solid ${PURPLE_THEME.BORDER_LIGHT}`,
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: TEXT_DARK }}>我的会员权益</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: PURPLE_THEME.TEXT_DARK }}>我的会员权益</div>
           <div
-            style={{ fontSize: 12, color: PRIMARY, cursor: 'pointer' }}
+            style={{ fontSize: 12, color: PURPLE_THEME.PRIMARY, cursor: 'pointer' }}
             onClick={() => showToast('更多权益开发中，敬请期待', 'info')}
             data-testid="mc-benefits-more"
           >
@@ -321,11 +442,7 @@ export default function MemberCenterPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
           {benefits_cards.map((b) => {
             const placeholder = b.key === 'placeholder';
-            // [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30 C2/C5]
-            //   权益卡片仅一行（主文案数字），副文案全部删除；
-            //   value = max_managed 原值（已含本人，数据库迁移后），前端零加工原样展示；
-            //   -1 / >=9999 展示「不限」。不再出现「含本人」字样。
-            let displayValue: any = fmtVal(b.value);
+            let displayValue: string = fmtVal(b.value);
             if (b.key === 'max_managed' && typeof b.value === 'number') {
               if (b.value === -1 || b.value >= 9999) displayValue = '不限';
               else displayValue = String(b.value);
@@ -335,8 +452,8 @@ export default function MemberCenterPage() {
                 key={b.key}
                 data-testid={`mc-benefit-${b.key}`}
                 style={{
-                  background: placeholder ? 'transparent' : PRIMARY_BG,
-                  border: placeholder ? `1.5px dashed ${PRIMARY}` : 'none',
+                  background: placeholder ? 'transparent' : 'rgba(91,108,255,0.06)',
+                  border: placeholder ? `1.5px dashed ${PURPLE_THEME.PRIMARY}` : 'none',
                   borderRadius: 14,
                   padding: '14px 10px',
                   textAlign: 'center',
@@ -346,15 +463,12 @@ export default function MemberCenterPage() {
                   style={{
                     fontSize: placeholder ? 18 : 22,
                     fontWeight: 700,
-                    color: placeholder ? PRIMARY : PRIMARY_DARK,
+                    color: placeholder ? PURPLE_THEME.PRIMARY : PURPLE_THEME.PRIMARY_DARK_TEXT,
                   }}
                 >
                   {placeholder ? '✨ 敬请期待' : displayValue}
                 </div>
-                {/* [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30 C2] 权益卡片仅保留主文案，副文案删除：
-                    保留 label（如「家庭守护成员」）作为权益项名称，去掉单位中的「含本人」字样。
-                    max_managed 项的 unit 已统一为「人」，不再出现「含本人」/「不含本人」 */}
-                <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: PURPLE_THEME.TEXT_MUTED, marginTop: 4 }}>
                   {b.label}
                   {!placeholder && b.unit ? `（${b.unit}）` : ''}
                 </div>
@@ -364,10 +478,10 @@ export default function MemberCenterPage() {
         </div>
       </div>
 
-      {/* 3. 升级享更多权益 */}
+      {/* 5. 升级享更多权益 */}
       {plans.length > 0 && (
         <div style={{ margin: '20px 16px 0' }} data-mc-upgrade-section="1">
-          <div style={{ fontSize: 16, fontWeight: 700, color: TEXT_DARK, marginBottom: 10, padding: '0 4px' }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: PURPLE_THEME.TEXT_DARK, marginBottom: 10, padding: '0 4px' }}>
             升级享更多权益
           </div>
           {plans.map((p) => {
@@ -382,12 +496,12 @@ export default function MemberCenterPage() {
                 data-testid={`mc-plan-${p.id}`}
                 style={{
                   background: '#fff',
-                  borderRadius: 18,
+                  borderRadius: 16,
                   padding: 16,
                   marginBottom: 12,
                   position: 'relative',
-                  boxShadow: '0 4px 12px rgba(91, 124, 250, 0.08)',
-                  border: p.is_recommended ? `1.5px solid ${GOLD}` : `1px solid ${PRIMARY_BG}`,
+                  border: p.is_recommended ? `1.5px solid ${PURPLE_THEME.PRIMARY}` : `1px solid ${PURPLE_THEME.BORDER_LIGHT}`,
+                  boxShadow: p.is_recommended ? '0 6px 18px rgba(91,108,255,0.15)' : 'none',
                 }}
               >
                 {p.is_recommended && (
@@ -396,25 +510,21 @@ export default function MemberCenterPage() {
                       position: 'absolute',
                       top: -8,
                       right: 16,
-                      background: `linear-gradient(90deg, ${GOLD} 0%, ${GOLD_LIGHT} 100%)`,
-                      color: '#5C3B00',
+                      background: PURPLE_THEME.CTA_GRADIENT,
+                      color: '#fff',
                       fontSize: 11,
                       fontWeight: 700,
                       padding: '2px 10px',
                       borderRadius: 10,
                     }}
                   >
-                    👑 推荐
+                    ✦ 推荐
                   </div>
                 )}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
-                    <div style={{ fontSize: 17, fontWeight: 700, color: TEXT_DARK }}>{p.name}</div>
-                    <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 4 }}>
-                      {/* [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30 C2/C5]
-                          权益项命名：「可管理健康档案」→「家庭守护成员」（PRD 规范主文案）
-                          数字：max_managed 数据库原值（已含本人），前端零加工原样展示
-                          -1/>=9999 显示「不限」；不写「含本人/不含本人」 */}
+                    <div style={{ fontSize: 17, fontWeight: 700, color: PURPLE_THEME.TEXT_DARK }}>{p.name}</div>
+                    <div style={{ fontSize: 12, color: PURPLE_THEME.TEXT_MUTED, marginTop: 4 }}>
                       家庭守护成员 {p.max_managed === -1 || p.max_managed >= 9999 ? '不限' : `${p.max_managed} 人`} · AI 外呼 {fmtVal(p.ai_outbound_call_count)} 次 · 紧急呼叫 {fmtVal(p.emergency_ai_call_count)} 次
                     </div>
                   </div>
@@ -429,9 +539,9 @@ export default function MemberCenterPage() {
                         flex: 1,
                         padding: '10px 0',
                         borderRadius: 22,
-                        border: `1.5px solid ${PRIMARY}`,
+                        border: `1.5px solid ${PURPLE_THEME.PRIMARY}`,
                         background: '#fff',
-                        color: PRIMARY,
+                        color: PURPLE_THEME.PRIMARY,
                         fontSize: 14,
                         fontWeight: 600,
                         cursor: busy || isCurrent ? 'not-allowed' : 'pointer',
@@ -451,14 +561,13 @@ export default function MemberCenterPage() {
                         padding: '10px 0',
                         borderRadius: 22,
                         border: 'none',
-                        background: p.is_recommended
-                          ? `linear-gradient(90deg, ${GOLD} 0%, ${GOLD_LIGHT} 100%)`
-                          : `linear-gradient(90deg, ${PRIMARY} 0%, ${PRIMARY_DARK} 100%)`,
-                        color: p.is_recommended ? '#5C3B00' : '#fff',
+                        background: PURPLE_THEME.CTA_GRADIENT,
+                        color: '#fff',
                         fontSize: 14,
                         fontWeight: 700,
                         cursor: busy || isCurrent ? 'not-allowed' : 'pointer',
                         opacity: busy || isCurrent ? 0.6 : 1,
+                        boxShadow: '0 4px 16px rgba(91,108,255,0.35)',
                       }}
                     >
                       {isCurrent ? '已开通' : canUpgrade ? `升级年卡 ¥${p.price_year}` : `年卡 ¥${p.price_year}`}
@@ -471,9 +580,7 @@ export default function MemberCenterPage() {
         </div>
       )}
 
-      {/* [Bug 修复 v1.0 §3.2 2026-05-26] [优化 v1.0 2026-05-27] 4. 权益对比表
-          freeQuota 来自后端 free_quota 字段（管理后台「免费会员额度配置」），
-          与当前用户档位无关，付费用户也能看到正确的「免费会员」列数值。 */}
+      {/* 6. 三档对比表（F4） */}
       <BenefitsCompareTable
         current={current as any}
         plans={plans as any}
@@ -481,8 +588,16 @@ export default function MemberCenterPage() {
         freeQuota={free_quota}
       />
 
-      {/* 5. 底部入口区 */}
-      <div style={{ margin: '16px 16px 0', background: '#fff', borderRadius: 18, padding: '4px 0', boxShadow: '0 4px 12px rgba(91, 124, 250, 0.06)' }}>
+      {/* 7. 底部入口区 */}
+      <div
+        style={{
+          margin: '16px 16px 0',
+          background: '#fff',
+          borderRadius: 16,
+          padding: '4px 0',
+          border: `1px solid ${PURPLE_THEME.BORDER_LIGHT}`,
+        }}
+      >
         {[
           { label: '我的订单', icon: '📦', tab: '/unified-orders', testid: 'mc-orders' },
           { label: '我的优惠券', icon: '🎫', tab: '/my-coupons', testid: 'mc-coupons' },
@@ -509,16 +624,58 @@ export default function MemberCenterPage() {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 18 }}>{item.icon}</span>
-              <span style={{ fontSize: 14, color: TEXT_DARK }}>{item.label}</span>
+              <span style={{ fontSize: 14, color: PURPLE_THEME.TEXT_DARK }}>{item.label}</span>
             </div>
-            <span style={{ color: TEXT_MUTED, fontSize: 14 }}>›</span>
+            <span style={{ color: PURPLE_THEME.TEXT_MUTED, fontSize: 14 }}>›</span>
           </div>
         ))}
       </div>
 
-      {/* 6. 协议提示 */}
-      <div style={{ textAlign: 'center', marginTop: 24, fontSize: 11, color: TEXT_MUTED, padding: '0 24px' }}>
+      <div style={{ textAlign: 'center', marginTop: 18, fontSize: 11, color: PURPLE_THEME.TEXT_MUTED, padding: '0 24px' }}>
         开通即同意《会员服务协议》《自动续费协议》
+      </div>
+
+      {/* 8. 底部吸底 CTA（F5） */}
+      <div
+        data-testid="mc-bottom-cta"
+        style={{
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          padding: '12px 16px calc(12px + env(safe-area-inset-bottom, 0px))',
+          background: 'rgba(255,255,255,0.96)',
+          backdropFilter: 'saturate(180%) blur(12px)',
+          borderTop: `1px solid ${PURPLE_THEME.BORDER_LIGHT}`,
+          zIndex: 50,
+        }}
+      >
+        <button
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              const el = document.querySelector('[data-mc-upgrade-section="1"]');
+              if (el && (el as HTMLElement).scrollIntoView) {
+                (el as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'start' });
+                return;
+              }
+            }
+          }}
+          style={{
+            width: '100%',
+            height: 48,
+            border: 'none',
+            borderRadius: 24,
+            background: PURPLE_THEME.CTA_GRADIENT,
+            color: '#fff',
+            fontSize: 16,
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 4px 16px rgba(91,108,255,0.35)',
+          }}
+          data-testid="mc-bottom-cta-btn"
+        >
+          {ctaText}
+        </button>
       </div>
     </div>
   );

@@ -25,7 +25,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -226,6 +226,68 @@ async def get_member_center(
 
 
 # ─────────────────── 用户端：可购套餐列表 ───────────────────
+
+
+@router.get("/quota-usage")
+async def get_member_quota_usage(
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD-MEMBER-PURPLE-THEME-V1 2026-05-30] 会员中心『本月配额』使用量。
+
+    返回当前用户本月已用的：AI 外呼提醒、紧急 AI 呼叫 次数；以及当前家庭成员守护已用人数。
+    数据来源：
+    - user_quota_usage 表（按月统计），缺失/无记录时返回 0
+    - family_members 计数：家庭守护已用 = 当前用户 family_members 表中 is_self=0 的存活成员数
+    """
+    used_outbound = 0
+    used_emergency = 0
+    used_managed = 0
+
+    # 安全读 user_quota_usage：表/列可能不存在
+    try:
+        ym = datetime.utcnow().strftime("%Y-%m")
+        row = (
+            await db.execute(
+                text(
+                    "SELECT ai_outbound_call_used, emergency_ai_call_used "
+                    "FROM user_quota_usage "
+                    "WHERE user_id = :uid AND period_month = :ym "
+                    "ORDER BY id DESC LIMIT 1"
+                ),
+                {"uid": current_user.id, "ym": ym},
+            )
+        ).first()
+        if row is not None:
+            used_outbound = int(row[0] or 0)
+            used_emergency = int(row[1] or 0)
+    except Exception:
+        # 表/字段不存在或其它异常时静默兜底为 0
+        pass
+
+    # 守护他人已用人数：family_members 表当前用户名下、is_self=0 的存活成员数
+    try:
+        row2 = (
+            await db.execute(
+                text(
+                    "SELECT COUNT(*) FROM family_members "
+                    "WHERE user_id = :uid AND COALESCE(is_self, 0) = 0"
+                ),
+                {"uid": current_user.id},
+            )
+        ).first()
+        if row2 is not None:
+            used_managed = int(row2[0] or 0)
+    except Exception:
+        pass
+
+    return {
+        "ai_outbound_call_used": used_outbound,
+        "emergency_ai_call_used": used_emergency,
+        "max_managed_used": used_managed,
+        "period_month": datetime.utcnow().strftime("%Y-%m"),
+    }
+
 
 
 @router.get("/plans")

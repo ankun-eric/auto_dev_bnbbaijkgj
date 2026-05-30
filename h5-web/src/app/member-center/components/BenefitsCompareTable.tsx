@@ -51,14 +51,17 @@ interface Props {
   freeQuota?: FreeQuota;
 }
 
-const PRIMARY = '#5B7CFA';
-const PRIMARY_DARK = '#3E5BD9';
-const TEXT_DARK = '#1a1a1a';
-const TEXT_MUTED = '#8C8C8C';
-const TEXT_GRAY = '#595959';
+const PRIMARY = '#5B6CFF';
+const PRIMARY_DARK = '#3D4CCC';
+const PRIMARY_BG_LIGHT = 'rgba(91,108,255,0.08)';
+const TEXT_DARK = '#1F2937';
+const TEXT_MUTED = '#6B7280';
+const TEXT_GRAY = '#374151';
+const BORDER_LIGHT = '#E5E7F0';
 
-// 付费列颜色梯度：橙黄 → 橙红 → 深红（按 price_rank 升序自动分配）
-const PAID_GRADIENT = ['#F39C12', '#E67E22', '#E74C3C', '#C0392B', '#8E1F1F'];
+// 付费列颜色梯度：[PRD-MEMBER-PURPLE-THEME-V1 2026-05-30] 改为蓝紫调梯度
+// 浅紫 → 主蓝紫 → 深蓝紫，与系统主色保持一致，废弃旧的橙红渐变
+const PAID_GRADIENT = ['#8B6CFF', '#6C7BFF', '#5B6CFF', '#3D4CCC', '#2E3DBF'];
 
 function fmtVal(v: number | null | undefined): string {
   if (v === null || v === undefined) return '--';
@@ -162,9 +165,9 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
       <div
         style={{
           background: '#fff',
-          borderRadius: 18,
+          borderRadius: 16,
           padding: '4px 0',
-          boxShadow: '0 4px 12px rgba(91, 124, 250, 0.08)',
+          border: `1px solid ${BORDER_LIGHT}`,
           overflowX: 'auto',
           WebkitOverflowScrolling: 'touch',
         }}
@@ -185,10 +188,10 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
                   padding: '12px 12px',
                   textAlign: 'left',
                   fontWeight: 600,
-                  color: TEXT_MUTED,
+                  color: '#FFFFFF',
                   fontSize: 12,
-                  background: '#fafafa',
-                  borderBottom: '1px solid #f0f0f0',
+                  background: PRIMARY,
+                  borderBottom: `1px solid ${BORDER_LIGHT}`,
                   whiteSpace: 'nowrap',
                   minWidth: 96,
                 }}
@@ -200,19 +203,42 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
                   padding: '12px 12px',
                   textAlign: 'center',
                   fontWeight: 700,
-                  color: PRIMARY_DARK,
+                  color: '#FFFFFF',
                   fontSize: 13,
-                  background: '#fafafa',
-                  borderBottom: '1px solid #f0f0f0',
+                  background: current.level === 'free' ? PRIMARY_DARK : PRIMARY,
+                  borderBottom: `1px solid ${BORDER_LIGHT}`,
                   whiteSpace: 'nowrap',
-                  minWidth: 84,
+                  minWidth: 96,
+                  position: 'relative',
                 }}
                 data-testid="mc-compare-col-free"
+                data-current={current.level === 'free' ? '1' : '0'}
               >
+                {current.level === 'free' && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: -10,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: '#FFFFFF',
+                      color: PRIMARY,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: 999,
+                      border: `1px solid ${PRIMARY}`,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    当前
+                  </div>
+                )}
                 免费会员
               </th>
               {sortedPaidPlans.map((p, idx) => {
                 const color = getPaidColor(idx);
+                const isCurrent = current.level === 'paid' && current.plan_id === p.id;
                 return (
                   <th
                     key={p.id}
@@ -220,15 +246,37 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
                       padding: '12px 12px',
                       textAlign: 'center',
                       fontWeight: 700,
-                      color,
+                      color: isCurrent ? '#FFFFFF' : color,
                       fontSize: 13,
-                      background: '#fafafa',
-                      borderBottom: '1px solid #f0f0f0',
+                      background: isCurrent ? PRIMARY : '#FFFFFF',
+                      borderBottom: `1px solid ${BORDER_LIGHT}`,
                       whiteSpace: 'nowrap',
-                      minWidth: 84,
+                      minWidth: 96,
+                      position: 'relative',
                     }}
                     data-testid={`mc-compare-col-${p.id}`}
+                    data-current={isCurrent ? '1' : '0'}
                   >
+                    {isCurrent && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: -10,
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          background: '#FFFFFF',
+                          color: PRIMARY,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: 999,
+                          border: `1px solid ${PRIMARY}`,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        当前
+                      </div>
+                    )}
                     {p.name}
                   </th>
                 );
@@ -242,7 +290,7 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
                   style={{
                     padding: '12px 12px',
                     color: TEXT_GRAY,
-                    borderBottom: ri < rows.length - 1 ? '1px solid #f5f5f5' : 'none',
+                    borderBottom: ri < rows.length - 1 ? `1px solid ${BORDER_LIGHT}` : 'none',
                     whiteSpace: 'nowrap',
                   }}
                 >
@@ -252,9 +300,10 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
                   style={{
                     padding: '12px 12px',
                     textAlign: 'center',
-                    color: TEXT_GRAY,
-                    fontWeight: 400,
-                    borderBottom: ri < rows.length - 1 ? '1px solid #f5f5f5' : 'none',
+                    color: current.level === 'free' ? PRIMARY_DARK : TEXT_GRAY,
+                    fontWeight: current.level === 'free' ? 700 : 400,
+                    background: current.level === 'free' ? PRIMARY_BG_LIGHT : 'transparent',
+                    borderBottom: ri < rows.length - 1 ? `1px solid ${BORDER_LIGHT}` : 'none',
                     whiteSpace: 'nowrap',
                   }}
                 >
@@ -262,15 +311,17 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
                 </td>
                 {sortedPaidPlans.map((p, idx) => {
                   const color = getPaidColor(idx);
+                  const isCurrent = current.level === 'paid' && current.plan_id === p.id;
                   return (
                     <td
                       key={p.id}
                       style={{
                         padding: '12px 12px',
                         textAlign: 'center',
-                        color,
+                        color: isCurrent ? PRIMARY_DARK : color,
                         fontWeight: 700,
-                        borderBottom: ri < rows.length - 1 ? '1px solid #f5f5f5' : 'none',
+                        background: isCurrent ? PRIMARY_BG_LIGHT : 'transparent',
+                        borderBottom: ri < rows.length - 1 ? `1px solid ${BORDER_LIGHT}` : 'none',
                         whiteSpace: 'nowrap',
                       }}
                       data-testid={`mc-compare-cell-${r.key}-${p.id}`}

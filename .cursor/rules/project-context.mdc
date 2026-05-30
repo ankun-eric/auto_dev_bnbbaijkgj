@@ -5,7 +5,63 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-30 · Bug 修复 / 健康档案空姓名脏数据清理）
+## 最近一次变更（2026-05-30 · 新功能 / 会员中心付费态蓝紫主题 v1.0）
+
+**任务标识**：`[PRD-MEMBER-PURPLE-THEME-V1 2026-05-30]`
+
+**背景**：会员中心 v2.0 虽已使用蓝紫主调（`#5B7CFA`），但付费用户的尊贵感、与免费用户的视觉差异均不够强。本次按 PRD v1.0 把会员中心「付费态」全面切换到与系统主色一致的真实蓝紫色 `#5B6CFF`，并新增「本月配额」展示，彻底拉开付费/免费视觉差异。**仅 H5 端 + 后端只读接口补丁，零小程序 / 安卓 / iOS / exe 改动**（移动端均通过 WebView 加载 H5 自动同步生效）。
+
+**核心交付**：
+
+- **后端 `backend/app/api/member_center_v2.py`（修改）**：新增 `GET /api/member/quota-usage` 端点 → 返回当前用户本月已用 AI 外呼次数、紧急 AI 呼叫次数、守护他人已用人数；基于 `user_quota_usage` 表（按 `period_month=YYYY-MM` 行级查询）+ `family_members` 表 `is_self=0` 计数；表/字段缺失时静默兜底为 0
+- **后端测试 `backend/tests/test_member_purple_theme_v1_20260530.py`（新增）**：8 个 pytest 覆盖未鉴权 4xx / 字段齐全 / 类型 / period_month 格式 / 幂等 / 接口字段兼容性等；远程 pytest **8/8 全过**；回归 `test_invite_family_card_v1_20260530.py` + `test_member_center_prd_v1_aligned.py` 共 **23/23 全过**
+
+- **H5 新文件 `h5-web/src/app/member-center/theme-purple.ts`**：纯函数视觉资产
+  - 颜色常量：`PURPLE_THEME` 含 `BANNER_GRADIENT`（135° 三段渐变 `#5B6CFF → #6C7BFF → #8B6CFF`）、`CTA_GRADIENT`、徽章金/紫/灰、状态条橙/红、暗黑底色
+  - 状态机：`computeThemeState({level,expireAt,daysLeft,expiringSoon}) → 'paid_normal' | 'paid_expiring'(≤30天) | 'expired' | 'unpaid'`
+  - 等级判定：`computeLevelKey(planName,level) → 'free' | 'health'(含"健康"/health/basic) | 'premium'(含"尊享"/premium/vip) | 'paid'`
+  - 徽章配色：`getBadgePalette(key)` —— premium 金色、health/paid 紫色、free 灰色
+  - CTA 文案：`getCtaText({themeState,levelKey})` —— 4 态 × 三档付费用户共 6 种文案（PRD §F5）
+  - 进度条：`calcQuotaPercent(used,total)` —— 不限档/total<=0/used<=0 全兜底
+  - 主题判定：`isPurpleThemeEnabled(state)` 仅 paid_normal + paid_expiring 启用蓝紫
+  - 用户名归一：`normalizeLevelLabel(planName,level)` —— free → "普通用户"
+
+- **H5 新文件 `h5-web/src/app/member-center/components/MonthlyQuotaCard.tsx`**：本月配额卡组件（PRD §F3）
+  - 付费态：蓝紫底 + 高对比白字 + 半透明白进度条 + `0 8px 24px rgba(91,108,255,0.25)` 阴影
+  - 未付费态：白底 + 1px 浅灰描边 + 蓝紫前景进度条
+  - 三项配额：AI 外呼 / 紧急呼叫 / 守护他人；不限档（-1 / >=9999）显示「不限」并隐藏进度条
+  - 主数值 22sp 加粗，副说明 13sp，配额项之间分隔线（白色 16% 透明 / `#E5E7F0`）
+
+- **H5 `h5-web/src/app/member-center/page.tsx`（重写）**：
+  - 顶部 Banner：付费态三段蓝紫渐变 + 径向白光 + 几何点阵装饰；未付费态浅灰
+  - 等级徽章按 `levelKey` 调色板（金/紫/灰）
+  - 即将到期 / 已过期 状态条覆盖在 Banner 之上
+  - 调用 `/api/member/center` + `/api/member/quota-usage` + `/api/family/member/quota` 三接口（并行拉取，单个失败静默兜底）
+  - 升级套餐区：推荐套餐改用蓝紫渐变角标（替换原金色）；年卡按钮统一蓝紫渐变
+  - 底部新增吸底 CTA：48px 胶囊 + 蓝紫渐变 + `0 4px 16px rgba(91,108,255,0.35)` 阴影；文案随状态智能切换（立即开通会员 / 升级到尊享会员 / 续费 1 年 / 立即续费，恢复权益）
+  - `data-testid` 暴露：`member-center-root` / `mc-user-card` / `mc-monthly-quota` / `mc-bottom-cta` / `mc-bottom-cta-btn` / `mc-expire-warn` / `mc-expired-bar` / `mc-level-tag` 等供探针
+
+- **H5 `h5-web/src/app/member-center/components/BenefitsCompareTable.tsx`（修改）**：
+  - 颜色梯度由橙红（`#F39C12 → #C0392B`）改为蓝紫（`#8B6CFF → #2E3DBF`），与系统主色一致
+  - 表头：背景 `PRIMARY` + 白字
+  - 「当前」列高亮：`rgba(91,108,255,0.08)` 底色 + 列顶白底蓝紫描边小标签「当前」
+  - 数据行：当前列 cell 底色淡蓝紫 + 文字深蓝紫加粗
+
+- **H5 测试 `h5-web/src/lib/__tests__/run_member_purple_theme_test.mjs`（新增）**：49 个纯函数断言，覆盖 4 态状态机 / 三档徽章 / CTA 文案 / 进度条边界 / 不限档兜底 / 等级判定大小写 / 异常值兜底等。远程容器内 **49/49 全过**；同时回归 `run_invite_card_test.mjs`（39 用例）+ `run_invite_card_v11_test.mjs`（29 用例）**全过**
+
+**部署方式**：
+- 部署脚本：`_deploy_member_purple_theme_v1.py`
+- 流程：tar 打包 h5-web + backend → SFTP 上传 → 服务器解压（备份为 `*.bak_<ts>`）→ 后端 `docker cp + restart` → h5-web `docker compose build + up -d` → HTTPS smoke + 远程 pytest + 容器内前端单测
+- 服务器烟测：HTTP 200 全部通过（`/`、`/member-center/`、`/health-profile/`、`/api/health`），`/api/member/quota-usage` 未授权返回 401（正确）；H5 chunk `page-*.js` 已编译入 `5B6CFF`、`paid_normal`、`MonthlyQuotaCard` 关键字
+- 后端 8/8 + 23/23 回归 + 前端 49/49 全过
+
+**用户手册**：[user_docs/会员中心付费态蓝紫主题_v1.md](../user_docs/会员中心付费态蓝紫主题_v1.md)
+
+**唯一变更标记**：`[PRD-MEMBER-PURPLE-THEME-V1 2026-05-30]`
+
+---
+
+## 上一次变更（2026-05-30 · Bug 修复 / 健康档案空姓名脏数据清理）
 
 **任务标识**：`[BUG_FIX-FAMILY-NICKNAME-NOTNULL-20260530]`
 
