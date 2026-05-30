@@ -454,13 +454,30 @@ export default function ArchiveListPage() {
   const [deleteMember, setDeleteMember] = useState<MemberStateItem | null>(null);
   const [inviteCodeView, setInviteCodeView] = useState<MemberStateItem | null>(null);
 
+  // [BUGFIX archive-list 404 2026-05-30] 兜底优化：
+  // - 接口 404 时不再裸露英文 "Not Found"，统一中文友好提示
+  // - 网络错误 / 5xx 等给出统一的中文提示
+  // - 失败时清空 list，让页面进入「暂无档案」空态而非停留 loading
   const fetchList = useCallback(async () => {
     setLoading(true);
     try {
       const res: any = await api.get('/api/family/member/state/list');
       setList(res.data || res);
     } catch (e: any) {
-      showToast(e?.response?.data?.detail || '加载失败', 'fail');
+      const status = e?.response?.status;
+      const detail = e?.response?.data?.detail;
+      let msg = '加载失败，请稍后重试';
+      if (status === 404) {
+        msg = '档案数据接口暂不可用，请稍后重试';
+      } else if (status === 401 || status === 403) {
+        msg = '登录已过期，请重新登录';
+      } else if (typeof detail === 'string' && detail && !/not\s*found/i.test(detail)) {
+        msg = detail;
+      } else if (typeof detail === 'object' && detail?.message) {
+        msg = String(detail.message);
+      }
+      showToast(msg, 'fail');
+      setList(null);
     } finally {
       setLoading(false);
     }
