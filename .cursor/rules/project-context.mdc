@@ -5,7 +5,56 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-30 · Bug 修复 / 健康管理-档案列表 UI 优化）
+## 最近一次变更（2026-05-30 · 功能开发 / 血糖卡片与详情页优化）
+
+**任务标识**：`[PRD-GLUCOSE-CARD-OPTIMIZE-V1 2026-05-30]`
+
+**背景**：用户反馈健康档案首页【血糖卡片】与【血压卡片】排版不一致、信息缺失，且存在独立的旧【血糖管理】整页与"卡片点击进入详情页"的产品结构产生重复。本次按 PRD v1.0 全量优化：卡片对齐血压、新建血糖详情页（参考血压详情页）、物理删除旧 `/glucose` 整页和所有用户历史血糖数据。
+
+**核心交付**（仅 backend + h5-web 两端；小程序/Flutter App 本次无改动）：
+
+- **后端 `backend/app/api/glucose_v1.py`（修改）**：新增 3 个端点——
+  - `GET /api/glucose-v1/latest`：返回当前用户最新一条血糖记录（卡片展示用），无数据时返回 null
+  - `PATCH /api/glucose-v1/records/{id}/scene`：修改历史记录测量类型并按新场景重算 level / is_crisis
+  - `POST /api/glucose-v1/admin/purge-all?confirm_token=PURGE_ALL_GLUCOSE_2026_05_30`：一次性清空所有用户的血糖记录、告警事件、metric 表中 blood_glucose 子集（PRD §五，token 错误返回 403）
+
+- **后端测试 `backend/tests/test_glucose_v1_20260530.py`（修改）**：新增 7 个测试用例覆盖以上 3 个端点；本次远程 pytest 执行 **40/40 全部通过**
+
+- **H5 新文件 `h5-web/src/lib/bg-level.ts`**：血糖档位判定库
+  - 类型：`BgLevel = 'low' | 'normal' | 'high' | 'crisis'`、`BgScene = 'fasting' | 'after_meal' | 'bedtime' | 'random'`
+  - 函数：`judgeBg(value, scene)` / `normalizeScene(input)` / `getBgPalette(color)` / `formatBgSourceCapsule(source)`
+  - 常量：`BG_TARGET_RANGE`（目标范围参考，PRD §4.3）、`BG_SCENE_LABEL`、`BG_SCENE_CODE`
+  - 严重程度档位与血压共用三色调色板（blue/yellow/orange）
+
+- **H5 `h5-web/src/app/health-profile/page.tsx`（修改 · 卡片对齐）**：血糖小卡片专属渲染分支
+  - 与血压卡片同款排版：标题（🩸 血糖）/ 严重程度胶囊 / 主数值 / 时间·来源行
+  - **不显示**"空腹/餐后/睡前"测量类型标签（PRD §3.1 §10）
+  - 时间复用 `formatBpTimeSource`，胶囊复用 `getBpPalette`
+
+- **H5 `h5-web/src/app/health-metric/[type]/page.tsx`（修改 · 新详情页）**：为 `blood_glucose` 类型添加专属 `BloodGlucosePage` 组件
+  - 主卡片（大字号数值 + 严重程度胶囊 + 来源胶囊 🔵/⚪）
+  - 目标范围参考（医学标准，用户不可改）
+  - 「🤖 AI 解读本次血糖」按钮 + 抽屉弹出
+  - 趋势图：今天 / 7天 / 30天 三档（默认 7 天），空腹蓝 / 餐后橙 / 睡前紫**三色分线**，参考虚线 3.9 / 7.8 / 11.1，空状态插画
+  - 「🤖 AI 解读趋势」按钮 + 抽屉弹出（5 分钟内点击同一记录走缓存）
+  - 历史记录条目展示「时间 · 数值 · 测量类型胶囊 · 来源胶囊 · 严重程度胶囊」，点击进入编辑测量类型弹窗
+  - 录入抽屉：双 Tab（手动录入 / 设备读取），未绑定设备时显示"去绑定"按钮跳 `/devices`，数值合理范围 0.5–35
+
+- **H5 `h5-web/src/app/glucose/page.tsx`（替换为跳转兜底）**：旧整页 1214 行内容全部下线；新文件使用 `<Suspense>` 包裹 `useSearchParams`，访问后客户端自动跳转到 `/health-profile`（带 profileId 则跳到详情页直链）
+
+- **运维操作**：远程服务器上已执行 `mysqldump` 库快照（保留 30 天）并通过 `purge-all` 接口清空全部历史血糖数据：删除 records=5 / alerts=4 / metric_records=4
+
+**部署状态**：✅ 远程服务器 backend + h5 已 rebuild + recreate，所有访问链接 HTTP 200，自动化测试 40/40 通过。
+
+**体验入口**：
+- 健康档案首页：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile`
+- 血糖详情页直链：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-metric/blood_glucose`
+
+**用户手册**：`user_docs/血糖卡片与详情页优化_20260530_201638_4644.md`
+
+---
+
+## 上一次变更（2026-05-30 · Bug 修复 / 健康管理-档案列表 UI 优化）
 
 **任务标识**：`[BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30]`
 

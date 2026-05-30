@@ -380,3 +380,114 @@ async def test_delete_own_record(client: AsyncClient, auth_headers):
     # 再次查询不应再有该条
     r2 = await client.get(f"{PREFIX}/records", headers=auth_headers)
     assert all(it["id"] != rid for it in r2.json()["items"])
+
+
+# ──────────────── [PRD-GLUCOSE-CARD-OPTIMIZE-V1 2026-05-30] 新增端点 ────────────────
+
+
+@pytest.mark.asyncio
+async def test_latest_record_returns_none_when_empty(client: AsyncClient, auth_headers):
+    """[PRD-GLUCOSE-CARD-OPTIMIZE-V1 §卡片] 无数据时 /latest 返回 null。"""
+    r = await client.get(f"{PREFIX}/latest", headers=auth_headers)
+    assert r.status_code == 200
+    assert r.json() is None
+
+
+@pytest.mark.asyncio
+async def test_latest_record_returns_most_recent(client: AsyncClient, auth_headers):
+    """[PRD-GLUCOSE-CARD-OPTIMIZE-V1 §卡片] 多条记录时返回最新一条。"""
+    # 写入两条记录（时间差由 measure_time 决定）
+    await client.post(f"{PREFIX}/records",
+                      json={"value": 5.5, "scene": 1,
+                            "measure_time": "2026-05-29 10:00:00"},
+                      headers=auth_headers)
+    await client.post(f"{PREFIX}/records",
+                      json={"value": 8.2, "scene": 2,
+                            "measure_time": "2026-05-30 14:00:00"},
+                      headers=auth_headers)
+    r = await client.get(f"{PREFIX}/latest", headers=auth_headers)
+    assert r.status_code == 200
+    body = r.json()
+    assert body is not None
+    assert body["value"] == 8.2
+    assert body["scene"] == 2
+    assert body["level_label"] in ("正常", "偏高", "严重偏高", "偏低", "严重偏低")
+
+
+@pytest.mark.asyncio
+async def test_latest_record_requires_auth(client: AsyncClient):
+    r = await client.get(f"{PREFIX}/latest")
+    assert r.status_code in (401, 403)
+
+
+@pytest.mark.asyncio
+async def test_update_record_scene_recalculates_level(client: AsyncClient, auth_headers):
+    """[PRD §4.6] 修改测量类型后重算严重程度。
+
+    7.5 mmol/L 在【餐后2h】是正常，但在【空腹】是严重偏高。
+    """
+    save = await client.post(f"{PREFIX}/records",
+                             json={"value": 7.5, "scene": 2},
+                             headers=auth_headers)
+    rid = save.json()["record"]["id"]
+    assert save.json()["record"]["level"] == LEVEL_NORMAL
+
+    # 修改为空腹场景
+    r = await client.patch(f"{PREFIX}/records/{rid}/scene",
+                           json={"scene": 1},
+                           headers=auth_headers)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["scene"] == 1
+    assert body["level"] == LEVEL_VERY_HIGH
+    assert body["level_label"] == "严重偏高"
+
+
+@pytest.mark.asyncio
+async def test_update_record_scene_invalid(client: AsyncClient, auth_headers):
+    save = await client.post(f"{PREFIX}/records",
+                             json={"value": 5.5, "scene": 1},
+                             headers=auth_headers)
+    rid = save.json()["record"]["id"]
+    r = await client.patch(f"{PREFIX}/records/{rid}/scene",
+                           json={"scene": 99},
+                           headers=auth_headers)
+    assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_update_record_scene_not_found(client: AsyncClient, auth_headers):
+    r = await client.patch(f"{PREFIX}/records/999999/scene",
+                           json={"scene": 1},
+                           headers=auth_headers)
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_admin_purge_all_requires_token(client: AsyncClient):
+    """[PRD §五] 清空脚本必须带正确 token，否则拒绝。"""
+    r = await client.post(f"{PREFIX}/admin/purge-all?confirm_token=wrong")
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_admin_purge_all_works(client: AsyncClient, auth_headers):
+    """[PRD §五] 带正确 token 后能清空所有血糖数据。"""
+    # 先写入两条记录
+    await client.post(f"{PREFIX}/records", json={"value": 5.5, "scene": 1},
+                      headers=auth_headers)
+    await client.post(f"{PREFIX}/records", json={"value": 8.2, "scene": 2},
+                      headers=auth_headers)
+
+    r = await client.post(
+        f"{PREFIX}/admin/purge-all?confirm_token=PURGE_ALL_GLUCOSE_2026_05_30"
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["purged"] is True
+    assert "counts" in body
+
+    # 清空后 /latest 应返回 null
+    latest = await client.get(f"{PREFIX}/latest", headers=auth_headers)
+    assert latest.status_code == 200
+    assert latest.json() is None

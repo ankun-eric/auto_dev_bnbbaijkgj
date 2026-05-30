@@ -811,6 +811,131 @@ async def get_reminder(
     )
 
 
+# ─── 路由：当前用户最新血糖（PRD-GLUCOSE-CARD-OPTIMIZE-V1 §卡片对齐血压） ─
+
+@router.get("/latest", response_model=Optional[GlucoseRecordOut])
+async def get_latest_record(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD-GLUCOSE-CARD-OPTIMIZE-V1 2026-05-30] 返回最新一条血糖记录。
+
+    用于健康档案首页【血糖卡片】展示主数值/胶囊/时间·来源。
+    若无记录返回 None（HTTP 200 + null body）。
+    """
+    row = (await db.execute(
+        text(
+            "SELECT id, user_id, value, scene, level, is_crisis, measure_time, note, create_time "
+            "FROM health_glucose_record WHERE user_id=:uid "
+            "ORDER BY measure_time DESC, id DESC LIMIT 1"
+        ),
+        {"uid": current_user.id},
+    )).fetchone()
+    if not row:
+        return None
+    return _row_to_record_out(row)
+
+
+@router.patch("/records/{record_id}/scene", response_model=GlucoseRecordOut)
+async def update_record_scene(
+    record_id: int,
+    payload: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD §4.6] 修改历史记录测量类型，并重新计算 level / is_crisis。
+
+    Request body: {"scene": 1|2|3|4}
+    """
+    new_scene = int(payload.get("scene") or 0)
+    if new_scene not in SCENE_NAME:
+        raise HTTPException(status_code=400, detail="scene 取值非法（1/2/3/4）")
+    row = (await db.execute(
+        text(
+            "SELECT user_id, value FROM health_glucose_record WHERE id=:rid"
+        ),
+        {"rid": record_id},
+    )).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="记录不存在")
+    if int(row[0]) != current_user.id:
+        raise HTTPException(status_code=403, detail="无权操作该记录")
+    value = float(row[1])
+    new_level = judge_level(value, new_scene)
+    new_crisis = judge_crisis(value)
+    await db.execute(
+        text(
+            "UPDATE health_glucose_record SET scene=:scene, level=:level, is_crisis=:crisis "
+            "WHERE id=:rid"
+        ),
+        {"scene": new_scene, "level": new_level, "crisis": new_crisis, "rid": record_id},
+    )
+    await db.commit()
+    out_row = (await db.execute(
+        text(
+            "SELECT id, user_id, value, scene, level, is_crisis, measure_time, note, create_time "
+            "FROM health_glucose_record WHERE id=:rid"
+        ),
+        {"rid": record_id},
+    )).fetchone()
+    return _row_to_record_out(out_row)
+
+
+# ─── 路由：管理员清空历史血糖数据（PRD §5 物理删除） ────────────────
+
+@router.post("/admin/purge-all")
+async def admin_purge_all_glucose_data(
+    confirm_token: str = Query(..., description="必填确认令牌：PURGE_ALL_GLUCOSE_2026_05_30"),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD-GLUCOSE-CARD-OPTIMIZE-V1 2026-05-30 §五] 一次性清空所有用户的历史血糖数据。
+
+    ⚠️ 不可逆。运维操作前需自行做库快照备份。
+    出于安全考虑，仅通过 confirm_token 校验防止误调。
+    """
+    EXPECTED_TOKEN = "PURGE_ALL_GLUCOSE_2026_05_30"
+    if confirm_token != EXPECTED_TOKEN:
+        raise HTTPException(status_code=403, detail="confirm_token 不匹配")
+
+    # 同步清空：record / alert / 也清掉 health_metric_record 中 metric_type=blood_glucose
+    deleted = {"records": 0, "alerts": 0, "metric_records": 0}
+    try:
+        res = await db.execute(text("DELETE FROM health_glucose_alert"))
+        try:
+            deleted["alerts"] = int(getattr(res, "rowcount", 0) or 0)
+        except Exception:
+            pass
+
+        res2 = await db.execute(text("DELETE FROM health_glucose_record"))
+        try:
+            deleted["records"] = int(getattr(res2, "rowcount", 0) or 0)
+        except Exception:
+            pass
+
+        # 兼容 v3 metric 表（统一 metric 录入用的 health_metric_record）
+        try:
+            res3 = await db.execute(
+                text("DELETE FROM health_metric_record WHERE metric_type='blood_glucose'")
+            )
+            try:
+                deleted["metric_records"] = int(getattr(res3, "rowcount", 0) or 0)
+            except Exception:
+                pass
+        except Exception as exc:
+            logger.warning("[GLUCOSE-V1] purge_metric_records_failed: %s", exc)
+
+        await db.commit()
+    except Exception as exc:
+        await db.rollback()
+        logger.exception("[GLUCOSE-V1] purge_failed: %s", exc)
+        raise HTTPException(status_code=500, detail=f"清空失败: {exc}")
+
+    logger.warning(
+        "[GLUCOSE-V1] ⚠️ admin_purge_all_glucose_data executed: %s", deleted
+    )
+    return {"purged": True, "counts": deleted, "executed_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
+
+
 @router.put("/reminder", response_model=GlucoseReminderConfig)
 async def set_reminder(
     body: GlucoseReminderConfig,

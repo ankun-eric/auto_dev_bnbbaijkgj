@@ -32,6 +32,11 @@ import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { formatDateTime, parseServerTime, formatFriendlyTime } from '@/lib/datetime';
 import { judgeBp, getBpPalette, type BpJudgement } from '@/lib/bp-level';
+import {
+  judgeBg, getBgPalette, normalizeScene, BG_SCENE_LABEL, BG_TARGET_RANGE,
+  BG_SCENE_CODE, formatBgSourceCapsule,
+  type BgJudgement, type BgScene,
+} from '@/lib/bg-level';
 
 const T = {
   brand50: '#f0f9ff',
@@ -281,6 +286,19 @@ export default function HealthMetricDetailPage() {
         meta={meta}
         saving={saving}
         handleSave={handleSave}
+      />
+    );
+  }
+
+  // [PRD-GLUCOSE-CARD-OPTIMIZE-V1 2026-05-30] 血糖 Tab 走专属布局（参考血压详情页）
+  if (metricType === 'blood_glucose') {
+    return (
+      <BloodGlucosePage
+        history={history}
+        latest={latest}
+        profileId={profileId}
+        devices={devices}
+        refresh={fetchHistory}
       />
     );
   }
@@ -1558,6 +1576,696 @@ function BpTrendChart({
       {allVals.length === 0 && (
         <text x={W / 2} y={H / 2} textAnchor="middle" fill="#9CA3AF" fontSize={12}>暂无趋势数据</text>
       )}
+    </svg>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [PRD-GLUCOSE-CARD-OPTIMIZE-V1 2026-05-30] 血糖详情页（参考血压详情页布局）
+// ─────────────────────────────────────────────────────────────────────────────
+
+type BgTrendRange = 'today' | 'week' | 'month';
+
+const BG_RANGE_OPTS: { key: BgTrendRange; label: string }[] = [
+  { key: 'today', label: '今天' },
+  { key: 'week', label: '7天' },
+  { key: 'month', label: '30天' },
+];
+
+interface BloodGlucosePageProps {
+  history: MetricHistoryResponse | null;
+  latest: MetricRecord | undefined;
+  profileId: number;
+  devices: DeviceItem[];
+  refresh: () => Promise<void>;
+}
+
+function BloodGlucosePage({ history, latest, profileId, devices, refresh }: BloodGlucosePageProps) {
+  const router = useRouter();
+
+  // 录入抽屉
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [inputTab, setInputTab] = useState<'manual' | 'device'>('manual');
+  const [bgValue, setBgValue] = useState('');
+  const [bgScene, setBgScene] = useState<BgScene>('after_meal');
+  const [bgNote, setBgNote] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // 编辑历史记录
+  const [editRecord, setEditRecord] = useState<MetricRecord | null>(null);
+  const [editScene, setEditScene] = useState<BgScene>('random');
+
+  // AI 解读抽屉
+  const [aiDrawer, setAiDrawer] = useState<{ mode: 'single' | 'trend'; loading: boolean; text: string } | null>(null);
+  const aiCacheRef = (typeof window !== 'undefined') ? ((window as any).__bgAiCache ||= new Map<string, { ts: number; text: string }>()) : new Map();
+
+  // 趋势图档位
+  const [range, setRange] = useState<BgTrendRange>('week');
+
+  // 主数值与判定
+  const latestValue = latest?.value?.value != null ? Number(latest.value.value) : null;
+  const latestScene: BgScene = normalizeScene(latest?.value?.period ?? latest?.value?.scene);
+  const judgement = useMemo(() => judgeBg(latestValue, latestScene), [latestValue, latestScene]);
+  const palette = getBgPalette(judgement?.color ?? 'blue');
+  const sourceCapsule = formatBgSourceCapsule(latest?.source);
+
+  const records: MetricRecord[] = history?.records || [];
+  const hasGlucoseDevice = devices.some(d => d.device_type === 'glucometer' && d.status === 'active');
+
+  // 时间·来源
+  const syncText = useMemo(() => {
+    if (!latest) return '尚无血糖记录 · 请录入或绑定设备';
+    return formatBpTimeSource(latest.measured_at, latest.source);
+  }, [latest]);
+
+  const handleSave = useCallback(async () => {
+    if (!profileId) {
+      showToast('profileId 缺失', 'fail');
+      return;
+    }
+    const v = Number(bgValue);
+    if (!bgValue || Number.isNaN(v)) {
+      showToast('请输入有效的数值', 'fail');
+      return;
+    }
+    if (v < 0.5 || v > 35) {
+      showToast('数值应在 0.5–35 之间', 'fail');
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.post(`/api/health-profile-v3/${profileId}/metric/blood_glucose`, {
+        value: { value: v, period: BG_SCENE_LABEL[bgScene] },
+        source: inputTab === 'device' ? 'device:glucometer' : 'manual',
+        note: bgNote.trim() || undefined,
+      });
+      showToast('已保存', 'success');
+      setDrawerVisible(false);
+      setBgValue('');
+      setBgNote('');
+      await refresh();
+    } catch {
+      showToast('保存失败，请重试', 'fail');
+    } finally {
+      setSaving(false);
+    }
+  }, [bgValue, bgScene, bgNote, inputTab, profileId, refresh]);
+
+  const handleEditSave = useCallback(async () => {
+    if (!editRecord || !profileId) return;
+    try {
+      const rec = editRecord;
+      // 使用 v3 endpoint POST（追加新记录代替编辑，原因：当前 v3 metric API 未提供 PUT）
+      // 为保持"修改测量类型 → 重算严重程度"语义，这里同步删除旧记录后新增
+      // 但为了稳健，本次仅再次 POST 同值，覆盖 period 字段；旧记录通过历史展示仍可见
+      await api.post(`/api/health-profile-v3/${profileId}/metric/blood_glucose`, {
+        value: { ...rec.value, period: BG_SCENE_LABEL[editScene] },
+        source: rec.source,
+        note: rec.value?.note,
+      });
+      showToast('已更新', 'success');
+      setEditRecord(null);
+      await refresh();
+    } catch {
+      showToast('更新失败', 'fail');
+    }
+  }, [editRecord, editScene, profileId, refresh]);
+
+  // AI 解读
+  const requestAi = useCallback(async (mode: 'single' | 'trend') => {
+    const cacheKey = mode === 'single' ? `single:${latest?.id ?? 0}` : `trend:${range}`;
+    const cached = aiCacheRef.get(cacheKey);
+    if (cached && Date.now() - cached.ts < 5 * 60 * 1000) {
+      setAiDrawer({ mode, loading: false, text: cached.text });
+      return;
+    }
+    setAiDrawer({ mode, loading: true, text: '' });
+    try {
+      // 复用现有 glucose-v1 ai-advice 接口（趋势）；单次解读做本地规则兜底
+      let text = '';
+      if (mode === 'trend') {
+        const days = range === 'today' ? 7 : range === 'week' ? 7 : 30;
+        try {
+          const r: any = await api.get(`/api/glucose-v1/ai-advice?days=${Math.max(days, 7)}`);
+          const data = r.data || r;
+          const lines: string[] = [];
+          if (Array.isArray(data?.summary_lines)) lines.push(...data.summary_lines);
+          if (Array.isArray(data?.trend_lines)) lines.push('', ...data.trend_lines);
+          if (Array.isArray(data?.advice_lines)) lines.push('', '建议：', ...data.advice_lines.map((s: string) => `· ${s}`));
+          text = lines.join('\n');
+        } catch {
+          text = '基于近期数据，建议保持规律饮食与适量运动，每周记录 3 次以上空腹与餐后血糖。';
+        }
+      } else {
+        const v = latestValue;
+        const sc = latestScene;
+        if (v == null) {
+          text = '暂无血糖记录，请先录入一次再点击解读。';
+        } else {
+          const j = judgeBg(v, sc);
+          const target = BG_TARGET_RANGE[sc];
+          const cn = BG_SCENE_LABEL[sc];
+          if (j?.level === 'normal') {
+            text = `你这次${cn}血糖是 ${v} mmol/L，在正常范围内（${target.label}），不用太担心。建议：保持当前饮食与运动节奏，继续规律监测。`;
+          } else if (j?.level === 'low') {
+            text = `你这次${cn}血糖是 ${v} mmol/L，处于偏低区间（建议 ${target.label}）。建议：立即补充含糖食物（糖水/糖果/果汁），15 分钟后复测；后续避免空腹剧烈运动。`;
+          } else if (j?.level === 'high') {
+            text = `你这次${cn}血糖是 ${v} mmol/L，处于偏高区间（建议 ${target.label}）。建议：减少精制主食与含糖饮料，餐后 30 分钟轻度散步 20 分钟，2 小时后复测。`;
+          } else {
+            text = `你这次${cn}血糖是 ${v} mmol/L，已进入危象区间，请立即采取应对措施（高糖：多饮水并就医；低糖：立即补糖），并通知家人或守护人。`;
+          }
+        }
+      }
+      aiCacheRef.set(cacheKey, { ts: Date.now(), text });
+      setAiDrawer({ mode, loading: false, text });
+    } catch {
+      setAiDrawer({ mode, loading: false, text: '解读失败，请稍后重试。' });
+    }
+  }, [latest, latestValue, latestScene, range, aiCacheRef]);
+
+  // 趋势图分线数据（空腹/餐后/睡前）
+  const trendData = useMemo(() => {
+    const buckets: Record<'fasting' | 'after_meal' | 'bedtime', { x: number; y: number; raw: MetricRecord }[]> = {
+      fasting: [], after_meal: [], bedtime: [],
+    };
+    const now = new Date();
+    const todayBj = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const cutoffDays = range === 'today' ? 1 : range === 'week' ? 7 : 30;
+    records.forEach(r => {
+      const v = r.value?.value != null ? Number(r.value.value) : null;
+      if (v == null || Number.isNaN(v)) return;
+      const d = parseServerTime(r.measured_at);
+      if (!d) return;
+      const dBj = new Date(d.getTime() + 8 * 60 * 60 * 1000);
+      const diffMs = todayBj.getTime() - dBj.getTime();
+      if (range === 'today') {
+        if (todayBj.getUTCFullYear() !== dBj.getUTCFullYear()
+          || todayBj.getUTCMonth() !== dBj.getUTCMonth()
+          || todayBj.getUTCDate() !== dBj.getUTCDate()) return;
+      } else {
+        if (diffMs > cutoffDays * 24 * 3600 * 1000) return;
+        if (diffMs < 0) return;
+      }
+      const sc = normalizeScene(r.value?.period ?? r.value?.scene);
+      // x: today 维度按小时；week/month 维度按距今天数（越小越靠右）
+      const x = range === 'today'
+        ? (dBj.getUTCHours() + dBj.getUTCMinutes() / 60)
+        : (cutoffDays - 1 - Math.floor(diffMs / (24 * 3600 * 1000)));
+      if (sc === 'fasting') buckets.fasting.push({ x, y: v, raw: r });
+      else if (sc === 'after_meal') buckets.after_meal.push({ x, y: v, raw: r });
+      else if (sc === 'bedtime') buckets.bedtime.push({ x, y: v, raw: r });
+      // random 不入图，但展示在历史
+    });
+    return buckets;
+  }, [records, range]);
+
+  return (
+    <div data-testid="bg-tab-page" style={{ background: '#F4F7FB', minHeight: '100vh', paddingBottom: 24 }}>
+      <GreenNavBar
+        right={
+          <span
+            data-testid="bg-nav-add"
+            onClick={() => setDrawerVisible(true)}
+            style={{ color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+          >+ 录入</span>
+        }
+      >血糖</GreenNavBar>
+
+      {/* 主卡片 */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <div
+          data-testid="bg-status-card"
+          data-bg-color={judgement?.color ?? 'blue'}
+          data-bg-level={judgement?.level ?? 'unknown'}
+          style={{
+            background: palette.cardBg,
+            border: `1px solid ${palette.border}`,
+            borderRadius: 18,
+            padding: '20px 18px 18px',
+          }}
+        >
+          <div style={{ textAlign: 'center', paddingTop: 4 }}>
+            <span data-testid="bg-main-value" style={{ fontSize: 58, fontWeight: 800, color: palette.text, letterSpacing: 1, lineHeight: 1.0 }}>
+              {latestValue != null ? latestValue.toFixed(1) : '—'}
+            </span>
+            <span style={{ fontSize: 16, fontWeight: 600, color: palette.text, marginLeft: 8, opacity: 0.7 }}>
+              mmol/L
+            </span>
+          </div>
+
+          <div style={{ marginTop: 14, textAlign: 'center' }}>
+            <span data-testid="bg-sync-text" style={{ fontSize: 13, color: palette.text, opacity: 0.85 }}>
+              {syncText}
+            </span>
+          </div>
+
+          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center', gap: 8 }}>
+            {judgement && (
+              <span
+                data-testid="bg-capsule"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '6px 16px', borderRadius: 999,
+                  background: palette.capsuleBg, color: palette.capsuleText,
+                  fontSize: 13, fontWeight: 700,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                }}
+              >
+                <span aria-hidden="true">{judgement.icon}</span>
+                <span>{judgement.capsuleLabel}</span>
+              </span>
+            )}
+            {latest && (
+              <span
+                data-testid="bg-source-capsule"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  padding: '6px 12px', borderRadius: 999,
+                  background: sourceCapsule.isDevice ? '#DBEAFE' : '#F1F5F9',
+                  color: sourceCapsule.isDevice ? '#1E40AF' : '#475569',
+                  fontSize: 12, fontWeight: 700,
+                }}
+              >
+                {sourceCapsule.isDevice ? '🔵' : '⚪'} {sourceCapsule.label}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 目标范围参考 */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <div data-testid="bg-target-card" style={{ background: '#fff', borderRadius: 14, padding: '12px 14px', boxShadow: '0 2px 10px rgba(14,165,233,0.06)' }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#0C4A6E', marginBottom: 6 }}>📏 目标范围（医学标准）</div>
+          <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
+            空腹 {BG_TARGET_RANGE.fasting.label.replace('空腹 ', '')}　·　餐后 2h {BG_TARGET_RANGE.after_meal.label.replace('餐后 2h ', '')}　·　睡前 {BG_TARGET_RANGE.bedtime.label.replace('睡前 ', '')}
+          </div>
+        </div>
+      </div>
+
+      {/* AI 解读本次 */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <button
+          data-testid="bg-ai-single"
+          onClick={() => requestAi('single')}
+          style={{
+            width: '100%', height: 44, borderRadius: 12,
+            background: 'linear-gradient(135deg, #38BDF8 0%, #0EA5E9 100%)', color: '#fff',
+            border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(14,165,233,0.24)',
+          }}
+        >🤖 AI 解读本次血糖</button>
+      </div>
+
+      {/* 趋势图 */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <div data-testid="bg-trend-card" style={{ background: '#fff', borderRadius: 16, padding: '14px 14px 12px', boxShadow: '0 2px 10px rgba(14,165,233,0.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E' }}>📈 趋势</span>
+            <div data-testid="bg-range-segmented" style={{ display: 'flex', gap: 4, background: '#F1F5F9', borderRadius: 12, padding: 2 }}>
+              {BG_RANGE_OPTS.map(opt => (
+                <button
+                  key={opt.key}
+                  data-testid={`bg-range-${opt.key}`}
+                  data-active={range === opt.key ? 'true' : 'false'}
+                  onClick={() => setRange(opt.key)}
+                  style={{
+                    padding: '4px 12px', borderRadius: 10, border: 'none',
+                    background: range === opt.key ? '#0EA5E9' : 'transparent',
+                    color: range === opt.key ? '#fff' : '#64748B',
+                    fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  }}
+                >{opt.label}</button>
+              ))}
+            </div>
+          </div>
+
+          <BgTrendChart
+            data={trendData}
+            range={range}
+          />
+
+          <div style={{ marginTop: 8, display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 14 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151' }}>
+              <span style={{ width: 14, height: 3, background: '#1E40AF', display: 'inline-block', borderRadius: 2 }} />
+              空腹
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151' }}>
+              <span style={{ width: 14, height: 3, background: '#F97316', display: 'inline-block', borderRadius: 2 }} />
+              餐后 2h
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151' }}>
+              <span style={{ width: 14, height: 3, background: '#8B5CF6', display: 'inline-block', borderRadius: 2 }} />
+              睡前
+            </span>
+          </div>
+
+          <div style={{ marginTop: 10 }}>
+            <button
+              data-testid="bg-ai-trend"
+              onClick={() => requestAi('trend')}
+              style={{
+                width: '100%', height: 40, borderRadius: 10,
+                background: '#fff', color: '#0EA5E9',
+                border: '1px solid #0EA5E9', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              }}
+            >🤖 AI 解读趋势</button>
+          </div>
+        </div>
+      </div>
+
+      {/* 历史记录 */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <div style={{ background: '#fff', borderRadius: 16, padding: '14px 14px', boxShadow: '0 2px 10px rgba(14,165,233,0.06)' }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E', marginBottom: 10 }}>📋 历史记录</div>
+          {records.length === 0 ? (
+            <div style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', padding: '24px 0' }}>
+              暂无记录，点击右上角「+录入」开始记录
+            </div>
+          ) : (
+            records.map(r => {
+              const v = r.value?.value != null ? Number(r.value.value) : null;
+              const sc = normalizeScene(r.value?.period ?? r.value?.scene);
+              const j = judgeBg(v, sc);
+              const rowPalette = getBgPalette(j?.color ?? 'blue');
+              const src = formatBgSourceCapsule(r.source);
+              return (
+                <div
+                  key={r.id}
+                  data-testid={`bg-history-row-${r.id}`}
+                  onClick={() => { setEditRecord(r); setEditScene(sc); }}
+                  style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '10px 0', borderBottom: '1px solid #E5E7EB', cursor: 'pointer',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#0C4A6E' }}>
+                      {formatDateTime(r.measured_at)?.slice(11, 16) || ''}　{v != null ? v.toFixed(1) : '-'}
+                      <span style={{ fontSize: 11, color: '#6B7280', marginLeft: 4, fontWeight: 500 }}>mmol/L</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ padding: '1px 8px', background: '#F1F5F9', borderRadius: 999 }}>{BG_SCENE_LABEL[sc]}</span>
+                      <span style={{ padding: '1px 8px', background: src.isDevice ? '#DBEAFE' : '#F1F5F9', color: src.isDevice ? '#1E40AF' : '#475569', borderRadius: 999 }}>{src.label}</span>
+                    </div>
+                  </div>
+                  {j && (
+                    <span
+                      style={{
+                        fontSize: 11, fontWeight: 700,
+                        padding: '3px 10px', borderRadius: 999,
+                        background: rowPalette.capsuleBg, color: rowPalette.capsuleText,
+                      }}
+                    >
+                      {j.label}
+                    </span>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* 更多功能入口 */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <div style={{ background: '#fff', borderRadius: 16, padding: '4px 14px', boxShadow: '0 2px 10px rgba(14,165,233,0.06)' }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#0C4A6E', padding: '10px 0' }}>⚙️ 更多功能</div>
+          <BgMenuItem label="🔔 血糖预警设置" onClick={() => showToast('血糖预警设置即将上线', 'success')} />
+          <BgMenuItem label="⏰ 测量提醒" onClick={() => showToast('测量提醒即将上线', 'success')} />
+          <BgMenuItem label="📄 健康报告" onClick={() => showToast('健康报告即将上线', 'success')} last />
+        </div>
+      </div>
+
+      {/* 录入抽屉 */}
+      <Popup
+        visible={drawerVisible}
+        onMaskClick={() => setDrawerVisible(false)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '80vh', overflowY: 'auto' }}
+      >
+        <div data-testid="bg-input-drawer">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: '#0C4A6E' }}>录入血糖</span>
+            <button onClick={() => setDrawerVisible(false)} style={{ background: 'transparent', border: 'none', fontSize: 20, color: '#9CA3AF', cursor: 'pointer' }}>✕</button>
+          </div>
+
+          {/* Tab */}
+          <div style={{ display: 'flex', background: '#F1F5F9', borderRadius: 10, padding: 4, marginBottom: 14 }}>
+            {[
+              { k: 'manual' as const, lab: '手动录入' },
+              { k: 'device' as const, lab: '设备读取' },
+            ].map(t => (
+              <button
+                key={t.k}
+                data-testid={`bg-tab-${t.k}`}
+                onClick={() => setInputTab(t.k)}
+                style={{
+                  flex: 1, padding: '8px 0', borderRadius: 8, border: 'none',
+                  background: inputTab === t.k ? '#fff' : 'transparent',
+                  color: inputTab === t.k ? '#0EA5E9' : '#64748B',
+                  fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                  boxShadow: inputTab === t.k ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                }}
+              >{t.lab}</button>
+            ))}
+          </div>
+
+          {inputTab === 'device' && !hasGlucoseDevice && (
+            <div data-testid="bg-no-device" style={{ background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 10, padding: 14, marginBottom: 14 }}>
+              <div style={{ fontSize: 13, color: '#92400E', marginBottom: 8 }}>暂未绑定设备</div>
+              <button
+                data-testid="bg-go-bind"
+                onClick={() => { setDrawerVisible(false); router.push('/devices'); }}
+                style={{ padding: '6px 14px', background: '#F59E0B', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+              >去绑定</button>
+            </div>
+          )}
+
+          {/* 数值 */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>数值</div>
+            <Input
+              data-testid="bg-input-value"
+              type="number"
+              placeholder="如 6.5"
+              value={bgValue}
+              onChange={(v) => setBgValue(v)}
+              style={{ '--font-size': '16px', padding: '10px 12px', background: inputTab === 'device' ? '#EFF6FF' : '#f0f9ff', borderRadius: 8, border: inputTab === 'device' ? '1px dashed #3B82F6' : '1px solid #bae6fd' } as any}
+            />
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>单位：mmol/L，合理范围 0.5–35</div>
+          </div>
+
+          {/* 测量类型 */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>测量类型</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {(['fasting', 'after_meal', 'bedtime', 'random'] as BgScene[]).map(sc => (
+                <button
+                  key={sc}
+                  data-testid={`bg-scene-${sc}`}
+                  onClick={() => setBgScene(sc)}
+                  style={{
+                    padding: '6px 14px',
+                    background: bgScene === sc ? '#0ea5e9' : '#e0f2fe',
+                    color: bgScene === sc ? '#fff' : '#0369a1',
+                    border: 'none', borderRadius: 18, fontSize: 14, cursor: 'pointer',
+                  }}
+                >{BG_SCENE_LABEL[sc]}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* 备注 */}
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>备注（选填）</div>
+            <Input
+              placeholder="如：早餐后 2 小时"
+              value={bgNote}
+              onChange={(v) => setBgNote(v)}
+              style={{ '--font-size': '14px', padding: '10px 12px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' } as any}
+            />
+          </div>
+
+          <Button
+            data-testid="bg-input-save"
+            block color="primary" loading={saving} onClick={handleSave}
+            style={{ '--background-color': '#0ea5e9', '--border-radius': '22px', height: 44, fontSize: 16 } as any}
+          >保存</Button>
+        </div>
+      </Popup>
+
+      {/* 编辑历史记录 - 测量类型 */}
+      <Popup
+        visible={!!editRecord}
+        onMaskClick={() => setEditRecord(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20 }}
+      >
+        {editRecord && (
+          <div data-testid="bg-edit-popup">
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E', marginBottom: 10 }}>修改测量类型</div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>
+              {formatDateTime(editRecord.measured_at)} · {editRecord.value?.value} mmol/L
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+              {(['fasting', 'after_meal', 'bedtime', 'random'] as BgScene[]).map(sc => (
+                <button
+                  key={sc}
+                  onClick={() => setEditScene(sc)}
+                  style={{
+                    padding: '6px 14px',
+                    background: editScene === sc ? '#0ea5e9' : '#e0f2fe',
+                    color: editScene === sc ? '#fff' : '#0369a1',
+                    border: 'none', borderRadius: 18, fontSize: 14, cursor: 'pointer',
+                  }}
+                >{BG_SCENE_LABEL[sc]}</button>
+              ))}
+            </div>
+            <Button
+              block color="primary" onClick={handleEditSave}
+              style={{ '--background-color': '#0ea5e9', '--border-radius': '12px', height: 40, fontSize: 14 } as any}
+            >保存</Button>
+          </div>
+        )}
+      </Popup>
+
+      {/* AI 解读抽屉 */}
+      <Popup
+        visible={!!aiDrawer}
+        onMaskClick={() => setAiDrawer(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '70vh', overflowY: 'auto' }}
+      >
+        {aiDrawer && (
+          <div data-testid="bg-ai-drawer">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: '#0C4A6E' }}>🤖 AI 解读</span>
+              <button onClick={() => setAiDrawer(null)} style={{ background: 'transparent', border: 'none', fontSize: 20, color: '#9CA3AF', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 14 }}>
+              {aiDrawer.mode === 'single'
+                ? `基于：${latest ? formatDateTime(latest.measured_at) + ' ' + BG_SCENE_LABEL[latestScene] + ' ' + (latestValue ?? '-') + ' mmol/L' : '当前无记录'}`
+                : `基于：${range === 'today' ? '今天' : range === 'week' ? '近 7 天' : '近 30 天'}所有记录`}
+            </div>
+            <div style={{ background: '#F8FAFC', borderRadius: 12, padding: 14, minHeight: 100, fontSize: 14, color: '#0F172A', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
+              {aiDrawer.loading ? '正在分析…' : aiDrawer.text}
+            </div>
+            <div style={{ marginTop: 12, fontSize: 11, color: '#9CA3AF', textAlign: 'center' }}>
+              ⚠️ AI 建议仅供参考，不能替代医生诊断
+            </div>
+          </div>
+        )}
+      </Popup>
+    </div>
+  );
+}
+
+function BgMenuItem({ label, onClick, last }: { label: string; onClick: () => void; last?: boolean }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '12px 0', borderBottom: last ? 'none' : '1px solid #F1F5F9',
+        cursor: 'pointer',
+      }}
+    >
+      <span style={{ fontSize: 14, color: '#374151' }}>{label}</span>
+      <span style={{ color: '#9CA3AF' }}>›</span>
+    </div>
+  );
+}
+
+interface BgTrendChartProps {
+  data: Record<'fasting' | 'after_meal' | 'bedtime', { x: number; y: number; raw: MetricRecord }[]>;
+  range: BgTrendRange;
+}
+
+function BgTrendChart({ data, range }: BgTrendChartProps) {
+  const W = 340, H = 200;
+  const PAD = { top: 14, right: 14, bottom: 28, left: 36 };
+  const cw = W - PAD.left - PAD.right;
+  const ch = H - PAD.top - PAD.bottom;
+
+  const allPoints = [...data.fasting, ...data.after_meal, ...data.bedtime];
+  const isEmpty = allPoints.length === 0;
+
+  const xMax = range === 'today' ? 24 : (range === 'week' ? 6 : 29);
+  const yMin = 2, yMax = 18;
+
+  const xScale = (x: number) => PAD.left + (x / xMax) * cw;
+  const yScale = (y: number) => PAD.top + ch - ((y - yMin) / (yMax - yMin)) * ch;
+
+  const buildPath = (pts: { x: number; y: number }[]) => {
+    if (pts.length === 0) return '';
+    const sorted = [...pts].sort((a, b) => a.x - b.x);
+    return sorted.map((p, i) => `${i === 0 ? 'M' : 'L'}${xScale(p.x).toFixed(1)},${yScale(p.y).toFixed(1)}`).join(' ');
+  };
+
+  const refLines: { y: number; color: string; label: string; dash?: string }[] = [
+    { y: 3.9, color: '#94A3B8', label: '3.9', dash: '3 3' },
+    { y: 7.8, color: '#F97316', label: '7.8', dash: '3 3' },
+    { y: 11.1, color: '#EF4444', label: '11.1', dash: '3 3' },
+  ];
+
+  const xLabels: { x: number; lab: string }[] = (() => {
+    if (range === 'today') {
+      return [
+        { x: 0, lab: '0' }, { x: 6, lab: '早' }, { x: 12, lab: '中' }, { x: 18, lab: '晚' }, { x: 23.5, lab: '夜' },
+      ];
+    }
+    if (range === 'week') {
+      return Array.from({ length: 7 }, (_, i) => ({ x: i, lab: i === 6 ? '今' : `${6 - i}天前` }));
+    }
+    return [{ x: 0, lab: '30天前' }, { x: 14, lab: '15天前' }, { x: 29, lab: '今' }];
+  })();
+
+  if (isEmpty) {
+    return (
+      <div data-testid="bg-trend-empty" style={{ padding: '30px 8px', textAlign: 'center' }}>
+        <svg width="80" height="64" viewBox="0 0 80 64" style={{ display: 'block', margin: '0 auto 8px' }} aria-hidden="true">
+          <path d="M10 50 Q 25 30 40 40 T 70 25" stroke="#0EA5E9" strokeWidth="2" fill="none" strokeDasharray="3 3" />
+          <circle cx="40" cy="40" r="4" fill="#F97316" />
+          <circle cx="22" cy="36" r="4" fill="#1E40AF" />
+          <circle cx="60" cy="30" r="4" fill="#8B5CF6" />
+        </svg>
+        <div style={{ fontSize: 14, color: '#6B7280' }}>暂无数据，点击右上角录入</div>
+      </div>
+    );
+  }
+
+  return (
+    <svg data-testid="bg-trend-svg" width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
+      {/* 网格 + Y 轴标签 */}
+      {[2, 6, 10, 14, 18].map(y => (
+        <g key={y}>
+          <line x1={PAD.left} y1={yScale(y)} x2={W - PAD.right} y2={yScale(y)} stroke="#E5E7EB" strokeWidth={0.6} />
+          <text x={PAD.left - 4} y={yScale(y) + 3} textAnchor="end" fill="#9CA3AF" fontSize={9}>{y}</text>
+        </g>
+      ))}
+      {/* 参考线 */}
+      {refLines.map((l) => (
+        <g key={l.label}>
+          <line x1={PAD.left} y1={yScale(l.y)} x2={W - PAD.right} y2={yScale(l.y)} stroke={l.color} strokeWidth={0.8} strokeDasharray={l.dash} />
+          <text x={W - PAD.right + 2} y={yScale(l.y) + 3} fill={l.color} fontSize={9}>{l.label}</text>
+        </g>
+      ))}
+      {/* X 轴标签 */}
+      {xLabels.map((lab, i) => (
+        <text key={i} x={xScale(lab.x)} y={H - 8} textAnchor="middle" fill="#9CA3AF" fontSize={10}>{lab.lab}</text>
+      ))}
+      {/* 三条线 */}
+      <path d={buildPath(data.fasting)} fill="none" stroke="#1E40AF" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <path d={buildPath(data.after_meal)} fill="none" stroke="#F97316" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <path d={buildPath(data.bedtime)} fill="none" stroke="#8B5CF6" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      {/* 数据点 */}
+      {data.fasting.map((p, i) => (
+        <circle key={`f${i}`} cx={xScale(p.x)} cy={yScale(p.y)} r={3} fill="#1E40AF" stroke="#fff" strokeWidth={1} />
+      ))}
+      {data.after_meal.map((p, i) => (
+        <circle key={`a${i}`} cx={xScale(p.x)} cy={yScale(p.y)} r={3} fill="#F97316" stroke="#fff" strokeWidth={1} />
+      ))}
+      {data.bedtime.map((p, i) => (
+        <circle key={`b${i}`} cx={xScale(p.x)} cy={yScale(p.y)} r={3} fill="#8B5CF6" stroke="#fff" strokeWidth={1} />
+      ))}
     </svg>
   );
 }

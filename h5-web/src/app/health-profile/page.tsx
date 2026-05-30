@@ -22,6 +22,7 @@ import { RELATION_DEFS } from '@/lib/family-relation';
 import { parseServerTime } from '@/lib/datetime';
 // [PRD-BP-CARD-OPTIMIZE-V1 2026-05-30] 血压档位判定 + 时间·来源格式化（与详情页保持一致）
 import { judgeBp, getBpPalette } from '@/lib/bp-level';
+import { judgeBg as judgeBgLocal } from '@/lib/bg-level';
 import { formatBpTimeSource } from '@/app/health-metric/[type]/page';
 
 const T = {
@@ -1802,6 +1803,67 @@ function HealthProfileV2PageInner() {
         {/* Vitals 2x2 grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
           {vitals.map((c) => {
+            // [PRD-GLUCOSE-CARD-OPTIMIZE-V1 2026-05-30] 血糖小卡片：对齐血压卡片（胶囊 + 时间·来源行）
+            if (c.id === 'blood_glucose') {
+              const bg = tm?.blood_glucose;
+              const val = bg?.value?.value != null ? Number(bg.value.value) : null;
+              const scene = bg?.value?.period ?? bg?.value?.scene ?? 'random';
+              const j = judgeBgLocal(val, scene);
+              const cap = j ? getBpPalette(j.color) : null;
+              const timeSrc = bg?.measured_at
+                ? formatBpTimeSource(bg.measured_at, bg.source)
+                : '';
+              return (
+                <div
+                  key={c.id}
+                  data-testid={`prd469-metric-${c.id}`}
+                  data-bg-mini-card="true"
+                  onClick={() => router.push(`/health-metric/${c.id}?profileId=${profile?.id || ''}`)}
+                  style={{
+                    background: '#FFFFFF',
+                    borderLeft: c.abnormal ? '4px solid #F5B544' : '4px solid transparent',
+                    borderRadius: 16,
+                    padding: 14,
+                    boxShadow: '0 2px 12px rgba(14,165,233,0.08)',
+                    cursor: 'pointer',
+                    position: 'relative',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                    <span style={{ fontSize: 13, color: T.textSecondary }}>{c.icon} {c.label}</span>
+                    {j && (
+                      <span
+                        data-testid="bg-mini-capsule"
+                        style={{
+                          fontSize: 10, fontWeight: 700, color: cap!.capsuleText,
+                          background: cap!.capsuleBg,
+                          padding: '2px 8px', borderRadius: 999,
+                          maxWidth: '60%',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}
+                      >{j.label}</span>
+                    )}
+                  </div>
+                  <div style={{ marginTop: 6 }}>
+                    <span style={{ fontSize: 26, fontWeight: 700, color: '#0C4A6E' }}>{c.value}</span>
+                    <span style={{ fontSize: 12, color: T.textSecondary, marginLeft: 4 }}>{c.unit}</span>
+                  </div>
+                  {timeSrc && (
+                    <>
+                      <div style={{ borderTop: '1px solid #F1F5F9', margin: '8px 0 6px' }} />
+                      <div
+                        data-testid="bg-mini-time-source"
+                        style={{
+                          fontSize: 11, color: '#94A3B8', lineHeight: 1.3,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}
+                      >{timeSrc}</div>
+                    </>
+                  )}
+                  <div style={{ position: 'absolute', top: 12, right: 12, fontSize: 14, color: T.brand500, display: 'none' }}>›</div>
+                </div>
+              );
+            }
             // [PRD-BP-CARD-OPTIMIZE-V1 2026-05-30 §三] 血压小卡片专属渲染：胶囊 + 时间·来源行
             if (c.id === 'blood_pressure') {
               const bp = tm?.blood_pressure;
