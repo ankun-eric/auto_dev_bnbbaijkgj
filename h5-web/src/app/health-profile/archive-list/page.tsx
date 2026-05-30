@@ -16,6 +16,8 @@ import { Popup, Toast } from 'antd-mobile';
 import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
+// [PRD-INVITE-FAMILY-CARD-V1.1 2026-05-30] 健康档案位接入「邀请家人入口卡片」
+import InviteFamilyCard from '@/app/member-center/components/InviteFamilyCard';
 
 // ───────────── 类型 ─────────────
 
@@ -453,6 +455,24 @@ export default function ArchiveListPage() {
   const [moreMenuMember, setMoreMenuMember] = useState<MemberStateItem | null>(null);
   const [deleteMember, setDeleteMember] = useState<MemberStateItem | null>(null);
   const [inviteCodeView, setInviteCodeView] = useState<MemberStateItem | null>(null);
+  // [PRD-INVITE-FAMILY-CARD-V1.1 2026-05-30 §3] 健康档案位「邀请家人入口卡片」所需套餐名
+  // 来源 /api/member/center -> current.plan_name；接口失败时兜底为空（卡片内部走 '会员套餐' 兜底文案）
+  const [planName, setPlanName] = useState<string>('');
+  useEffect(() => {
+    let aborted = false;
+    (async () => {
+      try {
+        const res: any = await api.get('/api/member/center');
+        if (aborted) return;
+        const data = res?.data || res;
+        const name = data?.current?.plan_name || data?.current_plan?.name || data?.plan_name || '';
+        if (typeof name === 'string') setPlanName(name);
+      } catch {
+        // 失败兜底为空，卡片会显示「会员套餐 · 可管理 N 位家人」
+      }
+    })();
+    return () => { aborted = true; };
+  }, []);
 
   // [BUGFIX archive-list 404 2026-05-30] 兜底优化：
   // - 接口 404 时不再裸露英文 "Not Found"，统一中文友好提示
@@ -629,55 +649,29 @@ export default function ArchiveListPage() {
         </div>
       )}
 
-      {/* 顶部统计：「已管理 X 人 / 上限 Y 人，还可添加 Y-X 人」（含本人口径） */}
+      {/* [PRD-INVITE-FAMILY-CARD-V1.1 2026-05-30 §3.1] 健康档案位概览块完整替换为「邀请家人入口卡片」
+          删除清单（橙圈 ①~⑤）：
+            ① 📋 档案列表标题；② "已管理 X / 上限 Y"大字；③ "还可添加 X 人"小字；
+            ④ 右侧黄色「+ 新增」按钮；⑤ 外层白色概览卡片容器
+          主按钮"邀请家人"点击动作 = 拉起「新增家人档案」抽屉（沿用线上原"+ 新增"抽屉，BR-10）
+          达上限态时按钮禁用、抽屉不弹出（BR-14）；「升级套餐」跳回会员中心套餐档位区 */}
       {list && (
-        <div style={{
-          margin: '8px 12px 12px',
-          padding: '16px',
-          background: '#FFF',
-          borderRadius: 12,
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginBottom: 4 }}>📋 档案列表</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: TEXT_PRIMARY }}>
-                已管理 <span style={{ color: PRIMARY_COLOR }}>{list.quota_used}</span> 人
-                <span style={{ fontSize: 13, color: TEXT_SECONDARY, fontWeight: 400, marginLeft: 8 }}>
-                  / 上限 {list.quota_max === -1 || list.quota_max >= 9999 ? '不限' : `${list.quota_max} 人`}
-                </span>
-              </div>
-              <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginTop: 4 }}>
-                还可添加 <span style={{ color: ACCENT_COLOR, fontWeight: 600 }}>{list.quota_remaining >= 9999 ? '不限' : list.quota_remaining}</span> 人
-                {list.guarded_count > 0 && (
-                  <span style={{ marginLeft: 12 }}>
-                    · 守护中 <span style={{ color: '#10B981', fontWeight: 600 }}>{list.guarded_count}</span> 人
-                  </span>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                // [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30] 配额 toast 走「含本人」口径
-                // quota_remaining=9999 视为不限档；quota_max=-1/9999 不限档
-                const unlimited = list.quota_max === -1 || list.quota_max >= 9999;
-                if (!unlimited && list.quota_remaining <= 0) {
-                  showToast(`档案配额已满（上限 ${list.quota_max} 人，含本人），请先删除现有档案或升级套餐`, 'fail');
-                  return;
-                }
-                setNewMemberOpen(true);
-              }}
-              data-testid='new-member-btn'
-              style={{
-                ...primaryBtnStyle(false, false),
-                padding: '10px 18px',
-                fontSize: 14,
-              }}
-            >
-              + 新增
-            </button>
-          </div>
-        </div>
+        <InviteFamilyCard
+          planName={planName}
+          quotaMax={list.quota_max}
+          quotaUsed={list.quota_used}
+          cardLocation='profile_list_top'
+          onInvite={() => {
+            // 与原"+ 新增"按钮的行为对齐：满额时不弹抽屉（按钮禁用层已拦截，此处为二重保险）
+            const unlimited = list.quota_max === -1 || list.quota_max >= 9999;
+            if (!unlimited && list.quota_remaining <= 0) return;
+            setNewMemberOpen(true);
+          }}
+          onUpgrade={() => {
+            // BR-14 §3.3：升级套餐链接跳回会员中心套餐档位区
+            router.push('/member-center');
+          }}
+        />
       )}
 
       {/* 注意：不再有「去邀请」大按钮（入口 B 已删除） */}

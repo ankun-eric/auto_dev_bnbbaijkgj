@@ -5,7 +5,42 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-30 · 新功能 / 邀请家人入口卡片优化 v1.0）
+## 最近一次变更（2026-05-30 · 新功能 / 邀请家人入口卡片 v1.1 位置调整补丁）
+
+**任务标识**：`[PRD-INVITE-FAMILY-CARD-V1.1 2026-05-30]`
+
+**背景**：《邀请家人入口卡片 · v1.1 位置调整补丁 PRD（FINAL）》。在 v1.0 已上线的「会员中心位」基础上，将同一张卡片**双点投放**到「健康档案-档案管理列表页顶部」，完整替换原"档案列表概览块"（橙圈 ①~⑤），主按钮下游动作改为拉起「新增家人档案」抽屉（沿用线上原 "+ 新增" 按钮的既有 NewMemberDrawer）。同时为主标题加强**强制单行**规范（主流屏 16pt / 窄屏 15pt 兜底 / 超长尾部省略号）。零后端改动，仅扩展埋点字段 `card_location` + `target_action`。
+
+**核心交付**（仅 H5 一端；小程序 / Android / iOS 通过 web-view / WebView 加载 H5 自动同步生效，无需重新打包）：
+
+- **H5 `h5-web/src/app/member-center/components/InviteFamilyCard.tsx`（修改）**：
+  - 新增 props：`cardLocation: 'member_center' | 'profile_list_top'`（默认 `member_center` 兼容 v1.0 调用方）、`targetAction: 'invite_flow' | 'create_profile'`（默认根据 cardLocation 推断）
+  - 新增类型导出：`InviteCardLocation` / `InviteCardTargetAction`
+  - 主标题样式：`whiteSpace:'nowrap'` + `overflow:'hidden'` + `textOverflow:'ellipsis'`，并通过 `useState + resize listener` 实现窄屏 15pt / 主流屏 16pt 响应式字号兜底
+  - 埋点 4 个事件全部新增 `card_location` 字段；`invite_card_main_btn_click` 额外携带 `target_action`
+  - 根容器加上 `data-card-location` / 标题加上 `data-font-size` 属性供测试探针
+- **H5 `h5-web/src/app/member-center/page.tsx`**：传入 `cardLocation='member_center'`（行为 100% 不变）
+- **H5 `h5-web/src/app/health-profile/archive-list/page.tsx`（修改）**：
+  - 顶部 `import InviteFamilyCard from '@/app/member-center/components/InviteFamilyCard'`
+  - 新增 `planName` 状态，并行拉取 `/api/member/center` 获取 `current.plan_name`（失败兜底为空，卡片内走 "会员套餐" 兜底文案）
+  - **完整删除**橙圈 ①~⑤ 旧概览块：📋 档案列表标题 / "已管理 X / 上限 Y" 大字 / "还可添加 X 人" 小字 / "+ 新增"黄色按钮 / 外层白色卡片容器
+  - 在原位置渲染 `<InviteFamilyCard cardLocation='profile_list_top' onInvite={() => setNewMemberOpen(true)} onUpgrade={() => router.push('/member-center')} />`，主按钮等价触发原 NewMemberDrawer，BR-10 完全复用线上抽屉不改内部
+  - 数据一致性：卡片用量行直接传 `list.quota_used` / `list.quota_max`，与顶部灰条接口完全同源（BR-13）
+- **测试**：新增 `h5-web/src/lib/__tests__/run_invite_card_v11_test.mjs`（**29 断言全部通过**）：覆盖 AC-16~23 + RC-05~08 可单测部分——card_location/target_action 字段构造、主标题响应式字号兜底、双位置视觉文案一致性、达上限态守卫、不限档生效、plan_name 缺失兜底
+- **后端**：未做改动；现有 `/api/member/center` + `/api/family/member/state/list` 已能满足两位置取数
+
+**部署方式**：
+- SFTP 上传 3 个文件到 `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`：`InviteFamilyCard.tsx` / `member-center/page.tsx` / `archive-list/page.tsx`，外加测试脚本 `run_invite_card_v11_test.mjs`
+- h5-web：`docker compose -f docker-compose.prod.yml build h5-web` + `docker compose up -d h5-web`
+- 服务器烟雾测试 17/17 全过：HTTP 200 双页可达、v1.1 关键字段在源码中全部命中、v1.0 行为零退化、容器内 v1.0 单测 39 用例 + v1.1 单测 29 用例全过
+
+**用户手册**：[user_docs/邀请家人入口卡片_v1.1_位置调整补丁.md](../user_docs/邀请家人入口卡片_v1.1_位置调整补丁.md)
+
+**唯一变更标记**：`[PRD-INVITE-FAMILY-CARD-V1.1 2026-05-30]`
+
+---
+
+## 上一次变更（2026-05-30 · 新功能 / 邀请家人入口卡片优化 v1.0）
 
 **任务标识**：`[PRD-INVITE-FAMILY-CARD-V1 2026-05-30]`
 
@@ -42,7 +77,7 @@ alwaysApply: false
 
 ---
 
-## 上一次变更（2026-05-30 · 新功能 / 血压卡片优化 v1.0）
+## 更早一次变更（2026-05-30 · 新功能 / 血压卡片优化 v1.0）
 
 **任务标识**：`[PRD-BP-CARD-OPTIMIZE-V1 2026-05-30]`
 

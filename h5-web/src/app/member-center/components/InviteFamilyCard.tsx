@@ -2,11 +2,14 @@
 
 /**
  * [PRD-INVITE-FAMILY-CARD-V1 2026-05-30] 邀请家人入口卡片
+ * [PRD-INVITE-FAMILY-CARD-V1.1 2026-05-30] 位置调整补丁：双点投放 + 主标题单行 + 健康档案位
  *
- * 来源 PRD：《邀请家人入口卡片优化 v1.0》
+ * 来源 PRD：
+ *   - v1.0《邀请家人入口卡片优化 PRD》（会员中心位）
+ *   - v1.1《邀请家人入口卡片 · v1.1 位置调整补丁 PRD（FINAL）》（健康档案位）
  *
- * 设计：在会员中心页内"邀请家人入口"位置放置一张视觉强化的渐变大卡片，
- * 让用户在一张卡片上完成「看懂套餐 → 看清额度 → 点击邀请」闭环。
+ * 设计：在会员中心页 + 健康档案-档案管理列表页两处放置同一张视觉强化的渐变大卡片，
+ * 让用户在一张卡片上完成「看懂套餐 → 看清额度 → 点击邀请/新建档案」闭环。
  *
  * 数据来源（零新增后端字段）：
  * - planName : 来自 /api/member/center -> current.plan_name
@@ -17,8 +20,14 @@
  * - S1 正常态：quotaUsed < quotaMax 且非不限档
  * - S2 达上限态：quotaUsed >= quotaMax 且为有限档（quotaMax !== -1 && quotaMax < 9999）
  * - 不限档（quotaMax === -1 或 quotaMax >= 9999）永远展示为 S1
+ *
+ * 双位置差异（v1.1 §2.3）：
+ * - 视觉完全一致（同一套组件 + 同一份样式）
+ * - 仅主按钮下游动作不同：cardLocation='member_center' → 邀请流程（onInvite）；
+ *   cardLocation='profile_list_top' → 拉起"新增家人档案"抽屉（onInvite 注入新建抽屉触发函数）
+ * - 埋点字段 card_location + target_action 由 props 注入，区分两处曝光与点击
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // ─── 视觉规范（PRD §3.2）───
 export const INVITE_CARD_GRADIENT = 'linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)';
@@ -105,6 +114,20 @@ function reportEvent(eventName: string, payload: Record<string, any>) {
 
 // ─── 组件 props ───
 
+/**
+ * [PRD-INVITE-FAMILY-CARD-V1.1 §2 §6] 卡片承载位置
+ * - 'member_center'：会员中心位（v1.0），主按钮 → 邀请流程页
+ * - 'profile_list_top'：健康档案-档案管理列表页顶部（v1.1 新增），主按钮 → 新增家人档案抽屉
+ */
+export type InviteCardLocation = 'member_center' | 'profile_list_top';
+
+/**
+ * [PRD-INVITE-FAMILY-CARD-V1.1 §6.2] 主按钮下游动作埋点取值
+ * - 'invite_flow'：跳邀请流程页（会员中心位默认）
+ * - 'create_profile'：拉起新增家人档案抽屉（健康档案位默认）
+ */
+export type InviteCardTargetAction = 'invite_flow' | 'create_profile';
+
 export interface InviteFamilyCardProps {
   /** 套餐名（来自 /api/member/center -> current.plan_name） */
   planName: string | null | undefined;
@@ -112,10 +135,20 @@ export interface InviteFamilyCardProps {
   quotaMax: number | null | undefined;
   /** 已管理 X（含本人，来自 /api/family/member/quota -> quota_used） */
   quotaUsed: number | null | undefined;
-  /** 点击主按钮"邀请家人"时回调（沿用既有邀请流程） */
+  /** 点击主按钮"邀请家人"时回调（沿用既有邀请流程 / 或拉起新增家人档案抽屉） */
   onInvite: () => void;
   /** 点击"升级套餐"链接时回调（跳转既有套餐购买页） */
   onUpgrade: () => void;
+  /**
+   * [PRD-INVITE-FAMILY-CARD-V1.1 §6.1] 卡片位置标识（埋点 card_location）
+   * 默认 'member_center'（兼容 v1.0 调用方）
+   */
+  cardLocation?: InviteCardLocation;
+  /**
+   * [PRD-INVITE-FAMILY-CARD-V1.1 §6.1] 主按钮下游动作标识（埋点 target_action）
+   * 默认根据 cardLocation 推断：member_center → invite_flow；profile_list_top → create_profile
+   */
+  targetAction?: InviteCardTargetAction;
   /** 调试 / 测试用 */
   className?: string;
 }
@@ -152,30 +185,62 @@ function FamilyHandsIcon() {
 // ─── 组件主体 ───
 
 export default function InviteFamilyCard(props: InviteFamilyCardProps) {
-  const { planName, quotaMax, quotaUsed, onInvite, onUpgrade, className } = props;
+  const {
+    planName,
+    quotaMax,
+    quotaUsed,
+    onInvite,
+    onUpgrade,
+    className,
+    cardLocation = 'member_center',
+    targetAction,
+  } = props;
   const state = computeCardState(quotaUsed, quotaMax);
   const isFull = state === 'full';
   const cardRef = useRef<HTMLDivElement | null>(null);
   const exposed = useRef(false);
 
+  // [PRD-INVITE-FAMILY-CARD-V1.1 §6.3] target_action 默认值由 cardLocation 推断
+  const effectiveTargetAction: InviteCardTargetAction =
+    targetAction ?? (cardLocation === 'profile_list_top' ? 'create_profile' : 'invite_flow');
+
+  // [PRD-INVITE-FAMILY-CARD-V1.1 §4.1] 主标题单行响应式字号
+  // 主流屏（>=390px）→ 16pt；窄屏（<=375px）→ 15pt 兜底；保持 white-space:nowrap + ellipsis
+  const [titleFontSize, setTitleFontSize] = useState<number>(16);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const compute = () => {
+      const w = window.innerWidth || 390;
+      setTitleFontSize(w <= 375 ? 15 : 16);
+    };
+    compute();
+    window.addEventListener('resize', compute);
+    return () => window.removeEventListener('resize', compute);
+  }, []);
+
   // 曝光埋点（首次进入视口）
   useEffect(() => {
+    const fireExposure = () => {
+      reportEvent('invite_card_exposure', {
+        card_location: cardLocation,
+        plan_name: planName || '',
+        quota_used: quotaUsed ?? null,
+        quota_max: quotaMax ?? null,
+        is_full: isFull,
+      });
+      if (isFull) {
+        reportEvent('invite_card_full_state_view', {
+          card_location: cardLocation,
+          plan_name: planName || '',
+          quota_max: quotaMax ?? null,
+        });
+      }
+    };
     if (!cardRef.current || typeof IntersectionObserver === 'undefined') {
       // 兜底：直接上报曝光
       if (!exposed.current) {
         exposed.current = true;
-        reportEvent('invite_card_exposure', {
-          plan_name: planName || '',
-          quota_used: quotaUsed ?? null,
-          quota_max: quotaMax ?? null,
-          is_full: isFull,
-        });
-        if (isFull) {
-          reportEvent('invite_card_full_state_view', {
-            plan_name: planName || '',
-            quota_max: quotaMax ?? null,
-          });
-        }
+        fireExposure();
       }
       return;
     }
@@ -185,18 +250,7 @@ export default function InviteFamilyCard(props: InviteFamilyCardProps) {
         for (const e of entries) {
           if (e.isIntersecting && !exposed.current) {
             exposed.current = true;
-            reportEvent('invite_card_exposure', {
-              plan_name: planName || '',
-              quota_used: quotaUsed ?? null,
-              quota_max: quotaMax ?? null,
-              is_full: isFull,
-            });
-            if (isFull) {
-              reportEvent('invite_card_full_state_view', {
-                plan_name: planName || '',
-                quota_max: quotaMax ?? null,
-              });
-            }
+            fireExposure();
           }
         }
       },
@@ -204,11 +258,13 @@ export default function InviteFamilyCard(props: InviteFamilyCardProps) {
     );
     ob.observe(node);
     return () => ob.disconnect();
-  }, [planName, quotaUsed, quotaMax, isFull]);
+  }, [planName, quotaUsed, quotaMax, isFull, cardLocation]);
 
   const handleMainBtn = () => {
-    if (isFull) return; // 禁用态：沉默无反应（PRD §2.3 F2）
+    if (isFull) return; // 禁用态：沉默无反应（PRD v1.0 §2.3 F2 / v1.1 §3.2 BR-14）
     reportEvent('invite_card_main_btn_click', {
+      card_location: cardLocation,
+      target_action: effectiveTargetAction,
       plan_name: planName || '',
       quota_used: quotaUsed ?? null,
       quota_max: quotaMax ?? null,
@@ -219,6 +275,7 @@ export default function InviteFamilyCard(props: InviteFamilyCardProps) {
   const handleUpgradeLink = (e: React.MouseEvent) => {
     e.stopPropagation();
     reportEvent('invite_card_upgrade_link_click', {
+      card_location: cardLocation,
       plan_name: planName || '',
       quota_used: quotaUsed ?? null,
       quota_max: quotaMax ?? null,
@@ -230,6 +287,7 @@ export default function InviteFamilyCard(props: InviteFamilyCardProps) {
     <div
       ref={cardRef}
       data-testid="invite-family-card"
+      data-card-location={cardLocation}
       data-state={state}
       className={className}
       style={{
@@ -246,15 +304,19 @@ export default function InviteFamilyCard(props: InviteFamilyCardProps) {
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
         <FamilyHandsIcon />
         <div style={{ flex: 1, minWidth: 0 }}>
-          {/* 主标题：套餐名 + 权益短语 */}
+          {/* [PRD-INVITE-FAMILY-CARD-V1.1 §4.1] 主标题：套餐名 + 权益短语，强制单行 */}
           <div
             data-testid="invite-card-title"
+            data-font-size={titleFontSize}
+            title={formatTitleLine(planName, quotaMax)}
             style={{
-              fontSize: 16,
+              fontSize: titleFontSize,
               fontWeight: 600,
               color: '#fff',
               lineHeight: '22px',
-              wordBreak: 'break-word',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
             }}
           >
             {formatTitleLine(planName, quotaMax)}

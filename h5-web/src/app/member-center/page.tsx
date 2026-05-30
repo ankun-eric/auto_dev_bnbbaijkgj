@@ -282,6 +282,7 @@ export default function MemberCenterPage() {
         planName={current.plan_name}
         quotaMax={(familyQuota && typeof familyQuota.quota_max === 'number') ? familyQuota.quota_max : current.max_managed}
         quotaUsed={(familyQuota && typeof familyQuota.quota_used === 'number') ? familyQuota.quota_used : 0}
+        cardLocation='member_center'
         onInvite={() => router.push('/health-profile/my-guardians/invite')}
         onUpgrade={() => {
           if (typeof window !== 'undefined') {
