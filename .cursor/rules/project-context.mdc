@@ -5,7 +5,44 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-30 · 新功能 / 血压卡片优化 v1.0）
+## 最近一次变更（2026-05-30 · 新功能 / 邀请家人入口卡片优化 v1.0）
+
+**任务标识**：`[PRD-INVITE-FAMILY-CARD-V1 2026-05-30]`
+
+**背景**：《邀请家人入口卡片优化 PRD v1.0》。会员中心页中"邀请家人"入口原为普通按钮，本次升级为蓝色品牌渐变大卡片（`#38BDF8 → #0284C7`），用户在一张卡片上完成「看懂套餐 → 看清额度 → 点击邀请」闭环；达上限时按钮自动禁用并提供升级套餐链接。**严格仅改造邀请入口本身**，会员中心其他模块零改动；零后端 schema / 接口新增。
+
+**核心交付**（仅 H5 一端，零后端 / 零小程序原生 / 零 Android / iOS / exe 改动；微信小程序通过 web-view 加载 H5 自动同步生效）：
+
+- **H5 `h5-web/src/app/member-center/components/InviteFamilyCard.tsx`（新增）**：
+  - 导出纯函数：`isUnlimitedQuota` / `isFullState` / `computeCardState` / `formatBenefitPhrase` / `formatTitleLine` / `formatQuotaLine`
+  - 视觉：135° 蓝色渐变背景 + 14pt 圆角 + `0 6px 16px rgba(14,165,233,0.18)` 阴影；左侧家人手拉手剪影 SVG（32×32，半透明白）；右下角白底 / 主色字胶囊大按钮（高 40pt / 圆角 20pt）
+  - 状态机：S1 正常态 = `quotaUsed < quotaMax`；S2 达上限态 = `quotaUsed >= quotaMax` 且为有限档；不限档（max=-1 / >=9999）永远 S1
+  - 达上限态：主按钮变 `rgba(255,255,255,0.5)` 禁用；用量行下方加黄色警示行 `⚠ 已达上限，请[升级套餐]`，「升级套餐」白色下划线可独立点击
+  - 埋点（`navigator.sendBeacon → /api/_frontend_log`）：`invite_card_exposure` / `invite_card_main_btn_click` / `invite_card_upgrade_link_click` / `invite_card_full_state_view` 共 4 个事件，IntersectionObserver 30% 阈值首次曝光触发
+- **H5 `h5-web/src/app/member-center/page.tsx`**：
+  - 顶部 `import InviteFamilyCard from './components/InviteFamilyCard'`
+  - 并行拉取 `/api/family/member/quota`，得到 `quota_used` / `quota_max`（含本人，v1.1 已统一口径）；接口失败则用 `current.max_managed` 作为兜底上限、`quotaUsed=0`（不会进入达上限态）
+  - 在用户信息卡之后、「我的会员权益」4 格之前插入 `<InviteFamilyCard ... />`，主按钮跳转 `/health-profile/my-guardians/invite`，「升级套餐」链接平滑滚动到 `data-mc-upgrade-section="1"`（即「升级享更多权益」区）
+  - 「我的会员权益」4 格的 margin-top 由 `-24px` 改为 `12px`，避免与新卡片重叠
+- **测试**：
+  - 新增 `h5-web/src/lib/__tests__/run_invite_card_test.mjs`（**39 断言全部通过**）：覆盖 BR-02 不限档、F1/F2 状态判定、computeCardState、权益短语、主标题、用量行 6 大场景与异常兜底
+  - 新增 `backend/tests/test_invite_family_card_v1_20260530.py`（**6 用例全部通过**）：验证 `/api/member/center.current.plan_name` 非空、`/api/family/member/quota` 字段完整 + `quota_used >=1`（含本人）、不限档语义一致性、`-1` 透传、免费用户兜底
+- **后端**：未做改动；现有 `/api/member/center` + `/api/family/member/quota` 已能满足前端取数
+
+**部署方式**：
+- SFTP 上传 4 个文件到 `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`
+- backend：`docker cp` 测试文件入容器并执行 `pytest`（13 passed = 6 新增 + 7 v1.1 回归）
+- h5-web：`docker compose build h5-web` + `docker compose up -d --force-recreate --no-deps h5-web`
+- HTTPS smoke：`/member-center/`、`/health-profile/my-guardians/invite/`、`/api/health` 全部 200
+- 生产 chunk grep 命中：`invite-family-card` / `invite-card-main-btn` / `invite-card-warn` / `邀请家人，共享健康守护` / `已达上限，请` / `不限家人数` / `可管理` / `升级套餐` 共 9 项
+
+**用户手册**：[user_docs/邀请家人入口卡片_v1.md](../user_docs/邀请家人入口卡片_v1.md)
+
+**唯一变更标记**：`[PRD-INVITE-FAMILY-CARD-V1 2026-05-30]`
+
+---
+
+## 上一次变更（2026-05-30 · 新功能 / 血压卡片优化 v1.0）
 
 **任务标识**：`[PRD-BP-CARD-OPTIMIZE-V1 2026-05-30]`
 

@@ -22,6 +22,8 @@ import api from '@/lib/api';
 import GreenNavBar from '@/components/GreenNavBar';
 // [Bug 修复 v1.0 §3.2 2026-05-26] 新增「权益对比」表
 import BenefitsCompareTable from './components/BenefitsCompareTable';
+// [PRD-INVITE-FAMILY-CARD-V1 2026-05-30] 新增「邀请家人入口卡片」
+import InviteFamilyCard from './components/InviteFamilyCard';
 
 // ─── 视觉色：蓝紫主调 + 金色点缀 ───
 const PRIMARY = '#5B7CFA';          // 蓝紫主色
@@ -87,6 +89,14 @@ interface CenterData {
   free_quota?: FreeQuota;
 }
 
+// [PRD-INVITE-FAMILY-CARD-V1 2026-05-30] /api/family/member/quota 响应字段
+// quota_used / quota_max 均为「含本人」口径（v1.1 已统一）
+interface FamilyQuotaResp {
+  quota_used: number;
+  quota_max: number;
+  quota_remaining?: number;
+}
+
 function fmtVal(v: number | null): string {
   if (v === null) return '--';
   if (v === -1) return '不限';
@@ -98,6 +108,8 @@ export default function MemberCenterPage() {
   const [data, setData] = useState<CenterData | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  // [PRD-INVITE-FAMILY-CARD-V1 2026-05-30] 邀请家人入口卡片所需的家庭成员配额
+  const [familyQuota, setFamilyQuota] = useState<FamilyQuotaResp | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -109,6 +121,19 @@ export default function MemberCenterPage() {
         showToast('加载会员中心失败', 'fail');
       } finally {
         setLoading(false);
+      }
+    })();
+    // [PRD-INVITE-FAMILY-CARD-V1 2026-05-30] 并行拉取家庭成员配额，
+    // 失败时静默兜底（卡片自身有兜底逻辑），不影响会员中心主流程
+    (async () => {
+      try {
+        const r: any = await api.get('/api/family/member/quota');
+        const payload = r?.data || r;
+        if (payload && typeof payload.quota_max === 'number') {
+          setFamilyQuota(payload as FamilyQuotaResp);
+        }
+      } catch (e) {
+        // 静默：未登录 / 接口异常时卡片走兜底
       }
     })();
   }, []);
@@ -246,10 +271,34 @@ export default function MemberCenterPage() {
         </div>
       </div>
 
+      {/* [PRD-INVITE-FAMILY-CARD-V1 2026-05-30] 邀请家人入口卡片
+          位置：保持在原"邀请家人入口"在会员中心页内的位置（用户信息卡之后、权益区之前）。
+          数据：planName 来自 current.plan_name；quotaMax / quotaUsed 来自 /api/family/member/quota（含本人）。
+          交互：
+            - 点击主按钮"邀请家人" → 跳转既有「邀请家人」流程页（/health-profile/my-guardians/invite）；
+            - 达上限态点击「升级套餐」 → 跳转既有会员套餐购买页（/checkout 或本页向下滚动到「升级享更多权益」）。
+          兜底：如配额接口失败，把上限取自 current.max_managed（含本人），quotaUsed 为 0（不会进入达上限态）。 */}
+      <InviteFamilyCard
+        planName={current.plan_name}
+        quotaMax={(familyQuota && typeof familyQuota.quota_max === 'number') ? familyQuota.quota_max : current.max_managed}
+        quotaUsed={(familyQuota && typeof familyQuota.quota_used === 'number') ? familyQuota.quota_used : 0}
+        onInvite={() => router.push('/health-profile/my-guardians/invite')}
+        onUpgrade={() => {
+          if (typeof window !== 'undefined') {
+            const el = document.querySelector('[data-mc-upgrade-section="1"]');
+            if (el && (el as HTMLElement).scrollIntoView) {
+              (el as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'start' });
+              return;
+            }
+          }
+          showToast('请在下方"升级享更多权益"区选择套餐', 'warning');
+        }}
+      />
+
       {/* 2. 我的会员权益（4 格） */}
       <div
         style={{
-          margin: '-24px 16px 0',
+          margin: '12px 16px 0',
           background: '#fff',
           borderRadius: 20,
           padding: '18px 16px',
@@ -316,7 +365,7 @@ export default function MemberCenterPage() {
 
       {/* 3. 升级享更多权益 */}
       {plans.length > 0 && (
-        <div style={{ margin: '20px 16px 0' }}>
+        <div style={{ margin: '20px 16px 0' }} data-mc-upgrade-section="1">
           <div style={{ fontSize: 16, fontWeight: 700, color: TEXT_DARK, marginBottom: 10, padding: '0 4px' }}>
             升级享更多权益
           </div>
