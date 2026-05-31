@@ -675,6 +675,27 @@ function PencilIcon({ size = 16, color = '#1B4DA0' }: { size?: number; color?: s
   );
 }
 
+/**
+ * [PRD-GLUCOSE-CARD-ALIGN-BP-V1 2026-05-31] 血糖仪 SVG 图标
+ * （仪表主体 + 屏幕 + 试纸/血滴语义，与 BpMeterIcon 风格一致）
+ */
+function BgMeterIcon({ size = 18, color = '#0EA5E9' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {/* 仪表主体 */}
+      <rect x="5" y="3" width="11" height="15" rx="2" stroke={color} strokeWidth="1.6" />
+      {/* 屏幕 */}
+      <rect x="7.5" y="5.5" width="6" height="4" rx="1" stroke={color} strokeWidth="1.3" />
+      {/* 屏幕下方按钮 */}
+      <line x1="7.5" y1="12.5" x2="13.5" y2="12.5" stroke={color} strokeWidth="1.3" strokeLinecap="round" />
+      {/* 试纸条 */}
+      <path d="M16 14 H20 V16 H16" stroke={color} strokeWidth="1.3" strokeLinejoin="round" />
+      {/* 血滴 */}
+      <path d="M20 18.5 q 1.6 2 0 3.5 q -1.6 -1.5 0 -3.5 Z" stroke={color} strokeWidth="1.2" fill="none" />
+    </svg>
+  );
+}
+
 // [PRD-BP-CARD-OPTIMIZE-V1 2026-05-30] 仅保留 日/周 两档
 const BP_RANGE_OPTS: { key: BpTrendRange; label: string }[] = [
   { key: 'day', label: '日' },
@@ -755,11 +776,16 @@ interface BloodPressurePageProps {
 function BloodPressurePage(props: BloodPressurePageProps) {
   const { history, latest, popupVisible, setPopupVisible, formValues, setFormValues,
     periodValue, setPeriodValue, meta, saving, handleSave } = props;
+  const router = useRouter();
 
   // [PRD-BP-CARD-OPTIMIZE-V1 2026-05-30 §5.2] 默认选中"周"，仅保留 日/周
   const [range, setRange] = useState<BpTrendRange>('week');
   // 数据点点击弹窗
   const [pointPopup, setPointPopup] = useState<BpPointDetail | null>(null);
+
+  // [PRD-BP-AI-EXPLAIN-V1 2026-05-31] AI 解读抽屉与缓存（对齐血糖）
+  const [aiDrawer, setAiDrawer] = useState<{ mode: 'single' | 'trend'; loading: boolean; text: string } | null>(null);
+  const aiCacheRef = (typeof window !== 'undefined') ? ((window as any).__bpAiCache ||= new Map<string, { ts: number; text: string }>()) : new Map();
 
   const sbp = latest?.value?.systolic != null ? Number(latest.value.systolic) : null;
   const dbp = latest?.value?.diastolic != null ? Number(latest.value.diastolic) : null;
@@ -815,6 +841,75 @@ function BloodPressurePage(props: BloodPressurePageProps) {
         && bj.getUTCDate() === todayBj.getUTCDate();
     }).length === 0;
   }, [range, history, records]);
+
+  // [PRD-BP-AI-EXPLAIN-V1 2026-05-31] AI 解读 — 接入真实大模型，规则文案降级（对齐血糖）
+  const requestAi = useCallback(async (mode: 'single' | 'trend') => {
+    const cacheKey = mode === 'single' ? `single:${latest?.id ?? 0}` : `trend:${range}`;
+    const cached = aiCacheRef.get(cacheKey);
+    if (cached && Date.now() - cached.ts < 5 * 60 * 1000) {
+      setAiDrawer({ mode, loading: false, text: cached.text });
+      return;
+    }
+    setAiDrawer({ mode, loading: true, text: '' });
+    try {
+      let text = '';
+      if (mode === 'single') {
+        if (!latest?.id) {
+          text = '暂无血压记录，请先录入一次再点击解读。';
+        } else {
+          try {
+            const r: any = await api.post('/api/bp-v1/ai-explain-single', {
+              record_id: Number(latest.id),
+              profile_id: props.profileId,
+            });
+            const d = r?.data?.data ?? r?.data ?? r;
+            text = d?.content || '';
+            if (!text) throw new Error('empty');
+          } catch {
+            const j = judgement;
+            const sStr = sbp != null ? sbp : '-';
+            const dStr = dbp != null ? dbp : '-';
+            if (!j) {
+              text = '暂无可解读的血压数据。';
+            } else if (j.level === 'normal') {
+              text = `本次血压 ${sStr}/${dStr} mmHg，属于正常范围。建议保持规律作息、清淡饮食和适量运动，继续按当前节奏监测。`;
+            } else if (j.level === 'mild_high') {
+              text = `本次血压 ${sStr}/${dStr} mmHg，属于轻度偏高（正常高值）。建议减少高盐高脂饮食、控制体重、每天散步 30 分钟，1 周后复测；若持续偏高请就医评估。`;
+            } else if (j.level === 'mid_high') {
+              text = `本次血压 ${sStr}/${dStr} mmHg，属于中度偏高（1 级高血压）。建议低盐低脂饮食、戒烟限酒、规律运动，并尽快到心内科或全科门诊就诊评估是否需要药物治疗。`;
+            } else if (j.level === 'severe_high') {
+              text = `本次血压 ${sStr}/${dStr} mmHg，属于严重偏高。建议立即静坐休息 15 分钟后复测，若仍持续偏高请尽快前往医院急诊或心内科就诊。`;
+            } else if (j.level === 'low') {
+              text = `本次血压 ${sStr}/${dStr} mmHg，偏低。建议适量饮水、慢起慢站，避免空腹时间过长；若伴有头晕乏力请及时就医。`;
+            } else {
+              text = `本次血压 ${sStr}/${dStr} mmHg。建议保持规律监测，如有不适请及时就医。`;
+            }
+          }
+        }
+      } else {
+        const rangeKey: '7d' | '30d' = range === 'week' ? '7d' : '7d';
+        try {
+          const r: any = await api.post('/api/bp-v1/ai-explain-trend', {
+            range: rangeKey,
+            profile_id: props.profileId,
+          });
+          const d = r?.data?.data ?? r?.data ?? r;
+          const lines: string[] = [];
+          if (d?.summary) lines.push(d.summary);
+          if (d?.trend) lines.push('', d.trend);
+          if (d?.advice) lines.push('', '建议：', d.advice);
+          text = lines.join('\n');
+          if (!text.trim()) throw new Error('empty');
+        } catch {
+          text = '基于近期血压数据，建议保持低盐低脂饮食与适量运动，每天固定时段监测血压并记录；如长期偏高请尽快就医评估。';
+        }
+      }
+      aiCacheRef.set(cacheKey, { ts: Date.now(), text });
+      setAiDrawer({ mode, loading: false, text });
+    } catch {
+      setAiDrawer({ mode, loading: false, text: '解读失败，请稍后重试。' });
+    }
+  }, [latest, range, aiCacheRef, props.profileId, judgement, sbp, dbp]);
 
   return (
     <div data-testid="bp-tab-page" style={{ background: '#F4F7FB', minHeight: '100vh', paddingBottom: 24 }}>
@@ -978,6 +1073,31 @@ function BloodPressurePage(props: BloodPressurePageProps) {
         </div>
       </div>
 
+      {/* [PRD-BP-AI-EXPLAIN-V1 2026-05-31] AI 解读本次 + AI 解读趋势（对齐血糖） */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <button
+          data-testid="bp-ai-single"
+          onClick={() => requestAi('single')}
+          style={{
+            width: '100%', height: 44, borderRadius: 12,
+            background: 'linear-gradient(135deg, #38BDF8 0%, #0EA5E9 100%)', color: '#fff',
+            border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(14,165,233,0.24)',
+          }}
+        >🤖 AI 解读本次血压</button>
+      </div>
+      <div style={{ padding: '12px 16px 0' }}>
+        <button
+          data-testid="bp-ai-trend"
+          onClick={() => requestAi('trend')}
+          style={{
+            width: '100%', height: 40, borderRadius: 10,
+            background: '#fff', color: '#0EA5E9',
+            border: '1px solid #0EA5E9', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+          }}
+        >🤖 AI 解读趋势</button>
+      </div>
+
       {/* 历史记录（PRD-HEALTH-METRIC-CARD-UNIFY-V1 §4：最近 5 条 + 全部入口） */}
       <div style={{ padding: '12px 16px 0' }}>
         <div style={{ background: '#fff', borderRadius: 16, padding: '14px 14px', boxShadow: '0 2px 10px rgba(14,165,233,0.06)' }}>
@@ -985,7 +1105,7 @@ function BloodPressurePage(props: BloodPressurePageProps) {
             <span style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E' }}>历史记录</span>
             <span
               data-testid="bp-history-all-entry"
-              onClick={() => { if (typeof window !== 'undefined') window.location.href = `/health-metric/blood_pressure/history?profileId=${props.profileId}`; }}
+              onClick={() => router.push(`/health-metric/blood_pressure/history?profileId=${props.profileId}`)}
               style={{ fontSize: 13, color: '#0EA5E9', cursor: 'pointer', fontWeight: 600 }}
             >全部 ›</span>
           </div>
@@ -1089,6 +1209,33 @@ function BloodPressurePage(props: BloodPressurePageProps) {
 
       {/* [PRD §5.5] 数据点点击弹窗（详版） */}
       <BpPointPopup detail={pointPopup} onClose={() => setPointPopup(null)} />
+
+      {/* [PRD-BP-AI-EXPLAIN-V1 2026-05-31] AI 解读抽屉（对齐血糖） */}
+      <Popup
+        visible={!!aiDrawer}
+        onMaskClick={() => setAiDrawer(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '70vh', overflowY: 'auto' }}
+      >
+        {aiDrawer && (
+          <div data-testid="bp-ai-drawer">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: '#0C4A6E' }}>🤖 AI 解读</span>
+              <button onClick={() => setAiDrawer(null)} style={{ background: 'transparent', border: 'none', fontSize: 20, color: '#9CA3AF', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 14 }}>
+              {aiDrawer.mode === 'single'
+                ? `基于：${latest ? formatDateTime(latest.measured_at) + ' 血压 ' + (sbp ?? '-') + '/' + (dbp ?? '-') + ' mmHg' : '当前无记录'}`
+                : `基于：${range === 'day' ? '今天' : '近 7 天'}所有血压记录`}
+            </div>
+            <div style={{ background: '#F8FAFC', borderRadius: 12, padding: 14, minHeight: 100, fontSize: 14, color: '#0F172A', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
+              {aiDrawer.loading ? '正在分析…' : aiDrawer.text}
+            </div>
+            <div style={{ marginTop: 12, fontSize: 11, color: '#9CA3AF', textAlign: 'center' }}>
+              ⚠️ AI 建议仅供参考，不能替代医生诊断
+            </div>
+          </div>
+        )}
+      </Popup>
     </div>
   );
 }
@@ -1775,6 +1922,27 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
     return formatBpTimeSource(latest.measured_at, latest.source);
   }, [latest]);
 
+  // [PRD-GLUCOSE-CARD-ALIGN-BP-V1 2026-05-31] 绑定设备入口（对齐血压：提示"即将上线" + 埋点，不跳转）
+  const handleBindDeviceClick = useCallback(() => {
+    showToast('即将上线', 'success');
+    // 埋点（占位）：health_archive.bg.bind_device.click
+    try {
+      if (typeof navigator !== 'undefined' && (navigator as any).sendBeacon) {
+        const payload = JSON.stringify({
+          type: 'event',
+          name: 'health_archive.bg.bind_device.click',
+          ts: Date.now(),
+          url: typeof window !== 'undefined' ? window.location.pathname : '',
+        });
+        const blob = new Blob([payload], { type: 'application/json' });
+        const basePath = (process.env.NEXT_PUBLIC_BASE_PATH || '').replace(/\/+$/, '');
+        (navigator as any).sendBeacon(`${basePath}/api/_frontend_log`, blob);
+      }
+    } catch {
+      // 埋点失败不影响主流程
+    }
+  }, []);
+
   const handleSave = useCallback(async () => {
     if (!profileId) {
       showToast('profileId 缺失', 'fail');
@@ -1975,15 +2143,8 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
 
   return (
     <div data-testid="bg-tab-page" style={{ background: '#F4F7FB', minHeight: '100vh', paddingBottom: 24 }}>
-      <GreenNavBar
-        right={
-          <span
-            data-testid="bg-nav-add"
-            onClick={() => setDrawerVisible(true)}
-            style={{ color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
-          >+ 录入</span>
-        }
-      >血糖</GreenNavBar>
+      {/* [PRD-GLUCOSE-CARD-ALIGN-BP-V1 2026-05-31 §改动2] 去掉导航栏右上角的「+ 录入」，统一收到主卡片下方大按钮 */}
+      <GreenNavBar>血糖</GreenNavBar>
 
       {/* 主卡片 */}
       <div style={{ padding: '12px 16px 0' }}>
@@ -2061,6 +2222,38 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
         </div>
       </div>
 
+      {/* [PRD-GLUCOSE-CARD-ALIGN-BP-V1 2026-05-31 §改动1] 主卡片下方并排大按钮：手工录入（实心蓝）｜ 绑定设备（描边白底），对齐血压详情页 */}
+      <div data-testid="bg-action-row" style={{ padding: '12px 16px 0', display: 'flex', gap: 10 }}>
+        <button
+          data-testid="bg-action-manual"
+          onClick={() => { setInputTab('manual'); setDrawerVisible(true); }}
+          style={{
+            flex: 1, height: 44, borderRadius: 12, border: 'none',
+            background: '#0EA5E9', color: '#fff',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            fontSize: 15, fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(14,165,233,0.24)',
+          }}
+        >
+          <PencilIcon size={16} color="#fff" />
+          <span>手工录入</span>
+        </button>
+        <button
+          data-testid="bg-action-bind"
+          onClick={handleBindDeviceClick}
+          style={{
+            flex: 1, height: 44, borderRadius: 12,
+            background: '#fff', color: '#0EA5E9',
+            border: '1px solid #0EA5E9',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            fontSize: 15, fontWeight: 700, cursor: 'pointer',
+          }}
+        >
+          <BgMeterIcon size={16} color="#0EA5E9" />
+          <span>绑定设备</span>
+        </button>
+      </div>
+
       {/* 目标范围参考 */}
       <div style={{ padding: '12px 16px 0' }}>
         <div data-testid="bg-target-card" style={{ background: '#fff', borderRadius: 14, padding: '12px 14px', boxShadow: '0 2px 10px rgba(14,165,233,0.06)' }}>
@@ -2069,20 +2262,6 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
             空腹 {BG_TARGET_RANGE.fasting.label.replace('空腹 ', '')}　·　餐后 2h {BG_TARGET_RANGE.after_meal_2h.label.replace('餐后 2h ', '')}　·　睡前 {BG_TARGET_RANGE.before_sleep.label.replace('睡前 ', '')}
           </div>
         </div>
-      </div>
-
-      {/* AI 解读本次 */}
-      <div style={{ padding: '12px 16px 0' }}>
-        <button
-          data-testid="bg-ai-single"
-          onClick={() => requestAi('single')}
-          style={{
-            width: '100%', height: 44, borderRadius: 12,
-            background: 'linear-gradient(135deg, #38BDF8 0%, #0EA5E9 100%)', color: '#fff',
-            border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(14,165,233,0.24)',
-          }}
-        >🤖 AI 解读本次血糖</button>
       </div>
 
       {/* 趋势图 */}
@@ -2127,19 +2306,30 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
               睡前
             </span>
           </div>
-
-          <div style={{ marginTop: 10 }}>
-            <button
-              data-testid="bg-ai-trend"
-              onClick={() => requestAi('trend')}
-              style={{
-                width: '100%', height: 40, borderRadius: 10,
-                background: '#fff', color: '#0EA5E9',
-                border: '1px solid #0EA5E9', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-              }}
-            >🤖 AI 解读趋势</button>
-          </div>
         </div>
+      </div>
+
+      {/* [PRD-GLUCOSE-CARD-ALIGN-BP-V1 2026-05-31 §改动4] AI 解读区（完整保留：本次 + 趋势），顺序对齐血压：趋势图之后 */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <button
+          data-testid="bg-ai-single"
+          onClick={() => requestAi('single')}
+          style={{
+            width: '100%', height: 44, borderRadius: 12,
+            background: 'linear-gradient(135deg, #38BDF8 0%, #0EA5E9 100%)', color: '#fff',
+            border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(14,165,233,0.24)',
+          }}
+        >🤖 AI 解读本次血糖</button>
+        <button
+          data-testid="bg-ai-trend"
+          onClick={() => requestAi('trend')}
+          style={{
+            width: '100%', height: 40, borderRadius: 10, marginTop: 10,
+            background: '#fff', color: '#0EA5E9',
+            border: '1px solid #0EA5E9', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+          }}
+        >🤖 AI 解读趋势</button>
       </div>
 
       {/* 历史记录（PRD-HEALTH-METRIC-CARD-UNIFY-V1 §4：最近 5 条 + 全部入口） */}
@@ -2155,7 +2345,7 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
           </div>
           {records.length === 0 ? (
             <div style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', padding: '24px 0' }}>
-              暂无记录，点击右上角「+录入」开始记录
+              暂无记录，点击上方「手工录入」开始记录
             </div>
           ) : (
             records.slice(0, 5).map(r => {
