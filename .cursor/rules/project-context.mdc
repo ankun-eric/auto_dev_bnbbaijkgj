@@ -5,6 +5,29 @@ alwaysApply: false
 
 # Project Context
 
+## 最近一次变更（2026-05-31 · 功能开发 / AI 首页模式切换下拉胶囊改造）
+
+**任务标识**：`[PRD-MODE-CAPSULE-V1 2026-05-31]`
+
+**需求**：把 AI 首页右上角原「浅蓝标准模式徽章 + 绿色关怀模式按钮」两个独立控件合并为一个**下拉胶囊选择器**（方案 A），顶栏右上角从 4 个控件减为 3 个：`标准模式 ▾` + 🎁 + ➕。🎁 邀请好友入口保留在外面。切换业务逻辑沿用现有实现（保存偏好 → Toast → 跳转），后端 0 改动。覆盖 H5 + 微信小程序两端，交互一致。
+
+**改动**：
+- **H5 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`**：
+  - 新增状态 `modeDropdownOpen` / `modeSwitching` + `modeDropdownRef`，新增面板外点击收起的 `useEffect` 与 `handleSwitchToCareMode`（沿用 `@/lib/mode-preference` 的 `saveModePreference('care')` → `showToast('已切换到关怀模式 ✓')` → `router.push('/care-ai-home')`）。
+  - 删除原 `data-testid="ai-home-care-mode-switcher"`（含 `ai-home-mode-badge-standard` 徽章 + `ai-home-care-mode-btn` 绿色按钮），替换为下拉胶囊：`ai-home-mode-switcher` / `ai-home-mode-capsule`（含 `ai-home-mode-capsule-label` + `ai-home-mode-capsule-arrow` 翻转箭头）+ 展开面板 `ai-home-mode-dropdown-panel`（含 `ai-home-mode-option-standard` 高亮打勾 / `ai-home-mode-option-care`）。位置仍 absolute right:80；🎁(`ai-home-invite-btn` right:44) 与 ⋯(`ai-home-more-btn` right:8) 保留。
+- **小程序 `miniprogram/pages/ai/index.{wxml,js,wxss}`**：顶栏 `top-bar` 右侧新增 `.topbar-actions` 容器（模式胶囊 + 🎁`ai-home-invite-btn` + ⋯`ai-home-more-btn`）。data 新增 `modeDropdownShow` / `modeSwitching`，新增方法 `toggleModeDropdown` / `closeModeDropdown` / `switchToCareMode`（POST `/api/user/mode-preference` {mode:'care'} + `wx.setStorageSync('app_mode_preference','care')` + Toast「已切换到关怀模式 ✓」+ `wx.navigateTo('/pages/care-ai-home/index')`）/ `goInvite`（`/pages/invite/index`）。wxss 新增 `.mode-capsule`(浅蓝 #E3F2FD/#1976D2) / `.mode-capsule-arrow-up`(rotate180) / `.mode-dropdown-panel` / `.mode-dropdown-item-active`(高亮打勾)。
+- **测试 `backend/tests/test_ai_home_mode_capsule_v1_20260531.py`**：1 条后端 API 回归（`/api/user/mode-preference` care/standard 持久化）+ 8 条前端源码静态断言（H5/小程序含胶囊标记、移除旧两控件、保留 🎁、切换逻辑沿用）。服务器实测 9/9 全绿。
+
+**部署验证**：H5 容器 `6b099ed3-...-h5` 已 `docker compose build --no-cache` 重建并 up，外部访问 `/ai-home/` 200，HTML 含 `ai-home-mode-capsule` / `ai-home-mode-switcher` / `ai-home-invite-btn`，旧 `ai-home-mode-badge-standard` / `ai-home-care-mode-btn` 已消失。
+
+**客户端打包**：微信小程序重新打包 zip 上传至 `/app/uploads/`，下载 URL 200 可达：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/uploads/miniprogram_mode_capsule_20260531_160617_3cbf.zip`。
+
+**体验链接**：[标准模式 AI 主页](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home)
+
+**用户手册**：`user_docs/AI首页模式切换胶囊.md`
+
+---
+
 ## 最近一次变更（2026-05-31 · 功能开发 / 心率详情页展示规则 v1）
 
 **任务标识**：`[PRD-HEART-RATE-DETAIL-RULE-V1 2026-05-31]`

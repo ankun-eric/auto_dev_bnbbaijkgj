@@ -26,7 +26,10 @@ Page({
     brandLogoUrl: '',
     // [Bug 修复 v1.0 §3.1.3] 「更多」菜单可见态 + 「新」角标可见期（30 天）
     moreMenuShow: false,
-    showNewBadge: Date.now() < new Date('2026-06-25T00:00:00Z').getTime()
+    showNewBadge: Date.now() < new Date('2026-06-25T00:00:00Z').getTime(),
+    // [PRD-MODE-CAPSULE-V1 2026-05-31] 模式切换下拉胶囊展开态 + 切换中防重复点击
+    modeDropdownShow: false,
+    modeSwitching: false
   },
 
   onShow() {
@@ -134,6 +137,40 @@ Page({
   },
 
   // [Bug 修复 v1.0 §3.1.3] 「更多」菜单交互
+  // [PRD-MODE-CAPSULE-V1 2026-05-31] 模式下拉胶囊：展开/收起切换
+  toggleModeDropdown() {
+    this.setData({ modeDropdownShow: !this.data.modeDropdownShow });
+  },
+
+  // [PRD-MODE-CAPSULE-V1 2026-05-31] 收起模式下拉面板（点当前模式 / 点面板外）
+  closeModeDropdown() {
+    this.setData({ modeDropdownShow: false });
+  },
+
+  // [PRD-MODE-CAPSULE-V1 2026-05-31] 切换到关怀模式：保存偏好 → 提示 → 跳转（沿用现有逻辑）
+  async switchToCareMode() {
+    if (this.data.modeSwitching) return;
+    this.setData({ modeSwitching: true, modeDropdownShow: false });
+    try {
+      await post('/api/user/mode-preference', { mode: 'care' }, { showLoading: false, suppressErrorToast: true });
+    } catch (e) {
+      // 静默：偏好保存失败不阻塞跳转
+      console.warn('[mode-capsule] 保存偏好失败', e);
+    }
+    try { wx.setStorageSync('app_mode_preference', 'care'); } catch (e) { /* ignore */ }
+    wx.showToast({ title: '已切换到关怀模式 ✓', icon: 'none', duration: 2000 });
+    wx.navigateTo({
+      url: '/pages/care-ai-home/index',
+      complete: () => this.setData({ modeSwitching: false })
+    });
+  },
+
+  // [PRD-MODE-CAPSULE-V1 2026-05-31] 🎁 邀请好友入口（保留在外面）
+  goInvite() {
+    if (!checkLogin()) return;
+    wx.navigateTo({ url: '/pages/invite/index' });
+  },
+
   openMoreMenu() {
     this.setData({ moreMenuShow: true });
   },

@@ -74,6 +74,112 @@
   line-height: 1;
 }
 
+/* [PRD-MODE-CAPSULE-V1 2026-05-31] 右上角控件容器：模式胶囊 + 🎁 + ⋯ */
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+/* 模式切换下拉胶囊（收起态） */
+.mode-capsule-wrap {
+  position: relative;
+}
+
+.mode-capsule {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 8rpx 18rpx;
+  background: #E3F2FD;
+  border-radius: 28rpx;
+}
+
+.mode-capsule-label {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #1976D2;
+  line-height: 1;
+}
+
+.mode-capsule-arrow {
+  font-size: 20rpx;
+  color: #1976D2;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+.mode-capsule-arrow-up {
+  transform: rotate(180deg);
+}
+
+/* 🎁 邀请好友按钮 */
+.invite-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64rpx;
+  height: 60rpx;
+}
+
+.invite-icon {
+  font-size: 36rpx;
+  line-height: 1;
+}
+
+/* 模式切换下拉面板（展开态） */
+.mode-dropdown-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent;
+  z-index: 998;
+}
+
+.mode-dropdown-panel {
+  position: absolute;
+  top: 80rpx;
+  right: 152rpx;
+  min-width: 220rpx;
+  background: #FFFFFF;
+  border: 1rpx solid #E5E7EB;
+  border-radius: 20rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  z-index: 999;
+}
+
+.mode-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22rpx 28rpx;
+  background: #FFFFFF;
+}
+
+.mode-dropdown-item-active {
+  background: #E3F2FD;
+}
+
+.mode-dropdown-text {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #374151;
+}
+
+.mode-dropdown-item-active .mode-dropdown-text {
+  color: #1976D2;
+  font-weight: 600;
+}
+
+.mode-dropdown-check {
+  font-size: 28rpx;
+  color: #1976D2;
+  font-weight: 600;
+}
+
 .more-menu-mask {
   position: fixed;
   top: 0;

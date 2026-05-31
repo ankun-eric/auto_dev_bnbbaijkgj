@@ -9,9 +9,37 @@
     <view class="page-title-wrap">
       <text class="page-title">AI健康咨询</text>
     </view>
-    <!-- [Bug 修复 v1.0 §3.1.3] 右上角「更多」菜单按钮 -->
-    <view class="more-btn" bindtap="openMoreMenu" data-testid="ai-home-more-btn">
-      <text class="more-icon">⋯</text>
+    <!-- [PRD-MODE-CAPSULE-V1 2026-05-31] 右上角控件：模式下拉胶囊 + 🎁 邀请 + ⋯ 更多 -->
+    <view class="topbar-actions">
+      <!-- 模式切换下拉胶囊（收起态仅显示「标准模式 ▾」） -->
+      <view class="mode-capsule-wrap" data-testid="ai-home-mode-switcher">
+        <view class="mode-capsule" bindtap="toggleModeDropdown" data-testid="ai-home-mode-capsule">
+          <text class="mode-capsule-label" data-testid="ai-home-mode-capsule-label">标准模式</text>
+          <text class="mode-capsule-arrow {{modeDropdownShow ? 'mode-capsule-arrow-up' : ''}}" data-testid="ai-home-mode-capsule-arrow">▾</text>
+        </view>
+      </view>
+      <!-- 🎁 邀请好友（保留在外面） -->
+      <view class="invite-btn" bindtap="goInvite" data-testid="ai-home-invite-btn">
+        <text class="invite-icon">🎁</text>
+      </view>
+      <!-- [Bug 修复 v1.0 §3.1.3] 右上角「更多」菜单按钮 -->
+      <view class="more-btn" bindtap="openMoreMenu" data-testid="ai-home-more-btn">
+        <text class="more-icon">⋯</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- [PRD-MODE-CAPSULE-V1 2026-05-31] 模式切换下拉面板（展开态） -->
+  <view class="mode-dropdown-mask" wx:if="{{modeDropdownShow}}" bindtap="closeModeDropdown"></view>
+  <view class="mode-dropdown-panel" wx:if="{{modeDropdownShow}}" data-testid="ai-home-mode-dropdown-panel">
+    <!-- 当前模式：标准模式（高亮 + 打勾，点击仅收起不切换） -->
+    <view class="mode-dropdown-item mode-dropdown-item-active" bindtap="closeModeDropdown" data-testid="ai-home-mode-option-standard">
+      <text class="mode-dropdown-text">标准模式</text>
+      <text class="mode-dropdown-check">✓</text>
+    </view>
+    <!-- 关怀模式（点击触发切换流程） -->
+    <view class="mode-dropdown-item" bindtap="switchToCareMode" data-testid="ai-home-mode-option-care">
+      <text class="mode-dropdown-text">关怀模式</text>
     </view>
   </view>
 

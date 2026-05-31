@@ -702,6 +702,11 @@ export default function AiHomePage() {
   const [consultantOpen, setConsultantOpen] = useState(false);
   const [quickActionOpen, setQuickActionOpen] = useState(false);
 
+  // [PRD-MODE-CAPSULE-V1 2026-05-31] AI 首页右上角「模式切换」下拉胶囊：展开/收起状态
+  const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
+  const [modeSwitching, setModeSwitching] = useState(false);
+  const modeDropdownRef = useRef<HTMLDivElement>(null);
+
   // [PRD-467 FR-02~FR-06] 字号设置：popover 开关 + 当前字号 + 锚点引用 + 300ms debounce 保存
   const [fontPopoverOpen, setFontPopoverOpen] = useState(false);
   const [fontSizeLevel, setFontSizeLevel] = useState<FontSizeLevel>('standard');
@@ -3671,6 +3676,44 @@ export default function AiHomePage() {
     };
   }, [fontPopoverOpen]);
 
+  // [PRD-MODE-CAPSULE-V1 2026-05-31] 模式切换下拉胶囊：面板外点击自动收起
+  useEffect(() => {
+    if (!modeDropdownOpen) return;
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (modeDropdownRef.current && !modeDropdownRef.current.contains(target)) {
+        setModeDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside as any);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside as any);
+    };
+  }, [modeDropdownOpen]);
+
+  // [PRD-MODE-CAPSULE-V1 2026-05-31] 切换到关怀模式（沿用现有逻辑：保存偏好→提示→跳转）
+  const handleSwitchToCareMode = useCallback(async () => {
+    if (modeSwitching) return;
+    setModeSwitching(true);
+    setModeDropdownOpen(false);
+    try {
+      const { saveModePreference } = await import('@/lib/mode-preference');
+      await saveModePreference('care');
+    } catch (e) {
+      // 静默：偏好保存失败不阻塞跳转
+      // eslint-disable-next-line no-console
+      console.warn('[mode-capsule] 保存偏好失败', e);
+    }
+    try {
+      showToast('已切换到关怀模式 ✓', { duration: 2000 } as any);
+    } catch {
+      try { (showToast as any)('已切换到关怀模式 ✓'); } catch { /* ignore */ }
+    }
+    router.push('/care-ai-home');
+  }, [modeSwitching, router]);
+
   // [PRD-467 状态机 7] 组件卸载时清理 debounce 定时器
   useEffect(() => {
     return () => {
@@ -4166,83 +4209,130 @@ export default function AiHomePage() {
               </span>
             </button>
 
-            {/* [BUG_FIX_CARE_MODE_ENTRY_H5_20260527] 关怀模式入口缺失修复
-                顶栏右上角：标准模式徽章 + 关怀模式切换按钮
+            {/* [PRD-MODE-CAPSULE-V1 2026-05-31] AI 首页右上角「模式切换」下拉胶囊（方案 A）
+                - 用一个下拉胶囊替代原「标准模式徽章 + 关怀模式按钮」两个独立控件
+                - 收起态：胶囊内仅显示「当前模式文字 + 下拉箭头 ▾」，整体可点
+                - 展开态：箭头翻转朝上 ▴，下方弹出面板，含「标准模式 / 关怀模式」两行
+                - 当前模式（标准）高亮并打勾 ✓；点当前模式或面板外仅收起、不切换
+                - 点关怀模式 → 沿用现有切换逻辑：保存偏好 → Toast → 跳 /care-ai-home
                 - 位置：邀请按钮(right:44, w:32)的左侧，整体 absolute 定位 right:80
-                - 视觉与关怀模式顶栏镜像对称：[浅蓝徽章「标准模式」] [绿色按钮「关怀模式」]
-                - 行为：保存偏好(本地+后端，失败不阻塞) → Toast 提示 → 跳 /care-ai-home
-                - 适老化：按钮 minHeight 32，点击热区 ≥44x44（外层 padding 撑开）
             */}
             <div
+              ref={modeDropdownRef}
               style={{
                 position: 'absolute',
                 right: 80,
                 top: '50%',
                 transform: 'translateY(-50%)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
               }}
-              data-testid="ai-home-care-mode-switcher"
+              data-testid="ai-home-mode-switcher"
             >
-              <span
-                style={{
-                  background: '#E3F2FD',
-                  color: '#1976D2',
-                  padding: '4px 10px',
-                  borderRadius: 12,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  lineHeight: 1,
-                  whiteSpace: 'nowrap',
-                }}
-                data-testid="ai-home-mode-badge-standard"
-              >
-                标准模式
-              </span>
               <button
                 type="button"
-                onClick={async () => {
-                  try {
-                    const { saveModePreference } = await import('@/lib/mode-preference');
-                    await saveModePreference('care');
-                  } catch (e) {
-                    // 静默：偏好保存失败不阻塞跳转
-                    // eslint-disable-next-line no-console
-                    console.warn('[care-mode-switcher] 保存偏好失败', e);
-                  }
-                  try {
-                    showToast('已切换到关怀模式 ✓', { duration: 2000 } as any);
-                  } catch {
-                    // 兼容旧 showToast 签名
-                    try { (showToast as any)('已切换到关怀模式 ✓'); } catch { /* ignore */ }
-                  }
-                  router.push('/care-ai-home');
-                }}
+                onClick={() => setModeDropdownOpen((v) => !v)}
+                disabled={modeSwitching}
                 style={{
-                  background: '#43A047',
-                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  background: '#E3F2FD',
+                  color: '#1976D2',
                   border: 'none',
-                  padding: '6px 12px',
-                  borderRadius: 16,
+                  padding: '5px 10px',
+                  borderRadius: 14,
                   fontSize: 13,
                   fontWeight: 600,
-                  cursor: 'pointer',
-                  minHeight: 32,
                   lineHeight: 1,
                   whiteSpace: 'nowrap',
+                  cursor: modeSwitching ? 'default' : 'pointer',
+                  minHeight: 28,
                 }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = '#388E3C';
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = '#43A047';
-                }}
-                aria-label="切换到关怀模式"
-                data-testid="ai-home-care-mode-btn"
+                aria-haspopup="listbox"
+                aria-expanded={modeDropdownOpen}
+                aria-label="模式切换"
+                data-testid="ai-home-mode-capsule"
               >
-                关怀模式
+                <span data-testid="ai-home-mode-capsule-label">标准模式</span>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    display: 'inline-block',
+                    fontSize: 10,
+                    lineHeight: 1,
+                    transform: modeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.15s ease',
+                  }}
+                  data-testid="ai-home-mode-capsule-arrow"
+                >
+                  ▾
+                </span>
               </button>
+
+              {modeDropdownOpen ? (
+                <div
+                  role="listbox"
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    right: 0,
+                    minWidth: 120,
+                    background: '#FFFFFF',
+                    borderRadius: 10,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                    border: '1px solid #E5E7EB',
+                    overflow: 'hidden',
+                    zIndex: 50,
+                  }}
+                  data-testid="ai-home-mode-dropdown-panel"
+                >
+                  {/* 标准模式（当前模式：高亮 + 打勾，点击仅收起不切换） */}
+                  <div
+                    role="option"
+                    aria-selected={true}
+                    onClick={() => setModeDropdownOpen(false)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                      padding: '10px 14px',
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: '#1976D2',
+                      background: '#E3F2FD',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                    data-testid="ai-home-mode-option-standard"
+                  >
+                    <span>标准模式</span>
+                    <span aria-hidden="true">✓</span>
+                  </div>
+                  {/* 关怀模式（点击触发切换流程） */}
+                  <div
+                    role="option"
+                    aria-selected={false}
+                    onClick={handleSwitchToCareMode}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                      padding: '10px 14px',
+                      fontSize: 14,
+                      fontWeight: 500,
+                      color: '#374151',
+                      background: '#FFFFFF',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                    data-testid="ai-home-mode-option-care"
+                  >
+                    <span>关怀模式</span>
+                    <span aria-hidden="true" style={{ width: 14 }} />
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             {/* [BUGFIX-AI-HOME-5ITEMS-V1 2026-05-26 Bug#3a] "⋯" 改为 "+加圆圈"（微信样式）
