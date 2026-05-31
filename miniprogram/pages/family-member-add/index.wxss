@@ -65,3 +65,15 @@ page { background: #F0F9FF; }
 .blocker-btn { flex: 1; height: 72rpx; line-height: 72rpx; border-radius: 36rpx; font-size: 28rpx; font-weight: 600; border: none; }
 .blocker-btn-ghost { background: #F1F5F9; color: #0F172A; }
 .blocker-btn-primary { background: linear-gradient(135deg, #38BDF8, #0284C7); color: #fff; }
+
+/* [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 成员已添加成功🎉 弹框 */
+.added-mask { position: fixed; inset: 0; background: rgba(15,23,42,0.55); display: flex; align-items: center; justify-content: center; z-index: 999; }
+.added-card { width: 80%; max-width: 620rpx; background: #fff; border-radius: 32rpx; padding: 40rpx 36rpx 36rpx; box-shadow: 0 24rpx 80rpx rgba(2,132,199,0.25); }
+.added-title { font-size: 34rpx; font-weight: 700; color: #0F172A; text-align: center; margin-bottom: 24rpx; }
+.added-body { padding: 24rpx 20rpx; background: #F0F9FF; border-radius: 20rpx; font-size: 26rpx; color: #0F172A; line-height: 1.6; margin-bottom: 32rpx; }
+.added-body-warn { background: #FFF7ED; }
+.added-num { color: #EA580C; font-weight: 700; }
+.added-btns { display: flex; gap: 20rpx; }
+.added-btn { flex: 1; height: 84rpx; line-height: 84rpx; border-radius: 42rpx; font-size: 28rpx; font-weight: 600; border: none; padding: 0; }
+.added-btn-ghost { background: #fff; color: #0EA5E9; border: 1rpx solid #0EA5E9; }
+.added-btn-primary { background: linear-gradient(135deg, #38BDF8, #0284C7); color: #fff; box-shadow: 0 8rpx 20rpx rgba(2,132,199,0.25); }

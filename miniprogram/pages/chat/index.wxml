@@ -497,6 +497,33 @@
     </view>
   </view>
 
+  <!-- [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 名额已满弹框 -->
+  <view class="quota-full-mask" wx:if="{{showQuotaFull}}" catchtap="onQuotaFullSkip"></view>
+  <view class="quota-full-card" wx:if="{{showQuotaFull}}" catchtap="">
+    <view class="quota-full-title">家庭成员名额已满</view>
+    <view class="quota-full-body">
+      当前最多可添加 <text class="quota-full-num">{{quotaFullMax}}</text> 位家庭成员，升级会员可解锁更多名额。
+    </view>
+    <view class="quota-full-btns">
+      <button class="quota-full-btn quota-full-btn-ghost" bindtap="onQuotaFullSkip">暂不升级</button>
+      <button class="quota-full-btn quota-full-btn-primary" bindtap="onQuotaFullUpgrade">去升级</button>
+    </view>
+  </view>
+
+  <!-- [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 成员已添加成功🎉弹框 -->
+  <view class="added-dialog-mask" wx:if="{{showAddedDialog}}" catchtap="onAddedDialogSkip"></view>
+  <view class="added-dialog-card" wx:if="{{showAddedDialog}}" catchtap="">
+    <view class="added-dialog-title">成员已添加成功🎉</view>
+    <view class="added-dialog-body">
+      {{addedNickname ? '「' + addedNickname + '」' : 'TA'}}已成功加入您的家庭健康档案。
+      要现在邀请 TA 来一起管理健康吗？发个二维码给 TA，扫一扫就能加入。
+    </view>
+    <view class="added-dialog-btns">
+      <button class="added-dialog-btn added-dialog-btn-ghost" bindtap="onAddedDialogSkip">暂不邀请</button>
+      <button class="added-dialog-btn added-dialog-btn-primary" bindtap="onAddedDialogInvite">去邀请 TA</button>
+    </view>
+  </view>
+
   <!-- [PRD-AI-HOME-OPTIM-V4 M2 · F-切人-03] 5 秒撤销横条 -->
   <view wx:if="{{v4SwitchUndoVisible}}" class="v4-switch-undo-bar">
     <text class="v4-switch-undo-text">{{v4SwitchUndoText}}</text>

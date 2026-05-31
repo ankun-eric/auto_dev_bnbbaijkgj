@@ -249,7 +249,7 @@ function FamilyInviteContent() {
           onClick={() => router.back()}
           style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff', fontSize: 18 }}
         >←</button>
-        <span style={{ flex: 1, fontSize: 17, fontWeight: 700, textAlign: 'center' }}>邀请 TA 成为被守护人</span>
+        <span style={{ flex: 1, fontSize: 17, fontWeight: 700, textAlign: 'center' }}>邀请 TA 加入我的健康守护</span>
         <span style={{ width: 36 }} />
       </div>
 
@@ -369,7 +369,7 @@ function FamilyInviteContent() {
                 background: `linear-gradient(135deg, ${THEME.gradientStart}, ${THEME.gradientEnd})`,
                 padding: '24px 20px 18px', textAlign: 'center', color: '#fff',
               }}>
-                <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 10 }}>邀请 TA 成为我守护的人</div>
+                <div style={{ fontSize: 19, fontWeight: 700, marginBottom: 10 }}>邀请 TA 加入我的健康守护</div>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
                   {[
                     { icon: '📋', text: '档案管理' },
@@ -405,7 +405,7 @@ function FamilyInviteContent() {
                 </div>
 
                 <div style={{ marginTop: 14, fontSize: 12, color: '#9CA3AF' }}>
-                  邀请有效期：24小时
+                  邀请 24 小时内有效
                 </div>
 
                 <div style={{
@@ -414,10 +414,12 @@ function FamilyInviteContent() {
                 }}>
                   {memberId && memberName
                     ? `🔗 将绑定到「${memberName}」的档案`
-                    : '➕ 对方确认后将为 TA 新建档案'}
+                    : '让 TA 扫码或打开链接，确认后就能加入啦'}
                 </div>
 
-                {/* Buttons */}
+                {/* [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 按钮配色：
+                    - 保存到本地 / 复制链接 = 实心主色蓝渐变
+                    - 转发微信好友 = 微信绿 #07c160 */}
                 <div style={{ marginTop: 18 }}>
                   <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
                     <button
@@ -432,8 +434,8 @@ function FamilyInviteContent() {
                       onClick={handleCopyLink}
                       style={{
                         flex: 1, padding: '12px 0', borderRadius: 22,
-                        background: '#fff', color: THEME.gradientStart,
-                        border: `1.5px solid ${THEME.gradientStart}`,
+                        background: `linear-gradient(135deg, ${THEME.gradientStart}, ${THEME.gradientEnd})`,
+                        color: '#fff', border: 'none',
                         fontSize: 14, fontWeight: 600, cursor: 'pointer',
                       }}
                     >复制链接</button>

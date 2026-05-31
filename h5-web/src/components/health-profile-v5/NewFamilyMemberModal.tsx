@@ -269,11 +269,9 @@ export default function NewFamilyMemberModal({ onClose, onSuccess }: Props) {
     onClose();
   };
 
-  const goInvite = () => {
-    // 跳转邀请共管页（复用现有）
-    onClose();
-    router.push('/family-invite');
-  };
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]
+  // 删除"添加成员"页内的独立"去邀请"横幅，保留唯一主线 "填信息 + 保存"。
+  // 邀请由保存成功后的弹框 + 二维码邀请页统一承载。
 
   if (showSelfBlocker) {
     return (
@@ -356,31 +354,7 @@ export default function NewFamilyMemberModal({ onClose, onSuccess }: Props) {
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px 16px' }}>
-        {/* 邀请横幅 */}
-        <div
-          onClick={goInvite}
-          style={{
-            background: `linear-gradient(135deg, ${T.primaryLight}, ${T.primaryDark})`,
-            borderRadius: 14, padding: '12px 14px',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            cursor: 'pointer', boxShadow: '0 4px 12px rgba(2,132,199,0.18)',
-            marginBottom: 14,
-          }}
-          data-testid="fm-v2-invite-banner"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ fontSize: 20 }}>💙</div>
-            <div>
-              <div style={{ color: '#fff', fontSize: 14, fontWeight: 700 }}>邀请 TA 成为我守护的人</div>
-            </div>
-          </div>
-          <div
-            style={{
-              background: '#fff', color: T.primaryDark,
-              fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 14,
-            }}
-          >去邀请</div>
-        </div>
+        {/* [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 移除"邀请横幅"区域。 */}
 
         {/* 错误顶部条 */}
         {ageInvalid && (

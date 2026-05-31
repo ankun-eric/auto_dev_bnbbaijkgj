@@ -148,10 +148,14 @@ class _FamilyInviteScreenState extends State<FamilyInviteScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 三端口径统一：
+    //   AppBar 标题 / 主标题 / 说明 / 有效期 / 三个 emoji 标签 / 按钮配色
     return Scaffold(
+      backgroundColor: const Color(0xFFF0F5FF),
       appBar: AppBar(
-        title: const Text('邀请关联'),
-        backgroundColor: const Color(0xFF52C41A),
+        title: const Text('邀请 TA 加入我的健康守护', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+        backgroundColor: const Color(0xFF0EA5E9),
+        foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, size: 20),
           onPressed: () => Navigator.pop(context),
@@ -185,99 +189,114 @@ class _FamilyInviteScreenState extends State<FamilyInviteScreen> {
 
   Widget _buildContent() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           _buildInviteCard(),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
           _buildActionButtons(),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF7E6),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFFFD591)),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.access_time, size: 18, color: Color(0xFFFA8C16)),
-                SizedBox(width: 8),
-                Text(
-                  '邀请有效期：24 小时',
-                  style: TextStyle(fontSize: 14, color: Color(0xFFFA8C16)),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          _buildBenefitsSection(),
         ],
       ),
     );
   }
 
   Widget _buildInviteCard() {
+    // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]
+    // 顶部蓝色渐变 + 三个 emoji 标签；二维码下方说明 + "邀请 24 小时内有效"
     return RepaintBoundary(
       key: _qrCardKey,
       child: GestureDetector(
         onLongPress: _saveToLocal,
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
+                color: const Color(0xFF0EA5E9).withOpacity(0.12),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
+          clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
+              // 顶部蓝色渐变区
               Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF52C41A).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF0EA5E9), Color(0xFF38BDF8)],
+                  ),
                 ),
-                child: const Icon(Icons.favorite, color: Color(0xFF52C41A), size: 28),
+                child: Column(
+                  children: [
+                    const Text(
+                      '邀请 TA 加入我的健康守护',
+                      style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: Colors.white),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: const [
+                        _InviteTag(text: '📋 档案管理'),
+                        _InviteTag(text: '💊 用药提醒'),
+                        _InviteTag(text: '🔔 异常提醒'),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                '邀请关联健康档案',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '邀请「${_invitation?.memberNickname ?? ''}」本人关联档案',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 24),
-              QrImageView(
-                data: _qrContentUrl,
-                version: QrVersions.auto,
-                size: 180,
-                gapless: false,
-                embeddedImage: null,
-                errorStateBuilder: (ctx, err) {
-                  return const Center(child: Text('二维码生成失败'));
-                },
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                '宾尼小康AI健康管家',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '长按二维码可保存到相册',
-                style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+              // 二维码与说明
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE0F2FE), width: 2),
+                      ),
+                      child: QrImageView(
+                        data: _qrContentUrl,
+                        version: QrVersions.auto,
+                        size: 180,
+                        gapless: false,
+                        embeddedImage: null,
+                        errorStateBuilder: (ctx, err) {
+                          return const Center(child: Text('二维码生成失败'));
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      '邀请 24 小时内有效',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F9FF),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text(
+                        '让 TA 扫码或打开链接，确认后就能加入啦',
+                        style: TextStyle(fontSize: 13, color: Color(0xFF0369A1)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -287,137 +306,78 @@ class _FamilyInviteScreenState extends State<FamilyInviteScreen> {
   }
 
   Widget _buildActionButtons() {
-    return Row(
+    // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]
+    // 保存到本地 / 复制链接 = 实心主色蓝；转发微信好友 = 微信绿
+    return Column(
       children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _saveToLocal,
-            icon: const Icon(Icons.save_alt, size: 18),
-            label: const Text('保存到本地'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF52C41A),
-              side: const BorderSide(color: Color(0xFF52C41A)),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _saveToLocal,
+                icon: const Icon(Icons.save_alt, size: 18, color: Colors.white),
+                label: const Text('保存到本地', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0284C7),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                  elevation: 4,
+                ),
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _copyLink,
-            icon: const Icon(Icons.copy, size: 18),
-            label: const Text('复制链接'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF52C41A),
-              side: const BorderSide(color: Color(0xFF52C41A)),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _copyLink,
+                icon: const Icon(Icons.copy, size: 18, color: Colors.white),
+                label: const Text('复制链接', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0284C7),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                  elevation: 4,
+                ),
+              ),
             ),
-          ),
+          ],
         ),
-        const SizedBox(width: 10),
-        Expanded(
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
           child: ElevatedButton.icon(
             onPressed: _shareInvitation,
-            icon: const Icon(Icons.share, size: 18),
-            label: const Text('分享'),
+            icon: const Icon(Icons.share, size: 18, color: Colors.white),
+            label: const Text('转发微信好友', style: TextStyle(color: Colors.white)),
             style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              backgroundColor: const Color(0xFF07C160),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+              elevation: 4,
             ),
           ),
         ),
       ],
     );
   }
+}
 
-  Widget _buildBenefitsSection() {
-    const benefits = [
-      {
-        'icon': Icons.bar_chart,
-        'title': '数据共享',
-        'desc': '家人健康档案共同维护，随时掌握彼此健康状况',
-        'color': Color(0xFF1890FF),
-      },
-      {
-        'icon': Icons.notifications_active,
-        'title': '异常提醒',
-        'desc': '健康数据异常时实时通知，第一时间关注家人健康',
-        'color': Color(0xFFFA8C16),
-      },
-      {
-        'icon': Icons.medication,
-        'title': '用药提醒',
-        'desc': '远程监督用药情况，确保家人按时服药不遗漏',
-        'color': Color(0xFF52C41A),
-      },
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '关联好处',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
-        ),
-        const SizedBox(height: 12),
-        ...benefits.map((b) => _buildBenefitCard(
-              icon: b['icon'] as IconData,
-              title: b['title'] as String,
-              desc: b['desc'] as String,
-              color: b['color'] as Color,
-            )),
-      ],
-    );
-  }
-
-  Widget _buildBenefitCard({
-    required IconData icon,
-    required String title,
-    required String desc,
-    required Color color,
-  }) {
+class _InviteTag extends StatelessWidget {
+  final String text;
+  const _InviteTag({required this.text});
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.15)),
+        color: Colors.white.withOpacity(0.22),
+        borderRadius: BorderRadius.circular(14),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF333333),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  desc,
-                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-        ],
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white),
       ),
     );
   }

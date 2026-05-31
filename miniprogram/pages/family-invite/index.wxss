@@ -1,6 +1,6 @@
 .invite-page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #F0F5FF;
   padding: 40rpx 32rpx;
   box-sizing: border-box;
 }
@@ -78,40 +78,63 @@
   width: 100%;
   background: #fff;
   border-radius: 24rpx;
-  padding: 48rpx 40rpx;
-  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  box-shadow: 0 8rpx 32rpx rgba(14,165,233,0.12);
+}
+
+/* [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 标题区改为蓝色渐变 + 三个 emoji 标签 */
+.invite-header-grad {
+  text-align: center;
+  padding: 48rpx 32rpx 36rpx;
+  background: linear-gradient(135deg, #0EA5E9, #38BDF8);
+  color: #fff;
 }
 
 .invite-header {
   text-align: center;
-  margin-bottom: 40rpx;
+  margin-bottom: 0;
 }
 
 .invite-title {
   display: block;
-  font-size: 34rpx;
+  font-size: 36rpx;
   font-weight: bold;
-  color: #333;
-  margin-bottom: 12rpx;
+  color: #fff;
+  margin-bottom: 20rpx;
+}
+
+.invite-tags {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.invite-tag {
+  background: rgba(255,255,255,0.22);
+  color: #fff;
+  font-size: 22rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 24rpx;
 }
 
 .invite-subtitle {
   display: block;
   font-size: 24rpx;
-  color: #999;
+  color: rgba(255,255,255,0.85);
 }
 
 .qr-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 40rpx;
+  padding: 40rpx 32rpx 32rpx;
 }
 
 .qr-image {
   width: 360rpx;
   height: 360rpx;
-  border: 2rpx solid #f0f0f0;
+  border: 4rpx solid #E0F2FE;
   border-radius: 16rpx;
 }
 
@@ -119,8 +142,28 @@
   display: block;
   margin-top: 16rpx;
   font-size: 26rpx;
-  color: #52c41a;
+  color: #0284C7;
   font-weight: 500;
+  text-align: center;
+}
+
+/* [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 二维码下方说明 + 有效期 */
+.qr-tip {
+  display: block;
+  margin-top: 16rpx;
+  padding: 12rpx 20rpx;
+  background: #F0F9FF;
+  color: #0369A1;
+  font-size: 24rpx;
+  border-radius: 16rpx;
+  text-align: center;
+}
+
+.qr-expire {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 22rpx;
+  color: #94A3B8;
   text-align: center;
 }
 
@@ -186,16 +229,24 @@
   margin-bottom: 8rpx;
 }
 
+/* [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 按钮配色：
+   保存到本地 / 复制链接 = 实心蓝；转发微信好友 = 微信绿 */
 .action-save {
-  color: #52c41a;
+  color: #fff !important;
+  background: linear-gradient(135deg, #38BDF8, #0284C7) !important;
+  box-shadow: 0 6rpx 18rpx rgba(2,132,199,0.25);
 }
 
 .action-copy {
-  color: #1890ff;
+  color: #fff !important;
+  background: linear-gradient(135deg, #38BDF8, #0284C7) !important;
+  box-shadow: 0 6rpx 18rpx rgba(2,132,199,0.25);
 }
 
 .action-share {
-  color: #722ed1;
+  color: #fff !important;
+  background: #07c160 !important;
+  box-shadow: 0 6rpx 18rpx rgba(7,193,96,0.25);
 }
 
 /* Benefits section */

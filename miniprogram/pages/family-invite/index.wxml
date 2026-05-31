@@ -12,12 +12,17 @@
     <button class="retry-btn" bindtap="retry">重新生成</button>
   </view>
 
-  <!-- Invitation card -->
+  <!-- [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 三端口径统一：
+       标题 / 说明 / 有效期 / 三个 emoji 标签 / 按钮配色 -->
   <view class="invite-content" wx:elif="{{invitation}}">
     <view class="invite-card">
-      <view class="invite-header">
-        <text class="invite-title">家庭健康档案守护邀请</text>
-        <text class="invite-subtitle">扫码或点击链接接受邀请</text>
+      <view class="invite-header invite-header-grad">
+        <text class="invite-title">邀请 TA 加入我的健康守护</text>
+        <view class="invite-tags">
+          <text class="invite-tag">📋 档案管理</text>
+          <text class="invite-tag">💊 用药提醒</text>
+          <text class="invite-tag">🔔 异常提醒</text>
+        </view>
       </view>
 
       <view class="qr-wrap" wx:if="{{invitation.qr_content_url || invitation.qr_url}}">
@@ -28,17 +33,8 @@
           bind:ready="onQRReady"
         />
         <text class="qr-brand-name">宾尼小康AI健康管家</text>
-      </view>
-
-      <view class="invite-info">
-        <view class="info-row">
-          <text class="info-label">邀请码</text>
-          <text class="info-value">{{invitation.invite_code}}</text>
-        </view>
-        <view class="info-row" wx:if="{{invitation.expires_at}}">
-          <text class="info-label">有效期至</text>
-          <text class="info-value">{{invitation.expires_at}}</text>
-        </view>
+        <text class="qr-tip">让 TA 扫码或打开链接，确认后就能加入啦</text>
+        <text class="qr-expire">邀请 24 小时内有效</text>
       </view>
     </view>
 
@@ -53,38 +49,8 @@
       </button>
       <button class="action-btn action-share" open-type="share">
         <text class="action-btn-icon">💬</text>
-        <text>分享好友</text>
+        <text>转发微信好友</text>
       </button>
-    </view>
-
-    <view class="benefits-section">
-      <view class="benefit-card">
-        <view class="benefit-icon-wrap">
-          <text class="benefit-icon">📊</text>
-        </view>
-        <view class="benefit-text">
-          <text class="benefit-title">数据共享</text>
-          <text class="benefit-desc">家人健康档案共同维护，随时掌握彼此健康状况</text>
-        </view>
-      </view>
-      <view class="benefit-card">
-        <view class="benefit-icon-wrap">
-          <text class="benefit-icon">🔔</text>
-        </view>
-        <view class="benefit-text">
-          <text class="benefit-title">异常提醒</text>
-          <text class="benefit-desc">健康数据异常时实时通知，第一时间关注家人健康</text>
-        </view>
-      </view>
-      <view class="benefit-card">
-        <view class="benefit-icon-wrap">
-          <text class="benefit-icon">💊</text>
-        </view>
-        <view class="benefit-text">
-          <text class="benefit-title">用药提醒</text>
-          <text class="benefit-desc">远程监督用药情况，确保家人按时服药不遗漏</text>
-        </view>
-      </view>
     </view>
   </view>
 </view>

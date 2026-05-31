@@ -135,6 +135,13 @@ Page({
     addLoading: false,
     canSaveMember: false,
     todayStr: '',
+    // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]
+    // 名额已满弹框 + 成员已添加成功🎉弹框
+    showQuotaFull: false,
+    quotaFullMax: 0,
+    showAddedDialog: false,
+    addedNickname: '',
+    addedMemberId: '',
     medicalOptions: ['高血压', '糖尿病', '心脏病', '哮喘', '甲状腺疾病', '肝病', '肾病', '痛风'],
     allergyOptions: ['青霉素', '花粉', '海鲜', '牛奶', '尘螨', '坚果', '磺胺类', '头孢类'],
 
@@ -2205,8 +2212,28 @@ Page({
 
   // ============================================================
   // [PRD-420 2026-05-08] 添加家庭成员（关系九宫格 + 信息表单）
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]
+  //   点"+ 新建家庭成员"时先查配额：满了直接弹"名额已满"框，不打开添加表单；
+  //   quota_max 实时来自后端 /api/family/member/quota，绝不写死
   // ============================================================
   async openAddMemberPopup() {
+    // 先查配额
+    try {
+      const r = await get('/api/family/member/quota', {}, { showLoading: false, suppressErrorToast: true });
+      const data = (r && (r.data || r)) || {};
+      const qMax = Number(data.quota_max == null ? 0 : data.quota_max);
+      const qRemaining = Number(data.quota_remaining == null ? 0 : data.quota_remaining);
+      if (qMax !== -1 && qRemaining <= 0) {
+        this.setData({
+          showTargetPicker: false,
+          showQuotaFull: true,
+          quotaFullMax: qMax,
+        });
+        return;
+      }
+    } catch (e) {
+      // 接口异常时降级：放行让用户进入表单（与原行为一致）
+    }
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     this.setData({
@@ -2228,6 +2255,42 @@ Page({
       canSaveMember: false
     });
     await this._loadRelationTypes();
+  },
+
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 名额已满弹框 - 暂不升级
+  onQuotaFullSkip() {
+    this.setData({ showQuotaFull: false });
+  },
+
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 名额已满弹框 - 去升级
+  onQuotaFullUpgrade() {
+    this.setData({ showQuotaFull: false });
+    wx.navigateTo({
+      url: '/pages/member-center/index',
+      fail() {
+        wx.showToast({ title: '会员中心未配置', icon: 'none' });
+      },
+    });
+  },
+
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 成员已添加成功🎉弹框 - 暂不邀请
+  onAddedDialogSkip() {
+    this.setData({ showAddedDialog: false, addedNickname: '', addedMemberId: '' });
+  },
+
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 成员已添加成功🎉弹框 - 去邀请 TA
+  onAddedDialogInvite() {
+    const mid = this.data.addedMemberId;
+    const url = mid
+      ? `/pages/family-invite/index?member_id=${mid}`
+      : '/pages/family-invite/index';
+    this.setData({ showAddedDialog: false, addedNickname: '', addedMemberId: '' });
+    wx.navigateTo({
+      url: url,
+      fail() {
+        wx.showToast({ title: '邀请页未配置', icon: 'none' });
+      },
+    });
   },
 
   closeAddMemberPopup() {
@@ -2389,15 +2452,24 @@ Page({
     if (aller.length) body.allergies = aller;
 
     try {
-      await post('/api/family/members', body, { showLoading: false });
-      wx.showToast({ title: '添加成功', icon: 'success' });
+      const r = await post('/api/family/members', body, { showLoading: false });
       // 刷新列表 + 自动选中新成员
       await this.loadFamilyMembers();
+      // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]
+      // 保存成功后弹"成员已添加成功🎉"框（可跳过 / 去邀请 TA）
+      let newMemberId = '';
+      try {
+        const rd = (r && (r.data || r)) || {};
+        newMemberId = rd.id || rd.member_id || (rd.data && (rd.data.id || rd.data.member_id)) || '';
+      } catch (_) {}
       this.setData({
         showAddMember: false,
         selectedRelation: null,
         addLoading: false,
-        consultTarget: { name: rel.name, color: getRelationColor(rel.name) }
+        consultTarget: { name: rel.name, color: getRelationColor(rel.name) },
+        showAddedDialog: true,
+        addedNickname: nickname,
+        addedMemberId: newMemberId,
       });
     } catch (e) {
       this.setData({ addLoading: false });

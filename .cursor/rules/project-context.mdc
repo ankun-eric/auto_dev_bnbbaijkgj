@@ -5,7 +5,44 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-31 · 功能开发 / 血压详情页优化（含血糖同步））
+## 最近一次变更（2026-05-31 · 功能开发 / 新增家庭成员优化（最终版））
+
+**任务标识**：`[PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]`
+
+**需求**：把"添加家庭成员"全流程理顺，三端（H5 + 小程序 + App）口径统一：
+1) 删除"添加成员"页里独立的"去邀请"蓝色横幅，只保留「填信息 + 保存」一条主线；
+2) 点"新增咨询人 / 添加成员"先调 `GET /api/family/member/quota` 查配额，满了直接弹「家庭成员名额已满」框（X = `quota_max` 实时取，绝不写死，按钮 [暂不升级][去升级]），不打开表单；没满才打开；
+3) 保存成功后弹「成员已添加成功🎉」框（[暂不邀请][去邀请 TA]），点"去邀请 TA"进二维码邀请页 `/family-invite`；
+4) 二维码邀请页改文案：标题「邀请 TA 加入我的健康守护」、二维码下方「让 TA 扫码或打开链接，确认后就能加入啦」、有效期「邀请 24 小时内有效」；保留三 emoji 标签 (📋档案管理 / 💊用药提醒 / 🔔异常提醒)；按钮配色：保存到本地 / 复制链接 = 实心主色蓝渐变 (`#0EA5E9 → #38BDF8`)，转发微信好友 = 微信绿 (`#07c160`)。
+5) 会员页本次不动。
+
+**改动（H5 + 小程序 + App + 后端测试，后端业务接口零改动）**：
+- **H5**：
+  - `h5-web/src/components/health-profile-v5/NewFamilyMemberModal.tsx`：删"邀请横幅"块及 `goInvite` 函数。
+  - `h5-web/src/components/ai-chat/ConsultTargetPicker.tsx`：新增 `handleClickAdd` 入口前置查 `/api/family/member/quota`，加 `quotaFull / quotaMax` 状态与「名额已满」Popup；保存成功改弹「成员已添加成功🎉」二选 Popup；「去邀请 TA」直跳 `/family-invite`。
+  - `h5-web/src/app/family-invite/page.tsx`：AppBar 与卡片头标题统一改为「邀请 TA 加入我的健康守护」；有效期改「邀请 24 小时内有效」；二维码描述改「让 TA 扫码或打开链接，确认后就能加入啦」；保存到本地 / 复制链接按钮统一为主色蓝渐变，转发微信好友保留 `#07c160`。
+- **小程序**：
+  - `pages/family-member-add/{index.wxml,js,wxss}`：删"邀请横幅"，新增「成员已添加成功🎉」与「家庭成员名额已满」两个弹框 + 样式；`onLoad` 前置查配额，`onSubmit` 保存成功取 `member_id` 并弹后引导，跳 `pages/family-invite/index?member_id=`。
+  - `pages/chat/{index.wxml,js,wxss}`：`openAddMemberPopup` 同样前置查配额，新增两弹框与样式，`onSaveNewMember` 取 `member_id` 后引导。
+  - `pages/family-invite/{index.wxml,wxss}`：复用现有页面，重做顶部渐变 + 新标题 + 三 emoji 标签 + 新二维码描述 + 有效期文案；按钮配色统一（蓝渐变 + 微信绿）。
+- **App（Flutter）**：
+  - `flutter_app/lib/screens/ai/chat_screen.dart`：「新建家庭成员」入口改走 `_checkQuotaThenAddMember()`，先调配额接口；满则弹 AlertDialog「家庭成员名额已满」，按钮 [暂不升级][去升级]，「去升级」跳 `/member-center`。
+  - `flutter_app/lib/screens/family/family_invite_screen.dart`：AppBar 标题与渐变背景统一为「邀请 TA 加入我的健康守护」；`_buildInviteCard` 新增三 `_InviteTag`（📋/💊/🔔）；二维码下方文案与有效期同步；`_buildActionButtons` 三按钮统一为 `ElevatedButton.icon`，保存到本地 / 复制链接 = 实心蓝，分享 = 微信绿。
+- **后端测试 `backend/tests/test_family_member_optim_final_20260531.py`（新增）**：3 用例验证 `/api/family/member/quota` 返回 `quota_max / quota_used / quota_remaining` 字段且类型/语义自洽；后端业务接口零改动。容器内 pytest 3 passed。
+
+**接口复用**：完全沿用既有 `GET /api/family/member/quota`（`backend/app/api/family_member_v2.py`）与 `POST /api/family/invitation`（`backend/app/api/family_management.py`，支持有/无 `member_id` 两种入参形态），无新增后端代码。
+
+**部署**：13 个改动文件 SCP 同步到 `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`；新增的后端测试 `docker cp` 进 backend 容器执行（`pytest tests/test_family_member_optim_final_20260531.py -v` → 3 passed）；H5 容器 `docker compose build h5-web && up -d h5-web` 重建上线。外部 HTTPS 验证：`/` 200、`/ai` 200、`/family-invite` 200；构建产物 `/.next/server/app/family-invite/page.js` 内含「邀请 TA 加入我的健康守护」「邀请 24 小时内有效」「让 TA 扫码或打开链接，确认后就能加入啦」「#07c160」全部到位；`GET /api/family/member/quota` 未鉴权返回 `{"detail":"未登录"}`（路由在线）。
+
+**变更端清单**：H5（Docker 容器部署）+ 小程序（源码改动，需用户在微信开发者工具内重新预览/上传）+ Flutter App（源码改动，需重新打包 APK/IPA 才能下发到端）；后端业务接口未改，无需重启 backend 容器。
+
+**用户手册**：`user_docs/新增家庭成员优化.md`
+
+**唯一变更标记**：`[PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]`
+
+---
+
+## 历史变更（2026-05-31 · 功能开发 / 血压详情页优化（含血糖同步））
 
 **任务标识**：`[PRD-BP-DETAIL-OPTIMIZE-V1 2026-05-31]`
 

@@ -71,6 +71,13 @@ export default function ConsultTargetPicker({
     visible: boolean;
     nickname: string;
   }>({ visible: false, nickname: '' });
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 名额已满弹框
+  // 数字 quotaMax 直接来自后端 /api/family/member/quota 返回，绝不写死
+  const [quotaFull, setQuotaFull] = useState<{ visible: boolean; quotaMax: number }>({
+    visible: false,
+    quotaMax: 0,
+  });
+  const [quotaChecking, setQuotaChecking] = useState(false);
 
   const fetchMembers = async () => {
     setLoading(true);
@@ -122,21 +129,55 @@ export default function ConsultTargetPicker({
     } catch {
       await fetchMembers();
     }
-    showToast('添加成功');
-    // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 验收 8.1#7]
-    // 新建档案后立即弹「立即去邀请」抽屉
+    // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]
+    // 保存成功 → 弹"成员已添加成功🎉"框（可跳过 / 去邀请 TA）
     setInviteChoice({ visible: true, nickname: newMemberNickname });
   };
 
   const handleInviteNow = () => {
     setInviteChoice({ visible: false, nickname: '' });
     onClose();
-    // 跳转到档案列表，由 archive-list 统一处理邀请发起
-    router.push('/health-profile/archive-list');
+    // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 直接跳到二维码邀请页
+    router.push('/family-invite');
   };
 
   const handleInviteSkip = () => {
     setInviteChoice({ visible: false, nickname: '' });
+  };
+
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]
+  // 点"+ 新增咨询人"时先查配额：满了直接弹"名额已满"框，不打开添加表单。
+  // quota_max 实时来自后端，绝不写死。
+  const handleClickAdd = async () => {
+    if (quotaChecking) return;
+    setQuotaChecking(true);
+    try {
+      const res: any = await api.get('/api/family/member/quota');
+      const data: any = res?.data || res;
+      const qMax = Number(data?.quota_max ?? 0);
+      const qRemaining = Number(data?.quota_remaining ?? 0);
+      // -1 表示不限；剩余 > 0 即可继续
+      if (qMax !== -1 && qRemaining <= 0) {
+        setQuotaFull({ visible: true, quotaMax: qMax });
+        return;
+      }
+      setShowAdd(true);
+    } catch {
+      // 接口异常时降级：放行让用户进入表单（与原行为一致）
+      setShowAdd(true);
+    } finally {
+      setQuotaChecking(false);
+    }
+  };
+
+  const handleQuotaSkip = () => {
+    setQuotaFull({ visible: false, quotaMax: 0 });
+  };
+
+  const handleQuotaUpgrade = () => {
+    setQuotaFull({ visible: false, quotaMax: 0 });
+    onClose();
+    router.push('/member-center');
   };
 
   if (showAdd) {
@@ -346,7 +387,8 @@ export default function ConsultTargetPicker({
             })}
 
             <button
-              onClick={() => setShowAdd(true)}
+              onClick={handleClickAdd}
+              disabled={quotaChecking}
               data-testid="consult-target-add"
               style={{
                 width: '100%',
@@ -368,8 +410,8 @@ export default function ConsultTargetPicker({
         )}
       </div>
 
-      {/* [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 验收 8.1#7]
-          新建咨询人成功 → 立即去邀请抽屉 */}
+      {/* [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]
+          保存成功后弹"成员已添加成功🎉"框（可跳过） */}
       <Popup
         visible={inviteChoice.visible}
         onMaskClick={handleInviteSkip}
@@ -378,7 +420,7 @@ export default function ConsultTargetPicker({
       >
         <div data-testid="consult-invite-now-drawer" style={{ padding: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div style={{ fontSize: 17, fontWeight: 700, color: '#0F172A' }}>立即去邀请？</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: '#0F172A' }}>成员已添加成功🎉</div>
             <button onClick={handleInviteSkip} style={{ background: 'none', border: 'none', fontSize: 20, color: '#94A3B8', cursor: 'pointer' }}>×</button>
           </div>
           <div style={{
@@ -390,11 +432,9 @@ export default function ConsultTargetPicker({
             color: '#0F172A',
             lineHeight: 1.6,
           }}>
-            档案{inviteChoice.nickname ? `「${inviteChoice.nickname}」` : ''}已创建成功。
+            {inviteChoice.nickname ? `「${inviteChoice.nickname}」` : 'TA'}已成功加入您的家庭健康档案。
             <br />
-            是否立即去档案列表邀请 TA 接受守护？
-            <br />
-            （您也可以稍后在档案列表中重新邀请）
+            要现在邀请 TA 来一起管理健康吗？发个二维码给 TA，扫一扫就能加入。
           </div>
           <button
             onClick={handleInviteNow}
@@ -402,17 +442,17 @@ export default function ConsultTargetPicker({
             style={{
               width: '100%',
               padding: '12px 14px',
-              borderRadius: 18,
-              background: '#FFB800',
+              borderRadius: 22,
+              background: 'linear-gradient(135deg, #38BDF8, #0284C7)',
               color: '#fff',
-              fontSize: 14,
-              fontWeight: 600,
+              fontSize: 15,
+              fontWeight: 700,
               border: 'none',
               cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(255,184,0,0.3)',
+              boxShadow: '0 4px 12px rgba(2,132,199,0.25)',
             }}
           >
-            立即去邀请
+            去邀请 TA
           </button>
           <button
             onClick={handleInviteSkip}
@@ -421,7 +461,7 @@ export default function ConsultTargetPicker({
               width: '100%',
               marginTop: 10,
               padding: '10px 14px',
-              borderRadius: 12,
+              borderRadius: 22,
               background: '#FFFFFF',
               color: '#0EA5E9',
               fontSize: 14,
@@ -430,6 +470,68 @@ export default function ConsultTargetPicker({
             }}
           >
             暂不邀请
+          </button>
+        </div>
+      </Popup>
+
+      {/* [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 名额已满弹框
+          quotaMax 直接来自后端 /api/family/member/quota 的 quota_max 字段，绝不写死 */}
+      <Popup
+        visible={quotaFull.visible}
+        onMaskClick={handleQuotaSkip}
+        position="bottom"
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, minHeight: '28vh' }}
+      >
+        <div data-testid="consult-quota-full-drawer" style={{ padding: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 17, fontWeight: 700, color: '#0F172A' }}>家庭成员名额已满</div>
+            <button onClick={handleQuotaSkip} style={{ background: 'none', border: 'none', fontSize: 20, color: '#94A3B8', cursor: 'pointer' }}>×</button>
+          </div>
+          <div style={{
+            padding: '20px 16px',
+            background: '#FFF7ED',
+            borderRadius: 12,
+            marginBottom: 20,
+            fontSize: 14,
+            color: '#0F172A',
+            lineHeight: 1.6,
+          }} data-testid="consult-quota-full-text">
+            当前最多可添加 <span style={{ color: '#EA580C', fontWeight: 700 }} data-testid="consult-quota-max-num">{quotaFull.quotaMax}</span> 位家庭成员，升级会员可解锁更多名额。
+          </div>
+          <button
+            onClick={handleQuotaUpgrade}
+            data-testid="consult-quota-upgrade-btn"
+            style={{
+              width: '100%',
+              padding: '12px 14px',
+              borderRadius: 22,
+              background: 'linear-gradient(135deg, #38BDF8, #0284C7)',
+              color: '#fff',
+              fontSize: 15,
+              fontWeight: 700,
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(2,132,199,0.25)',
+            }}
+          >
+            去升级
+          </button>
+          <button
+            onClick={handleQuotaSkip}
+            data-testid="consult-quota-skip-btn"
+            style={{
+              width: '100%',
+              marginTop: 10,
+              padding: '10px 14px',
+              borderRadius: 22,
+              background: '#FFFFFF',
+              color: '#0EA5E9',
+              fontSize: 14,
+              border: '1px solid #0EA5E9',
+              cursor: 'pointer',
+            }}
+          >
+            暂不升级
           </button>
         </div>
       </Popup>

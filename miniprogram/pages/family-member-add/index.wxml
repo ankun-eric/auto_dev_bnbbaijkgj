@@ -1,17 +1,7 @@
 <!-- [PRD-FAMILY-MEMBER-V2 2026-05-18] 添加家庭成员 -->
+<!-- [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 删除独立的"去邀请"横幅，
+     保留唯一主线 "填信息 + 保存"。邀请由保存成功后的弹框 + 二维码邀请页统一承载。 -->
 <view class="page" wx:if="{{!showSelfBlocker}}">
-  <!-- 邀请横幅 -->
-  <view class="invite-banner" bindtap="goInvite">
-    <view class="banner-left">
-      <text class="banner-icon">💙</text>
-      <view>
-        <view class="banner-title">邀请家人加入健康守护计划</view>
-        <view class="banner-sub">共同管理家庭健康档案</view>
-      </view>
-    </view>
-    <view class="banner-btn">去邀请</view>
-  </view>
-
   <!-- 错误顶部条 -->
   <view class="error-banner" wx:if="{{ageInvalid}}">⚠️ 关系与出生日期不符，请检查后重新填写</view>
 
@@ -135,6 +125,35 @@
     <view class="blocker-btns">
       <button class="blocker-btn blocker-btn-ghost" bindtap="cancelBlocker">取消</button>
       <button class="blocker-btn blocker-btn-primary" bindtap="goCompleteSelfProfile">去完善</button>
+    </view>
+  </view>
+</view>
+
+<!-- [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 名额已满弹框 -->
+<view class="added-mask" wx:if="{{showQuotaFull}}">
+  <view class="added-card">
+    <view class="added-title">家庭成员名额已满</view>
+    <view class="added-body added-body-warn">
+      当前最多可添加 <text class="added-num">{{quotaFullMax}}</text> 位家庭成员，升级会员可解锁更多名额。
+    </view>
+    <view class="added-btns">
+      <button class="added-btn added-btn-ghost" bindtap="onQuotaFullSkip">暂不升级</button>
+      <button class="added-btn added-btn-primary" bindtap="onQuotaFullUpgrade">去升级</button>
+    </view>
+  </view>
+</view>
+
+<!-- [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 保存成功后弹"成员已添加成功🎉"框 -->
+<view class="added-mask" wx:if="{{showAddedDialog}}">
+  <view class="added-card">
+    <view class="added-title">成员已添加成功🎉</view>
+    <view class="added-body">
+      {{addedNickname ? '「' + addedNickname + '」' : 'TA'}}已成功加入您的家庭健康档案。
+      要现在邀请 TA 来一起管理健康吗？发个二维码给 TA，扫一扫就能加入。
+    </view>
+    <view class="added-btns">
+      <button class="added-btn added-btn-ghost" bindtap="onInviteSkip">暂不邀请</button>
+      <button class="added-btn added-btn-primary" bindtap="onInviteNow">去邀请 TA</button>
     </view>
   </view>
 </view>

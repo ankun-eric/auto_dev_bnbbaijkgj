@@ -2793,6 +2793,8 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               const SizedBox(height: 16),
               // [PRD-420 F2] 新建家庭成员入口（与 H5/小程序对齐）：跳转到健康档案页面新增成员
+              // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 点击时先查配额：
+              //   满了直接弹"名额已满"框，不进入新增流程；quota_max 来自后端，绝不写死
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(top: 4),
@@ -2805,10 +2807,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 child: GestureDetector(
                   onTap: () async {
                     Navigator.pop(ctx);
-                    // 跳转到健康档案页面（含成员列表与新增入口）
-                    await Navigator.pushNamed(context, '/health-profile');
-                    // 返回后刷新列表，确保新增的成员立即出现在选择器里
-                    await _loadFamilyMembers();
+                    await _checkQuotaThenAddMember();
                   },
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -2826,6 +2825,83 @@ class _ChatScreenState extends State<ChatScreen> {
         );
       },
     );
+  }
+
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]
+  // 点"+ 新建家庭成员"前先查配额：
+  //   - 满了：弹"名额已满"对话框（暂不升级 / 去升级）
+  //   - 没满：跳到健康档案页面新增成员（沿用原行为）
+  // quota_max 实时来自后端 /api/family/member/quota，绝不写死
+  Future<void> _checkQuotaThenAddMember() async {
+    int quotaMax = 0;
+    int quotaRemaining = 0;
+    bool quotaOk = false;
+    try {
+      final resp = await _apiService.dio.get('/api/family/member/quota');
+      if (resp.statusCode == 200 && resp.data is Map) {
+        final m = resp.data as Map;
+        quotaMax = (m['quota_max'] is int) ? (m['quota_max'] as int) : int.tryParse('${m['quota_max']}') ?? 0;
+        quotaRemaining = (m['quota_remaining'] is int) ? (m['quota_remaining'] as int) : int.tryParse('${m['quota_remaining']}') ?? 0;
+        quotaOk = true;
+      }
+    } catch (_) {
+      // 接口异常时降级：放行让用户进入新增流程
+      quotaOk = false;
+    }
+    if (quotaOk && quotaMax != -1 && quotaRemaining <= 0) {
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: true,
+        builder: (dctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('家庭成员名额已满', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          content: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF7ED),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 14, color: Color(0xFF0F172A), height: 1.6),
+                children: [
+                  const TextSpan(text: '当前最多可添加 '),
+                  TextSpan(
+                    text: '$quotaMax',
+                    style: const TextStyle(color: Color(0xFFEA580C), fontWeight: FontWeight.w700),
+                  ),
+                  const TextSpan(text: ' 位家庭成员，升级会员可解锁更多名额。'),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dctx),
+              child: const Text('暂不升级', style: TextStyle(color: Color(0xFF0EA5E9))),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dctx);
+                Navigator.pushNamed(context, '/member-center');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0284C7),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+              child: const Text('去升级'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    // 没满 → 跳到健康档案页面（含成员列表与新增入口）
+    if (!mounted) return;
+    await Navigator.pushNamed(context, '/health-profile');
+    await _loadFamilyMembers();
   }
 
   Widget _buildInputBar() {

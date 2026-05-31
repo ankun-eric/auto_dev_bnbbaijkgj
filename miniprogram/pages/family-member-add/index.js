@@ -88,12 +88,34 @@ Page({
     ageInvalid: false,
     submitting: false,
     currentDate: '',
+    // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]
+    // 保存成功后弹"成员已添加成功🎉"框（可跳过）
+    showAddedDialog: false,
+    addedNickname: '',
+    addedMemberId: '',
+    // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 名额已满弹框（quota_max 来自后端，绝不写死）
+    showQuotaFull: false,
+    quotaFullMax: 0,
   },
 
   async onLoad() {
     const today = new Date();
     const currentDate = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
     this.setData({ currentDate: currentDate });
+    // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]
+    // 进入"添加成员"页前先查配额：满了直接弹"名额已满"框，不打开添加表单
+    try {
+      const qr = await get('/api/family/member/quota', {}, { showLoading: false, suppressErrorToast: true }).catch(() => null);
+      if (qr) {
+        const qd = (qr.data || qr) || {};
+        const qMax = Number(qd.quota_max == null ? 0 : qd.quota_max);
+        const qRemaining = Number(qd.quota_remaining == null ? 0 : qd.quota_remaining);
+        if (qMax !== -1 && qRemaining <= 0) {
+          this.setData({ showQuotaFull: true, quotaFullMax: qMax });
+          return;
+        }
+      }
+    } catch (_) { /* 降级：放行 */ }
     try {
       const [hpRes, mbRes] = await Promise.all([
         get('/api/health/profile', {}, { showLoading: false, suppressErrorToast: true }).catch(() => null),
@@ -194,6 +216,52 @@ Page({
     wx.navigateTo({ url: '/pages/family-invite/index', fail() { wx.showToast({ title: '邀请页未配置', icon: 'none' }); } });
   },
 
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 名额已满弹框 - 暂不升级
+  onQuotaFullSkip() {
+    this.setData({ showQuotaFull: false });
+    wx.navigateBack({
+      delta: 1,
+      fail() { wx.switchTab({ url: '/pages/home/index' }); },
+    });
+  },
+
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 名额已满弹框 - 去升级
+  onQuotaFullUpgrade() {
+    this.setData({ showQuotaFull: false });
+    wx.redirectTo({
+      url: '/pages/member-center/index',
+      fail() { wx.showToast({ title: '会员中心未配置', icon: 'none' }); },
+    });
+  },
+
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]
+  // "成员已添加成功🎉"弹框 → 去邀请 TA：跳转二维码邀请页（带 member_id）
+  onInviteNow() {
+    const mid = this.data.addedMemberId;
+    const url = mid
+      ? `/pages/family-invite/index?member_id=${mid}`
+      : '/pages/family-invite/index';
+    this.setData({ showAddedDialog: false });
+    wx.redirectTo({
+      url: url,
+      fail() {
+        wx.showToast({ title: '邀请页未配置', icon: 'none' });
+      },
+    });
+  },
+
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]
+  // "成员已添加成功🎉"弹框 → 暂不邀请：关闭弹框并返回上一页
+  onInviteSkip() {
+    this.setData({ showAddedDialog: false });
+    wx.navigateBack({
+      delta: 1,
+      fail() {
+        wx.switchTab({ url: '/pages/home/index' });
+      },
+    });
+  },
+
   validate() {
     const errs = {};
     if (!this.data.selectedRelation) errs.relation = 1;
@@ -245,11 +313,22 @@ Page({
       if ((this.data.foodAllergy || '').trim()) pushParts('食物', this.data.foodAllergy);
       if ((this.data.otherAllergy || '').trim()) pushParts('其他', this.data.otherAllergy);
       if (allergies.length) body.allergies = allergies;
-      await post('/api/family/members', body, { showLoading: true });
-      wx.showToast({ title: '添加成功', icon: 'success' });
-      setTimeout(function () {
-        wx.navigateBack({ delta: 1, fail() { wx.switchTab({ url: '/pages/home/index' }); } });
-      }, 600);
+      const r = await post('/api/family/members', body, { showLoading: true });
+      // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]
+      // 保存成功后弹"成员已添加成功🎉"框（可跳过 / 去邀请 TA）
+      // 取出新成员 id，邀请页传 member_id 避免"缺少成员参数"错误
+      let newMemberId = '';
+      try {
+        const rd = (r && (r.data || r)) || {};
+        newMemberId = rd.id || rd.member_id || (rd.data && (rd.data.id || rd.data.member_id)) || '';
+      } catch (_) {}
+      this.setData({
+        submitting: false,
+        showAddedDialog: true,
+        addedNickname: nickname,
+        addedMemberId: newMemberId,
+      });
+      return;
     } catch (e) {
       const detail = (e && e.data && e.data.detail) || '保存失败';
       wx.showToast({ title: typeof detail === 'string' ? detail : '保存失败', icon: 'none' });
