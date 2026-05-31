@@ -57,8 +57,29 @@ export default function CareTodayHealthPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const selfRes: any = await api.get('/api/health-profile/self');
-        const pid = selfRes?.data?.profile_id ?? selfRes?.profile_id ?? null;
+        // [需求5 2026-05-31] 数据锁定本人 Tab：与健康档案完全一致的 profile_id 解析链路。
+        // 健康档案本人 Tab 走 /api/family/members → is_self 成员 → /api/health/profile/member/{id}.id，
+        // 该 profile（family_member_id == 本人成员 id）才是健康指标真正落库的那一份。
+        // 之前用 /api/health-profile/self（family_member_id IS NULL）取到的是另一条 profile，
+        // 导致 today-metrics 取不到记录 → 卡片为空 / 与档案各显示各的。此处对齐档案口径。
+        let pid: number | null = null;
+        try {
+          const membersRes: any = await api.get('/api/family/members');
+          const mdata = membersRes?.data ?? membersRes ?? {};
+          const items: any[] = Array.isArray(mdata.items) ? mdata.items : [];
+          const selfMember = items.find((m) => m.is_self) || items[0] || null;
+          if (selfMember) {
+            const profRes: any = await api.get(`/api/health/profile/member/${selfMember.id}`);
+            const pdata = profRes?.data ?? profRes ?? {};
+            pid = (pdata.id ?? null) as number | null;
+          }
+        } catch {
+          /* 成员链路失败时回退到 self 接口 */
+        }
+        if (pid == null) {
+          const selfRes: any = await api.get('/api/health-profile/self');
+          pid = selfRes?.data?.profile_id ?? selfRes?.profile_id ?? null;
+        }
         setProfileId(pid);
         if (pid) {
           const tmRes: any = await api.get(`/api/health-profile-v3/${pid}/today-metrics`);

@@ -6,48 +6,78 @@
 }
 
 .status-bar { background: #F0F9FF; }
-/* 顶栏 */
+/* 顶栏（照搬标准模式 AI 首页：☰历史 + 标题/胶囊 + 🎁/⋯） */
 .topbar {
   position: sticky;
   top: 0;
   z-index: 100;
-  height: 96rpx;
+  min-height: 96rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24rpx;
+  padding: 12rpx 24rpx;
   background: linear-gradient(180deg, #F0F9FF 0%, #DBEAFE 100%);
 }
-.topbar-left { width: 64rpx; display: flex; align-items: center; }
-.hamburger { width: 42rpx; }
-.hb-line { height: 5rpx; border-radius: 3rpx; background: #0C4A6E; margin-bottom: 9rpx; }
-.hb-1 { width: 32rpx; }
-.hb-2 { width: 32rpx; }
-.hb-3 { width: 22rpx; }
-.topbar-title { font-size: 36rpx; font-weight: 600; color: #0C4A6E; }
-.topbar-right { display: flex; align-items: center; gap: 14rpx; }
-.topbar-icon { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; font-size: 38rpx; }
-.plus-circle { color: #0C4A6E; font-size: 42rpx; }
+/* 左上角 ☰ 历史按钮（与标准模式一致） */
+.history-btn {
+  display: flex; align-items: center; gap: 6rpx;
+  padding: 12rpx 20rpx; background: #fff; border-radius: 12rpx;
+  flex-shrink: 0;
+}
+.history-icon { font-size: 30rpx; color: #333; }
+.history-text { font-size: 24rpx; color: #666; }
 
-.mode-wrap { position: relative; }
+/* 中间：宾尼小康 标题 + 紧挨其后的模式切换胶囊 */
+.topbar-center { flex: 1; display: flex; align-items: center; justify-content: center; gap: 14rpx; min-width: 0; }
+.topbar-title { font-size: 34rpx; font-weight: 700; color: #0C4A6E; white-space: nowrap; }
+
+.mode-capsule-wrap { position: relative; flex-shrink: 0; }
 .mode-capsule {
   display: flex; align-items: center; gap: 6rpx;
-  background: #E8F5E9; color: #2E7D32;
-  padding: 8rpx 18rpx; border-radius: 28rpx;
-  font-size: 24rpx; font-weight: 600;
+  background: #E8F5E9; padding: 8rpx 16rpx; border-radius: 28rpx;
 }
-.mode-arrow { font-size: 18rpx; transition: transform 0.15s; }
-.mode-arrow-up { transform: rotate(180deg); }
-.mode-dropdown {
-  position: absolute; top: 56rpx; right: 0;
-  min-width: 220rpx; background: #fff; border-radius: 16rpx;
-  box-shadow: 0 6rpx 24rpx rgba(0,0,0,0.15); overflow: hidden; z-index: 50;
+.mode-capsule-label { font-size: 22rpx; font-weight: 600; color: #2E7D32; line-height: 1; }
+.mode-capsule-arrow { font-size: 20rpx; color: #2E7D32; line-height: 1; transition: transform 0.15s ease; }
+.mode-capsule-arrow-up { transform: rotate(180deg); }
+
+/* 右上角图标按钮组 */
+.topbar-actions { display: flex; align-items: center; gap: 12rpx; flex-shrink: 0; }
+.invite-btn { display: flex; align-items: center; justify-content: center; width: 64rpx; height: 60rpx; }
+.invite-icon { font-size: 36rpx; line-height: 1; }
+.more-btn { display: flex; align-items: center; justify-content: center; width: 80rpx; height: 60rpx; background: #fff; border-radius: 12rpx; }
+.more-icon { font-size: 36rpx; color: #333; line-height: 1; }
+
+/* 模式切换下拉面板 */
+.mode-dropdown-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: transparent; z-index: 998; }
+.mode-dropdown-panel {
+  position: absolute; top: 92rpx; left: 50%; transform: translateX(-30%);
+  min-width: 240rpx; background: #fff; border: 1rpx solid #E5E7EB; border-radius: 20rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.15); overflow: hidden; z-index: 999;
 }
-.mode-item {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 22rpx 26rpx; font-size: 28rpx; color: #374151;
+.mode-dropdown-item { display: flex; align-items: center; justify-content: space-between; padding: 22rpx 28rpx; background: #fff; }
+.mode-dropdown-item-active { background: #E8F5E9; }
+.mode-dropdown-text { font-size: 28rpx; font-weight: 500; color: #374151; }
+.mode-dropdown-item-active .mode-dropdown-text { color: #2E7D32; font-weight: 600; }
+.mode-dropdown-check { font-size: 28rpx; color: #2E7D32; font-weight: 600; }
+
+/* 更多菜单弹层 */
+.more-menu-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.35); z-index: 999; }
+.more-menu-card {
+  position: fixed; top: 120rpx; right: 24rpx; min-width: 320rpx;
+  background: #F0F9FF; border: 1rpx solid #BAE6FD; border-radius: 24rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.18); z-index: 1000; overflow: hidden;
 }
-.mode-item-active { background: #E8F5E9; color: #2E7D32; font-weight: 600; }
+.more-menu-item { display: flex; align-items: center; padding: 24rpx 28rpx; gap: 18rpx; background: transparent; }
+.more-menu-item:active { background: #E0F2FE; }
+.more-menu-divider { height: 1rpx; background: #BAE6FD; margin: 0 28rpx; }
+.more-menu-icon { font-size: 32rpx; line-height: 1; }
+.more-menu-label { flex: 1; font-size: 28rpx; color: #1F2937; }
+.more-menu-label-gold { color: #E5A23B; font-weight: 700; }
+.more-menu-badge {
+  font-size: 20rpx; font-weight: 700; color: #5C3B00;
+  background: linear-gradient(90deg, #E5A23B 0%, #F4D793 100%);
+  padding: 2rpx 12rpx; border-radius: 16rpx; line-height: 1.2;
+}
 
 /* 欢迎区 */
 .welcome {
@@ -96,3 +126,48 @@
 .card-title { font-size: 38rpx; font-weight: 700; color: #1F2937; margin-bottom: 6rpx; }
 .card-desc { font-size: 26rpx; color: #9CA3AF; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-arrow { flex-shrink: 0; font-size: 44rpx; color: #C4CDD5; }
+
+/* 9. 右下角悬浮 SOS（红色圆 + SOS 白字 + 扩散光圈动画） */
+.sos-fab {
+  position: fixed;
+  right: 36rpx;
+  bottom: 80rpx;
+  width: 132rpx;
+  height: 132rpx;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sos-fab-core {
+  position: relative;
+  z-index: 2;
+  width: 116rpx;
+  height: 116rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, #EF5350 0%, #E53935 70%, #C62828 100%);
+  box-shadow: 0 8rpx 22rpx rgba(229,57,53,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sos-fab-text { color: #fff; font-size: 36rpx; font-weight: 800; letter-spacing: 2rpx; }
+.sos-fab-ripple {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 116rpx;
+  height: 116rpx;
+  margin-left: -58rpx;
+  margin-top: -58rpx;
+  border-radius: 50%;
+  background: rgba(229,57,53,0.35);
+  z-index: 1;
+  animation: sos-fab-spread 2s ease-out infinite;
+}
+.sos-fab-ripple-2 { animation-delay: 0.66s; }
+.sos-fab-ripple-3 { animation-delay: 1.32s; }
+@keyframes sos-fab-spread {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(2.1); opacity: 0; }
+}

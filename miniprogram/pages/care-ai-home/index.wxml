@@ -1,46 +1,73 @@
-<!-- [PRD-CARE-MODE-OPTIM-V1 2026-05-31] 关怀模式首页优化 -->
-<view class="care-home" catchtap="closeModeDropdown">
+<!-- [PRD-CARE-MODE-OPTIM-V4 2026-05-31] 关怀模式首页优化 -->
+<view class="care-home">
   <!-- 状态栏占位 -->
   <view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
-  <!-- 1. 顶部固定栏 -->
+  <!-- 1. 顶部固定栏（照搬标准模式 AI 首页：左 ☰ 历史 + 右 模式胶囊/🎁/⋯更多） -->
   <view class="topbar">
-    <view class="topbar-left" catchtap="goMenu">
-      <view class="hamburger">
-        <view class="hb-line hb-1"></view>
-        <view class="hb-line hb-2"></view>
-        <view class="hb-line hb-3"></view>
+    <!-- 左上角：☰ 历史对话记录（与标准模式一致） -->
+    <view class="history-btn" catchtap="openHistory">
+      <text class="history-icon">☰</text>
+      <text class="history-text">历史</text>
+    </view>
+    <!-- 中间：宾尼小康 标题 + 紧挨其后的「宾尼小康 模式切换」胶囊 -->
+    <view class="topbar-center">
+      <text class="topbar-title">宾尼小康</text>
+      <view class="mode-capsule-wrap" catchtap="toggleModeDropdown">
+        <view class="mode-capsule">
+          <text class="mode-capsule-label">宾尼小康 模式切换</text>
+          <text class="mode-capsule-arrow {{modeDropdownOpen ? 'mode-capsule-arrow-up' : ''}}">▾</text>
+        </view>
       </view>
     </view>
-    <view class="topbar-title">小康</view>
-    <view class="topbar-right">
-      <!-- 模式切换胶囊 -->
-      <view class="mode-wrap" catchtap="toggleModeDropdown">
-        <view class="mode-capsule">
-          <text>关怀模式</text>
-          <text class="mode-arrow {{modeDropdownOpen ? 'mode-arrow-up' : ''}}">▾</text>
-        </view>
-        <view class="mode-dropdown" wx:if="{{modeDropdownOpen}}" catchtap="closeModeDropdown">
-          <view class="mode-item" catchtap="switchToStandard">
-            <text>标准模式</text>
-          </view>
-          <view class="mode-item mode-item-active">
-            <text>关怀模式</text>
-            <text>✓</text>
-          </view>
-        </view>
-      </view>
-      <!-- 🎁 -->
-      <view class="topbar-icon" catchtap="goInvite"><text>🎁</text></view>
-      <!-- ⊕ -->
-      <view class="topbar-icon" catchtap="goInvite"><text class="plus-circle">⊕</text></view>
+    <!-- 右上角：复用标准模式图标按钮组（🎁 邀请 + ⋯ 更多），去掉会报错的 ⊕ -->
+    <view class="topbar-actions">
+      <view class="invite-btn" catchtap="goInvite"><text class="invite-icon">🎁</text></view>
+      <view class="more-btn" catchtap="openMoreMenu"><text class="more-icon">⋯</text></view>
     </view>
   </view>
 
-  <!-- 2. 欢迎区 -->
+  <!-- 模式切换下拉面板（展开态，与标准模式一致） -->
+  <view class="mode-dropdown-mask" wx:if="{{modeDropdownOpen}}" catchtap="closeModeDropdown"></view>
+  <view class="mode-dropdown-panel" wx:if="{{modeDropdownOpen}}">
+    <view class="mode-dropdown-item" catchtap="switchToStandard">
+      <text class="mode-dropdown-text">标准模式</text>
+    </view>
+    <view class="mode-dropdown-item mode-dropdown-item-active" catchtap="closeModeDropdown">
+      <text class="mode-dropdown-text">关怀模式</text>
+      <text class="mode-dropdown-check">✓</text>
+    </view>
+  </view>
+
+  <!-- 「更多」菜单弹层（与标准模式完全相同：会员中心 / 扫一扫 / 字体大小 / 立即分享） -->
+  <view class="more-menu-mask" wx:if="{{moreMenuShow}}" catchtap="closeMoreMenu"></view>
+  <view class="more-menu-card" wx:if="{{moreMenuShow}}">
+    <view class="more-menu-item more-menu-item-gold" catchtap="onTapMemberCenter">
+      <text class="more-menu-icon">👑</text>
+      <text class="more-menu-label more-menu-label-gold">会员中心</text>
+      <text class="more-menu-badge" wx:if="{{showNewBadge}}">新</text>
+    </view>
+    <view class="more-menu-divider"></view>
+    <view class="more-menu-item" catchtap="onTapScan">
+      <text class="more-menu-icon">📷</text>
+      <text class="more-menu-label">扫一扫</text>
+    </view>
+    <view class="more-menu-divider"></view>
+    <view class="more-menu-item" catchtap="onTapFontSize">
+      <text class="more-menu-icon">🔤</text>
+      <text class="more-menu-label">字体大小</text>
+    </view>
+    <view class="more-menu-divider"></view>
+    <view class="more-menu-item" catchtap="onTapShare">
+      <text class="more-menu-icon">📤</text>
+      <text class="more-menu-label">立即分享</text>
+    </view>
+  </view>
+
+  <!-- 2. 欢迎区（主体排版保持原样，仅文案改动） -->
   <view class="welcome">
     <view class="welcome-text">
       <view class="greeting">{{greetingText}} {{greetingIcon}}</view>
-      <view class="sub">我是小康，有健康问题随时问我~</view>
+      <view class="sub">我是宾尼小康，聊聊健康问题吧~</view>
       <view class="med-reminder">🔔 今日提醒：{{medText}}</view>
     </view>
     <view class="robot-logo">
@@ -48,7 +75,7 @@
     </view>
   </view>
 
-  <!-- 3. 5 张大字整行卡片 -->
+  <!-- 3. 5 张大字整行卡片（主体排版保持原样） -->
   <view class="cards">
     <view class="card" wx:for="{{cards}}" wx:key="key" data-key="{{item.key}}" catchtap="onCardTap">
       <view class="card-icon" style="background: {{item.bg}}"><text>{{item.icon}}</text></view>
@@ -58,5 +85,13 @@
       </view>
       <view class="card-arrow">›</view>
     </view>
+  </view>
+
+  <!-- 9. 右下角悬浮 SOS（红色圆 + SOS 白字 + 扩散光圈动画），点击 = 进紧急呼叫流程 -->
+  <view class="sos-fab" catchtap="onSosFabTap">
+    <view class="sos-fab-ripple sos-fab-ripple-1"></view>
+    <view class="sos-fab-ripple sos-fab-ripple-2"></view>
+    <view class="sos-fab-ripple sos-fab-ripple-3"></view>
+    <view class="sos-fab-core"><text class="sos-fab-text">SOS</text></view>
   </view>
 </view>

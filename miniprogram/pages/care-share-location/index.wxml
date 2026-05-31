@@ -1,0 +1,2 @@
+<web-view src="{{webUrl}}" wx:if="{{webUrl}}"></web-view>
+<view class="empty" wx:else><text>位置分享链接无效</text></view>

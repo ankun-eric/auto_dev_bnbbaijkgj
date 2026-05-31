@@ -32,6 +32,14 @@ Page({
     modeSwitching: false
   },
 
+  onLoad(options) {
+    // [PRD-CARE-MODE-OPTIM-V4 2026-05-31] 关怀模式 ☰ 历史入口：携带 openDrawer 标记进入即弹出历史对话抽屉
+    if (options && options.openDrawer) {
+      this.setData({ drawerShow: true });
+      this.loadChatHistory();
+    }
+  },
+
   onShow() {
     syncTabBar(this, '/pages/ai/index');
     const app = getApp();

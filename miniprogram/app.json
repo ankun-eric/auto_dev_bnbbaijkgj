@@ -7,6 +7,8 @@
     "pages/care-today-health/index",
     "pages/care-sos/index",
     "pages/care-info-card/index",
+    "pages/care-medication/index",
+    "pages/care-share-location/index",
     "pages/cards/wallet/index",
     "pages/cards/redeem-code/index",
     "pages/cards/renew/index",

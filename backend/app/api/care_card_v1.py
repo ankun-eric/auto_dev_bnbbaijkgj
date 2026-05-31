@@ -80,6 +80,24 @@ class CareCardExtra(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class CareLocationShare(Base):
+    """[PRD-CARE-MODE-OPTIM-V4] 静态位置分享记录（发出那一刻的位置，可微信转发好友）
+
+    对方在微信打开小程序后，按 token 读取「静态位置（坐标 + 已解析的可读地址）+ 精简个人信息卡」。
+    """
+
+    __tablename__ = "care_location_shares"
+    __table_args__ = {"extend_existing": True}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, index=True, nullable=False)
+    token = Column(String(64), index=True, nullable=False)
+    latitude = Column(String(32), default="")
+    longitude = Column(String(32), default="")
+    address = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 # ───────────────────────── Pydantic ─────────────────────────
 class ContactIn(BaseModel):
     name: Optional[str] = ""
@@ -89,6 +107,12 @@ class ContactIn(BaseModel):
 
 class HomeAddressIn(BaseModel):
     home_address: Optional[str] = ""
+
+
+class LocationShareIn(BaseModel):
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    address: Optional[str] = ""
 
 
 # ───────────────────────── 工具函数 ─────────────────────────
@@ -348,3 +372,62 @@ async def get_public_card(
     # 公开网页不外泄 token
     payload.pop("qr_token", None)
     return {"code": 0, "data": payload}
+
+
+# ───────────────────────── 位置分享（静态位置 + 精简信息卡）─────────────────────────
+@router.post("/api/care-card/share-location")
+async def create_location_share(
+    data: LocationShareIn,
+    current_user: "User" = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[需求8.3] 生成一次性静态位置分享 token（发出那一刻的位置，更隐私可控）。
+
+    返回 token，前端拼成可微信转发的小程序/网页链接。
+    """
+    token = uuid.uuid4().hex
+    share = CareLocationShare(
+        user_id=current_user.id,
+        token=token,
+        latitude="" if data.latitude is None else f"{data.latitude}",
+        longitude="" if data.longitude is None else f"{data.longitude}",
+        address=(data.address or "").strip(),
+    )
+    db.add(share)
+    await db.flush()
+    return {"code": 0, "data": {"token": token}}
+
+
+@router.get("/api/care-card/share-location/{token}")
+async def get_location_share(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """[需求8.3] 对方在微信打开后读取：静态位置（坐标 + 可读地址）+ 精简个人信息卡。无需登录。"""
+    res = await db.execute(
+        select(CareLocationShare).where(CareLocationShare.token == token)
+    )
+    share = res.scalar_one_or_none()
+    if share is None or not token:
+        raise HTTPException(status_code=404, detail="位置分享不存在或已失效")
+    card = await _build_card_payload(db, share.user_id)
+    card.pop("qr_token", None)
+
+    def _to_float(v: str):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    return {
+        "code": 0,
+        "data": {
+            "location": {
+                "latitude": _to_float(share.latitude),
+                "longitude": _to_float(share.longitude),
+                "address": share.address or None,
+            },
+            "card": card,
+            "shared_at": share.created_at.isoformat() if share.created_at else None,
+        },
+    }

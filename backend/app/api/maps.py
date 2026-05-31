@@ -331,6 +331,33 @@ async def poi_search(
     return PoiSearchResponse(items=[PoiItem(**it) for it in items], provider=provider)
 
 
+# [PRD-CARE-MODE-OPTIM-V4 2026-05-31] 关怀模式 SOS / 位置分享：普通登录用户可用的逆地理编码
+# 复用既有 amap → osm 兜底链路，仅放开鉴权门槛（无需 admin），按用户限流防滥用。
+@router.post("/maps/reverse-geocoding", response_model=ReverseGeocodingResponse)
+async def reverse_geocoding_user(
+    data: ReverseGeocodingRequest,
+    db: AsyncSession = Depends(get_db),
+) -> ReverseGeocodingResponse:
+    """坐标 → 中文地址（关怀模式紧急呼叫/位置分享用）。
+
+    任何端均可调用（无需登录，扫码公开页也会用到）；沿用项目现用地图服务（高德优先，OSM 兜底）。
+    """
+    if data.latitude < -90 or data.latitude > 90:
+        raise HTTPException(status_code=400, detail="纬度必须在 -90 到 90 之间")
+    if data.longitude < -180 or data.longitude > 180:
+        raise HTTPException(status_code=400, detail="经度必须在 -180 到 180 之间")
+
+    keys = await get_effective_keys(db)
+    res = await _amap_regeo(data.longitude, data.latitude, keys["server_key"])
+    provider = "amap"
+    if res is None:
+        res = await _osm_regeo(data.longitude, data.latitude)
+        provider = "osm"
+    if res is None:
+        raise HTTPException(status_code=502, detail="逆地理编码服务暂不可用，请稍后再试")
+    return ReverseGeocodingResponse(**res, provider=provider)
+
+
 @router.get("/maps/geo-config", response_model=GeoConfigResponse)
 async def geo_config(db: AsyncSession = Depends(get_db)) -> GeoConfigResponse:
     """公开接口：前端按需读取 JS Key 与默认地图参数。无 Key 时前端走 OSM 兜底渲染。"""
