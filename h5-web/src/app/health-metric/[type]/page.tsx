@@ -390,6 +390,7 @@ export default function HealthMetricDetailPage() {
         meta={meta}
         saving={saving}
         handleSave={handleSave}
+        refresh={fetchHistory}
       />
     );
   }
@@ -833,12 +834,60 @@ interface BloodPressurePageProps {
   meta: (typeof META)['blood_pressure'];
   saving: boolean;
   handleSave: () => void;
+  refresh: () => Promise<void>;
 }
 
 function BloodPressurePage(props: BloodPressurePageProps) {
   const { history, latest, popupVisible, setPopupVisible, formValues, setFormValues,
-    periodValue, setPeriodValue, meta, saving, handleSave } = props;
+    periodValue, setPeriodValue, meta, saving, handleSave, refresh } = props;
   const router = useRouter();
+
+  // [PRD-BP-DETAIL-OPTIMIZE-V1 AC-04~AC-08] 历史记录「...」操作面板 + 修改 + 删除
+  const [actionRecord, setActionRecord] = useState<MetricRecord | null>(null);
+  const [editRecord, setEditRecord] = useState<MetricRecord | null>(null);
+  const [editSbp, setEditSbp] = useState('');
+  const [editDbp, setEditDbp] = useState('');
+  const [editPeriod, setEditPeriod] = useState('');
+  const [deletingRecord, setDeletingRecord] = useState<MetricRecord | null>(null);
+
+  // [PRD-BP-DETAIL-OPTIMIZE-V1 AC-06] 修改保存：PUT 完整更新原记录，不新增重复记录
+  const handleEditSave = useCallback(async () => {
+    if (!editRecord || !props.profileId) return;
+    const s = Number(editSbp);
+    const d = Number(editDbp);
+    if (!editSbp || Number.isNaN(s) || !editDbp || Number.isNaN(d)) {
+      showToast('请输入有效的收缩压/舒张压', 'fail');
+      return;
+    }
+    if (s < 40 || s > 300 || d < 20 || d > 200) {
+      showToast('血压数值超出合理范围', 'fail');
+      return;
+    }
+    try {
+      await api.put(`/api/health-profile-v3/${props.profileId}/metric/blood_pressure/${editRecord.id}`, {
+        value: { systolic: s, diastolic: d, period: editPeriod || undefined },
+        measured_at: editRecord.measured_at,
+      });
+      showToast('已更新', 'success');
+      setEditRecord(null);
+      await refresh();
+    } catch {
+      showToast('更新失败', 'fail');
+    }
+  }, [editRecord, editSbp, editDbp, editPeriod, props.profileId, refresh]);
+
+  // [PRD-BP-DETAIL-OPTIMIZE-V1 AC-08] 删除：确认后 toast「已删除」+ 列表刷新
+  const handleDelete = useCallback(async (record: MetricRecord) => {
+    if (!props.profileId) return;
+    try {
+      await api.delete(`/api/health-profile-v3/${props.profileId}/metric/blood_pressure/${record.id}`);
+      showToast('已删除', 'success');
+      setDeletingRecord(null);
+      await refresh();
+    } catch {
+      showToast('删除失败', 'fail');
+    }
+  }, [props.profileId, refresh]);
 
   // [PRD-BP-CARD-OPTIMIZE-V1 2026-05-30 §5.2] 默认选中"周"，仅保留 日/周
   const [range, setRange] = useState<BpTrendRange>('week');
@@ -906,6 +955,11 @@ function BloodPressurePage(props: BloodPressurePageProps) {
 
   // [PRD-BP-AI-EXPLAIN-V1 2026-05-31] AI 解读 — 接入真实大模型，规则文案降级（对齐血糖）
   const requestAi = useCallback(async (mode: 'single' | 'trend') => {
+    // [PRD-BP-DETAIL-OPTIMIZE-V1 AC-02] 无血压记录时点击解读：toast 轻提示，不进入解读流程
+    if (mode === 'single' && !latest?.id) {
+      showToast('暂无血压记录，请先录入一次再点击解读。', 'success');
+      return;
+    }
     const cacheKey = mode === 'single' ? `single:${latest?.id ?? 0}` : `trend:${range}`;
     const cached = aiCacheRef.get(cacheKey);
     if (cached && Date.now() - cached.ts < 5 * 60 * 1000) {
@@ -1199,17 +1253,30 @@ function BloodPressurePage(props: BloodPressurePageProps) {
                       {r.value?.period ? ` · ${r.value.period}` : ''}
                     </div>
                   </div>
-                  {j && (
-                    <span
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {j && (
+                      <span
+                        style={{
+                          fontSize: 11, fontWeight: 700,
+                          padding: '3px 10px', borderRadius: 999,
+                          background: rowPalette.capsuleBg, color: rowPalette.capsuleText,
+                        }}
+                      >
+                        {j.label}
+                      </span>
+                    )}
+                    {/* [PRD-BP-DETAIL-OPTIMIZE-V1 AC-04] 「...」三点入口 → 底部操作面板 */}
+                    <button
+                      data-testid={`bp-row-more-${r.id}`}
+                      onClick={(e) => { e.stopPropagation(); setActionRecord(r); }}
                       style={{
-                        fontSize: 11, fontWeight: 700,
-                        padding: '3px 10px', borderRadius: 999,
-                        background: rowPalette.capsuleBg, color: rowPalette.capsuleText,
+                        background: 'transparent', border: 'none', cursor: 'pointer',
+                        fontSize: 20, fontWeight: 700, color: '#94A3B8', lineHeight: 1,
+                        padding: '0 4px',
                       }}
-                    >
-                      {j.label}
-                    </span>
-                  )}
+                      aria-label="更多操作"
+                    >⋯</button>
+                  </div>
                 </div>
               );
             })
@@ -1267,6 +1334,129 @@ function BloodPressurePage(props: BloodPressurePageProps) {
           block color="primary" loading={saving} onClick={handleSave}
           style={{ '--background-color': '#0ea5e9', '--border-radius': '22px', height: 44, fontSize: 16 } as any}
         >保存</Button>
+      </Popup>
+
+      {/* [PRD-BP-DETAIL-OPTIMIZE-V1 AC-04~AC-11] 历史记录「...」底部操作面板（修改 / 删除）— 与血糖共用模板 */}
+      <MetricActionSheet
+        testid="bp-action-sheet"
+        record={actionRecord}
+        onClose={() => setActionRecord(null)}
+        onEdit={(r) => {
+          setActionRecord(null);
+          setEditRecord(r);
+          setEditSbp(r.value?.systolic != null ? String(r.value.systolic) : '');
+          setEditDbp(r.value?.diastolic != null ? String(r.value.diastolic) : '');
+          setEditPeriod(typeof r.value?.period === 'string' ? r.value.period : '');
+        }}
+        onDelete={(r) => { setActionRecord(null); setDeletingRecord(r); }}
+      />
+
+      {/* [PRD-BP-DETAIL-OPTIMIZE-V1 AC-06] 修改血压记录 - 完整修改 value / 场景 / 时间，PUT 更新 */}
+      <Popup
+        visible={!!editRecord}
+        onMaskClick={() => setEditRecord(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '85vh', overflowY: 'auto' }}
+      >
+        {editRecord && (
+          <div data-testid="bp-edit-popup">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E' }}>编辑血压记录</span>
+              <button onClick={() => setEditRecord(null)} style={{ background: 'transparent', border: 'none', fontSize: 18, color: '#9CA3AF', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>
+              {formatDateTime(editRecord.measured_at)}
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>收缩压（mmHg）</div>
+              <Input
+                data-testid="bp-edit-systolic"
+                type="number"
+                value={editSbp}
+                onChange={(v) => setEditSbp(v)}
+                style={{ '--font-size': '16px', padding: '10px 12px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' } as any}
+              />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>舒张压（mmHg）</div>
+              <Input
+                data-testid="bp-edit-diastolic"
+                type="number"
+                value={editDbp}
+                onChange={(v) => setEditDbp(v)}
+                style={{ '--font-size': '16px', padding: '10px 12px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' } as any}
+              />
+            </div>
+
+            {meta.period && (
+              <>
+                <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>时段</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                  {meta.period.options.map((opt) => (
+                    <button
+                      key={opt}
+                      data-testid={`bp-edit-period-${opt}`}
+                      onClick={() => setEditPeriod(opt)}
+                      style={{
+                        padding: '6px 14px',
+                        background: editPeriod === opt ? '#0ea5e9' : '#e0f2fe',
+                        color: editPeriod === opt ? '#fff' : '#0369a1',
+                        border: 'none', borderRadius: 18, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                      }}
+                    >{opt}</button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                data-testid="bp-edit-delete"
+                onClick={() => setDeletingRecord(editRecord)}
+                style={{ flex: 1, padding: '10px 0', background: '#fff', color: '#DC2626',
+                  border: '1px solid #DC2626', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >删除</button>
+              <button
+                data-testid="bp-edit-save"
+                onClick={handleEditSave}
+                style={{ flex: 2, padding: '10px 0', background: '#0ea5e9', color: '#fff',
+                  border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >保存</button>
+            </div>
+          </div>
+        )}
+      </Popup>
+
+      {/* [PRD-BP-DETAIL-OPTIMIZE-V1 AC-07] 删除二次确认 */}
+      <Popup
+        visible={!!deletingRecord}
+        onMaskClick={() => setDeletingRecord(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20 }}
+      >
+        {deletingRecord && (
+          <div data-testid="bp-delete-confirm">
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E', marginBottom: 10 }}>确认删除</div>
+            <div style={{ fontSize: 14, color: '#374151', marginBottom: 16 }}>
+              确认删除这条记录？此操作不可撤销
+              <div style={{ fontSize: 12, color: '#6B7280', marginTop: 8 }}>
+                {formatDateTime(deletingRecord.measured_at)} · {deletingRecord.value?.systolic ?? '-'}/{deletingRecord.value?.diastolic ?? '-'} mmHg
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setDeletingRecord(null)}
+                style={{ flex: 1, padding: '10px 0', background: '#fff', color: '#475569',
+                  border: '1px solid #CBD5E1', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >取消</button>
+              <button
+                data-testid="bp-delete-confirm-btn"
+                onClick={() => { handleDelete(deletingRecord); setEditRecord(null); }}
+                style={{ flex: 1, padding: '10px 0', background: '#DC2626', color: '#fff',
+                  border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >确认删除</button>
+            </div>
+          </div>
+        )}
       </Popup>
 
       {/* [PRD §5.5] 数据点点击弹窗（详版） */}
@@ -1940,6 +2130,65 @@ interface BloodGlucosePageProps {
   refresh: () => Promise<void>;
 }
 
+// [PRD-BP-DETAIL-OPTIMIZE-V1 AC-09/AC-11] 历史记录「...」底部操作面板（修改 / 删除）
+// 血糖与血压共用此组件，保证两端面板样式、动画、文案完全一致
+function MetricActionSheet({
+  record,
+  onClose,
+  onEdit,
+  onDelete,
+  testid,
+}: {
+  record: MetricRecord | null;
+  onClose: () => void;
+  onEdit: (r: MetricRecord) => void;
+  onDelete: (r: MetricRecord) => void;
+  testid?: string;
+}) {
+  return (
+    <Popup
+      visible={!!record}
+      onMaskClick={onClose}
+      bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: '8px 0 12px' }}
+    >
+      {record && (
+        <div data-testid={testid || 'metric-action-sheet'}>
+          <div style={{ padding: '10px 20px 6px', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>
+            选择操作
+          </div>
+          <button
+            data-testid="metric-action-edit"
+            onClick={() => onEdit(record)}
+            style={{
+              width: '100%', padding: '14px 0', background: 'transparent', border: 'none',
+              borderTop: '1px solid #F1F5F9', fontSize: 16, color: '#0C4A6E', fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >修改</button>
+          <button
+            data-testid="metric-action-delete"
+            onClick={() => onDelete(record)}
+            style={{
+              width: '100%', padding: '14px 0', background: 'transparent', border: 'none',
+              borderTop: '1px solid #F1F5F9', fontSize: 16, color: '#DC2626', fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >删除</button>
+          <button
+            data-testid="metric-action-cancel"
+            onClick={onClose}
+            style={{
+              width: '100%', padding: '14px 0', marginTop: 8, background: 'transparent', border: 'none',
+              borderTop: '8px solid #F4F7FB', fontSize: 16, color: '#64748B', fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >取消</button>
+        </div>
+      )}
+    </Popup>
+  );
+}
+
 function BloodGlucosePage({ history, latest, profileId, devices, refresh }: BloodGlucosePageProps) {
   const router = useRouter();
 
@@ -1960,6 +2209,9 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
   // 删除二次确认
   const [deletingRecord, setDeletingRecord] = useState<MetricRecord | null>(null);
   const [swipedRowId, setSwipedRowId] = useState<number | null>(null);
+
+  // [PRD-BP-DETAIL-OPTIMIZE-V1 AC-09] 「...」三点操作面板（底部滑出，含 修改/删除）
+  const [actionRecord, setActionRecord] = useState<MetricRecord | null>(null);
 
   // AI 解读抽屉
   const [aiDrawer, setAiDrawer] = useState<{ mode: 'single' | 'trend'; loading: boolean; text: string } | null>(null);
@@ -2455,17 +2707,30 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
                         <span style={{ padding: '1px 8px', background: src.isDevice ? '#DBEAFE' : '#F1F5F9', color: src.isDevice ? '#1E40AF' : '#475569', borderRadius: 999 }}>{src.label}</span>
                       </div>
                     </div>
-                    {j && (
-                      <span
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {j && (
+                        <span
+                          style={{
+                            fontSize: 11, fontWeight: 700,
+                            padding: '3px 10px', borderRadius: 999,
+                            background: rowPalette.capsuleBg, color: rowPalette.capsuleText,
+                          }}
+                        >
+                          {j.label}
+                        </span>
+                      )}
+                      {/* [PRD-BP-DETAIL-OPTIMIZE-V1 AC-09] 「...」三点入口 → 底部操作面板 */}
+                      <button
+                        data-testid={`bg-row-more-${r.id}`}
+                        onClick={(e) => { e.stopPropagation(); setSwipedRowId(null); setActionRecord(r); }}
                         style={{
-                          fontSize: 11, fontWeight: 700,
-                          padding: '3px 10px', borderRadius: 999,
-                          background: rowPalette.capsuleBg, color: rowPalette.capsuleText,
+                          background: 'transparent', border: 'none', cursor: 'pointer',
+                          fontSize: 20, fontWeight: 700, color: '#94A3B8', lineHeight: 1,
+                          padding: '0 4px',
                         }}
-                      >
-                        {j.label}
-                      </span>
-                    )}
+                        aria-label="更多操作"
+                      >⋯</button>
+                    </div>
                   </div>
                   {/* 左滑显示的删除按钮 */}
                   <button
@@ -2608,6 +2873,22 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
           >保存</Button>
         </div>
       </Popup>
+
+      {/* [PRD-BP-DETAIL-OPTIMIZE-V1 AC-09] 「...」底部操作面板（修改 / 删除）— 与血压共用 MetricActionSheet 模板 */}
+      <MetricActionSheet
+        testid="bg-action-sheet"
+        record={actionRecord}
+        onClose={() => setActionRecord(null)}
+        onEdit={(r) => {
+          const v = r.value?.value != null ? Number(r.value.value) : null;
+          const sc = normalizeScene(r.value?.period ?? r.value?.scene);
+          setActionRecord(null);
+          setEditRecord(r);
+          setEditScene(sc);
+          setEditValue(String(v ?? ''));
+        }}
+        onDelete={(r) => { setActionRecord(null); setDeletingRecord(r); }}
+      />
 
       {/* [PRD-GLUCOSE-CARD-OPTIMIZE-V2 AC-06] 编辑历史记录 - 完整修改 + 删除 */}
       <Popup

@@ -5,7 +5,35 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-31 · Bug 修复 / 会员中心新版恢复上线）
+## 最近一次变更（2026-05-31 · 功能开发 / 血压详情页优化（含血糖同步））
+
+**任务标识**：`[PRD-BP-DETAIL-OPTIMIZE-V1 2026-05-31]`
+
+**需求**：血压详情页两处优化 + 血糖同步：
+1) AI 本次解读按钮始终显示，点击时判断——无记录弹 toast「暂无血压记录，请先录入一次再点击解读。」不进入解读流程，有记录正常解读；
+2) 血压历史记录每条右侧新增「…」三点入口 → 底部滑出面板「修改 / 删除」：修改走 PUT 完整更新原记录、删除二次确认「确认删除这条记录？此操作不可撤销」+ toast「已删除」；
+3) 血糖历史记录同步补「…」入口（原仅左滑删除），复用同一套底部面板与编辑/删除逻辑，两端样式动画文案统一。
+
+**改动（仅 H5 + 后端测试，后端业务接口零改动）**：
+- **H5 `h5-web/src/app/health-metric/[type]/page.tsx`（修改）**：
+  - 新增共用组件 `MetricActionSheet`（底部 Popup，含「修改/删除/取消」，血压血糖共用，testid `bp-action-sheet`/`bg-action-sheet`，按钮 `metric-action-edit`/`metric-action-delete`）。
+  - `BloodPressurePage`：`requestAi('single')` 开头加 `if (mode==='single' && !latest?.id)` 守卫 → `showToast('暂无血压记录，请先录入一次再点击解读。')` 直接 return；新增 props `refresh`（父组件传 `fetchHistory`）；新增 edit/delete/actionSheet 状态与 `handleEditSave`（PUT `/api/health-profile-v3/{pid}/metric/blood_pressure/{id}`）、`handleDelete`（DELETE 同前缀）；历史每行新增 `bp-row-more-{id}` 三点按钮；新增血压编辑 Popup（`bp-edit-popup`/`bp-edit-systolic`/`bp-edit-diastolic`/`bp-edit-period-*`/`bp-edit-save`/`bp-edit-delete`）+ 删除二次确认 Popup（`bp-delete-confirm`/`bp-delete-confirm-btn`，文案「确认删除这条记录？此操作不可撤销」+ toast「已删除」）。
+  - `BloodGlucosePage`：新增 `actionRecord` 状态；历史每行新增 `bg-row-more-{id}` 三点按钮 → 打开 `MetricActionSheet`（复用既有 editRecord / deletingRecord 逻辑，PUT/DELETE 与「已删除」toast 不变）。
+- **后端测试 `backend/tests/test_bp_detail_optimize_v1_20260531.py`（新增）**：11 用例。后端契约：blood_pressure 的 PUT 就地更新不新增（AC-06）、DELETE 物理删除列表实时减少（AC-07/08）、不存在 404、他人 profile 403、血糖 PUT/DELETE 一致（AC-10）；+ H5 源码静态断言（AI 按钮 toast 守卫、`bp/bg-row-more`、`*-action-sheet`、二次确认文案、「已删除」toast）。`autouse` fixture 重建 `health_metric_record` 为 `INTEGER PRIMARY KEY AUTOINCREMENT`（绕开 SQLite BigInteger PK 不自增）。服务器容器内 pytest 本测试 + 血糖 v2 回归 **41 passed / 4 skipped（H5 源码断言在后端容器跳过）**。
+
+**接口复用**：沿用既有 `PUT/DELETE /api/health-profile-v3/{profile_id}/metric/{type}/{record_id}`（`health_profile_v3.py` 已支持任意 METRIC_TYPES，含 blood_pressure），无新增后端代码。
+
+**部署**：H5 本地 `NEXT_PUBLIC_BASE_PATH=/autodev/<id> npm run build` standalone → `_deploy_h5_full.py` tar → docker cp 到 `6b099ed3-...-h5` 容器解压并重启。外部 HTTPS 验证：`/`、`/health-metric/blood_pressure/`、`/health-metric/blood_glucose/`、`/health-profile/` 均 200；血压详情页 JS chunk 含 `bp-row-more` 与「暂无血压记录」文案。
+
+**变更端清单**：仅 H5（Docker 容器部署）。小程序血压/血糖详情页为 web-view 包装 H5，自动同步，无需重新打包；安卓/iOS/exe 无改动。后端业务接口零改动。
+
+**用户手册**：`user_docs/血压详情页优化.md`
+
+**唯一变更标记**：`[PRD-BP-DETAIL-OPTIMIZE-V1 2026-05-31]`
+
+---
+
+## 历史变更（2026-05-31 · Bug 修复 / 会员中心新版恢复上线）
 
 **任务标识**：`[BUGFIX-MEMBER-CENTER-RESTORE-V1 2026-05-31]`
 
