@@ -5,7 +5,30 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-31 · Bug 修复 / H5 关怀模式首页与 SOS 页补齐 V4）
+## 最近一次变更（2026-06-01 · 功能开发 / H5 AI 首页优化 · 三 Tab + 清爽排版 + 暖蓝关怀配色）
+
+**任务标识**：`[PRD-AIHOME-OPTIM-V1-20260601]`
+
+**需求**：标准模式 AI 首页 `(ai-chat)/ai-home/page.tsx` 整体重构，面向 40–70 岁用户做适老化清爽改版（仅 H5 端，后端 0 改动）：
+1. **顶栏 3 Tab**：中部新增「档案 / 咨询 / 服务」三 Tab（默认停「咨询」，选中项蓝色下划线）。`档案` → `/health-profile`，`服务` → `/services`，`咨询` 停留当前页不跳转。左上「三」历史、右上「+圆圈」更多菜单功能原样保留。
+2. **悬浮元素清理**：删除右下角「小康头像悬浮球」；可拖动「🔔铃铛」收进右上角固定（不可拖、有新提醒带暖橙红点 `#FF7A45`）；「今日待办」胶囊与铃铛红点合并，正文不再单独放。
+3. **咨询页正文做减法**：从上到下只剩 5 块 —— ①一句问候语 ②一张静态健康贴士图（不轮播，取 `banners[0]`）③4 个等大圆角方块大图标（统一底色 `#EAF6FF`、统一间距，内容仍走后台配置 `fnGridItems.slice(0,4)`）④3 条「大家都在问」（竖排，左侧暖橙小竖线）⑤底部常驻 AI 输入框（保留）。
+4. **配色换为方案 C 暖蓝关怀**：页内局部定义 `WARM_BLUE` 调色板（主色天蓝 `#3FA9F5`、渐变 `#3FA9F5→#5EC4F0`、顶栏淡蓝 `#EAF6FF`、页底近白 `#F7FBFF`、卡片纯白；暖橙点缀 `#FFB26B` / 浅底 `#FFF3E8`；文字 `#1F2D3D`/`#6B7B8C`/`#A9B7C6`）。未改全局 `lib/theme.ts`，避免影响其他页。
+5. **「+圆圈」菜单改版**：`MoreMenu.tsx` 新增 `menuVariant='ai-home-v2'` 分支，渲染 4 项「发起新对话 / 切换模式（带当前模式小标签）/ 邀请好友 / 帮助与反馈」；旧用法（关怀首页等）走默认分支不受影响。
+
+**改动文件（仅 2 个，纯前端）**：
+- `h5-web/src/app/(ai-chat)/ai-home/page.tsx`
+- `h5-web/src/components/ai-chat/MoreMenu.tsx`
+
+**关键 data-testid**：`ai-home-top-tabs` / `ai-home-top-tab-profile|consult|service` / `ai-home-topbar-bell`。
+
+**部署验证**：本机经 paramiko SFTP 直传 2 个文件 → `docker compose -f docker-compose.yml build h5-web && up -d h5-web`（仅重建 H5 单服务，未触碰后端/gateway/网络）。外部 HTTPS：`/ai-home/` 200，HTML 命中 `ai-home-top-tabs`/`ai-home-top-tab-consult`/`ai-home-topbar-bell`/`大家都在问`；`/health-profile/`、`/services/` 跳转目标均 200。
+
+**体验链接**：[AI 首页（咨询）](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/ai-home)
+
+---
+
+## 历史变更（2026-05-31 · Bug 修复 / H5 关怀模式首页与 SOS 页补齐 V4）
 
 **任务标识**：`[BUGFIX-CARE-H5-V4-20260531]`
 
