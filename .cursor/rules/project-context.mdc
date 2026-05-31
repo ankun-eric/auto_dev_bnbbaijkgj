@@ -5,6 +5,35 @@ alwaysApply: false
 
 # Project Context
 
+## 最近一次变更（2026-05-31 · Bug 修复 / H5 关怀模式首页与 SOS 页补齐 V4）
+
+**任务标识**：`[BUGFIX-CARE-H5-V4-20260531]`
+
+**Bug 描述**：关怀模式 V4 那批优化在小程序端已落地，但 **H5 关怀首页 `care-ai-home/page.tsx` 漏跟进**，代码停留在 V1（文件头注释还是 `PRD-CARE-MODE-OPTIM-V1`）。用户在手机浏览器看到的仍是旧顶栏、旧文案，且无悬浮 SOS。SOS 页「分享我的位置」入口埋在管理弹窗里，长辈难发现。
+
+**改动（仅 H5 网页端两个文件，后端接口零改动）**：
+- **`h5-web/src/app/care-ai-home/page.tsx`**（补齐 V4）：
+  - 顶栏照搬标准模式：删除会报错的 ⊕ 圆圈加号，右侧改为 🎁 邀请 + ⋯ 更多菜单（复用 `@/components/ai-chat/MoreMenu`，新增 `moreMenuOpen` 状态）；标题「小康」→「宾尼小康」。
+  - 模式胶囊文案「关怀模式」→「宾尼小康 模式切换」（下拉当前项同步为「宾尼小康」）。
+  - 欢迎语「我是小康，有健康问题随时问我~」→「我是宾尼小康，聊聊健康问题吧~」。
+  - 用药提醒卡片跳转 `/health-profile?tab=self&focus=medication` → `/ai-home/medication-reminder`（本人独立用药提醒页，对应小程序 `care-medication` web-view 目标）。
+  - 居家安全卡片标题「居家安全设备」→「居家安全」，副标题「紧急呼叫器/烟雾报警器/水浸报警器」→「紧急呼叫、烟雾报警、水浸报警」。
+  - 新增右下角悬浮 SOS（`data-testid="care-home-sos-fab"`，红圆 + `care-home-sos-spread` 扩散光圈动画 styled-jsx），点击进入 `/care-ai-home/sos`。
+  - 首页主体（蓝绿大卡 + 5 张竖排功能卡片）保持原样未动。
+- **`h5-web/src/app/care-ai-home/sos/page.tsx`**：
+  - 「分享我的位置」入口从 `ContactMaintainModal` 弹窗内**移到 SOS 页最底部、120/110 按钮下方、联系人列表下方**（`shareMyLocation` 提升到主组件 `CareSosPage`，新增 `sharing` 状态）；删除弹窗内旧入口及其 `shareMyLocation`/`sharing` 及 `coords/address/basePath` props（避免双入口）。
+  - 家庭住址必填、新建联系人电话必填校验照旧；分享链路点击效果不变（`POST /api/care-card/share-location` → token → 小程序 `wx.miniProgram.navigateTo` / 浏览器 navigator.share/clipboard 兜底）。
+
+**部署验证**：服务器 `git fetch + reset --hard`（HEAD 含本次提交）后 `docker compose build --no-cache h5-web && up -d` 重建 H5 容器。外部 HTTPS 验证：`/care-ai-home/`、`/care-ai-home/sos/`、`/ai-home/medication-reminder/` 均 200；关怀首页 HTML 含「宾尼小康 模式切换」「我是宾尼小康，聊聊健康问题吧~」「居家安全」「紧急呼叫、烟雾报警、水浸报警」「care-home-sos-fab」；SOS 页 HTML 含 `care-sos-share-location`；旧锚点 `tab=self&focus=medication` 已不在首页。
+
+**变更端清单**：仅 H5（Docker 容器部署，已重建上线）。未涉及小程序/安卓/iOS 等需打包终端，无新增客户端包。
+
+**用户手册**：`user_docs/H5关怀模式V4补齐.md`
+
+**唯一变更标记**：`[BUGFIX-CARE-H5-V4-20260531]`
+
+---
+
 ## 最近一次变更（2026-05-31 · Bug 修复 / 新增家庭成员→邀请二维码跳转 Bug 修复）
 
 **任务标识**：`[PRD-FAMILY-MEMBER-OPTIM-FINAL-FIX 2026-05-31]`
