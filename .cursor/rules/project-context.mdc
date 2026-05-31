@@ -5,6 +5,52 @@ alwaysApply: false
 
 # Project Context
 
+## 最近一次变更（2026-05-31 · Bug 修复 / 新增家庭成员→邀请二维码跳转 Bug 修复）
+
+**任务标识**：`[PRD-FAMILY-MEMBER-OPTIM-FINAL-FIX 2026-05-31]`
+
+**Bug 描述**：用户在「AI 首页 → 左下角咨询人 → 新建 → 填完信息保存成功 → 点'去邀请 TA'」后，没有出现刚加那个人的二维码图，反而进到了一个让人重新填写姓名/关系的旧表单页面（即 `/family-invite` 无 `member_id` 时的兜底分支）。
+
+**病根**：`/family-invite` 内部按是否带 `member_id` 切两种 UI；H5 `ConsultTargetPicker` 的「去邀请 TA」跳转光秃秃跳到 `/family-invite`（没带 id），导致落入"无 id 兜底表单"分支。
+
+**改动（H5 + 小程序 + Flutter App + 后端测试，后端业务接口零改动）**：
+- **H5**：
+  - `h5-web/src/components/health-profile-v5/NewFamilyMemberModal.tsx`：`onSuccess` 签名加可选参数 `{id, nickname}`；保存成员后从响应中提取 `data.id` 回传给上层。
+  - `h5-web/src/components/ai-chat/ConsultTargetPicker.tsx`：
+    - 新增 `selfDrawerVisible/selfInitial` + 复用 `CompleteSelfProfileDrawer`，`handleClickAdd` 前置查 `GET /api/health-profile/self` 的 `needComplete`，是则弹完善档案抽屉，保存后自动接着查名额（`continueAddFlow`）；
+    - `handleAddSuccess` 接收 `createdMember.id` 写入 `inviteChoice.newMemberId`；
+    - `handleInviteNow` 跳转 `/family-invite?member_id=xxx`，无 id 显示 toast 错误（不再兜底跳无 id 页）。
+  - `h5-web/src/app/family-invite/page.tsx`（重写）：删除 `checkProfile/handleSaveProfile/handleSkipProfile/profileDrawer` 整套本页完善资料逻辑；删除 `handleInviteSubmit/inviteForm` 整段；删除 `createInvitation` 中 `relationOverride/nicknameOverride/nickname/relation_type` 的"无 id 兜底建档案"分支；没带 `member_id` → 页面正中显示红字「⚠️ 缺少成员信息，无法生成邀请，请从成员档案进入」。
+- **小程序**：
+  - `miniprogram/pages/chat/index.js`：`openAddMemberPopup` 加完善档案拦截前移（`GET /api/health-profile/self` → needComplete 弹 `wx.showModal` → 跳 `/pages/health-profile/index`）；`onAddedDialogInvite` 在 `addedMemberId` 为空时改为 toast 报错（不再跳无 id 页）。
+  - `miniprogram/pages/family-invite/index.js,index.wxml`：无 `member_id` 时显示「⚠️ 缺少成员信息，无法生成邀请，请从成员档案进入」红字（新增 `missingMember` 标志位，隐藏「重新生成」按钮）。
+- **Flutter App**：
+  - `flutter_app/lib/screens/ai/chat_screen.dart`：`_checkQuotaThenAddMember` 在查配额之前先调 `GET /api/health-profile/self`，`needComplete=true` 时弹 AlertDialog「请先完善本人资料」→ 跳 `/health-profile` 由该页现成的 `CompleteSelf` 抽屉承接。
+- **后端测试 `backend/tests/test_family_invite_bugfix_20260531.py`（新增 6 用例）**：
+  1. `POST /api/family/members` 返回 `id`（前端跳邀请页依赖）；
+  2. `GET /api/health-profile/self` 返回 `needComplete/missingFields` 字段；
+  3. 新用户 needComplete=True，missingFields 含三项；
+  4. `PUT /api/health-profile/self` 保存三项后 needComplete=False；
+  5. `POST /api/family/invitation` 带 member_id 返回 invite_code+qr_url/qr_content_url+expires_at；
+  6. 端到端：保存成员→用 id 生成邀请→邀请列表可见。容器内 pytest 6/6 通过。
+
+**接口复用**：完全沿用既有 `GET/PUT /api/health-profile/self`（`backend/app/api/health_profile_self.py`）、`GET /api/family/member/quota`、`POST /api/family/members`、`POST /api/family/invitation`，无新增后端代码。
+
+**部署**：8 个改动文件 SFTP 同步到 `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`，`docker compose build h5-web && up -d` 重建 H5 容器；后端业务零改动仅新增 tests/，容器内 `python -m pytest tests/test_family_invite_bugfix_20260531.py -v` 6/6 通过。外部 HTTPS 验证：`/family-invite`（无 id）→ 200（SSR 后端 Suspense fallback）；`/family-invite?member_id=1` → 200；`/api/health-profile/self` 未鉴权 401（路由在线）。
+
+**多端打包**：
+- 小程序 zip：`/downloads/miniprogram_invite_bugfix_20260531_234116_dff9.zip`（gateway-nginx `/data/static/apk/`，HTTP 200，545KB）
+- 安卓 APK：`/downloads/app_invite_bugfix_20260531_234323_073d.apk`（GitHub Actions `android-v20260531-234323-073d` 构建成功，下载并上传，HTTP 200，82MB）
+- iOS IPA：[GitHub Release `ios-v20260531-234323-073d`](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260531-234323-073d)（构建成功，33MB）
+
+**变更端清单**：H5（Docker 容器部署，已重建）+ 小程序（源码改动，需用户在微信开发者工具内重新预览/上传）+ Flutter App 安卓+iOS（源码改动，已重新打包 APK/IPA）；后端业务未改，无需重启 backend 容器，仅新增了一份 tests/。
+
+**用户手册**：`user_docs/新增家庭成员邀请二维码跳转Bug修复.md`
+
+**唯一变更标记**：`[PRD-FAMILY-MEMBER-OPTIM-FINAL-FIX 2026-05-31]`
+
+---
+
 ## 最近一次变更（2026-05-31 · 功能开发 / 关怀模式优化 V4 最终定稿）
 
 **任务标识**：`[PRD-CARE-MODE-OPTIM-V4 2026-05-31]`
