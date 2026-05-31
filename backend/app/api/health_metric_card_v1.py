@@ -110,13 +110,15 @@ def _judge_status(metric_type: str, value: Dict[str, Any]) -> Dict[str, str]:
             return {"key": "normal", "label": "正常", "color": "blue"}
 
         if metric_type == "heart_rate":
+            # [PRD-HEART-RATE-DETAIL-RULE-V1 2026-05-31] 统一标准 正常范围 60–100 次/分
+            # < 60 偏慢 / 60~100（含边界）正常 / > 100 偏快
             v = float(value.get("value") or 0)
             if v == 0:
                 return {"key": "unknown", "label": "未知", "color": "gray"}
-            if v < 50:
-                return {"key": "low", "label": "偏低", "color": "yellow"}
+            if v < 60:
+                return {"key": "slow", "label": "偏慢", "color": "orange"}
             if v > 100:
-                return {"key": "high", "label": "偏高", "color": "yellow"}
+                return {"key": "fast", "label": "偏快", "color": "orange"}
             return {"key": "normal", "label": "正常", "color": "blue"}
 
         if metric_type == "spo2":

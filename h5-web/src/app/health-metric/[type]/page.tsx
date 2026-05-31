@@ -422,24 +422,85 @@ export default function HealthMetricDetailPage() {
       {/* Hero 当前值 */}
       <div style={{ padding: '12px 16px' }}>
         <MedicalCard>
-          <div style={{ fontSize: 13, color: T.brand800 }}>当前值</div>
-          <div style={{ marginTop: 6 }}>
-            {latest ? (
+          {(() => {
+            // [PRD-HEART-RATE-DETAIL-RULE-V1 2026-05-31] 心率详情页展示规则
+            const isHeartRate = metricType === 'heart_rate';
+            const hrRaw = isHeartRate && latest?.value?.value != null ? Number(latest.value.value) : null;
+            const hrValue = hrRaw != null && !Number.isNaN(hrRaw) && hrRaw > 0 ? hrRaw : null;
+            const hrJudgement = isHeartRate ? judgeHeartRate(hrValue) : null;
+            const hrPalette = hrJudgement ? getHrPalette(hrJudgement.color) : null;
+            return (
               <>
-                <span style={{ fontSize: 22, fontWeight: 700, color: T.brand700 }}>
-                  {metricType === 'blood_pressure'
-                    ? `${latest.value?.systolic || '-'}/${latest.value?.diastolic || '-'}`
-                    : latest.value?.[meta.principalKey] ?? '—'}
-                </span>
-                <span style={{ fontSize: 13, color: T.brand800, marginLeft: 4 }}>{meta.unit}</span>
-                <div style={{ fontSize: 13, color: T.brand600, marginTop: 4 }}>
-                  {latest.value?.period || latest.value?.activity || ''} · {formatDateTime(latest.measured_at)}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ fontSize: 13, color: T.brand800 }}>当前值</div>
+                  {/* 心率状态胶囊：仅在有数据时显示（无数据隐藏） */}
+                  {isHeartRate && hrJudgement && hrPalette && (
+                    <span
+                      data-testid="hr-status-capsule"
+                      style={{
+                        padding: '2px 12px', borderRadius: 999, fontSize: 13, fontWeight: 700,
+                        background: hrPalette.capsuleBg, color: hrPalette.capsuleText,
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                      }}
+                    >
+                      <span>{hrJudgement.icon}</span>
+                      <span>{hrJudgement.label}</span>
+                    </span>
+                  )}
                 </div>
+                <div style={{ marginTop: 6 }}>
+                  {isHeartRate ? (
+                    // 心率：有数据显示数值，无数据显示「--」+ 引导文案
+                    hrValue != null ? (
+                      <>
+                        <span data-testid="hr-value" style={{ fontSize: 22, fontWeight: 700, color: T.brand700 }}>
+                          {hrValue}
+                        </span>
+                        <span style={{ fontSize: 13, color: T.brand800, marginLeft: 4 }}>{meta.unit}</span>
+                        <div style={{ fontSize: 13, color: T.brand600, marginTop: 4 }}>
+                          {latest?.value?.period || latest?.value?.activity || ''} · {latest ? formatDateTime(latest.measured_at) : ''}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <span data-testid="hr-value" style={{ fontSize: 22, fontWeight: 700, color: T.brand700 }}>--</span>
+                        <span style={{ fontSize: 13, color: T.brand800, marginLeft: 4 }}>{meta.unit}</span>
+                        <div data-testid="hr-empty-hint" style={{ fontSize: 13, color: T.brand800, marginTop: 4 }}>
+                          暂无数据，点击下方「手工填写」录入心率
+                        </div>
+                      </>
+                    )
+                  ) : latest ? (
+                    <>
+                      <span style={{ fontSize: 22, fontWeight: 700, color: T.brand700 }}>
+                        {metricType === 'blood_pressure'
+                          ? `${latest.value?.systolic || '-'}/${latest.value?.diastolic || '-'}`
+                          : latest.value?.[meta.principalKey] ?? '—'}
+                      </span>
+                      <span style={{ fontSize: 13, color: T.brand800, marginLeft: 4 }}>{meta.unit}</span>
+                      <div style={{ fontSize: 13, color: T.brand600, marginTop: 4 }}>
+                        {latest.value?.period || latest.value?.activity || ''} · {formatDateTime(latest.measured_at)}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: 14, color: T.brand800 }}>暂无数据，点击下方「手工填写」录入</div>
+                  )}
+                </div>
+                {/* 心率参考范围那行字：静态文案，恒定显示，不依赖年龄 */}
+                {isHeartRate && (
+                  <div
+                    data-testid="hr-normal-range"
+                    style={{
+                      marginTop: 10, paddingTop: 10, borderTop: `1px solid ${T.brand100}`,
+                      fontSize: 13, color: T.brand600,
+                    }}
+                  >
+                    📋 {HR_NORMAL_RANGE_TEXT}
+                  </div>
+                )}
               </>
-            ) : (
-              <div style={{ fontSize: 14, color: T.brand800 }}>暂无数据，点击下方「手工填写」录入</div>
-            )}
-          </div>
+            );
+          })()}
         </MedicalCard>
       </div>
 
