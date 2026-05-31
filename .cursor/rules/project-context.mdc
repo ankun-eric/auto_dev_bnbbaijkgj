@@ -5,7 +5,30 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-30 · 新功能 / 血糖卡片优化 PRD v1.0）
+## 最近一次变更（2026-05-31 · 功能优化 / 血糖详情页对齐血压布局 v1.0）
+
+**任务标识**：`[PRD-GLUCOSE-CARD-ALIGN-BP-V1 2026-05-31]`
+
+**背景**：血压详情页前期已优化（`BUGFIX-BP-TAB-OPTIMIZE-V1` + `PRD-BP-CARD-OPTIMIZE-V1`），主卡片下方有「手工录入 + 绑定设备」两个并排大按钮；但血糖详情页的录入入口仍只在导航栏右上角一个小文字「+ 录入」，且没有「绑定设备」入口。本次让血糖向血压看齐，**仅改 H5 一端**。
+
+**改动（仅 H5 `h5-web/src/app/health-metric/[type]/page.tsx` 的 `BloodGlucosePage`）**：
+- 主卡片下方新增并排两个大按钮 `bg-action-row`：左「手工录入」实心蓝（复用 `PencilIcon`，点击打开原录入弹窗）、右「绑定设备」白底蓝边（新增血糖仪图标 `BgMeterIcon`，点击 `showToast('即将上线')` 不跳转 + `navigator.sendBeacon` 上报埋点 `health_archive.bg.bind_device.click`）
+- 去掉导航栏右上角文字「+ 录入」（原 `bg-nav-add` 已移除）
+- 模块顺序对齐血压：主卡 → 双大按钮 → 目标范围参考卡 → 趋势图（日/周/月三档）→ AI 解读本次 → AI 解读趋势 → 历史记录
+- **完整保留**：AI 解读本次/趋势（接真实大模型 `/api/glucose-v1/ai-explain-single|trend`）、目标范围参考卡、测量类型标签、趋势三条线（空腹/餐后 2h/睡前）
+- 新增图标组件 `BgMeterIcon`（血糖仪 SVG，与 `BpMeterIcon` 同风格）
+
+**测试**：`backend/tests/test_glucose_card_align_bp_v1_20260531.py`（源码级结构断言 9 用例，本地全部通过）。
+
+**部署**：仅重建 H5 容器 `6b099ed3-...-h5`（`docker compose build --no-cache h5-web` + `up -d`），gateway 重新连接网络并 reload。外部 HTTPS 验证：H5 首页 / 血糖详情页 / 血压详情页 / 心率详情页 均 200，`/api/health` GET 200；血糖页 HTML 已含 `bg-action-row`/`bg-action-bind`、不含 `bg-nav-add`。无客户端（小程序/安卓/iOS）代码改动，无需重新打包。
+
+**用户手册**：[user_docs/血糖卡片对齐血压布局.md](../user_docs/血糖卡片对齐血压布局.md)
+
+**唯一变更标记**：`[PRD-GLUCOSE-CARD-ALIGN-BP-V1 2026-05-31]`
+
+---
+
+## 更早一次变更（2026-05-30 · 新功能 / 血糖卡片优化 PRD v1.0）
 
 **任务标识**：`[PRD-GLUCOSE-CARD-OPTIMIZE-V1 2026-05-30]`
 
