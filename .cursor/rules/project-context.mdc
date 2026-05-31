@@ -5,7 +5,38 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-31 · 功能开发 / AI 首页模式切换下拉胶囊改造）
+## 最近一次变更（2026-05-31 · Bug 修复 / 会员中心新版恢复上线）
+
+**任务标识**：`[BUGFIX-MEMBER-CENTER-RESTORE-V1 2026-05-31]`
+
+**背景**：会员中心新版（`[PRD-MEMBER-CENTER-OPTIM-V1]`，含「本月配额」横排三卡 + 「权益对比」新版）代码已在工作目录写好，但最近某次为上别的功能/修别的 bug 做部署时，**带了一份旧的 H5 前端包，把整个会员中心新版整套覆盖回退成了旧版**，用户感觉「需求没生效」。本次目标范围 A：只把会员中心新版整套恢复上线（不展开防覆盖治理）。
+
+**根因坐实**：
+- 线上 `member-center` chunk 为旧 `page-2ef1465ab55a1d20.js`，含旧文案「家庭守护成员 / 守护他人」，缺新版 `mc-quota-row`（横排三卡）与权益对比「次/月」新文案。
+- 工作目录 `h5-web/src/app/member-center/` 下 4 文件（`MonthlyQuotaCard.tsx` 大改 319 行横排三卡、`BenefitsCompareTable.tsx`、`page.tsx`、`InviteFamilyCard.tsx`）为新版但未提交、未部署。本质是「部署带错包」，非代码缺失。
+
+**改动（仅恢复部署 + 提交既有新版代码，本次未新写业务代码）**：
+- **H5 `h5-web/src/app/member-center/components/MonthlyQuotaCard.tsx`**：横向一行三独立卡片（📞 AI 外呼 / 🚨 紧急呼叫 / 👥 家庭成员），宽度均分（`mc-quota-row` flex-row + `mc-quota-item-{key}`）；每卡「图标→标题→大数字 X/Y→进度条→说明」；不限档显示「不限」隐藏进度条，已用完进度条变红 + 「已用完」标签；命名「守护他人」→「家庭成员」。
+- **H5 `h5-web/src/app/member-center/components/BenefitsCompareTable.tsx`**：次数型权益统一「N 次/月」、家庭成员「上限 N 人」；行标命名统一「家庭成员 / AI 外呼 / 紧急呼叫」；表格压缩（`tableLayout:fixed` + 12px + 8px padding）。
+- **H5 `member-center/page.tsx` + `InviteFamilyCard.tsx`**：套餐描述行与邀请卡文案「家人/家庭守护成员」→「家庭成员」统一。
+- **后端测试 `backend/tests/test_member_center_optim_v1_20260531.py`（新增）**：8 用例验证 `/api/member/quota-usage`（三卡已用量字段）/`/api/member/center.current`（三卡总额字段）/`.plans`+`ranks`/`.free_quota`/R3 后端字段名不变/未鉴权 4xx/level 仅 free/paid。后端接口零改动，复用既有。
+
+**部署方式**：本地 `NEXT_PUBLIC_BASE_PATH=/autodev/<id> npm run build` 构建 standalone（新 chunk `page-7fcb4b0448ede0b9.js` 含 `mc-quota-row`/`次/月`）→ `_deploy_h5_full.py` tar 打包 → docker cp 到 `6b099ed3-...-h5` 容器解压 → 重启。
+
+**验证**：
+- 外部 HTTPS 烟测全通：`/`、`/member-center/`、`/health-profile/`、`/ai-home/`、`/api/health` 均 200；`/api/member/quota-usage`、`/api/member/center` 未鉴权 401（正确）。
+- 线上会员中心 HTML 已引用新 chunk `page-7fcb4b0448ede0b9.js`，新 chunk 含 `mc-quota-row`（旧版为 0）。
+- 后端容器内 pytest `test_member_center_optim_v1_20260531.py` **8/8 全过**。
+
+**变更端清单**：仅 H5（Docker 容器部署，已恢复上线）。小程序/App 会员中心为 WebView 包装 H5，自动同步，无需重新打包。后端接口零改动。
+
+**用户手册**：`user_docs/会员中心新版恢复上线.md`
+
+**唯一变更标记**：`[BUGFIX-MEMBER-CENTER-RESTORE-V1 2026-05-31]`
+
+---
+
+## 历史变更（2026-05-31 · 功能开发 / AI 首页模式切换下拉胶囊改造）
 
 **任务标识**：`[PRD-MODE-CAPSULE-V1 2026-05-31]`
 

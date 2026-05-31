@@ -63,19 +63,19 @@ const BORDER_LIGHT = '#E5E7F0';
 // 浅紫 → 主蓝紫 → 深蓝紫，与系统主色保持一致，废弃旧的橙红渐变
 const PAID_GRADIENT = ['#8B6CFF', '#6C7BFF', '#5B6CFF', '#3D4CCC', '#2E3DBF'];
 
+// [PRD-MEMBER-CENTER-OPTIM-V1 2026-05-31 R2] 文案精简：次数型权益统一展示为「N 次/月」/「不限」
 function fmtVal(v: number | null | undefined): string {
   if (v === null || v === undefined) return '--';
-  if (v === -1) return '不限';
-  return String(v);
+  if (v === -1 || (typeof v === 'number' && v >= 9999)) return '不限';
+  return `${v} 次/月`;
 }
 
-// [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30 C2/C5]
-// 口径统一：max_managed 即"家庭守护成员总人数"（已含本人，数据库迁移后），前端零加工原样展示
-// -1 或 >=9999 展示「不限」；不写"含本人/不含本人"
+// [PRD-MEMBER-CENTER-OPTIM-V1 2026-05-31 R2 + PRD-MEMBER-FAMILY-MEMBER-V1.1 R3]
+// 家庭成员上限：「上限 N 人」/「不限」；命名统一为「家庭成员」
 function fmtArchiveVal(v: number | null | undefined): string {
   if (v === null || v === undefined) return '--';
   if (v === -1 || (typeof v === 'number' && v >= 9999)) return '不限';
-  return `${v} 人`;
+  return `上限 ${v} 人`;
 }
 
 export default function BenefitsCompareTable({ current, plans, ranks, freeQuota }: Props) {
@@ -113,20 +113,20 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
   }> = [
     {
       key: 'max_managed',
-      label: '家庭守护成员',
+      label: '家庭成员',
       free: freeVals.max_managed,
       getPaid: (p: PlanBrief) => p.max_managed,
       fmt: fmtArchiveVal,
     },
     {
       key: 'ai_outbound_call_count',
-      label: 'AI 外呼提醒',
+      label: 'AI 外呼',
       free: freeVals.ai_outbound_call_count,
       getPaid: (p: PlanBrief) => p.ai_outbound_call_count,
     },
     {
       key: 'emergency_ai_call_count',
-      label: '紧急 AI 呼叫',
+      label: '紧急呼叫',
       free: freeVals.emergency_ai_call_count,
       getPaid: (p: PlanBrief) => p.emergency_ai_call_count,
     },
@@ -176,39 +176,42 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
         <table
           style={{
             width: '100%',
-            minWidth: 320,
+            minWidth: 0,
             borderCollapse: 'collapse',
-            fontSize: 13,
+            fontSize: 12,
+            lineHeight: 1.4,
+            tableLayout: 'fixed',
           }}
+          data-testid="mc-benefits-compare-table"
         >
           <thead>
             <tr>
               <th
                 style={{
-                  padding: '12px 12px',
+                  padding: '8px 8px',
                   textAlign: 'left',
-                  fontWeight: 600,
+                  fontWeight: 700,
                   color: '#FFFFFF',
                   fontSize: 12,
                   background: PRIMARY,
                   borderBottom: `1px solid ${BORDER_LIGHT}`,
                   whiteSpace: 'nowrap',
-                  minWidth: 96,
+                  width: '22%',
+                  minWidth: 72,
                 }}
               >
                 权益项
               </th>
               <th
                 style={{
-                  padding: '12px 12px',
+                  padding: '8px 6px',
                   textAlign: 'center',
                   fontWeight: 700,
                   color: '#FFFFFF',
-                  fontSize: 13,
+                  fontSize: 12,
                   background: current.level === 'free' ? PRIMARY_DARK : PRIMARY,
                   borderBottom: `1px solid ${BORDER_LIGHT}`,
                   whiteSpace: 'nowrap',
-                  minWidth: 96,
                   position: 'relative',
                 }}
                 data-testid="mc-compare-col-free"
@@ -243,15 +246,14 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
                   <th
                     key={p.id}
                     style={{
-                      padding: '12px 12px',
+                      padding: '8px 6px',
                       textAlign: 'center',
                       fontWeight: 700,
                       color: isCurrent ? '#FFFFFF' : color,
-                      fontSize: 13,
+                      fontSize: 12,
                       background: isCurrent ? PRIMARY : '#FFFFFF',
                       borderBottom: `1px solid ${BORDER_LIGHT}`,
                       whiteSpace: 'nowrap',
-                      minWidth: 96,
                       position: 'relative',
                     }}
                     data-testid={`mc-compare-col-${p.id}`}
@@ -288,23 +290,25 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
               <tr key={r.key} data-testid={`mc-compare-row-${r.key}`}>
                 <td
                   style={{
-                    padding: '12px 12px',
+                    padding: '8px 8px',
                     color: TEXT_GRAY,
                     borderBottom: ri < rows.length - 1 ? `1px solid ${BORDER_LIGHT}` : 'none',
                     whiteSpace: 'nowrap',
+                    fontSize: 12,
                   }}
                 >
                   {r.label}
                 </td>
                 <td
                   style={{
-                    padding: '12px 12px',
+                    padding: '8px 6px',
                     textAlign: 'center',
                     color: current.level === 'free' ? PRIMARY_DARK : TEXT_GRAY,
                     fontWeight: current.level === 'free' ? 700 : 400,
                     background: current.level === 'free' ? PRIMARY_BG_LIGHT : 'transparent',
                     borderBottom: ri < rows.length - 1 ? `1px solid ${BORDER_LIGHT}` : 'none',
                     whiteSpace: 'nowrap',
+                    fontSize: 12,
                   }}
                 >
                   {(r.fmt || fmtVal)(r.free)}
@@ -316,13 +320,14 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
                     <td
                       key={p.id}
                       style={{
-                        padding: '12px 12px',
+                        padding: '8px 6px',
                         textAlign: 'center',
                         color: isCurrent ? PRIMARY_DARK : color,
                         fontWeight: 700,
                         background: isCurrent ? PRIMARY_BG_LIGHT : 'transparent',
                         borderBottom: ri < rows.length - 1 ? `1px solid ${BORDER_LIGHT}` : 'none',
                         whiteSpace: 'nowrap',
+                        fontSize: 12,
                       }}
                       data-testid={`mc-compare-cell-${r.key}-${p.id}`}
                     >

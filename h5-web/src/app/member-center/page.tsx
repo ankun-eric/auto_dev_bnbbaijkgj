@@ -525,7 +525,7 @@ export default function MemberCenterPage() {
                   <div>
                     <div style={{ fontSize: 17, fontWeight: 700, color: PURPLE_THEME.TEXT_DARK }}>{p.name}</div>
                     <div style={{ fontSize: 12, color: PURPLE_THEME.TEXT_MUTED, marginTop: 4 }}>
-                      家庭守护成员 {p.max_managed === -1 || p.max_managed >= 9999 ? '不限' : `${p.max_managed} 人`} · AI 外呼 {fmtVal(p.ai_outbound_call_count)} 次 · 紧急呼叫 {fmtVal(p.emergency_ai_call_count)} 次
+                      家庭成员 {p.max_managed === -1 || p.max_managed >= 9999 ? '不限' : `${p.max_managed} 人`} · AI 外呼 {fmtVal(p.ai_outbound_call_count)} 次 · 紧急呼叫 {fmtVal(p.emergency_ai_call_count)} 次
                     </div>
                   </div>
                 </div>

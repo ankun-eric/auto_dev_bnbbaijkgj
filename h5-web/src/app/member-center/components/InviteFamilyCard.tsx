@@ -386,7 +386,7 @@ export default function InviteFamilyCard(props: InviteFamilyCardProps) {
               lineHeight: '16px',
             }}
           >
-            邀请家人，共享健康守护
+            邀请家庭成员，共享健康守护
           </div>
         </div>
 
@@ -414,7 +414,7 @@ export default function InviteFamilyCard(props: InviteFamilyCardProps) {
             whiteSpace: 'nowrap',
           }}
         >
-          邀请家人
+          邀请家庭成员
         </button>
       </div>
     </div>
