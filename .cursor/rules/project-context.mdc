@@ -5,7 +5,39 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-31 · 功能开发 / 新增家庭成员优化（最终版））
+## 最近一次变更（2026-05-31 · 功能开发 / 关怀模式优化 V4 最终定稿）
+
+**任务标识**：`[PRD-CARE-MODE-OPTIM-V4 2026-05-31]`
+
+**需求**：关怀模式（人设「宾尼小康」）面向长辈，10 项体验打磨 + Bug 修复，核心原则「所有二级页数据锁定本人 Tab」。
+
+**改动（小程序 + H5 + 后端）**：
+- **小程序**：
+  - `pages/care-ai-home/{index.wxml,js,wxss}`：顶栏照搬标准模式（☰历史 / 🎁邀请 / ⋯更多菜单），移除报错 ⊕；胶囊文案「宾尼小康 模式切换」紧挨标题；欢迎语「我是宾尼小康，聊聊健康问题吧~」；居家安全卡片「居家安全 / 紧急呼叫、烟雾报警、水浸报警」；用药提醒卡片改跳本人独立用药提醒页；右下角新增悬浮 SOS（红圆 + `sos-fab-ripple` 扩散动画）；`to24h` 保证首页提醒 24 小时制。
+  - `pages/ai/index.js`：`onLoad` 支持 `openDrawer=1` 自动弹历史对话抽屉（供关怀首页 ☰ 历史复用标准模式历史）。
+  - `pages/care-medication/{index.*}`（新增）：web-view 指向 H5 `/ai-home/medication-reminder`（不传 consultant_id = 本人 Tab）。
+  - `pages/care-share-location/{index.*}`（新增）：位置分享微信转发中转页，`onShareAppMessage/onShareTimeline` 原生转发，web-view 加载 H5 查看页。
+  - `app.json`：注册 `pages/care-medication/index`、`pages/care-share-location/index`。
+- **H5**：
+  - `care-ai-home/today-health/page.tsx`：profile_id 解析对齐健康档案本人 Tab（`/api/family/members`→is_self→`/api/health/profile/member/{id}`→`/api/health-profile-v3/{pid}/today-metrics`），修复空卡片。
+  - `care-ai-home/sos/page.tsx`：动态扩散圈 `care-sos-ripple` + 长按 3 秒进度环 `care-sos-progress-ring`（3000ms）+ 绿色定位条（定位中…/定位已就绪 · 中文地址，去掉精度米数，走 `POST /api/maps/reverse-geocoding`）+ 联系人列表（头像/优先/拨打）；维护弹窗家庭住址必填、新建联系人电话必填；分享我的位置（`POST /api/care-card/share-location` 取 token → 小程序 web-view 内 `wx.miniProgram.navigateTo` 到 `/pages/care-share-location/index`，浏览器侧 navigator.share/clipboard 兜底）。
+  - `care-ai-home/share-location/[token]/page.tsx`（新增）：对方查看页，`GET /api/care-card/share-location/{token}` 取静态位置 + 精简信息卡，复用 care-info-card 风格 + 静态地图 `/api/maps/static-map` + 一键拨打。
+- **后端**：
+  - `app/api/maps.py`：新增公开 `POST /api/maps/reverse-geocoding`（普通用户可用，高德优先 OSM 兜底，经纬度越界 400）。
+  - `app/api/care_card_v1.py`：新增 `CareLocationShare` 模型（`care_location_shares` 表，启动 `create_all` 自动建表）+ `POST /api/care-card/share-location`（鉴权生成 token）+ `GET /api/care-card/share-location/{token}`（免登录返回 location + 精简 card，剔除 qr_token）。
+  - `backend/tests/test_care_mode_optim_v4_20260531.py`（新增）：逆地理编码越界 400、位置分享发起/读取/404/鉴权、前端源码静态断言。本地 11/11 通过。
+
+**部署**：服务器无法直连 GitHub（443 不通），改为 SFTP 直传 19 个改动文件到 `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`，`docker compose -f docker-compose.prod.yml build backend h5-web && up -d` 重建上线。上线 HTTPS 验证：`POST /api/maps/reverse-geocoding`（39.9087,116.3975）→ 高德返回「北京市东城区…天安门城楼」200；越界 400；`share-location` 全链路 E2E（注册→登录→存住址/联系人→生成 token→免登录读取 location+card）200；`/care-ai-home`、`/care-ai-home/sos`、`/care-ai-home/today-health`、`/care-ai-home/share-location/{token}` 均 200，SOS 页 HTML 含 `care-sos-ripple`/`care-sos-progress-ring`/`定位中`/`长按 3 秒求助`。
+
+**小程序体验包**：`/downloads/miniprogram_care_optim_v4_20260531_230520_3390.zip`（放入 gateway-nginx `/data/static/apk/`，并在 `gateway/conf.d/<PID>.conf` 新增 `location .../downloads/`→`alias /data/static/apk/` 路由并 reload，HTTP 200 / 544823B）。
+
+**变更端清单**：H5（Docker 容器部署）+ 后端（Docker 容器部署）+ 小程序（源码改动，需微信开发者工具重新预览/上传）。
+
+**用户手册**：`user_docs/关怀模式优化.md`
+
+---
+
+## 历史变更（2026-05-31 · 功能开发 / 新增家庭成员优化（最终版））
 
 **任务标识**：`[PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]`
 
