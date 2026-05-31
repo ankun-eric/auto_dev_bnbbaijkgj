@@ -1,138 +1,146 @@
 'use client';
 
-// [PRD-CARE-AI-HOME 2026-05-27]
-// 关怀模式 AI 主页 v1 - 完整还原需求清单设计图
-// - 顶栏（菜单 + 小康●在线 + 关怀模式徽章 + 切换模式）
-// - 欢迎区（蓝绿渐变 + 时段问候 + 静态文案）
-// - 4 个快捷胶囊
-// - 对话流卡片区：健康简评卡 / 用药提醒卡 / SOS 关怀卡
-// - 底部"咨询 AI"悬浮球 + 3/4 屏 AI 对话抽屉
-// - 右下角 SOS 占位悬浮球
+// [PRD-CARE-MODE-OPTIM-V1 2026-05-31] 关怀模式首页优化
+// 自上而下三块：
+//   1. 顶部固定栏（与标准模式一致：☰ 菜单 / 小康 / 模式切换胶囊 + 🎁 + ⊕加圈）
+//   2. 欢迎区（蓝绿渐变 + 时段问候 + 小字 + 今日用药提醒 + 宾尼小康机器人 LOGO 窄白边白圈）
+//   3. 核心入口区（5 张大字整行卡片）
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-
-interface Metric {
-  type: 'blood_pressure' | 'heart_rate' | 'sleep' | string;
-  label: string;
-  value: string;
-  unit: string;
-  status: '正常' | '偏高' | '偏低' | string;
-  measured_at?: string;
-}
-
-interface DailySummary {
-  summary_text: string;
-  metrics: Metric[];
-}
-
-interface CareAlert {
-  id: number;
-  type: string;
-  title: string;
-  content: string;
-  suggestion?: string;
-  severity: 'info' | 'warning' | 'danger' | string;
-  created_at?: string;
-}
+import { saveModePreference } from '@/lib/mode-preference';
 
 interface MedicationItem {
   id?: number;
   drug_name?: string;
   name?: string;
   schedule?: string;
+  scheduled_time?: string;
   remind_time?: string;
   dose?: string;
   dosage?: string;
   done?: boolean;
 }
 
-function getGreeting(now: Date): string {
+function getGreeting(now: Date): { text: string; icon: string } {
   const h = now.getHours();
-  if (h >= 5 && h < 11) return '早上好 ☀️';
-  if (h >= 11 && h < 18) return '中午好 ☀️';
-  return '晚上好 🌙';
-}
-
-function statusColor(status: string): string {
-  if (status === '偏高') return '#E53935';
-  if (status === '偏低') return '#FB8C00';
-  return '#43A047';
+  if (h >= 5 && h < 11) return { text: '早上好', icon: '☀️' };
+  if (h >= 11 && h < 18) return { text: '中午好', icon: '🌤️' };
+  return { text: '晚上好', icon: '🌙' };
 }
 
 export default function CareAiHomePage() {
   const router = useRouter();
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
-  const [summary, setSummary] = useState<DailySummary | null>(null);
-  const [alerts, setAlerts] = useState<CareAlert[]>([]);
-  const [medication, setMedication] = useState<MedicationItem | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [medText, setMedText] = useState<string>('');
+  const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
+  const [modeSwitching, setModeSwitching] = useState(false);
   const [toast, setToast] = useState<string>('');
-  const [loading, setLoading] = useState(true);
+  const modeDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const greeting = useMemo(() => getGreeting(new Date()), []);
 
-  useEffect(() => {
-    const loadAll = async () => {
-      setLoading(true);
-      // 三接口并发
-      const [sumRes, alertRes, medRes] = await Promise.allSettled([
-        api.get('/api/care/daily-summary'),
-        api.get('/api/care/alerts/active'),
-        api.get('/api/medication-reminder/today'),
-      ]);
-      if (sumRes.status === 'fulfilled') {
-        setSummary(sumRes.value.data?.data || null);
-      }
-      if (alertRes.status === 'fulfilled') {
-        setAlerts(alertRes.value.data?.data?.alerts || []);
-      }
-      if (medRes.status === 'fulfilled') {
-        const items = medRes.value.data?.data?.items || medRes.value.data?.items || [];
-        const next = items.find((it: MedicationItem) => !it.done) || null;
-        setMedication(next);
-      }
-      setLoading(false);
-    };
-    loadAll();
-  }, []);
+  const navigate = (path: string) => router.push(path);
 
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(''), 2000);
   };
 
-  const dismissAlert = async (id: number) => {
-    try {
-      await api.post(`/api/care/alerts/${id}/dismiss`);
-      setAlerts((prev) => prev.filter((a) => a.id !== id));
-    } catch {
-      showToast('操作失败，请重试');
-    }
-  };
-
-  const callFamily = () => {
-    // 拨打第 1 紧急联系人；号码若未配置则提示
-    window.location.href = 'tel:120';
-  };
-
-  const navigate = (path: string) => {
-    router.push(`${basePath}${path}`);
-  };
-
-  const takePhoto = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.capture = 'environment';
-    input.onchange = () => {
-      // 复用 AI 对话页的拍照上传能力
-      navigate('/ai-home?action=photo');
+  // 读取最新一条用药提醒
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res: any = await api.get('/api/medication-reminder/today');
+        // 拦截器已返回 body；today 返回的是数组
+        const items: MedicationItem[] = Array.isArray(res)
+          ? res
+          : res?.data?.items || res?.items || res?.data || [];
+        if (Array.isArray(items) && items.length > 0) {
+          const next = items.find((it) => !it.done) || items[0];
+          const time = next.scheduled_time || next.remind_time || next.schedule || '';
+          const drug = next.drug_name || next.name || '药品';
+          setMedText(`${time ? time + ' ' : ''}请按时服用"${drug}"`);
+        } else {
+          setMedText('今日暂无用药提醒');
+        }
+      } catch {
+        setMedText('今日暂无用药提醒');
+      }
     };
-    input.click();
+    load();
+  }, []);
+
+  // 面板外点击收起
+  useEffect(() => {
+    if (!modeDropdownOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (modeDropdownRef.current && !modeDropdownRef.current.contains(e.target as Node)) {
+        setModeDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [modeDropdownOpen]);
+
+  const handleSwitchToStandard = async () => {
+    if (modeSwitching) return;
+    setModeSwitching(true);
+    try {
+      await saveModePreference('standard');
+    } catch {
+      /* 偏好保存失败不阻断跳转 */
+    }
+    showToast('已切换到标准模式 ✓');
+    setModeDropdownOpen(false);
+    setTimeout(() => router.push('/ai-home'), 300);
   };
+
+  // 5 张大字整行卡片
+  const cards = [
+    {
+      key: 'medication',
+      icon: '💊',
+      bg: 'linear-gradient(135deg, #42A5F5 0%, #1E88E5 100%)',
+      title: '用药提醒',
+      desc: '查看今日完整用药提醒列表',
+      onClick: () => navigate('/health-profile?tab=self&focus=medication'),
+    },
+    {
+      key: 'health-record',
+      icon: '📈',
+      bg: 'linear-gradient(135deg, #66BB6A 0%, #43A047 100%)',
+      title: '健康记录',
+      desc: '血压、血糖、心率、血氧、睡眠',
+      onClick: () => navigate('/care-ai-home/today-health'),
+    },
+    {
+      key: 'home-safety',
+      icon: '🛡️',
+      bg: 'linear-gradient(135deg, #FFA726 0%, #FB8C00 100%)',
+      title: '居家安全设备',
+      desc: '紧急呼叫器 / 烟雾报警器 / 水浸报警器',
+      onClick: () => navigate('/home-safety'),
+    },
+    {
+      key: 'sos',
+      icon: '🆘',
+      bg: 'linear-gradient(135deg, #EF5350 0%, #E53935 100%)',
+      title: '紧急呼叫',
+      desc: '一键 SOS 求助、联系家人与急救',
+      onClick: () => navigate('/care-ai-home/sos'),
+    },
+    {
+      key: 'info-card',
+      icon: '🪪',
+      bg: 'linear-gradient(135deg, #AB47BC 0%, #8E24AA 100%)',
+      title: '个人信息卡',
+      desc: '身份与健康名片，便于出示与求助',
+      onClick: () => navigate('/care-ai-home/info-card'),
+    },
+  ];
 
   return (
     <div
@@ -142,378 +150,354 @@ export default function CareAiHomePage() {
         fontSize: 16,
         lineHeight: 1.6,
         color: '#212121',
-        paddingBottom: 120,
+        paddingBottom: 40,
       }}
+      data-testid="care-ai-home-page"
     >
-      {/* 顶栏 */}
+      {/* 1. 顶部固定栏（与标准模式一致） */}
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 16px',
-          background: '#FFFFFF',
-          borderBottom: '1px solid #E0E0E0',
           position: 'sticky',
           top: 0,
-          zIndex: 10,
+          zIndex: 100,
+          background: 'linear-gradient(180deg, #F0F9FF 0%, #DBEAFE 100%)',
+          maxWidth: 750,
+          margin: '0 auto',
         }}
+        data-testid="care-home-topbar"
       >
-        <button
-          aria-label="菜单"
-          onClick={() => navigate('/profile')}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            fontSize: 24,
-            minWidth: 44,
-            minHeight: 44,
-            cursor: 'pointer',
-          }}
-        >
-          ☰
-        </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 18, fontWeight: 600 }}>小康</span>
-          <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#43A047' }} />
-          <span style={{ fontSize: 14, color: '#666' }}>在线</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span
-            style={{
-              background: '#E8F5E9',
-              color: '#1976D2',
-              padding: '4px 10px',
-              borderRadius: 12,
-              fontSize: 12,
-              fontWeight: 600,
-            }}
-          >
-            关怀模式
-          </span>
+        <div style={{ position: 'relative', height: 48, width: '100%' }}>
+          {/* 左：☰ 菜单 */}
           <button
-            onClick={() => navigate('/welcome-mode')}
+            aria-label="菜单"
+            onClick={() => navigate('/profile')}
+            data-testid="care-home-hamburger-btn"
             style={{
-              background: '#1976D2',
-              color: '#FFF',
+              position: 'absolute',
+              left: 8,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              width: 32,
+              height: 32,
+              background: 'transparent',
               border: 'none',
-              padding: '6px 12px',
-              borderRadius: 16,
-              fontSize: 13,
+              padding: 0,
               cursor: 'pointer',
-              minHeight: 32,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#0C4A6E',
             }}
           >
-            切换模式
+            <svg width={21} height={17} viewBox="0 0 21 17" aria-hidden="true">
+              <rect x={0} y={0} width={16} height={2.5} rx={1.25} fill="currentColor" />
+              <rect x={0} y={7} width={16} height={2.5} rx={1.25} fill="currentColor" />
+              <rect x={0} y={14} width={11} height={2.5} rx={1.25} fill="currentColor" />
+            </svg>
+          </button>
+
+          {/* 中：小康 */}
+          <div
+            style={{
+              position: 'absolute',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              top: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <span
+              style={{ fontSize: 18, fontWeight: 600, color: '#0C4A6E', lineHeight: 1 }}
+              data-testid="care-home-topbar-title"
+            >
+              小康
+            </span>
+          </div>
+
+          {/* 右：模式切换胶囊 + 🎁 + ⊕加圈 */}
+          {/* 🎁 礼物 */}
+          <button
+            type="button"
+            onClick={() => navigate('/invite')}
+            aria-label="邀请好友"
+            data-testid="care-home-invite-btn"
+            style={{
+              position: 'absolute',
+              right: 44,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              width: 32,
+              height: 32,
+              background: 'transparent',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+            }}
+          >
+            <span style={{ fontSize: 20, lineHeight: 1 }} aria-hidden="true">🎁</span>
+          </button>
+
+          {/* 模式切换下拉胶囊（当前：关怀模式） */}
+          <div
+            ref={modeDropdownRef}
+            style={{ position: 'absolute', right: 80, top: '50%', transform: 'translateY(-50%)' }}
+            data-testid="care-home-mode-switcher"
+          >
+            <button
+              type="button"
+              onClick={() => setModeDropdownOpen((v) => !v)}
+              disabled={modeSwitching}
+              aria-haspopup="listbox"
+              aria-expanded={modeDropdownOpen}
+              aria-label="模式切换"
+              data-testid="care-home-mode-capsule"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                background: '#E8F5E9',
+                color: '#2E7D32',
+                border: 'none',
+                padding: '5px 10px',
+                borderRadius: 14,
+                fontSize: 13,
+                fontWeight: 600,
+                lineHeight: 1,
+                whiteSpace: 'nowrap',
+                cursor: modeSwitching ? 'default' : 'pointer',
+                minHeight: 28,
+              }}
+            >
+              <span data-testid="care-home-mode-capsule-label">关怀模式</span>
+              <span
+                aria-hidden="true"
+                style={{
+                  display: 'inline-block',
+                  fontSize: 10,
+                  lineHeight: 1,
+                  transform: modeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.15s ease',
+                }}
+              >
+                ▾
+              </span>
+            </button>
+
+            {modeDropdownOpen ? (
+              <div
+                role="listbox"
+                data-testid="care-home-mode-dropdown-panel"
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 6px)',
+                  right: 0,
+                  minWidth: 120,
+                  background: '#FFFFFF',
+                  borderRadius: 10,
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                  border: '1px solid #E5E7EB',
+                  overflow: 'hidden',
+                  zIndex: 50,
+                }}
+              >
+                {/* 标准模式（切换） */}
+                <div
+                  role="option"
+                  aria-selected={false}
+                  onClick={handleSwitchToStandard}
+                  data-testid="care-home-mode-option-standard"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                    padding: '10px 14px',
+                    fontSize: 14,
+                    fontWeight: 500,
+                    color: '#374151',
+                    background: '#FFFFFF',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <span>标准模式</span>
+                  <span aria-hidden="true" style={{ width: 14 }} />
+                </div>
+                {/* 关怀模式（当前，高亮打勾） */}
+                <div
+                  role="option"
+                  aria-selected={true}
+                  onClick={() => setModeDropdownOpen(false)}
+                  data-testid="care-home-mode-option-care"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                    padding: '10px 14px',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: '#2E7D32',
+                    background: '#E8F5E9',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <span>关怀模式</span>
+                  <span aria-hidden="true">✓</span>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {/* ⊕ 加圈 */}
+          <button
+            aria-label="更多"
+            onClick={() => navigate('/invite')}
+            data-testid="care-home-more-btn"
+            style={{
+              position: 'absolute',
+              right: 8,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              width: 32,
+              height: 32,
+              background: 'transparent',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              color: '#0C4A6E',
+            }}
+          >
+            <svg width={22} height={22} viewBox="0 0 22 22" aria-hidden="true">
+              <circle cx={11} cy={11} r={9.5} fill="none" stroke="currentColor" strokeWidth={1.6} />
+              <line x1={11} y1={6} x2={11} y2={16} stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" />
+              <line x1={6} y1={11} x2={16} y2={11} stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" />
+            </svg>
           </button>
         </div>
       </div>
 
-      {/* 欢迎区 */}
+      {/* 2. 欢迎区（蓝绿渐变） */}
       <div
         style={{
           background: 'linear-gradient(135deg, #1976D2 0%, #43A047 100%)',
           color: '#FFFFFF',
-          padding: '28px 20px',
+          padding: '24px 20px',
           borderRadius: '0 0 24px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
         }}
+        data-testid="care-home-welcome"
       >
-        <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>{greeting}</div>
-        <div style={{ fontSize: 17 }}>我是小康，有事儿随时问我~</div>
-      </div>
-
-      {/* 4 个快捷胶囊 */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 8,
-          padding: '16px',
-        }}
-      >
-        {[
-          { icon: '📋', label: '健康档案', onClick: () => navigate('/health-profile') },
-          { icon: '💊', label: '用药提醒', onClick: () => navigate('/ai-home/medication-reminder') },
-          { icon: '📷', label: '拍照问AI', onClick: takePhoto },
-          { icon: '🏥', label: '健康服务', onClick: () => navigate('/services') },
-        ].map((it) => (
-          <button
-            key={it.label}
-            onClick={it.onClick}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 6 }} data-testid="care-home-greeting">
+            {greeting.text} {greeting.icon}
+          </div>
+          <div style={{ fontSize: 16, opacity: 0.95, marginBottom: 14 }}>
+            我是小康，有健康问题随时问我~
+          </div>
+          {/* 今日用药提醒 */}
+          <div
+            data-testid="care-home-med-reminder"
             style={{
-              background: '#FFFFFF',
-              border: '1px solid #E0E0E0',
-              borderRadius: 16,
-              padding: '12px 4px',
-              minHeight: 80,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 4,
-              cursor: 'pointer',
+              background: 'rgba(255,255,255,0.18)',
+              borderRadius: 12,
+              padding: '8px 12px',
               fontSize: 14,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              maxWidth: '100%',
             }}
           >
-            <div style={{ fontSize: 24 }}>{it.icon}</div>
-            <div style={{ fontWeight: 500 }}>{it.label}</div>
+            <span aria-hidden="true">🔔</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              今日提醒：{medText || '加载中…'}
+            </span>
+          </div>
+        </div>
+
+        {/* 右侧：宾尼小康机器人 LOGO + 窄白边白圈（样式①） */}
+        <div
+          data-testid="care-home-robot-logo"
+          style={{
+            flexShrink: 0,
+            width: 84,
+            height: 84,
+            borderRadius: '50%',
+            background: '#FFFFFF',
+            border: '2px solid rgba(255,255,255,0.9)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`${basePath}/binni-xiaokang-logo.png`}
+            alt="宾尼小康"
+            style={{ width: 74, height: 74, borderRadius: '50%', objectFit: 'cover' }}
+          />
+        </div>
+      </div>
+
+      {/* 3. 核心入口区 —— 5 张大字整行卡片 */}
+      <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }} data-testid="care-home-cards">
+        {cards.map((c) => (
+          <button
+            key={c.key}
+            onClick={c.onClick}
+            data-testid={`care-home-card-${c.key}`}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 16,
+              width: '100%',
+              background: '#FFFFFF',
+              border: '1px solid #EEF1F4',
+              borderRadius: 18,
+              padding: '18px 16px',
+              cursor: 'pointer',
+              textAlign: 'left',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
+            }}
+          >
+            <div
+              style={{
+                flexShrink: 0,
+                width: 56,
+                height: 56,
+                borderRadius: 16,
+                background: c.bg,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 28,
+              }}
+              aria-hidden="true"
+            >
+              {c.icon}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 21, fontWeight: 700, color: '#1F2937', marginBottom: 4 }}>
+                {c.title}
+              </div>
+              <div style={{ fontSize: 14, color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {c.desc}
+              </div>
+            </div>
+            <span style={{ flexShrink: 0, fontSize: 24, color: '#C4CDD5' }} aria-hidden="true">›</span>
           </button>
         ))}
       </div>
-
-      {/* 对话流卡片区 */}
-      <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {/* 健康简评卡 */}
-        <div
-          onClick={() => navigate('/health-dashboard')}
-          style={{
-            background: '#FFFFFF',
-            borderRadius: 16,
-            padding: 16,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-            cursor: 'pointer',
-          }}
-          data-testid="health-summary-card"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <span style={{ fontSize: 22 }}>📊</span>
-            <div style={{ fontSize: 18, fontWeight: 600 }}>健康简评</div>
-          </div>
-          <div style={{ fontSize: 16, color: '#424242', marginBottom: 12 }}>
-            {loading ? '加载中…' : summary?.summary_text || '今日数据尚未生成，请稍后查看 ~'}
-          </div>
-          {summary?.metrics && summary.metrics.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-              {summary.metrics.map((m) => (
-                <div
-                  key={m.type}
-                  style={{
-                    background: '#F5F7FA',
-                    borderRadius: 12,
-                    padding: '10px 8px',
-                    textAlign: 'center',
-                  }}
-                >
-                  <div style={{ fontSize: 13, color: '#666' }}>{m.label}</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: '#212121', margin: '4px 0' }}>
-                    {m.value}
-                    <span style={{ fontSize: 12, color: '#999', marginLeft: 4 }}>{m.unit}</span>
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: statusColor(m.status),
-                      background: `${statusColor(m.status)}1A`,
-                      display: 'inline-block',
-                      padding: '2px 8px',
-                      borderRadius: 8,
-                    }}
-                  >
-                    {m.status}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* 用药提醒卡 */}
-        <div
-          style={{
-            background: '#FFFFFF',
-            borderRadius: 16,
-            padding: 16,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-          }}
-          data-testid="medication-card"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <span style={{ fontSize: 22 }}>💊</span>
-            <div style={{ fontSize: 18, fontWeight: 600 }}>
-              {medication ? '该吃药啦' : '今日用药已全部完成 ✅'}
-            </div>
-          </div>
-          {medication ? (
-            <>
-              <div
-                onClick={() => navigate('/ai-home/medication-reminder')}
-                style={{ fontSize: 16, color: '#424242', marginBottom: 12, cursor: 'pointer' }}
-              >
-                {medication.drug_name || medication.name || '药品'} · {medication.remind_time || medication.schedule || ''} · {medication.dose || medication.dosage || ''}
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    try {
-                      if (medication.id) {
-                        await api.post(`/api/medication-reminder/items/${medication.id}/check`);
-                      }
-                      setMedication(null);
-                      showToast('已记录');
-                    } catch {
-                      setMedication(null);
-                      showToast('已记录');
-                    }
-                  }}
-                  style={{
-                    flex: 1,
-                    background: '#43A047',
-                    color: '#FFF',
-                    border: 'none',
-                    borderRadius: 12,
-                    padding: '10px 0',
-                    fontSize: 16,
-                    minHeight: 44,
-                    cursor: 'pointer',
-                  }}
-                >
-                  已吃 ✓
-                </button>
-                <select
-                  onChange={(e) => {
-                    showToast(`已推迟 ${e.target.value} 分钟`);
-                  }}
-                  defaultValue=""
-                  style={{
-                    flex: 1,
-                    background: '#FFF',
-                    color: '#1976D2',
-                    border: '1px solid #1976D2',
-                    borderRadius: 12,
-                    padding: '10px 0',
-                    fontSize: 16,
-                    minHeight: 44,
-                  }}
-                >
-                  <option value="" disabled>
-                    推迟
-                  </option>
-                  <option value="15">15 分钟</option>
-                  <option value="30">30 分钟</option>
-                  <option value="60">60 分钟</option>
-                </select>
-              </div>
-            </>
-          ) : (
-            <div style={{ fontSize: 14, color: '#666' }}>继续保持，按时服药有助于健康哦 ~</div>
-          )}
-        </div>
-
-        {/* SOS 关怀卡 */}
-        {alerts.map((alert) => (
-          <div
-            key={alert.id}
-            data-testid="sos-care-card"
-            style={{
-              background: '#FFF5F5',
-              borderRadius: 16,
-              padding: 16,
-              border: '1px solid #FFCDD2',
-              boxShadow: '0 2px 8px rgba(229,57,53,0.08)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <span style={{ fontSize: 22 }}>🚨</span>
-              <div style={{ fontSize: 18, fontWeight: 600, color: '#C62828' }}>{alert.title}</div>
-            </div>
-            <div style={{ fontSize: 15, color: '#424242', marginBottom: 8 }}>{alert.content}</div>
-            {alert.suggestion && (
-              <div style={{ fontSize: 14, color: '#666', marginBottom: 12 }}>建议：{alert.suggestion}</div>
-            )}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={callFamily}
-                style={{
-                  flex: 1,
-                  background: '#E53935',
-                  color: '#FFF',
-                  border: 'none',
-                  borderRadius: 12,
-                  padding: '10px 0',
-                  fontSize: 16,
-                  minHeight: 44,
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                }}
-              >
-                📞 呼叫家人
-              </button>
-              <button
-                onClick={() => dismissAlert(alert.id)}
-                style={{
-                  flex: 1,
-                  background: '#FFF',
-                  color: '#666',
-                  border: '1px solid #E0E0E0',
-                  borderRadius: 12,
-                  padding: '10px 0',
-                  fontSize: 16,
-                  minHeight: 44,
-                  cursor: 'pointer',
-                }}
-              >
-                我没事
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* 底部"咨询 AI"悬浮球 */}
-      <button
-        data-testid="ai-consult-fab"
-        onClick={() => setDrawerOpen(true)}
-        style={{
-          position: 'fixed',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          bottom: 24,
-          background: '#1976D2',
-          color: '#FFF',
-          border: 'none',
-          borderRadius: 32,
-          padding: '14px 24px',
-          fontSize: 17,
-          fontWeight: 600,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          boxShadow: '0 6px 16px rgba(25,118,210,0.4)',
-          minHeight: 56,
-          cursor: 'pointer',
-          zIndex: 20,
-        }}
-      >
-        <span style={{ fontSize: 22 }}>💬</span>
-        <span>咨询 AI</span>
-      </button>
-
-      {/* 右下角 SOS 占位悬浮球 */}
-      <button
-        data-testid="sos-fab"
-        aria-label="SOS"
-        onClick={() => showToast('SOS 功能即将上线')}
-        style={{
-          position: 'fixed',
-          right: 20,
-          bottom: 24,
-          background: '#E53935',
-          color: '#FFF',
-          border: 'none',
-          borderRadius: '50%',
-          width: 56,
-          height: 56,
-          fontSize: 14,
-          fontWeight: 700,
-          boxShadow: '0 6px 16px rgba(229,57,53,0.5)',
-          cursor: 'pointer',
-          animation: 'sosPulse 2s infinite',
-          zIndex: 20,
-        }}
-      >
-        SOS
-      </button>
 
       {/* Toast */}
       {toast && (
@@ -528,89 +512,12 @@ export default function CareAiHomePage() {
             padding: '10px 20px',
             borderRadius: 8,
             fontSize: 14,
-            zIndex: 100,
+            zIndex: 200,
           }}
         >
           {toast}
         </div>
       )}
-
-      {/* AI 对话抽屉 (3/4 屏) */}
-      {drawerOpen && (
-        <div
-          onClick={() => setDrawerOpen(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.35)',
-            zIndex: 50,
-            display: 'flex',
-            alignItems: 'flex-end',
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            data-testid="ai-drawer"
-            style={{
-              width: '100%',
-              height: '75vh',
-              background: '#FFFFFF',
-              borderRadius: '20px 20px 0 0',
-              padding: 16,
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 12,
-              }}
-            >
-              <div style={{ width: 40, height: 4, background: '#E0E0E0', borderRadius: 2, margin: '0 auto' }} />
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 12,
-              }}
-            >
-              <div style={{ fontSize: 18, fontWeight: 600 }}>咨询小康</div>
-              <button
-                onClick={() => setDrawerOpen(false)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  fontSize: 22,
-                  cursor: 'pointer',
-                  minWidth: 44,
-                  minHeight: 44,
-                }}
-                aria-label="关闭"
-              >
-                ✕
-              </button>
-            </div>
-            <iframe
-              src={`${basePath}/ai-home?embedded=1`}
-              style={{ flex: 1, width: '100%', border: 'none', borderRadius: 12 }}
-              title="AI 对话"
-            />
-          </div>
-        </div>
-      )}
-
-      <style jsx>{`
-        @keyframes sosPulse {
-          0%, 100% { box-shadow: 0 6px 16px rgba(229,57,53,0.5); }
-          50% { box-shadow: 0 6px 24px rgba(229,57,53,0.8), 0 0 0 8px rgba(229,57,53,0.2); }
-        }
-      `}</style>
     </div>
   );
 }

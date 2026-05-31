@@ -38,7 +38,7 @@ const DEVICE_TYPES = [
   },
   {
     type: 7,
-    label: '水位报警器',
+    label: '水浸报警器',
     color: '#FBC02D',
     light: '#FFFDE7',
     gradient: 'linear-gradient(135deg, #FFFDE7 0%, #FFF9C4 100%)',

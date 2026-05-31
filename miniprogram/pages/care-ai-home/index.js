@@ -1,137 +1,120 @@
-// [PRD-CARE-AI-HOME 2026-05-27] 关怀模式 AI 主页 v1
-const { get, post } = require('../../utils/request');
+// [PRD-CARE-MODE-OPTIM-V1 2026-05-31] 关怀模式首页优化
+// 三块结构：顶部固定栏（☰/小康/模式胶囊+🎁+⊕）+ 欢迎区（问候+小字+今日用药提醒+机器人LOGO窄白边）+ 5 张大字整行卡片
+const { get } = require('../../utils/request');
 
 function getGreeting(now) {
   const h = now.getHours();
-  if (h >= 5 && h < 11) return '早上好 ☀️';
-  if (h >= 11 && h < 18) return '中午好 ☀️';
-  return '晚上好 🌙';
-}
-
-function statusColor(status) {
-  if (status === '偏高') return '#E53935';
-  if (status === '偏低') return '#FB8C00';
-  return '#43A047';
+  if (h >= 5 && h < 11) return { text: '早上好', icon: '☀️' };
+  if (h >= 11 && h < 18) return { text: '中午好', icon: '🌤️' };
+  return { text: '晚上好', icon: '🌙' };
 }
 
 Page({
   data: {
-    greeting: '',
-    summary: null,
-    metrics: [],
-    alerts: [],
-    medication: null,
-    drawerOpen: false,
-    toast: '',
-    loading: true,
+    statusBarHeight: 20,
+    greetingText: '',
+    greetingIcon: '',
+    medText: '加载中…',
+    modeDropdownOpen: false,
+    logoUrl: '',
+    cards: [
+      { key: 'medication', icon: '💊', title: '用药提醒', desc: '查看今日完整用药提醒列表', bg: 'linear-gradient(135deg,#42A5F5,#1E88E5)' },
+      { key: 'health-record', icon: '📈', title: '健康记录', desc: '血压、血糖、心率、血氧、睡眠', bg: 'linear-gradient(135deg,#66BB6A,#43A047)' },
+      { key: 'home-safety', icon: '🛡️', title: '居家安全设备', desc: '紧急呼叫器 / 烟雾报警器 / 水浸报警器', bg: 'linear-gradient(135deg,#FFA726,#FB8C00)' },
+      { key: 'sos', icon: '🆘', title: '紧急呼叫', desc: '一键 SOS 求助、联系家人与急救', bg: 'linear-gradient(135deg,#EF5350,#E53935)' },
+      { key: 'info-card', icon: '🪪', title: '个人信息卡', desc: '身份与健康名片，便于出示与求助', bg: 'linear-gradient(135deg,#AB47BC,#8E24AA)' },
+    ],
   },
 
   onLoad() {
-    this.setData({ greeting: getGreeting(new Date()) });
-    this.loadAll();
+    const g = getGreeting(new Date());
+    const app = getApp();
+    const base = (app && app.globalData && app.globalData.baseUrl) || '';
+    let statusBarHeight = 20;
+    try {
+      const sys = wx.getSystemInfoSync();
+      statusBarHeight = sys.statusBarHeight || 20;
+    } catch (e) {}
+    this.setData({
+      statusBarHeight,
+      greetingText: g.text,
+      greetingIcon: g.icon,
+      logoUrl: `${base}/binni-xiaokang-logo.png`,
+    });
+    this.loadMedication();
   },
 
   onShow() {
-    this.loadAll();
+    this.loadMedication();
   },
 
-  loadAll() {
-    this.setData({ loading: true });
-    Promise.all([
-      get('/api/care/daily-summary').catch(() => null),
-      get('/api/care/alerts/active').catch(() => null),
-      get('/api/medication-reminder/today').catch(() => null),
-    ]).then(([sumR, alertR, medR]) => {
-      const sum = sumR && sumR.data ? sumR.data : null;
-      const metrics = (sum && sum.metrics) || [];
-      metrics.forEach((m) => {
-        m.statusColor = statusColor(m.status);
-      });
-      const alerts = (alertR && alertR.data && alertR.data.alerts) || [];
-      const medItems = (medR && (medR.data && (medR.data.items || medR.items))) || [];
-      const nextMed = medItems.find((it) => !it.done) || null;
-      this.setData({
-        summary: sum,
-        metrics,
-        alerts,
-        medication: nextMed,
-        loading: false,
-      });
-    });
+  loadMedication() {
+    get('/api/medication-reminder/today')
+      .then((res) => {
+        let items = [];
+        if (Array.isArray(res)) items = res;
+        else if (res && res.data && Array.isArray(res.data.items)) items = res.data.items;
+        else if (res && Array.isArray(res.items)) items = res.items;
+        else if (res && res.data && Array.isArray(res.data)) items = res.data;
+        if (items.length > 0) {
+          const next = items.find((it) => !it.done) || items[0];
+          const time = next.scheduled_time || next.remind_time || next.schedule || '';
+          const drug = next.drug_name || next.name || '药品';
+          this.setData({ medText: `${time ? time + ' ' : ''}请按时服用"${drug}"` });
+        } else {
+          this.setData({ medText: '今日暂无用药提醒' });
+        }
+      })
+      .catch(() => this.setData({ medText: '今日暂无用药提醒' }));
   },
 
-  navigate(e) {
-    const url = e.currentTarget.dataset.url;
-    if (!url) return;
-    wx.navigateTo({ url, fail: () => wx.switchTab({ url }).catch(() => {}) });
+  toggleModeDropdown() {
+    this.setData({ modeDropdownOpen: !this.data.modeDropdownOpen });
   },
 
-  takePhoto() {
-    wx.chooseImage({
-      count: 1,
-      sourceType: ['camera'],
-      success: () => {
-        wx.navigateTo({ url: '/pages/ai/index?action=photo' });
-      },
-    });
+  closeModeDropdown() {
+    this.setData({ modeDropdownOpen: false });
   },
 
-  openDrawer() {
-    this.setData({ drawerOpen: true });
+  switchToStandard() {
+    this.setData({ modeDropdownOpen: false });
+    try {
+      wx.setStorageSync('app_mode_preference', 'standard');
+    } catch (e) {}
+    wx.showToast({ title: '已切换到标准模式 ✓', icon: 'none' });
+    setTimeout(() => {
+      wx.navigateTo({ url: '/pages/ai/index', fail: () => wx.switchTab({ url: '/pages/ai/index' }) });
+    }, 300);
   },
 
-  closeDrawer() {
-    this.setData({ drawerOpen: false });
+  goMenu() {
+    wx.navigateTo({ url: '/pages/profile/index', fail: () => {} });
   },
 
-  switchMode() {
-    wx.navigateTo({ url: '/pages/welcome-mode/index' });
+  goInvite() {
+    wx.navigateTo({ url: '/pages/invite/index', fail: () => {} });
   },
 
-  callFamily() {
-    wx.makePhoneCall({ phoneNumber: '120', fail: () => {} });
-  },
-
-  showToast(msg) {
-    wx.showToast({ title: msg, icon: 'none' });
-  },
-
-  onSosFabTap() {
-    this.showToast('SOS 功能即将上线');
-  },
-
-  onMedDone() {
-    const m = this.data.medication;
-    if (m && m.id) {
-      post(`/api/medication-reminder/items/${m.id}/check`, {}).catch(() => {});
+  onCardTap(e) {
+    const key = e.currentTarget.dataset.key;
+    switch (key) {
+      case 'medication':
+        wx.navigateTo({ url: '/pages/health-profile/index?tab=self&focus=medication' });
+        break;
+      case 'health-record':
+        wx.navigateTo({ url: '/pages/care-today-health/index' });
+        break;
+      case 'home-safety':
+        wx.navigateTo({ url: '/pages/health-profile/index?tab=self&focus=devices' });
+        break;
+      case 'sos':
+        wx.navigateTo({ url: '/pages/care-sos/index' });
+        break;
+      case 'info-card':
+        wx.navigateTo({ url: '/pages/care-info-card/index' });
+        break;
+      default:
+        break;
     }
-    this.setData({ medication: null });
-    this.showToast('已记录');
-  },
-
-  onMedPostpone(e) {
-    const minutes = e.currentTarget.dataset.minutes;
-    this.showToast(`已推迟 ${minutes} 分钟`);
-  },
-
-  onDismissAlert(e) {
-    const id = e.currentTarget.dataset.id;
-    post(`/api/care/alerts/${id}/dismiss`, {}).catch(() => {});
-    const remain = this.data.alerts.filter((a) => a.id !== id);
-    this.setData({ alerts: remain });
-  },
-
-  goAiChat() {
-    wx.navigateTo({ url: '/pages/ai/index' });
-  },
-
-  goHealthDashboard() {
-    wx.navigateTo({ url: '/pages/checkup/index' });
-  },
-
-  goMedication() {
-    wx.navigateTo({ url: '/pages/medication-reminder/index' }).catch(() => {
-      wx.navigateTo({ url: '/pages/ai/index' });
-    });
   },
 });

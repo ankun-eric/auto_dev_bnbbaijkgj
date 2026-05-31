@@ -1271,10 +1271,12 @@ function HealthProfileV2PageInner() {
                   - 不限套餐（Y=-1/is_unlimited）只显示「已管理 X」
                   - 不再展示「还可添加 N 人」「含本人/不含本人」等附加文案
                   家人 Tab：保留原副标题（关系语境） */}
+              {/* [PRD-MEMBER-COUNT-CONSISTENCY-V1 2026-05-31] 文案统一为「已管理 X / 上限 Y」
+                  与会员中心蓝卡片完全一致 */}
               {isSelfTab
                 ? (isUnlimitedByMe
-                    ? `已管理 ${xByMe}`
-                    : `已管理 ${xByMe}/${yByMe}`)
+                    ? `已管理 ${xByMe} / 上限 不限`
+                    : `已管理 ${xByMe} / 上限 ${yByMe}`)
                 : `守护对象：${byMeView.subtitle}`}
             </div>
             {byMeView.button}
@@ -1310,9 +1312,11 @@ function HealthProfileV2PageInner() {
               data-testid='my-guardians-subtitle'
               style={{ fontSize: 12, color: forMeView.textColor, lineHeight: 1.4, flex: 1, minWidth: 0 }}
             >
-              {isSelfTab
-                ? `守护者：${forMeView.subtitle}`
-                : `守护者：${forMeView.subtitle}`}
+              {/* [PRD-MEMBER-COUNT-CONSISTENCY-V1 2026-05-31] 文案统一为「守护者 X / 上限 Y」
+                  X 不含本人（X = 别人来守护我的人数，纯统计他人；与"我管的档案"含本人区分） */}
+              {isUnlimitedForMe
+                ? `守护者 ${xForMe} / 上限 不限`
+                : `守护者 ${xForMe} / 上限 ${yForMe}`}
             </div>
             {forMeView.button}
           </div>
@@ -1979,7 +1983,7 @@ function HealthProfileV2PageInner() {
           <div>
             <div style={{ fontSize: 15, fontWeight: 700 }}>🛡️ 居家安全设备</div>
             <div style={{ fontSize: 12, opacity: 0.92, marginTop: 4 }}>
-              紧急呼叫器 / 烟雾报警器 / 水位报警器
+              紧急呼叫器 / 烟雾报警器 / 水浸报警器
             </div>
           </div>
           <div style={{ fontSize: 20 }}>›</div>

@@ -72,10 +72,13 @@ DEVICE_TYPE_SMOKE = 2
 DEVICE_TYPE_WATER = 7
 ALL_DEVICE_TYPES = [DEVICE_TYPE_EMERGENCY, DEVICE_TYPE_SMOKE, DEVICE_TYPE_WATER]
 
+# [PRD-CARE-MODE-OPTIM-V1 2026-05-31] 关怀模式优化：设备名统一为
+# 紧急呼叫器 / 烟雾报警器 / 水浸报警器（去掉"宾尼"前缀，"水位"改"水浸"），
+# 健康档案本人 Tab 副标题同步引用同口径。
 DEVICE_TYPE_LABEL = {
-    DEVICE_TYPE_EMERGENCY: "宾尼紧急呼叫器",
-    DEVICE_TYPE_SMOKE: "宾尼烟雾报警器",
-    DEVICE_TYPE_WATER: "宾尼水位报警器",
+    DEVICE_TYPE_EMERGENCY: "紧急呼叫器",
+    DEVICE_TYPE_SMOKE: "烟雾报警器",
+    DEVICE_TYPE_WATER: "水浸报警器",
 }
 DEVICE_TYPE_COLOR = {
     DEVICE_TYPE_EMERGENCY: "red",
