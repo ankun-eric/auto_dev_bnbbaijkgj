@@ -5,7 +5,66 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-05-31 · 功能优化 / 血糖详情页对齐血压布局 v1.0）
+## 最近一次变更（2026-05-31 · 血压详情页「全部」跳转修复 + AI 解读补齐）
+
+**任务标识**：`[PRD-BP-AI-EXPLAIN-V1 2026-05-31]`
+
+**背景**：血压详情页两件事一次性解决——
+1) Bug：血压详情页「历史记录 - 全部」点击会跳到陌生的"要登录的别的系统"页面（根因：使用了 `window.location.href` 整页跳转，被 gateway-nginx 兜底到登录系统），需改为 `router.push` 内部前端路由（与血糖完全对齐）；
+2) 新功能：血压详情页缺少 AI 解读，按血糖完全同款补齐「🤖 AI 解读本次血压」+「🤖 AI 解读趋势」两个按钮 + 底部抽屉。
+
+**核心交付**：
+
+- **H5 `h5-web/src/app/health-metric/[type]/page.tsx`（修改）**：
+  - `BloodPressurePage` 顶部新增 `const router = useRouter()`
+  - 「全部 ›」点击从 `window.location.href = ...` 改为 `router.push(...)`，彻底解决跳错页 Bug
+  - 新增 AI 解读状态：`aiDrawer`、`aiCacheRef`（`window.__bpAiCache`，5 分钟内存缓存）
+  - 新增 `requestAi(mode: 'single' | 'trend')`：调 `/api/bp-v1/ai-explain-single` / `/api/bp-v1/ai-explain-trend`；接口失败/超时降级为基于 `judgeBp` 档位的本地规则文案（5 档不同建议）
+  - 趋势图卡片下方、历史记录卡片上方新增：实心主色按钮「🤖 AI 解读本次血压」(`data-testid="bp-ai-single"`) + 描边按钮「🤖 AI 解读趋势」(`data-testid="bp-ai-trend"`)
+  - 新增 AI 抽屉 Popup（`data-testid="bp-ai-drawer"`）：标题 + "基于：..." 灰字 + AI 正文 + 「⚠️ AI 建议仅供参考，不能替代医生诊断」免责说明
+
+- **后端 `backend/app/api/bp_v1.py`（新增）**：血压 AI 解读模块（前缀 `/api/bp-v1`）
+  - `judge_bp(sbp, dbp) -> (level_key, label)` 纯函数：与 H5 端 judgeBp 同口径（正常/轻度偏高/中度偏高/严重偏高/偏低/未知）
+  - 复用 `app.services.ai_service.call_ai_model`（3s 超时降级）；从 `ai_prompt_config` 表读取 `bp_single_explain` / `bp_trend_explain`，读不到用内置 `DEFAULT_SINGLE_PROMPT` / `DEFAULT_TREND_PROMPT`
+  - 内存缓存 `_ai_cache`（独立命名空间 `bp:ai:single:*` / `bp:ai:trend:*`），单次永久缓存、趋势 5 min
+  - `POST /api/bp-v1/ai-explain-single`：从 `health_metric_record`（`metric_type='blood_pressure'`）按 `id` 取记录 + JOIN `health_profiles.user_id` 越权校验（404/403）；模型失败走 `_fallback_single_explain` 规则文案
+  - `POST /api/bp-v1/ai-explain-trend`：按 `profile_id` 校验归属，取近 N 天（7d/30d）记录 LIMIT 200，模型 JSON 解析或降级为 `_fallback_trend_explain`（含 summary/trend/advice 三段）；统计偏高/偏低天数 + 收缩压/舒张压均值与最高值
+  - Pydantic 模型 `BpAiSingleReq` / `BpAiTrendReq`
+
+- **后端 `backend/app/main.py`（修改）**：注册 `from app.api import bp_v1 as _bp_v1` + `app.include_router(_bp_v1.router)`
+
+- **后端测试 `backend/tests/test_bp_ai_v1_20260531.py`（新增）**：12 个用例
+  - 单测：judge_bp 5 个档位 + 未知；_fallback_single_explain 含数值 + 严重档；_fallback_trend_explain 空/有数据
+  - 端到端：单次 401/404/200(规则兜底)/缓存命中(`from_cache=True`)/403 他人记录；趋势 401/404/200/缓存命中/403 他人 profile
+  - autouse fixture 强制 DROP+CREATE `health_metric_record`（绕开 SQLAlchemy BigInteger PK 在 SQLite 不自增问题）
+  - 远程容器内 pytest **60/60 全部通过**（含回归 `test_glucose_v1_20260530.py` 全部测试）
+
+- **小程序 `miniprogram/pages/health-metric/index.{js,wxml,wxss,json}`（新增）+ `app.json`（注册）**：
+  - 用 web-view 包装 H5 详情页（与小程序会员中心同方案）
+  - URL：`{baseUrl}/health-metric/{type}?profileId=xxx&token=xxx`
+  - 自动继承 H5 端的「全部」跳转修复（router.push 在 web-view 内即时跳转）与血压 AI 解读两个按钮 + 抽屉，避免重复实现两套交互
+  - 解决了原小程序中点指标卡返回"功能开发中"的问题（之前 `/pages/health-metric/index` 不存在导致 navigateTo fail）
+
+**部署方式**：
+- 后端：`_deploy_bp_ai_v1.py backend` → docker cp `bp_v1.py / main.py / 测试` → `docker restart`
+- H5：本地 `npm run build`（注入 `NEXT_PUBLIC_BASE_PATH=/autodev/<id>`）→ `_deploy_h5_full.py` tar 打包 standalone+static+public → 上传服务器 → 容器内解压 → 重启
+- 烟测：H5 首页 200 / 血压详情 200 / 血压历史 200；`POST /api/bp-v1/ai-explain-single` 与 `ai-explain-trend` 未鉴权返回 401（路由已注册）
+- 容器内 pytest 60/60 全过
+- 小程序 zip：`_pack_mp_bp_ai_v1.py` 打包 → docker cp 到 backend `/app/uploads/` → 通过 `{base}/uploads/{file}.zip` 访问
+
+**变更端清单（仅本次开发涉及）**：
+- ✅ backend（新增 `bp_v1.py` + 测试 + main.py 注册路由）
+- ✅ h5-web（修改血压详情页：跳转 + AI 按钮/抽屉/requestAi）
+- ✅ miniprogram（新增 health-metric web-view 包装页 + app.json 注册）
+- ⏭️ Flutter APP / Android / iOS：本次无改动，跳过打包
+
+**用户手册**：[user_docs/血压详情页全部跳转修复与AI解读_20260531.md](../user_docs/血压详情页全部跳转修复与AI解读_20260531.md)
+
+**唯一变更标记**：`[PRD-BP-AI-EXPLAIN-V1 2026-05-31]`
+
+---
+
+## 上一次变更（2026-05-31 · 功能优化 / 血糖详情页对齐血压布局 v1.0）
 
 **任务标识**：`[PRD-GLUCOSE-CARD-ALIGN-BP-V1 2026-05-31]`
 

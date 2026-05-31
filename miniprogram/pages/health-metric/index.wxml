@@ -1,0 +1,6 @@
+<!-- [PRD-BP-AI-EXPLAIN-V1 2026-05-31] 小程序血压（及其它指标）详情页：web-view 加载 H5 详情页，
+     自动继承 H5 端的「全部」跳转修复（router.push）与血压 AI 解读两个按钮 + 抽屉 -->
+<web-view src="{{webUrl}}" wx:if="{{webUrl}}"></web-view>
+<view class="loading" wx:else>
+  <text>加载中…</text>
+</view>

@@ -1,0 +1,2 @@
+page { height: 100vh; background: #F4F7FB; }
+.loading { display: flex; align-items: center; justify-content: center; height: 100vh; color: #94A3B8; font-size: 14px; }

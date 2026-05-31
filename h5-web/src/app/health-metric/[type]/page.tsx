@@ -32,6 +32,7 @@ import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { formatDateTime, parseServerTime, formatFriendlyTime } from '@/lib/datetime';
 import { judgeBp, getBpPalette, type BpJudgement } from '@/lib/bp-level';
+import { judgeHeartRate, getHrPalette, HR_NORMAL_RANGE_TEXT } from '@/lib/heart-rate-level';
 import {
   judgeBg, getBgPalette, normalizeScene, BG_SCENE_LABEL, BG_TARGET_RANGE,
   BG_SCENE_CODE, BG_SCENE_OPTIONS, formatBgSourceCapsule, sceneKeyToCode,
