@@ -34,6 +34,8 @@ export default function CareSosPage() {
   const [holdProgress, setHoldProgress] = useState(0);
   const [toast, setToast] = useState('');
   const [maintainOpen, setMaintainOpen] = useState(false);
+  // [BUGFIX-CARE-H5-V4 需求8.3/B3] 「分享我的位置」入口移到 SOS 页最底部、联系人列表下方
+  const [sharing, setSharing] = useState(false);
 
   const holdTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -130,6 +132,50 @@ export default function CareSosPage() {
     } else {
       showToast('未设置紧急联系人，正在拨打 120');
       setTimeout(() => callPhone('120'), 600);
+    }
+  };
+
+  // [需求8.3/B5] 分享我的位置（静态位置，微信发给好友）— 点击效果不变，仅入口位置变化
+  const shareMyLocation = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const res: any = await api.post('/api/care-card/share-location', {
+        latitude: coords?.lat ?? null,
+        longitude: coords?.lng ?? null,
+        address: address || '',
+      });
+      const token = res?.data?.token ?? res?.token;
+      if (!token) {
+        showToast('生成分享链接失败，请重试');
+        return;
+      }
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const shareUrl = `${origin}${basePath}/care-ai-home/share-location/${token}`;
+
+      // 小程序 web-view 内：通过 wx.miniProgram 触发原生「转发给好友」
+      const wxmp: any = (typeof window !== 'undefined' && (window as any).wx && (window as any).wx.miniProgram) || null;
+      if (wxmp && typeof wxmp.postMessage === 'function') {
+        wxmp.postMessage({ data: { action: 'shareLocation', url: shareUrl, address: address || '我的位置' } });
+        if (typeof wxmp.navigateTo === 'function') {
+          wxmp.navigateTo({ url: `/pages/care-share-location/index?token=${encodeURIComponent(token)}&address=${encodeURIComponent(address || '我的位置')}` });
+          return;
+        }
+      }
+
+      // 浏览器/H5 兜底：系统分享或复制链接
+      if (typeof navigator !== 'undefined' && (navigator as any).share) {
+        await (navigator as any).share({ title: '我的位置', text: `我现在的位置：${address || ''}`, url: shareUrl });
+      } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(shareUrl);
+        showToast('位置链接已复制，可粘贴发送给微信好友');
+      } else {
+        showToast('请复制链接发送给好友：' + shareUrl);
+      }
+    } catch {
+      showToast('分享失败，请重试');
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -368,15 +414,32 @@ export default function CareSosPage() {
             🚓 呼叫 110
           </button>
         </div>
+
+        {/* [BUGFIX-CARE-H5-V4 B3/B4] 分享我的位置（移到 SOS 页最底部、联系人列表下方；管理页内旧入口已删除） */}
+        <button
+          data-testid="care-sos-share-location"
+          onClick={shareMyLocation}
+          disabled={sharing}
+          style={{
+            width: '100%',
+            background: '#07c160',
+            color: '#FFF',
+            border: 'none',
+            borderRadius: 14,
+            padding: '16px 0',
+            fontSize: 17,
+            fontWeight: 700,
+            cursor: sharing ? 'default' : 'pointer',
+          }}
+        >
+          {sharing ? '生成中…' : '📍 分享我的位置（微信发给好友）'}
+        </button>
       </div>
 
       {/* 紧急联系人维护弹窗 */}
       {maintainOpen && (
         <ContactMaintainModal
           contacts={contacts}
-          coords={coords}
-          address={address}
-          basePath={basePath}
           onClose={() => setMaintainOpen(false)}
           onChanged={loadContacts}
           showToast={showToast}
@@ -437,17 +500,11 @@ export default function CareSosPage() {
 
 function ContactMaintainModal({
   contacts,
-  coords,
-  address,
-  basePath,
   onClose,
   onChanged,
   showToast,
 }: {
   contacts: Contact[];
-  coords: { lat: number; lng: number } | null;
-  address: string;
-  basePath: string;
   onClose: () => void;
   onChanged: () => void;
   showToast: (m: string) => void;
@@ -458,7 +515,6 @@ function ContactMaintainModal({
   const [saving, setSaving] = useState(false);
   const [homeAddress, setHomeAddress] = useState('');
   const [addrSaving, setAddrSaving] = useState(false);
-  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -520,51 +576,6 @@ function ContactMaintainModal({
     }
   };
 
-  // [需求8.3] 分享我的位置（静态位置，微信发给好友）
-  const shareMyLocation = async () => {
-    if (sharing) return;
-    setSharing(true);
-    try {
-      const res: any = await api.post('/api/care-card/share-location', {
-        latitude: coords?.lat ?? null,
-        longitude: coords?.lng ?? null,
-        address: address || '',
-      });
-      const token = res?.data?.token ?? res?.token;
-      if (!token) {
-        showToast('生成分享链接失败，请重试');
-        return;
-      }
-      const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const shareUrl = `${origin}${basePath}/care-ai-home/share-location/${token}`;
-
-      // 小程序 web-view 内：通过 wx.miniProgram 触发原生「转发给好友」
-      const wxmp: any = (typeof window !== 'undefined' && (window as any).wx && (window as any).wx.miniProgram) || null;
-      if (wxmp && typeof wxmp.postMessage === 'function') {
-        wxmp.postMessage({ data: { action: 'shareLocation', url: shareUrl, address: address || '我的位置' } });
-        // 跳转到小程序内的分享中转页，由小程序原生 onShareAppMessage 转发给微信好友
-        if (typeof wxmp.navigateTo === 'function') {
-          wxmp.navigateTo({ url: `/pages/care-share-location/index?token=${encodeURIComponent(token)}&address=${encodeURIComponent(address || '我的位置')}` });
-          return;
-        }
-      }
-
-      // 浏览器/H5 兜底：系统分享或复制链接
-      if (typeof navigator !== 'undefined' && (navigator as any).share) {
-        await (navigator as any).share({ title: '我的位置', text: `我现在的位置：${address || ''}`, url: shareUrl });
-      } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
-        await navigator.clipboard.writeText(shareUrl);
-        showToast('位置链接已复制，可粘贴发送给微信好友');
-      } else {
-        showToast('请复制链接发送给好友：' + shareUrl);
-      }
-    } catch {
-      showToast('分享失败，请重试');
-    } finally {
-      setSharing(false);
-    }
-  };
-
   const inputStyle: React.CSSProperties = {
     width: '100%',
     border: '1px solid #E0E0E0',
@@ -590,26 +601,7 @@ function ContactMaintainModal({
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', fontSize: 22, cursor: 'pointer' }}>✕</button>
         </div>
 
-        {/* 分享我的位置 */}
-        <button
-          onClick={shareMyLocation}
-          disabled={sharing}
-          data-testid="care-sos-share-location"
-          style={{
-            width: '100%',
-            background: '#07c160',
-            color: '#FFF',
-            border: 'none',
-            borderRadius: 12,
-            padding: '13px 0',
-            fontSize: 15,
-            fontWeight: 700,
-            cursor: sharing ? 'default' : 'pointer',
-            marginBottom: 18,
-          }}
-        >
-          {sharing ? '生成中…' : '📍 分享我的位置（微信发给好友）'}
-        </button>
+        {/* [BUGFIX-CARE-H5-V4 B4] 旧的「分享我的位置」入口已删除，统一移到 SOS 页最底部，避免双入口 */}
 
         {/* 家庭住址 */}
         <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 10 }}>

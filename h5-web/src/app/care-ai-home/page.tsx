@@ -1,15 +1,19 @@
 'use client';
 
-// [PRD-CARE-MODE-OPTIM-V1 2026-05-31] 关怀模式首页优化
-// 自上而下三块：
-//   1. 顶部固定栏（与标准模式一致：☰ 菜单 / 小康 / 模式切换胶囊 + 🎁 + ⊕加圈）
-//   2. 欢迎区（蓝绿渐变 + 时段问候 + 小字 + 今日用药提醒 + 宾尼小康机器人 LOGO 窄白边白圈）
+// [PRD-CARE-MODE-OPTIM-V4 2026-05-31] 关怀模式首页 V4 补齐（H5）
+// 顶栏照搬标准模式：☰ 历史 / 宾尼小康标题 / 「宾尼小康 模式切换」胶囊 + 🎁 + ⋯更多，去掉会报错的 ⊕ 加圈
+// 主体（蓝绿大卡 + 竖排功能卡片）保持原样；右下角新增悬浮 SOS（红圆 + 扩散光圈）
+// 自上而下：
+//   1. 顶部固定栏（☰ / 宾尼小康 / 模式切换胶囊 + 🎁 + ⋯更多）
+//   2. 欢迎区（蓝绿渐变 + 时段问候 + 欢迎语 + 今日用药提醒 + 宾尼小康机器人 LOGO）
 //   3. 核心入口区（5 张大字整行卡片）
+//   4. 右下角悬浮 SOS
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { saveModePreference } from '@/lib/mode-preference';
+import MoreMenu from '@/components/ai-chat/MoreMenu';
 
 interface MedicationItem {
   id?: number;
@@ -37,6 +41,7 @@ export default function CareAiHomePage() {
   const [medText, setMedText] = useState<string>('');
   const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
   const [modeSwitching, setModeSwitching] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [toast, setToast] = useState<string>('');
   const modeDropdownRef = useRef<HTMLDivElement | null>(null);
 
@@ -106,7 +111,8 @@ export default function CareAiHomePage() {
       bg: 'linear-gradient(135deg, #42A5F5 0%, #1E88E5 100%)',
       title: '用药提醒',
       desc: '查看今日完整用药提醒列表',
-      onClick: () => navigate('/health-profile?tab=self&focus=medication'),
+      // [需求4] 直接进入本人独立的「用药提醒」页面（health-plan/medications，H5 即 /ai-home/medication-reminder，取本人数据）
+      onClick: () => navigate('/ai-home/medication-reminder'),
     },
     {
       key: 'health-record',
@@ -120,8 +126,8 @@ export default function CareAiHomePage() {
       key: 'home-safety',
       icon: '🛡️',
       bg: 'linear-gradient(135deg, #FFA726 0%, #FB8C00 100%)',
-      title: '居家安全设备',
-      desc: '紧急呼叫器 / 烟雾报警器 / 水浸报警器',
+      title: '居家安全',
+      desc: '紧急呼叫、烟雾报警、水浸报警',
       onClick: () => navigate('/home-safety'),
     },
     {
@@ -213,11 +219,11 @@ export default function CareAiHomePage() {
               style={{ fontSize: 18, fontWeight: 600, color: '#0C4A6E', lineHeight: 1 }}
               data-testid="care-home-topbar-title"
             >
-              小康
+              宾尼小康
             </span>
           </div>
 
-          {/* 右：模式切换胶囊 + 🎁 + ⊕加圈 */}
+          {/* 右：模式切换胶囊 + 🎁 + ⋯更多（去掉会报错的 ⊕ 加圈） */}
           {/* 🎁 礼物 */}
           <button
             type="button"
@@ -240,7 +246,7 @@ export default function CareAiHomePage() {
             <span style={{ fontSize: 20, lineHeight: 1 }} aria-hidden="true">🎁</span>
           </button>
 
-          {/* 模式切换下拉胶囊（当前：关怀模式） */}
+          {/* 模式切换下拉胶囊（当前：宾尼小康 模式切换） */}
           <div
             ref={modeDropdownRef}
             style={{ position: 'absolute', right: 80, top: '50%', transform: 'translateY(-50%)' }}
@@ -271,7 +277,7 @@ export default function CareAiHomePage() {
                 minHeight: 28,
               }}
             >
-              <span data-testid="care-home-mode-capsule-label">关怀模式</span>
+              <span data-testid="care-home-mode-capsule-label">宾尼小康 模式切换</span>
               <span
                 aria-hidden="true"
                 style={{
@@ -326,7 +332,7 @@ export default function CareAiHomePage() {
                   <span>标准模式</span>
                   <span aria-hidden="true" style={{ width: 14 }} />
                 </div>
-                {/* 关怀模式（当前，高亮打勾） */}
+                {/* 宾尼小康（当前，高亮打勾） */}
                 <div
                   role="option"
                   aria-selected={true}
@@ -346,17 +352,17 @@ export default function CareAiHomePage() {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  <span>关怀模式</span>
+                  <span>宾尼小康</span>
                   <span aria-hidden="true">✓</span>
                 </div>
               </div>
             ) : null}
           </div>
 
-          {/* ⊕ 加圈 */}
+          {/* ⋯ 更多（照搬标准模式更多菜单，替换原会报错的 ⊕ 加圈） */}
           <button
             aria-label="更多"
-            onClick={() => navigate('/invite')}
+            onClick={() => setMoreMenuOpen(true)}
             data-testid="care-home-more-btn"
             style={{
               position: 'absolute',
@@ -370,13 +376,12 @@ export default function CareAiHomePage() {
               padding: 0,
               cursor: 'pointer',
               color: '#0C4A6E',
+              fontSize: 24,
+              fontWeight: 700,
+              lineHeight: 1,
             }}
           >
-            <svg width={22} height={22} viewBox="0 0 22 22" aria-hidden="true">
-              <circle cx={11} cy={11} r={9.5} fill="none" stroke="currentColor" strokeWidth={1.6} />
-              <line x1={11} y1={6} x2={11} y2={16} stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" />
-              <line x1={6} y1={11} x2={16} y2={11} stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" />
-            </svg>
+            <span aria-hidden="true" style={{ display: 'inline-block', transform: 'translateY(-2px)' }}>⋯</span>
           </button>
         </div>
       </div>
@@ -399,8 +404,8 @@ export default function CareAiHomePage() {
           <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 6 }} data-testid="care-home-greeting">
             {greeting.text} {greeting.icon}
           </div>
-          <div style={{ fontSize: 16, opacity: 0.95, marginBottom: 14 }}>
-            我是小康，有健康问题随时问我~
+          <div style={{ fontSize: 16, opacity: 0.95, marginBottom: 14 }} data-testid="care-home-welcome-text">
+            我是宾尼小康，聊聊健康问题吧~
           </div>
           {/* 今日用药提醒 */}
           <div
@@ -499,6 +504,41 @@ export default function CareAiHomePage() {
         ))}
       </div>
 
+      {/* 4. 右下角悬浮 SOS（红圆 + 扩散光圈，点击进入紧急呼叫流程） */}
+      <button
+        type="button"
+        onClick={() => navigate('/care-ai-home/sos')}
+        aria-label="紧急呼叫 SOS"
+        data-testid="care-home-sos-fab"
+        style={{
+          position: 'fixed',
+          right: 18,
+          bottom: 28,
+          zIndex: 150,
+          width: 64,
+          height: 64,
+          borderRadius: '50%',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          background: 'transparent',
+        }}
+      >
+        <span className="care-home-sos-pulse care-home-sos-pulse-1" aria-hidden="true" />
+        <span className="care-home-sos-pulse care-home-sos-pulse-2" aria-hidden="true" />
+        <span className="care-home-sos-core" aria-hidden="true">SOS</span>
+      </button>
+
+      {/* 更多菜单（与标准模式共用） */}
+      <MoreMenu
+        visible={moreMenuOpen}
+        onClose={() => setMoreMenuOpen(false)}
+        onMemberCenter={() => navigate('/member-center')}
+        onScan={() => showToast('扫一扫开发中')}
+        onFontSize={() => showToast('字体大小设置开发中')}
+        onShare={() => showToast('请点击浏览器菜单分享')}
+      />
+
       {/* Toast */}
       {toast && (
         <div
@@ -518,6 +558,51 @@ export default function CareAiHomePage() {
           {toast}
         </div>
       )}
+
+      <style jsx>{`
+        .care-home-sos-core {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 64px;
+          height: 64px;
+          border-radius: 50%;
+          background: radial-gradient(circle, #ef5350 0%, #e53935 100%);
+          color: #fff;
+          font-size: 20px;
+          font-weight: 800;
+          letter-spacing: 1px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 6px 18px rgba(229, 57, 53, 0.5);
+          z-index: 2;
+        }
+        .care-home-sos-pulse {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 64px;
+          height: 64px;
+          border-radius: 50%;
+          background: rgba(229, 57, 53, 0.35);
+          animation: care-home-sos-spread 2s ease-out infinite;
+          z-index: 1;
+        }
+        .care-home-sos-pulse-2 {
+          animation-delay: 1s;
+        }
+        @keyframes care-home-sos-spread {
+          0% {
+            transform: scale(1);
+            opacity: 0.6;
+          }
+          100% {
+            transform: scale(1.9);
+            opacity: 0;
+          }
+        }
+      `}</style>
     </div>
   );
 }
