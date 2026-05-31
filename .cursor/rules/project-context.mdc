@@ -5,6 +5,27 @@ alwaysApply: false
 
 # Project Context
 
+## 最近一次变更（2026-05-31 · 功能开发 / 心率详情页展示规则 v1）
+
+**任务标识**：`[PRD-HEART-RATE-DETAIL-RULE-V1 2026-05-31]`
+
+**需求**：为心率详情页定义参考范围与状态判断展示规则（统一标准，不分成人/老年人）：
+- 参考范围那行字：固定显示「正常范围 60–100 次/分」（静态硬编码，不依赖年龄字段）
+- 状态标签：`< 60 偏慢 / 60~100（含边界）正常 / > 100 偏快`
+- 无心率数据时：数值显示 `--`、隐藏状态标签、显示引导文案
+
+**改动**：
+- **H5 新文件 `h5-web/src/lib/heart-rate-level.ts`**：心率判读纯函数库
+  - `judgeHeartRate(value)`：返回 `{level, color, label, icon}`，无数据返回 `null`
+  - `HR_NORMAL_RANGE_TEXT = '正常范围 60–100 次/分'`、`getHrPalette(color)`（blue/orange）
+- **H5 `h5-web/src/app/health-metric/[type]/page.tsx`（修改 · 通用详情页「当前值」卡片）**：仅对 `heart_rate` 类型增加：状态胶囊（testid `hr-status-capsule`，无数据隐藏）、数值/`--`（testid `hr-value`）、无数据引导（testid `hr-empty-hint`）、静态参考范围行（testid `hr-normal-range`）。血压/血糖走各自专属页，睡眠/血氧不受影响。
+- **后端 `backend/app/api/health_metric_card_v1.py`（修改）**：`_judge_status` 的 `heart_rate` 分支由旧 `<50 偏低 / >100 偏高` 改为需求标准 `slow/normal/fast`（偏慢/正常/偏快，异常档橙色）。
+- **测试 `backend/tests/test_heart_rate_detail_rule_v1_20260531.py`（新增）**：9 用例覆盖边界值 60/100、偏慢/偏快、无数据未知档、颜色档。
+
+**部署**：GitHub 在服务器侧不可达，降级 SFTP 上传 3 个源文件 + 测试文件到 `/home/ubuntu/6b099ed3-.../`，重建 `-backend`、`-h5` 容器（`docker compose build` + `up -d --no-deps`），gateway 网络保持连接。外部 HTTPS 验证：H5 首页 / 心率详情页 / 血压详情页 / `/api/health-metric-v1/meta` / `/api/health` 均 200；心率详情页 SSR HTML 已含 `hr-normal-range` 与「正常范围 60」文案。容器内逻辑验证 8 用例 ALL_PASS。无客户端（小程序/安卓/iOS/exe）代码改动，无需重新打包。
+
+---
+
 ## 最近一次变更（2026-05-31 · 血压详情页「全部」跳转修复 + AI 解读补齐）
 
 **任务标识**：`[PRD-BP-AI-EXPLAIN-V1 2026-05-31]`
