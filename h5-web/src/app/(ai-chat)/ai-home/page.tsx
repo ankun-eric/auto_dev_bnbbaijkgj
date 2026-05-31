@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Toast, Swiper, Dialog, ImageViewer } from 'antd-mobile';
+import { Toast, Dialog, ImageViewer } from 'antd-mobile';
 import { showToast } from '@/lib/toast-unified';
 import { THEME } from '@/lib/theme';
 import api from '@/lib/api';
@@ -18,10 +18,7 @@ import SectionErrorBoundary from '@/components/SectionErrorBoundary';
 import DraggablePunchCard from '@/components/ai-chat/DraggablePunchCard';
 import ProfileCard, { clearProfileCardCache } from '@/components/ai-chat/ProfileCard';
 import AiAvatar from '@/components/ai-chat/AiAvatar';
-import ReminderBellButton from '@/components/ai-chat/ReminderBellButton';
 import ReminderDrawer from '@/components/ai-chat/ReminderDrawer';
-// [PRD-BELL-UNIFIED-V1 2026-05-19] AI 首页"今日待办"胶囊
-import TodayTodoCapsules from '@/components/ai-chat/TodayTodoCapsules';
 import { publishBellEvent, subscribeBellEvent } from '@/lib/bell-event-bus';
 // [PRD-AIHOME-SKELETON-V1 2026-05-19] 首屏骨架屏：消除刷新跳变
 import AiHomeSkeleton from '@/components/ai-chat/AiHomeSkeleton';
@@ -89,6 +86,27 @@ function sanitizeAiContent(raw: string): string {
   if (!raw) return raw;
   return raw.replace(ATTACHMENT_HINT_RE, '').replace(/\n{3,}/g, '\n\n').trim();
 }
+
+// ──────────────────────────────────────────────────────────────────────
+// [PRD-AI-HOME-3TAB-WARMBLUE-V1 2026-06-01] 方案 C · 暖蓝关怀配色板
+//   以天蓝为主色 + 少量暖橙点缀，面向 40–70 岁人群（字大、对比清晰）。
+//   仅作用于 AI 首页（咨询页），不改全局 THEME，避免影响其它页面。
+// ──────────────────────────────────────────────────────────────────────
+const WARM_BLUE = {
+  primary: '#3FA9F5',            // 主色（天蓝）：选中 Tab 下划线、主按钮、发送键、链接
+  primaryGradient: 'linear-gradient(135deg, #3FA9F5 0%, #5EC4F0 100%)', // 主按钮/发送键渐变
+  topbarBg: '#EAF6FF',           // 顶栏淡蓝背景
+  topbarGradient: 'linear-gradient(180deg, #EAF6FF 0%, #DCEFFF 100%)',
+  pageBg: '#F7FBFF',             // 整页近白底色
+  cardBg: '#FFFFFF',             // 卡片 / 输入框背景
+  warmOrange: '#FFB26B',         // 暖橙点缀（小竖线 / 小标 / 提示点）
+  warmOrangeBg: '#FFF3E8',       // 暖橙浅底（贴士条背景，极淡）
+  redDot: '#FF7A45',             // 铃铛红点（暖橙红）
+  textPrimary: '#1F2D3D',        // 主文字
+  textSecondary: '#6B7B8C',      // 次要文字
+  textPlaceholder: '#A9B7C6',    // 占位/提示文字
+  iconCellBg: '#EAF6FF',         // 4 图标统一浅色底（同一色）
+} as const;
 
 const IMG_URL_RE = /(https?:\/\/[^\s)\]\"']+?\.(?:png|jpg|jpeg|gif|webp)(?:\?[^\s)\]\"']*)?)/gi;
 const MD_IMG_RE = /!\[[^\]]*\]\(([^)]+)\)/g;
@@ -701,6 +719,12 @@ export default function AiHomePage() {
   const [shareOpen, setShareOpen] = useState(false);
   const [consultantOpen, setConsultantOpen] = useState(false);
   const [quickActionOpen, setQuickActionOpen] = useState(false);
+
+  // [PRD-AI-HOME-3TAB-WARMBLUE-V1 2026-06-01] 顶部三 Tab（档案 / 咨询 / 服务），默认停在「咨询」
+  //   - 咨询：本页（做减法后的清爽版），停留不跳转
+  //   - 档案：跳现有家庭档案 /health-profile
+  //   - 服务：跳健康服务聚合页 /services
+  const [activeTopTab, setActiveTopTab] = useState<'profile' | 'consult' | 'service'>('consult');
 
   // [PRD-MODE-CAPSULE-V1 2026-05-31] AI 首页右上角「模式切换」下拉胶囊：展开/收起状态
   const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
@@ -3997,7 +4021,7 @@ export default function AiHomePage() {
         skeletonFading || firstScreenStatus === 'ready' ? 'fade-in' : ''
       }`}
       style={{
-        background: THEME.background,
+        background: WARM_BLUE.pageBg,
         maxWidth: 750,
         margin: '0 auto',
         overflow: 'hidden', /* [Bug-431] 禁止整页滚动/橡皮筋回弹，避免顶部栏被"顶出去一截" */
@@ -4019,7 +4043,7 @@ export default function AiHomePage() {
             zIndex: 100,
             height: 'calc(48px + env(safe-area-inset-top))',
             paddingTop: 'env(safe-area-inset-top)',
-            background: 'linear-gradient(180deg, #F0F9FF 0%, #DBEAFE 100%)',
+            background: WARM_BLUE.topbarGradient,
             maxWidth: 750,
             marginLeft: 'auto',
             marginRight: 'auto',
@@ -4135,11 +4159,11 @@ export default function AiHomePage() {
               </button>
             ) : null}
 
-            {/* [BUGFIX-AI-HOME-5ITEMS-V1 2026-05-26 Bug#2] "小康"严格水平居中
-                - 容器改为绝对定位，left:50%; transform:translateX(-50%)；
-                - 与窗口（顶栏 max-width 750px 容器）水平中线对齐；
-                - 不再贴着 ☰，三横线右边那块区域空出不补任何内容；
-                - ☰ 仍保持左上角（left:8）、+ 仍保持右上角（right:8） */}
+            {/* [PRD-AI-HOME-3TAB-WARMBLUE-V1 2026-06-01 §二] 顶部三 Tab（档案 / 咨询 / 服务）
+                - 居中水平排布，选中项加粗 + 主色，下方一条天蓝小横线
+                - 默认停在「咨询」（本页）；切换不跳转留在当前页（咨询除外）
+                - 档案 → /health-profile；服务 → /services；咨询 → 本页停留
+                - 适老化：字号 16、可点区域 ≥ 44px 高 */}
             <div
               style={{
                 position: 'absolute',
@@ -4150,49 +4174,103 @@ export default function AiHomePage() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                gap: 22,
                 minWidth: 0,
-                /* 限制最大宽度，长签名时按原标题截断逻辑（>8 字符已加…），不会顶到左右按钮 */
                 maxWidth: 'calc(100% - 120px)',
               }}
+              data-testid="ai-home-top-tabs"
+              role="tablist"
             >
-              <span
-                className="relative inline-block"
-                style={{
-                  fontSize: 18,
-                  fontWeight: 600,
-                  color: '#0C4A6E',
-                  // [PRD-AI-HOME-OPTIM-FINAL-V1 2026-05-19 §3.2] lineHeight:1 关闭额外行高带来的不可见偏移，
-                  // 保证"小康"文字视觉中线与汉堡水平中线对齐误差 ≤ 1px
-                  lineHeight: 1,
-                  cursor: 'default',
-                  whiteSpace: 'nowrap',
-                  overflow: 'visible',
-                }}
-                data-testid="ai-home-topbar-title"
-              >
-                {topbarTitle}
-                {renderUnreadBadge()}
-              </span>
+              {([
+                { key: 'profile', label: '档案' },
+                { key: 'consult', label: '咨询' },
+                { key: 'service', label: '服务' },
+              ] as const).map((tab) => {
+                const active = activeTopTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    data-testid={`ai-home-top-tab-${tab.key}`}
+                    onClick={() => {
+                      if (tab.key === 'consult') {
+                        setActiveTopTab('consult');
+                        return;
+                      }
+                      if (tab.key === 'profile') {
+                        router.push('/health-profile');
+                        return;
+                      }
+                      if (tab.key === 'service') {
+                        router.push('/services');
+                        return;
+                      }
+                    }}
+                    style={{
+                      position: 'relative',
+                      background: 'transparent',
+                      border: 'none',
+                      padding: '0 2px',
+                      height: '100%',
+                      minHeight: 44,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      lineHeight: 1,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 16,
+                        fontWeight: active ? 700 : 500,
+                        color: active ? WARM_BLUE.primary : WARM_BLUE.textSecondary,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {tab.label}
+                      {tab.key === 'consult' ? renderUnreadBadge() : null}
+                    </span>
+                    {/* 选中项下方蓝色小横线 */}
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        position: 'absolute',
+                        bottom: 6,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: active ? 20 : 0,
+                        height: 3,
+                        borderRadius: 2,
+                        background: WARM_BLUE.primary,
+                        transition: 'width 0.18s ease',
+                      }}
+                    />
+                  </button>
+                );
+              })}
             </div>
 
-            {/*
-              [PRD-AI-HOME-V1 2026-05-19] 邀请图标：位于「⋯」更多菜单按钮左侧。
-                - 位置：right = 8(⋯ 按钮 right) + 32(⋯ 按钮宽) + 4(间距) = 44
-                - 视觉：🎁 礼物图标（纯图标，不带文字/红点），尺寸 32x32 与⋯按钮一致
-                - 行为：router.push('/invite')；/invite 路由项目已存在
-                - 显隐：始终展示（产品要求新增的全局入口）
+            {/* [PRD-AI-HOME-3TAB-WARMBLUE-V1 2026-06-01 §三] 右上角固定铃铛
+                - 由原右侧可拖动铃铛 + 今日待办胶囊合并而来：收进顶栏右上角，不可拖、不再飘
+                - 位置：+圆圈(right:8, w:32) 左侧，right:48
+                - 有新提醒（reminderBadge>0）时右上角带暖橙红小红点
+                - 点击打开「今日待办」抽屉（用药提醒 + 预约提醒），功能不变
             */}
             <button
               type="button"
               className="flex items-center justify-center"
               style={{
                 position: 'absolute',
-                right: 44,
+                right: 48,
                 top: '50%',
                 transform: 'translateY(-50%)',
                 width: 32,
                 height: 32,
-                color: THEME.textPrimary,
+                color: WARM_BLUE.textPrimary,
                 background: 'transparent',
                 border: 'none',
                 padding: 0,
@@ -4200,140 +4278,29 @@ export default function AiHomePage() {
                 lineHeight: 1,
                 cursor: 'pointer',
               }}
-              onClick={() => router.push('/invite')}
-              aria-label="邀请好友"
-              data-testid="ai-home-invite-btn"
+              onClick={() => setReminderOpen(true)}
+              aria-label="今日待办提醒"
+              data-testid="ai-home-topbar-bell"
             >
-              <span style={{ fontSize: 20, lineHeight: 1 }} aria-hidden="true">
-                🎁
+              <span style={{ position: 'relative', display: 'inline-flex', fontSize: 20, lineHeight: 1 }} aria-hidden="true">
+                🔔
+                {reminderBadge > 0 && (
+                  <span
+                    data-testid="ai-home-topbar-bell-reddot"
+                    style={{
+                      position: 'absolute',
+                      top: -3,
+                      right: -3,
+                      minWidth: 8,
+                      height: 8,
+                      borderRadius: 9999,
+                      background: WARM_BLUE.redDot,
+                      boxShadow: '0 0 0 1.5px #fff',
+                    }}
+                  />
+                )}
               </span>
             </button>
-
-            {/* [PRD-MODE-CAPSULE-V1 2026-05-31] AI 首页右上角「模式切换」下拉胶囊（方案 A）
-                - 用一个下拉胶囊替代原「标准模式徽章 + 关怀模式按钮」两个独立控件
-                - 收起态：胶囊内仅显示「当前模式文字 + 下拉箭头 ▾」，整体可点
-                - 展开态：箭头翻转朝上 ▴，下方弹出面板，含「标准模式 / 关怀模式」两行
-                - 当前模式（标准）高亮并打勾 ✓；点当前模式或面板外仅收起、不切换
-                - 点关怀模式 → 沿用现有切换逻辑：保存偏好 → Toast → 跳 /care-ai-home
-                - 位置：邀请按钮(right:44, w:32)的左侧，整体 absolute 定位 right:80
-            */}
-            <div
-              ref={modeDropdownRef}
-              style={{
-                position: 'absolute',
-                right: 80,
-                top: '50%',
-                transform: 'translateY(-50%)',
-              }}
-              data-testid="ai-home-mode-switcher"
-            >
-              <button
-                type="button"
-                onClick={() => setModeDropdownOpen((v) => !v)}
-                disabled={modeSwitching}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  background: '#E3F2FD',
-                  color: '#1976D2',
-                  border: 'none',
-                  padding: '5px 10px',
-                  borderRadius: 14,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  lineHeight: 1,
-                  whiteSpace: 'nowrap',
-                  cursor: modeSwitching ? 'default' : 'pointer',
-                  minHeight: 28,
-                }}
-                aria-haspopup="listbox"
-                aria-expanded={modeDropdownOpen}
-                aria-label="模式切换"
-                data-testid="ai-home-mode-capsule"
-              >
-                <span data-testid="ai-home-mode-capsule-label">标准模式</span>
-                <span
-                  aria-hidden="true"
-                  style={{
-                    display: 'inline-block',
-                    fontSize: 10,
-                    lineHeight: 1,
-                    transform: modeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.15s ease',
-                  }}
-                  data-testid="ai-home-mode-capsule-arrow"
-                >
-                  ▾
-                </span>
-              </button>
-
-              {modeDropdownOpen ? (
-                <div
-                  role="listbox"
-                  style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 6px)',
-                    right: 0,
-                    minWidth: 120,
-                    background: '#FFFFFF',
-                    borderRadius: 10,
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-                    border: '1px solid #E5E7EB',
-                    overflow: 'hidden',
-                    zIndex: 50,
-                  }}
-                  data-testid="ai-home-mode-dropdown-panel"
-                >
-                  {/* 标准模式（当前模式：高亮 + 打勾，点击仅收起不切换） */}
-                  <div
-                    role="option"
-                    aria-selected={true}
-                    onClick={() => setModeDropdownOpen(false)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 8,
-                      padding: '10px 14px',
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: '#1976D2',
-                      background: '#E3F2FD',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                    }}
-                    data-testid="ai-home-mode-option-standard"
-                  >
-                    <span>标准模式</span>
-                    <span aria-hidden="true">✓</span>
-                  </div>
-                  {/* 关怀模式（点击触发切换流程） */}
-                  <div
-                    role="option"
-                    aria-selected={false}
-                    onClick={handleSwitchToCareMode}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 8,
-                      padding: '10px 14px',
-                      fontSize: 14,
-                      fontWeight: 500,
-                      color: '#374151',
-                      background: '#FFFFFF',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                    }}
-                    data-testid="ai-home-mode-option-care"
-                  >
-                    <span>关怀模式</span>
-                    <span aria-hidden="true" style={{ width: 14 }} />
-                  </div>
-                </div>
-              ) : null}
-            </div>
 
             {/* [BUGFIX-AI-HOME-5ITEMS-V1 2026-05-26 Bug#3a] "⋯" 改为 "+加圆圈"（微信样式）
                 - 圆形描边、无填充；内部为"+"号；
@@ -4348,7 +4315,7 @@ export default function AiHomePage() {
                   transform: 'translateY(-50%)',
                   width: 32,
                   height: 32,
-                  color: THEME.textPrimary,
+                  color: WARM_BLUE.textPrimary,
                   background: 'transparent',
                   border: 'none',
                   padding: 0,
@@ -4491,88 +4458,92 @@ export default function AiHomePage() {
         <div
           data-testid="ai-home-top-panel"
           style={{
-            background: THEME.background,
+            background: WARM_BLUE.pageBg,
           }}
         >
           <div className="px-4 py-3">
-            {/* v1.0 欢迎区：左头像 + 右文字 横向布局 */}
+            {/* [PRD-AI-HOME-3TAB-WARMBLUE-V1 2026-06-01 §四.1] 一句问候语（就一行，做减法后只留一行）
+                - 小头像 + 一行问候语（默认「Hi~ 健康管理用小康」，后台 welcome.title 优先）
+                - 适老化：问候语字号 18、加粗 */}
             <SectionErrorBoundary name="welcome">
               {welcomeVisible && (
-                <div className="flex items-center gap-3 py-4">
-                  {/* [PRD-449 R3 + R5 + R6] 欢迎区大头像（A 位）改用 AiAvatar 公共组件
-                      统一处理「取后台 → 兜底 → 占位」三段逻辑：
-                      - 后台返回 image_url（http(s) 或 / 开头相对路径）→ 加载完成后平滑切换显示
-                      - 后台返回 emoji（如 🌿）→ 渲染 emoji 字符
-                      - 接口失败 / 字段为空 / URL 404 / 加载失败 → 显示默认"宾尼小康"图（修复历史裂图 BUG） */}
+                <div className="flex items-center gap-3 py-3" data-testid="ai-home-greeting">
                   <AiAvatar
                     src={
                       aiHomeConfig.welcome?.avatar?.type === 'image'
                         ? aiHomeConfig.welcome?.avatar?.image_url
                         : aiHomeConfig.welcome?.avatar?.emoji
                     }
-                    size={56}
+                    size={44}
                     shape="circle"
                     alt="AI 头像"
                     testId="ai-home-welcome-avatar"
                   />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-lg font-bold truncate" style={{ color: THEME.textPrimary }}>
-                      {renderMainTitle()}
-                    </div>
-                    <div className="text-sm mt-0.5 truncate" style={{ color: THEME.textSecondary }}>
-                      {aiHomeConfig.welcome?.sub_title || pickedSubtitle || '我是您的AI健康顾问小康'}
-                    </div>
+                  <div
+                    className="flex-1 min-w-0 truncate"
+                    style={{ fontSize: 18, fontWeight: 700, color: WARM_BLUE.textPrimary }}
+                  >
+                    {renderMainTitle() || 'Hi~ 健康管理用小康'}
                   </div>
                 </div>
               )}
             </SectionErrorBoundary>
 
-            {/* v1.0 紫色今日健康贴士轮播卡（图片做整张卡片背景） */}
+            {/* [PRD-AI-HOME-3TAB-WARMBLUE-V1 2026-06-01 §四.2] 一张健康贴士图（不再轮播，只取第一张静态大图）
+                - 左侧暖橙小竖线 + 极淡暖橙底点缀（方案 C 的点睛，面积很小）
+                - 点击跳转 banner.link_url（如有） */}
             <SectionErrorBoundary name="health_tips">
               {healthTipsVisible && banners.length > 0 && (
                 <div
                   ref={bannerAnchorRef}
-                  className="rounded-2xl overflow-hidden mb-4 shadow-lg"
-                  style={{ background: 'var(--gradient-primary)' }}
+                  className="rounded-2xl overflow-hidden mb-4"
+                  style={{
+                    position: 'relative',
+                    background: WARM_BLUE.cardBg,
+                    boxShadow: '0 2px 12px rgba(63,169,245,0.10)',
+                  }}
                   data-prd447="health-tips-card"
                   data-testid="ai-home-banner-anchor"
                 >
-                  <Swiper
-                    autoplay
-                    autoplayInterval={(aiHomeConfig.health_tips?.interval_seconds || 4) * 1000}
-                    loop
-                    indicator={(aiHomeConfig.health_tips?.show_indicator ?? true) ? undefined : () => null}
-                  >
-                    {banners.map(banner => (
-                      <Swiper.Item key={banner.id}>
-                        <div
-                          className="bg-cover bg-center cursor-pointer"
-                          style={{
-                            height: 130,
-                            backgroundImage: `url(${banner.image_url})`,
-                            backgroundColor: '#0EA5E9',
-                          }}
-                          onClick={() => banner.link_url && router.push(banner.link_url)}
-                        />
-                      </Swiper.Item>
-                    ))}
-                  </Swiper>
+                  {/* 左侧暖橙小竖线（方案 C 点睛） */}
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 4,
+                      background: WARM_BLUE.warmOrange,
+                      zIndex: 2,
+                    }}
+                  />
+                  <div
+                    className="bg-cover bg-center cursor-pointer"
+                    style={{
+                      height: 130,
+                      backgroundImage: `url(${banners[0].image_url})`,
+                      backgroundColor: WARM_BLUE.warmOrangeBg,
+                    }}
+                    onClick={() => banners[0].link_url && router.push(banners[0].link_url)}
+                    data-testid="ai-home-health-tip-static"
+                  />
                 </div>
               )}
             </SectionErrorBoundary>
 
             {/* [AICHAT-OPTIM-FIX-V1 F-04/F-06 2026-05-14] 功能宫格：数据源统一到 chat_function_buttons */}
             <SectionErrorBoundary name="func_grid">
-              {/* [PRD-AICHAT-HOME-GRID-V1 2026-05-16] 新版功能宫格
-                  - 4 列固定、行数不限（按需向下铺）、按 sort_weight ASC 排序
-                  - 单元格：56×56 图标外层圆角背景框（取 AI 专属 5 色循环配色池），下方 13px 名称
+              {/* [PRD-AI-HOME-3TAB-WARMBLUE-V1 2026-06-01 §四.1] 4 个大图标（一排，统一排版）
+                  - 内容 / 数量仍走后台配置（chat_function_buttons），不写死；做减法后只取前 4 个一排
+                  - 4 个图标等大、统一圆角方块、统一浅色底（WARM_BLUE.iconCellBg）、统一间距，整整齐齐
                   - 图标三级兜底：icon_url（图片）> icon（emoji）> button_type 自动匹配
                   - 点击：scale(0.96) 按压态 + 复用 handleFunctionButtonClick */}
               {funcGridVisible && fnGridItems.length > 0 && (
                 <div
                   className="grid mb-4"
                   data-testid="ai-home-func-grid"
-                  data-grid-cols={gridCols}
+                  data-grid-cols={4}
                   data-grid-source="chat_function_buttons_v2"
                   style={{
                     gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
@@ -4586,8 +4557,7 @@ export default function AiHomePage() {
                     }
                   }}
                 >
-                  {fnGridItems.map((btn, idx) => {
-                    const color = getAiGridColor(idx);
+                  {fnGridItems.slice(0, 4).map((btn, idx) => {
                     const ic = resolveAiGridIcon(btn);
                     return (
                       <div
@@ -4628,10 +4598,10 @@ export default function AiHomePage() {
                       >
                         <div
                           style={{
-                            width: 56,
-                            height: 56,
+                            width: 60,
+                            height: 60,
                             borderRadius: 16,
-                            background: color.bg,
+                            background: WARM_BLUE.iconCellBg,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -4643,14 +4613,14 @@ export default function AiHomePage() {
                             <img
                               src={ic.value}
                               alt={btn.name}
-                              style={{ width: 28, height: 28, objectFit: 'contain' }}
+                              style={{ width: 30, height: 30, objectFit: 'contain' }}
                             />
                           ) : (
                             <span
                               style={{
-                                fontSize: 24,
+                                fontSize: 26,
                                 lineHeight: 1,
-                                color: color.main,
+                                color: WARM_BLUE.primary,
                                 display: 'inline-block',
                               }}
                             >
@@ -4660,9 +4630,9 @@ export default function AiHomePage() {
                         </div>
                         <span
                           style={{
-                            fontSize: 13,
+                            fontSize: 14,
                             lineHeight: '18px',
-                            color: '#1F2937',
+                            color: WARM_BLUE.textPrimary,
                             textAlign: 'center',
                             width: '100%',
                             overflow: 'hidden',
@@ -4725,29 +4695,44 @@ export default function AiHomePage() {
               )}
             </SectionErrorBoundary>
 
-            {/* v1.0 推荐问横向滚动胶囊（位于功能宫格下方、空对话占位上方） */}
+            {/* [PRD-AI-HOME-3TAB-WARMBLUE-V1 2026-06-01 §四.3] 3 条「大家都在问」
+                - 标题「大家都在问」前一根暖橙小竖线（方案 C 点睛）
+                - 只取前 3 条；点击照旧以该问句自动发问 */}
             <SectionErrorBoundary name="recommended">
               {recommendedVisible && recommendQuestions.length > 0 && (
-                <div className="mb-4">
-                  <div
-                    className="flex gap-2 overflow-x-auto pb-2"
-                    style={{ scrollbarWidth: 'none' as any, msOverflowStyle: 'none' as any }}
-                  >
-                    {recommendQuestions.map((q, i) => (
+                <div className="mb-4" data-testid="ai-home-faq-block">
+                  <div className="flex items-center mb-2" style={{ gap: 6 }}>
+                    <span
+                      aria-hidden="true"
+                      style={{ width: 3, height: 14, borderRadius: 2, background: WARM_BLUE.warmOrange, display: 'inline-block' }}
+                    />
+                    <span style={{ fontSize: 15, fontWeight: 600, color: WARM_BLUE.textPrimary }}>大家都在问</span>
+                  </div>
+                  <div className="flex flex-col" style={{ gap: 8 }}>
+                    {recommendQuestions.slice(0, 3).map((q, i) => (
                       <div
                         key={i}
-                        className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full cursor-pointer active:opacity-70"
-                        style={{ background: '#fff', border: `1px solid ${THEME.divider}`, whiteSpace: 'nowrap' }}
+                        className="flex items-center cursor-pointer active:opacity-70"
+                        style={{
+                          background: WARM_BLUE.cardBg,
+                          border: `1px solid #E3EFFA`,
+                          borderRadius: 12,
+                          padding: '12px 14px',
+                          gap: 8,
+                        }}
                         onClick={() => {
-                          // [Bug-428] 推荐胶囊点击：自动以胶囊文本作为用户消息发送
-                          // [Bug-433] 同步 lastMsgTimeRef 并标注 source='preset'，避免会话首句被
-                          // 错误命中的"空闲超时清空"逻辑抹掉，且便于后端审计预设按钮入口。
+                          // [Bug-428] 推荐问点击：自动以问句文本作为用户消息发送
+                          // [Bug-433] 同步 lastMsgTimeRef 并标注 source='preset'
                           lastMsgTimeRef.current = Date.now();
                           handleSend(q.text, 'preset');
                         }}
+                        data-testid={`ai-home-faq-item-${i}`}
                       >
-                        {q.tag && <span className="text-base">{q.tag}</span>}
-                        <span className="text-sm" style={{ color: THEME.textPrimary }}>{q.text.length > 12 ? q.text.slice(0, 12) + '…' : q.text}</span>
+                        {q.tag && <span style={{ fontSize: 18, lineHeight: 1 }}>{q.tag}</span>}
+                        <span style={{ fontSize: 16, color: WARM_BLUE.textPrimary, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {q.text}
+                        </span>
+                        <span aria-hidden="true" style={{ color: WARM_BLUE.textPlaceholder, fontSize: 16 }}>›</span>
                       </div>
                     ))}
                   </div>
@@ -4755,22 +4740,15 @@ export default function AiHomePage() {
               )}
             </SectionErrorBoundary>
 
-            {/* [PRD-BELL-UNIFIED-V1 2026-05-19] AI 首页"今日待办"胶囊
-                - 位置：LOGO（欢迎区）下方、"还没有对话记录"提示文案上方
-                - 始终显示，无论待办数是否为 0
-                - 点击 = 打开铃铛抽屉 */}
-            <SectionErrorBoundary name="today_todo_capsules">
-              {messages.length === 0 && (
-                <TodayTodoCapsules onOpenDrawer={() => setReminderOpen(true)} />
-              )}
-            </SectionErrorBoundary>
+            {/* [PRD-AI-HOME-3TAB-WARMBLUE-V1 2026-06-01 §三] 原正文「今日待办」胶囊已与右上角铃铛合并，
+                正文不再单独放，待办用顶栏铃铛红点提醒（见 ai-home-topbar-bell）。 */}
 
             {/* v1.0 空对话占位（大图标 + 主标题 居中） */}
             <SectionErrorBoundary name="empty_placeholder">
               {emptyPlaceholderVisible && messages.length === 0 && (
                 <div className="flex flex-col items-center py-8">
                   <div className="text-5xl mb-3 opacity-60">{aiHomeConfig.empty_placeholder?.icon || '💬'}</div>
-                  <div className="text-base" style={{ color: THEME.textSecondary }}>
+                  <div className="text-base" style={{ color: WARM_BLUE.textSecondary }}>
                     {aiHomeConfig.empty_placeholder?.main_title || '还没有对话记录'}
                   </div>
                 </div>
@@ -5798,23 +5776,9 @@ export default function AiHomePage() {
         )}
       </div>
 
-      {/* [PRD-439 F-02/F-08] 健康打卡入口下线，原位替换为 🔔 提醒铃铛
-          [PRD-AIHOME-OPTIM-V1 2026-05-17 R1] 视觉优化：
-            - 完全去掉底色和背景框，仅保留 🔔 图标本身
-            - 初始垂直位置 = 顶部 banner 区域的垂直正中（由 bellInitialTop 测量得出）
-            - 水平位置保持贴右（与原版一致）
-            - 拖动后不持久化位置，离开页面再回来自动复位
-          点击弹出"今日待办"抽屉（用药提醒 + 预约提醒） */}
-      <SectionErrorBoundary name="floating_button">
-        {floatingButtonVisible && (
-          <ReminderBellButton
-            initialTop={bellInitialTop}
-            position={aiHomeConfig.floating_button?.position === 'left_bottom' ? 'left' : 'right'}
-            badgeCount={reminderBadge}
-            onClick={() => setReminderOpen(true)}
-          />
-        )}
-      </SectionErrorBoundary>
+      {/* [PRD-AI-HOME-3TAB-WARMBLUE-V1 2026-06-01 §三] 原右侧可拖动悬浮铃铛已下线：
+          铃铛改为顶栏右上角固定按钮（不可拖、不再飘），见上方 ai-home-topbar-bell。
+          此处仅保留「今日待办」抽屉本体。 */}
       {/* [PRD-439 F-04~F-06] 今日待办抽屉 */}
       <SectionErrorBoundary name="reminder_drawer">
         <ReminderDrawer
@@ -6280,14 +6244,17 @@ export default function AiHomePage() {
         onSelectSession={handleSelectSession}
         onNewConversation={handleNewConversation}
       />
+      {/* [PRD-AI-HOME-3TAB-WARMBLUE-V1 2026-06-01 §五] 「+ 圆圈」更多菜单 V2：
+          发起新对话 / 切换模式（带当前模式小标签）/ 邀请好友 / 帮助与反馈 */}
       <MoreMenu
         visible={moreMenuOpen}
         onClose={() => setMoreMenuOpen(false)}
-        onScan={handleScan}
-        onFontSize={handleFontSize}
-        onShare={() => setShareOpen(true)}
-        // [Bug 修复 v1.2 §11.1] 会员中心入口：跳转 H5 会员中心页面（自动锚定到本月配额板块）
-        onMemberCenter={() => { setMoreMenuOpen(false); router.push('/member-center#quota'); }}
+        menuVariant="ai-home-v2"
+        onNewChat={() => { setMoreMenuOpen(false); handleNewConversation(); }}
+        currentModeLabel="标准模式"
+        onSwitchMode={() => { setMoreMenuOpen(false); handleSwitchToCareMode(); }}
+        onInviteFriend={() => { setMoreMenuOpen(false); router.push('/invite'); }}
+        onHelpFeedback={() => { setMoreMenuOpen(false); router.push('/feedback'); }}
       />
       <ConsultTargetPicker
         visible={consultantOpen}
@@ -6377,74 +6344,10 @@ export default function AiHomePage() {
         </div>
       )}
 
-      {/* [PRD-AI-HOME-OPTIM-V4 M3 · F-悬浮-01] 右下角小康头像悬浮球（F 款） */}
-      <div
-        style={{
-          position: 'fixed',
-          right: 16,
-          bottom: 96,
-          zIndex: 1050,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-end',
-          pointerEvents: 'none',
-        }}
-      >
-        {/* 首次引导气泡 */}
-        {floatingFirstGuideVisible && (
-          <div
-            style={{
-              marginBottom: 8,
-              marginRight: 4,
-              background: '#fff',
-              color: '#2E2E2E',
-              fontSize: 12,
-              padding: '6px 10px',
-              borderRadius: 12,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-              border: '1px solid #E5F4FF',
-              pointerEvents: 'auto',
-              maxWidth: 200,
-              animation: 'aihomev4-toast-fade 200ms ease-out',
-            }}
-            data-testid="floating-ball-first-guide"
-          >
-            健康服务入口在这里，随时点开
-          </div>
-        )}
-        {/* 悬浮球本体 */}
-        <button
-          type="button"
-          onClick={handleFloatingBallClick}
-          aria-label="健康服务入口"
-          data-testid="floating-ball"
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: '50%',
-            border: '2px solid #0EA5E9',
-            background: 'linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.16)',
-            padding: 0,
-            pointerEvents: 'auto',
-            animation: floatingPanelOpen ? 'none' : 'aihomev4-floating-ball-breath 2.4s ease-in-out infinite',
-            color: '#fff',
-            fontSize: 22,
-            fontWeight: 700,
-            lineHeight: 1,
-            fontFamily: 'system-ui, -apple-system, "PingFang SC", "Helvetica Neue", sans-serif',
-          }}
-        >
-          <span aria-hidden="true">康</span>
-        </button>
-      </div>
-
-      {/* [PRD-AI-HOME-OPTIM-V4 M3 · F-悬浮-03] 展开面板（复刻顶部欢迎语 + 4 入口 + 今日用药） */}
-      {floatingPanelOpen && (
+      {/* [PRD-AI-HOME-3TAB-WARMBLUE-V1 2026-06-01 §三] 右下角「小康头像悬浮球」已按需求删除
+          （太占地方、老人容易误碰）。原悬浮球展开面板（下方 floatingPanelOpen 分支）一并保留为
+          false 永不渲染，待后续清理。 */}
+      {false && (
         <div
           style={{
             position: 'fixed',
