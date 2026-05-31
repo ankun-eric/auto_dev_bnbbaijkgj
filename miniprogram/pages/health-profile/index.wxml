@@ -72,14 +72,20 @@
           <text class="guardian-card-icon">🛡️</text>
         </view>
         <text class="guardian-card-title">健康档案列表</text>
+        <!-- [PRD-MEMBER-COUNT-CONSISTENCY-V1 2026-05-31] 文案统一为「已管理 X / 上限 Y」
+             与会员中心、H5 完全一致；X 含本人 -->
         <text class="guardian-card-count">{{managedCount || 0}}</text>
+        <text class="guardian-card-subtitle">已管理 {{managedCount || 0}} / 上限 {{managedMaxLabel}}</text>
       </view>
       <view class="guardian-card guardian-card-green" bindtap="onTapMyGuardians">
         <view class="guardian-card-icon-wrap guardian-card-icon-green">
           <text class="guardian-card-icon">💚</text>
         </view>
         <text class="guardian-card-title">守护我的人</text>
+        <!-- [PRD-MEMBER-COUNT-CONSISTENCY-V1 2026-05-31] 文案统一为「守护者 X / 上限 Y」
+             X 不含本人（别人来守护我的人数） -->
         <text class="guardian-card-count">{{myGuardianCount || 0}}</text>
+        <text class="guardian-card-subtitle">守护者 {{myGuardianCount || 0}} / 上限 {{myGuardianMaxLabel}}</text>
       </view>
     </view>
   </view>

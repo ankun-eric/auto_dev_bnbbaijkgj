@@ -414,7 +414,12 @@ export default function MemberCenterPage() {
           total: current.emergency_ai_call_count,
         }}
         manageMember={{
-          used: usage?.max_managed_used ?? (familyQuota ? Math.max(0, (familyQuota.quota_used || 1) - 1) : 0),
+          // [PRD-MEMBER-COUNT-CONSISTENCY-V1 2026-05-31] 修复"两数字对不上"Bug：
+          // 优先使用 familyQuota.quota_used（含本人，与蓝卡口径一致，权威值），
+          // 不再 -1 剔除本人；usage 接口在后端已统一为相同口径，仅作兜底。
+          used: (familyQuota && typeof familyQuota.quota_used === 'number')
+            ? familyQuota.quota_used
+            : (usage?.max_managed_used ?? 0),
           total: current.max_managed,
         }}
       />

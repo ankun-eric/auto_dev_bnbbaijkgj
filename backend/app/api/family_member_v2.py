@@ -215,6 +215,31 @@ async def _get_max_members(db: AsyncSession, user_id: int) -> int:
         return DEFAULT_MAX_MEMBERS
 
 
+# ─────────────────── [PRD-MEMBER-COUNT-CONSISTENCY-V1 2026-05-31] ───────────────────
+# 家庭档案数（"我管的档案"）统一统计入口。
+# 真值口径（用户拍板）：含本人 + 排除软删除（status != 'deleted'）。
+# 所有需要展示"我管理的家庭档案数"的接口必须调用本函数，杜绝多套 SQL 算法导致的口径漂移。
+
+async def count_managed_family_members(db: AsyncSession, user_id: int) -> int:
+    """统计当前用户管理的家庭档案总数（**含本人**，排除已软删除记录）。
+
+    这是「我管的档案」唯一权威统计入口，会员中心蓝卡片、配额卡、健康档案列表卡
+    必须全部通过此方法取值，确保各处展示永远完全一致。
+
+    口径：
+    - 含本人：is_self 字段不参与过滤
+    - 排除软删除：status != 'deleted'
+    - 仅统计当前用户名下的记录：user_id = :uid
+    """
+    r = await db.execute(
+        select(func.count(FamilyMember.id)).where(
+            FamilyMember.user_id == user_id,
+            FamilyMember.status != "deleted",
+        )
+    )
+    return int(r.scalar() or 0)
+
+
 async def _has_bound_device(db: AsyncSession, member_id: int, member_user_id: Optional[int]) -> bool:
     """检查档案名下是否有绑定设备（家庭成员维度或对应注册账号维度）"""
     # 1) home_safety 设备绑定（按 member_id）
@@ -549,14 +574,9 @@ async def get_member_quota(
     """
     quota_max = await _get_max_members(db, current_user.id)
 
-    # quota_used 改为含本人卡总数
-    r = await db.execute(
-        select(func.count(FamilyMember.id)).where(
-            FamilyMember.user_id == current_user.id,
-            FamilyMember.status != "deleted",
-        )
-    )
-    quota_used = int(r.scalar() or 0)
+    # [PRD-MEMBER-COUNT-CONSISTENCY-V1 2026-05-31] 通过公共方法统一口径，
+    # 与会员中心配额卡、健康档案列表卡完全一致（含本人 + 排除软删除）
+    quota_used = await count_managed_family_members(db, current_user.id)
 
     r2 = await db.execute(
         select(func.count(FamilyManagement.id)).where(

@@ -254,8 +254,10 @@ export default function MonthlyQuotaCard({ themeState, aiOutbound, emergencyAi, 
       unit: '人',
       pair: manageMember,
       desc: (used, total) => {
+        // [PRD-MEMBER-COUNT-CONSISTENCY-V1 2026-05-31] 文案改为"已管理 X 人"
+        // 与蓝卡片「已管理 X / 上限 Y」口径与措辞统一（含本人）。
         if (isUnlimited(total)) return '不限人数';
-        return `已添加 ${used ?? 0} 人`;
+        return `已管理 ${used ?? 0} 人`;
       },
     },
   ];

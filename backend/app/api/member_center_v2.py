@@ -235,11 +235,22 @@ async def get_member_quota_usage(
 ):
     """[PRD-MEMBER-PURPLE-THEME-V1 2026-05-30] 会员中心『本月配额』使用量。
 
-    返回当前用户本月已用的：AI 外呼提醒、紧急 AI 呼叫 次数；以及当前家庭成员守护已用人数。
+    返回当前用户本月已用的：AI 外呼提醒、紧急 AI 呼叫 次数；以及当前家庭档案数。
+
+    [PRD-MEMBER-COUNT-CONSISTENCY-V1 2026-05-31 修复] 家庭档案数口径统一：
+    - 旧逻辑使用裸 SQL `WHERE COALESCE(is_self,0)=0` 强制剔除本人，
+      且未过滤软删除记录，导致与 /api/family/member/quota 两接口数字对不上
+      （蓝卡片显示 3、配额卡却显示 6 等异常）。
+    - 新逻辑改为调用公共方法 count_managed_family_members（含本人 + 排除软删除），
+      与蓝卡片完全一致，从根上杜绝口径漂移。
+
     数据来源：
     - user_quota_usage 表（按月统计），缺失/无记录时返回 0
-    - family_members 计数：家庭守护已用 = 当前用户 family_members 表中 is_self=0 的存活成员数
+    - count_managed_family_members 公共方法（family_member_v2.py）
     """
+    # 延迟导入避免循环依赖
+    from app.api.family_member_v2 import count_managed_family_members
+
     used_outbound = 0
     used_emergency = 0
     used_managed = 0
@@ -262,22 +273,11 @@ async def get_member_quota_usage(
             used_outbound = int(row[0] or 0)
             used_emergency = int(row[1] or 0)
     except Exception:
-        # 表/字段不存在或其它异常时静默兜底为 0
         pass
 
-    # 守护他人已用人数：family_members 表当前用户名下、is_self=0 的存活成员数
+    # 家庭档案数：通过公共方法统计，与 /api/family/member/quota 完全一致
     try:
-        row2 = (
-            await db.execute(
-                text(
-                    "SELECT COUNT(*) FROM family_members "
-                    "WHERE user_id = :uid AND COALESCE(is_self, 0) = 0"
-                ),
-                {"uid": current_user.id},
-            )
-        ).first()
-        if row2 is not None:
-            used_managed = int(row2[0] or 0)
+        used_managed = await count_managed_family_members(db, current_user.id)
     except Exception:
         pass
 

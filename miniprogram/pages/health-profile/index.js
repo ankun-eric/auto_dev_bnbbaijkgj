@@ -91,6 +91,11 @@ Page({
     managedUserIdMap: {},
     managedCount: 0,
     myGuardianCount: 0,
+    // [PRD-MEMBER-COUNT-CONSISTENCY-V1 2026-05-31] 上限值（含本人 for managed，不含本人 for guardian）
+    managedMax: 3,
+    managedMaxLabel: '3',
+    myGuardianMax: 3,
+    myGuardianMaxLabel: '3',
     deviceCount: 0,
     medHeroText: '今日用药 · 0',
 
@@ -178,7 +183,25 @@ Page({
 
   // [PRD-HEALTH-ARCHIVE-OPTIM-V1 F5] 已管理 N 份档案摘要
   // [PRD-HEALTH-ARCHIVE-MGR-V1 2026-05-29] 资产/配额语境改名：已守护 N 人 → 已管理 N 份档案（含本人）
+  // [PRD-MEMBER-COUNT-CONSISTENCY-V1 2026-05-31] 改为以 /api/family/member/quota 为唯一权威数据源，
+  //   保证与会员中心蓝卡片、H5 健康档案列表卡完全一致（含本人 + 排除软删除）
   async loadGuardianSummary() {
+    try {
+      // 优先使用统一接口 /api/family/member/quota（权威）
+      const r1 = await get('/api/family/member/quota', {}, { showLoading: false, suppressErrorToast: true });
+      const d1 = (r1 && (r1.data || r1)) || {};
+      if (typeof d1.quota_used === 'number' && typeof d1.quota_max === 'number') {
+        const max = d1.quota_max;
+        const unlimited = max === -1 || max >= 9999;
+        this.setData({
+          managedCount: d1.quota_used,
+          managedMax: max,
+          managedMaxLabel: unlimited ? '不限' : String(max),
+        });
+        return;
+      }
+    } catch (_) {}
+    // 兜底：旧接口
     try {
       const res = await get('/api/health-archive/guardian/summary', {}, { showLoading: false, suppressErrorToast: true });
       const data = (res && (res.data || res)) || {};
@@ -203,6 +226,23 @@ Page({
       const res = await get('/api/reverse-guardian/guardian-count', {}, { showLoading: false, suppressErrorToast: true });
       const data = (res && (res.data || res)) || {};
       this.setData({ myGuardianCount: data.count || 0 });
+    } catch (_) {}
+    // [PRD-MEMBER-COUNT-CONSISTENCY-V1 2026-05-31] 拉取守护我的上限 max_managed_by
+    try {
+      const r2 = await get('/api/reverse-guardian/summary', {}, { showLoading: false, suppressErrorToast: true });
+      const d2 = (r2 && (r2.data || r2)) || {};
+      if (typeof d2.max_guardians_for_me === 'number') {
+        const max = d2.max_guardians_for_me;
+        const unlimited = !!d2.is_unlimited || max === -1 || max >= 9999;
+        this.setData({
+          myGuardianMax: max,
+          myGuardianMaxLabel: unlimited ? '不限' : String(max),
+        });
+      }
+      if (typeof d2.total_count === 'number') {
+        // 以 summary 的 total_count（含 pending）为权威
+        this.setData({ myGuardianCount: d2.total_count });
+      }
     } catch (_) {}
   },
 

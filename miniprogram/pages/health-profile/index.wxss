@@ -126,6 +126,14 @@
   font-weight: 700;
   color: #1F2937;
 }
+/* [PRD-MEMBER-COUNT-CONSISTENCY-V1 2026-05-31] 卡片副标题：已管理/守护者 X / 上限 Y */
+.guardian-card-subtitle {
+  font-size: 22rpx;
+  font-weight: 500;
+  color: #6B7280;
+  margin-top: 6rpx;
+  line-height: 1.4;
+}
 .guardian-card-orange {
   border-top: 6rpx solid #F97316;
 }
