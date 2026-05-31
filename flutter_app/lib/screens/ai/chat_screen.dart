@@ -2832,7 +2832,61 @@ class _ChatScreenState extends State<ChatScreen> {
   //   - 满了：弹"名额已满"对话框（暂不升级 / 去升级）
   //   - 没满：跳到健康档案页面新增成员（沿用原行为）
   // quota_max 实时来自后端 /api/family/member/quota，绝不写死
+  //
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版] 完善档案拦截前移：
+  //   查名额之前，先查本人 needComplete。needComplete=true 时弹"去完善"对话框，
+  //   引导用户跳到 /health-profile（App 端现成的 CompleteSelf 抽屉在该页承接）。
   Future<void> _checkQuotaThenAddMember() async {
+    // 1) 先查本人 needComplete（与 H5 / 小程序口径一致）
+    try {
+      final sres = await _apiService.dio.get('/api/health-profile/self');
+      if (sres.statusCode == 200 && sres.data is Map) {
+        final body = Map<String, dynamic>.from(sres.data as Map);
+        final data = body['data'] is Map
+            ? Map<String, dynamic>.from(body['data'] as Map)
+            : body;
+        final need = data['needComplete'] == true;
+        if (need) {
+          if (!mounted) return;
+          final go = await showDialog<bool>(
+            context: context,
+            barrierDismissible: true,
+            builder: (dctx) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text('请先完善本人资料',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+              content: const Text(
+                '为了给您提供更精准的健康服务，添加家庭成员前请先完善您的基本资料（姓名、性别、出生日期）。',
+                style: TextStyle(fontSize: 14, color: Color(0xFF475569), height: 1.6),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dctx, false),
+                  child: const Text('稍后', style: TextStyle(color: Color(0xFF64748B))),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(dctx, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0284C7),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                  child: const Text('去完善'),
+                ),
+              ],
+            ),
+          );
+          if (go == true && mounted) {
+            await Navigator.pushNamed(context, '/health-profile');
+            await _loadFamilyMembers();
+          }
+          return;
+        }
+      }
+    } catch (_) {
+      // 接口异常时不阻断：继续走原查名额流程
+    }
+
     int quotaMax = 0;
     int quotaRemaining = 0;
     bool quotaOk = false;

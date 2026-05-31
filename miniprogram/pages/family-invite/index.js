@@ -8,7 +8,11 @@ Page({
     memberId: '',
     loading: true,
     invitation: null,
-    error: ''
+    error: '',
+    // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版]
+    // 标记是否因缺少 member_id 而进入错误态：true 时不显示"重新生成"按钮，
+    // 只显示红字提示（请用户从成员档案进入）。
+    missingMember: false
   },
 
   onLoad(options) {
@@ -16,7 +20,13 @@ Page({
       this.setData({ memberId: options.member_id });
       this.createInvitation(options.member_id);
     } else {
-      this.setData({ loading: false, error: '缺少成员参数' });
+      // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版]
+      // 三端口径统一：没 member_id 直接报错，不再渲染兜底表单。
+      this.setData({
+        loading: false,
+        error: '⚠️ 缺少成员信息，无法生成邀请，请从成员档案进入',
+        missingMember: true,
+      });
     }
   },
 

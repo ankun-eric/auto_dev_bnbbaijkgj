@@ -23,6 +23,9 @@ import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
 import MemberBadge from '@/components/family/MemberBadge';
 import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMemberModal';
+// [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版] 完善档案拦截前移：
+// 在「新增咨询人 / 添加成员」入口，先检查本人 needComplete，再继续查名额 / 打开表单。
+import CompleteSelfProfileDrawer from '@/components/health-profile-v5/CompleteSelfProfileDrawer';
 import { calcAge } from '@/lib/family-relation';
 import { formatGender } from '@/utils/format';
 import { useRouter } from 'next/navigation';
@@ -67,10 +70,14 @@ export default function ConsultTargetPicker({
   const [showAdd, setShowAdd] = useState(false);
   // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 §4.1 验收 8.1#7]
   // 新建咨询人后，弹「立即去邀请」抽屉，引导用户进入档案列表完成邀请
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版] 新增 newMemberId 字段：
+  //   保存成员成功后必须拿到后端返回的新成员 id，"去邀请 TA"跳转必须带 ?member_id=xxx，
+  //   避免 /family-invite 落到旧"无 id 兜底表单"分支。
   const [inviteChoice, setInviteChoice] = useState<{
     visible: boolean;
     nickname: string;
-  }>({ visible: false, nickname: '' });
+    newMemberId: number | null;
+  }>({ visible: false, nickname: '', newMemberId: null });
   // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 名额已满弹框
   // 数字 quotaMax 直接来自后端 /api/family/member/quota 返回，绝不写死
   const [quotaFull, setQuotaFull] = useState<{ visible: boolean; quotaMax: number }>({
@@ -78,6 +85,19 @@ export default function ConsultTargetPicker({
     quotaMax: 0,
   });
   const [quotaChecking, setQuotaChecking] = useState(false);
+
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版] 完善档案拦截前移：
+  //   "点新增咨询人"时第一步先查 /api/health-profile/self 的 needComplete。
+  //   needComplete=true：弹 CompleteSelfProfileDrawer，保存成功后自动接着查名额、开表单。
+  //   needComplete=false：直接走查名额逻辑。
+  const [selfDrawerVisible, setSelfDrawerVisible] = useState(false);
+  const [selfInitial, setSelfInitial] = useState<{
+    name?: string | null;
+    gender?: string | null;
+    birthday?: string | null;
+    height?: number | null;
+    weight?: number | null;
+  } | null>(null);
 
   const fetchMembers = async () => {
     setLoading(true);
@@ -114,41 +134,56 @@ export default function ConsultTargetPicker({
     onClose();
   };
 
-  const handleAddSuccess = async () => {
+  const handleAddSuccess = async (
+    createdMember?: { id: number; nickname: string } | null,
+  ) => {
     setShowAdd(false);
     // 拉取最新列表（带是否守护过的标记），找出最新建的非本人成员
     const prevIds = new Set(members.map((m) => m.id));
-    let newMemberNickname = '';
+    let newMemberNickname = createdMember?.nickname || '';
+    let newMemberId: number | null =
+      typeof createdMember?.id === 'number' ? createdMember.id : null;
     try {
       const res: any = await api.get('/api/family/members');
       const data = res?.data || res;
       const list: FamilyMemberItem[] = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
       setMembers(list);
-      const newOne = list.find((m) => !m.is_self && !prevIds.has(m.id));
-      if (newOne) newMemberNickname = newOne.nickname || '';
+      if (newMemberId == null) {
+        const newOne = list.find((m) => !m.is_self && !prevIds.has(m.id));
+        if (newOne) {
+          newMemberId = newOne.id;
+          if (!newMemberNickname) newMemberNickname = newOne.nickname || '';
+        }
+      }
     } catch {
       await fetchMembers();
     }
     // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]
     // 保存成功 → 弹"成员已添加成功🎉"框（可跳过 / 去邀请 TA）
-    setInviteChoice({ visible: true, nickname: newMemberNickname });
+    setInviteChoice({ visible: true, nickname: newMemberNickname, newMemberId });
   };
 
   const handleInviteNow = () => {
-    setInviteChoice({ visible: false, nickname: '' });
+    // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版]
+    // 跳转必须带 member_id；按业务规矩"邀请前必先有档案、必有成员 id"，
+    // 无 id 属异常，不再静默落到旧"无 id 兜底表单"，给用户明确提示并兜底回到原页。
+    const mid = inviteChoice.newMemberId;
+    setInviteChoice({ visible: false, nickname: '', newMemberId: null });
+    if (mid == null) {
+      showToast('成员信息缺失，请从档案列表进入邀请', 'fail');
+      return;
+    }
     onClose();
-    // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 直接跳到二维码邀请页
-    router.push('/family-invite');
+    router.push(`/family-invite?member_id=${mid}`);
   };
 
   const handleInviteSkip = () => {
-    setInviteChoice({ visible: false, nickname: '' });
+    setInviteChoice({ visible: false, nickname: '', newMemberId: null });
   };
 
-  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31]
-  // 点"+ 新增咨询人"时先查配额：满了直接弹"名额已满"框，不打开添加表单。
-  // quota_max 实时来自后端，绝不写死。
-  const handleClickAdd = async () => {
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版] 查名额并打开表单
+  //   抽成独立函数，便于"完善档案抽屉保存成功"后自动接着走名额流程。
+  const continueAddFlow = async () => {
     if (quotaChecking) return;
     setQuotaChecking(true);
     try {
@@ -170,6 +205,48 @@ export default function ConsultTargetPicker({
     }
   };
 
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版]
+  // 点"+ 新增咨询人"时，第一步先查本人 needComplete：
+  //   - needComplete=true：弹 CompleteSelfProfileDrawer 让用户补齐姓名/性别/生日，
+  //                       填完保存成功后自动接着查名额、开添加成员表单（一气呵成）。
+  //   - needComplete=false：直接走查名额逻辑。
+  // 拦截判断复用 GET /api/health-profile/self（后端按 name+gender+birthday 跨表取并集）。
+  const handleClickAdd = async () => {
+    if (quotaChecking) return;
+    try {
+      const res: any = await api.get('/api/health-profile/self');
+      const body = res?.data ?? res;
+      const data = body?.data ?? body;
+      const need = !!data?.needComplete;
+      if (need) {
+        setSelfInitial({
+          name: data?.name ?? null,
+          gender: data?.gender ?? null,
+          birthday: data?.birthday ?? null,
+          height: data?.height ?? null,
+          weight: data?.weight ?? null,
+        });
+        setSelfDrawerVisible(true);
+        return;
+      }
+    } catch {
+      // 接口异常时不阻断：直接走原查名额流程
+    }
+    await continueAddFlow();
+  };
+
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版] 抽屉保存成功 → 关抽屉 → 自动接着查名额、开表单
+  const handleSelfSaved = async () => {
+    setSelfDrawerVisible(false);
+    setSelfInitial(null);
+    await continueAddFlow();
+  };
+
+  const handleSelfDrawerClose = () => {
+    setSelfDrawerVisible(false);
+    setSelfInitial(null);
+  };
+
   const handleQuotaSkip = () => {
     setQuotaFull({ visible: false, quotaMax: 0 });
   };
@@ -185,6 +262,18 @@ export default function ConsultTargetPicker({
       <NewFamilyMemberModal
         onClose={() => setShowAdd(false)}
         onSuccess={handleAddSuccess}
+      />
+    );
+  }
+
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版] 完善档案抽屉：拦截前移，
+  // 与 health-profile 主页复用同一个 CompleteSelfProfileDrawer，UI 完全一致。
+  if (selfDrawerVisible) {
+    return (
+      <CompleteSelfProfileDrawer
+        initial={selfInitial}
+        onClose={handleSelfDrawerClose}
+        onSuccess={handleSelfSaved}
       />
     );
   }

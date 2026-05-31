@@ -46,7 +46,10 @@ interface ExistingMember {
 
 interface Props {
   onClose: () => void;
-  onSuccess: () => void;
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版] 保存成功后回传新成员信息：
+  // 主要为了让"去邀请 TA"跳转 /family-invite?member_id=xxx 时拿到该 id，
+  // 避免落到旧"无 id 兜底表单"分支。
+  onSuccess: (createdMember?: { id: number; nickname: string } | null) => void;
 }
 
 export default function NewFamilyMemberModal({ onClose, onSuccess }: Props) {
@@ -247,9 +250,21 @@ export default function NewFamilyMemberModal({ onClose, onSuccess }: Props) {
       if (otherAllergy.trim()) pushParts('其他', otherAllergy);
       if (allergies.length) body.allergies = allergies;
 
-      await api.post('/api/family/members', body);
+      // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版] 拿到后端返回的新成员 id，
+      // 透传给 onSuccess，方便上层"去邀请 TA"直接带 member_id 跳转
+      const resp: any = await api.post('/api/family/members', body);
+      const respData: any = resp?.data ?? resp;
+      const createdId: number | undefined = (typeof respData?.id === 'number')
+        ? respData.id
+        : (respData?.data && typeof respData.data.id === 'number')
+        ? respData.data.id
+        : undefined;
       showToast('添加成功');
-      onSuccess();
+      if (typeof createdId === 'number') {
+        onSuccess({ id: createdId, nickname });
+      } else {
+        onSuccess(null);
+      }
     } catch (e: any) {
       const detail = e?.response?.data?.detail || '保存失败';
       showToast(typeof detail === 'string' ? detail : '保存失败', 'fail');

@@ -2217,6 +2217,38 @@ Page({
   //   quota_max 实时来自后端 /api/family/member/quota，绝不写死
   // ============================================================
   async openAddMemberPopup() {
+    // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版] 完善档案拦截前移：
+    //   点"新增咨询人 / 添加成员"时，第一步先查本人 needComplete。
+    //   needComplete=true：弹"完善本人资料"提示 → 跳转到健康档案页（小程序的
+    //   现成"完善本人资料"抽屉在 health-profile 页承接，UI 与该端一致）。
+    //   complete=false：才继续走查名额、开表单的逻辑。
+    try {
+      const sres = await get('/api/health-profile/self', {}, { showLoading: false, suppressErrorToast: true });
+      const sdata = (sres && (sres.data || sres)) || {};
+      const need = !!sdata.needComplete;
+      if (need) {
+        this.setData({ showTargetPicker: false });
+        wx.showModal({
+          title: '请先完善本人资料',
+          content: '为了给您提供更精准的健康服务，添加家庭成员前请先完善您的基本资料（姓名、性别、出生日期）。',
+          confirmText: '去完善',
+          cancelText: '稍后',
+          success: (mr) => {
+            if (mr.confirm) {
+              wx.switchTab({
+                url: '/pages/health-profile/index',
+                fail() {
+                  wx.navigateTo({ url: '/pages/health-profile/index' });
+                },
+              });
+            }
+          },
+        });
+        return;
+      }
+    } catch (e) {
+      // 接口异常时不阻断：继续走原查名额流程
+    }
     // 先查配额
     try {
       const r = await get('/api/family/member/quota', {}, { showLoading: false, suppressErrorToast: true });
@@ -2278,15 +2310,18 @@ Page({
     this.setData({ showAddedDialog: false, addedNickname: '', addedMemberId: '' });
   },
 
-  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 成员已添加成功🎉弹框 - 去邀请 TA
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版] 成员已添加成功🎉弹框 - 去邀请 TA
+  // 三端口径统一：邀请前必先有档案、必有成员 id；无 id 视为异常，直接给出提示，
+  // 不再跳无 id 兜底页。
   onAddedDialogInvite() {
     const mid = this.data.addedMemberId;
-    const url = mid
-      ? `/pages/family-invite/index?member_id=${mid}`
-      : '/pages/family-invite/index';
     this.setData({ showAddedDialog: false, addedNickname: '', addedMemberId: '' });
+    if (!mid) {
+      wx.showToast({ title: '成员信息缺失，请从档案列表进入邀请', icon: 'none' });
+      return;
+    }
     wx.navigateTo({
-      url: url,
+      url: `/pages/family-invite/index?member_id=${mid}`,
       fail() {
         wx.showToast({ title: '邀请页未配置', icon: 'none' });
       },

@@ -6,10 +6,12 @@
   </view>
 
   <!-- Error -->
+  <!-- [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版]
+       missingMember=true 时只显示红字提示，不显示"重新生成"按钮 -->
   <view class="error-wrap" wx:elif="{{error}}">
     <text class="error-icon">⚠️</text>
     <text class="error-text">{{error}}</text>
-    <button class="retry-btn" bindtap="retry">重新生成</button>
+    <button class="retry-btn" wx:if="{{!missingMember}}" bindtap="retry">重新生成</button>
   </view>
 
   <!-- [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31] 三端口径统一：

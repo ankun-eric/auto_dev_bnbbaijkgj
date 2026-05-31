@@ -1,12 +1,28 @@
 'use client';
 
+/**
+ * [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版]
+ * 二维码邀请页 —— 单一职责：只为指定成员（member_id）生成二维码。
+ *
+ * 与历史版本的区别（按需求"删兜底、没 id 直接报错"）：
+ *   1. 删除「无 member_id 时渲染姓名+关系表单 + 就地建档案」的整套兜底（含
+ *      handleInviteSubmit、createInvitation 中 relationOverride/nicknameOverride/
+ *      nickname/relation_type 等无 id 分支）。
+ *   2. 删除本页的「完善本人资料抽屉」逻辑：完善档案拦截已前移到
+ *      「点新增咨询人 / 添加成员」那一刻（ConsultTargetPicker / 健康档案页）。
+ *      本页只管「给指定成员出二维码」这一件事。
+ *   3. 没带 member_id → 页面正中显示红字错误：
+ *      "⚠️ 缺少成员信息，无法生成邀请，请从成员档案进入"。
+ *
+ * 本次不动：布局、二维码、三个 emoji 标签、按钮配色（两个实心蓝 + 一个微信绿）、
+ * 文案（"邀请 TA 加入我的健康守护" / "邀请 24 小时内有效"）。
+ */
+
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { showToast } from '@/lib/toast-unified';
 import { QRCodeCanvas } from 'qrcode.react';
 import api from '@/lib/api';
-import { RELATION_DEFS } from '@/lib/family-relation';
-import { validateNickname, validateRelation } from '@/utils/nicknameValidator';
 
 interface InvitationData {
   invite_code: string;
@@ -14,10 +30,6 @@ interface InvitationData {
   qr_content_url?: string;
   expires_at: string;
 }
-
-// [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V2 2026-05-29 G1] 保留以兼容旧实现引用，但页面不再渲染胶囊选择器
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const RELATION_OPTIONS = RELATION_DEFS.map((d) => d.name);
 
 export default function FamilyInvitePage() {
   return (
@@ -37,37 +49,18 @@ function FamilyInviteContent() {
   const [error, setError] = useState('');
   const [memberName, setMemberName] = useState<string>('');
 
-  // [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V2 2026-05-29 G1] 场景 2 改用文本输入框 + 校验后
-  // 主动提交。原有"关系胶囊 + 其他文字框"组件不再使用，但保留 state 以兼容 createInvitation
-  // 的旧签名（默认空串，等价于不填）。
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [selectedRelation, _setSelectedRelation] = useState<string>('');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [customRelation, _setCustomRelation] = useState('');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const customRelationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V2 2026-05-29 G1] 场景 2 入口（无 member_id）
-  //   场景需求：姓名 + 关系 都用文本输入框，必填红星，校验三端一致后才能生成邀请。
-  //   关系下拉不带默认值（D4），用户必须显式选择。
-  const [inviteNickname, setInviteNickname] = useState('');
-  const [inviteRelation, setInviteRelation] = useState('');
-  const [submittingInvite, setSubmittingInvite] = useState(false);
-
-  const [profileChecked, setProfileChecked] = useState(false);
-  const [showProfileDrawer, setShowProfileDrawer] = useState(false);
-  const [profileName, setProfileName] = useState('');
-  const [profileId, setProfileId] = useState<number | null>(null);
-  const [savingProfile, setSavingProfile] = useState(false);
-
   const THEME = {
     gradientStart: '#0EA5E9',
     gradientEnd: '#38BDF8',
   };
 
+  // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版]
+  // 有 member_id 才请求邀请码；没有 → 不发任何请求，下面直接渲染红字错误。
   useEffect(() => {
-    checkProfile();
-  }, []);
+    if (!memberId) return;
+    createInvitation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [memberId]);
 
   useEffect(() => {
     if (!memberId) return;
@@ -82,108 +75,22 @@ function FamilyInviteContent() {
     })();
   }, [memberId]);
 
-  useEffect(() => {
-    if (!profileChecked) return;
-    // [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V2 2026-05-29 G1] 仅在有 member_id 时（从档案卡片
-    // 直接邀请）才自动进入"生成二维码"流程。无 member_id 时（场景 2 入口）必须先
-    // 在表单填写姓名 + 关系，由用户主动点击"生成邀请码"。
-    if (memberId) {
-      createInvitation();
-    }
-  }, [profileChecked, memberId]);
-
-  const checkProfile = async () => {
-    try {
-      const res: any = await api.get('/api/family/members');
-      const data = res.data || res;
-      const items: any[] = Array.isArray(data.items) ? data.items : [];
-      const selfMember = items.find((x: any) => x.is_self === true);
-      if (selfMember) {
-        const hp = selfMember.health_profile || selfMember.healthProfile;
-        if (hp && !hp.name) {
-          setProfileId(hp.id || selfMember.health_profile_id || null);
-          setShowProfileDrawer(true);
-          return;
-        }
-      }
-    } catch {}
-    setProfileChecked(true);
-  };
-
-  const handleSaveProfile = async () => {
-    if (!profileName.trim()) {
-      showToast('请输入姓名', 'fail');
-      return;
-    }
-    setSavingProfile(true);
-    try {
-      if (profileId) {
-        await api.put(`/api/health-profile/${profileId}`, { name: profileName.trim() });
-      }
-      showToast('保存成功');
-      setShowProfileDrawer(false);
-      setProfileChecked(true);
-    } catch {
-      showToast('保存失败，请重试', 'fail');
-    } finally {
-      setSavingProfile(false);
-    }
-  };
-
-  const handleSkipProfile = () => {
-    setShowProfileDrawer(false);
-    setProfileChecked(true);
-  };
-
-  const createInvitation = async (
-    relationOverride?: string,
-    nicknameOverride?: string,
-  ) => {
+  const createInvitation = async () => {
+    if (!memberId) return;
     setLoading(true);
     setError('');
     try {
-      const body: any = {};
-      if (memberId) body.member_id = Number(memberId);
-      const rel =
-        relationOverride !== undefined
-          ? relationOverride
-          : selectedRelation === '其他'
-          ? customRelation
-          : selectedRelation;
-      if (rel) body.relation_type = rel;
-      // [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V2 2026-05-29 G1] 场景 2 入口提交 nickname
-      if (nicknameOverride && nicknameOverride.trim()) {
-        body.nickname = nicknameOverride.trim();
-      }
-      const res: any = await api.post('/api/family/invitation', body);
+      const res: any = await api.post('/api/family/invitation', {
+        member_id: Number(memberId),
+      });
       const data = res.data || res;
       setInvitation(data);
     } catch (err: any) {
       const detail = err?.response?.data?.detail || '生成邀请失败，请重试';
-      setError(detail);
-      showToast(detail, 'fail');
+      setError(typeof detail === 'string' ? detail : '生成邀请失败，请重试');
+      showToast(typeof detail === 'string' ? detail : '生成邀请失败，请重试', 'fail');
     }
     setLoading(false);
-  };
-
-  // [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V2 2026-05-29 G1] 场景 2：表单提交
-  const handleInviteSubmit = async () => {
-    const nv = validateNickname(inviteNickname);
-    if (!nv.ok) {
-      showToast(nv.msg, 'fail');
-      return;
-    }
-    const rv = validateRelation(inviteRelation);
-    if (!rv.ok) {
-      showToast(rv.msg, 'fail');
-      return;
-    }
-    setSubmittingInvite(true);
-    try {
-      await createInvitation(inviteRelation.trim(), inviteNickname.trim());
-    } finally {
-      setSubmittingInvite(false);
-    }
   };
 
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -229,11 +136,6 @@ function FamilyInviteContent() {
     showToast('请点击右上角"..."分享给微信好友');
   };
 
-  // [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V2 2026-05-29 G1] 无 member_id（场景 2）：
-  //   渲染"姓名 + 关系"输入框，由用户主动提交后才进入二维码状态。
-  const needInviteForm = !memberId;
-  const canShowQr = memberId ? true : Boolean(invitation);
-
   return (
     <div style={{ background: '#F0F5FF', minHeight: '100vh', paddingBottom: 40 }}>
       {/* Nav bar */}
@@ -263,85 +165,35 @@ function FamilyInviteContent() {
       </div>
 
       <div style={{ padding: '16px 16px' }}>
-        {/* [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V2 2026-05-29 G1]
-            场景 2 入口（无 member_id 且未生成二维码）：渲染姓名 + 关系输入框。
-            UI 与 i-guard InviteGuardianDrawer 完全一致，校验三端字符级对齐。 */}
-        {needInviteForm && profileChecked && !invitation && (
+        {/* [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版]
+            没带 member_id：页面正中红字错误，不再弹旧表单、不再就地建档案。 */}
+        {!memberId ? (
           <div
-            data-testid="family-invite-form"
+            data-testid="family-invite-missing-member"
             style={{
-              background: '#fff', borderRadius: 16, padding: '16px 16px 18px',
-              marginBottom: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+              background: '#FFFFFF',
+              borderRadius: 16,
+              padding: '48px 24px',
+              textAlign: 'center',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+              marginTop: 32,
             }}
           >
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#333', marginBottom: 14 }}>
-              填写邀请信息
-            </div>
-
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 6 }}>
-                姓名 <span style={{ color: '#EF4444' }}>*</span>
-              </div>
-              <input
-                data-testid="family-invite-nickname"
-                type="text"
-                value={inviteNickname}
-                onChange={(e) => setInviteNickname(e.target.value)}
-                placeholder="如：张妈妈 / 李叔叔"
-                maxLength={20}
-                style={{
-                  width: '100%', padding: '10px 12px', borderRadius: 10,
-                  border: '1px solid #E2E8F0', outline: 'none',
-                  fontSize: 14, color: '#333', boxSizing: 'border-box',
-                }}
-              />
-              {!inviteNickname.trim() && (
-                <div style={{ fontSize: 12, color: '#EF4444', marginTop: 4 }}>姓名不能为空</div>
-              )}
-            </div>
-
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 6 }}>
-                关系 <span style={{ color: '#EF4444' }}>*</span>
-              </div>
-              <input
-                data-testid="family-invite-relation"
-                type="text"
-                value={inviteRelation}
-                onChange={(e) => setInviteRelation(e.target.value)}
-                placeholder="如：父亲、母亲、配偶"
-                maxLength={10}
-                style={{
-                  width: '100%', padding: '10px 12px', borderRadius: 10,
-                  border: '1px solid #E2E8F0', outline: 'none',
-                  fontSize: 14, color: '#333', boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            <button
-              data-testid="family-invite-submit"
-              disabled={submittingInvite || loading}
-              onClick={handleInviteSubmit}
+            <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
+            <div
               style={{
-                width: '100%', padding: '12px 0', borderRadius: 22,
-                background: `linear-gradient(135deg, ${THEME.gradientStart}, ${THEME.gradientEnd})`,
-                color: '#fff', border: 'none', fontSize: 15, fontWeight: 600,
-                cursor: submittingInvite || loading ? 'not-allowed' : 'pointer',
-                opacity: submittingInvite || loading ? 0.7 : 1,
+                color: '#DC2626',
+                fontSize: 15,
+                fontWeight: 600,
+                lineHeight: 1.7,
               }}
             >
-              {submittingInvite || loading ? '生成中…' : '生成邀请码'}
-            </button>
+              ⚠️ 缺少成员信息，无法生成邀请，请从成员档案进入
+            </div>
           </div>
-        )}
-
-        {/* Main content */}
-        {!profileChecked ? (
-          <div style={{ textAlign: 'center', color: '#9CA3AF', padding: 40 }}>正在检查资料…</div>
-        ) : loading && memberId ? (
+        ) : loading ? (
           <div style={{ textAlign: 'center', color: '#9CA3AF', padding: 40 }}>正在生成邀请…</div>
-        ) : error && memberId ? (
+        ) : error ? (
           <div style={{
             background: '#fff', borderRadius: 16, padding: '40px 20px',
             textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
@@ -356,7 +208,7 @@ function FamilyInviteContent() {
               }}
             >重新生成</button>
           </div>
-        ) : invitation && canShowQr ? (
+        ) : invitation ? (
           <>
             {/* Gradient Card */}
             <div style={{
@@ -412,7 +264,7 @@ function FamilyInviteContent() {
                   marginTop: 10, padding: '8px 14px', borderRadius: 10,
                   background: '#F0F9FF', fontSize: 13, color: '#0369A1',
                 }}>
-                  {memberId && memberName
+                  {memberName
                     ? `🔗 将绑定到「${memberName}」的档案`
                     : '让 TA 扫码或打开链接，确认后就能加入啦'}
                 </div>
@@ -454,65 +306,6 @@ function FamilyInviteContent() {
           </>
         ) : null}
       </div>
-
-      {/* Profile Drawer */}
-      {showProfileDrawer && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 1000,
-          background: 'rgba(0,0,0,0.4)',
-          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-        }}>
-          <div style={{
-            background: '#fff', borderRadius: '20px 20px 0 0',
-            width: '100%', maxWidth: 500, padding: '24px 20px 32px',
-            animation: 'slideUp 0.3s ease',
-          }}>
-            <div style={{ fontSize: 17, fontWeight: 700, color: '#333', marginBottom: 20, textAlign: 'center' }}>
-              完善个人资料
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 13, color: '#6B7280', marginBottom: 6, display: 'block' }}>姓名（必填）</label>
-              <input
-                type="text"
-                value={profileName}
-                onChange={(e) => setProfileName(e.target.value)}
-                placeholder="请输入您的姓名"
-                style={{
-                  width: '100%', padding: '12px 14px', borderRadius: 10,
-                  border: '1.5px solid #E5E7EB', outline: 'none',
-                  fontSize: 15, color: '#333', boxSizing: 'border-box',
-                }}
-              />
-            </div>
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 13, color: '#6B7280', marginBottom: 6, display: 'block' }}>关系</label>
-              <div style={{
-                padding: '12px 14px', borderRadius: 10,
-                background: '#F3F4F6', fontSize: 15, color: '#6B7280',
-              }}>本人</div>
-            </div>
-            <button
-              onClick={handleSaveProfile}
-              disabled={savingProfile}
-              style={{
-                width: '100%', padding: '14px 0', borderRadius: 22,
-                background: `linear-gradient(135deg, ${THEME.gradientStart}, ${THEME.gradientEnd})`,
-                color: '#fff', border: 'none', fontSize: 15, fontWeight: 600,
-                cursor: savingProfile ? 'not-allowed' : 'pointer',
-                opacity: savingProfile ? 0.7 : 1,
-              }}
-            >{savingProfile ? '保存中...' : '保存并继续邀请'}</button>
-            <button
-              onClick={handleSkipProfile}
-              style={{
-                width: '100%', padding: '12px 0', marginTop: 10,
-                background: 'transparent', color: '#9CA3AF',
-                border: 'none', fontSize: 13, cursor: 'pointer',
-              }}
-            >跳过</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
