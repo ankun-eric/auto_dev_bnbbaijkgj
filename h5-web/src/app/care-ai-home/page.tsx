@@ -67,9 +67,16 @@ export default function CareAiHomePage() {
   //  - 优先显示「最近一条未打卡」提醒（按 scheduled_time 升序的首条 checked=false）
   //  - 当前条打卡完成后下次刷新自动跳到下一条；全部打卡完毕给兜底文案「今天都打完啦 🎉」
   //  - 跨凌晨 12 点：接口按 date.today() 返回当天数据，刷新即天然从第二天首条重新开始
+  // [BUGFIX-CARE-AIHOME-MED-SELF-V1 2026-06-02 §第1点] 今日提醒「读错人」修复：
+  //   原来调用 /api/medication-reminder/today 不带任何参数，后端 consultant_id=None 时
+  //   走「不过滤」分支，把本人 + 所有家庭成员档案的待打卡用药全混在一起统计了。
+  //   关怀模式首页这行「今日提醒」按需求固定只读「本人」（健康档案=本人，即 family_member_id IS NULL），
+  //   永远不随被守护对象/咨询人切换而变化 → 固定传 consultant_id=0（后端语义：0=本人）。
   const loadMedication = useCallback(async () => {
     try {
-      const res: any = await api.get('/api/medication-reminder/today');
+      const res: any = await api.get('/api/medication-reminder/today', {
+        params: { consultant_id: 0 },
+      });
       // 拦截器已返回 body；today 返回的是数组（TodayMedicationItem[]）
       const items: any[] = Array.isArray(res)
         ? res
@@ -430,12 +437,64 @@ export default function CareAiHomePage() {
         }}
         data-testid="care-home-welcome"
       >
-        {/* [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求3] 欢迎区右上角「模式切换」胶囊（方案1：胶囊带文字）
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 6 }} data-testid="care-home-greeting">
+            {greeting.text} {greeting.icon}
+          </div>
+          <div style={{ fontSize: 16, opacity: 0.95, marginBottom: 14 }} data-testid="care-home-welcome-text">
+            我是宾尼小康，聊聊健康问题吧~
+          </div>
+          {/* 今日提醒（智能轮转 + 点击直达打卡页）
+              [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化4] 点一下整张提醒卡 → 跳对应打卡页 */}
+          <button
+            type="button"
+            onClick={goMedicationReminder}
+            data-testid="care-home-med-reminder"
+            style={{
+              background: 'rgba(255,255,255,0.18)',
+              borderRadius: 12,
+              padding: '8px 12px',
+              fontSize: 14,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              maxWidth: '100%',
+              border: 'none',
+              color: '#FFFFFF',
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+          >
+            <span aria-hidden="true">🔔</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              今日提醒：{medText || '加载中…'}
+            </span>
+            <span aria-hidden="true" style={{ flexShrink: 0, opacity: 0.85 }}>›</span>
+          </button>
+        </div>
+
+        {/* [BUGFIX-CARE-AIHOME-MODE-LOGO-ALIGN-V1 2026-06-02 §第2点 方案甲] 右侧竖排对齐：
+            「模式切换」胶囊从欢迎区右上角浮动（原 position:absolute）改为挪进右侧竖排容器，
+            摞在 LOGO 正上方，两者在同一条竖中轴线上下居中对齐（右侧竖排对齐）。
+            - 左侧文字（问候/欢迎/今日提醒）位置、样式保持不变；
+            - LOGO 大小、样式保持不变；顶部留白不切小、不做整列居中；
+            - 模式切换的点击事件 / 下拉状态随胶囊一并迁移，功能不变。 */}
+        <div
+          style={{
+            flexShrink: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 10,
+          }}
+          data-testid="care-home-mode-logo-column"
+        >
+        {/* [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求3] 「模式切换」胶囊（方案1：胶囊带文字）
             - 显示当前模式名「关怀版 ▾」，点击弹下拉：标准版（可切换）/ 关怀版（当前打勾）
             - 与 ⊕菜单里的「切换模式」并存，两个入口同时存在 */}
         <div
           ref={modeDropdownRef}
-          style={{ position: 'absolute', right: 16, top: 14, zIndex: 5 }}
+          style={{ position: 'relative', zIndex: 5 }}
           data-testid="care-home-mode-switcher"
         >
           <button
@@ -485,7 +544,8 @@ export default function CareAiHomePage() {
               style={{
                 position: 'absolute',
                 top: 'calc(100% + 6px)',
-                right: 0,
+                left: '50%',
+                transform: 'translateX(-50%)',
                 minWidth: 120,
                 background: '#FFFFFF',
                 borderRadius: 10,
@@ -545,43 +605,7 @@ export default function CareAiHomePage() {
           ) : null}
         </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 6 }} data-testid="care-home-greeting">
-            {greeting.text} {greeting.icon}
-          </div>
-          <div style={{ fontSize: 16, opacity: 0.95, marginBottom: 14 }} data-testid="care-home-welcome-text">
-            我是宾尼小康，聊聊健康问题吧~
-          </div>
-          {/* 今日提醒（智能轮转 + 点击直达打卡页）
-              [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化4] 点一下整张提醒卡 → 跳对应打卡页 */}
-          <button
-            type="button"
-            onClick={goMedicationReminder}
-            data-testid="care-home-med-reminder"
-            style={{
-              background: 'rgba(255,255,255,0.18)',
-              borderRadius: 12,
-              padding: '8px 12px',
-              fontSize: 14,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              maxWidth: '100%',
-              border: 'none',
-              color: '#FFFFFF',
-              cursor: 'pointer',
-              textAlign: 'left',
-            }}
-          >
-            <span aria-hidden="true">🔔</span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              今日提醒：{medText || '加载中…'}
-            </span>
-            <span aria-hidden="true" style={{ flexShrink: 0, opacity: 0.85 }}>›</span>
-          </button>
-        </div>
-
-        {/* 右侧：宾尼小康机器人 LOGO + 窄白边白圈（样式①） */}
+        {/* 右侧：宾尼小康机器人 LOGO + 窄白边白圈（样式①）—— 位于胶囊正下方，上下对齐 */}
         <div
           data-testid="care-home-robot-logo"
           style={{
@@ -604,6 +628,7 @@ export default function CareAiHomePage() {
             alt="宾尼小康"
             style={{ width: 74, height: 74, borderRadius: '50%', objectFit: 'cover' }}
           />
+        </div>
         </div>
       </div>
 
