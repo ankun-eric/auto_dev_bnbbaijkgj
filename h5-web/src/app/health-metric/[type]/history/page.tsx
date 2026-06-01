@@ -7,11 +7,16 @@
  *   type ∈ blood_pressure / blood_glucose / heart_rate / spo2
  *
  * PRD §五：支持 4 个筛选项 + 分页/无限滚动；点击改、左滑删（手工录入），设备同步只读。
+ *
+ * [PRD-BP-DETAIL-OPTIMIZE-V2 2026-06-01 §需求2] 全部历史列表交互对齐详情页那 5 条：
+ *   每条手工录入记录后补「…」三点入口 → 底部操作面板（修改 / 删除），
+ *   修改弹窗与详情页一致（血压改收缩压/舒张压/时段，其它指标改单值），
+ *   删除保留二次确认，删除后列表自动刷新。设备同步记录仍只读（保留只读详情弹窗）。
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Popup, Button } from 'antd-mobile';
+import { Popup, Button, Input } from 'antd-mobile';
 import GreenNavBar from '@/components/GreenNavBar';
 import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
@@ -80,6 +85,38 @@ const STATUS_OPTIONS_BY_TYPE: Record<string, { key: string; label: string }[]> =
   ],
 };
 
+// [PRD-BP-DETAIL-OPTIMIZE-V2 2026-06-01 §需求2] 各指标编辑弹窗的字段/时段元数据（与详情页 METRIC_META 对齐）
+interface EditMeta {
+  label: string;
+  fields: { name: string; label: string; suffix?: string; placeholder?: string }[];
+  period?: { key: string; label: string; options: string[] };
+}
+const EDIT_META_BY_TYPE: Record<string, EditMeta> = {
+  blood_pressure: {
+    label: '血压',
+    fields: [
+      { name: 'systolic', label: '收缩压', suffix: 'mmHg', placeholder: '如 128' },
+      { name: 'diastolic', label: '舒张压', suffix: 'mmHg', placeholder: '如 82' },
+    ],
+    period: { key: 'period', label: '时段', options: ['晨起', '午间', '晚间'] },
+  },
+  blood_glucose: {
+    label: '血糖',
+    fields: [{ name: 'value', label: '数值', suffix: 'mmol/L', placeholder: '如 6.5' }],
+    period: { key: 'period', label: '时段', options: ['空腹', '餐前', '餐后', '睡前'] },
+  },
+  heart_rate: {
+    label: '心率',
+    fields: [{ name: 'value', label: '心率', suffix: 'bpm', placeholder: '如 72' }],
+    period: { key: 'activity', label: '状态', options: ['静息', '运动'] },
+  },
+  spo2: {
+    label: '血氧',
+    fields: [{ name: 'value', label: '血氧饱和度', suffix: '%', placeholder: '如 97' }],
+    period: { key: 'period', label: '时段', options: ['晨起', '午间', '晚间'] },
+  },
+};
+
 const DATE_RANGE_OPTIONS = [
   { key: '7d', label: '近 7 天' },
   { key: '30d', label: '近 30 天' },
@@ -138,8 +175,13 @@ export default function HealthMetricHistoryPage() {
   const [sceneFilter, setSceneFilter] = useState<string>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
 
-  // 左滑状态
-  const [swipedRowId, setSwipedRowId] = useState<number | null>(null);
+  // [PRD-BP-DETAIL-OPTIMIZE-V2 2026-06-01 §需求2] 「…」底部操作面板（修改 / 删除），对齐详情页
+  const [actionItem, setActionItem] = useState<HistoryItem | null>(null);
+
+  // [PRD-BP-DETAIL-OPTIMIZE-V2 2026-06-01 §需求2] 编辑弹窗（复用详情页交互）
+  const [editItem, setEditItem] = useState<HistoryItem | null>(null);
+  const [editFields, setEditFields] = useState<Record<string, string>>({});
+  const [editPeriod, setEditPeriod] = useState<string>('');
 
   // 删除二次确认弹窗
   const [deletingItem, setDeletingItem] = useState<HistoryItem | null>(null);
@@ -206,12 +248,77 @@ export default function HealthMetricHistoryPage() {
       await api.delete(`/api/health-profile-v3/${profileId}/metric/${metricType}/${item.id}`);
       showToast('已删除', 'success');
       setDeletingItem(null);
-      setSwipedRowId(null);
+      setEditItem(null);
       await fetchPage(1, true);
     } catch {
       showToast('删除失败', 'fail');
     }
   }, [profileId, metricType, fetchPage]);
+
+  // [PRD-BP-DETAIL-OPTIMIZE-V2 2026-06-01 §需求2] 打开编辑弹窗：预填字段与时段（与详情页一致）
+  const editMeta = EDIT_META_BY_TYPE[metricType];
+  const openEdit = useCallback((item: HistoryItem) => {
+    setActionItem(null);
+    const m = EDIT_META_BY_TYPE[metricType];
+    const f: Record<string, string> = {};
+    (m?.fields || []).forEach((fd) => {
+      const v = item.value?.[fd.name];
+      f[fd.name] = v != null ? String(v) : '';
+    });
+    setEditFields(f);
+    const pKey = m?.period?.key || 'period';
+    const pv = item.value?.[pKey];
+    setEditPeriod(typeof pv === 'string' ? pv : '');
+    setEditItem(item);
+  }, [metricType]);
+
+  // [PRD-BP-DETAIL-OPTIMIZE-V2 2026-06-01 §需求2] 保存修改：PUT 与详情页同一接口，成功后刷新列表
+  const handleEditSave = useCallback(async () => {
+    if (!editItem || !profileId) return;
+    const m = EDIT_META_BY_TYPE[metricType];
+    if (!m) return;
+    // 校验数值
+    const nums: Record<string, number> = {};
+    for (const fd of m.fields) {
+      const raw = editFields[fd.name];
+      const n = Number(raw);
+      if (!raw || Number.isNaN(n)) {
+        showToast(`请输入有效的${fd.label}`, 'fail');
+        return;
+      }
+      nums[fd.name] = n;
+    }
+    if (metricType === 'blood_pressure') {
+      const s = nums['systolic'];
+      const d = nums['diastolic'];
+      if (s < 40 || s > 300 || d < 20 || d > 200) {
+        showToast('血压数值超出合理范围', 'fail');
+        return;
+      }
+    }
+    const pKey = m.period?.key || 'period';
+    let value: any;
+    if (metricType === 'blood_pressure') {
+      value = { systolic: nums['systolic'], diastolic: nums['diastolic'], [pKey]: editPeriod || undefined };
+    } else if (m.fields.length === 1 && m.fields[0].name === 'value') {
+      // 单值指标：value 直接传数值，时段单独带
+      value = nums['value'];
+    } else {
+      value = { ...nums, [pKey]: editPeriod || undefined };
+    }
+    try {
+      await api.put(`/api/health-profile-v3/${profileId}/metric/${metricType}/${editItem.id}`, {
+        value,
+        [pKey]: editPeriod || undefined,
+        measured_at: editItem.measured_at,
+      });
+      showToast('已更新', 'success');
+      setEditItem(null);
+      await fetchPage(1, true);
+    } catch {
+      showToast('更新失败', 'fail');
+    }
+  }, [editItem, editFields, editPeriod, profileId, metricType, fetchPage]);
 
   const navBarTitle = `${meta?.label || ''}全部历史`;
 
@@ -280,21 +387,15 @@ export default function HealthMetricHistoryPage() {
                 item={item}
                 metricType={metricType}
                 unit={meta?.unit || ''}
-                isSwiped={swipedRowId === item.id}
-                onSwipe={(swiped) => setSwipedRowId(swiped ? item.id : null)}
                 onClickRow={() => {
-                  if (swipedRowId === item.id) {
-                    setSwipedRowId(null);
-                    return;
-                  }
                   if (item.editable) {
-                    // 跳回详情页编辑：本期简化，提示用户去详情页修改
-                    showToast('请在详情页编辑该记录', 'success');
+                    // 可编辑记录：点行也打开操作面板，体验与「…」一致
+                    setActionItem(item);
                   } else {
                     setReadOnlyItem(item);
                   }
                 }}
-                onClickDelete={() => setDeletingItem(item)}
+                onClickMore={() => setActionItem(item)}
               />
             ))
           )}
@@ -311,6 +412,116 @@ export default function HealthMetricHistoryPage() {
           <div ref={sentinelRef} style={{ height: 1 }} />
         </div>
       </div>
+
+      {/* [PRD-BP-DETAIL-OPTIMIZE-V2 2026-06-01 §需求2] 「…」底部操作面板（修改 / 删除），与详情页交互一致 */}
+      <Popup
+        visible={!!actionItem}
+        onMaskClick={() => setActionItem(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: '8px 0 12px' }}
+      >
+        {actionItem && (
+          <div data-testid="metric-history-action-sheet">
+            <div style={{ padding: '10px 20px 6px', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>
+              选择操作
+            </div>
+            <button
+              data-testid="metric-history-action-edit"
+              onClick={() => openEdit(actionItem)}
+              style={{
+                width: '100%', padding: '14px 0', background: 'transparent', border: 'none',
+                borderTop: '1px solid #F1F5F9', fontSize: 16, color: '#0C4A6E', fontWeight: 600, cursor: 'pointer',
+              }}
+            >修改</button>
+            <button
+              data-testid="metric-history-action-delete"
+              onClick={() => { const it = actionItem; setActionItem(null); setDeletingItem(it); }}
+              style={{
+                width: '100%', padding: '14px 0', background: 'transparent', border: 'none',
+                borderTop: '1px solid #F1F5F9', fontSize: 16, color: '#DC2626', fontWeight: 600, cursor: 'pointer',
+              }}
+            >删除</button>
+            <button
+              data-testid="metric-history-action-cancel"
+              onClick={() => setActionItem(null)}
+              style={{
+                width: '100%', padding: '14px 0', marginTop: 8, background: 'transparent', border: 'none',
+                borderTop: '8px solid #F4F7FB', fontSize: 16, color: '#64748B', fontWeight: 600, cursor: 'pointer',
+              }}
+            >取消</button>
+          </div>
+        )}
+      </Popup>
+
+      {/* [PRD-BP-DETAIL-OPTIMIZE-V2 2026-06-01 §需求2] 修改记录弹窗（复用详情页样式，四指标通用） */}
+      <Popup
+        visible={!!editItem}
+        onMaskClick={() => setEditItem(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '85vh', overflowY: 'auto' }}
+      >
+        {editItem && editMeta && (
+          <div data-testid="metric-history-edit-popup">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E' }}>编辑{editMeta.label}记录</span>
+              <button onClick={() => setEditItem(null)} style={{ background: 'transparent', border: 'none', fontSize: 18, color: '#9CA3AF', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>
+              {formatDateTime(editItem.measured_at)}
+            </div>
+
+            {editMeta.fields.map((fd) => (
+              <div key={fd.name} style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>
+                  {fd.label}{fd.suffix ? `（${fd.suffix}）` : ''}
+                </div>
+                <Input
+                  data-testid={`metric-history-edit-${fd.name}`}
+                  type="number"
+                  placeholder={fd.placeholder}
+                  value={editFields[fd.name] || ''}
+                  onChange={(v) => setEditFields((s) => ({ ...s, [fd.name]: v }))}
+                  style={{ '--font-size': '16px', padding: '10px 12px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' } as any}
+                />
+              </div>
+            ))}
+
+            {editMeta.period && (
+              <>
+                <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>{editMeta.period.label}</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                  {editMeta.period.options.map((opt) => (
+                    <button
+                      key={opt}
+                      data-testid={`metric-history-edit-period-${opt}`}
+                      onClick={() => setEditPeriod(opt)}
+                      style={{
+                        padding: '6px 14px',
+                        background: editPeriod === opt ? '#0ea5e9' : '#e0f2fe',
+                        color: editPeriod === opt ? '#fff' : '#0369a1',
+                        border: 'none', borderRadius: 18, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                      }}
+                    >{opt}</button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                data-testid="metric-history-edit-delete"
+                onClick={() => { const it = editItem; setEditItem(null); setDeletingItem(it); }}
+                style={{ flex: 1, padding: '10px 0', background: '#fff', color: '#DC2626',
+                  border: '1px solid #DC2626', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >删除</button>
+              <button
+                data-testid="metric-history-edit-save"
+                onClick={handleEditSave}
+                style={{ flex: 2, padding: '10px 0', background: '#0ea5e9', color: '#fff',
+                  border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >保存</button>
+            </div>
+          </div>
+        )}
+      </Popup>
 
       {/* 删除二次确认弹窗 - 信息完整版 */}
       <Popup
@@ -427,15 +638,13 @@ function FilterRow({ label, value, options, onChange, testIdPrefix }: {
 }
 
 function HistoryRow({
-  item, metricType, unit, isSwiped, onSwipe, onClickRow, onClickDelete,
+  item, metricType, unit, onClickRow, onClickMore,
 }: {
   item: HistoryItem;
   metricType: string;
   unit: string;
-  isSwiped: boolean;
-  onSwipe: (swiped: boolean) => void;
   onClickRow: () => void;
-  onClickDelete: () => void;
+  onClickMore: () => void;
 }) {
   const statusColor = STATUS_COLOR[item.status?.color || 'gray'];
   const time = timeOnly(item.measured_at);
@@ -444,24 +653,13 @@ function HistoryRow({
   return (
     <div
       data-testid={`metric-history-row-${item.id}`}
-      style={{ position: 'relative', overflow: 'hidden', borderBottom: '1px solid #F1F5F9' }}
-      onTouchStart={(e) => { (e.currentTarget as any)._sx = e.touches[0].clientX; }}
-      onTouchEnd={(e) => {
-        if (!item.editable) return;
-        const sx = (e.currentTarget as any)._sx;
-        const dx = sx ? sx - e.changedTouches[0].clientX : 0;
-        if (dx > 40) onSwipe(true);
-        else if (dx < -40) onSwipe(false);
-      }}
+      style={{ position: 'relative', borderBottom: '1px solid #F1F5F9' }}
     >
       <div
         onClick={onClickRow}
         style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '12px 0', cursor: 'pointer',
-          transform: isSwiped ? 'translateX(-72px)' : 'translateX(0)',
-          transition: 'transform 0.2s',
-          background: '#fff',
+          padding: '12px 0', cursor: 'pointer', background: '#fff',
         }}
       >
         <div style={{ flex: 1 }}>
@@ -485,29 +683,31 @@ function HistoryRow({
             <span style={{ color: '#9CA3AF' }}>{dateOnly(item.measured_at)}</span>
           </div>
         </div>
-        {item.status && (
-          <span style={{
-            fontSize: 11, fontWeight: 700,
-            padding: '3px 10px', borderRadius: 999,
-            background: statusColor.bg, color: statusColor.text,
-          }}>
-            {item.status.label}
-          </span>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {item.status && (
+            <span style={{
+              fontSize: 11, fontWeight: 700,
+              padding: '3px 10px', borderRadius: 999,
+              background: statusColor.bg, color: statusColor.text,
+            }}>
+              {item.status.label}
+            </span>
+          )}
+          {/* [PRD-BP-DETAIL-OPTIMIZE-V2 2026-06-01 §需求2] 每条记录后补「…」三点入口（与详情页 5 条一致），手工录入可改可删；设备同步只读 */}
+          {item.editable && (
+            <button
+              data-testid={`metric-row-more-${item.id}`}
+              onClick={(e) => { e.stopPropagation(); onClickMore(); }}
+              style={{
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                fontSize: 20, fontWeight: 700, color: '#94A3B8', lineHeight: 1,
+                padding: '0 4px',
+              }}
+              aria-label="更多操作"
+            >⋯</button>
+          )}
+        </div>
       </div>
-      {item.editable && (
-        <button
-          data-testid={`metric-row-delete-${item.id}`}
-          onClick={(e) => { e.stopPropagation(); onClickDelete(); }}
-          style={{
-            position: 'absolute', top: 0, right: 0, bottom: 0, width: 64,
-            background: '#DC2626', color: '#fff', border: 'none', cursor: 'pointer',
-            fontSize: 13, fontWeight: 600,
-            transform: isSwiped ? 'translateX(0)' : 'translateX(64px)',
-            transition: 'transform 0.2s',
-          }}
-        >删除</button>
-      )}
     </div>
   );
 }

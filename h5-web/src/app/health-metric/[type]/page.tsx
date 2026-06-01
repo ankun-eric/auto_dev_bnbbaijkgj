@@ -1089,6 +1089,20 @@ function BloodPressurePage(props: BloodPressurePageProps) {
         </div>
       </div>
 
+      {/* [PRD-BP-DETAIL-OPTIMIZE-V2 2026-06-01 §需求1] AI 解读本次血压：从趋势图区移动到顶部最新记录卡片正下方 */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <button
+          data-testid="bp-ai-single"
+          onClick={() => requestAi('single')}
+          style={{
+            width: '100%', height: 44, borderRadius: 12,
+            background: 'linear-gradient(135deg, #38BDF8 0%, #0EA5E9 100%)', color: '#fff',
+            border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(14,165,233,0.24)',
+          }}
+        >🤖 AI 解读本次血压</button>
+      </div>
+
       {/* [PRD §四] 主卡片 ↔ 趋势图之间：并排大按钮（手工录入实心 + 绑定设备描边） */}
       <div data-testid="bp-action-row" style={{ padding: '12px 16px 0', display: 'flex', gap: 10 }}>
         <button
@@ -1189,19 +1203,7 @@ function BloodPressurePage(props: BloodPressurePageProps) {
         </div>
       </div>
 
-      {/* [PRD-BP-AI-EXPLAIN-V1 2026-05-31] AI 解读本次 + AI 解读趋势（对齐血糖） */}
-      <div style={{ padding: '12px 16px 0' }}>
-        <button
-          data-testid="bp-ai-single"
-          onClick={() => requestAi('single')}
-          style={{
-            width: '100%', height: 44, borderRadius: 12,
-            background: 'linear-gradient(135deg, #38BDF8 0%, #0EA5E9 100%)', color: '#fff',
-            border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(14,165,233,0.24)',
-          }}
-        >🤖 AI 解读本次血压</button>
-      </div>
+      {/* [PRD-BP-DETAIL-OPTIMIZE-V2 2026-06-01 §需求1] 趋势图区只保留「AI 解读趋势」按钮（「解读本次」已移到顶部主卡片下方） */}
       <div style={{ padding: '12px 16px 0' }}>
         <button
           data-testid="bp-ai-trend"
