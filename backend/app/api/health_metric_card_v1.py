@@ -363,7 +363,7 @@ def _rule_explain_single(metric_type: str, rec: HealthMetricRecord) -> str:
         "unknown": "暂无足够数据评估，请继续记录监测。",
     }
     advice = advice_map.get(status["key"], "请保持监测，必要时咨询医生。")
-    return f"{head} {advice}\n\n⚠️ 本提示仅供参考，不能替代专业医生诊断。"
+    return f"{head} {advice}"
 
 
 def _rule_explain_trend(metric_type: str, records: List[HealthMetricRecord], days: int) -> Dict[str, str]:

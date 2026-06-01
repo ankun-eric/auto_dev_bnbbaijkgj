@@ -158,6 +158,63 @@ function MedicalCard({ children, style }: { children: React.ReactNode; style?: R
   );
 }
 
+// [PRD-HEALTH-METRIC-AI-EXPLAIN-LAYOUT-V1 2026-06-01] AI 解读弹窗内容统一排版渲染
+// 规则：
+//   1) 「建议：」单独占一行并加粗
+//   2) 建议下的 1)、2)、3) … 每条各自单独换行
+//   3) 前面的分析正文按段落渲染，段落之间留出间距
+function AiExplainContent({ text }: { text: string }) {
+  if (!text) return null;
+  // 按换行拆分为原始段落（去掉纯空行，原文用空行分隔不同段落）
+  const rawBlocks = text
+    .split('\n')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  const nodes: JSX.Element[] = [];
+  rawBlocks.forEach((block, idx) => {
+    // 命中「建议：」开头的段落 → 标题加粗单独成行 + 每条编号换行
+    const adviceMatch = block.match(/^建议[：:]\s*([\s\S]*)$/);
+    if (adviceMatch) {
+      const body = adviceMatch[1] || '';
+      // 按 1) 2) 3) … 形式拆分为多条；保留编号
+      const items = body
+        .split(/(?=\d+\s*[)）])/)
+        .map((s) => s.replace(/^[；;、，,\s]+|[；;\s]+$/g, '').trim())
+        .filter((s) => s.length > 0);
+      nodes.push(
+        <div key={`adv-title-${idx}`} style={{ fontWeight: 700, marginTop: idx > 0 ? 12 : 0, marginBottom: 6 }}>
+          建议：
+        </div>
+      );
+      if (items.length > 0) {
+        items.forEach((it, j) => {
+          nodes.push(
+            <div key={`adv-item-${idx}-${j}`} style={{ marginBottom: 6, paddingLeft: 2 }}>
+              {it}
+            </div>
+          );
+        });
+      } else if (body.trim()) {
+        nodes.push(
+          <div key={`adv-body-${idx}`} style={{ marginBottom: 6 }}>
+            {body.trim()}
+          </div>
+        );
+      }
+      return;
+    }
+    // 普通分析段落：段落之间留间距
+    nodes.push(
+      <div key={`p-${idx}`} style={{ marginBottom: idx < rawBlocks.length - 1 ? 12 : 0 }}>
+        {block}
+      </div>
+    );
+  });
+
+  return <div>{nodes}</div>;
+}
+
 // [PRD-HEALTH-METRIC-CARD-UNIFY-V1 §七] AI 解读组件（本次 / 趋势），四指标通用
 function MetricAiBlock({ profileId, metricType, latestId, metricLabel }: {
   profileId: number;
@@ -184,7 +241,7 @@ function MetricAiBlock({ profileId, metricType, latestId, metricLabel }: {
           { range }
         );
         const d = r?.data?.data ?? r?.data ?? r;
-        const text = [d?.summary, d?.trend && '', d?.trend, d?.advice && '\n建议：', d?.advice]
+        const text = [d?.summary, d?.trend && '', d?.trend, d?.advice && '', d?.advice]
           .filter(Boolean).join('\n');
         setDrawer({ mode, loading: false, content: text });
       }
@@ -248,8 +305,8 @@ function MetricAiBlock({ profileId, metricType, latestId, metricLabel }: {
               </span>
               <button onClick={() => setDrawer(null)} style={{ background: 'transparent', border: 'none', fontSize: 20, color: '#9CA3AF', cursor: 'pointer' }}>✕</button>
             </div>
-            <div style={{ background: '#F8FAFC', borderRadius: 12, padding: 14, minHeight: 100, fontSize: 14, color: '#0F172A', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
-              {drawer.loading ? '正在分析…' : drawer.content}
+            <div style={{ background: '#F8FAFC', borderRadius: 12, padding: 14, minHeight: 100, fontSize: 14, color: '#0F172A', lineHeight: 1.7 }}>
+              {drawer.loading ? '正在分析…' : <AiExplainContent text={drawer.content} />}
             </div>
             <div style={{ marginTop: 12, fontSize: 11, color: '#9CA3AF', textAlign: 'center' }}>
               ⚠️ AI 建议仅供参考，不能替代医生诊断
@@ -1026,7 +1083,7 @@ function BloodPressurePage(props: BloodPressurePageProps) {
           const lines: string[] = [];
           if (d?.summary) lines.push(d.summary);
           if (d?.trend) lines.push('', d.trend);
-          if (d?.advice) lines.push('', '建议：', d.advice);
+          if (d?.advice) lines.push('', d.advice);
           text = lines.join('\n');
           if (!text.trim()) throw new Error('empty');
         } catch {
@@ -1494,8 +1551,8 @@ function BloodPressurePage(props: BloodPressurePageProps) {
                 ? `基于：${latest ? formatDateTime(latest.measured_at) + ' 血压 ' + (sbp ?? '-') + '/' + (dbp ?? '-') + ' mmHg' : '当前无记录'}`
                 : `基于：${range === 'day' ? '今天' : '近 7 天'}所有血压记录`}
             </div>
-            <div style={{ background: '#F8FAFC', borderRadius: 12, padding: 14, minHeight: 100, fontSize: 14, color: '#0F172A', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
-              {aiDrawer.loading ? '正在分析…' : aiDrawer.text}
+            <div style={{ background: '#F8FAFC', borderRadius: 12, padding: 14, minHeight: 100, fontSize: 14, color: '#0F172A', lineHeight: 1.7 }}>
+              {aiDrawer.loading ? '正在分析…' : <AiExplainContent text={aiDrawer.text} />}
             </div>
             <div style={{ marginTop: 12, fontSize: 11, color: '#9CA3AF', textAlign: 'center' }}>
               ⚠️ AI 建议仅供参考，不能替代医生诊断
@@ -2420,7 +2477,7 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
           const lines: string[] = [];
           if (d?.summary) lines.push(d.summary);
           if (d?.trend) lines.push('', d.trend);
-          if (d?.advice) lines.push('', '建议：', d.advice);
+          if (d?.advice) lines.push('', d.advice);
           text = lines.join('\n');
           if (!text.trim()) throw new Error('empty');
         } catch {
@@ -3016,8 +3073,8 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
                 ? `基于：${latest ? formatDateTime(latest.measured_at) + ' ' + BG_SCENE_LABEL[latestScene] + ' ' + (latestValue ?? '-') + ' mmol/L' : '当前无记录'}`
                 : `基于：${range === 'today' ? '今天' : range === 'week' ? '近 7 天' : '近 30 天'}所有记录`}
             </div>
-            <div style={{ background: '#F8FAFC', borderRadius: 12, padding: 14, minHeight: 100, fontSize: 14, color: '#0F172A', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
-              {aiDrawer.loading ? '正在分析…' : aiDrawer.text}
+            <div style={{ background: '#F8FAFC', borderRadius: 12, padding: 14, minHeight: 100, fontSize: 14, color: '#0F172A', lineHeight: 1.7 }}>
+              {aiDrawer.loading ? '正在分析…' : <AiExplainContent text={aiDrawer.text} />}
             </div>
             <div style={{ marginTop: 12, fontSize: 11, color: '#9CA3AF', textAlign: 'center' }}>
               ⚠️ AI 建议仅供参考，不能替代医生诊断
@@ -3231,7 +3288,7 @@ function HeartRatePage(props: HeartRatePageProps) {
           const lines: string[] = [];
           if (d?.summary) lines.push(d.summary);
           if (d?.trend) lines.push('', d.trend);
-          if (d?.advice) lines.push('', '建议：', d.advice);
+          if (d?.advice) lines.push('', d.advice);
           text = lines.join('\n');
           if (!text.trim()) throw new Error('empty');
         } catch {
@@ -3709,8 +3766,8 @@ function HeartRatePage(props: HeartRatePageProps) {
                 ? `基于：${latest && hrValue != null ? formatDateTime(latest.measured_at) + ' 心率 ' + hrValue + ' bpm' : '当前无记录'}`
                 : `基于：${range === 'day' ? '今天' : '近 7 天'}所有心率记录`}
             </div>
-            <div style={{ background: '#F8FAFC', borderRadius: 12, padding: 14, minHeight: 100, fontSize: 14, color: '#0F172A', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
-              {aiDrawer.loading ? '正在分析…' : aiDrawer.text}
+            <div style={{ background: '#F8FAFC', borderRadius: 12, padding: 14, minHeight: 100, fontSize: 14, color: '#0F172A', lineHeight: 1.7 }}>
+              {aiDrawer.loading ? '正在分析…' : <AiExplainContent text={aiDrawer.text} />}
             </div>
             <div style={{ marginTop: 12, fontSize: 11, color: '#9CA3AF', textAlign: 'center' }}>
               ⚠️ AI 建议仅供参考，不能替代医生诊断
