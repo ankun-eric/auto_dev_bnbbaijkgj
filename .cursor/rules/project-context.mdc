@@ -5,7 +5,31 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-01 · 新功能 / 会员中心「邀请家庭成员」按钮点击效果复用半屏浮层 · 仅 H5 一端，后端/小程序/移动端 0 改动）
+## 最近一次变更（2026-06-01 · Bug 修复 / 删除家庭成员「操作频繁，请明日再试」误拦 · 仅后端，0 客户端改动）
+
+**任务标识**：`[BUGFIX-DELETE-RATELIMIT-V1 2026-06-01]`
+
+**问题**：H5「健康档案 → 家庭成员」中点一下「删除」即弹「操作频繁，请明日再试」且删不掉。根因有二：① 限流计数算法错误——「点一下就先记账」，不论是否删成功，反复尝试/被其他规则拦住没删成也都被计入额度，5 次额度被悄悄扣光后任何删除都被拦；② 删除动作存在**双重拦截**（`family_member_v2` 与 `guardian_bugfix_v1` 两套限流同时拦）。
+
+**修复（3 后端文件 + 2 测试）**：
+- `backend/app/api/family_member_v2.py`：`DELETE_RATE_LIMIT_PER_DAY` 5→50；删除频次拆为 `_peek_delete_rate_limit`（只查不记账）+ `_record_delete_success`（删除成功后才记一次）；删除接口入口只查、`db.flush()` 成功后才计数；新增 `reset_delete_rate_limit_for_test`。文案改为「今日删除次数已达上限，请明日再试」。
+- `backend/app/api/guardian_bugfix_v1.py`：`RATE_LIMIT_PER_DAY` 5→50；`RATE_LIMIT_ACTIONS` 移除 `delete_member`（消除双重拦截）；`delete_family_member_hard` 移除 `check_and_incr_rate_limit("delete_member",...)` 调用；新增 `check_rate_limit_only`（只查）+ `incr_rate_limit`（成功后记）；`unguard` 改为先查、成功后才记；`check_and_incr_rate_limit` 保留为兼容包装；超限文案去掉具体数字。
+- `backend/app/api/family_management.py`：`create_invitation` 的 `invite_create` 限流改为开头只查（`check_rate_limit_only`）、邀请创建成功后才记（`incr_rate_limit`）。
+- 测试：`test_family_member_state_machine_v1_20260529.py` 更新 TC-FMV2-09（50 次上限）+ 新增 TC-FMV2-09b（删除失败不计数）；`test_guardian_bugfix_v1_20260529.py` 更新 invite 限流为 50 次、改 delete 测试为「v13 真删除不再拦截」。
+
+**口径统一**：删除 / 创建邀请 / 解除守护 三动作均为 **50 次/UID/自然日、仅成功才计数**。计数继续用进程内存桶（重启/多实例只会更宽松，对本场景够用）。安全类限流（登录锁定、短信 60s、图形验证码等）全部不动。
+
+**测试验证**：服务器 backend 容器内 `pytest` 跑限流相关 2 文件 **29 passed**，更广家庭/守护回归 3 文件 **35 passed**，0 失败。外部 HTTPS：`/api/health`=200、`DELETE /api/family/member/1`=401（鉴权正常）、前端首页=200。
+
+**部署**：GitHub 在服务器侧网络超时（GnuTLS），按 skill 降级用本机 paramiko SFTP 直传 3 后端文件 → `docker compose -f docker-compose.prod.yml build backend && up -d backend`（仅 backend 单服务，依赖层走缓存）。容器内 marker 校验=5，已上线生效。
+
+**变更端清单**：仅后端（Docker 容器部署，已上线）。H5/小程序/移动端 0 改动，无需重新打包。
+
+**用户手册**：`user_docs/删除家庭成员操作频繁修复.md`
+
+---
+
+## 历史变更（2026-06-01 · 新功能 / 会员中心「邀请家庭成员」按钮点击效果复用半屏浮层 · 仅 H5 一端，后端/小程序/移动端 0 改动）
 
 **任务标识**：`[PRD-MEMBER-INVITE-REUSE-MODAL-V1 2026-06-01]`
 
@@ -1052,7 +1076,7 @@ alwaysApply: false
   - `POST   /api/family/member/{member_id}/unbind`：解除守护（S1 → S6），写解除通知
   - `POST   /api/family/member/admin/cleanup-orphan-invitations`：一次性清理孤儿邀请（dry_run 支持）
 - 状态机收敛：S0 本人 / S1 守护中 / S2 未邀请 / S3 邀请中 / S4 已拒绝 / S5 已过期 / S6 已解绑 / S7 已取消，每个状态有独立颜色 + 主按钮 + 闸门规则
-- 删除频次限制：5 次/UID/自然日（内存桶实现）
+- 删除频次限制：50 次/UID/自然日（内存桶实现，仅成功才计数）<!-- [BUGFIX-DELETE-RATELIMIT-V1 2026-06-01] 5→50 + 成功才计数 -->
 - 修改：`backend/app/main.py` —— include_router 注册新模块（失败兜底不影响其他模块）
 - 新增：`h5-web/src/app/health-profile/archive-list/page.tsx` —— v2 状态机版档案列表页（独立路由 `/health-profile/archive-list/`）
   - 7 种状态卡片渲染（彩色 Tag + 主按钮 + ⋯ 更多菜单）
@@ -1305,7 +1329,7 @@ HTTPS smoke：
 1. B1：`GET /api/guardian/v13/family/list` 未过滤 `removed/deleted`，导致软删数据继续出现 → 加 `FamilyManagement.status.notin_(["removed","deleted"])` + 兜底排除 removed mgmt 关联的 family_member（避免被当孤儿重新返回）。
 2. B3：「移除」改名「彻底删除」并改为物理删除：新增 `DELETE /api/guardian/v13/family/member/{member_id}`，级联硬删 8 张表（family_member / family_management / family_invitation / health_profile / medication_reminder / chat_session / chat_message + 断开 home_safety_emergency_contact 引用）。
 3. B5：邀请漏洞修复 —— `POST /api/family/invitation` 入口 2（member_id 为 None）强制 `nickname` 必填（422），并把邀请记录中的 nickname 写入 accept 时建档；新增 `family_invitations.nickname` 字段（schema_sync 自动迁移 + 历史回填"待激活成员"）。
-4. B7：频次防护 —— 内存计数器（Redis 不可用时降级）`invite_create / unguard / delete_member` 每自然日 5 次上限（HTTP 429）。
+4. B7：频次防护 —— 内存计数器（Redis 不可用时降级）`invite_create / unguard` 每自然日 50 次上限（HTTP 429，仅成功才计数）。<!-- [BUGFIX-DELETE-RATELIMIT-V1 2026-06-01] 5→50、移除 delete_member（统一收口到 family_member_v2）、改为成功才计数 -->
 5. AI 首页 `/api/family/members` + `/family/list` 同步追加 `target_left` 字段标记"对方已退出"，UI 灰标。
 6. 新增 `GET /family/member/{member_id}/delete-preview` 真删前数据量预览接口（4.5.3 弹窗使用）。
 7. 新增 `POST /family/relation/unguard` 频次受限的解除守护包装接口。
