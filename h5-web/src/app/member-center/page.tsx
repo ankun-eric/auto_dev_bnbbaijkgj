@@ -27,6 +27,10 @@ import GreenNavBar from '@/components/GreenNavBar';
 import BenefitsCompareTable from './components/BenefitsCompareTable';
 import InviteFamilyCard from './components/InviteFamilyCard';
 import MonthlyQuotaCard from './components/MonthlyQuotaCard';
+// [PRD-MEMBER-INVITE-REUSE-MODAL-V1 2026-06-01]
+// 会员中心「邀请家庭成员」按钮点击效果与「健康档案 → 家庭成员 → 去邀请」完全一致：
+// 复用同一套半屏浮层组件 NewFamilyMemberModal，点击后弹出浮层完成邀请，不再跳页。
+import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMemberModal';
 import {
   PURPLE_THEME,
   computeThemeState,
@@ -114,6 +118,23 @@ export default function MemberCenterPage() {
   const [familyQuota, setFamilyQuota] = useState<FamilyQuotaResp | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  // [PRD-MEMBER-INVITE-REUSE-MODAL-V1 2026-06-01]
+  // 控制「邀请家庭成员」半屏浮层显隐（与健康档案位一致：靠是否渲染控制）
+  const [newMemberOpen, setNewMemberOpen] = useState(false);
+
+  // [PRD-MEMBER-INVITE-REUSE-MODAL-V1 2026-06-01]
+  // 抽出家庭配额拉取，供初始加载与浮层邀请成功后刷新复用（人数自动 +1，与蓝卡口径一致）
+  const fetchFamilyQuota = async () => {
+    try {
+      const r: any = await api.get('/api/family/member/quota');
+      const payload = r?.data || r;
+      if (payload && typeof payload.quota_max === 'number') {
+        setFamilyQuota(payload as FamilyQuotaResp);
+      }
+    } catch {
+      /* 静默兜底 */
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -138,17 +159,7 @@ export default function MemberCenterPage() {
         /* 静默兜底 */
       }
     })();
-    (async () => {
-      try {
-        const r: any = await api.get('/api/family/member/quota');
-        const payload = r?.data || r;
-        if (payload && typeof payload.quota_max === 'number') {
-          setFamilyQuota(payload as FamilyQuotaResp);
-        }
-      } catch {
-        /* 静默兜底 */
-      }
-    })();
+    fetchFamilyQuota();
   }, []);
 
   // ─── 主题与等级判定 ───
@@ -384,12 +395,23 @@ export default function MemberCenterPage() {
       </div>
 
       {/* 2. 邀请家人入口（保留） */}
+      {/* [PRD-MEMBER-INVITE-REUSE-MODAL-V1 2026-06-01]
+          仅调整「邀请家庭成员」按钮点击效果：由原跳转 /health-profile/my-guardians/invite 页面，
+          改为弹出半屏浮层 NewFamilyMemberModal，与「健康档案 → 家庭成员 → 去邀请」完全一致，
+          用户不离开会员中心。卡片外观/高度/布局/文案/按钮位置/数量信息一概不变。 */}
       <InviteFamilyCard
         planName={current.plan_name}
         quotaMax={(familyQuota && typeof familyQuota.quota_max === 'number') ? familyQuota.quota_max : current.max_managed}
         quotaUsed={(familyQuota && typeof familyQuota.quota_used === 'number') ? familyQuota.quota_used : 0}
         cardLocation='member_center'
-        onInvite={() => router.push('/health-profile/my-guardians/invite')}
+        onInvite={() => {
+          // 与健康档案位行为对齐：满额时不弹浮层（卡片满额态按钮已禁用，此处为二重保险）
+          const qMax = (familyQuota && typeof familyQuota.quota_max === 'number') ? familyQuota.quota_max : current.max_managed;
+          const qUsed = (familyQuota && typeof familyQuota.quota_used === 'number') ? familyQuota.quota_used : 0;
+          const unlimited = qMax === -1 || qMax >= 9999;
+          if (!unlimited && typeof qMax === 'number' && qUsed >= qMax) return;
+          setNewMemberOpen(true);
+        }}
         onUpgrade={() => {
           if (typeof window !== 'undefined') {
             const el = document.querySelector('[data-mc-upgrade-section="1"]');
@@ -682,6 +704,26 @@ export default function MemberCenterPage() {
           {ctaText}
         </button>
       </div>
+
+      {/* [PRD-MEMBER-INVITE-REUSE-MODAL-V1 2026-06-01]
+          「邀请家庭成员」按钮点击后弹出的半屏浮层，与「健康档案 → 家庭成员 → 去邀请」
+          复用同一套 NewFamilyMemberModal 组件，效果完全一致。
+          NewFamilyMemberModal 无 visible/open 受控属性，靠是否渲染控制显隐。
+          保存成功后关闭浮层、刷新家庭配额（人数 +1），用户仍停留在会员中心页面。 */}
+      {newMemberOpen && (
+        <NewFamilyMemberModal
+          onClose={() => setNewMemberOpen(false)}
+          onSuccess={async (createdMember) => {
+            setNewMemberOpen(false);
+            await fetchFamilyQuota();
+            if (createdMember?.nickname) {
+              showToast(`已添加「${createdMember.nickname}」`, 'success');
+            } else {
+              showToast('已添加家庭成员', 'success');
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
