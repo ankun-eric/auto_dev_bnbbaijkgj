@@ -4467,7 +4467,7 @@ export default function AiHomePage() {
                 - 适老化：问候语字号 18、加粗 */}
             <SectionErrorBoundary name="welcome">
               {welcomeVisible && (
-                <div className="flex items-center gap-3 py-3" data-testid="ai-home-greeting">
+                <div className="flex items-center gap-3 py-3" data-testid="ai-home-greeting" style={{ position: 'relative' }}>
                   <AiAvatar
                     src={
                       aiHomeConfig.welcome?.avatar?.type === 'image'
@@ -4481,9 +4481,124 @@ export default function AiHomePage() {
                   />
                   <div
                     className="flex-1 min-w-0 truncate"
-                    style={{ fontSize: 18, fontWeight: 700, color: WARM_BLUE.textPrimary }}
+                    style={{ fontSize: 18, fontWeight: 700, color: WARM_BLUE.textPrimary, paddingRight: 96 }}
                   >
                     {renderMainTitle() || 'Hi~ 健康管理用小康'}
+                  </div>
+
+                  {/* [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求3] 欢迎区右上角「模式切换」胶囊（方案1：胶囊带文字）
+                      - 显示当前模式名「标准版 ▾」，点击弹下拉：标准版（当前打勾）/ 关怀版（可切换）
+                      - 与 ⊕菜单里的「切换模式」并存，两个入口同时存在 */}
+                  <div
+                    ref={modeDropdownRef}
+                    style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)' }}
+                    data-testid="ai-home-mode-switcher"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setModeDropdownOpen((v) => !v)}
+                      disabled={modeSwitching}
+                      aria-haspopup="listbox"
+                      aria-expanded={modeDropdownOpen}
+                      aria-label="模式切换"
+                      data-testid="ai-home-mode-capsule"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        background: '#EAF6FF',
+                        color: WARM_BLUE.primary,
+                        border: `1px solid #CDE8FB`,
+                        padding: '5px 10px',
+                        borderRadius: 14,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        lineHeight: 1,
+                        whiteSpace: 'nowrap',
+                        cursor: modeSwitching ? 'default' : 'pointer',
+                        minHeight: 28,
+                      }}
+                    >
+                      <span data-testid="ai-home-mode-capsule-label">标准版</span>
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          display: 'inline-block',
+                          fontSize: 10,
+                          lineHeight: 1,
+                          transform: modeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transition: 'transform 0.15s ease',
+                        }}
+                      >
+                        ▾
+                      </span>
+                    </button>
+
+                    {modeDropdownOpen ? (
+                      <div
+                        role="listbox"
+                        data-testid="ai-home-mode-dropdown-panel"
+                        style={{
+                          position: 'absolute',
+                          top: 'calc(100% + 6px)',
+                          right: 0,
+                          minWidth: 120,
+                          background: '#FFFFFF',
+                          borderRadius: 10,
+                          boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                          border: '1px solid #E5E7EB',
+                          overflow: 'hidden',
+                          zIndex: 50,
+                        }}
+                      >
+                        {/* 标准版（当前，高亮打勾） */}
+                        <div
+                          role="option"
+                          aria-selected={true}
+                          onClick={() => setModeDropdownOpen(false)}
+                          data-testid="ai-home-mode-option-standard"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 8,
+                            padding: '10px 14px',
+                            fontSize: 14,
+                            fontWeight: 600,
+                            color: WARM_BLUE.primary,
+                            background: '#EAF6FF',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          <span>标准版</span>
+                          <span aria-hidden="true">✓</span>
+                        </div>
+                        {/* 关怀版（切换） */}
+                        <div
+                          role="option"
+                          aria-selected={false}
+                          onClick={handleSwitchToCareMode}
+                          data-testid="ai-home-mode-option-care"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 8,
+                            padding: '10px 14px',
+                            fontSize: 14,
+                            fontWeight: 500,
+                            color: '#374151',
+                            background: '#FFFFFF',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          <span>关怀版</span>
+                          <span aria-hidden="true" style={{ width: 14 }} />
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               )}
@@ -6244,16 +6359,21 @@ export default function AiHomePage() {
         onSelectSession={handleSelectSession}
         onNewConversation={handleNewConversation}
       />
-      {/* [PRD-AI-HOME-3TAB-WARMBLUE-V1 2026-06-01 §五] 「+ 圆圈」更多菜单 V2：
-          发起新对话 / 切换模式（带当前模式小标签）/ 邀请好友 / 帮助与反馈 */}
+      {/* [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] 「+ 圆圈」更多菜单（统一 8 项，两版一致）：
+          💬发起新对话 / 🔀切换模式（带当前模式小标签）/ 👑会员中心 / 🎁邀请好友 /
+          📷扫一扫 / 🔤字体大小 / 📤立即分享 / ❓帮助与反馈 */}
       <MoreMenu
         visible={moreMenuOpen}
         onClose={() => setMoreMenuOpen(false)}
         menuVariant="ai-home-v2"
         onNewChat={() => { setMoreMenuOpen(false); handleNewConversation(); }}
-        currentModeLabel="标准模式"
+        currentModeLabel="标准版"
         onSwitchMode={() => { setMoreMenuOpen(false); handleSwitchToCareMode(); }}
+        onMemberCenter={() => { setMoreMenuOpen(false); router.push('/member-center'); }}
         onInviteFriend={() => { setMoreMenuOpen(false); router.push('/invite'); }}
+        onScan={() => { setMoreMenuOpen(false); handleScan(); }}
+        onFontSize={() => { setMoreMenuOpen(false); handleFontSize(); }}
+        onShare={() => { setMoreMenuOpen(false); setShareOpen(true); }}
         onHelpFeedback={() => { setMoreMenuOpen(false); router.push('/feedback'); }}
       />
       <ConsultTargetPicker

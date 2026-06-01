@@ -60,11 +60,19 @@ export default function MoreMenu({
     tag?: string;
   };
 
+  // [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] AI 首页「⊕ 加号圈」菜单合并：
+  //   标准版 / 关怀版去重后统一为 8 项，两版完全一致，顺序按「高频在前」：
+  //   1.💬发起新对话 2.🔀切换模式 3.👑会员中心 4.🎁邀请好友
+  //   5.📷扫一扫 6.🔤字体大小 7.📤立即分享 8.❓帮助与反馈
   const items: MenuItem[] = menuVariant === 'ai-home-v2'
     ? [
         { icon: '💬', label: '发起新对话', action: onNewChat },
         { icon: '🔀', label: '切换模式', action: onSwitchMode, tag: currentModeLabel },
+        { icon: '👑', label: '会员中心', action: onMemberCenter, gold: true },
         { icon: '🎁', label: '邀请好友', action: onInviteFriend },
+        { icon: '📷', label: '扫一扫', action: onScan },
+        { icon: '🔤', label: '字体大小', action: onFontSize },
+        { icon: '📤', label: '立即分享', action: onShare },
         { icon: '❓', label: '帮助与反馈', action: onHelpFeedback },
       ]
     : [

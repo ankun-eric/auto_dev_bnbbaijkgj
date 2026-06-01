@@ -160,22 +160,24 @@ export default function CareAiHomePage() {
       }}
       data-testid="care-ai-home-page"
     >
-      {/* 1. 顶部固定栏（与标准模式一致） */}
+      {/* 1. 顶部固定栏（[PRD-AIHOME-UNIFY-V1 2026-06-01 §需求1] 与标准版完全统一：
+          ☰三横杠(带红点) → 档案/咨询/服务 三 Tab(当前停咨询·蓝下划线) → 🔔铃铛 → ⊕加号圈。
+          原「宾尼小康 模式切换」胶囊、🎁邀请图标已全部移除。 */}
       <div
         style={{
           position: 'sticky',
           top: 0,
           zIndex: 100,
-          background: 'linear-gradient(180deg, #F0F9FF 0%, #DBEAFE 100%)',
+          background: 'linear-gradient(180deg, #EAF6FF 0%, #DCEFFF 100%)',
           maxWidth: 750,
           margin: '0 auto',
         }}
         data-testid="care-home-topbar"
       >
         <div style={{ position: 'relative', height: 48, width: '100%' }}>
-          {/* 左：☰ 菜单 */}
+          {/* 1. 左：☰ 三横杠（带小红点 → 历史/侧边栏入口） */}
           <button
-            aria-label="菜单"
+            aria-label="历史会话"
             onClick={() => navigate('/profile')}
             data-testid="care-home-hamburger-btn"
             style={{
@@ -192,17 +194,33 @@ export default function CareAiHomePage() {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#0C4A6E',
+              color: '#1F2D3D',
             }}
           >
-            <svg width={21} height={17} viewBox="0 0 21 17" aria-hidden="true">
-              <rect x={0} y={0} width={16} height={2.5} rx={1.25} fill="currentColor" />
-              <rect x={0} y={7} width={16} height={2.5} rx={1.25} fill="currentColor" />
-              <rect x={0} y={14} width={11} height={2.5} rx={1.25} fill="currentColor" />
-            </svg>
+            <span style={{ position: 'relative', display: 'inline-block', width: 21, height: 17 }}>
+              <svg width={21} height={17} viewBox="0 0 21 17" aria-hidden="true">
+                <rect x={0} y={0} width={16} height={2.5} rx={1.25} fill="currentColor" />
+                <rect x={0} y={7} width={16} height={2.5} rx={1.25} fill="currentColor" />
+                <rect x={0} y={14} width={11} height={2.5} rx={1.25} fill="currentColor" />
+              </svg>
+              <span
+                data-testid="care-home-hamburger-reddot"
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  left: 16,
+                  top: -8,
+                  width: 8,
+                  height: 8,
+                  borderRadius: 9999,
+                  background: '#FF3B30',
+                  pointerEvents: 'none',
+                }}
+              />
+            </span>
           </button>
 
-          {/* 中：小康 */}
+          {/* 2~4. 中：档案 / 咨询 / 服务 三 Tab（当前停「咨询」，选中蓝色下划线） */}
           <div
             style={{
               position: 'absolute',
@@ -213,155 +231,115 @@ export default function CareAiHomePage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              gap: 22,
+              minWidth: 0,
+              maxWidth: 'calc(100% - 120px)',
             }}
+            data-testid="care-home-top-tabs"
+            role="tablist"
           >
-            <span
-              style={{ fontSize: 18, fontWeight: 600, color: '#0C4A6E', lineHeight: 1 }}
-              data-testid="care-home-topbar-title"
-            >
-              宾尼小康
-            </span>
+            {([
+              { key: 'profile', label: '档案' },
+              { key: 'consult', label: '咨询' },
+              { key: 'service', label: '服务' },
+            ] as const).map((tab) => {
+              const active = tab.key === 'consult';
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  data-testid={`care-home-top-tab-${tab.key}`}
+                  onClick={() => {
+                    if (tab.key === 'profile') { navigate('/health-profile'); return; }
+                    if (tab.key === 'service') { navigate('/services'); return; }
+                    // 咨询：停留当前页（关怀版咨询首页）
+                  }}
+                  style={{
+                    position: 'relative',
+                    background: 'transparent',
+                    border: 'none',
+                    padding: '0 2px',
+                    height: '100%',
+                    minHeight: 44,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    lineHeight: 1,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 16,
+                      fontWeight: active ? 700 : 500,
+                      color: active ? '#3FA9F5' : '#6B7B8C',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {tab.label}
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute',
+                      bottom: 6,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      width: active ? 20 : 0,
+                      height: 3,
+                      borderRadius: 2,
+                      background: '#3FA9F5',
+                    }}
+                  />
+                </button>
+              );
+            })}
           </div>
 
-          {/* 右：模式切换胶囊 + 🎁 + ⋯更多（去掉会报错的 ⊕ 加圈） */}
-          {/* 🎁 礼物 */}
+          {/* 5. 🔔 铃铛（带红/橙点 → 待办/消息提醒） */}
           <button
             type="button"
-            onClick={() => navigate('/invite')}
-            aria-label="邀请好友"
-            data-testid="care-home-invite-btn"
+            onClick={() => navigate('/ai-home/medication-reminder')}
+            aria-label="今日待办提醒"
+            data-testid="care-home-topbar-bell"
             style={{
               position: 'absolute',
-              right: 44,
+              right: 48,
               top: '50%',
               transform: 'translateY(-50%)',
               width: 32,
               height: 32,
+              color: '#1F2D3D',
               background: 'transparent',
               border: 'none',
               padding: 0,
               cursor: 'pointer',
             }}
           >
-            <span style={{ fontSize: 20, lineHeight: 1 }} aria-hidden="true">🎁</span>
-          </button>
-
-          {/* 模式切换下拉胶囊（当前：宾尼小康 模式切换） */}
-          <div
-            ref={modeDropdownRef}
-            style={{ position: 'absolute', right: 80, top: '50%', transform: 'translateY(-50%)' }}
-            data-testid="care-home-mode-switcher"
-          >
-            <button
-              type="button"
-              onClick={() => setModeDropdownOpen((v) => !v)}
-              disabled={modeSwitching}
-              aria-haspopup="listbox"
-              aria-expanded={modeDropdownOpen}
-              aria-label="模式切换"
-              data-testid="care-home-mode-capsule"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                background: '#E8F5E9',
-                color: '#2E7D32',
-                border: 'none',
-                padding: '5px 10px',
-                borderRadius: 14,
-                fontSize: 13,
-                fontWeight: 600,
-                lineHeight: 1,
-                whiteSpace: 'nowrap',
-                cursor: modeSwitching ? 'default' : 'pointer',
-                minHeight: 28,
-              }}
-            >
-              <span data-testid="care-home-mode-capsule-label">宾尼小康 模式切换</span>
+            <span style={{ position: 'relative', display: 'inline-flex', fontSize: 20, lineHeight: 1 }} aria-hidden="true">
+              🔔
               <span
-                aria-hidden="true"
-                style={{
-                  display: 'inline-block',
-                  fontSize: 10,
-                  lineHeight: 1,
-                  transform: modeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                  transition: 'transform 0.15s ease',
-                }}
-              >
-                ▾
-              </span>
-            </button>
-
-            {modeDropdownOpen ? (
-              <div
-                role="listbox"
-                data-testid="care-home-mode-dropdown-panel"
+                data-testid="care-home-topbar-bell-reddot"
                 style={{
                   position: 'absolute',
-                  top: 'calc(100% + 6px)',
-                  right: 0,
-                  minWidth: 120,
-                  background: '#FFFFFF',
-                  borderRadius: 10,
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-                  border: '1px solid #E5E7EB',
-                  overflow: 'hidden',
-                  zIndex: 50,
+                  top: -3,
+                  right: -3,
+                  minWidth: 8,
+                  height: 8,
+                  borderRadius: 9999,
+                  background: '#FF7A45',
+                  boxShadow: '0 0 0 1.5px #fff',
                 }}
-              >
-                {/* 标准模式（切换） */}
-                <div
-                  role="option"
-                  aria-selected={false}
-                  onClick={handleSwitchToStandard}
-                  data-testid="care-home-mode-option-standard"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 8,
-                    padding: '10px 14px',
-                    fontSize: 14,
-                    fontWeight: 500,
-                    color: '#374151',
-                    background: '#FFFFFF',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <span>标准模式</span>
-                  <span aria-hidden="true" style={{ width: 14 }} />
-                </div>
-                {/* 宾尼小康（当前，高亮打勾） */}
-                <div
-                  role="option"
-                  aria-selected={true}
-                  onClick={() => setModeDropdownOpen(false)}
-                  data-testid="care-home-mode-option-care"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 8,
-                    padding: '10px 14px',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: '#2E7D32',
-                    background: '#E8F5E9',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <span>宾尼小康</span>
-                  <span aria-hidden="true">✓</span>
-                </div>
-              </div>
-            ) : null}
-          </div>
+              />
+            </span>
+          </button>
 
-          {/* ⋯ 更多（照搬标准模式更多菜单，替换原会报错的 ⊕ 加圈） */}
+          {/* 6. ⊕ 加号圈（最右，点开「更多」菜单——统一 8 项） */}
           <button
-            aria-label="更多"
+            aria-label="更多菜单"
             onClick={() => setMoreMenuOpen(true)}
             data-testid="care-home-more-btn"
             style={{
@@ -375,13 +353,17 @@ export default function CareAiHomePage() {
               border: 'none',
               padding: 0,
               cursor: 'pointer',
-              color: '#0C4A6E',
-              fontSize: 24,
-              fontWeight: 700,
-              lineHeight: 1,
+              color: '#1F2D3D',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            <span aria-hidden="true" style={{ display: 'inline-block', transform: 'translateY(-2px)' }}>⋯</span>
+            <svg width={22} height={22} viewBox="0 0 22 22" aria-hidden="true" data-testid="care-home-more-icon-plus-circle">
+              <circle cx={11} cy={11} r={9.5} fill="none" stroke="currentColor" strokeWidth={1.6} />
+              <line x1={11} y1={6} x2={11} y2={16} stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" />
+              <line x1={6} y1={11} x2={16} y2={11} stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" />
+            </svg>
           </button>
         </div>
       </div>
@@ -389,6 +371,7 @@ export default function CareAiHomePage() {
       {/* 2. 欢迎区（蓝绿渐变） */}
       <div
         style={{
+          position: 'relative',
           background: 'linear-gradient(135deg, #1976D2 0%, #43A047 100%)',
           color: '#FFFFFF',
           padding: '24px 20px',
@@ -400,6 +383,121 @@ export default function CareAiHomePage() {
         }}
         data-testid="care-home-welcome"
       >
+        {/* [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求3] 欢迎区右上角「模式切换」胶囊（方案1：胶囊带文字）
+            - 显示当前模式名「关怀版 ▾」，点击弹下拉：标准版（可切换）/ 关怀版（当前打勾）
+            - 与 ⊕菜单里的「切换模式」并存，两个入口同时存在 */}
+        <div
+          ref={modeDropdownRef}
+          style={{ position: 'absolute', right: 16, top: 14, zIndex: 5 }}
+          data-testid="care-home-mode-switcher"
+        >
+          <button
+            type="button"
+            onClick={() => setModeDropdownOpen((v) => !v)}
+            disabled={modeSwitching}
+            aria-haspopup="listbox"
+            aria-expanded={modeDropdownOpen}
+            aria-label="模式切换"
+            data-testid="care-home-mode-capsule"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              background: 'rgba(255,255,255,0.22)',
+              color: '#FFFFFF',
+              border: '1px solid rgba(255,255,255,0.45)',
+              padding: '5px 10px',
+              borderRadius: 14,
+              fontSize: 13,
+              fontWeight: 600,
+              lineHeight: 1,
+              whiteSpace: 'nowrap',
+              cursor: modeSwitching ? 'default' : 'pointer',
+              minHeight: 28,
+            }}
+          >
+            <span data-testid="care-home-mode-capsule-label">关怀版</span>
+            <span
+              aria-hidden="true"
+              style={{
+                display: 'inline-block',
+                fontSize: 10,
+                lineHeight: 1,
+                transform: modeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.15s ease',
+              }}
+            >
+              ▾
+            </span>
+          </button>
+
+          {modeDropdownOpen ? (
+            <div
+              role="listbox"
+              data-testid="care-home-mode-dropdown-panel"
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                right: 0,
+                minWidth: 120,
+                background: '#FFFFFF',
+                borderRadius: 10,
+                boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                border: '1px solid #E5E7EB',
+                overflow: 'hidden',
+                zIndex: 50,
+              }}
+            >
+              {/* 标准版（切换） */}
+              <div
+                role="option"
+                aria-selected={false}
+                onClick={handleSwitchToStandard}
+                data-testid="care-home-mode-option-standard"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  padding: '10px 14px',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: '#374151',
+                  background: '#FFFFFF',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span>标准版</span>
+                <span aria-hidden="true" style={{ width: 14 }} />
+              </div>
+              {/* 关怀版（当前，高亮打勾） */}
+              <div
+                role="option"
+                aria-selected={true}
+                onClick={() => setModeDropdownOpen(false)}
+                data-testid="care-home-mode-option-care"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  padding: '10px 14px',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: '#2E7D32',
+                  background: '#E8F5E9',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span>关怀版</span>
+                <span aria-hidden="true">✓</span>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 6 }} data-testid="care-home-greeting">
             {greeting.text} {greeting.icon}
@@ -529,14 +627,21 @@ export default function CareAiHomePage() {
         <span className="care-home-sos-core" aria-hidden="true">SOS</span>
       </button>
 
-      {/* 更多菜单（与标准模式共用） */}
+      {/* [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] 更多菜单与标准版统一为 8 项（ai-home-v2 变体）：
+          💬发起新对话 / 🔀切换模式 / 👑会员中心 / 🎁邀请好友 / 📷扫一扫 / 🔤字体大小 / 📤立即分享 / ❓帮助与反馈 */}
       <MoreMenu
         visible={moreMenuOpen}
         onClose={() => setMoreMenuOpen(false)}
-        onMemberCenter={() => navigate('/member-center')}
-        onScan={() => showToast('扫一扫开发中')}
-        onFontSize={() => showToast('字体大小设置开发中')}
-        onShare={() => showToast('请点击浏览器菜单分享')}
+        menuVariant="ai-home-v2"
+        currentModeLabel="关怀版"
+        onNewChat={() => { setMoreMenuOpen(false); navigate('/care-ai-home'); }}
+        onSwitchMode={() => { setMoreMenuOpen(false); handleSwitchToStandard(); }}
+        onMemberCenter={() => { setMoreMenuOpen(false); navigate('/member-center'); }}
+        onInviteFriend={() => { setMoreMenuOpen(false); navigate('/invite'); }}
+        onScan={() => { setMoreMenuOpen(false); showToast('扫一扫开发中'); }}
+        onFontSize={() => { setMoreMenuOpen(false); showToast('字体大小设置开发中'); }}
+        onShare={() => { setMoreMenuOpen(false); showToast('请点击浏览器菜单分享'); }}
+        onHelpFeedback={() => { setMoreMenuOpen(false); navigate('/feedback'); }}
       />
 
       {/* Toast */}
