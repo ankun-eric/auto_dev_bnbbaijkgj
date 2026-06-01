@@ -26,6 +26,9 @@ import { trackEvent, aiChatTrack, aiHomeFnTrack, type AiChatTargetType } from '@
 // [BUG_FIX_REPORT_DRUG_BUTTON_INTENT_MAPPING_20260525]
 // 统一按钮意图解析（与后端 button_intent_resolver.py / 小程序 buttonIntent.js 完全一致）
 import { resolveButtonIntent } from '@/utils/button-intent';
+// [BUG_FIX_AI_HOME_IMAGE_HISTORY_RESTORE_V1 2026-06-01]
+// 图片解析/历史还原纯函数（统一收敛 + 独立单测）
+import { extractImagesFromContent, restoreImageMessageFromContent } from '@/lib/ai-image-history';
 import { FnCell } from '@/components/design-system';
 import { parseServerTime } from '@/lib/datetime';
 // [AICHAT-OPTIM-FIX-V1 F-06] ChatCards 调度器
@@ -108,29 +111,13 @@ const WARM_BLUE = {
   iconCellBg: '#EAF6FF',         // 4 图标统一浅色底（同一色）
 } as const;
 
-const IMG_URL_RE = /(https?:\/\/[^\s)\]\"']+?\.(?:png|jpg|jpeg|gif|webp)(?:\?[^\s)\]\"']*)?)/gi;
-const MD_IMG_RE = /!\[[^\]]*\]\(([^)]+)\)/g;
-
 /**
- * 从 AI 回复正文里抽离图片 URL（Markdown 形态 + 裸链接），
- * 返回剔除图片占位后的纯文本 + 去重后的图片 URL 数组。
- * 用于在文本下方渲染并排小缩略图（80×80）。
+ * [BUG_FIX_AI_HOME_IMAGE_HISTORY_RESTORE_V1 2026-06-01]
+ * 图片相关纯函数解析工具统一收敛到 src/lib/ai-image-history.ts，
+ * 供 AI 回复缩略图渲染 + 历史上传图片消息还原共用，并具备独立单元测试。
+ *   - extractImagesFromContent：从正文抽图片 URL + 返回去图后的纯文本
+ *   - restoreImageMessageFromContent：把存成纯文字的上传图片消息还原成 {images, caption}
  */
-function extractImagesFromContent(raw: string): { text: string; images: string[] } {
-  if (!raw) return { text: raw, images: [] };
-  const images: string[] = [];
-  let text = raw.replace(MD_IMG_RE, (_, url) => {
-    if (url) images.push(String(url).trim());
-    return '';
-  });
-  text = text.replace(IMG_URL_RE, (url) => {
-    images.push(url);
-    return '';
-  });
-  text = text.replace(/\n{3,}/g, '\n\n').trim();
-  const dedup = Array.from(new Set(images.filter(Boolean)));
-  return { text, images: dedup };
-}
 
 function openAiHomeImageViewer(images: string[], defaultIndex: number) {
   try {
@@ -179,6 +166,13 @@ interface ChatMessage {
    * 兼容存量数据：若 images 为空但 content 是 URL/base64，则按单图渲染。
    */
   images?: string[];
+  /**
+   * [BUG_FIX_AI_HOME_IMAGE_HISTORY_RESTORE_V1 2026-06-01]
+   * 图片消息（kind === 'image'）下方保留的用户说明文字。
+   * 历史还原时从「[用户上传的图片 N 张] + URL 列表 + 说明」纯文本里解析得到，
+   * 渲染时在小图墙下方展示，去掉冗余占位与裸 URL。
+   */
+  imageCaption?: string;
   /** [Bug-471 2026-05-15] 用户上传的非图片文件元信息（kind === 'file' 时使用） */
   files?: Array<{ url: string; name: string; size?: number }>;
   /** quick_ask 卡片消息携带的按钮元数据 */
@@ -1323,13 +1317,29 @@ export default function AiHomePage() {
           // 并保留 added_to_plan 状态（"已加入用药计划"按钮置灰）
           const meta = m.message_metadata || null;
           const isDrug = meta && (meta.message_type === 'drug_identify_card' || meta.message_type === 'drug_identify_retake');
-          return {
+          const isUserRole = m.role === 'user';
+          const rawContent = m.content || '';
+          const base: ChatMessage = {
             id: String(m.id),
-            role: m.role === 'user' ? 'user' as const : 'assistant' as const,
-            content: m.content || '',
+            role: isUserRole ? 'user' as const : 'assistant' as const,
+            content: rawContent,
             time: m.created_at || new Date().toISOString(),
             drugMeta: isDrug ? meta : null,
           };
+          // [BUG_FIX_AI_HOME_IMAGE_HISTORY_RESTORE_V1 2026-06-01]
+          // 用户上传图片消息历史还原：把存成纯文字的「[用户上传的图片 N 张]+URL列表+说明」
+          // 还原成 kind='image' 的图片消息（小图墙 + 说明文字），报告解读 / 拍照识药 /
+          // 其他上传入口共用同一套还原逻辑，新老数据均生效。
+          if (isUserRole && !isDrug) {
+            const restored = restoreImageMessageFromContent(rawContent);
+            if (restored && restored.images.length > 0) {
+              base.kind = 'image';
+              base.images = restored.images;
+              base.imageCaption = restored.caption;
+              base.content = restored.images[0];
+            }
+          }
+          return base;
         });
         setMessages(mapped);
       }
@@ -5079,6 +5089,9 @@ export default function AiHomePage() {
                     : (msg.content ? [msg.content] : []);
                 if (imgs.length === 0) return null;
                 const isMulti = imgs.length > 1;
+                // [BUG_FIX_AI_HOME_IMAGE_HISTORY_RESTORE_V1 2026-06-01]
+                // 历史还原的图片消息下方保留用户说明文字（caption）。
+                const imgCaption = (msg.imageCaption || '').trim();
                 return (
                   <div key={msg.id} style={{ marginBottom: 24 }} data-testid="ai-home-user-image-message">
                     {showTime && (
@@ -5091,52 +5104,84 @@ export default function AiHomePage() {
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginRight: 16 }}>
                       <div
                         style={{
-                          background: '#E6F0FF',
-                          borderRadius: 14,
-                          padding: 6,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-end',
+                          gap: 6,
                           maxWidth: 'min(75vw, 360px)',
                         }}
-                        data-testid="ai-home-user-image-bubble"
-                        data-image-count={imgs.length}
                       >
-                        {isMulti ? (
+                        <div
+                          style={{
+                            background: '#E6F0FF',
+                            borderRadius: 14,
+                            padding: 6,
+                            maxWidth: '100%',
+                          }}
+                          data-testid="ai-home-user-image-bubble"
+                          data-image-count={imgs.length}
+                        >
+                          {isMulti ? (
+                            <div
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: `repeat(${Math.min(imgs.length, 3)}, 1fr)`,
+                                gap: 4,
+                              }}
+                            >
+                              {imgs.map((u, idx) => (
+                                <img
+                                  key={idx}
+                                  src={u}
+                                  alt={`用户上传 ${idx + 1}`}
+                                  style={{
+                                    width: '100%',
+                                    height: 86,
+                                    borderRadius: 8,
+                                    display: 'block',
+                                    objectFit: 'cover',
+                                    background: '#F3F4F6',
+                                    cursor: 'pointer',
+                                  }}
+                                  data-testid="ai-home-user-image-thumb"
+                                  onClick={() => openAiHomeImageViewer(imgs, idx)}
+                                />
+                              ))}
+                            </div>
+                          ) : (
+                            <img
+                              src={imgs[0]}
+                              alt="用户上传"
+                              style={{
+                                maxWidth: '100%',
+                                maxHeight: 240,
+                                borderRadius: 10,
+                                display: 'block',
+                                objectFit: 'cover',
+                                cursor: 'pointer',
+                              }}
+                              data-testid="ai-home-user-image-thumb"
+                              onClick={() => openAiHomeImageViewer(imgs, 0)}
+                            />
+                          )}
+                        </div>
+                        {imgCaption && (
                           <div
                             style={{
-                              display: 'grid',
-                              gridTemplateColumns: `repeat(${Math.min(imgs.length, 3)}, 1fr)`,
-                              gap: 4,
-                            }}
-                          >
-                            {imgs.map((u, idx) => (
-                              <img
-                                key={idx}
-                                src={u}
-                                alt={`用户上传 ${idx + 1}`}
-                                style={{
-                                  width: '100%',
-                                  height: 86,
-                                  borderRadius: 8,
-                                  display: 'block',
-                                  objectFit: 'cover',
-                                  background: '#F3F4F6',
-                                }}
-                                data-testid="ai-home-user-image-thumb"
-                              />
-                            ))}
-                          </div>
-                        ) : (
-                          <img
-                            src={imgs[0]}
-                            alt="用户上传"
-                            style={{
+                              background: '#E6F0FF',
+                              color: '#1F2937',
+                              borderRadius: 14,
+                              padding: '10px 14px',
                               maxWidth: '100%',
-                              maxHeight: 240,
-                              borderRadius: 10,
-                              display: 'block',
-                              objectFit: 'cover',
+                              fontSize: 14,
+                              lineHeight: 1.5,
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word',
                             }}
-                            data-testid="ai-home-user-image-thumb"
-                          />
+                            data-testid="ai-home-user-image-caption"
+                          >
+                            {imgCaption}
+                          </div>
                         )}
                       </div>
                     </div>
