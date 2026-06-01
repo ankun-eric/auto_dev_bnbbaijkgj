@@ -22,11 +22,18 @@ alwaysApply: false
 
 **部署**：GitHub 服务器侧 fetch 超时（沿用历史降级），paramiko SFTP 直传改动文件 → `docker compose -f docker-compose.prod.yml build --no-cache backend admin-web h5-web && up -d`，gateway-nginx 重连 `{DEPLOY_ID}-network` + reload。种子已生效（DB 查得 meal=9/store=9，特禀质膳食=增强免疫餐）。外部 HTTPS 全可达：`/api/health`=200、`/api/constitution/result/1`=401（鉴权）、`/tcm/`=200、`/`=200、`/admin/`=200、`/admin/constitution-content/`=200、`/api/admin/constitution/meta`=401（已注册）、`/binni-xiaokang-logo.png`=200。
 
-**变更端清单**：后端 + H5 + Admin（均 Docker 容器，已重建上线）+ 微信小程序（重新打包 zip 上传 gateway `downloads/`，HTTP 200）+ Flutter APP（原生体质结果页已对齐，APK/IPA 走 CI 构建）。
+**变更端清单**：后端 + H5 + Admin（均 Docker 容器，已重建上线）+ 微信小程序（重新打包 zip 上传 gateway `downloads/`，HTTP 200）+ Flutter APP 安卓 + iOS（lib/ 体质结果页对齐，GitHub Actions 远程构建 APK/IPA 成功）。
 
-**微信小程序新包**：`{base}/downloads/miniprogram_20260601_232958_35ff.zip`（HTTP 200）。
+**部署标识**：本次 develop-all 复跑确认服务器容器命名遵循 `6b099ed3-7175-4a78-91f4-44570c84ed27-{h5,admin,backend,db}` 全部 Up，代码已在容器内（`models.py` 含 `ConstitutionContentConfig`、`constitution.py` 含 `_load_content_configs`、种子文件与测试文件均在 `/app`）。`origin/master` 已含本需求 commit `1000befb`。
 
-**用户手册**：`user_docs/体质测评优化.md`
+**本次三端新包（基础URL = https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27）**：
+- 微信小程序：`{base}/downloads/miniprogram_20260601_234926_7f1c.zip`（HTTP 200，docker cp 进 gateway 容器 `/data/static/apk/`）。
+- 安卓 APK：`{base}/downloads/app_20260602_000037_fd67.apk`（HTTP 200，标签 `android-v20260601-234948-c232`，run 26765802925 success）。
+- iOS：Release `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260601-234957-fb15`，IPA `.../releases/download/ios-v20260601-234957-fb15/bini_health_ios.ipa`（标签 `ios-v20260601-234957-fb15`，run 26765811030 success，未签名包）。
+
+**测试复跑**：服务器 backend 容器 `pytest test_tizhi_optim_v1_20260601.py` → 7 API/DB 用例通过、8 前端静态断言因容器内无前端源码 FileNotFoundError（非真实 Bug）；本地全 15/15 通过。零真实 Bug。
+
+**用户手册**：`user_docs/体质测评优化.md`（已更新为本次部署标识与三端新包链接）
 
 ---
 
