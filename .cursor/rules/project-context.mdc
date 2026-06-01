@@ -5,7 +5,25 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-01 · Bug 修复 / AI 首页铃铛「用药提醒」本人化根因校正 v2「consultant_id=0」· 仅 H5 一端，后端/小程序/移动端 0 改动）
+## 最近一次变更（2026-06-01 · 用药计划/用药提醒页 顶栏统一 + 列表页改名 + 「已结束」Tab 500 修复 · H5 + 后端，小程序/移动端 0 改动）
+
+**任务标识**：`[PRD-MED-NAVBAR-UNIFY-20260601]` + `[BUG-MED-FINISHED-500-20260601]`
+
+**需求**：把「用药计划列表页」和「用药提醒页」顶部标题栏统一为整条天蓝色顶栏 + 白色居中标题（项目 `GreenNavBar` 风格）；列表页标题由「用药提醒」改名为「用药计划」；修复点击「已结束」Tab 必现报错。
+
+**改动（共 3 文件 + 1 测试）**：
+- `h5-web/src/app/(ai-chat)/ai-home/medication-plans/page.tsx`（页面A）：外层 sticky 顶栏底色由 `BH_TOKENS.brand50`（浅色）改为 `PRIMARY_GREEN`（天蓝 `#0EA5E9`）铺满全宽；`GreenNavBar` 标题文字 `用药提醒` → `用药计划`；新增 `import { PRIMARY_GREEN } from '@/components/GreenNavBar'`。
+- `h5-web/src/app/(ai-chat)/ai-home/medication-reminder/page.tsx`（页面B）：删除原白底黑字自定义 NavBar（`←` + 居中标题 span），统一替换为 `GreenNavBar`（天蓝铺满，标题保留「用药提醒」）；新增 GreenNavBar 导入。
+- `backend/app/api/health_plan_v2.py`（`list_medications_flat`）：**根因**——`finished`/`archived` 排序使用了 `end_date.desc().nullslast()`，SQLAlchemy 在 MySQL 方言下生成 `... DESC NULLS LAST`，**MySQL 不支持 NULLS LAST**，触发 `pymysql.err.ProgrammingError (1064)` → 接口 500 → 前端弹「该列数据异常，请联系客服」。**修复**：两处排序改用 `MedicationReminder.end_date.is_(None)` 作为前置排序键模拟 NULLS LAST（MySQL/SQLite 均兼容），NULL 行排最后。
+- `backend/tests/test_med_finished_tab_500_fix_20260601.py`（新增）：4 个回归用例——混合 NULL/非 NULL end_date 不 500 且排序正确、三 Tab 均不 500、finished 空返回空列表、active 过期非长期纳入 finished。
+
+**测试验证**：服务器 backend 容器内 `pytest` 新测试 4/4 通过；直接调用接口函数 `list_medications_flat` 三 Tab 全部成功（in_progress=3 / not_started=1 / finished=4 条，修复前 finished 必崩）；外部 HTTPS：两页面 200、`/api/health-plan/medications/list?tab=finished` 由 500 → 401（与 in_progress 一致，证明语法 Bug 已消除）。`test_hero_count_*` 3 个失败为历史基线（产品文案 `今日用药 0` → `今日用药 · 0`，旧断言未同步），与本需求无关。
+
+**关键认知**：CI 单测用内存 SQLite，而 SQLite 支持 `NULLS LAST`，故该 Bug 在单测中不暴露、仅在线上 MySQL 触发——新增回归测试在服务器 MySQL 环境跑时可直接捕获此类方言差异。
+
+---
+
+## 上一次变更（2026-06-01 · Bug 修复 / AI 首页铃铛「用药提醒」本人化根因校正 v2「consultant_id=0」· 仅 H5 一端，后端/小程序/移动端 0 改动）
 
 **任务标识**：`[BUGFIX-AI-HOME-BELL-SELF-V2 2026-06-01]`
 
