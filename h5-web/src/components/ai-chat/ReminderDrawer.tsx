@@ -166,10 +166,11 @@ Props) {
       //   - 原接口：/api/medication-reminder/today（与列表页字段、状态、计数不一致）
       //   - 新接口：/api/medication-plans/today（与"档案管理 → 健康数据 → 用药提醒 → 全部"完全相同口径）
       //   - 通过前端 adapter 把 timeline 数组映射成 MedicationItem 结构，铃铛 UI/交互完全不变
-      // [BUGFIX-AI-HOME-BELL-SELF-V1 2026-06-01] 现象一修复：顶栏铃铛用药提醒恒为「本人」口径，
-      //   用药数据源固定不带 consultant_id（与「用药提醒-全部」页不带参时一致），
+      // [BUGFIX-AI-HOME-BELL-SELF-V2 2026-06-01] 现象一修复（根因校正）：顶栏铃铛用药提醒恒为「本人」口径。
+      //   后端语义：不传 consultant_id = 不过滤（本人+全部家庭成员）；consultant_id=0 = 仅本人（family_member_id IS NULL）。
+      //   v1 误以为"不传 = 本人"导致漏出家庭成员用药，v2 强制传 consultant_id=0，确保只返回登录本人，
       //   完全不受"当前选了哪个咨询人"影响；订单区块不受此约束。
-      const medUrl = '/api/medication-plans/today';
+      const medUrl = '/api/medication-plans/today?consultant_id=0';
       const apptUrl = `/api/medication-reminder/appointments?status_in=${encodeURIComponent(
         ORDER_STATUSES_PARAM,
       )}`;

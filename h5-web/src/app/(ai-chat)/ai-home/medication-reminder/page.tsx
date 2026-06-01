@@ -77,8 +77,9 @@ export default function MedicationReminderPage() {
     reloadingRef.current = true;
     try {
       // [PRD-MED-OPTIM-V2 2026-05-21 优化点3] consultant_id 仅从 URL 参数获取，不从 sessionStorage 读取。
-      // 首页 badge 接口不传 patient_id → 全量查询，此处保持一致口径。
-      // 只有从首页带参跳转（如 ?consultant_id=5）时才按指定成员过滤，避免数据不一致。
+      // [BUGFIX-AI-HOME-BELL-SELF-V2 2026-06-01] 无参兜底为本人(0)，与铃铛口径保持 100% 一致。
+      //   后端语义：不传 = 不过滤（本人+全部家庭成员），0 = 仅本人。无参默认本人，避免混入家庭成员用药。
+      //   只有从首页带参跳转（如 ?consultant_id=5）时才按指定成员过滤。
       let consultantId: string = '';
       try {
         if (typeof window !== 'undefined') {
@@ -91,7 +92,9 @@ export default function MedicationReminderPage() {
       } catch {
         consultantId = '';
       }
-      const qs = consultantId !== '' ? `?consultant_id=${encodeURIComponent(consultantId)}` : '';
+      const qs = consultantId !== ''
+        ? `?consultant_id=${encodeURIComponent(consultantId)}`
+        : '?consultant_id=0';
       const res: any = await api.get(`/api/medication-plans/today${qs}`);
       setData(res.data || res);
     } catch (e: any) {
