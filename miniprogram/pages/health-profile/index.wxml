@@ -71,9 +71,11 @@
         <view class="guardian-card-icon-wrap guardian-card-icon-orange">
           <text class="guardian-card-icon">🛡️</text>
         </view>
-        <text class="guardian-card-title">健康档案列表</text>
-        <!-- [PRD-MEMBER-COUNT-CONSISTENCY-V1 2026-05-31] 文案统一为「已管理 X / 上限 Y」
-             与会员中心、H5 完全一致；X 含本人 -->
+        <!-- [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-01 改动点1] 入口卡叫法由「健康档案列表」统一为「家庭成员」 -->
+        <text class="guardian-card-title">家庭成员</text>
+        <!-- [PRD-MEMBER-COUNT-CONSISTENCY-V1 2026-05-31 / PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-01 改动点2]
+             人数以列表口径为准：managedCount = /api/family/member/quota 的 quota_used（含本人），
+             与「家庭成员」列表 state/list.quota_used 完全一致 -->
         <text class="guardian-card-count">{{managedCount || 0}}</text>
         <text class="guardian-card-subtitle">已管理 {{managedCount || 0}} / 上限 {{managedMaxLabel}}</text>
       </view>

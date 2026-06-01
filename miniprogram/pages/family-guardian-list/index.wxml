@@ -3,8 +3,12 @@
 列出本人 + 已守护家人的 AI 外呼提醒配置入口。
 -->
 <view class="page">
+  <!-- [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-01 改动点1+2]
+       头部统计统一为「家庭成员」口径：人数取家庭成员配额 quota_used（含本人），
+       与入口卡「已管理 X」及 H5 列表 state/list.quota_used 完全一致。 -->
   <view class="header">
-    <text class="header-text">{{loading ? '加载中…' : ('已守护 ' + (totalCount - 1) + ' 人 + 本人对自己')}}</text>
+    <text class="header-text">{{loading ? '加载中…' : ('共 ' + (memberCount || 0) + ' 位家庭成员')}}</text>
+    <text class="header-sub" style="display:block;font-size:24rpx;color:#9ca3af;margin-top:6rpx;">在此为家庭成员设置 AI 外呼提醒</text>
   </view>
 
   <view
@@ -26,6 +30,6 @@
   </view>
 
   <view wx:if="{{!loading && items.length === 0}}" class="empty">
-    <text>暂无守护关系，请在「健康档案」中选中家人发起邀请。</text>
+    <text>暂无家庭成员，请在「健康档案」中选中家庭成员发起邀请。</text>
   </view>
 </view>

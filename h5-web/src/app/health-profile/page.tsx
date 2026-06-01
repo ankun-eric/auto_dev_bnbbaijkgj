@@ -247,10 +247,14 @@ function HealthProfileV2PageInner() {
     archive_record_total: number;
     guarded_count: number;
     bound_others_count: number;
+    // [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-01 改动点2]
+    // 含本人的「家庭成员」人数，口径与「家庭成员」列表页（state/list.quota_used / quota.quota_used）完全一致。
+    // 入口卡「已管理 X」以此为唯一标准，确保与点进去后列表统计的人数始终相同。
+    managed_with_self: number;
     max_guardians: number;
     can_invite_count: number;
     is_unlimited: boolean;
-  }>({ managed_count: 0, active_count: 0, archive_record_total: 0, guarded_count: 0, bound_others_count: 0, max_guardians: 0, can_invite_count: 0, is_unlimited: false });
+  }>({ managed_count: 0, active_count: 0, archive_record_total: 0, guarded_count: 0, bound_others_count: 0, managed_with_self: 0, max_guardians: 0, can_invite_count: 0, is_unlimited: false });
   // [BUGFIX-HEALTHPROFILE-GUARDIAN-CARDS-20260527] 「守护我的人」拆双数字
   const [reverseGuardianCount, setReverseGuardianCount] = useState<number>(0);
   // [PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 增加 max_guardians_for_me / is_top_level / is_unlimited 等字段
@@ -448,15 +452,39 @@ function HealthProfileV2PageInner() {
           ? data.items.filter((it: any) => it.bind_status === 'bound' && !it.is_self).length
           : 0)
       );
+      // [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-01 改动点2]
+      // 入口卡「已管理 X」改以「家庭成员」列表口径（含本人）为唯一标准：
+      // 取 /api/family/member/quota 的 quota_used（= 列表页 state/list.quota_used，后端同走
+      // count_managed_family_members：含本人 + 排除软删），确保入口卡人数 = 列表统计人数。
+      let managedWithSelf = 0;
+      let maxWithSelf = maxGuard;
+      let isUnlimFinal = isUnlim;
+      try {
+        const qres: any = await api.get('/api/family/member/quota');
+        const qdata = qres.data || qres;
+        managedWithSelf = Number(qdata.quota_used ?? 0);
+        // quota 接口的 quota_max 为含本人上限，与 quota_used（含本人）同口径；
+        // 用它做满额判断，避免 x(含本人) 与 y(不含本人) 错位。
+        const qMax = Number(qdata.quota_max ?? 0);
+        if (qMax === -1 || qMax >= 9999) {
+          isUnlimFinal = true;
+        } else if (qMax > 0) {
+          maxWithSelf = qMax;
+        }
+      } catch {
+        // 配额接口异常时兜底为「不含本人数 + 本人 1」，尽量贴近列表口径
+        managedWithSelf = boundOthersCount + 1;
+      }
       setGuardianSummary({
         managed_count: archiveTotal,        // 兼容：卡片主显示数字 = 档案记录数
         active_count: Number(data.active_count ?? 0),
         archive_record_total: archiveTotal,
         guarded_count: guardedCount,
         bound_others_count: boundOthersCount,
-        max_guardians: maxGuard,
+        managed_with_self: managedWithSelf,
+        max_guardians: maxWithSelf,
         can_invite_count: canInv,
-        is_unlimited: isUnlim,
+        is_unlimited: isUnlimFinal,
       });
     } catch {
       // 兼容：v13 异常时回退到 v12/i-guard
@@ -470,12 +498,13 @@ function HealthProfileV2PageInner() {
           archive_record_total: total,
           guarded_count: total,
           bound_others_count: total,
+          managed_with_self: total,
           max_guardians: 0,
           can_invite_count: 0,
           is_unlimited: false,
         });
       } catch {
-        setGuardianSummary({ managed_count: 0, active_count: 0, archive_record_total: 0, guarded_count: 0, bound_others_count: 0, max_guardians: 0, can_invite_count: 0, is_unlimited: false });
+        setGuardianSummary({ managed_count: 0, active_count: 0, archive_record_total: 0, guarded_count: 0, bound_others_count: 0, managed_with_self: 0, max_guardians: 0, can_invite_count: 0, is_unlimited: false });
       }
     }
   }, []);
@@ -1148,14 +1177,18 @@ function HealthProfileV2PageInner() {
   const renderDualCards = () => {
     const isSelfTab = !!selectedMember?.is_self;
     const otherSideTitle = isSelfTab ? '守护我的人' : '守护 TA 的人';
-    // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 路口C1] 入口卡命名与档案列表页对齐
-    // 本人 Tab 入口卡 → 「档案列表」（直达 /health-profile/archive-list）
+    // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 路口C1] 入口卡命名与列表页对齐
+    // [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-01 改动点1] 本人 Tab 入口卡命名由「档案列表」统一为「家庭成员」
+    //   （直达 /health-profile/archive-list，列表页标题同步为「家庭成员」）
     // 家人 Tab 关系视图命名保留 → 「TA 守护的人」（关系语境，不改）
-    const taTitle = isSelfTab ? '档案列表' : 'TA 守护的人';
+    const taTitle = isSelfTab ? '家庭成员' : 'TA 守护的人';
     const isTopLevel = !!reverseGuardianSummary.is_top_level;
 
-    // 「健康档案列表」入口卡字段
-    const xByMe = guardianSummary.bound_others_count ?? 0;
+    // 「家庭成员」入口卡字段
+    // [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-01 改动点2] 人数改以「家庭成员」列表口径（含本人）为准：
+    //   xByMe = guardianSummary.managed_with_self（= /api/family/member/quota.quota_used = 列表 state/list.quota_used），
+    //   确保入口卡「已管理 X」与点进去后列表统计的人数始终相同。
+    const xByMe = guardianSummary.managed_with_self ?? 0;
     const yByMe = guardianSummary.is_unlimited
       ? (guardianSummary.max_guardians || reverseGuardianSummary.max_guardians_by_me || 3)
       : (guardianSummary.max_guardians || reverseGuardianSummary.max_guardians_by_me || 3);

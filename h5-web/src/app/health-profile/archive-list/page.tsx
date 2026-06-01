@@ -1,13 +1,18 @@
 'use client';
 
 /**
- * [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29] 健康档案 - 档案列表（v2 状态机版）
+ * [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29] 健康档案 - 家庭成员列表（v2 状态机版）
  *
  * 核心特性：
  * - 7 种状态卡片渲染（S0~S7），统一标签颜色 + 主按钮 + 次操作
- * - 入口收口：废弃顶部「去邀请」大按钮；新建档案后弹「立即去邀请」抽屉
  * - 统一删除接口：DELETE /api/family/member/{member_id}，返回结构化 reason_code
  * - 配额展示：「已管理 {X} 人 / 上限 {Y} 人，还可添加 {Y-X} 人」
+ *
+ * [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-01] 健康档案页面优化：
+ * - 改动点1：页面标题由「档案列表」统一为「家庭成员」；空态文案同步统一。
+ * - 改动点2：人数以本列表 state/list.quota_used（含本人）为唯一标准；入口卡同步对齐。
+ * - 改动点3：「邀请家庭成员」按钮改为复用「新增咨询人」同款 NewFamilyMemberModal，
+ *   保存成功后回到列表、新成员立即显示、人数自动 +1。
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -18,6 +23,10 @@ import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 // [PRD-INVITE-FAMILY-CARD-V1.1 2026-05-30] 健康档案位接入「邀请家人入口卡片」
 import InviteFamilyCard from '@/app/member-center/components/InviteFamilyCard';
+// [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-01 改动点3]
+// 「邀请家庭成员」按钮改为复用「新增咨询人」同一套新增成员填写页面，
+// 与 AI 首页 → 咨询人 → 新增咨询人 完全一致（ConsultTargetPicker 复用的就是该组件）。
+import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMemberModal';
 
 // ───────────── 类型 ─────────────
 
@@ -84,188 +93,6 @@ const PRIMARY_ACTION_LABEL: Record<string, string> = {
   view_invite_code: '查看邀请码',
   reinvite: '重新邀请',
 };
-
-// ───────────── 新建档案 + 立即邀请抽屉 ─────────────
-
-interface NewMemberDrawerProps {
-  open: boolean;
-  onClose: () => void;
-  onSuccess: (newMemberId: number, action: 'invite_now' | 'skip') => void;
-}
-
-function NewMemberDrawer({ open, onClose, onSuccess }: NewMemberDrawerProps) {
-  const [nickname, setNickname] = useState('');
-  const [relation, setRelation] = useState('');
-  const [phone, setPhone] = useState('');
-  const [gender, setGender] = useState<'male' | 'female' | ''>('');
-  const [step, setStep] = useState<'form' | 'invite_choice'>('form');
-  const [newMemberId, setNewMemberId] = useState<number | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setNickname('');
-      setRelation('');
-      setPhone('');
-      setGender('');
-      setStep('form');
-      setNewMemberId(null);
-    }
-  }, [open]);
-
-  const handleCreate = async () => {
-    const n = nickname.trim();
-    if (!n) {
-      showToast('请输入姓名', 'fail');
-      return;
-    }
-    if (!relation.trim()) {
-      showToast('请输入关系', 'fail');
-      return;
-    }
-    if (!phone.trim()) {
-      showToast('请输入手机号', 'fail');
-      return;
-    }
-    if (!gender) {
-      showToast('请选择性别', 'fail');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const body: any = {
-        nickname: n,
-        relationship_type: relation.trim(),
-        gender,
-      };
-      const res: any = await api.post('/api/family/members', body);
-      const data = res.data || res;
-      setNewMemberId(data.id);
-      setStep('invite_choice');
-    } catch (e: any) {
-      const detail = e?.response?.data?.detail;
-      let msg = '新建档案失败';
-      if (typeof detail === 'string') msg = detail;
-      else if (detail?.message) msg = detail.message;
-      showToast(msg, 'fail');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleChoice = (choice: 'invite_now' | 'skip') => {
-    if (newMemberId) {
-      onSuccess(newMemberId, choice);
-    }
-    onClose();
-  };
-
-  return (
-    <Popup
-      visible={open}
-      onMaskClick={onClose}
-      position='bottom'
-      bodyStyle={{ borderTopLeftRadius: 20, borderTopRightRadius: 20, minHeight: '50vh' }}
-    >
-      <div data-testid='new-member-drawer' style={{ padding: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div style={{ fontSize: 17, fontWeight: 700, color: TEXT_PRIMARY }}>
-            {step === 'form' ? '新建档案' : '立即去邀请？'}
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, color: TEXT_SECONDARY, cursor: 'pointer' }}>
-            ×
-          </button>
-        </div>
-
-        {step === 'form' && (
-          <>
-            <div style={{ marginBottom: 14 }}>
-              <Label text='姓名' required />
-              <Input value={nickname} onChange={setNickname} placeholder='如：张妈妈 / 李叔叔' maxLength={20} />
-            </div>
-            <div style={{ marginBottom: 14 }}>
-              <Label text='与本人关系' required />
-              <Input value={relation} onChange={setRelation} placeholder='如：父亲 / 母亲 / 配偶 / 子女' />
-            </div>
-            <div style={{ marginBottom: 14 }}>
-              <Label text='手机号' required />
-              <Input value={phone} onChange={setPhone} placeholder='11 位手机号' maxLength={11} />
-            </div>
-            <div style={{ marginBottom: 20 }}>
-              <Label text='性别' required />
-              <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-                {(['male', 'female'] as const).map((g) => (
-                  <button
-                    key={g}
-                    onClick={() => setGender(g)}
-                    style={{
-                      flex: 1,
-                      padding: '10px',
-                      borderRadius: 10,
-                      border: `1px solid ${gender === g ? PRIMARY_COLOR : '#E2E8F0'}`,
-                      background: gender === g ? '#E0F2FE' : '#FFF',
-                      color: gender === g ? PRIMARY_COLOR : TEXT_PRIMARY,
-                      fontSize: 14,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {g === 'male' ? '男' : '女'}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <button
-              disabled={submitting}
-              onClick={handleCreate}
-              data-testid='new-member-submit-btn'
-              style={primaryBtnStyle(submitting)}
-            >
-              {submitting ? '保存中…' : '保存档案'}
-            </button>
-          </>
-        )}
-
-        {step === 'invite_choice' && (
-          <>
-            <div style={{
-              padding: '20px 16px',
-              background: '#F0F9FF',
-              borderRadius: 12,
-              marginBottom: 20,
-              fontSize: 14,
-              color: TEXT_PRIMARY,
-              lineHeight: 1.6,
-            }}>
-              档案「{nickname}」已创建成功。
-              <br />
-              是否立即邀请 TA 接受守护邀请？
-              <br />
-              （您也可以稍后在档案列表中重新邀请）
-            </div>
-            <button
-              onClick={() => handleChoice('invite_now')}
-              data-testid='choice-invite-now'
-              style={primaryBtnStyle(false)}
-            >
-              立即邀请
-            </button>
-            <button
-              onClick={() => handleChoice('skip')}
-              data-testid='choice-skip'
-              style={{
-                ...secondaryBtnStyle(),
-                width: '100%',
-                marginTop: 10,
-              }}
-            >
-              暂不邀请
-            </button>
-          </>
-        )}
-      </div>
-    </Popup>
-  );
-}
 
 // ───────────── 邀请码展示抽屉 ─────────────
 
@@ -526,24 +353,19 @@ export default function ArchiveListPage() {
     fetchList();
   }, [fetchList]);
 
-  // 处理新建档案后选择
-  const handleNewMemberSuccess = async (memberId: number, choice: 'invite_now' | 'skip') => {
+  // [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-01 改动点3]
+  // 复用「新增咨询人」（NewFamilyMemberModal）保存成功后的回调：
+  // 关闭表单 → 回到「家庭成员」列表 → 刷新列表使新成员立即出现、人数自动 +1
+  //（人数口径以本页 state/list.quota_used 为唯一标准，入口卡同步对齐，见改动点 2）。
+  const handleNewMemberSuccess = async (
+    createdMember?: { id: number; nickname: string } | null,
+  ) => {
+    setNewMemberOpen(false);
     await fetchList();
-    if (choice === 'invite_now') {
-      try {
-        const res: any = await api.post(`/api/family/member/${memberId}/invite`, {});
-        const data = res.data || res;
-        await fetchList();
-        // 找到新邀请并展示
-        const updated = await api.get('/api/family/member/state/list');
-        const u: any = updated.data || updated;
-        const newMember = u.items.find((x: MemberStateItem) => x.member_id === memberId);
-        if (newMember) {
-          setInviteCodeView(newMember);
-        }
-      } catch (e: any) {
-        showToast('邀请创建失败', 'fail');
-      }
+    if (createdMember?.nickname) {
+      showToast(`已添加「${createdMember.nickname}」`, 'success');
+    } else {
+      showToast('已添加家庭成员', 'success');
     }
   };
 
@@ -647,7 +469,8 @@ export default function ArchiveListPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: PAGE_BG, paddingBottom: 100 }}>
-      <GreenNavBar title='档案列表' onBack={() => router.back()} />
+      {/* [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-01 改动点1] 列表页标题统一为「家庭成员」 */}
+      <GreenNavBar title='家庭成员' onBack={() => router.back()} />
 
       {/* [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #2]
           删除「本套餐可管理 X 人」横条 —— 顶部入口卡片已展示「已管理 X/Y」，此处冗余。
@@ -709,17 +532,23 @@ export default function ArchiveListPage() {
         ))}
         {!loading && (!list || list.items.length === 0) && (
           <div style={{ padding: 60, textAlign: 'center', color: TEXT_SECONDARY }}>
-            暂无档案，点击右上角「+ 新增」开始建档
+            {/* [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-01 改动点1] 空态文案统一为「家庭成员」口径 */}
+            暂无家庭成员，点击上方「邀请家庭成员」添加
           </div>
         )}
       </div>
 
-      {/* 新建档案抽屉 */}
-      <NewMemberDrawer
-        open={newMemberOpen}
-        onClose={() => setNewMemberOpen(false)}
-        onSuccess={handleNewMemberSuccess}
-      />
+      {/* [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-01 改动点3]
+          「邀请家庭成员」按钮点击后弹出的新增成员填写页面，
+          复用与「新增咨询人」(ConsultTargetPicker → NewFamilyMemberModal) 完全一致的同一套组件。
+          NewFamilyMemberModal 无 visible/open 受控属性，靠是否渲染控制显隐。
+          保存成功后 onSuccess 回到本「家庭成员」列表并刷新（新成员立即显示、人数 +1）。 */}
+      {newMemberOpen && (
+        <NewFamilyMemberModal
+          onClose={() => setNewMemberOpen(false)}
+          onSuccess={handleNewMemberSuccess}
+        />
+      )}
 
       {/* [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #5]
           原 MoreMenu 折叠菜单已下线，操作平铺在各成员卡片底部，不再渲染。
@@ -1230,38 +1059,6 @@ function MemberCard({ member, onPrimaryAction, onMoreMenu, onAiQuota }: MemberCa
 }
 
 // ───────────── 通用 UI 工具 ─────────────
-
-function Label({ text, required }: { text: string; required?: boolean }) {
-  return (
-    <div style={{ fontSize: 13, color: TEXT_SECONDARY, marginBottom: 6 }}>
-      {text} {required && <span style={{ color: DANGER }}>*</span>}
-    </div>
-  );
-}
-
-function Input({ value, onChange, placeholder, maxLength }: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  maxLength?: number;
-}) {
-  return (
-    <input
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      maxLength={maxLength}
-      style={{
-        width: '100%',
-        padding: '10px 12px',
-        border: '1px solid #E2E8F0',
-        borderRadius: 10,
-        fontSize: 14,
-        boxSizing: 'border-box',
-      }}
-    />
-  );
-}
 
 // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 排版修复]
 // 主按钮支持「全宽（抽屉/底部主操作）」与「自适应（卡片右下角）」两种宽度模式

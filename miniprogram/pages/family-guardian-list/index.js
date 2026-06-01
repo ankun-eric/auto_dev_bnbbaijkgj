@@ -7,6 +7,10 @@ Page({
   data: {
     items: [],
     totalCount: 0,
+    // [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-01 改动点2]
+    // 家庭成员总人数（含本人），口径与入口卡 / H5 列表完全一致：
+    // 取 /api/family/member/quota 的 quota_used（= count_managed_family_members）。
+    memberCount: 0,
     loading: true,
   },
 
@@ -34,6 +38,21 @@ Page({
       this.setData({ items, totalCount: items.length, loading: false });
     } catch (_) {
       this.setData({ items: [], totalCount: 0, loading: false });
+    }
+    // [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-01 改动点2]
+    // 头部「家庭成员」总人数以家庭成员配额口径（含本人）为准，与入口卡 / H5 列表保持一致。
+    this.fetchMemberCount();
+  },
+
+  async fetchMemberCount() {
+    try {
+      const r = await get('/api/family/member/quota', {}, { showLoading: false, suppressErrorToast: true });
+      const d = (r && (r.data || r)) || {};
+      if (typeof d.quota_used === 'number') {
+        this.setData({ memberCount: d.quota_used });
+      }
+    } catch (_) {
+      // 接口异常时保持原值，不阻断列表展示
     }
   },
 
