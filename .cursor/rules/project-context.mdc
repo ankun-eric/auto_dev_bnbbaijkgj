@@ -5,7 +5,34 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-01 · 功能开发 / 健康档案-血压详情页优化 v2「AI 解读本次按钮移至顶部卡片下方 + 全部历史列表支持改删」· H5 一端落地，小程序 web-view 自动继承）
+## 最近一次变更（2026-06-01 · Bug 修复 / AI 首页铃铛「用药提醒」本人化根因校正 v2「consultant_id=0」· 仅 H5 一端，后端/小程序/移动端 0 改动）
+
+**任务标识**：`[BUGFIX-AI-HOME-BELL-SELF-V2 2026-06-01]`
+
+**Bug 现象**：AI 首页右上角「🔔 铃铛」里的「💊 用药提醒」会混入家庭成员的用药（如混进家人的「阿莫西林克拉维酸钾片」），用户只想看本人。
+
+**根因（v1 方案文档判断错误，v2 校正）**：后端 `backend/app/api/medication_plans_v1.py` 的 `_apply_consultant_filter` 语义为——`consultant_id` 为 `None/-1` = **不过滤**（本人 + 全部家庭成员）；`=0` = **仅本人**（`family_member_id IS NULL`）；`>0` = 指定家庭成员。v1 误以为"不传参 = 本人"，实际上不传参 = 后端不过滤 = 全家都返回，故铃铛漏出家庭成员用药。后端语义已完整支持"仅本人"，无需改后端，前端把参数传对（传 0）即可。
+
+**修复（仅 2 个 H5 前端文件，后端零改动）**：
+- `h5-web/src/components/ai-chat/ReminderDrawer.tsx`（`fetchAll`）：铃铛用药数据源 URL 由 `/api/medication-plans/today` 改为 `/api/medication-plans/today?consultant_id=0`，铃铛恒为本人口径，不受"当前选了哪个咨询人"影响；订单区块不受此约束。依赖数组保持为空（不依赖 consultantId）。
+- `h5-web/src/app/(ai-chat)/ai-home/medication-reminder/page.tsx`（`load`）：组装 query string 时无参兜底由 `''` 改为 `'?consultant_id=0'`，全部页"无参"时也锁本人，与铃铛口径 100% 一致；URL 明确带成员 ID 时仍按该成员过滤。
+- 状态分类 / 按钮文案（4 态 done/upcoming/overdue/pending）此前已对齐"全部页"，本次未再改。
+
+**接口语义（无新增后端代码）**：`GET /api/medication-plans/today?consultant_id=0`（仅本人）、`GET /api/medication-plans/hero-count?consultant_id=0`（本人计数）；不传 = 不过滤；`>0` = 指定家庭成员。
+
+**测试验证**：服务器 backend 容器内定向集成测试（`hero-count`/`today` 在 consultant_id=0 vs 不传 vs 指定成员）2/2 通过：本人(0)=1 条、不过滤=2 条、指定成员=1 条，证明 `consultant_id=0` 严格滤掉家庭成员且 today 时间线仅含本人药物。`test_med_plans_consistency_20260525.py`（口径一致性）全部通过。另有 10 个用药相关旧测试失败，均为**与本次无关的预先存在失败**（UI 文案 `今日用药 ·` 分隔符变更、旧 fixture 口径过时；后端业务代码本周期零改动）。
+
+**部署验证**：git push `origin/master` commit `11d92f1c` → 服务器 `git fetch + reset --hard origin/master` 到该 commit → `docker compose -f docker-compose.prod.yml build --no-cache h5-web && up -d h5-web`。外部 HTTPS：`/ai-home/`、`/ai-home/medication-reminder/`、`/`（项目首页）均 200。gateway 用 conf.d + resolver 变量方式，容器重建后自动重解析，无需改路由。
+
+**变更端清单**：仅 H5（Docker 容器部署，已重建上线）。后端、微信小程序、移动端（安卓/iOS）均 0 改动，无新增客户端包。
+
+**用户手册**：`user_docs/AI首页铃铛用药提醒本人化.md`
+
+**唯一变更标记**：`[BUGFIX-AI-HOME-BELL-SELF-V2 2026-06-01]`
+
+---
+
+## 历史变更（2026-06-01 · 功能开发 / 健康档案-血压详情页优化 v2「AI 解读本次按钮移至顶部卡片下方 + 全部历史列表支持改删」· H5 一端落地，小程序 web-view 自动继承）
 
 **任务标识**：`[PRD-BP-DETAIL-OPTIMIZE-V2 2026-06-01]`
 
