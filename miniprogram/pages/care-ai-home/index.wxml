@@ -2,69 +2,113 @@
 <view class="care-home">
   <!-- 状态栏占位 -->
   <view class="status-bar" style="height: {{statusBarHeight}}px;"></view>
-  <!-- 1. 顶部固定栏（照搬标准模式 AI 首页：左 ☰ 历史 + 右 模式胶囊/🎁/⋯更多） -->
-  <view class="topbar">
-    <!-- 左上角：☰ 历史对话记录（与标准模式一致） -->
-    <view class="history-btn" catchtap="openHistory">
-      <text class="history-icon">☰</text>
-      <text class="history-text">历史</text>
+  <!-- [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求1] 第一行（顶栏）两版统一，照标准版样式：
+       ☰三横杠(带红点) → 档案/咨询/服务 三 Tab(当前停咨询·蓝下划线) → 🔔铃铛(带橙点) → ⊕加号圈。
+       原顶栏旧胶囊与 🎁邀请图标已全部移除。 -->
+  <view class="topbar unified-topbar">
+    <!-- 1. 左：☰ 三横杠（带小红点 → 历史/侧边栏入口） -->
+    <view class="uni-hamburger" catchtap="openHistory" data-testid="care-home-hamburger-btn">
+      <text class="uni-hamburger-icon">☰</text>
+      <view class="uni-hamburger-reddot" data-testid="care-home-hamburger-reddot"></view>
     </view>
-    <!-- 中间：宾尼小康 标题 + 紧挨其后的「宾尼小康 模式切换」胶囊 -->
-    <view class="topbar-center">
-      <text class="topbar-title">宾尼小康</text>
-      <view class="mode-capsule-wrap" catchtap="toggleModeDropdown">
-        <view class="mode-capsule">
-          <text class="mode-capsule-label">宾尼小康 模式切换</text>
-          <text class="mode-capsule-arrow {{modeDropdownOpen ? 'mode-capsule-arrow-up' : ''}}">▾</text>
+
+    <!-- 2~4. 中：档案 / 咨询 / 服务 三 Tab（当前停「咨询」，选中蓝色下划线） -->
+    <view class="uni-tabs" data-testid="care-home-top-tabs">
+      <view class="uni-tab" catchtap="onTopTab" data-key="profile" data-testid="care-home-top-tab-profile">
+        <text class="uni-tab-label">档案</text>
+        <view class="uni-tab-underline"></view>
+      </view>
+      <view class="uni-tab uni-tab-active" catchtap="onTopTab" data-key="consult" data-testid="care-home-top-tab-consult">
+        <text class="uni-tab-label uni-tab-label-active">咨询</text>
+        <view class="uni-tab-underline uni-tab-underline-active"></view>
+      </view>
+      <view class="uni-tab" catchtap="onTopTab" data-key="service" data-testid="care-home-top-tab-service">
+        <text class="uni-tab-label">服务</text>
+        <view class="uni-tab-underline"></view>
+      </view>
+    </view>
+
+    <!-- 5+6. 右：🔔 铃铛（带橙点） + ⊕ 加号圈 -->
+    <view class="uni-right">
+      <view class="uni-bell" catchtap="openBell" data-testid="care-home-topbar-bell">
+        <text class="uni-bell-icon">🔔</text>
+        <view class="uni-bell-reddot" data-testid="care-home-topbar-bell-reddot"></view>
+      </view>
+      <view class="uni-plus" catchtap="openMoreMenu" data-testid="care-home-more-btn">
+        <view class="uni-plus-circle" data-testid="care-home-more-icon-plus-circle">
+          <text class="uni-plus-sign">+</text>
         </view>
       </view>
     </view>
-    <!-- 右上角：复用标准模式图标按钮组（🎁 邀请 + ⋯ 更多），去掉会报错的 ⊕ -->
-    <view class="topbar-actions">
-      <view class="invite-btn" catchtap="goInvite"><text class="invite-icon">🎁</text></view>
-      <view class="more-btn" catchtap="openMoreMenu"><text class="more-icon">⋯</text></view>
-    </view>
   </view>
 
-  <!-- 模式切换下拉面板（展开态，与标准模式一致） -->
-  <view class="mode-dropdown-mask" wx:if="{{modeDropdownOpen}}" catchtap="closeModeDropdown"></view>
-  <view class="mode-dropdown-panel" wx:if="{{modeDropdownOpen}}">
-    <view class="mode-dropdown-item" catchtap="switchToStandard">
-      <text class="mode-dropdown-text">标准模式</text>
-    </view>
-    <view class="mode-dropdown-item mode-dropdown-item-active" catchtap="closeModeDropdown">
-      <text class="mode-dropdown-text">关怀模式</text>
-      <text class="mode-dropdown-check">✓</text>
-    </view>
-  </view>
-
-  <!-- 「更多」菜单弹层（与标准模式完全相同：会员中心 / 扫一扫 / 字体大小 / 立即分享） -->
+  <!-- [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] 「⊕ 加号圈」菜单合并：两版去重后统一 8 项
+       1.💬发起新对话 2.🔀切换模式 3.👑会员中心 4.🎁邀请好友
+       5.📷扫一扫 6.🔤字体大小 7.📤立即分享 8.❓帮助与反馈 -->
   <view class="more-menu-mask" wx:if="{{moreMenuShow}}" catchtap="closeMoreMenu"></view>
-  <view class="more-menu-card" wx:if="{{moreMenuShow}}">
-    <view class="more-menu-item more-menu-item-gold" catchtap="onTapMemberCenter">
-      <text class="more-menu-icon">👑</text>
-      <text class="more-menu-label more-menu-label-gold">会员中心</text>
-      <text class="more-menu-badge" wx:if="{{showNewBadge}}">新</text>
+  <view class="more-menu-card" wx:if="{{moreMenuShow}}" data-testid="care-home-more-menu-card">
+    <view class="more-menu-item" catchtap="onTapNewChat" data-testid="care-home-more-menu-item-发起新对话">
+      <text class="more-menu-icon">💬</text>
+      <text class="more-menu-label">发起新对话</text>
     </view>
     <view class="more-menu-divider"></view>
-    <view class="more-menu-item" catchtap="onTapScan">
+    <view class="more-menu-item" catchtap="onTapSwitchMode" data-testid="care-home-more-menu-item-切换模式">
+      <text class="more-menu-icon">🔀</text>
+      <text class="more-menu-label">切换模式</text>
+      <text class="more-menu-mode-tag" data-testid="care-home-more-menu-mode-tag">关怀版</text>
+    </view>
+    <view class="more-menu-divider"></view>
+    <view class="more-menu-item more-menu-item-gold" catchtap="onTapMemberCenter" data-testid="care-home-more-menu-item-会员中心">
+      <text class="more-menu-icon">👑</text>
+      <text class="more-menu-label more-menu-label-gold">会员中心</text>
+    </view>
+    <view class="more-menu-divider"></view>
+    <view class="more-menu-item" catchtap="onTapInvite" data-testid="care-home-more-menu-item-邀请好友">
+      <text class="more-menu-icon">🎁</text>
+      <text class="more-menu-label">邀请好友</text>
+    </view>
+    <view class="more-menu-divider"></view>
+    <view class="more-menu-item" catchtap="onTapScan" data-testid="care-home-more-menu-item-扫一扫">
       <text class="more-menu-icon">📷</text>
       <text class="more-menu-label">扫一扫</text>
     </view>
     <view class="more-menu-divider"></view>
-    <view class="more-menu-item" catchtap="onTapFontSize">
+    <view class="more-menu-item" catchtap="onTapFontSize" data-testid="care-home-more-menu-item-字体大小">
       <text class="more-menu-icon">🔤</text>
       <text class="more-menu-label">字体大小</text>
     </view>
     <view class="more-menu-divider"></view>
-    <view class="more-menu-item" catchtap="onTapShare">
+    <view class="more-menu-item" catchtap="onTapShare" data-testid="care-home-more-menu-item-立即分享">
       <text class="more-menu-icon">📤</text>
       <text class="more-menu-label">立即分享</text>
     </view>
+    <view class="more-menu-divider"></view>
+    <view class="more-menu-item" catchtap="onTapHelpFeedback" data-testid="care-home-more-menu-item-帮助与反馈">
+      <text class="more-menu-icon">❓</text>
+      <text class="more-menu-label">帮助与反馈</text>
+    </view>
   </view>
 
-  <!-- 2. 欢迎区（主体排版保持原样，仅文案改动） -->
+  <!-- 2. 欢迎区（主体排版保持原样，仅在右上角新增「模式切换」胶囊） -->
   <view class="welcome">
+    <!-- [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求3] 欢迎区右上角「模式切换」胶囊（方案1：胶囊带文字）
+         显示「关怀版 ▾」，点击弹下拉：标准版(可切换) / 关怀版(当前打勾)。与 ⊕菜单里的「切换模式」并存。 -->
+    <view class="welcome-mode-switch" data-testid="care-home-mode-switcher">
+      <view class="mode-capsule" catchtap="toggleModeDropdown" data-testid="care-home-mode-capsule">
+        <text class="mode-capsule-label">关怀版</text>
+        <text class="mode-capsule-arrow {{modeDropdownOpen ? 'mode-capsule-arrow-up' : ''}}">▾</text>
+      </view>
+      <view class="mode-dropdown-mask" wx:if="{{modeDropdownOpen}}" catchtap="closeModeDropdown"></view>
+      <view class="mode-dropdown-panel mode-dropdown-panel-welcome" wx:if="{{modeDropdownOpen}}" data-testid="care-home-mode-dropdown-panel">
+        <view class="mode-dropdown-item" catchtap="switchToStandard" data-testid="care-home-mode-option-standard">
+          <text class="mode-dropdown-text">标准版</text>
+        </view>
+        <view class="mode-dropdown-item mode-dropdown-item-active" catchtap="closeModeDropdown" data-testid="care-home-mode-option-care">
+          <text class="mode-dropdown-text">关怀版</text>
+          <text class="mode-dropdown-check">✓</text>
+        </view>
+      </view>
+    </view>
     <view class="welcome-text">
       <view class="greeting">{{greetingText}} {{greetingIcon}}</view>
       <view class="sub">我是宾尼小康，聊聊健康问题吧~</view>

@@ -114,18 +114,62 @@ Page({
     });
   },
 
+  // [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求1] 顶栏「档案/咨询/服务」三 Tab
+  // 档案 → /pages/health-profile；服务 → /pages/services；咨询 = 当前页停留
+  onTopTab(e) {
+    const key = e.currentTarget.dataset.key;
+    if (key === 'consult') return; // 咨询：关怀版咨询首页停留
+    if (key === 'profile') {
+      wx.navigateTo({ url: '/pages/health-profile/index', fail: () => wx.switchTab({ url: '/pages/health-profile/index' }) });
+      return;
+    }
+    if (key === 'service') {
+      wx.switchTab({ url: '/pages/services/index', fail: () => wx.navigateTo({ url: '/pages/services/index' }) });
+      return;
+    }
+  },
+
+  // [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求1] 顶栏 🔔 铃铛 → 今日待办（本人用药提醒）
+  openBell() {
+    wx.navigateTo({ url: '/pages/care-medication/index', fail: () => {} });
+  },
+
   // ───── 右上角 🎁 邀请 ─────
   goInvite() {
     wx.navigateTo({ url: '/pages/invite/index', fail: () => {} });
   },
 
-  // ───── 右上角 ⋯ 更多菜单（公用，与标准模式相同） ─────
+  // ───── 右上角 ⊕ 更多菜单（与标准模式统一为 8 项） ─────
   openMoreMenu() {
     this.setData({ moreMenuShow: true });
   },
 
   closeMoreMenu() {
     this.setData({ moreMenuShow: false });
+  },
+
+  // [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] ⊕ 菜单项①：💬 发起新对话（关怀版开新会话）
+  onTapNewChat() {
+    this.setData({ moreMenuShow: false });
+    wx.navigateTo({ url: '/pages/chat/index?type=health_qa', fail: () => {} });
+  },
+
+  // [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] ⊕ 菜单项②：🔀 切换模式（与欢迎区胶囊并存）→ 切到标准模式
+  onTapSwitchMode() {
+    this.setData({ moreMenuShow: false });
+    this.switchToStandard();
+  },
+
+  // [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] ⊕ 菜单项④：🎁 邀请好友
+  onTapInvite() {
+    this.setData({ moreMenuShow: false });
+    this.goInvite();
+  },
+
+  // [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] ⊕ 菜单项⑧：❓ 帮助与反馈
+  onTapHelpFeedback() {
+    this.setData({ moreMenuShow: false });
+    wx.navigateTo({ url: '/pages/feedback/index', fail: () => wx.showToast({ title: '反馈入口开发中', icon: 'none' }) });
   },
 
   onTapMemberCenter() {

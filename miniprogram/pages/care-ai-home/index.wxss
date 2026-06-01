@@ -5,47 +5,70 @@
   padding-bottom: 40rpx;
 }
 
-.status-bar { background: #F0F9FF; }
-/* 顶栏（照搬标准模式 AI 首页：☰历史 + 标题/胶囊 + 🎁/⋯） */
-.topbar {
+.status-bar { background: #EAF6FF; }
+/* [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求1] 顶栏两版统一：☰红点 → 档案/咨询/服务 → 🔔橙点 → ⊕ */
+.topbar.unified-topbar {
   position: sticky;
   top: 0;
   z-index: 100;
-  min-height: 96rpx;
+  min-height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12rpx 24rpx;
-  background: linear-gradient(180deg, #F0F9FF 0%, #DBEAFE 100%);
+  padding: 0 16rpx;
+  background: linear-gradient(180deg, #EAF6FF 0%, #DCEFFF 100%);
 }
-/* 左上角 ☰ 历史按钮（与标准模式一致） */
-.history-btn {
-  display: flex; align-items: center; gap: 6rpx;
-  padding: 12rpx 20rpx; background: #fff; border-radius: 12rpx;
+.uni-hamburger {
+  position: relative;
+  width: 64rpx; height: 64rpx;
+  display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.history-icon { font-size: 30rpx; color: #333; }
-.history-text { font-size: 24rpx; color: #666; }
+.uni-hamburger-icon { font-size: 40rpx; color: #1F2D3D; line-height: 1; }
+.uni-hamburger-reddot {
+  position: absolute; top: 8rpx; right: 10rpx;
+  width: 14rpx; height: 14rpx; border-radius: 50%;
+  background: #FF3B30;
+}
+.uni-tabs {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  gap: 44rpx; min-width: 0;
+}
+.uni-tab {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 64rpx; padding: 0 4rpx;
+}
+.uni-tab-label { font-size: 32rpx; font-weight: 500; color: #6B7B8C; line-height: 1; }
+.uni-tab-label-active { font-weight: 700; color: #3FA9F5; }
+.uni-tab-underline { margin-top: 10rpx; width: 0; height: 6rpx; border-radius: 3rpx; background: transparent; }
+.uni-tab-underline-active { width: 40rpx; background: #3FA9F5; }
+.uni-right { display: flex; align-items: center; gap: 8rpx; flex-shrink: 0; }
+.uni-bell { position: relative; width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; }
+.uni-bell-icon { font-size: 38rpx; line-height: 1; }
+.uni-bell-reddot {
+  position: absolute; top: 6rpx; right: 8rpx;
+  width: 14rpx; height: 14rpx; border-radius: 50%;
+  background: #FF7A45; box-shadow: 0 0 0 3rpx #fff;
+}
+.uni-plus { width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; }
+.uni-plus-circle {
+  width: 44rpx; height: 44rpx; border-radius: 50%;
+  border: 3rpx solid #1F2D3D;
+  display: flex; align-items: center; justify-content: center;
+}
+.uni-plus-sign { font-size: 36rpx; color: #1F2D3D; line-height: 1; font-weight: 300; }
 
-/* 中间：宾尼小康 标题 + 紧挨其后的模式切换胶囊 */
-.topbar-center { flex: 1; display: flex; align-items: center; justify-content: center; gap: 14rpx; min-width: 0; }
-.topbar-title { font-size: 34rpx; font-weight: 700; color: #0C4A6E; white-space: nowrap; }
-
-.mode-capsule-wrap { position: relative; flex-shrink: 0; }
+/* 模式切换胶囊（欢迎区右上角） */
 .mode-capsule {
   display: flex; align-items: center; gap: 6rpx;
-  background: #E8F5E9; padding: 8rpx 16rpx; border-radius: 28rpx;
+  background: rgba(255,255,255,0.22); border: 1rpx solid rgba(255,255,255,0.45);
+  padding: 8rpx 18rpx; border-radius: 28rpx;
 }
-.mode-capsule-label { font-size: 22rpx; font-weight: 600; color: #2E7D32; line-height: 1; }
-.mode-capsule-arrow { font-size: 20rpx; color: #2E7D32; line-height: 1; transition: transform 0.15s ease; }
+.mode-capsule-label { font-size: 24rpx; font-weight: 600; color: #FFFFFF; line-height: 1; }
+.mode-capsule-arrow { font-size: 20rpx; color: #FFFFFF; line-height: 1; transition: transform 0.15s ease; }
 .mode-capsule-arrow-up { transform: rotate(180deg); }
-
-/* 右上角图标按钮组 */
-.topbar-actions { display: flex; align-items: center; gap: 12rpx; flex-shrink: 0; }
-.invite-btn { display: flex; align-items: center; justify-content: center; width: 64rpx; height: 60rpx; }
-.invite-icon { font-size: 36rpx; line-height: 1; }
-.more-btn { display: flex; align-items: center; justify-content: center; width: 80rpx; height: 60rpx; background: #fff; border-radius: 12rpx; }
-.more-icon { font-size: 36rpx; color: #333; line-height: 1; }
 
 /* 模式切换下拉面板 */
 .mode-dropdown-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: transparent; z-index: 998; }
@@ -54,16 +77,17 @@
   min-width: 240rpx; background: #fff; border: 1rpx solid #E5E7EB; border-radius: 20rpx;
   box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.15); overflow: hidden; z-index: 999;
 }
+.mode-dropdown-panel-welcome { top: calc(100% + 12rpx); right: 0; left: auto; transform: none; }
 .mode-dropdown-item { display: flex; align-items: center; justify-content: space-between; padding: 22rpx 28rpx; background: #fff; }
 .mode-dropdown-item-active { background: #E8F5E9; }
 .mode-dropdown-text { font-size: 28rpx; font-weight: 500; color: #374151; }
 .mode-dropdown-item-active .mode-dropdown-text { color: #2E7D32; font-weight: 600; }
 .mode-dropdown-check { font-size: 28rpx; color: #2E7D32; font-weight: 600; }
 
-/* 更多菜单弹层 */
+/* 更多菜单弹层（统一 8 项） */
 .more-menu-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.35); z-index: 999; }
 .more-menu-card {
-  position: fixed; top: 120rpx; right: 24rpx; min-width: 320rpx;
+  position: fixed; top: 100rpx; right: 24rpx; min-width: 360rpx;
   background: #F0F9FF; border: 1rpx solid #BAE6FD; border-radius: 24rpx;
   box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.18); z-index: 1000; overflow: hidden;
 }
@@ -73,6 +97,11 @@
 .more-menu-icon { font-size: 32rpx; line-height: 1; }
 .more-menu-label { flex: 1; font-size: 28rpx; color: #1F2937; }
 .more-menu-label-gold { color: #E5A23B; font-weight: 700; }
+/* [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] 「切换模式」右侧当前模式小标签 */
+.more-menu-mode-tag {
+  font-size: 22rpx; font-weight: 600; color: #3FA9F5;
+  background: #EAF6FF; border-radius: 16rpx; padding: 4rpx 14rpx; line-height: 1.2;
+}
 .more-menu-badge {
   font-size: 20rpx; font-weight: 700; color: #5C3B00;
   background: linear-gradient(90deg, #E5A23B 0%, #F4D793 100%);
@@ -81,12 +110,15 @@
 
 /* 欢迎区 */
 .welcome {
+  position: relative;
   background: linear-gradient(135deg, #1976D2 0%, #43A047 100%);
   color: #fff;
   padding: 40rpx 36rpx;
   border-radius: 0 0 40rpx 40rpx;
   display: flex; align-items: center; justify-content: space-between; gap: 20rpx;
 }
+/* [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求3] 欢迎区右上角模式切换胶囊容器 */
+.welcome-mode-switch { position: absolute; right: 28rpx; top: 24rpx; z-index: 5; }
 .welcome-text { flex: 1; min-width: 0; }
 .greeting { font-size: 52rpx; font-weight: 700; margin-bottom: 10rpx; }
 .sub { font-size: 28rpx; opacity: 0.95; margin-bottom: 22rpx; }

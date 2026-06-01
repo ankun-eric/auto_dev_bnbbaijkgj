@@ -61,7 +61,7 @@ def test_h5_has_mode_capsule_markers():
     src = _read(H5_AI_HOME)
     assert 'data-testid="ai-home-mode-switcher"' in src
     assert 'data-testid="ai-home-mode-capsule"' in src
-    assert 'data-testid="ai-home-mode-capsule-arrow"' in src
+    # [PRD-AIHOME-UNIFY-V1] 胶囊移入欢迎区后箭头以内联 ▾ 呈现，下拉结构标记齐全即可
     assert 'data-testid="ai-home-mode-dropdown-panel"' in src
     assert 'data-testid="ai-home-mode-option-standard"' in src
     assert 'data-testid="ai-home-mode-option-care"' in src
@@ -77,9 +77,9 @@ def test_h5_removed_old_two_separate_controls():
 
 
 def test_h5_keeps_gift_invite_and_more():
-    """H5 顶栏保留 🎁 邀请入口与 ⋯ 更多菜单"""
+    """[PRD-AIHOME-UNIFY-V1 2026-06-01] 顶栏统一后：🎁 邀请并入 ⊕ 菜单，顶栏保留 ⊕ 更多菜单入口"""
     src = _read(H5_AI_HOME)
-    assert 'data-testid="ai-home-invite-btn"' in src
+    # 统一顶栏后 🎁 邀请好友移入 ⊕ 菜单（不再单列于顶栏），邀请跳转仍保留
     assert "/invite" in src
     assert 'data-testid="ai-home-more-btn"' in src
 
@@ -107,10 +107,11 @@ def test_mp_has_mode_capsule_markers():
 
 
 def test_mp_keeps_gift_invite_and_more():
-    """小程序顶栏保留 🎁 邀请入口与 ⋯ 更多菜单"""
+    """[PRD-AIHOME-UNIFY-V1 2026-06-01] 顶栏统一后：🎁 邀请并入 ⊕ 菜单，顶栏保留 ⊕ 更多菜单入口"""
     wxml = _read(MP_AI_WXML)
-    assert 'data-testid="ai-home-invite-btn"' in wxml
+    # 🎁 邀请好友移入 ⊕ 菜单
     assert "🎁" in wxml
+    assert 'data-testid="ai-home-more-menu-item-邀请好友"' in wxml
     assert 'data-testid="ai-home-more-btn"' in wxml
 
 

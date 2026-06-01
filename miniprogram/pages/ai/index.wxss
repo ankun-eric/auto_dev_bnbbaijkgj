@@ -11,6 +11,83 @@
   position: relative;
 }
 
+/* [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求1] 顶栏两版统一：☰红点 → 档案/咨询/服务 → 🔔橙点 → ⊕ */
+.unified-topbar {
+  min-height: 88rpx;
+  margin: -24rpx -24rpx 12rpx -24rpx;
+  padding: 0 16rpx;
+  background: linear-gradient(180deg, #EAF6FF 0%, #DCEFFF 100%);
+}
+.uni-hamburger {
+  position: relative;
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.uni-hamburger-icon { font-size: 40rpx; color: #1F2D3D; line-height: 1; }
+.uni-hamburger-reddot {
+  position: absolute; top: 8rpx; right: 10rpx;
+  width: 14rpx; height: 14rpx; border-radius: 50%;
+  background: #FF3B30;
+}
+.uni-tabs {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 44rpx;
+  min-width: 0;
+}
+.uni-tab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 64rpx;
+  padding: 0 4rpx;
+}
+.uni-tab-label { font-size: 32rpx; font-weight: 500; color: #6B7B8C; line-height: 1; }
+.uni-tab-label-active { font-weight: 700; color: #3FA9F5; }
+.uni-tab-underline { margin-top: 10rpx; width: 0; height: 6rpx; border-radius: 3rpx; background: transparent; }
+.uni-tab-underline-active { width: 40rpx; background: #3FA9F5; }
+.uni-right { display: flex; align-items: center; gap: 8rpx; flex-shrink: 0; }
+.uni-bell {
+  position: relative;
+  width: 64rpx; height: 64rpx;
+  display: flex; align-items: center; justify-content: center;
+}
+.uni-bell-icon { font-size: 38rpx; line-height: 1; }
+.uni-bell-reddot {
+  position: absolute; top: 6rpx; right: 8rpx;
+  width: 14rpx; height: 14rpx; border-radius: 50%;
+  background: #FF7A45; box-shadow: 0 0 0 3rpx #fff;
+}
+.uni-plus {
+  width: 64rpx; height: 64rpx;
+  display: flex; align-items: center; justify-content: center;
+}
+.uni-plus-circle {
+  width: 44rpx; height: 44rpx; border-radius: 50%;
+  border: 3rpx solid #1F2D3D;
+  display: flex; align-items: center; justify-content: center;
+}
+.uni-plus-sign { font-size: 36rpx; color: #1F2D3D; line-height: 1; font-weight: 300; }
+
+/* [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求3] 欢迎条：问候语 + 右上角模式切换胶囊 */
+.welcome-strip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8rpx 4rpx 20rpx 4rpx;
+}
+.welcome-hello { font-size: 30rpx; font-weight: 600; color: #1F2D3D; }
+.mode-dropdown-panel-welcome { top: 120rpx; right: 16rpx; }
+
 .history-btn {
   display: flex;
   align-items: center;
@@ -235,6 +312,17 @@
 .more-menu-label-gold {
   color: #E5A23B;
   font-weight: 700;
+}
+
+/* [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] 「切换模式」右侧当前模式小标签 */
+.more-menu-mode-tag {
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #3FA9F5;
+  background: #EAF6FF;
+  border-radius: 16rpx;
+  padding: 4rpx 14rpx;
+  line-height: 1.2;
 }
 
 .more-menu-badge {

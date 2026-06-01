@@ -144,6 +144,27 @@ Page({
     this.setData({ drawerShow: true });
   },
 
+  // [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求1] 顶栏「档案/咨询/服务」三 Tab
+  // 档案 → /pages/health-profile；服务 → /pages/services；咨询 = 当前页停留
+  onTopTab(e) {
+    const key = e.currentTarget.dataset.key;
+    if (key === 'consult') return; // 咨询：本页停留
+    if (key === 'profile') {
+      wx.navigateTo({ url: '/pages/health-profile/index', fail: () => wx.switchTab({ url: '/pages/health-profile/index' }) });
+      return;
+    }
+    if (key === 'service') {
+      wx.switchTab({ url: '/pages/services/index', fail: () => wx.navigateTo({ url: '/pages/services/index' }) });
+      return;
+    }
+  },
+
+  // [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求1] 顶栏 🔔 铃铛 → 今日待办/消息提醒（复用历史抽屉入口）
+  openBell() {
+    if (!checkLogin()) return;
+    this.setData({ drawerShow: true });
+  },
+
   // [Bug 修复 v1.0 §3.1.3] 「更多」菜单交互
   // [PRD-MODE-CAPSULE-V1 2026-05-31] 模式下拉胶囊：展开/收起切换
   toggleModeDropdown() {
@@ -173,7 +194,7 @@ Page({
     });
   },
 
-  // [PRD-MODE-CAPSULE-V1 2026-05-31] 🎁 邀请好友入口（保留在外面）
+  // [PRD-MODE-CAPSULE-V1 2026-05-31] 🎁 邀请好友入口
   goInvite() {
     if (!checkLogin()) return;
     wx.navigateTo({ url: '/pages/invite/index' });
@@ -185,6 +206,32 @@ Page({
 
   closeMoreMenu() {
     this.setData({ moreMenuShow: false });
+  },
+
+  // [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] ⊕ 菜单项①：💬 发起新对话
+  onTapNewChat() {
+    this.setData({ moreMenuShow: false });
+    if (!checkLogin()) return;
+    wx.navigateTo({ url: '/pages/chat/index?type=health_qa' });
+  },
+
+  // [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] ⊕ 菜单项②：🔀 切换模式（与欢迎区胶囊并存）→ 切到关怀模式
+  onTapSwitchMode() {
+    this.setData({ moreMenuShow: false });
+    this.switchToCareMode();
+  },
+
+  // [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] ⊕ 菜单项④：🎁 邀请好友
+  onTapInvite() {
+    this.setData({ moreMenuShow: false });
+    this.goInvite();
+  },
+
+  // [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] ⊕ 菜单项⑧：❓ 帮助与反馈
+  onTapHelpFeedback() {
+    this.setData({ moreMenuShow: false });
+    if (!checkLogin()) return;
+    wx.navigateTo({ url: '/pages/feedback/index', fail: () => wx.showToast({ title: '反馈入口开发中', icon: 'none' }) });
   },
 
   onTapMemberCenter() {

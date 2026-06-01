@@ -5,25 +5,34 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-01 · 功能开发 / H5 AI 首页标准版·关怀版「顶栏统一 + ⊕菜单合并8项 + 欢迎区模式切换胶囊」）
+## 最近一次变更（2026-06-01 · 功能开发 / AI 首页标准版·关怀版「顶栏统一 + ⊕菜单合并8项 + 欢迎区模式切换胶囊」· H5 + 小程序两端）
 
 **任务标识**：`[PRD-AIHOME-UNIFY-V1 2026-06-01]`
 
-**需求**：AI 首页两个版本（标准版 / 关怀版）做三项统一优化（仅 H5 端，后端 0 改动）：
+**需求**：AI 首页两个版本（标准版 / 关怀版）做三项统一优化（H5 + 微信小程序两端，后端 0 改动）：
 1. **第一行顶栏两版统一**：以标准版为模板，关怀版顶栏全部替换为「☰三横杠(带红点) → 档案/咨询/服务 三 Tab(默认停咨询·蓝下划线) → 🔔铃铛(红/橙点) → ⊕加号圈」，移除关怀版原「宾尼小康 模式切换」胶囊与🎁邀请图标。仅统一第一行，欢迎区及以下两版各管各的。
 2. **⊕加号圈菜单合并为统一 8 项**（两版一致，高频在前）：💬发起新对话 / 🔀切换模式(带当前模式小标签) / 👑会员中心 / 🎁邀请好友 / 📷扫一扫 / 🔤字体大小 / 📤立即分享 / ❓帮助与反馈。
 3. **欢迎区右上角新增「模式切换」胶囊**（方案1 胶囊带文字）：标准版显示「标准版 ▾」、关怀版显示「关怀版 ▾」，点击弹下拉(标准版/关怀版)，当前项打勾✓可切换；与⊕菜单内「切换模式」两入口并存。
 
-**改动文件（仅 3 个，纯前端 H5）**：
+**改动文件（H5 3 个 + 小程序 6 个 + 测试 2 个）**：
 - `h5-web/src/components/ai-chat/MoreMenu.tsx`：`ai-home-v2` 变体由 4 项扩展为统一 8 项（复用既有 `onMemberCenter/onScan/onFontSize/onShare/onNewChat/onSwitchMode/onInviteFriend/onHelpFeedback` props）。
 - `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：欢迎区 `ai-home-greeting` 内右上角新增模式胶囊（复用既有 `modeDropdownOpen/modeDropdownRef/modeSwitching/handleSwitchToCareMode`，新 testid `ai-home-mode-switcher/ai-home-mode-capsule/ai-home-mode-dropdown-panel/ai-home-mode-option-standard|care`）；`MoreMenu` 调用补齐 8 项 handler（会员中心/扫一扫/字体大小/分享）。
 - `h5-web/src/app/care-ai-home/page.tsx`：顶栏整段重写为标准版样式（新 testid `care-home-top-tabs/care-home-top-tab-profile|consult|service/care-home-topbar-bell/care-home-more-icon-plus-circle`，☰带 `care-home-hamburger-reddot`），删除原模式胶囊与🎁；欢迎区(`care-home-welcome` 设 `position:relative`)右上角新增 `care-home-mode-capsule`「关怀版 ▾」下拉；`MoreMenu` 改用 `menuVariant="ai-home-v2"` 统一 8 项。
+- **小程序（本会话补齐，对齐 H5）**：
+  - `miniprogram/pages/ai/index.wxml|js|wxss`（标准版）：顶栏整段替换为统一 `unified-topbar`（☰带红点 → 档案/咨询/服务三 Tab(咨询选中蓝下划线) → 🔔 → ⊕）；新增 `welcome-strip` 内「标准版 ▾」模式胶囊；`more-menu` 扩展为统一 8 项。JS 新增 `onTopTab/openBell/onTapNewChat/onTapSwitchMode(→switchToCareMode)/onTapInvite(→goInvite)/onTapHelpFeedback`。
+  - `miniprogram/pages/care-ai-home/index.wxml|js|wxss`（关怀版）：顶栏替换为统一 ☰→三Tab→🔔→⊕，移除原「宾尼小康 模式切换」胶囊与🎁；`welcome`(设 relative)右上角新增 `welcome-mode-switch`「关怀版 ▾」胶囊；`more-menu-card` 改为统一 8 项。JS 新增同名 handler（切换模式→switchToStandard）。
+- `backend/tests/test_ai_home_unify_v1_20260601.py`（新增）：H5(tsx)+小程序(wxml/js/wxss) 静态断言四端「统一顶栏 / 8 项⊕菜单 / 欢迎区模式胶囊」+ 后端模式偏好接口异步回归。
+- `backend/tests/test_ai_home_mode_capsule_v1_20260531.py`（兼容更新）：🎁邀请由顶栏移入⊕菜单，放宽过期断言。
 
-**关键 data-testid 新增**：`ai-home-mode-capsule` / `care-home-mode-capsule` / `care-home-top-tabs` / `care-home-topbar-bell` / `care-home-more-icon-plus-circle`。
+**关键 data-testid 新增**：`ai-home-mode-capsule` / `care-home-mode-capsule` / `care-home-top-tabs` / `care-home-topbar-bell` / `care-home-more-icon-plus-circle`；小程序统一顶栏 + `ai-home-more-menu-item-*` 系列。
 
-**部署验证**：本机 paramiko SFTP 直传 3 个文件 → `docker compose -f docker-compose.yml build h5-web && up -d h5-web`（仅重建 H5 单服务，未触碰后端/db/admin/gateway），gateway-nginx 已连入 `6b099ed3-...-network`。外部 HTTPS 全部 200：`/ai-home`、`/care-ai-home`、`/health-profile`、`/services`、`/invite`、`/feedback`、`/member-center`；关怀版 HTML 命中 `care-home-top-tabs/三Tab/care-home-topbar-bell/plus-circle/care-home-mode-capsule/关怀版` 且不再含「宾尼小康 模式切换」；标准版 HTML 命中 `ai-home-mode-capsule/标准版/ai-home-top-tabs/ai-home-more-btn`。
+**部署验证**：
+- H5：本机 paramiko SFTP 直传 → `docker compose build h5-web && up -d h5-web`（仅 H5 单服务）。外部 HTTPS 全部 200：`/ai-home`、`/care-ai-home`、`/health-profile`、`/services`、`/invite`、`/feedback`、`/member-center`；关怀版 HTML 命中统一顶栏 + `care-home-mode-capsule/关怀版` 且不再含「宾尼小康 模式切换」；标准版命中 `ai-home-mode-capsule/标准版/ai-home-top-tabs`。
+- 小程序 + 后端测试：源码上传服务器 → docker cp 进 backend 容器 → 容器内 `pytest` 两套 AI 首页测试 **25 passed**（含模式偏好接口异步回归）。
 
-**变更端清单**：仅 H5（Docker 容器部署，已重建上线）。未涉及小程序/安卓/iOS/exe 等需打包终端，无新增客户端包。
+**变更端清单**：H5（Docker 容器，已重建上线）+ 微信小程序（原生，已打 zip 上传，下载链接 HTTP200）。安卓/iOS/exe 等未涉及，无新增包。
+
+**小程序体验包**：`{baseURL}/uploads/miniprogram_aihome_unify_20260601_131144_176d.zip`（HTTP200，543223 字节）。
 
 **用户手册**：`user_docs/AI首页优化.md`
 

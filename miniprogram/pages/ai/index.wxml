@@ -1,55 +1,94 @@
 <view class="ai-page" wx:if="{{pageMode === 'user'}}">
-  <!-- 顶部操作栏 -->
-  <view class="top-bar">
-    <view class="history-btn" bindtap="openDrawer">
-      <text class="history-icon">☰</text>
-      <text class="history-text">历史</text>
+  <!-- [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求1] 第一行（顶栏）两版统一，照标准版样式：
+       ☰三横杠(带红点) → 档案/咨询/服务 三 Tab(当前停咨询·蓝下划线) → 🔔铃铛(带橙点) → ⊕加号圈 -->
+  <view class="top-bar unified-topbar">
+    <!-- 1. 左：☰ 三横杠（带小红点 → 历史/侧边栏入口） -->
+    <view class="uni-hamburger" bindtap="openDrawer" data-testid="ai-home-hamburger-btn">
+      <text class="uni-hamburger-icon" data-testid="ai-home-hamburger-icon">☰</text>
+      <view class="uni-hamburger-reddot" data-testid="ai-home-hamburger-reddot"></view>
     </view>
-    <!-- PRD v1.0 2026-04-23：删除左侧渐变圆形 AI 头像，标题文字水平居中 -->
-    <view class="page-title-wrap">
-      <text class="page-title">AI健康咨询</text>
+
+    <!-- 2~4. 中：档案 / 咨询 / 服务 三 Tab（当前停「咨询」，选中蓝色下划线） -->
+    <view class="uni-tabs" data-testid="ai-home-top-tabs">
+      <view class="uni-tab" bindtap="onTopTab" data-key="profile" data-testid="ai-home-top-tab-profile">
+        <text class="uni-tab-label">档案</text>
+        <view class="uni-tab-underline"></view>
+      </view>
+      <view class="uni-tab uni-tab-active" bindtap="onTopTab" data-key="consult" data-testid="ai-home-top-tab-consult">
+        <text class="uni-tab-label uni-tab-label-active">咨询</text>
+        <view class="uni-tab-underline uni-tab-underline-active"></view>
+      </view>
+      <view class="uni-tab" bindtap="onTopTab" data-key="service" data-testid="ai-home-top-tab-service">
+        <text class="uni-tab-label">服务</text>
+        <view class="uni-tab-underline"></view>
+      </view>
     </view>
-    <!-- [PRD-MODE-CAPSULE-V1 2026-05-31] 右上角控件：模式下拉胶囊 + 🎁 邀请 + ⋯ 更多 -->
-    <view class="topbar-actions">
-      <!-- 模式切换下拉胶囊（收起态仅显示「标准模式 ▾」） -->
-      <view class="mode-capsule-wrap" data-testid="ai-home-mode-switcher">
-        <view class="mode-capsule" bindtap="toggleModeDropdown" data-testid="ai-home-mode-capsule">
-          <text class="mode-capsule-label" data-testid="ai-home-mode-capsule-label">标准模式</text>
-          <text class="mode-capsule-arrow {{modeDropdownShow ? 'mode-capsule-arrow-up' : ''}}" data-testid="ai-home-mode-capsule-arrow">▾</text>
+
+    <!-- 5+6. 右：🔔 铃铛（带橙点） + ⊕ 加号圈 -->
+    <view class="uni-right">
+      <view class="uni-bell" bindtap="openBell" data-testid="ai-home-topbar-bell">
+        <text class="uni-bell-icon">🔔</text>
+        <view class="uni-bell-reddot" data-testid="ai-home-topbar-bell-reddot"></view>
+      </view>
+      <view class="uni-plus" bindtap="openMoreMenu" data-testid="ai-home-more-btn">
+        <view class="uni-plus-circle" data-testid="ai-home-more-icon-plus-circle">
+          <text class="uni-plus-sign">+</text>
         </view>
       </view>
-      <!-- 🎁 邀请好友（保留在外面） -->
-      <view class="invite-btn" bindtap="goInvite" data-testid="ai-home-invite-btn">
-        <text class="invite-icon">🎁</text>
-      </view>
-      <!-- [Bug 修复 v1.0 §3.1.3] 右上角「更多」菜单按钮 -->
-      <view class="more-btn" bindtap="openMoreMenu" data-testid="ai-home-more-btn">
-        <text class="more-icon">⋯</text>
+    </view>
+  </view>
+
+  <!-- [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求3] 欢迎区右上角「模式切换」胶囊（方案1：胶囊带文字）
+       显示当前模式名「标准版 ▾」，点击弹下拉：标准版(当前打勾) / 关怀版(可切换)。
+       与 ⊕菜单里的「切换模式」并存。 -->
+  <view class="welcome-strip">
+    <text class="welcome-hello">你好，我是小康</text>
+    <view class="mode-capsule-wrap" data-testid="ai-home-mode-switcher">
+      <view class="mode-capsule" bindtap="toggleModeDropdown" data-testid="ai-home-mode-capsule">
+        <text class="mode-capsule-label" data-testid="ai-home-mode-capsule-label">标准版</text>
+        <text class="mode-capsule-arrow {{modeDropdownShow ? 'mode-capsule-arrow-up' : ''}}" data-testid="ai-home-mode-capsule-arrow">▾</text>
       </view>
     </view>
   </view>
 
   <!-- [PRD-MODE-CAPSULE-V1 2026-05-31] 模式切换下拉面板（展开态） -->
   <view class="mode-dropdown-mask" wx:if="{{modeDropdownShow}}" bindtap="closeModeDropdown"></view>
-  <view class="mode-dropdown-panel" wx:if="{{modeDropdownShow}}" data-testid="ai-home-mode-dropdown-panel">
-    <!-- 当前模式：标准模式（高亮 + 打勾，点击仅收起不切换） -->
+  <view class="mode-dropdown-panel mode-dropdown-panel-welcome" wx:if="{{modeDropdownShow}}" data-testid="ai-home-mode-dropdown-panel">
+    <!-- 当前模式：标准版（高亮 + 打勾，点击仅收起不切换） -->
     <view class="mode-dropdown-item mode-dropdown-item-active" bindtap="closeModeDropdown" data-testid="ai-home-mode-option-standard">
-      <text class="mode-dropdown-text">标准模式</text>
+      <text class="mode-dropdown-text">标准版</text>
       <text class="mode-dropdown-check">✓</text>
     </view>
-    <!-- 关怀模式（点击触发切换流程） -->
+    <!-- 关怀版（点击触发切换流程） -->
     <view class="mode-dropdown-item" bindtap="switchToCareMode" data-testid="ai-home-mode-option-care">
-      <text class="mode-dropdown-text">关怀模式</text>
+      <text class="mode-dropdown-text">关怀版</text>
     </view>
   </view>
 
-  <!-- [Bug 修复 v1.0 §3.1.3] 「更多」菜单弹层（仿 H5 同名组件） -->
+  <!-- [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] 「⊕ 加号圈」菜单合并：两版去重后统一 8 项
+       1.💬发起新对话 2.🔀切换模式 3.👑会员中心 4.🎁邀请好友
+       5.📷扫一扫 6.🔤字体大小 7.📤立即分享 8.❓帮助与反馈 -->
   <view class="more-menu-mask" wx:if="{{moreMenuShow}}" bindtap="closeMoreMenu"></view>
-  <view class="more-menu-card" wx:if="{{moreMenuShow}}">
+  <view class="more-menu-card" wx:if="{{moreMenuShow}}" data-testid="ai-home-more-menu-card">
+    <view class="more-menu-item" bindtap="onTapNewChat" data-testid="ai-home-more-menu-item-发起新对话">
+      <text class="more-menu-icon">💬</text>
+      <text class="more-menu-label">发起新对话</text>
+    </view>
+    <view class="more-menu-divider"></view>
+    <view class="more-menu-item" bindtap="onTapSwitchMode" data-testid="ai-home-more-menu-item-切换模式">
+      <text class="more-menu-icon">🔀</text>
+      <text class="more-menu-label">切换模式</text>
+      <text class="more-menu-mode-tag" data-testid="ai-home-more-menu-mode-tag">标准版</text>
+    </view>
+    <view class="more-menu-divider"></view>
     <view class="more-menu-item more-menu-item-gold" bindtap="onTapMemberCenter" data-testid="ai-home-more-menu-item-会员中心">
       <text class="more-menu-icon">👑</text>
       <text class="more-menu-label more-menu-label-gold">会员中心</text>
-      <text class="more-menu-badge" wx:if="{{showNewBadge}}">新</text>
+    </view>
+    <view class="more-menu-divider"></view>
+    <view class="more-menu-item" bindtap="onTapInvite" data-testid="ai-home-more-menu-item-邀请好友">
+      <text class="more-menu-icon">🎁</text>
+      <text class="more-menu-label">邀请好友</text>
     </view>
     <view class="more-menu-divider"></view>
     <view class="more-menu-item" bindtap="onTapScan" data-testid="ai-home-more-menu-item-扫一扫">
@@ -65,6 +104,11 @@
     <view class="more-menu-item" bindtap="onTapShare" data-testid="ai-home-more-menu-item-立即分享">
       <text class="more-menu-icon">📤</text>
       <text class="more-menu-label">立即分享</text>
+    </view>
+    <view class="more-menu-divider"></view>
+    <view class="more-menu-item" bindtap="onTapHelpFeedback" data-testid="ai-home-more-menu-item-帮助与反馈">
+      <text class="more-menu-icon">❓</text>
+      <text class="more-menu-label">帮助与反馈</text>
     </view>
   </view>
 
