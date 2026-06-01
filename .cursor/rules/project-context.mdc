@@ -5,7 +5,22 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-01 · 新功能 / 体质测评优化 4 点 + 品牌天蓝统一 · 后端 + H5 + Admin + 微信小程序 + Flutter APP 五端）
+## 最近一次变更（2026-06-01 · Bug 修复 / AI 首页上传图片对话「切走再切回变文字」还原 · 仅 H5 端，前端纯展示层）
+
+**任务标识**：`[BUG_FIX_AI_HOME_IMAGE_HISTORY_RESTORE_V1 2026-06-01]`
+
+**问题**：AI 首页用「报告解读 / 拍照识药」等入口上传图片发起对话，发送当下能看到缩略图，但切走再切回历史时，那条上传消息变成一长串纯文字（`[用户上传的图片 N 张]` + URL 列表 + 说明）。根因：UI 用 `kind='image'` 渲染但后端存的是 `backendComposed` 纯文本，历史加载未还原。
+
+**改动（仅 `h5-web`，前端纯展示层，后端 0 改动）**：
+- 新增 `h5-web/src/lib/ai-image-history.ts`：收敛 `extractImagesFromContent`（从文本抽图片 URL + 去图后纯文本）与新函数 `restoreImageMessageFromContent`（把「[用户上传的图片 N 张]+URL列表+说明」还原为 `{images, caption}`，含图片占位/序号/裸 URL 清洗，命中条件=含图片占位且抽到≥1 个 URL）。
+- `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：① 删除页面内重复的 `extractImagesFromContent`/正则，改 `import` 自新 lib；② `ChatMessage` 新增 `imageCaption` 字段；③ `loadSessionMessages` 对用户消息（非识药卡）调用 `restoreImageMessageFromContent`，命中则设 `kind='image'`+`images`+`imageCaption`；④ `kind==='image'` 渲染块：缩略图加 `onClick=openAiHomeImageViewer`（点击放大、多图左右滑动），并在小图墙下方新增说明文字气泡（`data-testid=ai-home-user-image-caption`）。报告解读 / 拍照识药 / 其他上传入口共用，新老数据均生效。
+- 测试：`h5-web/src/lib/__tests__/ai-image-history.test.ts`（tsx 独立单测，18 断言全过：单图/多图5张/无说明/识药话术/普通文本 null/无占位含图 null/占位无 URL null/去重）。
+
+**部署**：git push `origin/master` commit `bcb1389` → 服务器 `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27` `git fetch + reset --hard origin/master` → `docker compose -f docker-compose.prod.yml build --no-cache h5-web && up -d h5-web`（仅 H5 单服务）→ gateway 重连网络 + reload。外部 HTTPS 全部 200：`/`、`/ai-home`、`/api/health`、`/login`、`/report-history`。无原生端改动，跳过多端打包。
+
+---
+
+## 上一次变更（2026-06-01 · 新功能 / 体质测评优化 4 点 + 品牌天蓝统一 · 后端 + H5 + Admin + 微信小程序 + Flutter APP 五端）
 
 **任务标识**：`[PRD-TIZHI-OPTIM-V1 2026-06-01]`
 
