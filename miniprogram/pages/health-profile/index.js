@@ -55,6 +55,14 @@ function judgeBgMini(v) {
   return { label: '明显偏高', cap: CAP_ORANGE };
 }
 
+// [PRD-SPO2-CARD-V1 2026-06-02] 血氧：≥95 正常蓝 / 90–94 偏低橙 / <90 偏低明显橙（与 H5 judgeSpo2 对齐）
+function judgeSpo2Mini(v) {
+  if (v == null || isNaN(v) || v <= 0) return null;
+  if (v >= 95) return { label: '正常', cap: CAP_BLUE };
+  if (v >= 90) return { label: '偏低', cap: CAP_ORANGE };
+  return { label: '偏低明显', cap: CAP_ORANGE };
+}
+
 function miniSourceLabel(source) {
   if (!source) return '手工录入';
   const s = String(source).trim();
@@ -606,6 +614,13 @@ Page({
     const bgJ = judgeBgMini(bgVal);
     const bgTs = (bg && bg.measured_at && bgVal != null) ? miniTimeSource(bg.measured_at, bg.source) : '';
 
+    // [PRD-SPO2-CARD-V1 2026-06-02] 血氧三档胶囊 + 时间·来源行（对齐 H5/血压）
+    const sp = tm && tm.spo2;
+    const spRaw = sp && sp.value && sp.value.value != null ? Number(sp.value.value) : null;
+    const spVal = (spRaw != null && !isNaN(spRaw) && spRaw > 0) ? spRaw : null;
+    const spJ = judgeSpo2Mini(spVal);
+    const spTs = (sp && sp.measured_at && spVal != null) ? miniTimeSource(sp.measured_at, sp.source) : '';
+
     const cells = [
       {
         id: 'blood_pressure', label: '血压', unit: 'mmHg', icon: '💓',
@@ -630,16 +645,18 @@ Page({
         capLabel: hrJ ? hrJ.label : '', capBg: hrJ ? hrJ.cap.bg : '', capColor: hrJ ? hrJ.cap.color : '',
         timeSource: hrTs,
       },
+      // [PRD-SPO2-CARD-V1 2026-06-02] 血氧插在睡眠前面，顺序与关怀模式对齐（血压/血糖/心率/血氧/睡眠）
+      {
+        id: 'spo2', label: '血氧', unit: '%', icon: '🫁',
+        value: spVal != null ? spVal : '—',
+        abnormal: !!(sp && sp.is_abnormal),
+        capLabel: spJ ? spJ.label : '', capBg: spJ ? spJ.cap.bg : '', capColor: spJ ? spJ.cap.color : '',
+        timeSource: spTs,
+      },
       {
         id: 'sleep', label: '睡眠', unit: 'h', icon: '🌙',
         value: v(tm && tm.sleep, 'duration_h'),
         abnormal: !!(tm && tm.sleep && tm.sleep.is_abnormal),
-        capLabel: '', capBg: '', capColor: '', timeSource: '',
-      },
-      {
-        id: 'spo2', label: '血氧', unit: '%', icon: '🫁',
-        value: v(tm && tm.spo2, 'value'),
-        abnormal: !!(tm && tm.spo2 && tm.spo2.is_abnormal),
         capLabel: '', capBg: '', capColor: '', timeSource: '',
       },
     ];

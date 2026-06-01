@@ -25,6 +25,8 @@ import { judgeBp, getBpPalette } from '@/lib/bp-level';
 import { judgeBg as judgeBgLocal } from '@/lib/bg-level';
 // [PRD-HR-ALIGN-BP-V1 2026-06-01] 心率小卡片对齐血压：三档胶囊（正常蓝 / 偏慢偏快橙）
 import { judgeHeartRate, getHrPalette } from '@/lib/heart-rate-level';
+// [PRD-SPO2-CARD-V1 2026-06-02] 血氧小卡片对齐血压：三档胶囊（正常蓝 / 偏低黄 / 偏低明显橙）
+import { judgeSpo2, getSpo2Palette } from '@/lib/spo2-level';
 import { formatBpTimeSource } from '@/app/health-metric/[type]/page';
 
 const T = {
@@ -1778,6 +1780,15 @@ function HealthProfileV2PageInner() {
         value: tm?.heart_rate?.value?.value ?? '—',
         abnormal: tm?.heart_rate?.is_abnormal,
       },
+      // [PRD-SPO2-CARD-V1 2026-06-02] 血氧插在睡眠前面，顺序与关怀模式对齐（血压/血糖/心率/血氧/睡眠）
+      {
+        id: 'spo2',
+        label: '血氧',
+        unit: '%',
+        icon: '🫁',
+        value: tm?.spo2?.value?.value ?? '—',
+        abnormal: tm?.spo2?.is_abnormal,
+      },
       {
         id: 'sleep',
         label: '睡眠',
@@ -2014,6 +2025,67 @@ function HealthProfileV2PageInner() {
                       <div style={{ borderTop: '1px solid #F1F5F9', margin: '8px 0 6px' }} />
                       <div
                         data-testid="hr-mini-time-source"
+                        style={{
+                          fontSize: 11, color: '#94A3B8', lineHeight: 1.3,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}
+                      >{timeSrc}</div>
+                    </>
+                  )}
+                  <div style={{ position: 'absolute', top: 12, right: 12, fontSize: 14, color: T.brand500, display: 'none' }}>›</div>
+                </div>
+              );
+            }
+            // [PRD-SPO2-CARD-V1 2026-06-02] 血氧小卡片：对齐血压（三档胶囊 + 时间·来源行），点击进 /health-metric/spo2
+            if (c.id === 'spo2') {
+              const sp = tm?.spo2;
+              const spRaw = sp?.value?.value != null ? Number(sp.value.value) : null;
+              const spVal = spRaw != null && !Number.isNaN(spRaw) && spRaw > 0 ? spRaw : null;
+              const j = judgeSpo2(spVal);
+              const cap = j ? getSpo2Palette(j.color) : null;
+              const timeSrc = spVal != null && sp?.measured_at
+                ? formatBpTimeSource(sp.measured_at, sp.source)
+                : '';
+              return (
+                <div
+                  key={c.id}
+                  data-testid={`prd469-metric-${c.id}`}
+                  data-spo2-mini-card="true"
+                  onClick={() => router.push(`/health-metric/spo2?profileId=${profile?.id || ''}`)}
+                  style={{
+                    background: '#FFFFFF',
+                    borderLeft: c.abnormal ? '4px solid #F5B544' : '4px solid transparent',
+                    borderRadius: 16,
+                    padding: 14,
+                    boxShadow: '0 2px 12px rgba(14,165,233,0.08)',
+                    cursor: 'pointer',
+                    position: 'relative',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                    <span style={{ fontSize: 13, color: T.textSecondary }}>{c.icon} {c.label}</span>
+                    {j && (
+                      <span
+                        data-testid="spo2-mini-capsule"
+                        style={{
+                          fontSize: 10, fontWeight: 700, color: cap!.capsuleText,
+                          background: cap!.capsuleBg,
+                          padding: '2px 8px', borderRadius: 999,
+                          maxWidth: '60%',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}
+                      >{j.label}</span>
+                    )}
+                  </div>
+                  <div style={{ marginTop: 6 }}>
+                    <span style={{ fontSize: 26, fontWeight: 700, color: '#0C4A6E' }}>{spVal != null ? spVal : '—'}</span>
+                    <span style={{ fontSize: 12, color: T.textSecondary, marginLeft: 4 }}>{c.unit}</span>
+                  </div>
+                  {timeSrc && (
+                    <>
+                      <div style={{ borderTop: '1px solid #F1F5F9', margin: '8px 0 6px' }} />
+                      <div
+                        data-testid="spo2-mini-time-source"
                         style={{
                           fontSize: 11, color: '#94A3B8', lineHeight: 1.3,
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',

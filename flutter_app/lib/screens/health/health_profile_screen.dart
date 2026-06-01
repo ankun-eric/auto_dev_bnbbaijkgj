@@ -1037,15 +1037,26 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
         'value': _readMetric(tm, 'heart_rate'),
         'abnormal': (tm?['heart_rate'] is Map) && tm!['heart_rate']['is_abnormal'] == true,
       },
+      // [PRD-SPO2-CARD-V1 2026-06-02] 血氧插在睡眠前面，顺序与关怀模式对齐（血压/血糖/心率/血氧/睡眠）
+      () {
+        final sp = (tm?['spo2'] is Map) ? tm!['spo2'] as Map : null;
+        final raw = (sp != null && sp['value'] is Map) ? sp['value']['value'] : null;
+        final spVal = (raw is num) ? raw.toDouble() : (raw is String ? double.tryParse(raw) : null);
+        final cap = _spo2Cap(spVal);
+        return {
+          'id': 'spo2', 'label': '血氧', 'unit': '%', 'icon': '🫁',
+          'value': (spVal != null && spVal > 0)
+              ? (spVal == spVal.roundToDouble() ? spVal.toInt().toString() : spVal.toString())
+              : '—',
+          'abnormal': (sp != null) && sp['is_abnormal'] == true,
+          'capLabel': cap?['label'] ?? '',
+          'capColor': cap?['color'] ?? '',
+        };
+      }(),
       {
         'id': 'sleep', 'label': '睡眠', 'unit': 'h', 'icon': '🌙',
         'value': _readMetric(tm, 'sleep', subKey: 'duration_h'),
         'abnormal': (tm?['sleep'] is Map) && tm!['sleep']['is_abnormal'] == true,
-      },
-      {
-        'id': 'spo2', 'label': '血氧', 'unit': '%', 'icon': '🫁',
-        'value': _readMetric(tm, 'spo2'),
-        'abnormal': (tm?['spo2'] is Map) && tm!['spo2']['is_abnormal'] == true,
       },
     ];
 
@@ -1084,7 +1095,17 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
                   children: [
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                       Text('${c['icon']} ${c['label']}', style: const TextStyle(fontSize: 13, color: _textSecondary)),
-                      if (c['abnormal'] as bool)
+                      // [PRD-SPO2-CARD-V1 2026-06-02] 血氧三档胶囊（正常蓝 / 偏低·偏低明显橙），其余卡片回退「异常」标签
+                      if ((c['capLabel'] as String?)?.isNotEmpty == true)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: c['capColor'] == 'orange' ? const Color(0xFFF97316) : const Color(0xFF3B82F6),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text('${c['capLabel']}', style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w700)),
+                        )
+                      else if (c['abnormal'] as bool)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(color: _warn, borderRadius: BorderRadius.circular(6)),
@@ -1685,6 +1706,14 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
   }
 
   // ====== 辅助 ======
+  // [PRD-SPO2-CARD-V1 2026-06-02] 血氧档位判定（与 H5 judgeSpo2 对齐）：≥95 正常蓝 / 90–94 偏低橙 / <90 偏低明显橙
+  Map<String, String>? _spo2Cap(double? v) {
+    if (v == null || v.isNaN || v <= 0) return null;
+    if (v >= 95) return {'label': '正常', 'color': 'blue'};
+    if (v >= 90) return {'label': '偏低', 'color': 'orange'};
+    return {'label': '偏低明显', 'color': 'orange'};
+  }
+
   String _readMetric(Map? tm, String key, {String subKey = 'value'}) {
     if (tm == null) return '—';
     final node = tm[key];
