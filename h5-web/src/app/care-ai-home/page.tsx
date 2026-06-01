@@ -9,11 +9,12 @@
 //   3. 核心入口区（5 张大字整行卡片）
 //   4. 右下角悬浮 SOS
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { saveModePreference } from '@/lib/mode-preference';
 import MoreMenu from '@/components/ai-chat/MoreMenu';
+import CareSharePanel from '@/components/care/CareSharePanel';
 
 interface MedicationItem {
   id?: number;
@@ -44,6 +45,13 @@ export default function CareAiHomePage() {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [toast, setToast] = useState<string>('');
   const modeDropdownRef = useRef<HTMLDivElement | null>(null);
+  // [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化3] 分享给好友面板开关
+  const [shareOpen, setShareOpen] = useState(false);
+  // [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化2] 底部「向下小箭头」是否显示（内容超一屏且未下滑时显示）
+  const [showScrollHint, setShowScrollHint] = useState(false);
+  // [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化4] 今日提醒：当前优先展示的「最近一条未打卡」提醒
+  //   medReminder.planId / scheduledTime 用于点击卡片直达对应打卡页
+  const [medReminder, setMedReminder] = useState<{ planId?: number; scheduledTime?: string } | null>(null);
 
   const greeting = useMemo(() => getGreeting(new Date()), []);
 
@@ -54,29 +62,74 @@ export default function CareAiHomePage() {
     setTimeout(() => setToast(''), 2000);
   };
 
-  // 读取最新一条用药提醒
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res: any = await api.get('/api/medication-reminder/today');
-        // 拦截器已返回 body；today 返回的是数组
-        const items: MedicationItem[] = Array.isArray(res)
-          ? res
-          : res?.data?.items || res?.items || res?.data || [];
-        if (Array.isArray(items) && items.length > 0) {
-          const next = items.find((it) => !it.done) || items[0];
+  // [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化4] 今日提醒智能轮转
+  //  - /api/medication-reminder/today 每条返回 checked（打卡状态）+ scheduled_time + plan_id
+  //  - 优先显示「最近一条未打卡」提醒（按 scheduled_time 升序的首条 checked=false）
+  //  - 当前条打卡完成后下次刷新自动跳到下一条；全部打卡完毕给兜底文案「今天都打完啦 🎉」
+  //  - 跨凌晨 12 点：接口按 date.today() 返回当天数据，刷新即天然从第二天首条重新开始
+  const loadMedication = useCallback(async () => {
+    try {
+      const res: any = await api.get('/api/medication-reminder/today');
+      // 拦截器已返回 body；today 返回的是数组（TodayMedicationItem[]）
+      const items: any[] = Array.isArray(res)
+        ? res
+        : res?.data?.items || res?.items || res?.data || [];
+      if (Array.isArray(items) && items.length > 0) {
+        // 兼容旧字段 done / 新字段 checked
+        const isChecked = (it: any) => it.checked === true || it.done === true;
+        const sorted = [...items].sort((a, b) =>
+          String(a.scheduled_time || a.remind_time || a.schedule || '').localeCompare(
+            String(b.scheduled_time || b.remind_time || b.schedule || ''),
+          ),
+        );
+        const next = sorted.find((it) => !isChecked(it));
+        if (!next) {
+          // 全部打卡完成 → 兜底文案
+          setMedText('今天都打完啦 🎉');
+          setMedReminder(null);
+        } else {
           const time = next.scheduled_time || next.remind_time || next.schedule || '';
           const drug = next.drug_name || next.name || '药品';
           setMedText(`${time ? time + ' ' : ''}请按时服用"${drug}"`);
-        } else {
-          setMedText('今日暂无用药提醒');
+          setMedReminder({ planId: next.plan_id ?? next.id, scheduledTime: time });
         }
-      } catch {
+      } else {
         setMedText('今日暂无用药提醒');
+        setMedReminder(null);
       }
-    };
-    load();
+    } catch {
+      setMedText('今日暂无用药提醒');
+      setMedReminder(null);
+    }
   }, []);
+
+  useEffect(() => {
+    loadMedication();
+  }, [loadMedication]);
+
+  // [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化2] 底部向下箭头：首屏内容超过一屏时显示；
+  //   用户开始下滑（>40px）后自动隐藏；滑回顶部可再次出现。
+  useEffect(() => {
+    const evalHint = () => {
+      const scrolled = window.scrollY || document.documentElement.scrollTop || 0;
+      const overflow = document.documentElement.scrollHeight - window.innerHeight > 40;
+      setShowScrollHint(overflow && scrolled < 40);
+    };
+    evalHint();
+    window.addEventListener('scroll', evalHint, { passive: true });
+    window.addEventListener('resize', evalHint);
+    const t = setTimeout(evalHint, 600); // 等待卡片/图片渲染后再判定一次
+    return () => {
+      window.removeEventListener('scroll', evalHint);
+      window.removeEventListener('resize', evalHint);
+      clearTimeout(t);
+    };
+  }, []);
+
+  // [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化4] 点击今日提醒卡片 → 直达对应打卡页（用药提醒页）
+  const goMedicationReminder = () => {
+    navigate('/ai-home/medication-reminder');
+  };
 
   // 面板外点击收起
   useEffect(() => {
@@ -175,10 +228,13 @@ export default function CareAiHomePage() {
         data-testid="care-home-topbar"
       >
         <div style={{ position: 'relative', height: 48, width: '100%' }}>
-          {/* 1. 左：☰ 三横杠（带小红点 → 历史/侧边栏入口） */}
+          {/* 1. 左：☰ 三横杠（带小红点 → 历史/侧边栏入口）
+              [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化1] 修复点击 404：
+              旧版跳向不存在的个人页路由导致 404，现改为跳标准版 /ai-home 并携带
+              ?openDrawer=1 自动弹出历史会话抽屉，与标准版「☰」表现完全一致（标准版 ☰ = 打开历史抽屉）。 */}
           <button
             aria-label="历史会话"
-            onClick={() => navigate('/profile')}
+            onClick={() => navigate('/ai-home?openDrawer=1')}
             data-testid="care-home-hamburger-btn"
             style={{
               position: 'absolute',
@@ -505,8 +561,11 @@ export default function CareAiHomePage() {
           <div style={{ fontSize: 16, opacity: 0.95, marginBottom: 14 }} data-testid="care-home-welcome-text">
             我是宾尼小康，聊聊健康问题吧~
           </div>
-          {/* 今日用药提醒 */}
-          <div
+          {/* 今日提醒（智能轮转 + 点击直达打卡页）
+              [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化4] 点一下整张提醒卡 → 跳对应打卡页 */}
+          <button
+            type="button"
+            onClick={goMedicationReminder}
             data-testid="care-home-med-reminder"
             style={{
               background: 'rgba(255,255,255,0.18)',
@@ -517,13 +576,18 @@ export default function CareAiHomePage() {
               alignItems: 'center',
               gap: 6,
               maxWidth: '100%',
+              border: 'none',
+              color: '#FFFFFF',
+              cursor: 'pointer',
+              textAlign: 'left',
             }}
           >
             <span aria-hidden="true">🔔</span>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
               今日提醒：{medText || '加载中…'}
             </span>
-          </div>
+            <span aria-hidden="true" style={{ flexShrink: 0, opacity: 0.85 }}>›</span>
+          </button>
         </div>
 
         {/* 右侧：宾尼小康机器人 LOGO + 窄白边白圈（样式①） */}
@@ -602,6 +666,39 @@ export default function CareAiHomePage() {
         ))}
       </div>
 
+      {/* [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化3] 「分享给好友」按钮（合并原「邀请好友 / 立即分享」）
+          - 只负责第 3 种邀请：纯拉新分享注册，落地注册引导页，不带「守护」意图
+          - 点击弹出分享面板：分享卡片预览（统一文案）+ 微信好友 / 生成海报 / 复制链接 */}
+      <div style={{ padding: '4px 16px 8px' }} data-testid="care-home-share-section">
+        <button
+          type="button"
+          onClick={() => setShareOpen(true)}
+          data-testid="care-home-share-friend-btn"
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            background: 'linear-gradient(135deg, #FFB877 0%, #FB8C00 100%)',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: 16,
+            padding: '16px',
+            fontSize: 18,
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 4px 14px rgba(251,140,0,0.28)',
+          }}
+        >
+          <span aria-hidden="true">📤</span>
+          <span>分享给好友</span>
+        </button>
+        <div style={{ textAlign: 'center', fontSize: 13, color: '#9CA3AF', marginTop: 8 }}>
+          把宾尼小康推荐给亲友
+        </div>
+      </div>
+
       {/* 4. 右下角悬浮 SOS（红圆 + 扩散光圈，点击进入紧急呼叫流程） */}
       <button
         type="button"
@@ -640,9 +737,43 @@ export default function CareAiHomePage() {
         onInviteFriend={() => { setMoreMenuOpen(false); navigate('/invite'); }}
         onScan={() => { setMoreMenuOpen(false); showToast('扫一扫开发中'); }}
         onFontSize={() => { setMoreMenuOpen(false); showToast('字体大小设置开发中'); }}
-        onShare={() => { setMoreMenuOpen(false); showToast('请点击浏览器菜单分享'); }}
+        onShare={() => { setMoreMenuOpen(false); setShareOpen(true); }}
         onHelpFeedback={() => { setMoreMenuOpen(false); navigate('/feedback'); }}
       />
+
+      {/* [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化3] 分享给好友面板（卡片预览 + 3 渠道 + 温情暖色海报） */}
+      <CareSharePanel
+        visible={shareOpen}
+        onClose={() => setShareOpen(false)}
+        logoUrl={`${basePath}/binni-xiaokang-logo.png`}
+      />
+
+      {/* [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化2] 底部居中「向下小箭头」轻轻上下跳动，
+          提示长辈下面还能往下看；用户下滑后自动隐藏。 */}
+      {showScrollHint && (
+        <div
+          data-testid="care-home-scroll-hint"
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            left: '50%',
+            bottom: 16,
+            transform: 'translateX(-50%)',
+            zIndex: 120,
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.92)',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+          }}
+        >
+          <span className="care-home-scroll-arrow" style={{ fontSize: 22, color: '#1976D2', lineHeight: 1 }}>⌄</span>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (
@@ -705,6 +836,19 @@ export default function CareAiHomePage() {
           100% {
             transform: scale(1.9);
             opacity: 0;
+          }
+        }
+        /* [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化2] 向下箭头轻轻上下跳动 */
+        .care-home-scroll-arrow {
+          display: inline-block;
+          animation: care-home-arrow-bounce 1.2s ease-in-out infinite;
+        }
+        @keyframes care-home-arrow-bounce {
+          0%, 100% {
+            transform: translateY(-3px);
+          }
+          50% {
+            transform: translateY(3px);
           }
         }
       `}</style>

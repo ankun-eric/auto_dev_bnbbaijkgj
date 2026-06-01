@@ -203,3 +203,113 @@
   0% { transform: scale(1); opacity: 0.6; }
   100% { transform: scale(2.1); opacity: 0; }
 }
+
+/* [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化4] 今日提醒可点击态 */
+.med-reminder { cursor: pointer; }
+
+/* [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化3] 分享给好友按钮 */
+.share-section { padding: 8rpx 28rpx 16rpx; }
+.share-friend-btn {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center; gap: 14rpx;
+  background: linear-gradient(135deg, #FFB877 0%, #FB8C00 100%);
+  color: #fff; border-radius: 28rpx; padding: 30rpx 0;
+  box-shadow: 0 8rpx 24rpx rgba(251,140,0,0.28);
+}
+.share-friend-icon { font-size: 38rpx; }
+.share-friend-label { font-size: 34rpx; font-weight: 700; }
+.share-friend-sub { text-align: center; font-size: 24rpx; color: #9CA3AF; margin-top: 14rpx; }
+
+/* [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化2] 底部向下箭头（轻轻上下跳动） */
+.scroll-hint {
+  position: fixed; left: 50%; bottom: 28rpx; transform: translateX(-50%);
+  z-index: 120; width: 72rpx; height: 72rpx; border-radius: 50%;
+  background: rgba(255,255,255,0.92); box-shadow: 0 4rpx 18rpx rgba(0,0,0,0.15);
+  display: flex; align-items: center; justify-content: center; pointer-events: none;
+}
+.scroll-hint-arrow {
+  font-size: 44rpx; color: #1976D2; line-height: 1;
+  animation: care-arrow-bounce 1.2s ease-in-out infinite;
+}
+@keyframes care-arrow-bounce {
+  0%, 100% { transform: translateY(-6rpx); }
+  50% { transform: translateY(6rpx); }
+}
+
+/* [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化3] 分享面板 / 海报 */
+.share-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 900; }
+.share-panel {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 901;
+  background: #fff; border-radius: 32rpx 32rpx 0 0; padding: 36rpx 36rpx 56rpx;
+}
+.share-card-preview {
+  display: flex; align-items: center; gap: 24rpx;
+  background: #FFF6EC; border: 1rpx solid #FFE0BD; border-radius: 24rpx;
+  padding: 28rpx; margin-bottom: 32rpx;
+}
+.share-card-logo { width: 96rpx; height: 96rpx; border-radius: 50%; flex-shrink: 0; background: #fff; }
+.share-card-slogan { font-size: 28rpx; font-weight: 700; color: #5B3A1E; line-height: 1.5; flex: 1; }
+.share-channels { display: flex; justify-content: space-around; }
+.share-channel {
+  display: flex; flex-direction: column; align-items: center; gap: 14rpx;
+  background: transparent; border: none; line-height: 1.4; padding: 0; margin: 0;
+}
+.share-channel::after { border: none; }
+.share-channel-icon {
+  width: 104rpx; height: 104rpx; border-radius: 50%;
+  background: rgba(251,140,0,0.12); display: flex; align-items: center; justify-content: center;
+  font-size: 46rpx;
+}
+.share-channel-label { font-size: 26rpx; color: #8A5A2E; }
+.share-cancel {
+  margin-top: 36rpx; text-align: center; background: #F5F5F5; color: #888;
+  border-radius: 24rpx; padding: 24rpx; font-size: 28rpx;
+}
+
+.poster-panel {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 901;
+  background: #fff; border-radius: 32rpx 32rpx 0 0; padding: 40rpx 36rpx 56rpx;
+  text-align: center;
+}
+.poster-card {
+  width: 560rpx; margin: 0 auto; border-radius: 32rpx; overflow: hidden;
+  background: linear-gradient(180deg, #FFF6EC 0%, #FFE9D2 100%);
+  box-shadow: 0 16rpx 50rpx rgba(244,115,31,0.22);
+}
+.poster-top { padding: 40rpx 36rpx 16rpx; }
+.poster-logo-wrap {
+  width: 140rpx; height: 140rpx; border-radius: 50%; background: #fff;
+  border: 6rpx solid #fff; box-shadow: 0 8rpx 22rpx rgba(244,115,31,0.22);
+  margin: 0 auto 14rpx; display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.poster-logo { width: 128rpx; height: 128rpx; border-radius: 50%; }
+.poster-brand { font-size: 34rpx; font-weight: 800; color: #F4731F; letter-spacing: 2rpx; }
+.poster-title { padding: 8rpx 40rpx 24rpx; font-size: 30rpx; font-weight: 700; color: #5B3A1E; line-height: 1.6; }
+.poster-title-em { color: #F4731F; }
+.poster-illu {
+  margin: 0 32rpx 22rpx; height: 130rpx; border-radius: 24rpx;
+  background: linear-gradient(135deg, #FFD9A8 0%, #FFB877 100%);
+  display: flex; align-items: center; justify-content: center; font-size: 56rpx; letter-spacing: 8rpx;
+}
+.poster-feats { display: flex; justify-content: space-around; padding: 0 28rpx 28rpx; }
+.poster-feat { text-align: center; }
+.poster-feat-icon {
+  width: 76rpx; height: 76rpx; border-radius: 22rpx; background: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 38rpx; margin: 0 auto 8rpx;
+  box-shadow: 0 4rpx 14rpx rgba(244,115,31,0.12);
+}
+.poster-feat-label { font-size: 24rpx; color: #8A5A2E; font-weight: 600; }
+.poster-qr-row { background: #fff; padding: 26rpx 36rpx; display: flex; align-items: center; gap: 24rpx; }
+.poster-qr {
+  width: 120rpx; height: 120rpx; border-radius: 18rpx; background: #F2F2F2;
+  border: 2rpx dashed #C9A06A; display: flex; align-items: center; justify-content: center; font-size: 44rpx; flex-shrink: 0;
+}
+.poster-qr-text { text-align: left; display: flex; flex-direction: column; }
+.poster-qr-title { font-size: 26rpx; font-weight: 700; color: #F4731F; }
+.poster-qr-sub { font-size: 24rpx; color: #9A7B5C; }
+.poster-tip { font-size: 24rpx; color: #9CA3AF; margin-top: 24rpx; }
+.poster-done {
+  margin-top: 28rpx; background: #FB8C00; color: #fff; border-radius: 24rpx;
+  padding: 26rpx; font-size: 30rpx; font-weight: 600;
+}

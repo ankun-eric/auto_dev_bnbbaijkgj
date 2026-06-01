@@ -715,6 +715,17 @@ export default function AiHomePage() {
   const audioChunksRef = useRef<Blob[]>([]);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化1] 支持 ?openDrawer=1 进入即弹出历史抽屉，
+  //   供关怀版「☰ 三横杠」照搬标准版表现（关怀版 ☰ → 跳本页并自动打开抽屉），与小程序口径一致。
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get('openDrawer') === '1') setSidebarOpen(true);
+    } catch {
+      /* ignore */
+    }
+  }, []);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [consultantOpen, setConsultantOpen] = useState(false);

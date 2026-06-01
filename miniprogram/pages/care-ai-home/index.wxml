@@ -112,7 +112,8 @@
     <view class="welcome-text">
       <view class="greeting">{{greetingText}} {{greetingIcon}}</view>
       <view class="sub">我是宾尼小康，聊聊健康问题吧~</view>
-      <view class="med-reminder">🔔 今日提醒：{{medText}}</view>
+      <!-- [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化4] 今日提醒智能轮转 + 点击直达打卡页 -->
+      <view class="med-reminder" catchtap="onTapMedReminder" data-testid="care-home-med-reminder">🔔 今日提醒：{{medText}} ›</view>
     </view>
     <view class="robot-logo">
       <image class="robot-img" src="{{logoUrl}}" mode="aspectFill"></image>
@@ -131,11 +132,81 @@
     </view>
   </view>
 
+  <!-- [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化3] 「分享给好友」按钮（合并原 邀请好友/立即分享）
+       只负责纯拉新分享，点击弹出分享面板（卡片预览 + 微信好友/生成海报/复制链接） -->
+  <view class="share-section" data-testid="care-home-share-section">
+    <view class="share-friend-btn" catchtap="openSharePanel" data-testid="care-home-share-friend-btn">
+      <text class="share-friend-icon">📤</text>
+      <text class="share-friend-label">分享给好友</text>
+    </view>
+    <view class="share-friend-sub">把宾尼小康推荐给亲友</view>
+  </view>
+
   <!-- 9. 右下角悬浮 SOS（红色圆 + SOS 白字 + 扩散光圈动画），点击 = 进紧急呼叫流程 -->
   <view class="sos-fab" catchtap="onSosFabTap">
     <view class="sos-fab-ripple sos-fab-ripple-1"></view>
     <view class="sos-fab-ripple sos-fab-ripple-2"></view>
     <view class="sos-fab-ripple sos-fab-ripple-3"></view>
     <view class="sos-fab-core"><text class="sos-fab-text">SOS</text></view>
+  </view>
+
+  <!-- [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化2] 底部居中向下小箭头（轻轻上下跳动），下滑后自动隐藏 -->
+  <view class="scroll-hint" wx:if="{{showScrollHint}}" data-testid="care-home-scroll-hint">
+    <text class="scroll-hint-arrow">⌄</text>
+  </view>
+
+  <!-- [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化3] 分享面板（卡片预览 + 微信好友/生成海报/复制链接） -->
+  <view class="share-mask" wx:if="{{sharePanelShow}}" catchtap="closeSharePanel"></view>
+  <view class="share-panel" wx:if="{{sharePanelShow}}" data-testid="care-share-panel">
+    <!-- 分享卡片预览（统一文案） -->
+    <view class="share-card-preview" data-testid="care-share-card-preview">
+      <image class="share-card-logo" src="{{logoUrl}}" mode="aspectFill"></image>
+      <text class="share-card-slogan" data-testid="care-share-slogan">我在用 宾尼小康 守护家人健康，推荐您也来试试~</text>
+    </view>
+    <!-- 3 个渠道 -->
+    <view class="share-channels">
+      <button class="share-channel" open-type="share" catchtap="onShareWechat" data-testid="care-share-channel-wechat">
+        <view class="share-channel-icon">💬</view>
+        <text class="share-channel-label">微信好友</text>
+      </button>
+      <view class="share-channel" catchtap="onSharePoster" data-testid="care-share-channel-poster">
+        <view class="share-channel-icon">🖼️</view>
+        <text class="share-channel-label">生成海报</text>
+      </view>
+      <view class="share-channel" catchtap="onShareCopy" data-testid="care-share-channel-copy">
+        <view class="share-channel-icon">🔗</view>
+        <text class="share-channel-label">复制链接</text>
+      </view>
+    </view>
+    <view class="share-cancel" catchtap="closeSharePanel">取消</view>
+  </view>
+
+  <!-- [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §三] 方案 A 温情暖色海报 -->
+  <view class="share-mask" wx:if="{{posterShow}}" catchtap="closePoster"></view>
+  <view class="poster-panel" wx:if="{{posterShow}}" data-testid="care-share-poster-wrap">
+    <view class="poster-card" data-testid="care-share-poster">
+      <view class="poster-top">
+        <view class="poster-logo-wrap">
+          <image class="poster-logo" src="{{logoUrl}}" mode="aspectFill"></image>
+        </view>
+        <text class="poster-brand">宾尼小康</text>
+      </view>
+      <view class="poster-title">我在用 <text class="poster-title-em">宾尼小康</text> 守护家人健康，推荐您也来试试~</view>
+      <view class="poster-illu">👵 💗 👨‍👩‍👧</view>
+      <view class="poster-feats">
+        <view class="poster-feat"><view class="poster-feat-icon">💊</view><text class="poster-feat-label">用药提醒</text></view>
+        <view class="poster-feat"><view class="poster-feat-icon">📈</view><text class="poster-feat-label">健康记录</text></view>
+        <view class="poster-feat"><view class="poster-feat-icon">🛡️</view><text class="poster-feat-label">家人守护</text></view>
+      </view>
+      <view class="poster-qr-row">
+        <view class="poster-qr" data-testid="care-share-poster-qr">▦</view>
+        <view class="poster-qr-text">
+          <text class="poster-qr-title">微信扫一扫</text>
+          <text class="poster-qr-sub">立即体验宾尼小康</text>
+        </view>
+      </view>
+    </view>
+    <view class="poster-tip">截图保存上方海报即可分享给亲友</view>
+    <view class="poster-done" catchtap="closePoster">完成</view>
   </view>
 </view>
