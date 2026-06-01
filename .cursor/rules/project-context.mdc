@@ -92,6 +92,37 @@ alwaysApply: false
 
 ---
 
+## 最近一次变更（2026-06-01 · 功能开发 / 健康档案页面优化 — 家庭成员叫法·人数口径·邀请复用新增咨询人）
+
+**任务标识**：`[PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-01]`
+
+**需求（PRD v1.0）**：健康档案页面 3 个改动点——①「档案列表/健康档案」叫法统一为「家庭成员」（入口卡 + 列表页标题）；②入口卡人数与列表页统计人数始终一致，以列表口径为唯一标准；③「邀请家庭成员」按钮改为复用「新增咨询人」同款新增成员页面，保存后回列表、新成员立即显示、人数 +1。涉及端：H5 + 小程序。
+
+**改动（H5 + 小程序 + 后端测试，后端业务接口零改动）**：
+- **H5**：
+  - `h5-web/src/app/health-profile/archive-list/page.tsx`：`GreenNavBar` 标题「档案列表」→「家庭成员」；空态文案「暂无档案…」→「暂无家庭成员，点击上方『邀请家庭成员』添加」；「邀请家庭成员」按钮改为条件渲染复用 `components/health-profile-v5/NewFamilyMemberModal`（与「新增咨询人」ConsultTargetPicker 同款），`handleNewMemberSuccess` 改为 `onSuccess` 回调签名 → 关闭表单 + `fetchList()` 刷新 + 成功 toast；移除内置旧 `NewMemberDrawer`/`Label`/`Input`。
+  - `h5-web/src/app/health-profile/page.tsx`：入口卡 `taTitle`「档案列表」→「家庭成员」；`guardianSummary` 新增 `managed_with_self`，`fetchGuardianSummary` 改调 `GET /api/family/member/quota` 取 `quota_used`（含本人，= 列表 state/list.quota_used）作为入口卡「已管理 X」唯一来源；`xByMe` 改用 `managed_with_self`。
+- **小程序**：
+  - `miniprogram/pages/health-profile/index.wxml`：橙卡标题「健康档案列表」→「家庭成员」（人数 `managedCount` 仍取家庭成员配额 quota_used）。
+  - `miniprogram/pages/family-guardian-list/index.{js,wxml}`：头部统计改为「共 N 位家庭成员」，N 取 `GET /api/family/member/quota` 的 `quota_used`（与入口卡 / H5 列表口径一致），新增 `fetchMemberCount()`；保留「在此为家庭成员设置 AI 外呼提醒」副标题说明该页用途。
+- **后端测试 `backend/tests/test_health_archive_family_member_v1_20260601.py`（新增 6 用例）**：①入口卡口径 `quota.quota_used` == 列表 `state/list.quota_used` == `total`；②含本人 ≥1；③公共方法 `count_managed_family_members` == 列表口径；④软删成员两处口径同时排除；⑤复用 `POST /api/family/members` 新增后两处口径同步 +1 且新成员进列表；⑥`state/list` 返回结构完整。本地 + 服务器容器内 pytest 均 6/6 通过。
+
+**接口复用**：完全沿用 `GET /api/family/member/quota`、`GET /api/family/member/state/list`、`POST /api/family/members`、`count_managed_family_members`（`backend/app/api/family_member_v2.py`），无新增后端代码。
+
+**部署**：代码已 push 到 `origin/master`（commit `8fc94de`），服务器 `git fetch + reset --hard` 到该 commit 后 `docker compose -f docker-compose.prod.yml build h5-web && up -d h5-web` 重建 H5 容器；gateway-nginx 重连网络 + reload。后端业务零改动，仅 `docker cp` 测试文件入容器跑 pytest 6/6。外部 HTTPS 验证：`/health-profile`、`/health-profile/archive-list` → 200；H5 构建产物 `health-profile/archive-list/page.js` 含「暂无家庭成员」新文案；`/api/family/member/quota`、`/api/family/member/state/list` 未鉴权 401（路由在线）。
+
+**多端打包**：
+- 小程序 zip（源码改动，需在微信开发者工具内重新预览/上传）：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/uploads/miniprogram_family_member_optim_20260601_133914.zip`（HTTP 200，531KB）
+- App（Flutter）：本次 PRD 仅涉及 H5 + 小程序，未改动 App，无新增 APK/IPA。
+
+**变更端清单**：H5（Docker 容器部署，已重建上线）+ 小程序（源码改动，需用户在微信开发者工具内重新预览/上传）；后端业务未改，无需重启 backend，仅新增一份 tests/。
+
+**用户手册**：`user_docs/健康档案页面优化.md`
+
+**唯一变更标记**：`[PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-01]`
+
+---
+
 ## 最近一次变更（2026-05-31 · Bug 修复 / 新增家庭成员→邀请二维码跳转 Bug 修复）
 
 **任务标识**：`[PRD-FAMILY-MEMBER-OPTIM-FINAL-FIX 2026-05-31]`
