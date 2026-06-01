@@ -5,7 +5,32 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-01 · 功能开发 / AI 首页标准版·关怀版「顶栏统一 + ⊕菜单合并8项 + 欢迎区模式切换胶囊」· H5 + 小程序两端）
+## 最近一次变更（2026-06-01 · 功能开发 / 健康档案-血压详情页优化 v2「AI 解读本次按钮移至顶部卡片下方 + 全部历史列表支持改删」· H5 一端落地，小程序 web-view 自动继承）
+
+**任务标识**：`[PRD-BP-DETAIL-OPTIMIZE-V2 2026-06-01]`
+
+**需求（PRD v1.0）**：健康档案→血压详情页两处体验优化（端：小程序 + H5；小程序血压详情页 = web-view 加载 H5 `/health-metric/blood_pressure`，故仅改 H5 两端即一致；后端 0 改动）：
+1. **AI 解读按钮重新布局**：「AI 解读本次血压」按钮从趋势图区移到顶部「最新一次血压记录」主卡片正下方；趋势图区只保留「AI 解读趋势」按钮，两按钮拆开各司其职。
+2. **「全部」历史列表支持修改/删除**：完整历史列表（`/health-metric/[type]/history`）每条手工录入记录后补「…」三点入口 → 底部操作面板（修改/删除），复用与详情页那 5 条一致的编辑弹窗 + 删除二次确认；删除后列表自动刷新（重新拉第 1 页）。设备同步记录仍只读。
+
+**改动文件（仅 2 个 H5 前端 + 1 个测试，后端零改动）**：
+- `h5-web/src/app/health-metric/[type]/page.tsx`（`BpDetailPage`）：在 `bp-status-card` 主卡片下方、`bp-action-row` 之前新增 `data-testid="bp-ai-single"`「AI 解读本次血压」按钮；删除原趋势图后面的同名按钮，趋势图区仅留 `bp-ai-trend`。`bp-ai-single`/`bp-ai-trend` 各仅 1 个，趋势图卡片 `bp-trend-card` 夹在两按钮之间。
+- `h5-web/src/app/health-metric/[type]/history/page.tsx`（四指标通用全部历史页）：移除旧「左滑删除」（删 `swipedRowId`、`metric-row-delete-*`），改为每条手工记录后 `metric-row-more-{id}`「…」入口 → `metric-history-action-sheet`（修改 `metric-history-action-edit` / 删除 `metric-history-action-delete`）；新增 `metric-history-edit-popup` 编辑弹窗（按 `EDIT_META_BY_TYPE` 渲染字段，血压含 systolic/diastolic + 时段，单值指标传数值；`metric-history-edit-save` 走 `PUT /api/health-profile-v3/{profileId}/metric/{type}/{id}`）；删除复用 `metric-delete-confirm` 二次确认，`handleDelete` 成功后 `fetchPage(1, true)` 自动刷新。新增 `Input` 导入。
+- `backend/tests/test_bp_detail_optimize_v2_20260601.py`（新增 17 用例）：前端源码静态断言（AI 按钮位置顺序、三点入口、操作面板、编辑弹窗、删除刷新、小程序 web-view）+ 后端 PUT/DELETE 回归（血压改删走既有接口、删除后总数实时减少、404）。本地 + 服务器容器内 pytest 均 17/17 通过。
+
+**接口复用**：`PUT /api/health-profile-v3/{profileId}/metric/blood_pressure/{id}`、`DELETE` 同路径、`GET /api/health-metric-v1/{profileId}/{type}/history`，无新增后端代码。
+
+**部署验证**：本机 paramiko SFTP 直传 2 个 H5 文件 + 测试文件（git push 已到 `origin/master` commit `d9d1f688`，但服务器 git fetch 因 TLS 网络问题失败，故走 SFTP 兜底）→ `docker compose -f docker-compose.prod.yml build --no-cache h5-web && up -d h5-web`（h5 容器实际由 prod compose 管理）；gateway-nginx reload。外部 HTTPS：`/health-metric/blood_pressure/`、`/health-metric/blood_pressure/history/`、`/health-profile/` 均 200；详情页 HTML 命中 `bp-status-card/bp-ai-single/bp-ai-trend/bp-trend-card` 各 1；历史页新标记（`metric-history-action-sheet/metric-row-more/metric-history-edit-popup/metric-history-edit-save`）命中编译产物 chunk。后端零改动，仅 docker cp 测试 + H5 源文件进 backend 容器 `pip install pytest pytest-asyncio aiosqlite` 后 pytest 17/17。
+
+**变更端清单**：仅 H5（Docker 容器部署，已重建上线）。小程序血压详情页为 web-view 加载同一 H5 页，源码未改，自动继承；安卓/iOS/exe 等未涉及，无新增客户端包。
+
+**用户手册**：`user_docs/血压详情页优化.md`
+
+**唯一变更标记**：`[PRD-BP-DETAIL-OPTIMIZE-V2 2026-06-01]`
+
+---
+
+## 历史变更（2026-06-01 · 功能开发 / AI 首页标准版·关怀版「顶栏统一 + ⊕菜单合并8项 + 欢迎区模式切换胶囊」· H5 + 小程序两端）
 
 **任务标识**：`[PRD-AIHOME-UNIFY-V1 2026-06-01]`
 
