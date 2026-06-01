@@ -9,7 +9,8 @@ TC-FMV2 覆盖：
 - TC-FMV2-06: 重新邀请：旧 pending → cancelled + 新增 pending
 - TC-FMV2-07: 解除守护：S1 → S6，management.status=removed
 - TC-FMV2-08: 配额接口：含本人=不计入，与已建档案数对齐
-- TC-FMV2-09: 删除频次限制：5 次/日 → 第 6 次 RATE_LIMIT_EXCEEDED
+- TC-FMV2-09: [BUGFIX-DELETE-RATELIMIT-V1] 删除频次上限放宽到 50 次/日，仅成功才计数
+- TC-FMV2-09b: [BUGFIX-DELETE-RATELIMIT-V1] 删除失败（被其他规则拦住）不计入额度
 - TC-FMV2-10: 删除别人档案 → PERMISSION_DENIED
 - TC-FMV2-11: 删除不存在 → NOT_FOUND
 - TC-FMV2-12: 本人档案不可删
@@ -327,25 +328,83 @@ async def test_tc_fmv2_08_quota_endpoint(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_tc_fmv2_09_delete_rate_limit(client: AsyncClient):
-    """删除频次限制：5 次/日 → 第 6 次 RATE_LIMIT_EXCEEDED"""
+    """[BUGFIX-DELETE-RATELIMIT-V1] 删除频次上限放宽到 50 次/日，第 51 次才拦截。
+    用直接灌额度的方式逼近上限，避免真删 50 个档案。"""
+    from app.api.family_member_v2 import (
+        DELETE_RATE_LIMIT_PER_DAY,
+        _record_delete_success,
+        reset_delete_rate_limit_for_test,
+    )
+
+    assert DELETE_RATE_LIMIT_PER_DAY == 50
+
     pa = f"+8613{uuid.uuid4().hex[:8]}"
     uid = await _make_user(pa, "A")
     h = await _headers(client, pa)
+    reset_delete_rate_limit_for_test(None)
 
-    # 创建 6 个档案
-    ids = []
-    for i in range(6):
-        ids.append(await _create_member(uid, f"X{i}", "父亲"))
+    # 先成功删 1 个，确认成功才计数
+    mid0 = await _create_member(uid, "X0", "父亲")
+    r = await client.delete(f"/api/family/member/{mid0}", headers=h)
+    assert r.status_code == 200, r.text
 
-    # 前 5 次应成功
-    for i in range(5):
-        r = await client.delete(f"/api/family/member/{ids[i]}", headers=h)
-        assert r.status_code == 200, f"第{i+1}次删除应成功，实际: {r.text}"
+    # 把额度灌到 50（含刚才那 1 次）
+    for _ in range(50 - 1):
+        _record_delete_success(uid)
 
-    # 第 6 次应被频次拦截
-    r = await client.delete(f"/api/family/member/{ids[5]}", headers=h)
+    # 已达 50，第 51 次删除应被拦截
+    mid_last = await _create_member(uid, "X-last", "父亲")
+    r = await client.delete(f"/api/family/member/{mid_last}", headers=h)
     assert r.status_code == 429, r.text
     assert r.json()["detail"]["reason_code"] == "RATE_LIMIT_EXCEEDED"
+
+
+@pytest.mark.asyncio
+async def test_tc_fmv2_09b_failed_delete_not_counted(client: AsyncClient):
+    """[BUGFIX-DELETE-RATELIMIT-V1] 删除失败（被其他规则拦住）不计入额度：
+    反复尝试删一个 S1 已绑定成员（会被拦），额度始终为 0，
+    之后删一个可删的孤儿档案仍能成功。"""
+    from app.api.family_member_v2 import (
+        _peek_delete_rate_limit,
+        _DELETE_RATE_BUCKET,
+        reset_delete_rate_limit_for_test,
+    )
+
+    pa = f"+8613{uuid.uuid4().hex[:8]}"
+    pb = f"+8613{uuid.uuid4().hex[:8]}"
+    uid = await _make_user(pa, "A")
+    uid_b = await _make_user(pb, "B")
+    h = await _headers(client, pa)
+    reset_delete_rate_limit_for_test(None)
+
+    # 建一个 S1 已绑定成员（删除会被 HAS_ACTIVE_GUARDIANSHIP 拦）
+    async with test_session() as s:
+        m = FamilyMember(user_id=uid, nickname="绑定家人", relationship_type="父亲",
+                         is_self=False, member_user_id=uid_b, status="active")
+        s.add(m)
+        await s.flush()
+        mgmt = FamilyManagement(
+            manager_user_id=uid, managed_user_id=uid_b, managed_member_id=m.id,
+            status="active", is_primary_guardian=True,
+        )
+        s.add(mgmt)
+        await s.flush()
+        bound_mid = m.id
+        await s.commit()
+
+    # 连点 10 次删除，全部被拦（400），不应计入额度
+    for _ in range(10):
+        r = await client.delete(f"/api/family/member/{bound_mid}", headers=h)
+        assert r.status_code == 400, r.text
+
+    # 额度桶应仍为空
+    assert len(_DELETE_RATE_BUCKET.get(str(uid), [])) == 0
+    assert _peek_delete_rate_limit(uid) is True
+
+    # 删一个可删孤儿档案，仍应成功
+    orphan = await _create_member(uid, "孤儿", "父亲")
+    r = await client.delete(f"/api/family/member/{orphan}", headers=h)
+    assert r.status_code == 200, r.text
 
 
 # ─── 权限 ───

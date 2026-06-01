@@ -389,25 +389,45 @@ async def test_tc_list_ai_consultant_excludes_pending(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_tc_rate_01_invite_5_per_day(client: AsyncClient):
-    """TC-RATE-01：同一用户当天发起第 6 次邀请 → 429"""
+async def test_tc_rate_01_invite_50_per_day(client: AsyncClient):
+    """[BUGFIX-DELETE-RATELIMIT-V1] TC-RATE-01：邀请上限放宽到 50 次/天，
+    第 51 次才拦截；且仅成功才计数。"""
+    from app.api.guardian_bugfix_v1 import (
+        RATE_LIMIT_PER_DAY,
+        peek_rate_limit_used,
+        reset_rate_limit_for_test,
+    )
+
+    assert RATE_LIMIT_PER_DAY == 50
+
     pa = f"+8613{uuid.uuid4().hex[:8]}"
     await _make_user(pa, "A")
     h = await _headers(client, pa)
+    reset_rate_limit_for_test(None)
 
-    # 前 5 次成功
-    for i in range(5):
-        res = await client.post(
-            "/api/family/invitation",
-            json={"relation_type": "朋友", "nickname": f"邀请{i}"},
-            headers=h,
-        )
-        assert res.status_code == 200, f"第 {i+1} 次应成功，实际 {res.status_code}: {res.text}"
-
-    # 第 6 次拦截
+    # 第 1 次成功，应记 1 次额度
     res = await client.post(
         "/api/family/invitation",
-        json={"relation_type": "朋友", "nickname": "第六次"},
+        json={"relation_type": "朋友", "nickname": "邀请0"},
+        headers=h,
+    )
+    assert res.status_code == 200, res.text
+
+    # 拿到当前用户 id，直接把额度填到 50（避免真发 50 次）
+    async with test_session() as s:
+        a = (await s.execute(select(User).where(User.phone == pa))).scalar_one()
+        uid = a.id
+    used_after_first = peek_rate_limit_used("invite_create", uid)
+    assert used_after_first == 1, f"第一次成功后应记 1 次，实际 {used_after_first}"
+
+    from app.api.guardian_bugfix_v1 import incr_rate_limit
+    for _ in range(50 - used_after_first):
+        incr_rate_limit("invite_create", uid)
+
+    # 已达 50，第 51 次应被拦截
+    res = await client.post(
+        "/api/family/invitation",
+        json={"relation_type": "朋友", "nickname": "第51次"},
         headers=h,
     )
     assert res.status_code == 429, res.text
@@ -415,26 +435,21 @@ async def test_tc_rate_01_invite_5_per_day(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_tc_rate_delete_5_per_day(client: AsyncClient):
-    """TC-RATE：删除接口 5 次/天频次防护"""
+async def test_tc_rate_delete_no_double_block_v13(client: AsyncClient):
+    """[BUGFIX-DELETE-RATELIMIT-V1] guardian/v13 真删除接口不再做删除频次拦截，
+    连续删除多个档案均成功（限流已统一收口到 family_member_v2）。"""
     pa = f"+8613{uuid.uuid4().hex[:8]}"
     await _make_user(pa, "A")
     h = await _headers(client, pa)
 
-    # 创建 6 个可删除的孤儿档案
     mids = []
-    for i in range(6):
+    for i in range(8):
         mid = await _make_family_member(pa, f"孤儿{i}", with_managed_user=False)
         mids.append(mid)
 
-    # 前 5 次删除应都成功
-    for i in range(5):
+    for i in range(8):
         res = await client.delete(f"/api/guardian/v13/family/member/{mids[i]}", headers=h)
         assert res.status_code == 200, f"第 {i+1} 次应成功，实际 {res.status_code}: {res.text}"
-
-    # 第 6 次被频次防护拦截
-    res = await client.delete(f"/api/guardian/v13/family/member/{mids[5]}", headers=h)
-    assert res.status_code == 429, res.text
 
 
 # ─────────── 补充：删除预览接口 ───────────

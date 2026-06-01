@@ -88,9 +88,10 @@ async def create_invitation(
     - 情况 2：不传 member_id（从"+ 新增"入口"去邀请"），邀请阶段不创建 Tab，
       只保存邀请记录 + relation_type，对方接受时再建 FamilyMember + HealthProfile。
     """
-    # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 频次防护：5 次/UID/自然日
+    # [BUGFIX-DELETE-RATELIMIT-V1 2026-06-01] 频次防护：50 次/UID/自然日，仅成功才计数。
+    # 此处只「查不记账」，真正记一次推迟到邀请创建成功后（见函数末尾 incr_rate_limit）。
     try:
-        from app.api.guardian_bugfix_v1 import check_and_incr_rate_limit as _rate_check
+        from app.api.guardian_bugfix_v1 import check_rate_limit_only as _rate_check
         _rate_check("invite_create", current_user.id)
     except HTTPException:
         raise
@@ -199,6 +200,13 @@ async def create_invitation(
         pass
     db.add(invitation)
     await db.flush()
+
+    # [BUGFIX-DELETE-RATELIMIT-V1 2026-06-01] 仅在邀请创建成功后才记一次额度
+    try:
+        from app.api.guardian_bugfix_v1 import incr_rate_limit as _rate_incr
+        _rate_incr("invite_create", current_user.id)
+    except Exception:
+        pass
 
     qr_url = f"/api/family/invitation/{invite_code}"
     qr_content_url = f"https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/family-auth?code={invite_code}"

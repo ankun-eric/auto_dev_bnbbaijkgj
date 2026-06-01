@@ -24,7 +24,7 @@ reason_code 字典：
 | `HAS_PENDING_INVITATION` | 处于 S3 邀请中 |
 | `HAS_BOUND_DEVICE` | 名下有绑定设备 |
 | `HAS_ACTIVE_MEDICATION` | 有在途服药计划 |
-| `RATE_LIMIT_EXCEEDED` | 当日删除超 5 次 |
+| `RATE_LIMIT_EXCEEDED` | 当日删除成功次数超 50 次 |
 | `NOT_FOUND` | 档案不存在或已删 |
 | `PERMISSION_DENIED` | 非档案所属用户 |
 """
@@ -89,8 +89,10 @@ QUOTA_OCCUPYING_STATES = {
 # 不允许直接删除的状态
 NON_DELETABLE_STATES = {STATE_S0_SELF, STATE_S1_BOUND, STATE_S3_INVITING}
 
-# 删除频次限制：5 次/UID/自然日
-DELETE_RATE_LIMIT_PER_DAY = 5
+# [BUGFIX-DELETE-RATELIMIT-V1 2026-06-01] 删除频次限制：50 次/UID/自然日。
+# 修复点：① 上限 5→50（正常用户碰不到）；② 计数时机从「点一下就记账」改为
+# 「真正删除成功后才记一次」，避免反复尝试 / 被其他规则拦截却被扣额度的误伤。
+DELETE_RATE_LIMIT_PER_DAY = 50
 _DELETE_RATE_BUCKET: dict[str, list[datetime]] = {}
 
 # 邀请有效期：24 小时
@@ -306,20 +308,37 @@ async def _has_active_medication(db: AsyncSession, member_id: int, member_user_i
     return False
 
 
-def _check_delete_rate_limit(user_id: int) -> bool:
-    """5 次/UID/自然日。返回 True 表示通过；False 表示超限。"""
+def _peek_delete_rate_limit(user_id: int) -> bool:
+    """[BUGFIX-DELETE-RATELIMIT-V1 2026-06-01] 只查不记账。
+    返回 True 表示当日额度未满（可继续删除）；False 表示已达上限。
+    每日 0 点按自然日自动清零（清理早于今日 0 点的记录）。
+    """
     now = datetime.utcnow()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     key = str(user_id)
-    bucket = _DELETE_RATE_BUCKET.get(key, [])
-    # 清理过期
-    bucket = [t for t in bucket if t >= today_start]
-    if len(bucket) >= DELETE_RATE_LIMIT_PER_DAY:
-        _DELETE_RATE_BUCKET[key] = bucket
-        return False
+    bucket = [t for t in _DELETE_RATE_BUCKET.get(key, []) if t >= today_start]
+    _DELETE_RATE_BUCKET[key] = bucket
+    return len(bucket) < DELETE_RATE_LIMIT_PER_DAY
+
+
+def _record_delete_success(user_id: int) -> None:
+    """[BUGFIX-DELETE-RATELIMIT-V1 2026-06-01] 删除成功后才记一次账。
+    仅在真正完成删除时调用，确保「点了取消 / 被其他规则拦住没删成」都不计入额度。
+    """
+    now = datetime.utcnow()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    key = str(user_id)
+    bucket = [t for t in _DELETE_RATE_BUCKET.get(key, []) if t >= today_start]
     bucket.append(now)
     _DELETE_RATE_BUCKET[key] = bucket
-    return True
+
+
+def reset_delete_rate_limit_for_test(user_id: int | None = None) -> None:
+    """仅供测试使用：清空指定用户（或全部）的删除频次计数器。"""
+    if user_id is None:
+        _DELETE_RATE_BUCKET.clear()
+    else:
+        _DELETE_RATE_BUCKET.pop(str(user_id), None)
 
 
 async def _resolve_member_state(
@@ -627,19 +646,21 @@ async def delete_member_unified(
     3) S3 邀请中 → HAS_PENDING_INVITATION
     4) 名下有绑定设备 → HAS_BOUND_DEVICE
     5) 有在途服药计划 → HAS_ACTIVE_MEDICATION
-    6) 频次：5 次/UID/日 → RATE_LIMIT_EXCEEDED
+    6) 频次：50 次/UID/日，仅成功才计数 → RATE_LIMIT_EXCEEDED
     7) NOT_FOUND / PERMISSION_DENIED 标准
     """
     payload = payload or DeleteRequest()
     now = datetime.utcnow()
 
-    # 频次校验
-    if not payload.force and not _check_delete_rate_limit(current_user.id):
+    # [BUGFIX-DELETE-RATELIMIT-V1 2026-06-01] 频次校验：此处只「查不记账」，
+    # 真正记一次额度推迟到删除成功后（见函数末尾 _record_delete_success），
+    # 避免反复尝试 / 被其他规则拦截却被悄悄扣光额度。上限已放宽到 50 次/天。
+    if not payload.force and not _peek_delete_rate_limit(current_user.id):
         raise HTTPException(
             status_code=429,
             detail={
                 "reason_code": "RATE_LIMIT_EXCEEDED",
-                "message": "操作频繁，请明日再试",
+                "message": "今日删除次数已达上限，请明日再试",
                 "block_field": "rate_limit",
             },
         )
@@ -782,6 +803,10 @@ async def delete_member_unified(
             deleted_tables.append("family_management")
 
     await db.flush()
+
+    # [BUGFIX-DELETE-RATELIMIT-V1 2026-06-01] 仅在真正删除成功后才记一次额度。
+    if not payload.force:
+        _record_delete_success(current_user.id)
 
     return {
         "success": True,
