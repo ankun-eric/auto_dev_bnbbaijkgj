@@ -126,12 +126,16 @@
       >
         <view class="metric-top">
           <text class="metric-label">{{item.icon}} {{item.label}}</text>
-          <text class="metric-tag" wx:if="{{item.abnormal}}">异常</text>
+          <!-- [PRD-HR-ALIGN-BP-V1 2026-06-01] 三档胶囊（正常蓝 / 偏慢偏快橙）；无胶囊时回退「异常」标签 -->
+          <text class="metric-capsule" wx:if="{{item.capLabel}}" style="background: {{item.capBg}}; color: {{item.capColor}};">{{item.capLabel}}</text>
+          <text class="metric-tag" wx:elif="{{item.abnormal}}">异常</text>
         </view>
         <view class="metric-value-row">
           <text class="metric-value">{{item.value}}</text>
           <text class="metric-unit">{{item.unit}}</text>
         </view>
+        <!-- 底部「时间 · 来源」行（无数据时隐藏，与血压一致） -->
+        <view class="metric-time-source" wx:if="{{item.timeSource}}">{{item.timeSource}}</view>
       </view>
       <view
         class="metric-card {{medCell.has_overdue ? 'metric-card-abnormal' : ''}}"

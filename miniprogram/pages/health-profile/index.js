@@ -22,6 +22,55 @@ const TAB_LIST = [
 
 const BLOOD_TYPES = ['A', 'B', 'AB', 'O', '未知'];
 
+// [PRD-HR-ALIGN-BP-V1 2026-06-01] 小程序小卡片胶囊化：与 H5 判定规则保持一致
+//   正常 = 蓝（#3B82F6）；偏慢/偏快/异常 = 橙（#F97316）
+const CAP_BLUE = { bg: '#3B82F6', color: '#FFFFFF' };
+const CAP_ORANGE = { bg: '#F97316', color: '#FFFFFF' };
+
+// 血压：参考详情页 judgeBp 的档位文案（正常/偏高/偏低等）→ 颜色取「正常蓝、其余橙」
+function judgeBpMini(sbp, dbp) {
+  if (sbp == null || dbp == null || isNaN(sbp) || isNaN(dbp)) return null;
+  if (sbp < 90 || dbp < 60) return { label: '偏低', cap: CAP_ORANGE };
+  if (sbp >= 180 || dbp >= 110) return { label: '严重偏高', cap: CAP_ORANGE };
+  if (sbp >= 160 || dbp >= 100) return { label: '中度偏高', cap: CAP_ORANGE };
+  if (sbp >= 140 || dbp >= 90) return { label: '轻度偏高', cap: CAP_ORANGE };
+  if (sbp >= 120 || dbp >= 80) return { label: '正常高值', cap: CAP_ORANGE };
+  return { label: '正常', cap: CAP_BLUE };
+}
+
+// 心率：复用 heart-rate-level 规则（<60 偏慢 / 60–100 正常 / >100 偏快）
+function judgeHrMini(v) {
+  if (v == null || isNaN(v) || v <= 0) return null;
+  if (v < 60) return { label: '偏慢', cap: CAP_ORANGE };
+  if (v <= 100) return { label: '正常', cap: CAP_BLUE };
+  return { label: '偏快', cap: CAP_ORANGE };
+}
+
+// 血糖（随机/未分场景按通用范围）：3.9–7.8 正常蓝，其余橙
+function judgeBgMini(v) {
+  if (v == null || isNaN(v) || v <= 0) return null;
+  if (v < 3.9) return { label: '偏低', cap: CAP_ORANGE };
+  if (v <= 7.8) return { label: '正常', cap: CAP_BLUE };
+  if (v <= 11.1) return { label: '偏高', cap: CAP_ORANGE };
+  return { label: '明显偏高', cap: CAP_ORANGE };
+}
+
+function miniSourceLabel(source) {
+  if (!source) return '手工录入';
+  const s = String(source).trim();
+  if (!s || s === 'manual') return '手工录入';
+  const last = s.split(':').pop() || s;
+  const map = { omron: '欧姆龙血压计', huawei_watch: '华为 Watch', xiaomi_band: '小米手环', bp_meter: '血压计', glucometer: '血糖仪' };
+  return (map[last] || last) + '·自动同步';
+}
+
+function miniTimeSource(measuredAt, source) {
+  let t = '';
+  try { t = formatFriendlyTime(measuredAt) || ''; } catch (e) { t = ''; }
+  const s = miniSourceLabel(source);
+  return t ? (t + ' · ' + s) : s;
+}
+
 function calcAge(birthday) {
   if (!birthday) return null;
   try {
@@ -538,6 +587,25 @@ Page({
       return x[key] != null ? x[key] : '—';
     };
     const bp = tm && tm.blood_pressure;
+    const hr = tm && tm.heart_rate;
+    const bg = tm && tm.blood_glucose;
+
+    // [PRD-HR-ALIGN-BP-V1 2026-06-01] 血压 / 心率 / 血糖 三档胶囊 + 时间·来源行（对齐 H5）
+    const bpSbp = bp && bp.value && bp.value.systolic != null ? Number(bp.value.systolic) : null;
+    const bpDbp = bp && bp.value && bp.value.diastolic != null ? Number(bp.value.diastolic) : null;
+    const bpJ = judgeBpMini(bpSbp, bpDbp);
+    const bpTs = (bp && bp.measured_at && bpSbp != null) ? miniTimeSource(bp.measured_at, bp.source) : '';
+
+    const hrRaw = hr && hr.value && hr.value.value != null ? Number(hr.value.value) : null;
+    const hrVal = (hrRaw != null && !isNaN(hrRaw) && hrRaw > 0) ? hrRaw : null;
+    const hrJ = judgeHrMini(hrVal);
+    const hrTs = (hr && hr.measured_at && hrVal != null) ? miniTimeSource(hr.measured_at, hr.source) : '';
+
+    const bgRaw = bg && bg.value && bg.value.value != null ? Number(bg.value.value) : null;
+    const bgVal = (bgRaw != null && !isNaN(bgRaw) && bgRaw > 0) ? bgRaw : null;
+    const bgJ = judgeBgMini(bgVal);
+    const bgTs = (bg && bg.measured_at && bgVal != null) ? miniTimeSource(bg.measured_at, bg.source) : '';
+
     const cells = [
       {
         id: 'blood_pressure', label: '血压', unit: 'mmHg', icon: '💓',
@@ -545,26 +613,34 @@ Page({
           ? `${bp.value.systolic || '-'}/${bp.value.diastolic || '-'}`
           : '—',
         abnormal: !!(bp && bp.is_abnormal),
+        capLabel: bpJ ? bpJ.label : '', capBg: bpJ ? bpJ.cap.bg : '', capColor: bpJ ? bpJ.cap.color : '',
+        timeSource: bpTs,
       },
       {
         id: 'blood_glucose', label: '血糖', unit: 'mmol/L', icon: '🩸',
-        value: v(tm && tm.blood_glucose, 'value'),
-        abnormal: !!(tm && tm.blood_glucose && tm.blood_glucose.is_abnormal),
+        value: bgVal != null ? bgVal : '—',
+        abnormal: !!(bg && bg.is_abnormal),
+        capLabel: bgJ ? bgJ.label : '', capBg: bgJ ? bgJ.cap.bg : '', capColor: bgJ ? bgJ.cap.color : '',
+        timeSource: bgTs,
       },
       {
         id: 'heart_rate', label: '心率', unit: 'bpm', icon: '❤️',
-        value: v(tm && tm.heart_rate, 'value'),
-        abnormal: !!(tm && tm.heart_rate && tm.heart_rate.is_abnormal),
+        value: hrVal != null ? hrVal : '—',
+        abnormal: !!(hr && hr.is_abnormal),
+        capLabel: hrJ ? hrJ.label : '', capBg: hrJ ? hrJ.cap.bg : '', capColor: hrJ ? hrJ.cap.color : '',
+        timeSource: hrTs,
       },
       {
         id: 'sleep', label: '睡眠', unit: 'h', icon: '🌙',
         value: v(tm && tm.sleep, 'duration_h'),
         abnormal: !!(tm && tm.sleep && tm.sleep.is_abnormal),
+        capLabel: '', capBg: '', capColor: '', timeSource: '',
       },
       {
         id: 'spo2', label: '血氧', unit: '%', icon: '🫁',
         value: v(tm && tm.spo2, 'value'),
         abnormal: !!(tm && tm.spo2 && tm.spo2.is_abnormal),
+        capLabel: '', capBg: '', capColor: '', timeSource: '',
       },
     ];
     const med = (tm && tm.medication) || { checked: 0, total: 0, has_overdue: false };

@@ -26,6 +26,12 @@ export interface HrJudgement {
 }
 
 export interface HrPalette {
+  /** 顶部主卡片背景色（按档位变色，对齐血压精装样式） */
+  cardBg: string;
+  /** 主数值 / 主卡片文字色 */
+  text: string;
+  /** 主卡片描边色 */
+  border: string;
   /** 胶囊背景色 */
   capsuleBg: string;
   /** 胶囊文字色 */
@@ -34,10 +40,16 @@ export interface HrPalette {
 
 const PALETTES: Record<HrColor, HrPalette> = {
   blue: {
+    cardBg: '#E8F2FF',
+    text: '#1B4DA0',
+    border: '#BFDBFE',
     capsuleBg: '#3B82F6',
     capsuleText: '#FFFFFF',
   },
   orange: {
+    cardBg: '#FFE2C7',
+    text: '#8A3A00',
+    border: '#FDBA74',
     capsuleBg: '#F97316',
     capsuleText: '#FFFFFF',
   },

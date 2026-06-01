@@ -32,7 +32,7 @@ import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { formatDateTime, parseServerTime, formatFriendlyTime } from '@/lib/datetime';
 import { judgeBp, getBpPalette, type BpJudgement } from '@/lib/bp-level';
-import { judgeHeartRate, getHrPalette, HR_NORMAL_RANGE_TEXT } from '@/lib/heart-rate-level';
+import { judgeHeartRate, getHrPalette, HR_NORMAL_RANGE_TEXT, type HrJudgement } from '@/lib/heart-rate-level';
 import {
   judgeBg, getBgPalette, normalizeScene, BG_SCENE_LABEL, BG_TARGET_RANGE,
   BG_SCENE_CODE, BG_SCENE_OPTIONS, formatBgSourceCapsule, sceneKeyToCode,
@@ -403,6 +403,19 @@ export default function HealthMetricDetailPage() {
         latest={latest}
         profileId={profileId}
         devices={devices}
+        refresh={fetchHistory}
+      />
+    );
+  }
+
+  // [PRD-HR-ALIGN-BP-V1 2026-06-01] 心率 Tab 走专属精装布局（全面对齐血压详情页）
+  if (metricType === 'heart_rate') {
+    return (
+      <HeartRatePage
+        history={history}
+        latest={latest}
+        profileId={profileId}
+        meta={meta}
         refresh={fetchHistory}
       />
     );
@@ -3013,6 +3026,769 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
         )}
       </Popup>
     </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// [PRD-HR-ALIGN-BP-V1 2026-06-01] 心率详情页（全面对齐血压精装样式）
+//   - 浅蓝灰底 + 蓝色系主题
+//   - 大号居中数值 + 居中彩色胶囊 + 底卡按档位变色（正常蓝 / 偏慢偏快橙）
+//   - 双 AI 按钮：解读本次 / 解读趋势（复用通用指标 AI 接口）
+//   - 趋势图：日/周切换 + 点击数据点弹窗 + 正常参考线（60 / 100）
+//   - 历史记录：每条可编辑 / 可删除，带档位配色
+// ════════════════════════════════════════════════════════════════════════
+
+interface HeartRatePageProps {
+  history: MetricHistoryResponse | null;
+  latest: MetricRecord | undefined;
+  profileId: number;
+  meta: (typeof META)['heart_rate'];
+  refresh: () => Promise<void>;
+}
+
+type HrTrendRange = 'day' | 'week';
+const HR_RANGE_OPTS: { key: HrTrendRange; label: string }[] = [
+  { key: 'day', label: '日' },
+  { key: 'week', label: '周' },
+];
+
+interface HrPointDetail {
+  measured_at: string;
+  value: number | null;
+  label: string;
+  source: string;
+  activity?: string | null;
+}
+
+function hrValueOf(r: MetricRecord | undefined | null): number | null {
+  if (!r) return null;
+  const raw = r.value?.value != null ? Number(r.value.value) : null;
+  return raw != null && !Number.isNaN(raw) && raw > 0 ? raw : null;
+}
+
+function HeartRatePage(props: HeartRatePageProps) {
+  const { history, latest, meta, refresh } = props;
+  const router = useRouter();
+
+  // 录入弹窗
+  const [popupVisible, setPopupVisible] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const [inputActivity, setInputActivity] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // 历史「...」操作面板 + 编辑 + 删除
+  const [actionRecord, setActionRecord] = useState<MetricRecord | null>(null);
+  const [editRecord, setEditRecord] = useState<MetricRecord | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [editActivity, setEditActivity] = useState('');
+  const [deletingRecord, setDeletingRecord] = useState<MetricRecord | null>(null);
+
+  // 趋势图
+  const [range, setRange] = useState<HrTrendRange>('week');
+  const [pointPopup, setPointPopup] = useState<HrPointDetail | null>(null);
+
+  // AI 解读抽屉与缓存（复用血压/血糖框架，调用通用指标 AI 接口）
+  const [aiDrawer, setAiDrawer] = useState<{ mode: 'single' | 'trend'; loading: boolean; text: string } | null>(null);
+  const aiCacheRef = (typeof window !== 'undefined') ? ((window as any).__hrAiCache ||= new Map<string, { ts: number; text: string }>()) : new Map();
+
+  const hrValue = hrValueOf(latest);
+  const judgement: HrJudgement | null = useMemo(() => judgeHeartRate(hrValue), [hrValue]);
+  // 无数据态默认走「正常蓝」色板
+  const palette = getHrPalette(judgement?.color ?? 'blue');
+
+  const records: MetricRecord[] = history?.records || [];
+
+  const syncText = useMemo(() => {
+    if (!latest || hrValue == null) return '尚无心率记录 · 请录入或绑定设备';
+    return formatBpTimeSource(latest.measured_at, latest.source);
+  }, [latest, hrValue]);
+
+  const handleSave = useCallback(async () => {
+    if (!props.profileId) {
+      showToast('profileId 缺失', 'fail');
+      return;
+    }
+    const v = Number(inputValue);
+    if (!inputValue || Number.isNaN(v)) {
+      showToast('请输入有效的心率', 'fail');
+      return;
+    }
+    if (v < 20 || v > 300) {
+      showToast('心率应在 20–300 之间', 'fail');
+      return;
+    }
+    setSaving(true);
+    try {
+      const value: Record<string, any> = { value: v };
+      if (inputActivity) value.activity = inputActivity;
+      await api.post(`/api/health-profile-v3/${props.profileId}/metric/heart_rate`, {
+        value, source: 'manual',
+      });
+      showToast('已保存', 'success');
+      setPopupVisible(false);
+      setInputValue('');
+      setInputActivity('');
+      await refresh();
+    } catch {
+      showToast('保存失败，请重试', 'fail');
+    } finally {
+      setSaving(false);
+    }
+  }, [inputValue, inputActivity, props.profileId, refresh]);
+
+  const handleEditSave = useCallback(async () => {
+    if (!editRecord || !props.profileId) return;
+    const v = Number(editValue);
+    if (!editValue || Number.isNaN(v) || v < 20 || v > 300) {
+      showToast('心率应在 20–300 之间', 'fail');
+      return;
+    }
+    try {
+      await api.put(`/api/health-profile-v3/${props.profileId}/metric/heart_rate/${editRecord.id}`, {
+        value: { value: v, activity: editActivity || undefined },
+        measured_at: editRecord.measured_at,
+      });
+      showToast('已更新', 'success');
+      setEditRecord(null);
+      await refresh();
+    } catch {
+      showToast('更新失败', 'fail');
+    }
+  }, [editRecord, editValue, editActivity, props.profileId, refresh]);
+
+  const handleDelete = useCallback(async (record: MetricRecord) => {
+    if (!props.profileId) return;
+    try {
+      await api.delete(`/api/health-profile-v3/${props.profileId}/metric/heart_rate/${record.id}`);
+      showToast('已删除', 'success');
+      setDeletingRecord(null);
+      await refresh();
+    } catch {
+      showToast('删除失败', 'fail');
+    }
+  }, [props.profileId, refresh]);
+
+  const handleBindDeviceClick = useCallback(() => {
+    showToast('即将上线', 'success');
+    try {
+      if (typeof navigator !== 'undefined' && (navigator as any).sendBeacon) {
+        const payload = JSON.stringify({
+          type: 'event', name: 'health_archive.hr.bind_device.click', ts: Date.now(),
+          url: typeof window !== 'undefined' ? window.location.pathname : '',
+        });
+        const blob = new Blob([payload], { type: 'application/json' });
+        const basePath = (process.env.NEXT_PUBLIC_BASE_PATH || '').replace(/\/+$/, '');
+        (navigator as any).sendBeacon(`${basePath}/api/_frontend_log`, blob);
+      }
+    } catch { /* 埋点失败不影响主流程 */ }
+  }, []);
+
+  // [PRD-HR-ALIGN-BP-V1 §4.2] AI 解读 — 复用血压话术框架，替换为心率指标参数
+  const requestAi = useCallback(async (mode: 'single' | 'trend') => {
+    if (mode === 'single' && !latest?.id) {
+      showToast('暂无心率记录，请先录入一次再点击解读。', 'success');
+      return;
+    }
+    const cacheKey = mode === 'single' ? `single:${latest?.id ?? 0}` : `trend:${range}`;
+    const cached = aiCacheRef.get(cacheKey);
+    if (cached && Date.now() - cached.ts < 5 * 60 * 1000) {
+      setAiDrawer({ mode, loading: false, text: cached.text });
+      return;
+    }
+    setAiDrawer({ mode, loading: true, text: '' });
+    try {
+      let text = '';
+      if (mode === 'single') {
+        try {
+          const r: any = await api.post(
+            `/api/health-metric-v1/${props.profileId}/heart_rate/ai-explain-single`,
+            { record_id: Number(latest!.id) }
+          );
+          const d = r?.data?.data ?? r?.data ?? r;
+          text = d?.content || '';
+          if (!text) throw new Error('empty');
+        } catch {
+          const vStr = hrValue != null ? hrValue : '-';
+          const j = judgement;
+          if (!j) {
+            text = '暂无可解读的心率数据。';
+          } else if (j.level === 'normal') {
+            text = `本次心率 ${vStr} bpm，处于正常范围（60–100 次/分）。建议保持规律作息、适量运动，继续按当前节奏监测。`;
+          } else if (j.level === 'slow') {
+            text = `本次心率 ${vStr} bpm，偏慢（低于 60 次/分）。若为长期规律运动者多属正常；若伴有头晕、乏力、胸闷，建议尽快就医评估心脏功能。`;
+          } else {
+            text = `本次心率 ${vStr} bpm，偏快（高于 100 次/分）。建议先静坐休息几分钟后复测，避免咖啡因与剧烈活动；若持续偏快或伴心慌、胸闷，请及时就医。`;
+          }
+        }
+      } else {
+        const rangeKey: '7d' | '30d' = range === 'week' ? '7d' : '7d';
+        try {
+          const r: any = await api.post(
+            `/api/health-metric-v1/${props.profileId}/heart_rate/ai-explain-trend`,
+            { range: rangeKey }
+          );
+          const d = r?.data?.data ?? r?.data ?? r;
+          const lines: string[] = [];
+          if (d?.summary) lines.push(d.summary);
+          if (d?.trend) lines.push('', d.trend);
+          if (d?.advice) lines.push('', '建议：', d.advice);
+          text = lines.join('\n');
+          if (!text.trim()) throw new Error('empty');
+        } catch {
+          text = '基于近期心率数据，建议保持规律作息与适量有氧运动，固定时段（如晨起静息）测量并记录；如静息心率长期偏快或偏慢，请就医评估。';
+        }
+      }
+      aiCacheRef.set(cacheKey, { ts: Date.now(), text });
+      setAiDrawer({ mode, loading: false, text });
+    } catch {
+      setAiDrawer({ mode, loading: false, text: '解读失败，请稍后重试。' });
+    }
+  }, [latest, range, aiCacheRef, props.profileId, judgement, hrValue]);
+
+  // 趋势数据：日视图按小时散点，周视图按距今天数；空状态判定
+  const trendPoints = useMemo(() => {
+    const pts: { x: number; y: number; raw: MetricRecord }[] = [];
+    const now = new Date();
+    const todayBj = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const cutoffDays = range === 'week' ? 7 : 1;
+    records.forEach(r => {
+      const v = hrValueOf(r);
+      if (v == null) return;
+      const d = parseServerTime(r.measured_at);
+      if (!d) return;
+      const dBj = new Date(d.getTime() + 8 * 60 * 60 * 1000);
+      const diffMs = todayBj.getTime() - dBj.getTime();
+      if (range === 'day') {
+        if (todayBj.getUTCFullYear() !== dBj.getUTCFullYear()
+          || todayBj.getUTCMonth() !== dBj.getUTCMonth()
+          || todayBj.getUTCDate() !== dBj.getUTCDate()) return;
+        pts.push({ x: dBj.getUTCHours() + dBj.getUTCMinutes() / 60, y: v, raw: r });
+      } else {
+        if (diffMs < 0 || diffMs > cutoffDays * 24 * 3600 * 1000) return;
+        pts.push({ x: cutoffDays - 1 - Math.floor(diffMs / (24 * 3600 * 1000)), y: v, raw: r });
+      }
+    });
+    return pts;
+  }, [records, range]);
+
+  const isEmptyForRange = trendPoints.length === 0;
+
+  return (
+    <div data-testid="hr-tab-page" style={{ background: '#F4F7FB', minHeight: '100vh', paddingBottom: 24 }}>
+      <GreenNavBar>心率详情</GreenNavBar>
+
+      {/* 顶部主卡片：大号居中数值 + 时间·来源 + 居中彩色胶囊（底卡按档位变色） */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <div
+          data-testid="hr-status-card"
+          data-hr-color={judgement?.color ?? 'blue'}
+          data-hr-level={judgement?.level ?? 'unknown'}
+          style={{
+            background: palette.cardBg,
+            border: `1px solid ${palette.border}`,
+            borderRadius: 18,
+            padding: '20px 18px 18px',
+            position: 'relative',
+          }}
+        >
+          <div style={{ textAlign: 'center', paddingTop: 4 }}>
+            <span
+              data-testid="hr-main-value"
+              style={{ fontSize: 58, fontWeight: 800, color: palette.text, letterSpacing: 1, lineHeight: 1.0 }}
+            >
+              {hrValue != null ? hrValue : '—'}
+            </span>
+            <span style={{ fontSize: 16, fontWeight: 600, color: palette.text, marginLeft: 8, opacity: 0.7 }}>
+              bpm
+            </span>
+          </div>
+
+          <div style={{ marginTop: 14, textAlign: 'center' }}>
+            <span data-testid="hr-sync-text" style={{ fontSize: 13, color: palette.text, opacity: 0.85 }}>
+              {syncText}
+            </span>
+          </div>
+
+          {judgement && (
+            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center' }}>
+              <span
+                data-testid="hr-capsule"
+                style={{
+                  display: 'inline-flex', alignItems: 'center',
+                  padding: '6px 16px', borderRadius: 999,
+                  background: palette.capsuleBg, color: palette.capsuleText,
+                  fontSize: 13, fontWeight: 700,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                }}
+              >
+                <span>{judgement.label}</span>
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* AI 解读本次心率：顶部主卡片正下方（对齐血压 v2 布局） */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <button
+          data-testid="hr-ai-single"
+          onClick={() => requestAi('single')}
+          style={{
+            width: '100%', height: 44, borderRadius: 12,
+            background: 'linear-gradient(135deg, #38BDF8 0%, #0EA5E9 100%)', color: '#fff',
+            border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(14,165,233,0.24)',
+          }}
+        >🤖 AI 解读本次心率</button>
+      </div>
+
+      {/* 主卡片 ↔ 趋势图之间：并排大按钮（手工录入实心 + 绑定设备描边） */}
+      <div data-testid="hr-action-row" style={{ padding: '12px 16px 0', display: 'flex', gap: 10 }}>
+        <button
+          data-testid="hr-action-manual"
+          onClick={() => setPopupVisible(true)}
+          style={{
+            flex: 1, height: 44, borderRadius: 12, border: 'none',
+            background: '#0EA5E9', color: '#fff',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            fontSize: 15, fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(14,165,233,0.24)',
+          }}
+        >
+          <PencilIcon size={16} color="#fff" />
+          <span>手工录入</span>
+        </button>
+        <button
+          data-testid="hr-action-bind"
+          onClick={handleBindDeviceClick}
+          style={{
+            flex: 1, height: 44, borderRadius: 12,
+            background: '#fff', color: '#0EA5E9',
+            border: '1px solid #0EA5E9',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            fontSize: 15, fontWeight: 700, cursor: 'pointer',
+          }}
+        >
+          <span>⌚ 绑定设备</span>
+        </button>
+      </div>
+
+      {/* 趋势图：日/周切换 + 点击数据点弹窗 + 正常参考线（60/100） */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <div
+          data-testid="hr-trend-card"
+          style={{ background: '#fff', borderRadius: 16, padding: '14px 14px 12px', boxShadow: '0 2px 10px rgba(14,165,233,0.06)' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E' }}>
+              {range === 'day' ? '今日趋势' : '最近 7 天趋势'}
+            </span>
+            <div data-testid="hr-range-segmented" style={{ display: 'flex', gap: 4, background: '#F1F5F9', borderRadius: 12, padding: 2 }}>
+              {HR_RANGE_OPTS.map(opt => (
+                <button
+                  key={opt.key}
+                  data-testid={`hr-range-${opt.key}`}
+                  data-active={range === opt.key ? 'true' : 'false'}
+                  onClick={() => setRange(opt.key)}
+                  style={{
+                    padding: '4px 14px', borderRadius: 10, border: 'none',
+                    background: range === opt.key ? '#0EA5E9' : 'transparent',
+                    color: range === opt.key ? '#fff' : '#64748B',
+                    fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  }}
+                >{opt.label}</button>
+              ))}
+            </div>
+          </div>
+
+          {isEmptyForRange ? (
+            <div data-testid="hr-trend-empty" style={{ padding: '30px 8px', textAlign: 'center' }}>
+              <svg width="80" height="64" viewBox="0 0 80 64" style={{ display: 'block', margin: '0 auto 8px' }} aria-hidden="true">
+                <path d="M6 40 L18 40 L24 24 L32 52 L40 32 L48 44 L56 40 L74 40" stroke="#0EA5E9" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <div style={{ fontSize: 14, color: '#6B7280' }}>暂无数据，点击上方「手工录入」开始记录</div>
+            </div>
+          ) : (
+            <HrTrendChart points={trendPoints} range={range} onPointClick={setPointPopup} />
+          )}
+
+          {!isEmptyForRange && (
+            <div style={{ marginTop: 8, display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 14 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151' }}>
+                <span style={{ width: 18, height: 3, background: '#0EA5E9', display: 'inline-block', borderRadius: 2 }} />
+                心率（参考线 60 / 100）
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 趋势图区只保留「AI 解读趋势」按钮 */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <button
+          data-testid="hr-ai-trend"
+          onClick={() => requestAi('trend')}
+          style={{
+            width: '100%', height: 40, borderRadius: 10,
+            background: '#fff', color: '#0EA5E9',
+            border: '1px solid #0EA5E9', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+          }}
+        >🤖 AI 解读趋势</button>
+      </div>
+
+      {/* 历史记录（最近 5 条 + 全部入口，带档位配色 + 可改可删） */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <div style={{ background: '#fff', borderRadius: 16, padding: '14px 14px', boxShadow: '0 2px 10px rgba(14,165,233,0.06)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E' }}>历史记录</span>
+            <span
+              data-testid="hr-history-all-entry"
+              onClick={() => router.push(`/health-metric/heart_rate/history?profileId=${props.profileId}`)}
+              style={{ fontSize: 13, color: '#0EA5E9', cursor: 'pointer', fontWeight: 600 }}
+            >全部 ›</span>
+          </div>
+          {records.length === 0 ? (
+            <div style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', padding: '24px 0' }}>
+              暂无记录，点击上方「手工录入」开始记录
+            </div>
+          ) : (
+            records.slice(0, 5).map((r) => {
+              const v = hrValueOf(r);
+              const j = judgeHeartRate(v);
+              const rowPalette = getHrPalette(j?.color ?? 'blue');
+              return (
+                <div
+                  key={r.id}
+                  data-testid={`hr-history-row-${r.id}`}
+                  style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '10px 0', borderBottom: '1px solid #E5E7EB',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#0C4A6E' }}>
+                      {v ?? '-'}
+                      <span style={{ fontSize: 12, color: '#6B7280', marginLeft: 4, fontWeight: 500 }}>bpm</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+                      {formatDateTime(r.measured_at)} · {formatBpSource(r.source)}
+                      {r.value?.activity ? ` · ${r.value.activity}` : ''}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {j && (
+                      <span
+                        style={{
+                          fontSize: 11, fontWeight: 700,
+                          padding: '3px 10px', borderRadius: 999,
+                          background: rowPalette.capsuleBg, color: rowPalette.capsuleText,
+                        }}
+                      >
+                        {j.label}
+                      </span>
+                    )}
+                    <button
+                      data-testid={`hr-row-more-${r.id}`}
+                      onClick={(e) => { e.stopPropagation(); setActionRecord(r); }}
+                      style={{
+                        background: 'transparent', border: 'none', cursor: 'pointer',
+                        fontSize: 20, fontWeight: 700, color: '#94A3B8', lineHeight: 1, padding: '0 4px',
+                      }}
+                      aria-label="更多操作"
+                    >⋯</button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* 手工填写弹窗 */}
+      <Popup
+        visible={popupVisible}
+        onMaskClick={() => setPopupVisible(false)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20 }}
+      >
+        <div data-testid="hr-input-popup">
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#0C4A6E', marginBottom: 16 }}>手工填写心率</div>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 4 }}>心率（bpm）</div>
+            <Input
+              data-testid="hr-input-value"
+              type="number"
+              placeholder="如 72"
+              value={inputValue}
+              onChange={(v) => setInputValue(v)}
+              style={{ '--font-size': '16px', padding: '10px 12px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' } as any}
+            />
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>{HR_NORMAL_RANGE_TEXT}</div>
+          </div>
+          {meta.period && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>测量状态</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {meta.period.options.map((opt) => (
+                  <button
+                    key={opt}
+                    onClick={() => setInputActivity(opt)}
+                    style={{
+                      padding: '6px 14px',
+                      background: inputActivity === opt ? '#0ea5e9' : '#e0f2fe',
+                      color: inputActivity === opt ? '#fff' : '#0369a1',
+                      border: 'none', borderRadius: 18, fontSize: 14, cursor: 'pointer',
+                    }}
+                  >{opt}</button>
+                ))}
+              </div>
+            </div>
+          )}
+          <Button
+            data-testid="hr-input-save"
+            block color="primary" loading={saving} onClick={handleSave}
+            style={{ '--background-color': '#0ea5e9', '--border-radius': '22px', height: 44, fontSize: 16 } as any}
+          >保存</Button>
+        </div>
+      </Popup>
+
+      {/* 「...」底部操作面板（修改 / 删除）— 复用 MetricActionSheet */}
+      <MetricActionSheet
+        testid="hr-action-sheet"
+        record={actionRecord}
+        onClose={() => setActionRecord(null)}
+        onEdit={(r) => {
+          setActionRecord(null);
+          setEditRecord(r);
+          setEditValue(hrValueOf(r) != null ? String(hrValueOf(r)) : '');
+          setEditActivity(typeof r.value?.activity === 'string' ? r.value.activity : '');
+        }}
+        onDelete={(r) => { setActionRecord(null); setDeletingRecord(r); }}
+      />
+
+      {/* 编辑心率记录 */}
+      <Popup
+        visible={!!editRecord}
+        onMaskClick={() => setEditRecord(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '85vh', overflowY: 'auto' }}
+      >
+        {editRecord && (
+          <div data-testid="hr-edit-popup">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E' }}>编辑心率记录</span>
+              <button onClick={() => setEditRecord(null)} style={{ background: 'transparent', border: 'none', fontSize: 18, color: '#9CA3AF', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>
+              {formatDateTime(editRecord.measured_at)}
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>心率（bpm）</div>
+              <Input
+                data-testid="hr-edit-value"
+                type="number"
+                value={editValue}
+                onChange={(v) => setEditValue(v)}
+                style={{ '--font-size': '16px', padding: '10px 12px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' } as any}
+              />
+            </div>
+            {meta.period && (
+              <>
+                <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>测量状态</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                  {meta.period.options.map((opt) => (
+                    <button
+                      key={opt}
+                      data-testid={`hr-edit-activity-${opt}`}
+                      onClick={() => setEditActivity(opt)}
+                      style={{
+                        padding: '6px 14px',
+                        background: editActivity === opt ? '#0ea5e9' : '#e0f2fe',
+                        color: editActivity === opt ? '#fff' : '#0369a1',
+                        border: 'none', borderRadius: 18, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                      }}
+                    >{opt}</button>
+                  ))}
+                </div>
+              </>
+            )}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                data-testid="hr-edit-delete"
+                onClick={() => setDeletingRecord(editRecord)}
+                style={{ flex: 1, padding: '10px 0', background: '#fff', color: '#DC2626',
+                  border: '1px solid #DC2626', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >删除</button>
+              <button
+                data-testid="hr-edit-save"
+                onClick={handleEditSave}
+                style={{ flex: 2, padding: '10px 0', background: '#0ea5e9', color: '#fff',
+                  border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >保存</button>
+            </div>
+          </div>
+        )}
+      </Popup>
+
+      {/* 删除二次确认 */}
+      <Popup
+        visible={!!deletingRecord}
+        onMaskClick={() => setDeletingRecord(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20 }}
+      >
+        {deletingRecord && (
+          <div data-testid="hr-delete-confirm">
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E', marginBottom: 10 }}>确认删除</div>
+            <div style={{ fontSize: 14, color: '#374151', marginBottom: 16 }}>
+              确认删除这条心率记录？此操作不可撤销。
+              <div style={{ fontSize: 12, color: '#6B7280', marginTop: 8 }}>
+                {formatDateTime(deletingRecord.measured_at)} · {hrValueOf(deletingRecord) ?? '-'} bpm
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setDeletingRecord(null)}
+                style={{ flex: 1, padding: '10px 0', background: '#fff', color: '#475569',
+                  border: '1px solid #CBD5E1', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >取消</button>
+              <button
+                data-testid="hr-delete-confirm-btn"
+                onClick={() => { handleDelete(deletingRecord); setEditRecord(null); }}
+                style={{ flex: 1, padding: '10px 0', background: '#DC2626', color: '#fff',
+                  border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >确认删除</button>
+            </div>
+          </div>
+        )}
+      </Popup>
+
+      {/* 数据点点击弹窗 */}
+      <Popup
+        visible={!!pointPopup}
+        onMaskClick={() => setPointPopup(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 18 }}
+      >
+        {pointPopup && (() => {
+          const j = judgeHeartRate(pointPopup.value);
+          const pp = getHrPalette(j?.color ?? 'blue');
+          return (
+            <div data-testid="hr-point-popup">
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E', marginBottom: 10 }}>心率详情</div>
+              <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 8 }}>{formatDateTime(pointPopup.measured_at)}</div>
+              <div style={{ height: 1, background: '#E5E7EB', margin: '8px 0' }} />
+              <DetailRow k="心率" v={pointPopup.value != null ? `${pointPopup.value} bpm` : '—'} />
+              <DetailRow k="档位" v={
+                <span data-testid="hr-point-level" style={{
+                  padding: '2px 10px', borderRadius: 999,
+                  background: pp.capsuleBg, color: pp.capsuleText, fontSize: 12, fontWeight: 700,
+                }}>{pointPopup.label || '—'}</span>
+              } />
+              {pointPopup.activity && <DetailRow k="测量状态" v={pointPopup.activity} />}
+              <DetailRow k="来源" v={formatBpSource(pointPopup.source)} />
+              <Button
+                block color="primary" onClick={() => setPointPopup(null)}
+                style={{ '--background-color': '#0EA5E9', '--border-radius': '12px', height: 40, fontSize: 14, marginTop: 14 } as any}
+              >知道了</Button>
+            </div>
+          );
+        })()}
+      </Popup>
+
+      {/* AI 解读抽屉 */}
+      <Popup
+        visible={!!aiDrawer}
+        onMaskClick={() => setAiDrawer(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '70vh', overflowY: 'auto' }}
+      >
+        {aiDrawer && (
+          <div data-testid="hr-ai-drawer">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: '#0C4A6E' }}>🤖 AI 解读</span>
+              <button onClick={() => setAiDrawer(null)} style={{ background: 'transparent', border: 'none', fontSize: 20, color: '#9CA3AF', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 14 }}>
+              {aiDrawer.mode === 'single'
+                ? `基于：${latest && hrValue != null ? formatDateTime(latest.measured_at) + ' 心率 ' + hrValue + ' bpm' : '当前无记录'}`
+                : `基于：${range === 'day' ? '今天' : '近 7 天'}所有心率记录`}
+            </div>
+            <div style={{ background: '#F8FAFC', borderRadius: 12, padding: 14, minHeight: 100, fontSize: 14, color: '#0F172A', whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
+              {aiDrawer.loading ? '正在分析…' : aiDrawer.text}
+            </div>
+            <div style={{ marginTop: 12, fontSize: 11, color: '#9CA3AF', textAlign: 'center' }}>
+              ⚠️ AI 建议仅供参考，不能替代医生诊断
+            </div>
+          </div>
+        )}
+      </Popup>
+    </div>
+  );
+}
+
+// [PRD-HR-ALIGN-BP-V1 2026-06-01] 心率单线趋势图（日/周 + 数据点可点击 + 参考线 60/100）
+function HrTrendChart({ points, range, onPointClick }: {
+  points: { x: number; y: number; raw: MetricRecord }[];
+  range: HrTrendRange;
+  onPointClick: (d: HrPointDetail) => void;
+}) {
+  const W = 340, H = 200;
+  const PAD = { top: 14, right: 18, bottom: 28, left: 32 };
+  const cw = W - PAD.left - PAD.right;
+  const ch = H - PAD.top - PAD.bottom;
+
+  const xMax = range === 'week' ? 6 : 24;
+  const yMin = 40, yMax = 160;
+
+  const xScale = (x: number) => PAD.left + (x / xMax) * cw;
+  const yScale = (y: number) => PAD.top + ch - ((Math.max(yMin, Math.min(yMax, y)) - yMin) / (yMax - yMin)) * ch;
+
+  const sorted = [...points].sort((a, b) => a.x - b.x);
+  const pathD = sorted.map((p, i) => `${i === 0 ? 'M' : 'L'}${xScale(p.x).toFixed(1)},${yScale(p.y).toFixed(1)}`).join(' ');
+
+  const refLines = [
+    { y: 60, label: '60' },
+    { y: 100, label: '100' },
+  ];
+
+  const xLabels: { x: number; lab: string }[] = range === 'week'
+    ? Array.from({ length: 7 }, (_, i) => ({ x: i, lab: i === 6 ? '今' : `${6 - i}天前` }))
+    : [{ x: 0, lab: '0' }, { x: 6, lab: '早' }, { x: 12, lab: '中' }, { x: 18, lab: '晚' }, { x: 23.5, lab: '夜' }];
+
+  return (
+    <svg data-testid="hr-trend-svg" width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
+      {[40, 70, 100, 130, 160].map(y => (
+        <g key={y}>
+          <line x1={PAD.left} y1={yScale(y)} x2={W - PAD.right} y2={yScale(y)} stroke="#E5E7EB" strokeWidth={0.6} />
+          <text x={PAD.left - 4} y={yScale(y) + 3} textAnchor="end" fill="#9CA3AF" fontSize={9}>{y}</text>
+        </g>
+      ))}
+      {refLines.map(l => (
+        <g key={l.label}>
+          <line x1={PAD.left} y1={yScale(l.y)} x2={W - PAD.right} y2={yScale(l.y)} stroke="#F97316" strokeWidth={0.8} strokeDasharray="3 3" />
+          <text x={W - PAD.right + 2} y={yScale(l.y) + 3} fill="#F97316" fontSize={9}>{l.label}</text>
+        </g>
+      ))}
+      {xLabels.map((lab, i) => (
+        <text key={i} x={xScale(lab.x)} y={H - 8} textAnchor="middle" fill="#9CA3AF" fontSize={10}>{lab.lab}</text>
+      ))}
+      <path d={pathD} fill="none" stroke="#0EA5E9" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      {sorted.map((p, i) => {
+        const j = judgeHeartRate(p.y);
+        const fill = j?.color === 'orange' ? '#F97316' : '#0EA5E9';
+        return (
+          <circle
+            key={i}
+            data-testid={`hr-trend-point-${i}`}
+            cx={xScale(p.x)} cy={yScale(p.y)} r={4} fill={fill} stroke="#fff" strokeWidth={1.2}
+            style={{ cursor: 'pointer' }}
+            onClick={() => onPointClick({
+              measured_at: p.raw.measured_at,
+              value: p.y,
+              label: j?.label || '',
+              source: p.raw.source,
+              activity: typeof p.raw.value?.activity === 'string' ? p.raw.value.activity : null,
+            })}
+          />
+        );
+      })}
+    </svg>
   );
 }
 

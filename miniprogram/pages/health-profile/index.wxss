@@ -404,6 +404,19 @@ page {
   background: #F59E0B;
   padding: 4rpx 12rpx; border-radius: 10rpx;
 }
+/* [PRD-HR-ALIGN-BP-V1 2026-06-01] 三档状态胶囊（对齐血压小卡片） */
+.metric-capsule {
+  font-size: 20rpx; font-weight: 700;
+  padding: 4rpx 16rpx; border-radius: 999rpx;
+  max-width: 60%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+/* 底部「时间 · 来源」行 */
+.metric-time-source {
+  margin-top: 14rpx; padding-top: 12rpx;
+  border-top: 1rpx solid #F1F5F9;
+  font-size: 20rpx; color: #94A3B8; line-height: 1.3;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
 .metric-value-row {
   margin-top: 12rpx;
 }
