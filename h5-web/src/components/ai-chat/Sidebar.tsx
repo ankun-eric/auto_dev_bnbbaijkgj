@@ -532,6 +532,15 @@ export default function Sidebar({
       return;
     }
     const willPin = !item.pinned;
+    // [BUG-置顶切换页面后丢失 修复] 置顶/取消置顶修复：
+    //  - 旧实现调用不存在的 `POST /api/chat/history/pin`（参数 isPinned），与后端接口
+    //    `PUT /api/chat-sessions/{id}/pin`（参数 is_pinned）对不上，置顶根本未落库；
+    //    且旧逻辑"失败不回滚（保持乐观）"导致界面假成功，切走再回来从数据库重新拉取后置顶丢失。
+    //  - 改为真实接口 `PUT /api/chat-sessions/${id}/pin`，请求体字段为 `is_pinned`；
+    //    取消置顶传 `is_pinned: false`，与置顶共用同一接口。
+    //  - 失败时按"乐观更新 + 失败回滚"方案：保留切换前的完整 histories 快照，
+    //    出错时整体恢复并轻提示"置顶失败，请重试"，避免误导用户。
+    const snapshot = histories;
     // 乐观更新
     setHistories((prev) =>
       prev.map((h) =>
@@ -539,10 +548,11 @@ export default function Sidebar({
       )
     );
     try {
-      await api.post('/api/chat/history/pin', { id, isPinned: willPin });
+      await api.put(`/api/chat-sessions/${id}/pin`, { is_pinned: willPin });
       showToast(willPin ? '已置顶' : '已取消置顶');
     } catch {
-      // 接口失败不回滚（保持乐观），仅静默
+      setHistories(snapshot);
+      showToast(willPin ? '置顶失败，请重试' : '取消置顶失败，请重试', 'fail');
     }
   };
 

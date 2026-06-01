@@ -391,3 +391,133 @@ async def test_tc018_user_isolation(client: AsyncClient, db_session):
     resp4 = await client.get(f"/api/chat-sessions/{session_b.id}", headers=headers_b)
     assert resp4.status_code == 200
     assert resp4.json()["title"] == "用户B的对话"
+
+
+# ────────────── 置顶持久化回归测试（Bug: 切换页面后置顶丢失） ──────────────
+#
+# 背景：H5 ai-home 抽屉旧实现调用了不存在的接口 `POST /api/chat/history/pin`
+# （参数 isPinned），与后端真正生效的 `PUT /api/chat-sessions/{id}/pin`（参数
+# is_pinned）对不上，且失败不回滚，导致"假成功"——切走再回来重新拉取列表后置顶丢失。
+# 以下用例从后端数据流角度验证：正确接口能让置顶真正落库并在重新拉取时保持。
+
+
+async def _seed_archived_session(db_session, user_id: int, title="历史对话") -> ChatSession:
+    """种子一条已归档会话（历史抽屉默认 status=archived 才返回）。"""
+    from datetime import datetime
+
+    session = ChatSession(
+        user_id=user_id,
+        session_type=SessionType.health_qa,
+        title=title,
+        message_count=1,
+        status="archived",
+        archived_at=datetime.utcnow(),
+        last_active_at=datetime.utcnow(),
+    )
+    db_session.add(session)
+    await db_session.flush()
+    msg = ChatMessage(
+        session_id=session.id,
+        role=MessageRole.user,
+        content="你好",
+        message_type=MessageType.text,
+    )
+    db_session.add(msg)
+    await db_session.commit()
+    await db_session.refresh(session)
+    return session
+
+
+@pytest.mark.asyncio
+async def test_pin_persists_after_refetch(client: AsyncClient, db_session):
+    """置顶后重新拉取列表（模拟切走再回来），置顶仍然保留（核心复现用例）。"""
+    reg = await _create_user(client, phone="13900100050")
+    headers = await _user_headers(client, phone="13900100050")
+    user_id = reg["user"]["id"]
+
+    session = await _seed_archived_session(db_session, user_id, title="待置顶历史对话")
+
+    # 1) 置顶（正确接口 + 正确参数名）
+    resp = await client.put(
+        f"/api/chat-sessions/{session.id}/pin",
+        json={"is_pinned": True},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["is_pinned"] is True
+
+    # 2) 模拟"切走再回来"——重新从数据库拉取历史列表（抽屉固定 status=archived）
+    list_resp = await client.get(
+        "/api/chat-sessions",
+        params={"status": "archived"},
+        headers=headers,
+    )
+    assert list_resp.status_code == 200
+    data = list_resp.json()
+    items = data if isinstance(data, list) else data.get("items", [])
+    target = next((s for s in items if s["id"] == session.id), None)
+    assert target is not None, "置顶后的会话应仍出现在重新拉取的列表中"
+    assert target["is_pinned"] is True, "切换页面重新拉取后置顶必须仍然保留"
+
+
+@pytest.mark.asyncio
+async def test_unpin_persists_after_refetch(client: AsyncClient, db_session):
+    """取消置顶后重新拉取列表，取消状态保持正确。"""
+    reg = await _create_user(client, phone="13900100051")
+    headers = await _user_headers(client, phone="13900100051")
+    user_id = reg["user"]["id"]
+
+    session = await _seed_archived_session(db_session, user_id, title="待取消置顶")
+
+    await client.put(
+        f"/api/chat-sessions/{session.id}/pin",
+        json={"is_pinned": True},
+        headers=headers,
+    )
+    resp = await client.put(
+        f"/api/chat-sessions/{session.id}/pin",
+        json={"is_pinned": False},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["is_pinned"] is False
+
+    list_resp = await client.get(
+        "/api/chat-sessions",
+        params={"status": "archived"},
+        headers=headers,
+    )
+    assert list_resp.status_code == 200
+    data = list_resp.json()
+    items = data if isinstance(data, list) else data.get("items", [])
+    target = next((s for s in items if s["id"] == session.id), None)
+    assert target is not None
+    assert target["is_pinned"] is False, "取消置顶后重新拉取应保持未置顶"
+
+
+@pytest.mark.asyncio
+async def test_old_wrong_pin_endpoint_not_exists(client: AsyncClient, db_session):
+    """旧的错误接口 POST /api/chat/history/pin 不存在（证明根因：前端调错了地址）。"""
+    reg = await _create_user(client, phone="13900100052")
+    headers = await _user_headers(client, phone="13900100052")
+    user_id = reg["user"]["id"]
+    session = await _seed_archived_session(db_session, user_id)
+
+    resp = await client.post(
+        "/api/chat/history/pin",
+        json={"id": str(session.id), "isPinned": True},
+        headers=headers,
+    )
+    # 该路由根本不存在，应为 404/405，绝不会把置顶落库
+    assert resp.status_code in (404, 405)
+
+    list_resp = await client.get(
+        "/api/chat-sessions",
+        params={"status": "archived"},
+        headers=headers,
+    )
+    data = list_resp.json()
+    items = data if isinstance(data, list) else data.get("items", [])
+    target = next((s for s in items if s["id"] == session.id), None)
+    assert target is not None
+    assert target["is_pinned"] is False, "走错误接口不应让置顶落库"
