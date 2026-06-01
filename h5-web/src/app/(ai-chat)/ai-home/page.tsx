@@ -4278,7 +4278,12 @@ export default function AiHomePage() {
                 lineHeight: 1,
                 cursor: 'pointer',
               }}
-              onClick={() => setReminderOpen(true)}
+              onClick={() => {
+                // [BUGFIX-AI-HOME-BELL-SELF-V1 2026-06-01] 顶栏铃铛恒为「本人」口径：
+                // 打开抽屉前强制把咨询人重置为 null，避免残留其他咨询人 ID 导致铃铛用药提醒显示非本人。
+                setReminderDrawerConsultantId(null);
+                setReminderOpen(true);
+              }}
               aria-label="今日待办提醒"
               data-testid="ai-home-topbar-bell"
             >

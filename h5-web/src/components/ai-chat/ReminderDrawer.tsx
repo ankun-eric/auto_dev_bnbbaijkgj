@@ -32,6 +32,9 @@ export interface MedicationItem {
   checked: boolean;
   checked_at?: string | null;
   log_id?: number | null;
+  // [BUGFIX-AI-HOME-BELL-SELF-V1 2026-06-01] 对齐「用药提醒-全部」页：保留后端 4 态 status，
+  // 用于状态文案 / 按钮文案与「全部」页逐条一致（done / upcoming / overdue / pending）。
+  status?: 'done' | 'upcoming' | 'pending' | 'overdue';
 }
 
 export interface AppointmentItem {
@@ -61,7 +64,11 @@ interface Props {
   onGoMedicationManage?: () => void;
   onGoOrderList?: () => void;
   onChangeBadge?: () => void;
-  /** [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F11] 按咨询人 ID 筛选用药提醒，订单不参与筛选 */
+  /**
+   * [PRD-AIHOME-DRUG-IDENTIFY-OPTIM-V1 F11] 旧：按咨询人 ID 筛选用药提醒。
+   * [BUGFIX-AI-HOME-BELL-SELF-V1 2026-06-01] 现已废弃用于用药数据源：顶栏铃铛恒为本人口径，
+   *   用药数据固定不带 consultant_id。保留此字段仅为兼容旧调用方签名，组件内部不再消费。
+   */
   consultantId?: number | null;
 }
 
@@ -110,16 +117,23 @@ function adaptMedicationPlansToday(resp: any): MedicationItem[] {
   // 响应可能是 {data: {...}} 或直接 {...}
   const root = (resp as any)?.data ?? resp;
   const timeline = Array.isArray(root?.timeline) ? root.timeline : [];
-  return timeline.map((it: any) => ({
-    plan_id: Number(it?.plan_id ?? 0),
-    drug_name: String(it?.name ?? ''),
-    dosage: String(it?.dosage ?? ''),
-    scheduled_time: String(it?.scheduled_time ?? ''),
-    note: it?.timing ?? null,
-    checked: it?.status === 'done',
-    checked_at: it?.actual_time ?? null,
-    log_id: it?.check_in_id ?? null,
-  }));
+  return timeline.map((it: any) => {
+    const status =
+      it?.status === 'done' || it?.status === 'upcoming' || it?.status === 'overdue'
+        ? it.status
+        : 'pending';
+    return {
+      plan_id: Number(it?.plan_id ?? 0),
+      drug_name: String(it?.name ?? ''),
+      dosage: String(it?.dosage ?? ''),
+      scheduled_time: String(it?.scheduled_time ?? ''),
+      note: it?.timing ?? null,
+      checked: it?.status === 'done',
+      checked_at: it?.actual_time ?? null,
+      log_id: it?.check_in_id ?? null,
+      status,
+    } as MedicationItem;
+  });
 }
 
 export default function ReminderDrawer({
@@ -128,15 +142,15 @@ export default function ReminderDrawer({
   onGoMedicationManage,
   onGoOrderList,
   onChangeBadge,
-  consultantId,
-}: Props) {
+}: // [BUGFIX-AI-HOME-BELL-SELF-V1 2026-06-01] consultantId 仍保留在 Props 接口以兼容旧调用方，
+// 但用药数据源已固定为本人口径（不带 consultant_id），故此处不再解构使用。
+Props) {
   const router = useRouter();
   const [meds, setMeds] = useState<MedicationItem[]>([]);
   const [appts, setAppts] = useState<AppointmentItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
-  const [doneGroupOpen, setDoneGroupOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -152,10 +166,10 @@ export default function ReminderDrawer({
       //   - 原接口：/api/medication-reminder/today（与列表页字段、状态、计数不一致）
       //   - 新接口：/api/medication-plans/today（与"档案管理 → 健康数据 → 用药提醒 → 全部"完全相同口径）
       //   - 通过前端 adapter 把 timeline 数组映射成 MedicationItem 结构，铃铛 UI/交互完全不变
-      const medUrl =
-        consultantId != null && consultantId > 0
-          ? `/api/medication-plans/today?consultant_id=${encodeURIComponent(consultantId)}`
-          : '/api/medication-plans/today';
+      // [BUGFIX-AI-HOME-BELL-SELF-V1 2026-06-01] 现象一修复：顶栏铃铛用药提醒恒为「本人」口径，
+      //   用药数据源固定不带 consultant_id（与「用药提醒-全部」页不带参时一致），
+      //   完全不受"当前选了哪个咨询人"影响；订单区块不受此约束。
+      const medUrl = '/api/medication-plans/today';
       const apptUrl = `/api/medication-reminder/appointments?status_in=${encodeURIComponent(
         ORDER_STATUSES_PARAM,
       )}`;
@@ -176,28 +190,26 @@ export default function ReminderDrawer({
     } finally {
       setLoading(false);
     }
-  }, [consultantId]);
+    // 用药数据源恒为本人口径（不依赖 consultantId），故依赖数组为空
+  }, []);
 
   useEffect(() => {
     if (open) {
       fetchAll();
       setExpandedOrderId(null);
-      setDoneGroupOpen(false);
     }
   }, [open, fetchAll]);
 
+  // [BUGFIX-AI-HOME-BELL-SELF-V1 2026-06-01] 打卡：对齐"用药提醒-全部"页
+  //   接口 /api/medication-check-in（与列表页同一接口，确保两端状态完全同步）
   const handleCheck = async (item: MedicationItem, idx: number) => {
-    // PRD §3.5：已打卡条目不支持撤销
     if (item.checked) return;
     const oldList = meds.slice();
     const optimisticTime = nowHHMM();
     const next = meds.slice();
-    next[idx] = { ...item, checked: true, checked_at: optimisticTime, log_id: -1 };
+    next[idx] = { ...item, checked: true, checked_at: optimisticTime, log_id: -1, status: 'done' };
     setMeds(next);
     try {
-      // [BUGFIX-AI-HOME-5ITEMS-V1 2026-05-26 Bug#3b] 打卡接口对齐"用药提醒-全部"页
-      //   - 原：/api/medication-reminder/check
-      //   - 新：/api/medication-check-in（与列表页同一接口，确保两端状态完全同步）
       const res = await api.post<any>('/api/medication-check-in', {
         plan_id: item.plan_id,
         scheduled_time: item.scheduled_time,
@@ -214,7 +226,7 @@ export default function ReminderDrawer({
         (res as any)?.data?.checked_at ??
         optimisticTime;
       const next2 = meds.slice();
-      next2[idx] = { ...item, checked: true, checked_at, log_id: log_id ?? -1 };
+      next2[idx] = { ...item, checked: true, checked_at, log_id: log_id ?? -1, status: 'done' };
       setMeds(next2);
       onChangeBadge?.();
       publishBellEvent('medication:checked', { plan_id: item.plan_id });
@@ -224,12 +236,41 @@ export default function ReminderDrawer({
     }
   };
 
-  // 拆分：未完成 / 已完成
-  const pendingMeds = useMemo(() => meds.filter((m) => !m.checked), [meds]);
-  const doneMeds = useMemo(() => meds.filter((m) => m.checked), [meds]);
+  // [BUGFIX-AI-HOME-BELL-SELF-V1 2026-06-01] 撤销：对齐"用药提醒-全部"页（5 分钟内可撤销）
+  //   接口 POST /api/medication-check-in/:id/revoke
+  const handleRevoke = async (item: MedicationItem, idx: number) => {
+    if (!item.checked || !item.log_id || item.log_id <= 0) return;
+    const oldList = meds.slice();
+    // 乐观回退到「未到时间/即将/超时」：撤销后置为非 done，先按是否超时给一个合理态
+    const overdue = !!item.scheduled_time && item.scheduled_time < nowHHMM();
+    const next = meds.slice();
+    next[idx] = {
+      ...item,
+      checked: false,
+      checked_at: null,
+      log_id: null,
+      status: overdue ? 'overdue' : 'pending',
+    };
+    setMeds(next);
+    try {
+      await api.post<any>(`/api/medication-check-in/${item.log_id}/revoke`);
+      onChangeBadge?.();
+      publishBellEvent('medication:checked', { plan_id: item.plan_id });
+      // 重新拉取以拿到后端权威 status（done/upcoming/pending/overdue）
+      fetchAll();
+    } catch (e: any) {
+      setMeds(oldList);
+      const detail = e?.response?.data?.detail;
+      const code = typeof detail === 'object' ? detail?.code : '';
+      showToast(code === 'REVOKE_TIMEOUT' ? '超过 5 分钟，无法撤销' : '撤销失败');
+    }
+  };
 
-  const isOrderDone = (s?: string | null) => false; // 抽屉里只展示 6 个 active 状态，订单不会出现"已完成"
+  // [BUGFIX-AI-HOME-BELL-SELF-V1 2026-06-01] 待办计数 = status !== 'done'（与「全部」页"待服用"一致）
+  const pendingMeds = useMemo(() => meds.filter((m) => m.status !== 'done'), [meds]);
 
+  // [BUGFIX-AI-HOME-BELL-SELF-V1 2026-06-01] 已完成用药条目（用于折叠分组兜底展示）
+  const doneMeds = useMemo(() => meds.filter((m) => m.status === 'done'), [meds]);
   const doneCount = doneMeds.length;
 
   const medCount = pendingMeds.length;
@@ -371,16 +412,19 @@ export default function ReminderDrawer({
             />
             {loading ? (
               <div style={{ color: '#9CA3AF', padding: '8px 4px' }}>加载中…</div>
-            ) : pendingMeds.length === 0 ? (
+            ) : meds.length === 0 ? (
               <div
-                style={{ color: '#10B981', padding: '8px 4px 16px', fontSize: 13 }}
+                style={{ color: '#9CA3AF', padding: '8px 4px 16px', fontSize: 13 }}
                 data-testid="bell-section-medication-empty"
               >
-                今日用药已全部完成 ✅
+                今日暂无用药安排
               </div>
             ) : (
+              // [BUGFIX-AI-HOME-BELL-SELF-V1 2026-06-01] 对齐「用药提醒-全部」页：
+              //   按后端 timeline 顺序逐条展示（含已服用），每条按 status 渲染状态文案/按钮，
+              //   已服用条目按钮为「✓ 完成」（点击=撤销，5 分钟内可撤销）。
               <div style={{ marginBottom: 16 }}>
-                {pendingMeds.map((m) => {
+                {meds.map((m) => {
                   const idx = meds.findIndex(
                     (x) => x.plan_id === m.plan_id && x.scheduled_time === m.scheduled_time,
                   );
@@ -388,8 +432,8 @@ export default function ReminderDrawer({
                     <MedicationRow
                       key={`${m.plan_id}-${m.scheduled_time}`}
                       item={m}
-                      overdue={!!m.scheduled_time && m.scheduled_time < nowHHMM()}
-                      onClick={() => handleCheck(m, idx)}
+                      onCheck={() => handleCheck(m, idx)}
+                      onRevoke={() => handleRevoke(m, idx)}
                     />
                   );
                 })}
@@ -430,38 +474,6 @@ export default function ReminderDrawer({
               </div>
             )}
 
-            {/* ─── 已完成折叠分组 ─── */}
-            {doneCount > 0 && (
-              <div style={{ marginTop: 16 }} data-testid="bell-done-group">
-                <button
-                  onClick={() => setDoneGroupOpen((v) => !v)}
-                  style={{
-                    width: '100%',
-                    textAlign: 'left',
-                    background: 'transparent',
-                    border: 'none',
-                    padding: '8px 0',
-                    color: '#6B7280',
-                    fontSize: 13,
-                    cursor: 'pointer',
-                  }}
-                >
-                  已完成 ({doneCount}) {doneGroupOpen ? '▲' : '▼'}
-                </button>
-                {doneGroupOpen && (
-                  <div>
-                    {doneMeds.map((m) => (
-                      <MedicationRow
-                        key={`done-${m.plan_id}-${m.scheduled_time}`}
-                        item={m}
-                        overdue={false}
-                        onClick={() => {}}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </>
         )}
 
@@ -537,77 +549,138 @@ function SectionHeader({
   );
 }
 
+/**
+ * [BUGFIX-AI-HOME-BELL-SELF-V1 2026-06-01] 用药条目行：状态分类 + 状态文案 + 按钮文案
+ * 全部对齐「用药提醒-全部」页（medication-reminder/page.tsx 的 TimelineRow）：
+ *   - done（已服用）   ：徽章「已服用」绿色；按钮「✓ 完成」（绿色描边白底，点击=撤销）
+ *   - upcoming（即将） ：徽章「即将服用」橙色；按钮「打卡」橙色
+ *   - overdue（已超时）：徽章「⚠️ 已超时」红色；按钮「补打卡」红色
+ *   - pending（未到）  ：徽章「未到时间」灰色；按钮「打卡」蓝色
+ */
+const MED_GREEN = '#22c55e';
+const MED_ORANGE = '#FF8A3D';
+const MED_BLUE = '#4A9EE0';
+const MED_GRAY = '#94A3B8';
+const MED_RED = '#EF4444';
+
 function MedicationRow({
   item,
-  overdue,
-  onClick,
+  onCheck,
+  onRevoke,
 }: {
   item: MedicationItem;
-  overdue: boolean;
-  onClick: () => void;
+  onCheck: () => void;
+  onRevoke: () => void;
 }) {
-  const checked = item.checked;
+  const status = item.status ?? (item.checked ? 'done' : 'pending');
+  const color =
+    status === 'done'
+      ? MED_GREEN
+      : status === 'upcoming'
+      ? MED_ORANGE
+      : status === 'overdue'
+      ? MED_RED
+      : MED_GRAY;
+  const badgeText =
+    status === 'done'
+      ? '已服用'
+      : status === 'upcoming'
+      ? '即将服用'
+      : status === 'overdue'
+      ? '⚠️ 已超时'
+      : '未到时间';
+  const checked = status === 'done';
   return (
     <div
       data-testid="bell-med-row"
+      data-status={status}
       data-checked={checked ? '1' : '0'}
-      data-overdue={overdue ? '1' : '0'}
       style={{
         display: 'flex',
         alignItems: 'center',
         padding: '10px 4px',
         borderBottom: '1px solid #F9FAFB',
-        opacity: checked ? 0.6 : 1,
+        opacity: checked ? 0.7 : 1,
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 14, fontWeight: 500, color: '#111827' }}>{item.drug_name}</div>
         <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
           <span>{item.scheduled_time}</span>
-          <span>·</span>
-          <span>{item.dosage}</span>
+          {item.dosage ? (
+            <>
+              <span>·</span>
+              <span>{item.dosage}</span>
+            </>
+          ) : null}
           {item.note ? (
             <>
               <span>·</span>
               <span>{item.note}</span>
             </>
           ) : null}
-          {overdue && !checked && (
-            <span
-              style={{
-                marginLeft: 4,
-                padding: '1px 6px',
-                background: '#FEF3C7',
-                color: '#B45309',
-                borderRadius: 4,
-                fontSize: 11,
-              }}
-            >
-              ⚠ 已超时
-            </span>
-          )}
         </div>
       </div>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          if (!checked) onClick();
-        }}
-        disabled={checked}
+      {/* 状态徽章：文案/配色与「全部」页一致 */}
+      <span
+        data-testid="bell-med-status"
         style={{
           marginLeft: 8,
-          padding: '6px 10px',
-          borderRadius: 6,
-          border: '1px solid ' + (checked ? '#D1D5DB' : '#10B981'),
-          background: checked ? '#F3F4F6' : '#10B981',
-          color: checked ? '#6B7280' : '#fff',
-          fontSize: 12,
-          cursor: checked ? 'default' : 'pointer',
+          fontSize: 11,
+          fontWeight: 600,
+          color,
+          padding: '2px 8px',
+          borderRadius: 10,
+          background: '#F3F4F6',
           whiteSpace: 'nowrap',
         }}
       >
-        {checked ? `已服用 ${item.checked_at || ''}` : '✓ 已服用'}
-      </button>
+        {badgeText}
+      </span>
+      {/* 操作按钮：done → ✓ 完成（撤销）；其余 → 打卡 / 补打卡 */}
+      {checked ? (
+        <button
+          data-testid="bell-med-action"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRevoke();
+          }}
+          style={{
+            marginLeft: 8,
+            padding: '6px 12px',
+            borderRadius: 14,
+            border: `1px solid ${MED_GREEN}`,
+            background: '#fff',
+            color: MED_GREEN,
+            fontSize: 12,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          ✓ 完成
+        </button>
+      ) : (
+        <button
+          data-testid="bell-med-action"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCheck();
+          }}
+          style={{
+            marginLeft: 8,
+            padding: '6px 12px',
+            borderRadius: 14,
+            border: 'none',
+            background: status === 'overdue' ? MED_RED : status === 'upcoming' ? MED_ORANGE : MED_BLUE,
+            color: '#fff',
+            fontSize: 12,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {status === 'overdue' ? '补打卡' : '打卡'}
+        </button>
+      )}
     </div>
   );
 }
