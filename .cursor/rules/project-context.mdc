@@ -94,6 +94,26 @@ alwaysApply: false
 
 ---
 
+## 最近一次变更（2026-06-01 · Bug 修复 + 排版优化 / 健康档案「AI 解读弹窗」文案重复修复 + 排版优化 · H5 一端落地，小程序 web-view 自动继承）
+
+**任务标识**：`[PRD-HEALTH-METRIC-AI-EXPLAIN-LAYOUT-V1 2026-06-01]`
+
+**需求**：健康档案五指标（血压/血糖/心率/血氧/睡眠）的【AI 趋势解读】与【AI 解读本次 XX】弹窗存在文案重复与排版不清爽问题，三件事：
+1. 修 Bug — 趋势解读多出一个「建议：」：删除前端在拼接 `advice` 时额外加的「建议：」前缀（共 4 处：通用 `MetricAiBlock` / 血压 / 血糖 / 心率），只保留后端 `advice` 自带的那份。
+2. 修 Bug — 心率本次解读两条重复免责提示：删除后端 `_rule_explain_single` 正文结尾的「⚠️ 本提示仅供参考，不能替代专业医生诊断」，统一只保留弹窗底部那条灰色免责声明。
+3. 排版优化：解读弹窗内容统一排版——「建议：」单独成行并加粗，1)/2)/3) 各自换行，分析正文段落间留间距。
+
+**改动文件（仅 1 个 H5 前端 + 1 个后端 + 1 个测试）**：
+- `h5-web/src/app/health-metric/[type]/page.tsx`：①4 处拼接处去掉 `'\n建议：'` / `'建议：'` 前缀（line 187 通用、BloodPressurePage、BloodGlucosePage、HeartRatePage 的 trend 拼接）；②新增通用排版组件 `AiExplainContent`（按段落渲染，命中「建议：」开头的段落则标题加粗单独成行、按 `\d+[)）]` 拆分逐条换行，其余段落留 12px 间距）；③4 个解读抽屉的内容容器（通用 `drawer.content`、血压/血糖/心率 `aiDrawer.text`）由 `whiteSpace:pre-wrap` 纯文本改为 `<AiExplainContent text=... />` 渲染。
+- `backend/app/api/health_metric_card_v1.py`：`_rule_explain_single` 返回值由 `f"{head} {advice}\n\n⚠️ 本提示仅供参考，不能替代专业医生诊断。"` 改为 `f"{head} {advice}"`（去重复免责声明，对四指标 single 解读统一生效）。
+- `backend/tests/test_ai_explain_layout_fix_20260601.py`（新增）：校验 single 解读不再含免责声明片段、正文主体仍完整、trend `advice` 形态稳定。
+
+**端范围**：仅 H5 一端改动；小程序健康指标详情页通过 `web-view` 内嵌同一 H5 页面（`/health-metric/[type]`），H5 改完小程序自动继承，无需单独改小程序代码。无安卓/iOS/exe/小程序代码改动，无需重新打包。
+
+**部署验证**：git push → 服务器 `git fetch+reset` 到 commit `9e2c0918` → `docker compose -f docker-compose.prod.yml build --no-cache backend h5-web` → `up -d`，gateway 重连网络。外部 HTTPS：`/`、五指标 `/health-metric/{heart_rate,blood_pressure,blood_glucose,spo2,sleep}`、`/api/health` 均 200。容器内逻辑测试 ALL PASS（single 无免责声明泄漏、正文完整、advice 形态稳定）。
+
+---
+
 ## 历史变更（2026-06-01 · 功能开发 / 健康档案-血压详情页优化 v2「AI 解读本次按钮移至顶部卡片下方 + 全部历史列表支持改删」· H5 一端落地，小程序 web-view 自动继承）
 
 **任务标识**：`[PRD-BP-DETAIL-OPTIMIZE-V2 2026-06-01]`
