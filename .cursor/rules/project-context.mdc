@@ -5,7 +5,34 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-01 · Bug 修复 / AI 首页上传图片对话「切走再切回变文字」还原 · 仅 H5 端，前端纯展示层）
+## 最近一次变更（2026-06-02 · 新功能 / 健康档案页「今日健康数据」补血氧精致卡片 · H5 + 微信小程序 + Flutter APP 三端，后端 today-metrics 字段已存在零改动）
+
+**任务标识**：`[PRD-SPO2-CARD-V1 2026-06-02]`
+
+**需求**：健康档案页「本人 Tab → 今日健康数据」原只有 4 张卡片（血压/血糖/心率/睡眠），缺血氧。把血氧补到睡眠**前面**（顺序与关怀模式对齐：血压/血糖/心率/**血氧**/睡眠），并做成对标血压的精致样式（🫁+「血氧」标签 + 彩色档位胶囊 + 26px 加粗数值 + 单位 % + 分隔线 + 「测量时间·来源」行 + 异常黄色竖条 + 点击进 `/health-metric/spo2`）。档位标准（方案 A）：≥95% 正常（蓝）/ 90~94% 偏低（黄/橙）/ <90% 偏低明显（橙红）。
+
+**改动（H5 + 小程序 + Flutter；后端零业务改动）**：
+- H5：新增 `h5-web/src/lib/spo2-level.ts`（`judgeSpo2`/`getSpo2Palette`，三档判定复用血压色系）；`h5-web/src/app/health-profile/page.tsx` 在 `vitals` 数组血氧项插到睡眠前 + 新增血氧专属卡片渲染分支（`data-spo2-mini-card`、`spo2-mini-capsule`、`spo2-mini-time-source`，点击 `/health-metric/spo2?profileId=`）。
+- 小程序：`miniprogram/pages/health-profile/index.js` 新增 `judgeSpo2Mini`（≥95 正常蓝/90~94 偏低橙/<90 偏低明显橙），血氧 cell 补 `capLabel/capBg/capColor/timeSource` 并移到睡眠前（wxml 通用渲染胶囊+时间源，点击 `type=spo2`）。
+- Flutter：`flutter_app/lib/screens/health/health_profile_screen.dart` 新增 `_spo2Cap` 档位判定，血氧 cell 改为函数式生成（补 `capLabel/capColor`）并移到睡眠前，卡片顶行渲染血氧胶囊（蓝/橙）。
+- 后端：`today-metrics`（`backend/app/api/health_profile_v3.py`）与 schema（`backend/app/schemas/health_v3.py`）本就含 `spo2` 快照（value/measured_at/source/is_abnormal，阈值 `spo2_min=95`），**无代码改动**。
+
+**测试**：`backend/tests/test_spo2_card_v1_20260602.py`（7 用例）。服务器 backend 容器 **3 个后端 API/DB 用例全通过**（today-metrics 透传 spo2 全字段、<95 异常阈值、无记录空快照）；4 个前端源码静态断言因容器内无 h5/miniprogram/flutter 源码而 skip，已在**宿主机源码上独立校验 4/4 通过**（H5 lib 阈值、三端血氧卡片均排在睡眠前、判定标准一致）。零真实 Bug。
+
+**部署**：服务器侧 `git fetch + reset --hard origin/master`（commit `f2298ad4`）→ `docker compose -f docker-compose.prod.yml build --no-cache h5-web && up -d h5-web`（仅 H5 单服务，后端零业务改动不重建）→ gateway 重连 `{DEPLOY_ID}-network` + reload。外部 HTTPS 全部可达：`/health-profile`=200、`/`=200、`/login`=200、`GET /api/health`=200。
+
+**变更端清单**：H5（Docker 容器，已上线）+ 微信小程序（重新打包 zip 上传 gateway `downloads/`）+ Flutter APP 安卓 + iOS（lib/ 共享代码改动，GitHub Actions 远程构建 APK/IPA 均 success）。后端仅新增测试文件、无业务改动，不重新打包后端。
+
+**本次三端新包（基础URL = https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27）**：
+- 微信小程序：`{base}/downloads/miniprogram_20260602_004123_b1e4.zip`（HTTP 200）。
+- 安卓 APK：`{base}/downloads/app_20260602_004109_7dki.apk`（HTTP 200，标签 `android-v20260602-004109-7dki`，run 26768486235 success）。
+- iOS：Release `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260602-004126-1f82`，IPA `.../releases/download/ios-v20260602-004126-1f82/bini_health_ios.ipa`（标签 `ios-v20260602-004126-1f82`，run 26768502242 success，未签名包）。
+
+**用户手册**：`user_docs/健康档案血氧卡片.md`
+
+---
+
+## 历史变更（2026-06-01 · Bug 修复 / AI 首页上传图片对话「切走再切回变文字」还原 · 仅 H5 端，前端纯展示层）
 
 **任务标识**：`[BUG_FIX_AI_HOME_IMAGE_HISTORY_RESTORE_V1 2026-06-01]`
 
