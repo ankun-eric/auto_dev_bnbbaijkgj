@@ -5,7 +5,36 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-02 · 新功能 / 健康档案页「今日健康数据」补血氧精致卡片 · H5 + 微信小程序 + Flutter APP 三端，后端 today-metrics 字段已存在零改动）
+## 最近一次变更（2026-06-02 · 新功能 / AI 首页欢迎区统一优化 · H5 + 微信小程序 + Flutter APP 三端，后端零改动）
+
+**任务标识**：`[PRD-AIHOME-WELCOME-UNIFY-V1 2026-06-02]`
+
+**需求**：把标准模式首页欢迎区改成与关怀模式欢迎区「长一样」的风格（同结构/版式/字号/时段问候语/头像/切换胶囊），但**瘦身去掉「今日用药提醒」白卡片**；两模式仅靠背景底色区分——标准模式=蓝绿渐变（照搬现关怀色值 `#1976D2→#43A047`），关怀模式=暖橙（新色 `#FF8A3D→#FB6E2E`）。首页其它模块（轮播图/功能宫格/推荐问/聊天区/顶栏等）一律不动；关怀模式除背景换暖橙外其余不动（保留今日用药提醒卡）。三端同步。
+
+**改动（H5 + 小程序 + Flutter；后端零改动）**：
+- H5 标准模式 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：`ai-home-greeting` 欢迎区整段重写为关怀风格——蓝绿渐变背景 + 28px 大问候（`renderMainTitle()`，testid `ai-home-welcome-greeting`）+ 欢迎语（`pickedSubtitle`，testid `ai-home-welcome-text`）+ 右侧竖排（模式胶囊 `ai-home-mode-capsule` 改半透明白 + 84 大头像白圈 `ai-home-welcome-avatar-wrap`/`ai-home-welcome-avatar`），**不含用药提醒卡**。健康贴士/功能宫格/推荐问等其后模块不动。
+- H5 关怀模式 `h5-web/src/app/care-ai-home/page.tsx`：欢迎区背景由蓝绿渐变改为暖橙渐变 `linear-gradient(135deg,#FF8A3D,#FB6E2E)`，其余结构/今日用药提醒卡（`care-home-med-reminder`）/胶囊/头像一律不动。
+- 小程序标准模式 `miniprogram/pages/ai/index.{wxml,wxss,js}`：`welcome-strip` 重写为关怀风格（greeting+sub+robot-logo+胶囊）+ 蓝绿渐变背景 + 瘦身去用药卡；js 新增 `getGreeting`/`greetingText`/`greetingIcon`/`logoUrl`；彩底内胶囊改半透明白。
+- 小程序关怀模式 `miniprogram/pages/care-ai-home/index.wxss`：`.welcome` 背景改暖橙渐变，其余不动。
+- Flutter 标准模式 `flutter_app/lib/screens/ai/ai_home_screen.dart`：欢迎卡由绿青渐变 + 「小康AI健康顾问」改为蓝绿渐变 + `_greeting()` 大问候 + 「我是小康，聊聊健康问题吧~」+ 右侧白圈机器人头像。
+- Flutter 关怀模式 `flutter_app/lib/screens/ai/ai_home_screen_care.dart`：`_buildWelcome` 背景蓝绿改暖橙 `Color(0xFFFF8A3D)→Color(0xFFFB6E2E)`。
+
+**测试**：`backend/tests/test_aihome_welcome_unify_v1_20260602.py`（14 用例：后端模式偏好接口回归 + 三端欢迎区蓝绿/暖橙配色、关怀风格结构、标准瘦身去用药卡、三端配色一致性）。本地 14 passed + 既有 `test_ai_home_unify_v1` 16 passed 回归；服务器 backend 容器 14 passed。零真实 Bug。
+
+**部署**：git push `origin/master` commit `46137ed2` → 服务器 GitHub fetch 超时降级为 paramiko SFTP 直传 2 个 H5 文件 → `docker compose -f docker-compose.prod.yml build --no-cache h5-web && up -d h5-web`（仅 H5 单服务）→ gateway 重连 `{DEPLOY_ID}-network` + reload。外部 HTTPS：`/`、`/ai-home`、`/care-ai-home`、`/api/health` 均 200；`/ai-home` HTML 命中 `ai-home-welcome-greeting`/`1976D2`/`ai-home-welcome-avatar-wrap`，`/care-ai-home` HTML 命中暖橙 `FF8A3D` 且仍含 `care-home-med-reminder`。
+
+**变更端清单**：H5（Docker 容器，已上线）+ 微信小程序（重新打包 zip 上传 gateway `downloads/`）+ Flutter APP 安卓 + iOS（lib/ 共享代码改动，GitHub Actions 远程构建 APK/IPA 均 success）。后端仅新增测试文件、无业务改动。
+
+**本次三端新包（基础URL = https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27）**：
+- 微信小程序：`{base}/downloads/miniprogram_20260602_011558_a1f4.zip`（HTTP 200）。
+- 安卓 APK：`{base}/downloads/app_20260602_011652_0988.apk`（HTTP 200，标签 `android-v20260602-011652-0988`，run 26770290370 success）。
+- iOS：Release `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260602-011643-5c35`，IPA `.../releases/download/ios-v20260602-011643-5c35/bini_health_ios.ipa`（标签 `ios-v20260602-011643-5c35`，run 26770304523 success，未签名包）。
+
+**用户手册**：`user_docs/AI首页欢迎区统一优化.md`
+
+---
+
+## 历史变更（2026-06-02 · 新功能 / 健康档案页「今日健康数据」补血氧精致卡片 · H5 + 微信小程序 + Flutter APP 三端，后端 today-metrics 字段已存在零改动）
 
 **任务标识**：`[PRD-SPO2-CARD-V1 2026-06-02]`
 
