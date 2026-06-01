@@ -17,7 +17,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
-import GreenNavBar from '@/components/GreenNavBar';
+import GreenNavBar, { PRIMARY_GREEN } from '@/components/GreenNavBar';
 import { BH_TOKENS } from '@/lib/health-tokens';
 
 type TabKey = 'in_progress' | 'not_started' | 'finished';
@@ -226,17 +226,17 @@ function MedicationPlansListPageInner() {
 
   return (
     <div data-testid="med-plans-list" style={{ minHeight: '100vh', background: '#F4F6F9', paddingBottom: 100 }}>
-      {/* [BUG-HEALTH-PROFILE-MED-20260525 Bug2] 顶部返回栏统一使用 GreenNavBar，与「就医资料」页样式一致 */}
+      {/* [PRD-MED-NAVBAR-UNIFY-20260601 改动1+2] 顶部返回栏统一使用 GreenNavBar：整条天蓝铺满全宽 + 白色标题居中，标题改为「用药计划」 */}
       <div
         style={{
           position: 'sticky',
           top: 0,
           zIndex: 60,
-          background: BH_TOKENS.brand50,
+          background: PRIMARY_GREEN,
           boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
         }}
       >
-        <GreenNavBar back={goBack}>用药提醒</GreenNavBar>
+        <GreenNavBar back={goBack}>用药计划</GreenNavBar>
         {/* Tabs */}
         <div
           data-testid="med-plans-tabs"

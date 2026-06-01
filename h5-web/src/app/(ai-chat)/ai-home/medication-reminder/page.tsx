@@ -19,6 +19,7 @@ import { useRouter } from 'next/navigation';
 import { Dialog } from 'antd-mobile';
 import { showToast } from '@/lib/toast-unified';
 import api from '@/lib/api';
+import GreenNavBar, { PRIMARY_GREEN } from '@/components/GreenNavBar';
 
 interface TimelineItem {
   plan_id: number;
@@ -159,27 +160,18 @@ export default function MedicationReminderPage() {
       data-testid="med-reminder-page"
       style={{ minHeight: '100vh', background: '#F4F6F9', paddingBottom: 100 }}
     >
-      {/* 顶部 NavBar */}
+      {/* [PRD-MED-NAVBAR-UNIFY-20260601 改动4] 顶部 NavBar 统一为天蓝 GreenNavBar：整条天蓝铺满全宽 + 白色标题居中，标题保留「用药提醒」 */}
       <div
+        data-testid="med-reminder-navbar"
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '12px 16px',
-          background: '#fff',
+          position: 'sticky',
+          top: 0,
+          zIndex: 60,
+          background: PRIMARY_GREEN,
           boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
         }}
       >
-        <span
-          onClick={goBack}
-          style={{ fontSize: 24, color: TEXT, cursor: 'pointer', padding: 4 }}
-          data-testid="med-reminder-back"
-        >
-          ←
-        </span>
-        <span style={{ flex: 1, textAlign: 'center', fontSize: 16, fontWeight: 600 }}>
-          用药提醒
-        </span>
-        <span style={{ width: 32 }} />
+        <GreenNavBar back={goBack}>用药提醒</GreenNavBar>
       </div>
 
       {/* Banner */}

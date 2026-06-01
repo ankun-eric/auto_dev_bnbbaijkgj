@@ -451,7 +451,13 @@ async def list_medications_flat(
         stmt = select(MedicationReminder).where(
             MedicationReminder.user_id == current_user.id,
             MedicationReminder.status.in_(["archived", "deleted"]),
-        ).order_by(MedicationReminder.end_date.desc().nullslast(), MedicationReminder.id.desc())
+        ).order_by(
+            # [BUG-MED-FINISHED-500-20260601] MySQL 不支持 NULLS LAST 语法（会触发 1064 语法错误），
+            # 改用 `end_date IS NULL` 作为前置排序键模拟 NULLS LAST：NULL 行得 1 排在后。
+            MedicationReminder.end_date.is_(None),
+            MedicationReminder.end_date.desc(),
+            MedicationReminder.id.desc(),
+        )
     elif tab == "not_started":
         # [PRD-MED-PLAN-ENTRY-V1] 未开始：status='active' 且 start_date > today
         stmt = select(MedicationReminder).where(
@@ -479,7 +485,13 @@ async def list_medications_flat(
                     ),
                 ),
             ),
-        ).order_by(MedicationReminder.end_date.desc().nullslast(), MedicationReminder.created_at.desc())
+        ).order_by(
+            # [BUG-MED-FINISHED-500-20260601] MySQL 不支持 NULLS LAST 语法（会触发 1064 语法错误），
+            # 改用 `end_date IS NULL` 作为前置排序键模拟 NULLS LAST：NULL 行得 1 排在后。
+            MedicationReminder.end_date.is_(None),
+            MedicationReminder.end_date.desc(),
+            MedicationReminder.created_at.desc(),
+        )
     elif tab == "in_progress":
         # [PRD-MED-PLAN-ENTRY-V1] 服药中：status='active' 且已开始(start_date<=today或NULL) 且未结束(end_date>=today或long_term)
         stmt = select(MedicationReminder).where(
