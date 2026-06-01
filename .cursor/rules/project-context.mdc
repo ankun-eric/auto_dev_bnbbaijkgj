@@ -5,7 +5,29 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-01 · Bug 修复 / 删除家庭成员「操作频繁，请明日再试」误拦 · 仅后端，0 客户端改动）
+## 最近一次变更（2026-06-01 · Bug 修复 / AI 主页两个问题：更多菜单遮罩未铺满 + 关怀模式左上角「☰」误跳 · H5 + 微信小程序两端）
+
+**任务标识**：`[BUGFIX-AI-HOME-MENU-MASK + AI-HOME-CARE-BACK V1 2026-06-01]`
+
+**问题1（更多菜单收不回去）**：AI 首页右上角「+ 圈圈」更多菜单弹出后，点旁边空白处收不回去，只有点菜单正下方一小块才能关。根因：H5 `MoreMenu` 用 antd-mobile `<Popup position="top">`，其 body/遮罩只占顶部一小块、未铺满整屏。**修复**：`h5-web/src/components/ai-chat/MoreMenu.tsx` 弃用 `Popup`，改自绘「全屏 `fixed` 透明遮罩（100vw/100vh、四边 0、`background:transparent`）+ 右上角菜单卡」，遮罩 `onClick=onClose`、菜单卡 `e.stopPropagation()`，恢复「点任意空白处即关闭」。标准版与关怀版共用此组件，一处修复两版同时生效。小程序两端（`ai/index.wxss`、`care-ai-home/index.wxss`）的 `.more-menu-mask` 本就 `top/left/right/bottom:0` 全屏，无需改，仅加测试守护。
+
+**问题2（关怀模式「☰」误跳标准模式）**：关怀模式首页左上角「☰」点击会跳标准首页并顺带把模式带回标准模式（BUG）。**修复（去掉 ☰ 换返回箭头）**：
+- `h5-web/src/app/care-ai-home/page.tsx`：左上角按钮由 ☰（`care-home-hamburger-btn` → 跳 `/ai-home?openDrawer=1`）改为「← 返回箭头」（`care-home-back-btn` + `care-home-back-icon`），`onClick=handleSwitchToStandard`（存 `standard` 偏好 → `router.push('/ai-home')`，避免回弹）。
+- `miniprogram/pages/care-ai-home/index.{wxml,js,wxss}`：`openHistory`（跳 `/pages/ai/index?openDrawer=1`）改为 `goBackStandard`（`wx.setStorageSync('app_mode_preference','standard')` → `wx.navigateTo('/pages/ai/index')`）；wxml ☰ 改为 `.uni-back` + 「‹」箭头；wxss 加 `.uni-back/.uni-back-icon` 样式。
+
+**测试（1 新增 + 1 更新）**：`backend/tests/test_ai_home_menu_and_care_back_fix_20260601.py`（10 用例，纯前端源码静态断言：H5 弃用 Popup/全屏透明遮罩/菜单卡保留、小程序两端遮罩全屏、H5+小程序返回箭头替换 ☰ 并退回标准首页）；`backend/tests/test_care_optim_final_v1_20260601.py` 同步把旧「优化1 ☰ openDrawer」3 用例改为校验新「返回箭头 → 标准首页」行为。服务器 backend 镜像内纯 Python 跑新测试 **10/10 通过**。
+
+**部署**：GitHub 在服务器侧 fetch 超时（沿用历史降级方案），改用本机 paramiko SFTP 直传改动文件 → `docker compose -f docker-compose.prod.yml build --no-cache h5-web && up -d h5-web`（仅 H5 单服务，backend 业务零改动不重建）。gateway 重连项目网络。外部 HTTPS：`/`、`/ai-home/`、`/care-ai-home/`、`/api/health` 均 200；care 页 HTML 已含 `care-home-back-btn`、旧 `care-home-hamburger-btn` 已移除。
+
+**变更端清单**：H5（Docker 容器，已上线）+ 微信小程序（已重新打包 zip 上传 gateway `downloads/`）。后端仅新增/改测试无业务改动、安卓/iOS 0 改动，无需重新打包这些端。
+
+**微信小程序新包**：`{base}/downloads/miniprogram_20260601_225607_3f7e.zip`（已验证 HTTP 200）。
+
+**用户手册**：`user_docs/AI主页菜单遮罩与关怀模式返回修复.md`
+
+---
+
+## 历史变更（2026-06-01 · Bug 修复 / 删除家庭成员「操作频繁，请明日再试」误拦 · 仅后端，0 客户端改动）
 
 **任务标识**：`[BUGFIX-DELETE-RATELIMIT-V1 2026-06-01]`
 
