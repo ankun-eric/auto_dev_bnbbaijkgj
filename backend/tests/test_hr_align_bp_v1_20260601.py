@@ -153,7 +153,9 @@ def test_h5_hr_detail_trend_day_week_point_refline():
     """趋势图支持 日/周 切换 + 点击数据点弹窗 + 正常参考线（60/100）。"""
     src = _detail_src()
     assert 'data-testid="hr-trend-card"' in src
-    assert 'data-testid="hr-range-day"' in src and 'data-testid="hr-range-week"' in src
+    # 日/周切换：testid 为模板字面量 `hr-range-${opt.key}`，键值含 day / week
+    assert 'hr-range-${opt.key}' in src
+    assert "key: 'day'" in src and "key: 'week'" in src
     assert 'data-testid="hr-trend-svg"' in src
     assert 'data-testid="hr-point-popup"' in src
     assert "HrTrendChart" in src
@@ -164,8 +166,9 @@ def test_h5_hr_detail_trend_day_week_point_refline():
 def test_h5_hr_detail_history_editable_deletable():
     """历史记录每条可编辑可删除，带档位配色。"""
     src = _detail_src()
-    assert 'data-testid="hr-row-more-' in src      # 三点入口
-    assert 'data-testid="hr-action-sheet"' in src  # 操作面板（复用 MetricActionSheet）
+    # 三点入口：testid 为模板字面量 `hr-row-more-${r.id}`
+    assert 'hr-row-more-${r.id}' in src
+    assert 'testid="hr-action-sheet"' in src  # 操作面板（复用 MetricActionSheet，testid 透传为 data-testid）
     assert 'data-testid="hr-edit-popup"' in src
     assert 'data-testid="hr-edit-save"' in src
     assert 'data-testid="hr-delete-confirm"' in src
