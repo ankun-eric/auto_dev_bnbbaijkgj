@@ -6,10 +6,12 @@
        ☰三横杠(带红点) → 档案/咨询/服务 三 Tab(当前停咨询·蓝下划线) → 🔔铃铛(带橙点) → ⊕加号圈。
        原顶栏旧胶囊与 🎁邀请图标已全部移除。 -->
   <view class="topbar unified-topbar">
-    <!-- 1. 左：☰ 三横杠（带小红点 → 历史/侧边栏入口） -->
-    <view class="uni-hamburger" catchtap="openHistory" data-testid="care-home-hamburger-btn">
-      <text class="uni-hamburger-icon">☰</text>
-      <view class="uni-hamburger-reddot" data-testid="care-home-hamburger-reddot"></view>
+    <!-- 1. 左：← 返回箭头（[BUGFIX-AI-HOME-CARE-BACK-V1 2026-06-01 §问题2]）
+         旧版为「☰ 三横杠」，点击跳标准 AI 首页并顺带把模式带回标准模式（"一点就跳回标准模式" BUG）。
+         关怀模式用不上"历史对话"，现去掉 ☰，换成向左箭头「←」返回图标：
+         点击退出关怀模式，统一退回标准 AI 主页（复用 switchToStandard：存 standard 偏好 → 跳 /pages/ai/index）。 -->
+    <view class="uni-back" catchtap="goBackStandard" data-testid="care-home-back-btn">
+      <text class="uni-back-icon" data-testid="care-home-back-icon">‹</text>
     </view>
 
     <!-- 2~4. 中：档案 / 咨询 / 服务 三 Tab（当前停「咨询」，选中蓝色下划线） -->

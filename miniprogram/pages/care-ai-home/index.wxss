@@ -24,6 +24,14 @@
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
+/* [BUGFIX-AI-HOME-CARE-BACK-V1 2026-06-01 §问题2] 左上角返回箭头（替换原 ☰） */
+.uni-back {
+  position: relative;
+  width: 64rpx; height: 64rpx;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.uni-back-icon { font-size: 56rpx; color: #1F2D3D; line-height: 1; font-weight: 600; }
 .uni-hamburger-icon { font-size: 40rpx; color: #1F2D3D; line-height: 1; }
 .uni-hamburger-reddot {
   position: absolute; top: 8rpx; right: 10rpx;

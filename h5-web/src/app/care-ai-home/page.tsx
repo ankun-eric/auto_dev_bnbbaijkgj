@@ -228,14 +228,16 @@ export default function CareAiHomePage() {
         data-testid="care-home-topbar"
       >
         <div style={{ position: 'relative', height: 48, width: '100%' }}>
-          {/* 1. 左：☰ 三横杠（带小红点 → 历史/侧边栏入口）
-              [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化1] 修复点击 404：
-              旧版跳向不存在的个人页路由导致 404，现改为跳标准版 /ai-home 并携带
-              ?openDrawer=1 自动弹出历史会话抽屉，与标准版「☰」表现完全一致（标准版 ☰ = 打开历史抽屉）。 */}
+          {/* 1. 左：← 返回箭头（[BUGFIX-AI-HOME-CARE-BACK-V1 2026-06-01 §问题2]）
+              旧版此处为「☰ 三横杠」，点击跳标准首页并自动弹历史抽屉，会顺带把模式带回标准模式
+              （表现为"一点☰就跳回标准模式"），属 BUG。关怀模式用不上"历史对话"，
+              现去掉 ☰，换成向左箭头「←」返回图标：点击退出关怀模式，统一退回标准 AI 主页
+              （复用 handleSwitchToStandard：保存 standard 偏好 → 跳 /ai-home，避免回弹）。 */}
           <button
-            aria-label="历史会话"
-            onClick={() => navigate('/ai-home?openDrawer=1')}
-            data-testid="care-home-hamburger-btn"
+            aria-label="返回标准模式"
+            onClick={handleSwitchToStandard}
+            disabled={modeSwitching}
+            data-testid="care-home-back-btn"
             style={{
               position: 'absolute',
               left: 8,
@@ -246,34 +248,23 @@ export default function CareAiHomePage() {
               background: 'transparent',
               border: 'none',
               padding: 0,
-              cursor: 'pointer',
+              cursor: modeSwitching ? 'default' : 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: '#1F2D3D',
             }}
           >
-            <span style={{ position: 'relative', display: 'inline-block', width: 21, height: 17 }}>
-              <svg width={21} height={17} viewBox="0 0 21 17" aria-hidden="true">
-                <rect x={0} y={0} width={16} height={2.5} rx={1.25} fill="currentColor" />
-                <rect x={0} y={7} width={16} height={2.5} rx={1.25} fill="currentColor" />
-                <rect x={0} y={14} width={11} height={2.5} rx={1.25} fill="currentColor" />
-              </svg>
-              <span
-                data-testid="care-home-hamburger-reddot"
-                aria-hidden="true"
-                style={{
-                  position: 'absolute',
-                  left: 16,
-                  top: -8,
-                  width: 8,
-                  height: 8,
-                  borderRadius: 9999,
-                  background: '#FF3B30',
-                  pointerEvents: 'none',
-                }}
+            <svg width={22} height={22} viewBox="0 0 24 24" aria-hidden="true" data-testid="care-home-back-icon">
+              <path
+                d="M15 5L8 12L15 19"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2.2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
-            </span>
+            </svg>
           </button>
 
           {/* 2~4. 中：档案 / 咨询 / 服务 三 Tab（当前停「咨询」，选中蓝色下划线） */}

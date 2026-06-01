@@ -1,6 +1,5 @@
 'use client';
 
-import { Popup } from 'antd-mobile';
 import { THEME } from '@/lib/theme';
 
 interface MoreMenuProps {
@@ -83,20 +82,33 @@ export default function MoreMenu({
         { icon: '📤', label: '立即分享', action: onShare },
       ];
 
+  // [BUGFIX-AI-HOME-MENU-MASK-V1 2026-06-01 §问题1] 透明遮罩铺满全屏：
+  //   旧实现用 antd-mobile 顶部弹层组件（position=top），其 body 只占据顶部一小块区域，
+  //   遮罩未铺满整屏，导致只有点菜单正下方那一小块才能关菜单，点别处关不掉。
+  //   现改为自绘「全屏 fixed 遮罩 + 右上角菜单卡」：点遮罩任意空白处即关闭菜单，
+  //   点菜单卡本身阻止冒泡（不关闭）。恢复「点任意空白处收回菜单」的原有体验。
+  if (!visible) return null;
+
   return (
-    <Popup
-      visible={visible}
-      onMaskClick={onClose}
-      position="top"
-      bodyStyle={{
-        borderRadius: '0 0 16px 16px',
-        padding: 0,
+    <div
+      data-testid="ai-home-more-menu-mask"
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
         background: 'transparent',
+        zIndex: 1000,
       }}
     >
       <div className="flex justify-end px-4 pt-12 pb-3">
         <div
           className="rounded-2xl overflow-hidden shadow-lg"
+          onClick={(e) => e.stopPropagation()}
           style={{
             background: MENU_BG,
             border: `1px solid ${MENU_DIVIDER}`,
@@ -146,6 +158,6 @@ export default function MoreMenu({
           ))}
         </div>
       </div>
-    </Popup>
+    </div>
   );
 }

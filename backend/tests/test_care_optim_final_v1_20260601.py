@@ -141,28 +141,44 @@ async def test_all_checked_means_no_unchecked(client: AsyncClient, auth_headers)
     assert unchecked == [], "全部打卡后应无未打卡条目"
 
 
-# ============== 优化1：☰ 三横杠 404 修复 ==============
+# ============== 优化1：左上角左上角入口（[BUGFIX-AI-HOME-CARE-BACK-V1 2026-06-01] 改为「返回箭头」） ==============
+# 注：原"优化1"将关怀版左上角设为 ☰（跳标准版 openDrawer 历史抽屉）。
+#     [BUGFIX-AI-HOME-CARE-BACK-V1 2026-06-01 §问题2] 修复"点 ☰ 就跳回标准模式"的 BUG：
+#     去掉 ☰，改为「← 返回箭头」，点击退出关怀模式、统一退回标准 AI 主页。
+#     以下三个用例已同步更新为校验新行为（返回箭头 → 标准首页）。
 
 
-def test_h5_care_hamburger_no_404_opens_drawer():
-    """H5 关怀版 ☰ 不再跳不存在的 /profile（404），改为 /ai-home?openDrawer=1 复用标准版抽屉。"""
+def test_h5_care_left_top_is_back_arrow_to_standard():
+    """H5 关怀版左上角为「← 返回箭头」（非 ☰），点击退回标准 AI 主页 /ai-home。"""
     src = _read(H5_CARE)
-    assert "/ai-home?openDrawer=1" in src, "关怀版 ☰ 应跳标准版并自动打开历史抽屉"
-    assert "navigate('/profile')" not in src, "不应再跳已废弃的 /profile（404 根因）"
-    assert 'data-testid="care-home-hamburger-btn"' in src
+    assert 'data-testid="care-home-back-btn"' in src, "关怀版左上角应为返回按钮"
+    assert 'data-testid="care-home-back-icon"' in src, "应渲染返回箭头图标"
+    # 点击复用 handleSwitchToStandard：退出关怀模式 → 标准首页（不再弹历史抽屉、不再 openDrawer）
+    assert "onClick={handleSwitchToStandard}" in src, "返回按钮应调用切回标准模式逻辑"
+    # 已去掉旧 ☰ 入口与 openDrawer 跳转
+    assert 'data-testid="care-home-hamburger-btn"' not in src, "不应再保留旧 ☰ 按钮"
+    assert "/ai-home?openDrawer=1" not in src, "返回不再走 openDrawer 历史抽屉路径"
 
 
-def test_h5_standard_supports_open_drawer_param():
-    """标准版 /ai-home 支持 ?openDrawer=1 进入即弹出历史抽屉（供关怀版 ☰ 照搬）。"""
-    src = _read(H5_STD)
-    assert "openDrawer" in src
-    assert "setSidebarOpen(true)" in src
+def test_h5_care_back_returns_to_standard_home():
+    """H5 关怀版返回逻辑：保存 standard 偏好并跳 /ai-home（避免回弹关怀模式）。"""
+    src = _read(H5_CARE)
+    assert "saveModePreference('standard')" in src, "返回应将模式偏好置为 standard"
+    assert "router.push('/ai-home')" in src, "返回应跳标准 AI 主页"
 
 
-def test_mp_care_hamburger_opens_standard_drawer():
-    """小程序关怀版 ☰ 沿用跳标准版 openDrawer，不再 404。"""
+def test_mp_care_left_top_is_back_arrow_to_standard():
+    """小程序关怀版左上角为「← 返回箭头」，点击退回标准 AI 主页 /pages/ai/index。"""
+    wxml = _read(MP_CARE_WXML)
     js = _read(MP_CARE_JS)
-    assert "/pages/ai/index?openDrawer=1" in js
+    assert 'data-testid="care-home-back-btn"' in wxml, "应有返回按钮"
+    assert 'catchtap="goBackStandard"' in wxml, "返回按钮绑定 goBackStandard"
+    assert "goBackStandard" in js, "JS 应实现 goBackStandard"
+    assert "/pages/ai/index" in js, "返回应跳标准 AI 主页"
+    assert "'app_mode_preference', 'standard'" in js, "返回应将模式偏好置为 standard"
+    # 不再用 openHistory / openDrawer
+    assert "openHistory" not in js, "不应再保留旧 openHistory"
+    assert "/pages/ai/index?openDrawer=1" not in js, "返回不再走 openDrawer 历史抽屉路径"
 
 
 # ============== 优化2：底部向下小箭头 ==============

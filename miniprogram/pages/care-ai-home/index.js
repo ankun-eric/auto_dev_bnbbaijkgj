@@ -197,11 +197,16 @@ Page({
     }, 300);
   },
 
-  // ───── 左上角 ☰ 历史（与标准模式一致：进入历史对话记录） ─────
-  // 复用标准模式 AI 首页的历史对话抽屉（携带 openDrawer 标记，进入即弹出）
-  openHistory() {
+  // ───── 左上角 ← 返回（[BUGFIX-AI-HOME-CARE-BACK-V1 2026-06-01 §问题2]） ─────
+  // 旧版此处为 ☰，点击跳标准首页并自动弹历史抽屉，会顺带把模式带回标准模式（BUG）。
+  // 现改为返回箭头：退出关怀模式，统一退回标准 AI 主页。
+  // 复用 switchToStandard 的"存 standard 偏好 + 跳标准首页"，但去掉切换 Toast，做"干净返回"。
+  goBackStandard() {
+    try {
+      wx.setStorageSync('app_mode_preference', 'standard');
+    } catch (e) {}
     wx.navigateTo({
-      url: '/pages/ai/index?openDrawer=1',
+      url: '/pages/ai/index',
       fail: () => wx.switchTab({ url: '/pages/ai/index' }),
     });
   },
