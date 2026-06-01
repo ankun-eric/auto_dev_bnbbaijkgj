@@ -1,6 +1,7 @@
 {
+  "navigationStyle": "custom",
   "navigationBarTitleText": "体质分析报告",
-  "navigationBarBackgroundColor": "#52c41a",
+  "navigationBarBackgroundColor": "#0EA5E9",
   "navigationBarTextStyle": "white",
   "enablePullDownRefresh": false
 }

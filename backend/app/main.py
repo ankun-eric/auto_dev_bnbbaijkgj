@@ -1790,6 +1790,13 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
         await sync_register_schema(conn)
     await _migrate_points_enums_and_config()
+    # [PRD-TIZHI-OPTIM-V1 2026-06-01] 体质测评结果页运营内容默认种子（仅表为空时）
+    try:
+        from app.services.constitution_content_seed import seed_constitution_content
+        await seed_constitution_content()
+    except Exception as _e:
+        import logging as _l
+        _l.getLogger(__name__).error("constitution_content_seed 异常（不影响启动）: %s", _e)
     await _migrate_coupons_v2()
     await _migrate_coupons_v2_1()
     await _migrate_coupons_scope_v2_2()
@@ -2195,6 +2202,7 @@ app.include_router(ai_home_optim_v4.router)
 app.include_router(health_archive_v5.router)
 app.include_router(tcm.router)
 app.include_router(constitution.router)
+app.include_router(constitution.admin_router)
 app.include_router(service.router)
 # [2026-04-21] 老订单接口 /api/orders/* 已下线，统一走 /api/orders/unified
 # app.include_router(order.router)

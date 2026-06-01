@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../services/api_service.dart';
 import '../../widgets/custom_app_bar.dart';
 
@@ -299,104 +300,120 @@ class _ConstitutionResultScreenState extends State<ConstitutionResultScreen> {
     );
   }
 
-  // ─────────── 屏 4：套餐推荐 ───────────
+  // ─────────── 屏 4：专属膳食套餐（后台运营配置驱动，按体质匹配；无配置整块隐藏）───────────
+  // [PRD-TIZHI-OPTIM-V1] 优化点2：内容改为 ContentCard（后台可运营），无内容则整块隐藏，不再有占位假文案。
   Widget _buildScreen4(Map d, Color color) {
     final pkgs = d['screen4_packages'] as List? ?? [];
     if (pkgs.isEmpty) return const SizedBox.shrink();
     return _sectionCard(
-      title: '🛒 专属膳食套餐推荐',
-      children: pkgs.map<Widget>((pkgAny) {
-        final pkg = pkgAny is Map ? pkgAny : {};
-        final matched = pkg['matched'] == true;
-        final tagColor = _parseColor(pkg['reason_tag_color']?.toString(), fallback: color);
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFAFAFA),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey[200]!),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 56, height: 56,
-                decoration: BoxDecoration(
-                  color: tagColor.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                alignment: Alignment.center,
-                child: const Text('🍲', style: TextStyle(fontSize: 28)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(pkg['name']?.toString() ?? '',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: tagColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(pkg['reason']?.toString() ?? '',
-                          style: TextStyle(fontSize: 10, color: tagColor)),
-                    ),
-                    const SizedBox(height: 4),
-                    if (matched && pkg['price'] != null)
-                      Row(children: [
-                        Text('¥${pkg['price']}',
-                            style: const TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFFFF4D4F))),
-                        if (pkg['original_price'] != null &&
-                            (pkg['original_price'] as num) > (pkg['price'] as num)) ...[
-                          const SizedBox(width: 6),
-                          Text('¥${pkg['original_price']}',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey[400],
-                                  decoration: TextDecoration.lineThrough)),
-                        ],
-                      ])
-                    else if (!matched)
-                      Text('敬请期待',
-                          style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-                  ],
-                ),
-              ),
-              ElevatedButton(
-                onPressed: matched
-                    ? () => ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('请在商城中查看详情')),
-                        )
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: matched ? color : Colors.grey[300],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  minimumSize: Size.zero,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-                child: Text(matched ? '下单' : '待上架',
-                    style: const TextStyle(fontSize: 12)),
-              ),
-            ],
-          ),
-        );
+      title: '🛒 专属膳食套餐',
+      children: pkgs.map<Widget>((cardAny) {
+        final c = cardAny is Map ? cardAny : {};
+        return _buildContentCard(c, color, fallbackEmoji: '🍲');
       }).toList(),
     );
   }
 
-  // ─────────── 屏 5：门店 ───────────
+  // 通用运营内容卡（膳食套餐 / 门店服务共用）
+  Widget _buildContentCard(Map c, Color color, {required String fallbackEmoji}) {
+    final tagColor = _parseColor(c['tag_color']?.toString(), fallback: color);
+    final hasPrice = c['price'] != null;
+    final tag = c['tag']?.toString() ?? '';
+    final btnText = c['button_text']?.toString() ?? '了解详情';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAFAFA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(
+              color: tagColor.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            alignment: Alignment.center,
+            child: Text(fallbackEmoji, style: const TextStyle(fontSize: 28)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(c['title']?.toString() ?? '',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                if ((c['subtitle']?.toString() ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(c['subtitle'].toString(),
+                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                      maxLines: 2, overflow: TextOverflow.ellipsis),
+                ],
+                if (tag.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: tagColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(tag, style: TextStyle(fontSize: 10, color: tagColor)),
+                  ),
+                ],
+                if (hasPrice) ...[
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    Text('¥${c['price']}',
+                        style: const TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFFFF4D4F))),
+                    if (c['original_price'] != null &&
+                        (c['original_price'] as num) > (c['price'] as num)) ...[
+                      const SizedBox(width: 6),
+                      Text('¥${c['original_price']}',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[400],
+                              decoration: TextDecoration.lineThrough)),
+                    ],
+                  ]),
+                ],
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('请在小程序 / 商城中查看详情')),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: color,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              minimumSize: Size.zero,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            child: Text(btnText, style: const TextStyle(fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────── 屏 5：门店服务（后台运营配置驱动，按体质匹配；无服务+无券则整块隐藏）───────────
+  // [PRD-TIZHI-OPTIM-V1] 优化点2：门店服务改为 ContentCard 列表，写死「预约艾灸」「非广州」占位文案移除。
   Widget _buildScreen5(Map d) {
     final s = d['screen5_store'] as Map? ?? {};
+    final services = s['services'] as List? ?? [];
     final coupon = s['coupon'] as Map? ?? {};
     final status = coupon['status']?.toString() ?? 'unavailable';
     final message = coupon['message']?.toString() ?? '';
+    final hasCoupon = status == 'claimable' || status == 'claimed' || status == 'used';
+
+    // 无门店服务且无可用券 → 整块隐藏，不展示任何占位文案
+    if (services.isEmpty && !hasCoupon) return const SizedBox.shrink();
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -426,96 +443,79 @@ class _ConstitutionResultScreenState extends State<ConstitutionResultScreen> {
                   style: TextStyle(fontSize: 10, color: Color(0xFFFA8C16))),
             ),
           ]),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFFAAD14), style: BorderStyle.solid),
-            ),
-            child: Row(
-              children: [
-                const Text('🎟️', style: TextStyle(fontSize: 32)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('AI 精准检测体验券',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                      Text(message, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-                    ],
-                  ),
-                ),
-                if (status == 'claimable')
-                  ElevatedButton(
-                    onPressed: _claimingCoupon ? null : _claimCoupon,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFA8C16),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      minimumSize: Size.zero,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          if (hasCoupon) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFAAD14), style: BorderStyle.solid),
+              ),
+              child: Row(
+                children: [
+                  const Text('🎟️', style: TextStyle(fontSize: 32)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('AI 精准检测体验券',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                        Text(message, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                      ],
                     ),
-                    child: Text(_claimingCoupon ? '领取中...' : '立即领取',
-                        style: const TextStyle(fontSize: 12)),
-                  )
-                else if (status == 'claimed')
-                  OutlinedButton(
-                    onPressed: () {},
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF52C41A),
-                      side: const BorderSide(color: Color(0xFF52C41A)),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      minimumSize: Size.zero,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                    child: const Text('已领取', style: TextStyle(fontSize: 12)),
-                  )
-                else if (status == 'used')
-                  Text('已核销', style: TextStyle(fontSize: 11, color: Colors.grey[400])),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFFFE7BA)),
-            ),
-            child: Row(
-              children: [
-                const Text('🔥', style: TextStyle(fontSize: 32)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('预约艾灸调理',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                      Text('根据您的体质匹配调理方案',
-                          style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-                    ],
                   ),
-                ),
-                const Icon(Icons.chevron_right, color: Color(0xFFCCCCCC)),
-              ],
+                  if (status == 'claimable')
+                    ElevatedButton(
+                      onPressed: _claimingCoupon ? null : _claimCoupon,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFA8C16),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        minimumSize: Size.zero,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: Text(_claimingCoupon ? '领取中...' : '立即领取',
+                          style: const TextStyle(fontSize: 12)),
+                    )
+                  else if (status == 'claimed')
+                    OutlinedButton(
+                      onPressed: () {},
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF0EA5E9),
+                        side: const BorderSide(color: Color(0xFF0EA5E9)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        minimumSize: Size.zero,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: const Text('已领取', style: TextStyle(fontSize: 12)),
+                    )
+                  else if (status == 'used')
+                    Text('已核销', style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
-          Text(s['non_guangzhou_fallback_text']?.toString() ?? '',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 10, color: Colors.grey[500])),
+          ],
+          // 后台运营配置的门店服务卡（按体质匹配，无则不渲染）
+          ...services.map<Widget>((svcAny) {
+            final c = svcAny is Map ? svcAny : {};
+            return Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: _buildContentCard(c, const Color(0xFFFA8C16), fallbackEmoji: '🏥'),
+            );
+          }),
         ],
       ),
     );
   }
 
-  // ─────────── 屏 6：分享 ───────────
+  // ─────────── 屏 6：分享（优化点4：转发标题动态带体质，与小程序对齐）───────────
   Widget _buildScreen6(Map d, Color color) {
+    final share = d['screen6_share'] as Map? ?? {};
+    final type = (d['screen1_card'] as Map?)?['type']?.toString() ?? '';
+    final shareTitle = share['share_title']?.toString() ??
+        '我的体质是「$type」，快来测测你是什么体质？';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
@@ -525,16 +525,14 @@ class _ConstitutionResultScreenState extends State<ConstitutionResultScreen> {
             height: 46,
             child: ElevatedButton(
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('功能开发中，敬请期待')),
-                );
+                Share.share('$shareTitle 宾尼小康 · 中医体质测评');
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: color,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               ),
-              child: const Text('📤 生成分享卡，发给朋友',
+              child: const Text('👋 转发给好友，一起测体质',
                   style: TextStyle(fontWeight: FontWeight.w600)),
             ),
           ),

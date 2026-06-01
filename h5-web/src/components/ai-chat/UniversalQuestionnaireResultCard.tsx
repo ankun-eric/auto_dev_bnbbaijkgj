@@ -248,29 +248,47 @@ export default function UniversalQuestionnaireResultCard({ payload, onClickDetai
             </div>
           );
         })()}
+        {/* [PRD-TIZHI-OPTIM-V1] 优化点 1：主体质一行完整显示不换行，兼夹体质自动排到下一行 */}
         <div
+          data-testid="qn-card-constitution-rows"
           style={{
             display: 'flex',
-            alignItems: 'center',
-            gap: 8,
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            gap: 4,
             marginTop: 4,
             marginBottom: 6,
           }}
         >
           <div
+            data-testid="qn-card-main-type"
             style={{
-              padding: '3px 10px',
+              maxWidth: '100%',
+              padding: '3px 12px',
               background: coverColor + '1A',
               color: coverColor,
               borderRadius: 999,
               fontSize: 14,
               fontWeight: 700,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
             }}
           >
             主：{mainType}
           </div>
           {secondary.length > 0 && (
-            <div style={{ fontSize: 12, color: '#64748B' }}>兼：{secondary.join('、')}</div>
+            <div
+              data-testid="qn-card-secondary-type"
+              style={{
+                fontSize: 12,
+                color: '#64748B',
+                lineHeight: 1.5,
+                wordBreak: 'break-all',
+              }}
+            >
+              兼：{secondary.join('、')}
+            </div>
           )}
         </div>
         {payload.main_type_desc && (

@@ -84,6 +84,7 @@ const menuItems: MenuItem[] = [
       { key: '/prompt-templates', label: 'Prompt 模板配置' },
       { key: '/ai-center/disclaimers', label: '免责提示配置' },
       { key: '/tcm-config', label: '中医养生配置' },
+      { key: '/constitution-content', label: '体质测评运营内容' },
     ],
   },
   {
@@ -278,7 +279,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/points')) return ['points'];
   if (pathname.startsWith('/ai-config/video-consult') || pathname.startsWith('/ai-config/chat-timeout')) return ['ai-consult-config'];
   if (pathname.startsWith('/ai-config') || pathname.startsWith('/chat-records') || pathname.startsWith('/knowledge') || pathname.startsWith('/search-config') || pathname.startsWith('/fallback-config') || pathname.startsWith('/ocr-config') || pathname.startsWith('/ocr-global-config') || pathname.startsWith('/checkup-details') || pathname.startsWith('/drug-details')) return ['ai'];
-  if (pathname.startsWith('/ai-center') || pathname.startsWith('/prompt-templates') || pathname.startsWith('/tcm-config')) return ['ai-center'];
+  if (pathname.startsWith('/ai-center') || pathname.startsWith('/prompt-templates') || pathname.startsWith('/tcm-config') || pathname.startsWith('/constitution-content')) return ['ai-center'];
   if (pathname.startsWith('/function-buttons') || pathname.startsWith('/digital-humans') || pathname.startsWith('/voice-service') || pathname.startsWith('/tts-config') || pathname.startsWith('/share-config') || pathname.startsWith('/questionnaire-templates')) return ['ai-consult-config'];
   if (pathname.startsWith('/home-settings') || pathname.startsWith('/home-banners') || pathname.startsWith('/notices') || pathname.startsWith('/bottom-nav') || pathname.startsWith('/home-settings/ai-home-config') || pathname.startsWith('/function-buttons')) return ['home-config'];
   if (pathname.startsWith('/search')) return ['search-manage'];

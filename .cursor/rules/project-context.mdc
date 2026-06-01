@@ -5,7 +5,32 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-01 · Bug 修复 / AI 主页两个问题：更多菜单遮罩未铺满 + 关怀模式左上角「☰」误跳 · H5 + 微信小程序两端）
+## 最近一次变更（2026-06-01 · 新功能 / 体质测评优化 4 点 + 品牌天蓝统一 · 后端 + H5 + Admin + 微信小程序 + Flutter APP 五端）
+
+**任务标识**：`[PRD-TIZHI-OPTIM-V1 2026-06-01]`
+
+**需求**：AI 首页 → 体质测评 4 项优化：①结果卡片「主/兼」体质分行清晰展示不截断；②详情页「专属膳食套餐/门店服务」由写死假数据改为**后台可运营配置**（按体质智能匹配，无配置整块隐藏，去除「暂未上架/敬请期待」占位）；③右上角返回**直达 AI 首页**（弃用旧列表页）；④分享重设——小程序**原生一键转发**（标题动态带体质 + 固定圆形 Logo 封面 + 点开直达测评）+ **朋友圈长图海报**（清爽留白版：浅蓝底白卡片 + 品牌 + 体质结果 + 3 条按体质匹配建议 + 引导语）。品牌统一「宾尼小康」天蓝 `#0EA5E9`、Logo 用 `binni-xiaokang-logo.png`、时长文案「约 3 分钟完成」。
+
+**改动**：
+- 后端：`models.py` 新增 `ConstitutionContentConfig`（体质类型+板块 meal/store 的可运营内容卡）；`api/constitution.py` `get_full_result` 的 screen4/5 改为读配置（`_load_content_configs`，空则返回空列表→前端隐藏），screen6 改为动态分享数据（`share_title` 带体质、`brand`、`cover_image=/binni-xiaokang-logo.png`、`poster_tips` 取内容库 3 条）；新增 `admin_router` 一组 CRUD（`/api/admin/constitution/meta`、`/content-configs` 增删改查）；`main.py` 注册 admin_router + lifespan 调 `seed_constitution_content`；新增 `services/constitution_content_seed.py`（9 体质×膳食/门店共 18 条默认，仅表空时插）。
+- H5：`tcm/result/[id]/page.tsx` 返回改 `router.push('/ai-home')`、screen4/5 渲染 ContentCard 并空则隐藏、`generateShareCard` 重写为清爽留白海报、新增「转发给好友」(Web Share/复制) +「保存海报」双按钮；`tcm/page.tsx` 时长文案改「约 3 分钟完成」；`components/ai-chat/UniversalQuestionnaireResultCard.tsx` 主/兼改列布局 + 主 nowrap/ellipsis。
+- Admin：新增页 `(admin)/constitution-content/page.tsx`（Antd 表格+表单维护内容卡）；`(admin)/layout.tsx` 菜单加「体质测评运营内容」入口。
+- 小程序：`pages/tcm-constitution-result/{json,wxml,js,wxss}` 自定义天蓝顶栏 + 返回 `wx.reLaunch('/pages/ai/index')` + `onShareAppMessage/onShareTimeline` 标题带体质 + `_shareCover()` 用 logo + screen4/5 改读配置渲染并空隐藏 + `goCardLink` 通用跳转；`components/questionnaire-result-card/{wxml,js,wxss}` 主/兼列布局 + `secondaryText`；`pages/tcm/index.wxml` 时长文案。
+- Flutter APP：`screens/health/constitution_result_screen.dart` screen4/5 改 `_buildContentCard`（ContentCard 形态，空则隐藏，去「敬请期待/待上架/预约艾灸/非广州」写死）、screen6 分享改 `Share.share` 标题动态带体质；`widgets/ai_chat/questionnaire_result_card.dart` 主/兼改 Column + 主 maxLines:1/ellipsis。
+
+**测试**：`backend/tests/test_tizhi_optim_v1_20260601.py`（15 用例）。本地全 15 通过；服务器 backend 容器（MySQL）跑 **7 个 API/DB 用例全通过**（admin CRUD、类型/板块校验、screen4/5 按体质匹配、停用项不展示、空配置整块隐藏、share 动态标题+poster_tips、种子覆盖 9 体质）；其余 8 个为纯前端源码静态断言，因 backend 容器内无 h5/miniprogram/flutter 同级源码而在容器内跳过失败（本地全通过）。
+
+**部署**：GitHub 服务器侧 fetch 超时（沿用历史降级），paramiko SFTP 直传改动文件 → `docker compose -f docker-compose.prod.yml build --no-cache backend admin-web h5-web && up -d`，gateway-nginx 重连 `{DEPLOY_ID}-network` + reload。种子已生效（DB 查得 meal=9/store=9，特禀质膳食=增强免疫餐）。外部 HTTPS 全可达：`/api/health`=200、`/api/constitution/result/1`=401（鉴权）、`/tcm/`=200、`/`=200、`/admin/`=200、`/admin/constitution-content/`=200、`/api/admin/constitution/meta`=401（已注册）、`/binni-xiaokang-logo.png`=200。
+
+**变更端清单**：后端 + H5 + Admin（均 Docker 容器，已重建上线）+ 微信小程序（重新打包 zip 上传 gateway `downloads/`，HTTP 200）+ Flutter APP（原生体质结果页已对齐，APK/IPA 走 CI 构建）。
+
+**微信小程序新包**：`{base}/downloads/miniprogram_20260601_232958_35ff.zip`（HTTP 200）。
+
+**用户手册**：`user_docs/体质测评优化.md`
+
+---
+
+## 历史变更（2026-06-01 · Bug 修复 / AI 主页两个问题：更多菜单遮罩未铺满 + 关怀模式左上角「☰」误跳 · H5 + 微信小程序两端）
 
 **任务标识**：`[BUGFIX-AI-HOME-MENU-MASK + AI-HOME-CARE-BACK V1 2026-06-01]`
 

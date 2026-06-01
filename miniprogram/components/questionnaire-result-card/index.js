@@ -17,6 +17,8 @@ Component({
     radarAxisPoints: [],
     radarLabelPoints: [],
     coverColorBg: '#0EA5E91A',
+    // [PRD-TIZHI-OPTIM-V1] 兼夹体质文本（WXML 不支持 .join，预处理）
+    secondaryText: '',
     // [PRD-HSC-OPTIM-V3 2026-05-21] AI 解读状态
     aiStatus: 'done',
     _pollTimer: null,
@@ -26,7 +28,8 @@ Component({
     'payload': function (payload) {
       if (!payload) return;
       const color = payload.cover_color || '#0EA5E9';
-      this.setData({ coverColorBg: color + '1A' });
+      const sec = Array.isArray(payload.secondary_types) ? payload.secondary_types.filter(Boolean) : [];
+      this.setData({ coverColorBg: color + '1A', secondaryText: sec.join('、') });
       this._renderRadar(payload.scores || {});
       // 仅健康自查启动轮询
       this._maybeStartAiPoll(payload);

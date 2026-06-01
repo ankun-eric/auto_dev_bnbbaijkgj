@@ -28,17 +28,19 @@ interface Persona {
   one_line?: string;
 }
 
-interface PackageCard {
-  sku_id: number | null;
-  sku_kind: 'product' | 'service' | null;
-  name: string;
+// [PRD-TIZHI-OPTIM-V1] 优化点2：运营配置驱动的内容卡（专属膳食套餐 / 门店服务）
+interface ContentCard {
+  id: number;
+  title: string;
+  subtitle: string | null;
+  image: string | null;
+  tag: string | null;
+  tag_color: string | null;
   price: number | null;
   original_price: number | null;
-  image: string | null;
-  description: string | null;
-  reason: string;
-  reason_tag_color: string;
-  matched: boolean;
+  link_type: 'product' | 'service' | 'order' | 'coupon' | 'url' | 'none';
+  link_value: string | null;
+  button_text: string | null;
 }
 
 interface CouponState {
@@ -79,19 +81,21 @@ interface ResultData {
     emotion: string[];
     ai_extra?: string;
   };
-  screen4_packages: PackageCard[];
+  screen4_packages: ContentCard[];
   screen5_store: {
-    city_restricted: boolean;
-    available_city: string;
+    services: ContentCard[];
     coupon: CouponState;
-    appointment_hint: string;
-    non_guangzhou_fallback_text: string;
   };
   screen6_share: {
     title: string;
+    share_title: string;
     subtitle: string;
     persona: Persona;
+    brand: string;
+    cover_image: string;
+    logo_image: string;
     radar_preview: { dimensions: string[]; scores: number[] };
+    poster_tips: string[];
     slogan: string;
     qr_hint: string;
   };
@@ -196,6 +200,14 @@ function RadarChart({
 // ══════════════════════════════════════════════════════════
 // 分享卡海报（Canvas 生成，用于保存图片）
 // ══════════════════════════════════════════════════════════
+/**
+ * [PRD-TIZHI-OPTIM-V1] 优化点4·形态二：朋友圈长图海报。
+ * 方案 A · 清爽留白版（浅蓝底 + 白卡片）。品牌天蓝、宾尼小康，
+ * 顶部品牌 + 大标题，中部高亮体质结果（主/兼），下部 3 条按体质匹配的调理建议，
+ * 底部小程序码占位 + 「长按识别测测你的体质」引导语。
+ */
+const BRAND_BLUE = '#0EA5E9';
+
 async function generateShareCard(data: ResultData): Promise<string> {
   const w = 750;
   const h = 1334;
@@ -205,80 +217,86 @@ async function generateShareCard(data: ResultData): Promise<string> {
   const ctx = canvas.getContext('2d');
   if (!ctx) return '';
 
-  // 背景（国风渐变）
-  const grad = ctx.createLinearGradient(0, 0, 0, h);
-  grad.addColorStop(0, '#F0F9FF');
-  grad.addColorStop(0.5, '#fff');
-  grad.addColorStop(1, '#e6fffb');
-  ctx.fillStyle = grad;
+  // 浅蓝底（清爽留白版）
+  ctx.fillStyle = '#EAF6FE';
   ctx.fillRect(0, 0, w, h);
 
-  // 顶部装饰
-  ctx.fillStyle = data.screen1_card.color || '#0EA5E9';
-  ctx.globalAlpha = 0.1;
-  ctx.fillRect(0, 0, w, 200);
-  ctx.globalAlpha = 1;
-
-  // emoji
-  ctx.font = '120px serif';
+  // 顶部：品牌
   ctx.textAlign = 'center';
-  ctx.fillText(data.screen1_card.persona.emoji || '🌿', w / 2, 220);
+  ctx.fillStyle = BRAND_BLUE;
+  ctx.font = 'bold 40px "PingFang SC", sans-serif';
+  ctx.fillText('宾尼小康', w / 2, 96);
+  ctx.fillStyle = '#64748B';
+  ctx.font = '26px "PingFang SC", sans-serif';
+  ctx.fillText('中医体质测评', w / 2, 138);
 
-  // 标题
-  ctx.fillStyle = data.screen1_card.color || '#0EA5E9';
-  ctx.font = 'bold 64px "PingFang SC", sans-serif';
-  ctx.fillText(data.screen1_card.type, w / 2, 320);
+  // 白色主卡片（圆角矩形）
+  const cardX = 56;
+  const cardY = 186;
+  const cardW = w - cardX * 2;
+  const cardH = 760;
+  const radius = 28;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.beginPath();
+  ctx.moveTo(cardX + radius, cardY);
+  ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardH, radius);
+  ctx.arcTo(cardX + cardW, cardY + cardH, cardX, cardY + cardH, radius);
+  ctx.arcTo(cardX, cardY + cardH, cardX, cardY, radius);
+  ctx.arcTo(cardX, cardY, cardX + cardW, cardY, radius);
+  ctx.closePath();
+  ctx.fill();
 
-  // 副标题
-  ctx.fillStyle = '#666';
+  // 中部：拟人 emoji + 大标题（体质结果高亮）
+  ctx.font = '120px serif';
+  ctx.fillText(data.screen1_card.persona.emoji || '🌿', w / 2, cardY + 170);
+
+  ctx.fillStyle = BRAND_BLUE;
+  ctx.font = 'bold 30px "PingFang SC", sans-serif';
+  ctx.fillText('我的体质是', w / 2, cardY + 230);
+
+  ctx.fillStyle = '#0F172A';
+  ctx.font = 'bold 72px "PingFang SC", sans-serif';
+  ctx.fillText(`「${data.screen1_card.type}」`, w / 2, cardY + 318);
+
+  // 一句话描述
+  ctx.fillStyle = '#64748B';
   ctx.font = '28px "PingFang SC", sans-serif';
   const subtitle = data.screen1_card.one_line_desc || '';
-  ctx.fillText(subtitle.length > 18 ? subtitle.slice(0, 18) + '…' : subtitle, w / 2, 380);
+  ctx.fillText(subtitle.length > 20 ? subtitle.slice(0, 20) + '…' : subtitle, w / 2, cardY + 368);
 
-  // 雷达图（简化）：在中部画 9 维得分条
-  const barTop = 450;
-  const barLeft = 100;
-  const barW = 550;
-  const dims = data.screen1_card.radar.dimensions;
-  const scores = data.screen1_card.radar.scores;
-  for (let i = 0; i < dims.length; i++) {
-    const y = barTop + i * 50;
-    ctx.fillStyle = '#eee';
-    ctx.fillRect(barLeft + 80, y + 14, barW - 80, 16);
-    ctx.fillStyle = data.screen1_card.color || '#0EA5E9';
-    const ww = ((barW - 80) * Math.max(0, Math.min(100, scores[i]))) / 100;
-    ctx.fillRect(barLeft + 80, y + 14, ww, 16);
-    ctx.fillStyle = '#333';
-    ctx.font = '22px "PingFang SC", sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(dims[i], barLeft, y + 24);
-  }
-
-  // 分隔线
-  ctx.strokeStyle = '#ddd';
-  ctx.beginPath();
-  ctx.moveTo(80, 1020);
-  ctx.lineTo(w - 80, 1020);
-  ctx.stroke();
-
-  // Slogan
-  ctx.fillStyle = '#0EA5E9';
-  ctx.font = 'bold 40px "PingFang SC", sans-serif';
+  // 下部：3 条按体质匹配的调理建议
+  const tips = (data.screen6_share.poster_tips || []).slice(0, 3);
+  ctx.textAlign = 'left';
+  const tipLeft = cardX + 56;
+  let tipY = cardY + 460;
+  ctx.fillStyle = BRAND_BLUE;
+  ctx.font = 'bold 28px "PingFang SC", sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(data.screen6_share.slogan || '一起测，测完约个艾灸', w / 2, 1100);
+  ctx.fillText('—— 调理建议 ——', w / 2, tipY);
+  tipY += 50;
+  ctx.textAlign = 'left';
+  ctx.font = '26px "PingFang SC", sans-serif';
+  tips.forEach((t, i) => {
+    ctx.fillStyle = BRAND_BLUE;
+    ctx.fillText(`${i + 1}`, tipLeft, tipY);
+    ctx.fillStyle = '#334155';
+    const text = String(t);
+    const clipped = text.length > 22 ? text.slice(0, 22) + '…' : text;
+    ctx.fillText(clipped, tipLeft + 40, tipY);
+    tipY += 56;
+  });
 
-  // 品牌
-  ctx.fillStyle = '#888';
-  ctx.font = '24px "PingFang SC", sans-serif';
-  ctx.fillText('宾尼小康 · 中医养生', w / 2, 1160);
-
-  // 二维码占位框
-  ctx.strokeStyle = '#0EA5E9';
+  // 底部：小程序码占位 + 引导语
+  ctx.textAlign = 'center';
+  ctx.strokeStyle = BRAND_BLUE;
   ctx.lineWidth = 3;
-  ctx.strokeRect(w / 2 - 70, 1200, 140, 140);
-  ctx.font = '20px "PingFang SC", sans-serif';
-  ctx.fillStyle = '#0EA5E9';
-  ctx.fillText('扫码测体质', w / 2, 1360 - 20);
+  ctx.strokeRect(w / 2 - 80, h - 280, 160, 160);
+  ctx.fillStyle = BRAND_BLUE;
+  ctx.font = '24px "PingFang SC", sans-serif';
+  ctx.fillText('小程序码', w / 2, h - 280 + 86);
+  ctx.fillStyle = '#0F172A';
+  ctx.font = 'bold 32px "PingFang SC", sans-serif';
+  ctx.fillText('长按识别测测你的体质', w / 2, h - 70);
 
   return canvas.toDataURL('image/png');
 }
@@ -339,25 +357,56 @@ export default function TcmResultPage() {
     }
   };
 
-  const handleBookAppointment = () => {
-    if (!data) return;
-    // 跳转到预约页，带 source 参数便于后端统计转化
-    router.push('/unified-orders?source=tizhi_test&project=moxibustion');
-  };
-
   const handleViewCoupons = () => {
     router.push('/my-coupons');
   };
 
-  const handleBuyPackage = (pkg: PackageCard) => {
-    if (!pkg.matched || !pkg.sku_id) {
-      showToast('套餐暂未上架，敬请期待');
-      return;
+  // [PRD-TIZHI-OPTIM-V1] 运营配置内容卡点击跳转（按 link_type 分发）
+  const handleCardClick = (card: ContentCard) => {
+    const v = card.link_value || '';
+    switch (card.link_type) {
+      case 'product':
+        if (v) router.push(`/product-detail/${v}?source=tizhi_test`);
+        break;
+      case 'service':
+        if (v) router.push(`/service-detail/${v}?source=tizhi_test`);
+        break;
+      case 'order':
+        router.push(`/unified-orders?source=tizhi_test&project=${v || 'moxibustion'}`);
+        break;
+      case 'coupon':
+        handleClaimCoupon();
+        break;
+      case 'url':
+        if (v) window.location.href = v;
+        break;
+      default:
+        break;
     }
-    if (pkg.sku_kind === 'product') {
-      router.push(`/product-detail/${pkg.sku_id}?source=tizhi_test`);
-    } else {
-      router.push(`/service-detail/${pkg.sku_id}?source=tizhi_test`);
+  };
+
+  // [PRD-TIZHI-OPTIM-V1] 形态一：转发给好友（H5 用系统分享/复制链接，标题动态带体质）
+  const handleShareToFriend = async () => {
+    if (!data) return;
+    const shareTitle =
+      data.screen6_share.share_title ||
+      `我的体质是「${data.screen1_card.type}」，快来测测你是什么体质？`;
+    const shareUrl =
+      typeof window !== 'undefined' ? `${window.location.origin}/tcm` : '/tcm';
+    try {
+      const nav: any = typeof navigator !== 'undefined' ? navigator : null;
+      if (nav && nav.share) {
+        await nav.share({ title: shareTitle, text: shareTitle, url: shareUrl });
+        return;
+      }
+      if (nav && nav.clipboard && nav.clipboard.writeText) {
+        await nav.clipboard.writeText(`${shareTitle} ${shareUrl}`);
+        showToast('分享文案已复制，快去粘贴给好友', 'success');
+        return;
+      }
+      showToast('请使用右上角菜单转发给好友');
+    } catch {
+      showToast('请使用右上角菜单转发给好友');
     }
   };
 
@@ -388,7 +437,7 @@ export default function TcmResultPage() {
   if (loading || !data) {
     return (
       <div className="min-h-screen bh-ai-page">
-        <GreenNavBar back={() => router.back()}>体质分析报告</GreenNavBar>
+        <GreenNavBar back={() => router.push('/ai-home')}>体质分析报告</GreenNavBar>
         <div className="flex flex-col items-center justify-center py-32">
           <SpinLoading style={{ '--size': '36px', '--color': '#0EA5E9' }} />
           <span className="text-sm text-gray-500 mt-4">加载中...</span>
@@ -401,7 +450,8 @@ export default function TcmResultPage() {
 
   return (
     <div className="min-h-screen bh-ai-page pb-20">
-      <GreenNavBar back={() => router.push('/tcm')}>体质分析报告</GreenNavBar>
+      {/* [PRD-TIZHI-OPTIM-V1] 优化点3：右上角返回直接回到 AI 首页（不再回旧列表页） */}
+      <GreenNavBar back={() => router.push('/ai-home')}>体质分析报告</GreenNavBar>
 
       {/* ─────── 第一屏：体质名片 ─────── */}
       <section
@@ -586,34 +636,35 @@ export default function TcmResultPage() {
         </div>
       </section>
 
-      {/* ─────── 第四屏：套餐推荐 ─────── */}
+      {/* ─────── 第四屏：专属膳食套餐（运营配置驱动，无内容整块隐藏，无占位假文案）─────── */}
       {data.screen4_packages?.length > 0 && (
-        <section className="px-4 pb-4">
+        <section className="px-4 pb-4" data-testid="tcm-meal-section">
           <div className="bg-white rounded-2xl p-4 shadow-sm">
             <div className="flex items-center mb-3">
               <span className="text-lg mr-2">🛒</span>
-              <span className="font-semibold text-gray-800">专属膳食套餐推荐</span>
+              <span className="font-semibold text-gray-800">专属膳食套餐</span>
             </div>
             <div className="space-y-3">
-              {data.screen4_packages.map((pkg, i) => (
+              {data.screen4_packages.map((pkg) => (
                 <div
-                  key={i}
-                  className="rounded-xl p-3 border border-gray-100 transition-all active:bg-gray-50"
+                  key={pkg.id}
+                  className="rounded-xl p-3 border border-gray-100 transition-all active:bg-gray-50 cursor-pointer"
                   style={{ background: '#fafafa' }}
+                  onClick={() => handleCardClick(pkg)}
                 >
                   <div className="flex items-start gap-3">
                     <div
                       className="w-16 h-16 rounded-lg flex-shrink-0 flex items-center justify-center text-2xl"
                       style={{
-                        background: `${pkg.reason_tag_color || color}15`,
-                        border: `1px solid ${pkg.reason_tag_color || color}30`,
+                        background: `${pkg.tag_color || color}15`,
+                        border: `1px solid ${pkg.tag_color || color}30`,
                       }}
                     >
                       {pkg.image ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={pkg.image}
-                          alt={pkg.name}
+                          alt={pkg.title}
                           className="w-full h-full rounded-lg object-cover"
                           onError={(e) => ((e.target as HTMLImageElement).style.display = 'none')}
                         />
@@ -622,18 +673,25 @@ export default function TcmResultPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm mb-0.5 truncate">{pkg.name}</div>
-                      <div
-                        className="inline-block px-1.5 py-0.5 rounded text-[10px] mb-1"
-                        style={{
-                          background: `${pkg.reason_tag_color || color}15`,
-                          color: pkg.reason_tag_color || color,
-                        }}
-                      >
-                        {pkg.reason}
-                      </div>
-                      {pkg.matched && pkg.price !== null && (
-                        <div className="text-[13px]">
+                      <div className="font-medium text-sm mb-0.5 truncate">{pkg.title}</div>
+                      {pkg.tag && (
+                        <div
+                          className="inline-block px-1.5 py-0.5 rounded text-[10px] mb-1"
+                          style={{
+                            background: `${pkg.tag_color || color}15`,
+                            color: pkg.tag_color || color,
+                          }}
+                        >
+                          {pkg.tag}
+                        </div>
+                      )}
+                      {pkg.subtitle && (
+                        <div className="text-[11px] text-gray-500 leading-snug line-clamp-2">
+                          {pkg.subtitle}
+                        </div>
+                      )}
+                      {pkg.price !== null && pkg.price !== undefined && (
+                        <div className="text-[13px] mt-0.5">
                           <span className="font-bold" style={{ color: '#ff4d4f' }}>
                             ¥{pkg.price}
                           </span>
@@ -644,26 +702,23 @@ export default function TcmResultPage() {
                           )}
                         </div>
                       )}
-                      {!pkg.matched && (
-                        <div className="text-[11px] text-gray-400">敬请期待</div>
-                      )}
                     </div>
-                    <Button
-                      size="mini"
-                      onClick={() => handleBuyPackage(pkg)}
-                      style={{
-                        background: pkg.matched
-                          ? `linear-gradient(135deg, ${color}, #38BDF8)`
-                          : '#d9d9d9',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: 16,
-                        fontSize: 12,
-                        padding: '4px 14px',
-                      }}
-                    >
-                      {pkg.matched ? '立即下单' : '暂未上架'}
-                    </Button>
+                    {pkg.link_type && pkg.link_type !== 'none' && (
+                      <Button
+                        size="mini"
+                        onClick={(e) => { e.stopPropagation(); handleCardClick(pkg); }}
+                        style={{
+                          background: `linear-gradient(135deg, ${color}, #38BDF8)`,
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 16,
+                          fontSize: 12,
+                          padding: '4px 14px',
+                        }}
+                      >
+                        {pkg.button_text || '查看'}
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -672,100 +727,102 @@ export default function TcmResultPage() {
         </section>
       )}
 
-      {/* ─────── 第五屏：广州门店服务 ─────── */}
-      <section className="px-4 pb-4">
-        <div
-          className="rounded-2xl p-4 shadow-sm"
-          style={{ background: 'linear-gradient(135deg, #fff7e6, #fffbe6)' }}
-        >
-          <div className="flex items-center mb-3">
-            <span className="text-lg mr-2">🏥</span>
-            <span className="font-semibold text-gray-800">广州门店服务</span>
-            <span className="ml-2 text-[10px] px-1.5 py-0.5 bg-orange-100 text-orange-600 rounded">
-              广州专属
-            </span>
-          </div>
-
-          {/* 优惠券按钮 */}
+      {/* ─────── 第五屏：门店服务（运营配置驱动，无内容整块隐藏，无占位假文案）─────── */}
+      {data.screen5_store?.services?.length > 0 && (
+        <section className="px-4 pb-4" data-testid="tcm-store-section">
           <div
-            className="rounded-xl p-3 mb-3 flex items-center gap-3"
-            style={{
-              background: '#fff',
-              border: '1px dashed #faad14',
-            }}
+            className="rounded-2xl p-4 shadow-sm"
+            style={{ background: `linear-gradient(135deg, ${color}10, #F0F9FF)` }}
           >
-            <div className="text-3xl">🎟️</div>
-            <div className="flex-1">
-              <div className="text-sm font-medium text-gray-800">AI 精准检测体验券</div>
-              <div className="text-[11px] text-gray-500 mt-0.5">
-                {data.screen5_store.coupon.message}
-              </div>
+            <div className="flex items-center mb-3">
+              <span className="text-lg mr-2">🏥</span>
+              <span className="font-semibold text-gray-800">门店服务</span>
             </div>
-            {data.screen5_store.coupon.status === 'claimable' && (
-              <Button
-                size="small"
-                loading={claimingCoupon}
-                onClick={handleClaimCoupon}
-                style={{
-                  background: 'linear-gradient(135deg, #fa8c16, #faad14)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 16,
-                  fontSize: 12,
-                  padding: '4px 14px',
-                }}
-              >
-                立即领取
-              </Button>
-            )}
-            {data.screen5_store.coupon.status === 'claimed' && (
-              <Button
-                size="small"
-                onClick={handleViewCoupons}
-                style={{
-                  background: '#F0F9FF',
-                  color: '#0EA5E9',
-                  border: '1px solid #0EA5E9',
-                  borderRadius: 16,
-                  fontSize: 12,
-                  padding: '4px 14px',
-                }}
-              >
-                查看我的券
-              </Button>
-            )}
-            {data.screen5_store.coupon.status === 'used' && (
-              <span className="text-[11px] text-gray-400">已核销</span>
-            )}
-          </div>
 
-          {/* 预约艾灸 */}
-          <div
-            className="rounded-xl p-3 flex items-center gap-3 active:bg-gray-50 cursor-pointer"
-            style={{ background: '#fff', border: '1px solid #ffe7ba' }}
-            onClick={handleBookAppointment}
-          >
-            <div className="text-3xl">🔥</div>
-            <div className="flex-1">
-              <div className="text-sm font-medium text-gray-800">预约艾灸调理</div>
-              <div className="text-[11px] text-gray-500 mt-0.5">
-                根据您的体质匹配调理方案
+            {/* 优惠券（仅在可领取/已领取/已核销时展示） */}
+            {data.screen5_store.coupon.status !== 'unavailable' && (
+              <div
+                className="rounded-xl p-3 mb-3 flex items-center gap-3"
+                style={{ background: '#fff', border: `1px dashed ${color}` }}
+              >
+                <div className="text-3xl">🎟️</div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-gray-800">AI 精准检测体验券</div>
+                  <div className="text-[11px] text-gray-500 mt-0.5">
+                    {data.screen5_store.coupon.message}
+                  </div>
+                </div>
+                {data.screen5_store.coupon.status === 'claimable' && (
+                  <Button
+                    size="small"
+                    loading={claimingCoupon}
+                    onClick={handleClaimCoupon}
+                    style={{
+                      background: `linear-gradient(135deg, ${color}, #38BDF8)`,
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 16,
+                      fontSize: 12,
+                      padding: '4px 14px',
+                    }}
+                  >
+                    立即领取
+                  </Button>
+                )}
+                {data.screen5_store.coupon.status === 'claimed' && (
+                  <Button
+                    size="small"
+                    onClick={handleViewCoupons}
+                    style={{
+                      background: '#F0F9FF',
+                      color: '#0EA5E9',
+                      border: '1px solid #0EA5E9',
+                      borderRadius: 16,
+                      fontSize: 12,
+                      padding: '4px 14px',
+                    }}
+                  >
+                    查看我的券
+                  </Button>
+                )}
+                {data.screen5_store.coupon.status === 'used' && (
+                  <span className="text-[11px] text-gray-400">已核销</span>
+                )}
               </div>
+            )}
+
+            {/* 运营配置的门店服务卡 */}
+            <div className="space-y-2">
+              {data.screen5_store.services.map((svc) => (
+                <div
+                  key={svc.id}
+                  className="rounded-xl p-3 flex items-center gap-3 active:bg-gray-50 cursor-pointer"
+                  style={{ background: '#fff', border: `1px solid ${color}30` }}
+                  onClick={() => handleCardClick(svc)}
+                >
+                  <div className="text-3xl">{svc.image ? '🏥' : '🔥'}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-800">{svc.title}</div>
+                    {svc.subtitle && (
+                      <div className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">
+                        {svc.subtitle}
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-gray-300">›</span>
+                </div>
+              ))}
             </div>
-            <span className="text-gray-300">›</span>
           </div>
+        </section>
+      )}
 
-          <div className="text-[10px] text-gray-400 mt-2 text-center">
-            {data.screen5_store.non_guangzhou_fallback_text}
-          </div>
-        </div>
-      </section>
-
-      {/* ─────── 第六屏：分享卡 CTA ─────── */}
-      <section className="px-4 pb-6">
+      {/* ─────── 第六屏：分享 CTA（形态一转发好友 + 形态二保存海报）─────── */}
+      <section className="px-4 pb-6 space-y-3" data-testid="tcm-share-section">
         <Button
           block
-          onClick={handleShare}
+          data-testid="tcm-share-friend"
+          onClick={handleShareToFriend}
           style={{
             background: `linear-gradient(135deg, ${color}, #38BDF8)`,
             color: '#fff',
@@ -775,9 +832,24 @@ export default function TcmResultPage() {
             fontWeight: 600,
           }}
         >
-          📤 生成分享卡，发个朋友圈
+          👋 转发给好友，一起测体质
         </Button>
-        <div className="text-[11px] text-gray-400 mt-3 text-center px-4 leading-relaxed">
+        <Button
+          block
+          data-testid="tcm-share-poster"
+          onClick={handleShare}
+          style={{
+            background: '#fff',
+            color,
+            border: `1px solid ${color}`,
+            borderRadius: 24,
+            height: 46,
+            fontWeight: 600,
+          }}
+        >
+          🖼️ 保存海报，发朋友圈
+        </Button>
+        <div className="text-[11px] text-gray-400 mt-1 text-center px-4 leading-relaxed">
           {data.disclaimer}
         </div>
       </section>

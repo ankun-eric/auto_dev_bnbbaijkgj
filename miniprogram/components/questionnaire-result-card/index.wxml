@@ -6,12 +6,13 @@
       <text class="qn-head-time" wx:if="{{payload.completed_at}}">{{payload.completed_at}}</text>
     </view>
     <view class="qn-subject" wx:if="{{payload.subject_name}}">被测人：{{payload.subject_name}}</view>
-    <view class="qn-main-row">
+    <!-- [PRD-TIZHI-OPTIM-V1] 优化点1：主体质一行完整不换行，兼夹体质排到下一行 -->
+    <view class="qn-main-col">
       <view class="qn-main-tag" style="background:{{coverColorBg}}; color:{{payload.cover_color || '#0EA5E9'}};">
         主：{{payload.main_type || payload.classification_name || '结果'}}
       </view>
       <text class="qn-sec" wx:if="{{payload.secondary_types && payload.secondary_types.length}}">
-        兼：{{payload.secondary_types.join('、')}}
+        兼：{{secondaryText}}
       </text>
     </view>
     <view class="qn-desc" wx:if="{{payload.main_type_desc}}">{{payload.main_type_desc}}</view>

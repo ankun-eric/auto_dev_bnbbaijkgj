@@ -1,5 +1,14 @@
+<!-- [PRD-TIZHI-OPTIM-V1] 自定义顶栏（天蓝品牌），左上角返回直达 AI 首页 -->
+<view class="custom-navbar" style="padding-top: {{statusBarHeight}}px;">
+  <view class="navbar-inner" style="height: {{navBarHeight}}px;">
+    <view class="navbar-back" bindtap="goAiHome">‹</view>
+    <view class="navbar-title">体质分析报告</view>
+    <view class="navbar-back navbar-back--ph"></view>
+  </view>
+</view>
+
 <!-- 体质分析 6 屏结果页 -->
-<view class="page" wx:if="{{!loading && data}}">
+<view class="page" wx:if="{{!loading && data}}" style="padding-top: {{statusBarHeight + navBarHeight}}px;">
 
   <!-- 屏 1：体质名片 -->
   <view class="screen screen-1" style="background: linear-gradient(180deg, {{data.screen1_card.color}}22 0%, #fff 100%);">
@@ -114,42 +123,42 @@
     </view>
   </view>
 
-  <!-- 屏 4：套餐推荐 -->
+  <!-- 屏 4：专属膳食套餐（运营配置驱动，无内容整块隐藏，无占位假文案） -->
   <view class="screen" wx:if="{{data.screen4_packages.length}}">
     <view class="sect-card">
-      <view class="sect-title">🛒 专属膳食套餐推荐</view>
+      <view class="sect-title">🛒 专属膳食套餐</view>
       <view class="pkg-list">
-        <view wx:for="{{data.screen4_packages}}" wx:key="name" 
-              class="pkg-item" bindtap="goPackageDetail" data-pkg="{{item}}">
-          <view class="pkg-img" style="background: {{item.reason_tag_color}}15;">
+        <view wx:for="{{data.screen4_packages}}" wx:key="id" 
+              class="pkg-item" bindtap="goCardLink" data-card="{{item}}">
+          <view class="pkg-img" style="background: {{item.tag_color || data.screen1_card.color}}15;">
             <image wx:if="{{item.image}}" src="{{item.image}}" mode="aspectFill" class="pkg-img-inner"></image>
             <text wx:else>🍲</text>
           </view>
           <view class="pkg-info">
-            <view class="pkg-name">{{item.name}}</view>
-            <view class="pkg-reason" style="background: {{item.reason_tag_color}}15; color: {{item.reason_tag_color}};">
-              {{item.reason}}
+            <view class="pkg-name">{{item.title}}</view>
+            <view wx:if="{{item.tag}}" class="pkg-reason" style="background: {{item.tag_color || data.screen1_card.color}}15; color: {{item.tag_color || data.screen1_card.color}};">
+              {{item.tag}}
             </view>
-            <view wx:if="{{item.matched && item.price}}" class="pkg-price">
+            <view wx:if="{{item.subtitle}}" class="pkg-sub">{{item.subtitle}}</view>
+            <view wx:if="{{item.price}}" class="pkg-price">
               <text class="price-now">¥{{item.price}}</text>
               <text wx:if="{{item.original_price > item.price}}" class="price-old">¥{{item.original_price}}</text>
             </view>
-            <view wx:if="{{!item.matched}}" class="pkg-pending">敬请期待</view>
           </view>
-          <view class="pkg-btn" style="background: {{item.matched ? data.screen1_card.color : '#d9d9d9'}};">
-            {{item.matched ? '下单' : '待上架'}}
+          <view wx:if="{{item.link_type && item.link_type !== 'none'}}" class="pkg-btn" style="background: {{data.screen1_card.color}};">
+            {{item.button_text || '查看'}}
           </view>
         </view>
       </view>
     </view>
   </view>
 
-  <!-- 屏 5：广州门店服务 -->
-  <view class="screen">
+  <!-- 屏 5：门店服务（运营配置驱动，无内容整块隐藏，无占位假文案） -->
+  <view class="screen" wx:if="{{data.screen5_store.services.length}}">
     <view class="sect-card store-card">
-      <view class="sect-title">🏥 广州门店服务 <text class="gz-tag">广州专属</text></view>
+      <view class="sect-title">🏥 门店服务</view>
 
-      <view class="coupon-row">
+      <view wx:if="{{data.screen5_store.coupon.status !== 'unavailable'}}" class="coupon-row">
         <view class="coupon-icon">🎟️</view>
         <view class="coupon-info">
           <view class="coupon-name">AI 精准检测体验券</view>
@@ -164,24 +173,23 @@
         <view wx:elif="{{data.screen5_store.coupon.status === 'used'}}" class="coupon-used">已核销</view>
       </view>
 
-      <view class="book-row" bindtap="goBookAppointment">
+      <view wx:for="{{data.screen5_store.services}}" wx:key="id" class="book-row" bindtap="goCardLink" data-card="{{item}}">
         <view class="book-icon">🔥</view>
         <view class="book-info">
-          <view class="book-title">预约艾灸调理</view>
-          <view class="book-sub">根据您的体质匹配调理方案</view>
+          <view class="book-title">{{item.title}}</view>
+          <view wx:if="{{item.subtitle}}" class="book-sub">{{item.subtitle}}</view>
         </view>
         <text class="arrow">›</text>
       </view>
-
-      <view class="fallback-text">{{data.screen5_store.non_guangzhou_fallback_text}}</view>
     </view>
   </view>
 
-  <!-- 屏 6：分享 -->
+  <!-- 屏 6：分享（优化点4·形态一：原生一键转发给好友） -->
   <view class="screen share-screen">
-    <button class="share-btn" open-type="share" style="background: linear-gradient(135deg, {{data.screen1_card.color}}, #13c2c2);">
-      📤 发给好友，一起测体质
+    <button class="share-btn" open-type="share" style="background: linear-gradient(135deg, {{data.screen1_card.color}}, #38BDF8);">
+      👋 转发给好友，一起测体质
     </button>
+    <view class="share-hint">点右上角「···」也可转发给好友 / 朋友圈</view>
     <view class="disclaimer">{{data.disclaimer}}</view>
   </view>
 

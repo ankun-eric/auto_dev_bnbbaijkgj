@@ -37,21 +37,30 @@
   color: #64748B;
   margin-bottom: 10rpx;
 }
-.qn-main-row {
+/* [PRD-TIZHI-OPTIM-V1] 优化点1：主/兼分行，主体质标签一行完整不截断 */
+.qn-main-col {
   display: flex;
-  align-items: center;
-  gap: 16rpx;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8rpx;
   margin: 6rpx 0 8rpx;
 }
 .qn-main-tag {
-  padding: 6rpx 20rpx;
+  display: inline-block;
+  max-width: 100%;
+  padding: 6rpx 22rpx;
   border-radius: 999rpx;
   font-size: 28rpx;
   font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .qn-sec {
   font-size: 24rpx;
   color: #64748B;
+  line-height: 1.5;
+  word-break: break-all;
 }
 .qn-desc {
   font-size: 24rpx;

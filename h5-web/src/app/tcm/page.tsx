@@ -293,7 +293,7 @@ export default function TcmPage() {
       features.push({ key: 'face', title: '面诊', desc: '拍摄面部照片，AI分析面色', icon: '🧑' });
     }
     if (tcmConfig.constitution_test_enabled) {
-      features.push({ key: 'constitution', title: '体质测评', desc: '回答问卷，判断体质类型', icon: '📋' });
+      features.push({ key: 'constitution', title: '体质测评', desc: '约 3 分钟完成，判断体质类型', icon: '📋' });
     }
   }
 

@@ -193,19 +193,22 @@ class _QuestionnaireResultCardState extends State<QuestionnaireResultCard> {
                       style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                     ),
                   ),
+                // [PRD-TIZHI-OPTIM-V1] 优化点1：主体质一行完整显示不截断，兼夹体质排到下一行
                 Padding(
                   padding: const EdgeInsets.only(top: 6, bottom: 6),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
                         decoration: BoxDecoration(
                           color: coverColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
                           '主：$mainType',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
@@ -213,13 +216,12 @@ class _QuestionnaireResultCardState extends State<QuestionnaireResultCard> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
                       if (secondary.isNotEmpty)
-                        Expanded(
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
                           child: Text(
                             '兼：${secondary.join('、')}',
                             style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                     ],

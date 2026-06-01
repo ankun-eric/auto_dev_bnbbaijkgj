@@ -30,10 +30,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from pydantic import BaseModel
+
 from app.core.database import get_db
-from app.core.security import get_current_user
+from app.core.security import get_current_user, require_role
 from app.models.models import (
     ConstitutionAnswer,
+    ConstitutionContentConfig,
     Coupon,
     CouponScope,
     CouponStatus,
@@ -59,6 +62,16 @@ from app.services.constitution_content import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/constitution", tags=["体质测评优化一期"])
+admin_router = APIRouter(
+    prefix="/api/admin/constitution", tags=["管理后台-体质测评运营配置"]
+)
+
+# 9 种体质（供后台下拉枚举）
+CONSTITUTION_TYPES = [
+    "平和质", "气虚质", "阳虚质", "阴虚质",
+    "痰湿质", "湿热质", "血瘀质", "气郁质", "特禀质",
+]
+CONTENT_SECTIONS = ["meal", "store"]
 
 
 def build_member_label(fm: Optional[FamilyMember]) -> str:
@@ -265,6 +278,76 @@ def _build_package_card(template: Dict[str, Any], matched: Optional[Dict[str, An
     }
 
 
+def _build_poster_tips(content: Dict[str, Any]) -> List[str]:
+    """[PRD-TIZHI-OPTIM-V1] 优化点 4 形态二海报：3 条按体质自动匹配的调理建议。
+
+    优先取「作息建议(lifestyle)」「情志调养(emotion)」，并附一条饮食宜食建议，
+    全部来自体质内容库（非写死），保证不同体质海报建议不同。
+    """
+    tips: List[str] = []
+    for x in (content.get("lifestyle") or [])[:2]:
+        if x:
+            tips.append(str(x))
+    for x in (content.get("emotion") or [])[:1]:
+        if x and len(tips) < 3:
+            tips.append(str(x))
+    diet_good = (content.get("diet") or {}).get("good") or []
+    if diet_good and len(tips) < 3:
+        tips.append("宜食：" + "、".join([str(g) for g in diet_good[:4]]))
+    # 兜底补足到 3 条
+    fallback = ["规律作息，早睡早起", "适度运动，循序渐进", "饮食清淡，均衡营养"]
+    i = 0
+    while len(tips) < 3 and i < len(fallback):
+        if fallback[i] not in tips:
+            tips.append(fallback[i])
+        i += 1
+    return tips[:3]
+
+
+async def _load_content_configs(
+    db: AsyncSession, constitution_type: str, section: str
+) -> List[Dict[str, Any]]:
+    """[PRD-TIZHI-OPTIM-V1] 加载某体质 + 板块的「运营配置内容卡」（仅启用项，按 sort_order）。
+
+    返回结果用于结果页详情的「专属膳食套餐 / 门店服务」两块；
+    无任何启用项时返回空列表，前端据此整块隐藏（不展示占位假文案）。
+    """
+    try:
+        q = (
+            select(ConstitutionContentConfig)
+            .where(
+                ConstitutionContentConfig.constitution_type == constitution_type,
+                ConstitutionContentConfig.section == section,
+                ConstitutionContentConfig.enabled.is_(True),
+            )
+            .order_by(
+                ConstitutionContentConfig.sort_order.asc(),
+                ConstitutionContentConfig.id.asc(),
+            )
+        )
+        rows = (await db.execute(q)).scalars().all()
+    except Exception as e:  # noqa: BLE001
+        logger.warning("加载体质运营配置失败 type=%s section=%s err=%s", constitution_type, section, e)
+        return []
+
+    items: List[Dict[str, Any]] = []
+    for r in rows:
+        items.append({
+            "id": r.id,
+            "title": r.title,
+            "subtitle": r.subtitle,
+            "image": r.image,
+            "tag": r.tag,
+            "tag_color": r.tag_color,
+            "price": r.price,
+            "original_price": r.original_price,
+            "link_type": r.link_type or "none",
+            "link_value": r.link_value,
+            "button_text": r.button_text,
+        })
+    return items
+
+
 # ═══════════════════════════════════════════════════════════════════
 # 0. answer_id → diagnosis_id 反查接口（兼容历史数据）
 # ═══════════════════════════════════════════════════════════════════
@@ -305,25 +388,15 @@ async def get_full_result(
     c_type = normalize_constitution_type(d.constitution_type)
     persona = get_persona(c_type)
     content = get_content(c_type)
-    mapping = get_package_mapping(c_type)
 
     # 答题数据 + 雷达图得分
     answers = await _load_answers(db, diagnosis_id)
     radar_scores = compute_radar_scores(answers, c_type)
 
-    # 推荐套餐（真实 SKU 优先匹配）
-    primary_tpl = mapping.get("primary") or {}
-    backup_tpl = mapping.get("backup")
-    primary_matched = await _match_product_by_keywords(db, primary_tpl.get("keywords", []) if primary_tpl else [])
-    backup_matched = None
-    if backup_tpl:
-        backup_matched = await _match_product_by_keywords(db, backup_tpl.get("keywords", []))
-
-    packages: List[Dict[str, Any]] = []
-    if primary_tpl:
-        packages.append(_build_package_card(primary_tpl, primary_matched))
-    if backup_tpl:
-        packages.append(_build_package_card(backup_tpl, backup_matched))
+    # [PRD-TIZHI-OPTIM-V1] 优化点 2：专属膳食套餐 / 门店服务改为后台可运营配置，
+    # 按体质类型智能匹配；无配置则整块隐藏（前端据空列表隐藏，不再有占位假文案）。
+    meal_packages = await _load_content_configs(db, c_type, "meal")
+    store_services = await _load_content_configs(db, c_type, "store")
 
     # 咨询人信息（如有）
     member_label = "本人"
@@ -372,29 +445,34 @@ async def get_full_result(
             "ai_extra": d.health_plan or "",
         },
 
-        # ─── 第四屏：套餐推荐 ───
-        "screen4_packages": packages,
+        # ─── 第四屏：专属膳食套餐（后台运营配置驱动，按体质匹配；无内容则整块隐藏）───
+        "screen4_packages": meal_packages,
 
-        # ─── 第五屏：广州门店服务 ───
+        # ─── 第五屏：门店服务（后台运营配置驱动，按体质匹配；无内容则整块隐藏）───
         "screen5_store": {
-            "city_restricted": True,
-            "available_city": "广州",
+            "services": store_services,
             "coupon": coupon_state,
-            "appointment_hint": "可选「艾灸调理」或「AI 精准检测」，预约后到店享专业服务",
-            "non_guangzhou_fallback_text": "广州门店专属，其他城市敬请期待",
         },
 
-        # ─── 第六屏：分享卡数据 ───
+        # ─── 第六屏：分享卡数据（优化点 4：标题动态带体质 + 固定精美封面 + 品牌天蓝）───
         "screen6_share": {
             "title": c_type,
+            # 好友/群转发卡片标题：动态带上用户体质
+            "share_title": f"我的体质是「{c_type}」，快来测测你是什么体质？",
             "subtitle": persona.get("one_line"),
             "persona": persona,
+            "brand": "宾尼小康",
+            # 统一固定精美封面图：与关怀模式欢迎区一致的圆形头像 Logo（各分享形态统一）
+            "cover_image": "/binni-xiaokang-logo.png",
+            "logo_image": "/binni-xiaokang-logo.png",
             "radar_preview": {
                 "dimensions": RADAR_DIMENSIONS,
                 "scores": [radar_scores.get(k, 0) for k in RADAR_DIMENSIONS],
             },
-            "slogan": "一起测，测完约个艾灸",
-            "qr_hint": "扫码参与体质测评",
+            # 海报下部 3 条按体质自动匹配的调理建议（非写死，取内容库 lifestyle/emotion/diet）
+            "poster_tips": _build_poster_tips(content),
+            "slogan": "长按识别测测你的体质",
+            "qr_hint": "长按识别测测你的体质",
         },
 
         "disclaimer": DISCLAIMER,
@@ -608,9 +686,177 @@ async def get_encyclopedia(
         "type": c,
         "persona": get_persona(c),
         "content": get_content(c),
-        "package_mapping_preview": {
-            "primary_name": (get_package_mapping(c).get("primary") or {}).get("name"),
-            "primary_reason": (get_package_mapping(c).get("primary") or {}).get("reason"),
-        },
         "disclaimer": DISCLAIMER,
     }
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 5. 后台运营配置 CRUD（[PRD-TIZHI-OPTIM-V1] 优化点 2）
+#    专属膳食套餐 / 门店服务 按体质类型可运营维护
+# ═══════════════════════════════════════════════════════════════════
+
+
+class ContentConfigIn(BaseModel):
+    constitution_type: str
+    section: str  # meal | store
+    title: str
+    subtitle: Optional[str] = None
+    image: Optional[str] = None
+    tag: Optional[str] = None
+    tag_color: Optional[str] = None
+    price: Optional[float] = None
+    original_price: Optional[float] = None
+    link_type: Optional[str] = "none"
+    link_value: Optional[str] = None
+    button_text: Optional[str] = None
+    sort_order: Optional[int] = 0
+    enabled: Optional[bool] = True
+
+
+def _serialize_config(r: ConstitutionContentConfig) -> Dict[str, Any]:
+    return {
+        "id": r.id,
+        "constitution_type": r.constitution_type,
+        "section": r.section,
+        "title": r.title,
+        "subtitle": r.subtitle,
+        "image": r.image,
+        "tag": r.tag,
+        "tag_color": r.tag_color,
+        "price": r.price,
+        "original_price": r.original_price,
+        "link_type": r.link_type or "none",
+        "link_value": r.link_value,
+        "button_text": r.button_text,
+        "sort_order": r.sort_order or 0,
+        "enabled": bool(r.enabled),
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+        "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+    }
+
+
+def _validate_type_section(constitution_type: str, section: str) -> None:
+    if constitution_type not in CONSTITUTION_TYPES:
+        raise HTTPException(status_code=422, detail=f"无效的体质类型：{constitution_type}")
+    if section not in CONTENT_SECTIONS:
+        raise HTTPException(status_code=422, detail="section 只能是 meal 或 store")
+
+
+@admin_router.get("/meta")
+async def admin_config_meta(_=Depends(require_role("admin"))):
+    """下拉枚举：体质类型 + 板块。"""
+    return {
+        "constitution_types": CONSTITUTION_TYPES,
+        "sections": [
+            {"value": "meal", "label": "专属膳食套餐"},
+            {"value": "store", "label": "门店服务"},
+        ],
+        "link_types": [
+            {"value": "none", "label": "无跳转"},
+            {"value": "product", "label": "商品详情"},
+            {"value": "service", "label": "服务详情"},
+            {"value": "order", "label": "预约下单"},
+            {"value": "coupon", "label": "领券"},
+            {"value": "url", "label": "外链"},
+        ],
+    }
+
+
+@admin_router.get("/content-configs")
+async def admin_list_content_configs(
+    constitution_type: Optional[str] = Query(None),
+    section: Optional[str] = Query(None),
+    _=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    q = select(ConstitutionContentConfig)
+    if constitution_type:
+        q = q.where(ConstitutionContentConfig.constitution_type == constitution_type)
+    if section:
+        q = q.where(ConstitutionContentConfig.section == section)
+    q = q.order_by(
+        ConstitutionContentConfig.constitution_type.asc(),
+        ConstitutionContentConfig.section.asc(),
+        ConstitutionContentConfig.sort_order.asc(),
+        ConstitutionContentConfig.id.asc(),
+    )
+    rows = (await db.execute(q)).scalars().all()
+    return {"items": [_serialize_config(r) for r in rows], "total": len(rows)}
+
+
+@admin_router.post("/content-configs")
+async def admin_create_content_config(
+    data: ContentConfigIn,
+    _=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    _validate_type_section(data.constitution_type, data.section)
+    row = ConstitutionContentConfig(
+        constitution_type=data.constitution_type,
+        section=data.section,
+        title=data.title,
+        subtitle=data.subtitle,
+        image=data.image,
+        tag=data.tag,
+        tag_color=data.tag_color,
+        price=data.price,
+        original_price=data.original_price,
+        link_type=data.link_type or "none",
+        link_value=data.link_value,
+        button_text=data.button_text,
+        sort_order=data.sort_order or 0,
+        enabled=True if data.enabled is None else bool(data.enabled),
+    )
+    db.add(row)
+    await db.commit()
+    await db.refresh(row)
+    return _serialize_config(row)
+
+
+@admin_router.put("/content-configs/{config_id}")
+async def admin_update_content_config(
+    config_id: int,
+    data: ContentConfigIn,
+    _=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    _validate_type_section(data.constitution_type, data.section)
+    row = (await db.execute(
+        select(ConstitutionContentConfig).where(ConstitutionContentConfig.id == config_id)
+    )).scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="配置不存在")
+    row.constitution_type = data.constitution_type
+    row.section = data.section
+    row.title = data.title
+    row.subtitle = data.subtitle
+    row.image = data.image
+    row.tag = data.tag
+    row.tag_color = data.tag_color
+    row.price = data.price
+    row.original_price = data.original_price
+    row.link_type = data.link_type or "none"
+    row.link_value = data.link_value
+    row.button_text = data.button_text
+    row.sort_order = data.sort_order or 0
+    if data.enabled is not None:
+        row.enabled = bool(data.enabled)
+    await db.commit()
+    await db.refresh(row)
+    return _serialize_config(row)
+
+
+@admin_router.delete("/content-configs/{config_id}")
+async def admin_delete_content_config(
+    config_id: int,
+    _=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    row = (await db.execute(
+        select(ConstitutionContentConfig).where(ConstitutionContentConfig.id == config_id)
+    )).scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail="配置不存在")
+    await db.delete(row)
+    await db.commit()
+    return {"success": True}

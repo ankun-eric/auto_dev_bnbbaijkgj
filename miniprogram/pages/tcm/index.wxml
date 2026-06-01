@@ -14,7 +14,7 @@
     <view class="feature-card card" bindtap="startConstitution" wx:if="{{showConstitution}}">
       <text class="feature-icon">📝</text>
       <text class="feature-name">体质测评</text>
-      <text class="feature-desc">九种体质自测</text>
+      <text class="feature-desc">约 3 分钟完成</text>
     </view>
     <view class="feature-card card" bindtap="goTcmChat">
       <text class="feature-icon">🌿</text>

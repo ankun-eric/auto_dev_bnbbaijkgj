@@ -1005,6 +1005,38 @@ class ConstitutionAnswer(Base):
     question = relationship("ConstitutionQuestion")
 
 
+class ConstitutionContentConfig(Base):
+    """[PRD-TIZHI-OPTIM-V1 2026-06-01] 体质测评结果页可运营内容配置。
+
+    运营在后台按「体质类型 + 内容板块」维护「专属膳食套餐 / 门店服务」内容卡。
+    结果页详情按用户体质类型智能匹配展示；该体质未配置任何启用项时，对应整块隐藏，
+    不再展示"暂未上架 / 敬请期待"占位文案。
+    """
+
+    __tablename__ = "constitution_content_configs"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    # 体质类型（平和质/气虚质/.../特禀质）
+    constitution_type = mapped_column(String(20), nullable=False, index=True)
+    # 板块：meal=专属膳食套餐 / store=门店服务
+    section = mapped_column(String(20), nullable=False, index=True, comment="meal|store")
+    title = mapped_column(String(120), nullable=False, comment="卡片标题")
+    subtitle = mapped_column(String(255), nullable=True, comment="副标题/描述")
+    image = mapped_column(String(500), nullable=True, comment="封面图")
+    tag = mapped_column(String(60), nullable=True, comment="推荐理由标签")
+    tag_color = mapped_column(String(20), nullable=True, comment="标签颜色")
+    price = mapped_column(Float, nullable=True)
+    original_price = mapped_column(Float, nullable=True)
+    # 跳转：product=商品详情 / service=服务详情 / order=预约下单 / coupon=领券 / url=外链 / none=无
+    link_type = mapped_column(String(20), nullable=True, comment="product|service|order|coupon|url|none")
+    link_value = mapped_column(String(255), nullable=True, comment="sku_id 或 url")
+    button_text = mapped_column(String(40), nullable=True, comment="按钮文案")
+    sort_order = mapped_column(Integer, default=0)
+    enabled = mapped_column(Boolean, default=True, index=True)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 # ──────────────── 服务与订单 ────────────────
 
 

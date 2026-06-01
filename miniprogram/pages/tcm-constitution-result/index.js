@@ -6,6 +6,8 @@ Page({
     loading: true,
     data: null,
     claimingCoupon: false,
+    statusBarHeight: 20,
+    navBarHeight: 44,
     // 雷达图尺寸
     radarSize: 260,
     radarPoints: '',
@@ -16,32 +18,59 @@ Page({
   },
 
   onLoad(options) {
+    // 计算自定义顶栏高度（状态栏 + 导航栏）
+    try {
+      const sys = wx.getSystemInfoSync();
+      const statusBarHeight = sys.statusBarHeight || 20;
+      let navBarHeight = 44;
+      if (wx.getMenuButtonBoundingClientRect) {
+        const rect = wx.getMenuButtonBoundingClientRect();
+        navBarHeight = (rect.top - statusBarHeight) * 2 + rect.height;
+      }
+      this.setData({ statusBarHeight, navBarHeight });
+    } catch (e) { /* noop */ }
+
     const id = options && options.id;
     if (!id) {
       wx.showToast({ title: '参数错误', icon: 'none' });
-      setTimeout(() => wx.navigateBack(), 1200);
+      setTimeout(() => this.goAiHome(), 1200);
       return;
     }
     this.setData({ diagnosisId: id });
     this.fetchResult();
   },
 
+  _shareCover() {
+    const app = getApp();
+    const base = (app && app.globalData && app.globalData.baseUrl) || '';
+    return base ? `${base}/binni-xiaokang-logo.png` : '';
+  },
+
+  // [PRD-TIZHI-OPTIM-V1] 优化点4·形态一：原生一键转发，标题动态带体质，固定精美封面，好友点开直达测评
   onShareAppMessage() {
     const d = this.data.data;
-    if (!d) return { title: '中医体质测评', path: '/pages/tcm/index' };
+    if (!d) return { title: '宾尼小康 · 中医体质测评', path: '/pages/tcm/index' };
+    const share = d.screen6_share || {};
     return {
-      title: `我的体质是「${d.screen1_card.type}」${d.screen1_card.persona.emoji || '🌿'} 快来测测你的`,
+      title: share.share_title || `我的体质是「${d.screen1_card.type}」，快来测测你是什么体质？`,
       path: `/pages/tcm/index`,
-      imageUrl: ''
+      imageUrl: this._shareCover()
     };
   },
 
   onShareTimeline() {
     const d = this.data.data;
+    const share = (d && d.screen6_share) || {};
     return {
-      title: d ? `我是${d.screen1_card.type}，你呢？` : '中医体质测评',
-      query: ''
+      title: d ? (share.share_title || `我的体质是「${d.screen1_card.type}」，快来测测你是什么体质？`) : '宾尼小康 · 中医体质测评',
+      query: '',
+      imageUrl: this._shareCover()
     };
+  },
+
+  // [PRD-TIZHI-OPTIM-V1] 优化点3：右上角返回直接回到 AI 首页（不再回旧列表页）
+  goAiHome() {
+    wx.reLaunch({ url: '/pages/ai/index' });
   },
 
   async fetchResult() {
@@ -145,24 +174,33 @@ Page({
     }
   },
 
-  goBookAppointment() {
-    wx.navigateTo({ url: '/pages/unified-orders/index?source=tizhi_test&project=moxibustion' });
-  },
-
   goMyCoupons() {
     wx.navigateTo({ url: '/pages/my-coupons/index' });
   },
 
-  goPackageDetail(e) {
-    const pkg = e.currentTarget.dataset.pkg;
-    if (!pkg || !pkg.matched || !pkg.sku_id) {
-      wx.showToast({ title: '敬请期待', icon: 'none' });
-      return;
-    }
-    if (pkg.sku_kind === 'product') {
-      wx.navigateTo({ url: `/pages/product-detail/index?id=${pkg.sku_id}&source=tizhi_test` });
-    } else {
-      wx.navigateTo({ url: `/pages/service-detail/index?id=${pkg.sku_id}&source=tizhi_test` });
+  // [PRD-TIZHI-OPTIM-V1] 运营配置内容卡点击跳转（按 link_type 分发）
+  goCardLink(e) {
+    const card = e.currentTarget.dataset.card;
+    if (!card) return;
+    const v = card.link_value || '';
+    switch (card.link_type) {
+      case 'product':
+        if (v) wx.navigateTo({ url: `/pages/product-detail/index?id=${v}&source=tizhi_test` });
+        break;
+      case 'service':
+        if (v) wx.navigateTo({ url: `/pages/service-detail/index?id=${v}&source=tizhi_test` });
+        break;
+      case 'order':
+        wx.navigateTo({ url: `/pages/unified-orders/index?source=tizhi_test&project=${v || 'moxibustion'}` });
+        break;
+      case 'coupon':
+        this.handleClaimCoupon();
+        break;
+      case 'url':
+        if (v) wx.navigateTo({ url: `/pages/webview/index?url=${encodeURIComponent(v)}` });
+        break;
+      default:
+        break;
     }
   },
 
