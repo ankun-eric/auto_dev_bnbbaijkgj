@@ -5,7 +5,27 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-01 · 用药计划/用药提醒页 顶栏统一 + 列表页改名 + 「已结束」Tab 500 修复 · H5 + 后端，小程序/移动端 0 改动）
+## 最近一次变更（2026-06-01 · 新功能 / 会员中心「邀请家庭成员」按钮点击效果复用半屏浮层 · 仅 H5 一端，后端/小程序/移动端 0 改动）
+
+**任务标识**：`[PRD-MEMBER-INVITE-REUSE-MODAL-V1 2026-06-01]`
+
+**需求**：会员中心「尊享会员」蓝色卡片上的「邀请家庭成员」按钮，点击后的效果改为与「健康档案 → 家庭成员 → 去邀请」完全一致——弹出半屏浮层（`NewFamilyMemberModal`）完成邀请，用户不离开会员中心、不跳页。**只改点击效果**，卡片外观/高度/布局/按钮文案/按钮位置/「已管理 X/上限 Y」数量信息一概不动；「家庭守护」卡片不在范围内。
+
+**改动（仅 1 文件 + 1 测试）**：
+- `h5-web/src/app/member-center/page.tsx`：① 新增 `import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMemberModal'`（与健康档案位复用同一组件）；② 新增 `newMemberOpen` state 控制浮层显隐；③ `InviteFamilyCard` 的 `onInvite` 由原 `router.push('/health-profile/my-guardians/invite')`（跳页）改为满额拦截后 `setNewMemberOpen(true)`（弹浮层，与档案位 `quota_remaining<=0` 拦截逻辑对齐）；④ 抽出 `fetchFamilyQuota()` 供初始加载与浮层保存成功后刷新复用；⑤ 页面底部渲染 `<NewFamilyMemberModal onClose/onSuccess>`，保存成功后关闭浮层 + 刷新家庭配额（人数 +1）+ Toast。`InviteFamilyCard.tsx` 本身未改（外观/文案/数量信息保持原样）。
+- `backend/tests/test_member_invite_reuse_modal_v1_20260601.py`（新增）：5 用例——① 后端口径闭环（复用 `POST /api/family/members` 后 `/api/family/member/quota.quota_used` +1 且与 `state/list` 一致）；②~⑤ H5 源码静态断言（会员中心已 import 并渲染 `NewFamilyMemberModal`、含 `setNewMemberOpen(true)`、不再跳旧邀请页、邀请卡按钮文案「邀请家庭成员」与蓝色主题 `#0284C7` 未变）。
+
+**测试验证**：服务器后端镜像一次性容器内 `pytest` 新测试 **5/5 全通过**；外部 HTTPS 全部 200：`/member-center`、`/health-profile/archive-list`、`/api/health`。
+
+**部署**：GitHub 在服务器侧网络超时不可达，按 skill 降级方案改用本机 paramiko SFTP 直传改动文件 → `docker compose -f docker-compose.prod.yml build --no-cache h5-web && up -d h5-web`（仅 H5 单服务）。
+
+**变更端清单**：仅 H5（Docker 容器部署，已上线）。小程序/移动端会员中心为 WebView 包装 H5，自动同步，无需重新打包。后端接口零改动（仅复用既有 `POST /api/family/members`）。
+
+**用户手册**：`user_docs/会员中心邀请家庭成员按钮点击效果调整.md`
+
+---
+
+## 历史变更（2026-06-01 · 用药计划/用药提醒页 顶栏统一 + 列表页改名 + 「已结束」Tab 500 修复 · H5 + 后端，小程序/移动端 0 改动）
 
 **任务标识**：`[PRD-MED-NAVBAR-UNIFY-20260601]` + `[BUG-MED-FINISHED-500-20260601]`
 
