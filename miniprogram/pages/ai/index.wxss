@@ -78,13 +78,37 @@
 .uni-plus-sign { font-size: 36rpx; color: #1F2D3D; line-height: 1; font-weight: 300; }
 
 /* [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求3] 欢迎条：问候语 + 右上角模式切换胶囊 */
+/* [PRD-AIHOME-WELCOME-UNIFY-V1 2026-06-02] 标准模式欢迎区照搬关怀风格 + 蓝绿渐变背景 + 瘦身（无用药卡） */
 .welcome-strip {
   position: relative;
+  background: linear-gradient(135deg, #1976D2 0%, #43A047 100%);
+  color: #fff;
+  padding: 40rpx 36rpx;
+  border-radius: 0 0 40rpx 40rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8rpx 4rpx 20rpx 4rpx;
+  gap: 20rpx;
+  margin: 0 -16rpx 16rpx;
 }
+.welcome-strip .welcome-text { flex: 1; min-width: 0; }
+.welcome-strip .greeting { font-size: 52rpx; font-weight: 700; margin-bottom: 10rpx; color: #fff; }
+.welcome-strip .sub { font-size: 28rpx; opacity: 0.95; color: #fff; }
+.welcome-right-col {
+  flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 18rpx;
+}
+.welcome-strip .robot-logo {
+  flex-shrink: 0;
+  width: 150rpx; height: 150rpx;
+  border-radius: 50%;
+  background: #fff;
+  border: 4rpx solid rgba(255,255,255,0.9);
+  box-shadow: 0 6rpx 18rpx rgba(0,0,0,0.12);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.welcome-strip .robot-img { width: 132rpx; height: 132rpx; border-radius: 50%; }
 .welcome-hello { font-size: 30rpx; font-weight: 600; color: #1F2D3D; }
 .mode-dropdown-panel-welcome { top: 120rpx; right: 16rpx; }
 
@@ -189,6 +213,15 @@
 .mode-capsule-arrow-up {
   transform: rotate(180deg);
 }
+
+/* [PRD-AIHOME-WELCOME-UNIFY-V1 2026-06-02] 彩底欢迎区内的胶囊改半透明白（与关怀模式一致） */
+.welcome-strip .mode-capsule {
+  background: rgba(255,255,255,0.22);
+  border: 1rpx solid rgba(255,255,255,0.45);
+}
+.welcome-strip .mode-capsule-label,
+.welcome-strip .mode-capsule-arrow { color: #fff; }
+.welcome-strip .mode-dropdown-panel-welcome { top: 120rpx; right: 16rpx; }
 
 /* 🎁 邀请好友按钮 */
 .invite-btn {

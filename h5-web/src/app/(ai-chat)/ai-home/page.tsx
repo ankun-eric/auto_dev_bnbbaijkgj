@@ -4493,138 +4493,188 @@ export default function AiHomePage() {
                 - 适老化：问候语字号 18、加粗 */}
             <SectionErrorBoundary name="welcome">
               {welcomeVisible && (
-                <div className="flex items-center gap-3 py-3" data-testid="ai-home-greeting" style={{ position: 'relative' }}>
-                  <AiAvatar
-                    src={
-                      aiHomeConfig.welcome?.avatar?.type === 'image'
-                        ? aiHomeConfig.welcome?.avatar?.image_url
-                        : aiHomeConfig.welcome?.avatar?.emoji
-                    }
-                    size={44}
-                    shape="circle"
-                    alt="AI 头像"
-                    testId="ai-home-welcome-avatar"
-                  />
-                  <div
-                    className="flex-1 min-w-0 truncate"
-                    style={{ fontSize: 18, fontWeight: 700, color: WARM_BLUE.textPrimary, paddingRight: 96 }}
-                  >
-                    {renderMainTitle() || 'Hi~ 健康管理用小康'}
+                /* [PRD-AIHOME-WELCOME-UNIFY-V1 2026-06-02] 标准模式欢迎区统一为关怀模式风格（同结构/版式/字号/问候语/头像/切换胶囊），
+                   但做瘦身：去掉「今日用药提醒」白卡片。两模式仅靠背景底色区分——标准模式照搬现关怀模式的蓝绿渐变色值。 */
+                <div
+                  data-testid="ai-home-greeting"
+                  style={{
+                    position: 'relative',
+                    background: 'linear-gradient(135deg, #1976D2 0%, #43A047 100%)',
+                    color: '#FFFFFF',
+                    padding: '24px 20px',
+                    borderRadius: '0 0 24px 24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    margin: '-12px -16px 12px',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 6 }} data-testid="ai-home-welcome-greeting">
+                      {renderMainTitle() || 'Hi~ 健康管理用小康'}
+                    </div>
+                    <div style={{ fontSize: 16, opacity: 0.95 }} data-testid="ai-home-welcome-text">
+                      {pickedSubtitle || '我是您的AI健康助手'}
+                    </div>
                   </div>
 
-                  {/* [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求3] 欢迎区右上角「模式切换」胶囊（方案1：胶囊带文字）
-                      - 显示当前模式名「标准版 ▾」，点击弹下拉：标准版（当前打勾）/ 关怀版（可切换）
-                      - 与 ⊕菜单里的「切换模式」并存，两个入口同时存在 */}
+                  {/* 右侧竖排：模式切换胶囊 + 机器人 LOGO（与关怀模式同款竖中轴对齐） */}
                   <div
-                    ref={modeDropdownRef}
-                    style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)' }}
-                    data-testid="ai-home-mode-switcher"
+                    style={{
+                      flexShrink: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 10,
+                    }}
+                    data-testid="ai-home-mode-logo-column"
                   >
-                    <button
-                      type="button"
-                      onClick={() => setModeDropdownOpen((v) => !v)}
-                      disabled={modeSwitching}
-                      aria-haspopup="listbox"
-                      aria-expanded={modeDropdownOpen}
-                      aria-label="模式切换"
-                      data-testid="ai-home-mode-capsule"
+                    {/* [PRD-AIHOME-UNIFY-V1 §需求3] 「模式切换」胶囊（方案1：胶囊带文字）
+                        - 显示当前模式名「标准版 ▾」，点击弹下拉：标准版（当前打勾）/ 关怀版（可切换）
+                        - 与 ⊕菜单里的「切换模式」并存，两个入口同时存在 */}
+                    <div
+                      ref={modeDropdownRef}
+                      style={{ position: 'relative', zIndex: 5 }}
+                      data-testid="ai-home-mode-switcher"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setModeDropdownOpen((v) => !v)}
+                        disabled={modeSwitching}
+                        aria-haspopup="listbox"
+                        aria-expanded={modeDropdownOpen}
+                        aria-label="模式切换"
+                        data-testid="ai-home-mode-capsule"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          background: 'rgba(255,255,255,0.22)',
+                          color: '#FFFFFF',
+                          border: '1px solid rgba(255,255,255,0.45)',
+                          padding: '5px 10px',
+                          borderRadius: 14,
+                          fontSize: 13,
+                          fontWeight: 600,
+                          lineHeight: 1,
+                          whiteSpace: 'nowrap',
+                          cursor: modeSwitching ? 'default' : 'pointer',
+                          minHeight: 28,
+                        }}
+                      >
+                        <span data-testid="ai-home-mode-capsule-label">标准版</span>
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            display: 'inline-block',
+                            fontSize: 10,
+                            lineHeight: 1,
+                            transform: modeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.15s ease',
+                          }}
+                        >
+                          ▾
+                        </span>
+                      </button>
+
+                      {modeDropdownOpen ? (
+                        <div
+                          role="listbox"
+                          data-testid="ai-home-mode-dropdown-panel"
+                          style={{
+                            position: 'absolute',
+                            top: 'calc(100% + 6px)',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            minWidth: 120,
+                            background: '#FFFFFF',
+                            borderRadius: 10,
+                            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                            border: '1px solid #E5E7EB',
+                            overflow: 'hidden',
+                            zIndex: 50,
+                          }}
+                        >
+                          {/* 标准版（当前，高亮打勾） */}
+                          <div
+                            role="option"
+                            aria-selected={true}
+                            onClick={() => setModeDropdownOpen(false)}
+                            data-testid="ai-home-mode-option-standard"
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: 8,
+                              padding: '10px 14px',
+                              fontSize: 14,
+                              fontWeight: 600,
+                              color: WARM_BLUE.primary,
+                              background: '#EAF6FF',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            <span>标准版</span>
+                            <span aria-hidden="true">✓</span>
+                          </div>
+                          {/* 关怀版（切换） */}
+                          <div
+                            role="option"
+                            aria-selected={false}
+                            onClick={handleSwitchToCareMode}
+                            data-testid="ai-home-mode-option-care"
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: 8,
+                              padding: '10px 14px',
+                              fontSize: 14,
+                              fontWeight: 500,
+                              color: '#374151',
+                              background: '#FFFFFF',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            <span>关怀版</span>
+                            <span aria-hidden="true" style={{ width: 14 }} />
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {/* 右侧：机器人头像 + 窄白边白圈（照搬关怀模式 84 大头像） */}
+                    <div
+                      data-testid="ai-home-welcome-avatar-wrap"
                       style={{
+                        flexShrink: 0,
+                        width: 84,
+                        height: 84,
+                        borderRadius: '50%',
+                        background: '#FFFFFF',
+                        border: '2px solid rgba(255,255,255,0.9)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 4,
-                        background: '#EAF6FF',
-                        color: WARM_BLUE.primary,
-                        border: `1px solid #CDE8FB`,
-                        padding: '5px 10px',
-                        borderRadius: 14,
-                        fontSize: 13,
-                        fontWeight: 600,
-                        lineHeight: 1,
-                        whiteSpace: 'nowrap',
-                        cursor: modeSwitching ? 'default' : 'pointer',
-                        minHeight: 28,
+                        justifyContent: 'center',
+                        overflow: 'hidden',
                       }}
                     >
-                      <span data-testid="ai-home-mode-capsule-label">标准版</span>
-                      <span
-                        aria-hidden="true"
-                        style={{
-                          display: 'inline-block',
-                          fontSize: 10,
-                          lineHeight: 1,
-                          transform: modeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                          transition: 'transform 0.15s ease',
-                        }}
-                      >
-                        ▾
-                      </span>
-                    </button>
-
-                    {modeDropdownOpen ? (
-                      <div
-                        role="listbox"
-                        data-testid="ai-home-mode-dropdown-panel"
-                        style={{
-                          position: 'absolute',
-                          top: 'calc(100% + 6px)',
-                          right: 0,
-                          minWidth: 120,
-                          background: '#FFFFFF',
-                          borderRadius: 10,
-                          boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-                          border: '1px solid #E5E7EB',
-                          overflow: 'hidden',
-                          zIndex: 50,
-                        }}
-                      >
-                        {/* 标准版（当前，高亮打勾） */}
-                        <div
-                          role="option"
-                          aria-selected={true}
-                          onClick={() => setModeDropdownOpen(false)}
-                          data-testid="ai-home-mode-option-standard"
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: 8,
-                            padding: '10px 14px',
-                            fontSize: 14,
-                            fontWeight: 600,
-                            color: WARM_BLUE.primary,
-                            background: '#EAF6FF',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          <span>标准版</span>
-                          <span aria-hidden="true">✓</span>
-                        </div>
-                        {/* 关怀版（切换） */}
-                        <div
-                          role="option"
-                          aria-selected={false}
-                          onClick={handleSwitchToCareMode}
-                          data-testid="ai-home-mode-option-care"
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: 8,
-                            padding: '10px 14px',
-                            fontSize: 14,
-                            fontWeight: 500,
-                            color: '#374151',
-                            background: '#FFFFFF',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          <span>关怀版</span>
-                          <span aria-hidden="true" style={{ width: 14 }} />
-                        </div>
-                      </div>
-                    ) : null}
+                      <AiAvatar
+                        src={
+                          aiHomeConfig.welcome?.avatar?.type === 'image'
+                            ? aiHomeConfig.welcome?.avatar?.image_url
+                            : aiHomeConfig.welcome?.avatar?.emoji
+                        }
+                        size={74}
+                        shape="circle"
+                        alt="AI 头像"
+                        testId="ai-home-welcome-avatar"
+                      />
+                    </div>
                   </div>
                 </div>
               )}

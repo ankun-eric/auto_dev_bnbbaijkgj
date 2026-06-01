@@ -41,12 +41,22 @@
   <!-- [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求3] 欢迎区右上角「模式切换」胶囊（方案1：胶囊带文字）
        显示当前模式名「标准版 ▾」，点击弹下拉：标准版(当前打勾) / 关怀版(可切换)。
        与 ⊕菜单里的「切换模式」并存。 -->
-  <view class="welcome-strip">
-    <text class="welcome-hello">你好，我是小康</text>
-    <view class="mode-capsule-wrap" data-testid="ai-home-mode-switcher">
-      <view class="mode-capsule" bindtap="toggleModeDropdown" data-testid="ai-home-mode-capsule">
-        <text class="mode-capsule-label" data-testid="ai-home-mode-capsule-label">标准版</text>
-        <text class="mode-capsule-arrow {{modeDropdownShow ? 'mode-capsule-arrow-up' : ''}}" data-testid="ai-home-mode-capsule-arrow">▾</text>
+  <!-- [PRD-AIHOME-WELCOME-UNIFY-V1 2026-06-02] 标准模式欢迎区统一为关怀模式风格（同结构/版式/字号/问候语/头像/切换胶囊），
+       做瘦身：不含「今日用药提醒」卡片。两模式仅靠背景底色区分——标准模式照搬现关怀模式的蓝绿渐变。 -->
+  <view class="welcome welcome-strip">
+    <view class="welcome-text">
+      <view class="greeting" data-testid="ai-home-welcome-greeting">{{greetingText}} {{greetingIcon}}</view>
+      <view class="sub" data-testid="ai-home-welcome-text">我是小康，聊聊健康问题吧~</view>
+    </view>
+    <view class="welcome-right-col">
+      <view class="mode-capsule-wrap" data-testid="ai-home-mode-switcher">
+        <view class="mode-capsule" bindtap="toggleModeDropdown" data-testid="ai-home-mode-capsule">
+          <text class="mode-capsule-label" data-testid="ai-home-mode-capsule-label">标准版</text>
+          <text class="mode-capsule-arrow {{modeDropdownShow ? 'mode-capsule-arrow-up' : ''}}" data-testid="ai-home-mode-capsule-arrow">▾</text>
+        </view>
+      </view>
+      <view class="robot-logo" data-testid="ai-home-welcome-avatar">
+        <image class="robot-img" src="{{logoUrl}}" mode="aspectFill"></image>
       </view>
     </view>
   </view>

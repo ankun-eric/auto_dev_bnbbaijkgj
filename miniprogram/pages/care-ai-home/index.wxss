@@ -119,7 +119,8 @@
 /* 欢迎区 */
 .welcome {
   position: relative;
-  background: linear-gradient(135deg, #1976D2 0%, #43A047 100%);
+  /* [PRD-AIHOME-WELCOME-UNIFY-V1 2026-06-02] 两模式仅靠背景底色区分：关怀模式改为暖橙色，其余结构/版式/字号/头像/胶囊/用药提醒卡一律不动 */
+  background: linear-gradient(135deg, #FF8A3D 0%, #FB6E2E 100%);
   color: #fff;
   padding: 40rpx 36rpx;
   border-radius: 0 0 40rpx 40rpx;

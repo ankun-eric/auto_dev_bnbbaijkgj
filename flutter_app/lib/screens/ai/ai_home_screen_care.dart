@@ -324,12 +324,13 @@ class _AiHomeScreenCareState extends State<AiHomeScreenCare> {
   }
 
   Widget _buildWelcome() {
+    // [PRD-AIHOME-WELCOME-UNIFY-V1 2026-06-02] 两模式仅靠背景底色区分：关怀模式欢迎区改为暖橙渐变，其余不动
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1976D2), Color(0xFF43A047)],
+          colors: [Color(0xFFFF8A3D), Color(0xFFFB6E2E)],
         ),
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
       ),

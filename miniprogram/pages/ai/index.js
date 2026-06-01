@@ -3,9 +3,21 @@ const { checkLogin, ensureMerchantEntry, syncTabBar } = require('../../utils/uti
 // [BUG_FIX_TIMEZONE_GLOBAL_20260517] 统一时间解析/格式化
 const { parseServerTime, formatDateTime, formatDate, formatTime, formatRelativeTime, formatFriendlyTime } = require('../../utils/datetime');
 
+// [PRD-AIHOME-WELCOME-UNIFY-V1 2026-06-02] 时段问候（与关怀模式同口径）
+function getGreeting(now) {
+  const h = now.getHours();
+  if (h >= 5 && h < 11) return { text: '早上好', icon: '☀️' };
+  if (h >= 11 && h < 18) return { text: '中午好', icon: '🌤️' };
+  return { text: '晚上好', icon: '🌙' };
+}
+
 Page({
   data: {
     pageMode: 'user',
+    // [PRD-AIHOME-WELCOME-UNIFY-V1 2026-06-02] 欢迎区问候语 + 机器人 LOGO（照搬关怀模式风格）
+    greetingText: '',
+    greetingIcon: '',
+    logoUrl: '',
     consultTypes: [
       { id: 'health_qa', name: '健康问答', desc: 'AI健康顾问在线解答', icon: '💬', bgColor: 'rgba(82,196,26,0.12)' },
       { id: 'symptom_check', name: '健康自查', desc: '智能健康自查参考', icon: '🔍', bgColor: 'rgba(19,194,194,0.12)' },
@@ -33,6 +45,15 @@ Page({
   },
 
   onLoad(options) {
+    // [PRD-AIHOME-WELCOME-UNIFY-V1 2026-06-02] 初始化欢迎区问候语与机器人 LOGO
+    const g = getGreeting(new Date());
+    const app0 = getApp();
+    const base = (app0 && app0.globalData && app0.globalData.baseUrl) || '';
+    this.setData({
+      greetingText: g.text,
+      greetingIcon: g.icon,
+      logoUrl: `${base}/binni-xiaokang-logo.png`,
+    });
     // [PRD-CARE-MODE-OPTIM-V4 2026-05-31] 关怀模式 ☰ 历史入口：携带 openDrawer 标记进入即弹出历史对话抽屉
     if (options && options.openDrawer) {
       this.setData({ drawerShow: true });

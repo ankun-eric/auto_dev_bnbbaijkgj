@@ -18,6 +18,14 @@ class _AiHomeScreenState extends State<AiHomeScreen> with WidgetsBindingObserver
 
   // [PRD-425] AI 助手昵称（取 ai_chat.signature；为空时兜底"小康"），超 8 字截断
   String _aiSignature = '小康';
+
+  // [PRD-AIHOME-WELCOME-UNIFY-V1 2026-06-02] 时段问候（与关怀模式同口径）
+  String _greeting() {
+    final h = DateTime.now().hour;
+    if (h >= 5 && h < 11) return '早上好 ☀️';
+    if (h >= 11 && h < 18) return '中午好 🌤️';
+    return '晚上好 🌙';
+  }
   // [PRD-425] 通知中心未读总数；-1=未加载/接口异常（不显示徽标）
   int _unreadCount = -1;
 
@@ -427,41 +435,54 @@ class _AiHomeScreenState extends State<AiHomeScreen> with WidgetsBindingObserver
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // [PRD-AIHOME-WELCOME-UNIFY-V1 2026-06-02] 标准模式欢迎区统一为关怀模式风格
+                // （大问候 + 欢迎语 + 机器人头像），背景照搬现关怀模式蓝绿渐变；做瘦身，不含用药提醒卡。
                 Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF52C41A), Color(0xFF13C2C2)],
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF1976D2), Color(0xFF43A047)],
                     ),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.all(Radius.circular(24)),
                   ),
                   child: Row(
                     children: [
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(Icons.smart_toy, color: Colors.white, size: 32),
-                      ),
-                      const SizedBox(width: 16),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '小康AI健康顾问',
-                              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                              _greeting(),
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
                             ),
-                            SizedBox(height: 4),
-                            Text(
-                              '24小时在线，智能分析您的健康问题',
-                              style: TextStyle(color: Colors.white70, fontSize: 13),
+                            const SizedBox(height: 8),
+                            const Text(
+                              '我是小康，聊聊健康问题吧~',
+                              style: TextStyle(color: Colors.white, fontSize: 16),
                             ),
                           ],
                         ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white.withOpacity(0.9), width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.12),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.smart_toy, color: Color(0xFF1976D2), size: 40),
                       ),
                     ],
                   ),

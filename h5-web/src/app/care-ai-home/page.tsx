@@ -422,11 +422,13 @@ export default function CareAiHomePage() {
         </div>
       </div>
 
-      {/* 2. 欢迎区（蓝绿渐变） */}
+      {/* 2. 欢迎区（暖橙渐变）
+          [PRD-AIHOME-WELCOME-UNIFY-V1 2026-06-02] 两模式仅靠背景底色区分：关怀模式改为暖橙色，
+          其余结构/版式/字号/问候语/头像/切换胶囊/今日用药提醒卡一律保持现状不动。 */}
       <div
         style={{
           position: 'relative',
-          background: 'linear-gradient(135deg, #1976D2 0%, #43A047 100%)',
+          background: 'linear-gradient(135deg, #FF8A3D 0%, #FB6E2E 100%)',
           color: '#FFFFFF',
           padding: '24px 20px',
           borderRadius: '0 0 24px 24px',
