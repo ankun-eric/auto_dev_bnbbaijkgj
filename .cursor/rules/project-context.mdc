@@ -5,7 +5,36 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-02 · 新功能 / 健康档案血糖·血氧详情页优化对齐血压精装布局 · H5 + 微信小程序，App 不做，后端零改动）
+## 最近一次变更（2026-06-02 · 新功能 / 睡眠卡片 & 睡眠详情页对齐血压改造 · H5 + 微信小程序 + Flutter APP 四平台 + 后端档位/AI 支持）
+
+**任务标识**：`[PRD-SLEEP-ALIGN-BP-V1 2026-06-02]`
+
+**需求**：把「睡眠」从健康档案首页小卡片到详情页全部对齐「血压」精装样式，五项指标整齐统一。① 地基：新建睡眠档位判定库（第一版仅按「总睡眠时长」单维定档：7≤x≤9 充足/蓝、6≤x<7 偏少/黄、x<6 不足/橙、x>9 偏多/黄；脏数据 <=0 或 >24 按无数据处理）。② 小卡片（C1~C5）：右上角彩色状态胶囊、异常左侧竖条、大号时长数字、分隔线+「时间·来源」行、整卡可点进详情。③ 详情页（D1~D6）：顶部状态卡随档变色+大号时长+时间来源+胶囊、🤖AI 解读本次睡眠、双操作按钮（手工录入/绑定设备）、最近 7 天趋势改**柱状图**+日/周切换、🤖AI 解读趋势、历史记录每行彩色胶囊+「⋯」修改/删除。
+
+**改动（H5 + 小程序 + Flutter + 后端）**：
+- H5 `h5-web/src/lib/sleep-level.ts`（新增）：`judgeSleep`/`getSleepPalette`/`SLEEP_NORMAL_RANGE_TEXT`/`SleepJudgement`，四档判定 + 复用 `getBpPalette` 蓝/黄/橙配色 + 脏数据保护。
+- H5 `h5-web/src/app/health-metric/[type]/page.tsx`：新增 `SleepPage`（6 区块，testid `sleep-tab-page`/`sleep-status-card`/`sleep-capsule`/`sleep-ai-single`「AI 解读本次睡眠」/`sleep-action-manual`/`sleep-action-bind`/`sleep-trend-card`/`sleep-range-segmented`+`sleep-range-${key}`日周/`sleep-ai-trend`/`sleep-row-more-${id}`/`sleep-action-sheet` 改删）+ `SleepTrendChart`（柱状图 `sleep-trend-bar-${i}`）；`HealthMetricDetailPage` 增 `metricType==='sleep'` 分支。
+- H5 `h5-web/src/app/health-profile/page.tsx`：睡眠小卡片改造（`sleep-mini-capsule` 胶囊、`j.abnormal` 异常竖条、大号时长、`sleep-mini-time-source` 来源行、整卡点击跳 `/health-metric/sleep`）。
+- 小程序 `miniprogram/pages/health-profile/index.js`：新增 `judgeSleepMini` + `CAP_YELLOW`，`rebuildTodayCells` 睡眠 cell 用 `slJ`/`slTs` 填四档胶囊与来源；详情页为 web-view 内嵌同一 H5，自动生效。
+- Flutter `flutter_app/lib/screens/health/health_profile_screen.dart`：新增 `_sleepCap` 四档判定，`_v5Card` 胶囊配色加黄档 `0xFFF5B73D`，今日数据睡眠 cell 用判定结果填胶囊/竖条。
+- 后端 `backend/app/api/health_metric_card_v1.py`：`METRIC_TYPES`/`METRIC_META` 加 `sleep`（principal=`duration_h`），`_judge_status` 加睡眠四档阈值（enough/less/insufficient/more + 脏数据 unknown），`_rule_explain_single`/`_rule_explain_trend` 加 sleep 分支与建议文案。通用 CRUD 接口 `health_profile_v3` 原已支持 sleep。
+
+**测试**：`backend/tests/test_sleep_align_bp_v1_20260602.py`（10 用例：后端 today-metrics 透传 sleep、metric/sleep POST→GET→PUT→DELETE 全链路、AI 解读 single/trend、`_judge_status` 四档+脏数据；H5/小程序/Flutter 三端源码静态断言睡眠库/卡片/详情页 6 区块/柱状图）。服务器 backend 容器 5 passed + 5 skip（容器无前端源码），本地前端静态断言 5 passed。SQLite 主键 BigInteger 不自增 → 加 `_ensure_metric_table` autouse fixture 重建为 INTEGER AUTOINCREMENT。零真实 Bug。
+
+**部署**：git push `origin/master` commit `03e08be`（首次部署因服务器为 shallow clone、`git fetch --depth 1` 未更新指针导致构建到旧代码，已用 `git fetch origin master`+`reset --hard` 修复并重建）→ `docker compose -f docker-compose.prod.yml build --no-cache backend h5-web && up -d`→ gateway 重连 `{DEPLOY_ID}-network` + reload。外部 HTTPS：`/health-profile`、`/health-metric/sleep`、`/api/docs` 均 200；线上 H5 build 命中「睡眠充足」/`sleep-status-card`/`sleep-trend-bar`。
+
+**变更端清单**：H5（Docker 容器，已上线）+ 微信小程序（重新打包 zip 上传 gateway `downloads/`）+ Flutter APP 安卓 + iOS（GitHub Actions 构建）+ 后端（Docker 容器，已重建上线）。
+
+**本次多端新包（基础URL = https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27）**：
+- 微信小程序：`{base}/downloads/miniprogram_sleep_align_20260602_115253_f590.zip`（HTTP 200）。
+- 安卓 APK：`{base}/downloads/app_sleep_align_20260602-120345.apk`（HTTP 200，标签 `android-sleep-v20260602-115339-cdda`，run 26797311084 success）。
+- iOS：Release `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-sleep-v20260602-115339-cdda`，IPA `.../releases/download/ios-sleep-v20260602-115339-cdda/bini_health_ios.ipa`（run 26797311939 success，未签名包）。
+
+**用户手册**：`user_docs/睡眠卡片与睡眠详情页对齐血压改造.md`
+
+---
+
+## 历史变更（2026-06-02 · 新功能 / 健康档案血糖·血氧详情页优化对齐血压精装布局 · H5 + 微信小程序，App 不做，后端零改动）
 
 **任务标识**：`[PRD-GLU-SPO2-DETAIL-ALIGN-BP-V1 2026-06-02]`
 
