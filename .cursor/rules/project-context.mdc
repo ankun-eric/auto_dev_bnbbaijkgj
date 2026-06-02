@@ -5,7 +5,31 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-02 · Bug 修复 / 家庭成员重复绑定·同管理者名下唯一性校验· 仅后端，H5/小程序/App 0 改动，0 客户端打包）
+## 最近一次变更（2026-06-02 · Bug 修复 / 睡眠「全部历史」显示与编辑保存 · 仅 H5 一端，小程序/App 内嵌同一 H5 自动一致，0 客户端打包）
+
+**任务标识**：`[PRD-SLEEP-ALL-HISTORY-FIX-V1 2026-06-02]`（修复代码已存在于 commit `0da31cdb`）
+
+**Bug 现象**：「健康档案 → 睡眠 → 详情页 → 历史记录 → 全部」页面：① 每条记录只显示 `时间  - h`，睡眠时长、深睡时长丢失，日期渲染异常；② 点「⋯ → 修改」弹窗内缺睡眠相关输入框，强行录入也无法保存。
+
+**根因**：四指标通用「全部历史」模板 `h5-web/src/app/health-metric/[type]/history/page.tsx` 漏掉了"睡眠"这种双值结构 `{ duration_h, deep_h }`，四处硬编码逻辑只认识血压双值/单值：① `formatMetricValue`、② `STATUS_OPTIONS_BY_TYPE`、③ `EDIT_META_BY_TYPE`、④ `handleEditSave` 的 value 拼装。
+
+**修复（仅 H5 模板一处文件）**：
+- `STATUS_OPTIONS_BY_TYPE.sleep`：补全 `insufficient/less/enough/more` 四档与中文档位名
+- `EDIT_META_BY_TYPE.sleep`：新增「睡眠时长」（必填）+「深睡时长」（选填，`optional: true`）两个输入框
+- `formatMetricValue`：睡眠分支输出「X 小时 · 深睡 Yh」（含 `formatSleepHours` 整数/一位小数处理）
+- `handleEditSave`：睡眠分支按 `{ duration_h, deep_h? }` 拼装 value，选填字段留空时跳过校验；不附带 period（睡眠无时段维度）
+- 校验：总时长 0~24h、深睡不超总时长
+- 测试 `backend/tests/test_sleep_all_history_fix_v1_20260602.py`（4 后端 API + 4 前端源码静态断言）+ `test_metric_history_row_noaction_v1_20260602.py`（12 前端源码静态断言）
+
+**测试/验证**：服务器 backend 容器内 20 passed (8 sleep + 12 noaction)。H5 已 `--no-cache` 重建并 `up -d` 重启，gateway-nginx reload 成功，外部 `https://newbb.test.bangbangvip.com/autodev/{DEPLOY_ID}/` HTTP 200。
+
+**变更端清单**：仅 H5（容器名 `{DEPLOY_ID}-h5`，已上线）；小程序的 `pages/health-metric/index.wxml` 是 `<web-view>` 空壳加载同一 H5，App 内嵌同一 H5，**两端零代码改动、零打包**，刷新即生效。
+
+**用户手册**：`user_docs/睡眠全部历史显示与编辑修复.md`
+
+**踩坑教训沉淀（已加入第 6 节速查行）**：四指标通用 history 模板的 `STATUS_OPTIONS_BY_TYPE` / `EDIT_META_BY_TYPE` / `formatMetricValue` / `handleEditSave` 四处必须为每个新指标补齐分支，否则全部历史页将显示残缺与编辑失败。
+
+## 历史变更（2026-06-02 · Bug 修复 / 家庭成员重复绑定·同管理者名下唯一性校验· 仅后端，H5/小程序/App 0 改动，0 客户端打包）
 
 **任务标识**：`[BUGFIX-FAMILY-DUPLICATE-BIND-V1 2026-06-02]`
 
