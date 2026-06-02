@@ -5,7 +5,36 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-02 · 新功能 / AI 首页欢迎区统一优化 · H5 + 微信小程序 + Flutter APP 三端，后端零改动）
+## 最近一次变更（2026-06-02 · 新功能 / AI 首页优化「+圈分享入口整理 + 关怀模式删 AI 对话设置」· H5 + 微信小程序 + Flutter APP 四平台，后端零改动）
+
+**任务标识**：`[PRD-AIHOME-OPTIM-SHARE-V1 2026-06-02]`
+
+**需求**：整理 AI 首页右上角「+ 圆圈」更多菜单：① 统一「🎁 分享好友」入口（图标🎁/文案「分享好友」/点击弹分享面板，两个模式完全一致），删除「📤 立即分享」（合并进分享好友）与「🎁 邀请好友」（拉守护人入口移出，功能本身保留）；② 关怀模式无 AI 对话，删除「💬 发起新对话」「🔤 字体大小」（标准模式保留）；③ 关怀模式底部「分享好友」大按钮保留并改名「分享好友」+ 图标 🎁，标准模式不放底部分享大按钮；④ 标准模式欢迎区样式已由上一需求统一（蓝绿渐变保持不变）。最终：关怀模式「+」圈 5 项、标准模式「+」圈 7 项。
+
+**改动（H5 + 小程序 + Flutter；后端零改动）**：
+- H5 `h5-web/src/components/ai-chat/MoreMenu.tsx`：`menuVariant` 由 `ai-home-v2` 拆为 `ai-home-standard`（7 项：发起新对话/字体大小/切换模式/会员中心/扫一扫/🎁分享好友/帮助与反馈）与 `ai-home-care`（5 项：切换模式/会员中心/扫一扫/🎁分享好友/帮助与反馈）；统一项 `SHARE_FRIEND_ITEM`（icon🎁/label「分享好友」/action=onShare）被两变体复用确保完全一致；删除「立即分享」「邀请好友」渲染项（`ai-home-v2` 保留为兼容别名映射到标准）。
+- H5 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：MoreMenu 改用 `menuVariant="ai-home-standard"`，移除 `onInviteFriend` 传参。
+- H5 `h5-web/src/app/care-ai-home/page.tsx`：MoreMenu 改用 `menuVariant="ai-home-care"`，移除 `onNewChat/onFontSize/onInviteFriend` 传参；底部分享大按钮 `care-home-share-friend-btn` 图标 📤→🎁、文案「分享给好友」→「分享好友」。
+- 小程序标准 `miniprogram/pages/ai/index.{wxml,js}`：菜单删「邀请好友」「立即分享」，新增 `ai-home-more-menu-item-分享好友`（🎁，`onTapShareFriend`），保留发起新对话/字体大小。
+- 小程序关怀 `miniprogram/pages/care-ai-home/index.{wxml,js}`：菜单删「发起新对话」「字体大小」「邀请好友」「立即分享」，新增 `care-home-more-menu-item-分享好友`（🎁，`onTapShareFriend`→`openSharePanel`）；底部分享按钮图标📤→🎁、文案改「分享好友」。
+- Flutter 标准 `flutter_app/lib/screens/ai/ai_home_screen.dart`：「+」更多菜单 `share` 项文案「立即分享」📤 → 「分享好友」🎁。
+
+**测试**：`tests/test_aihome_share_optim_v1.py`（42 条源码断言：MoreMenu 两变体项构成、统一分享项一致性、删除项校验、小程序两端菜单与底部按钮、Flutter 文案/图标、标准欢迎区蓝绿渐变存在性）。本地 42 passed，零 Bug。
+
+**部署**：git push `origin/master` commit `310be435` → 服务器 GitHub fetch → `git reset --hard` → `docker compose build --no-cache h5-web && up -d h5-web`（仅 H5 单服务）→ gateway 重连 `{DEPLOY_ID}-network` + reload。外部 HTTPS：`/`、`/ai-home`、`/care-ai-home`、`/api/health` 均 200；已部署 JS 命中「分享好友」、零「立即分享」。
+
+**变更端清单**：H5（Docker 容器，已上线）+ 微信小程序（重新打包 zip 上传 gateway `downloads/`）+ Flutter APP 安卓 + iOS（lib/ 共享代码改动，GitHub Actions 远程构建 APK/IPA 均 success）。后端仅无业务改动。
+
+**本次多端新包（基础URL = https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27）**：
+- 微信小程序：`{base}/downloads/miniprogram_aihome_share_20260602_095051_7f4f.zip`（HTTP 200）。
+- 安卓 APK：`{base}/downloads/app_aihome_20260602-095121_387c.apk`（HTTP 200，标签 `android-v20260602-095121-387c`，run 26793433739 success）。
+- iOS：Release `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260602-095126-5768`，IPA `.../releases/download/ios-v20260602-095126-5768/bini_health_ios.ipa`（run 26793440002 success，未签名包）。
+
+**用户手册**：`user_docs/AI首页优化.md`
+
+---
+
+## 历史变更（2026-06-02 · 新功能 / AI 首页欢迎区统一优化 · H5 + 微信小程序 + Flutter APP 三端，后端零改动）
 
 **任务标识**：`[PRD-AIHOME-WELCOME-UNIFY-V1 2026-06-02]`
 
