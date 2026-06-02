@@ -5,7 +5,37 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-02 · 需求 / 系统通知点击后不跳转 · 全站统一 · H5 + 小程序 两端，安卓/iOS App 无改动 0 客户端打包，仅小程序重新打 zip）
+## 最近一次变更（2026-06-02 · 需求 / 健康档案「守护 TA 的人」卡片：可只读进入 + 统计修正 + 标题修改 · 仅 H5 + 后端 两端，安卓 / iOS / 小程序无源码改动 0 客户端打包）
+
+**任务标识**：`[PRD-TA-GUARDIAN-CARD-V1 2026-06-02]`
+
+**需求**：健康档案非本人 Tab 中的「守护 TA 的人」卡片同时修复三件事：① 不管这个家人有没有守护人，**点一下都能弹出只读小窗**（原来无 `managed_user_id` 或名单为空时点了无反应）；② 卡片副标题「守护者 X / 上限 Y」改为统计**当前家人**（原来错统计了本人 reverseGuardianSummary）；③ 卡片标题与弹窗标题统一改为 **「XX 的守护人」**（XX = 家人 nickname，中间一个空格；空时回退「TA 的守护人」）。全程纯只读，无任何编辑 / 邀请 / 删除按钮。
+
+**改动文件（共 3 处）**：
+- `h5-web/src/app/health-profile/page.tsx` —
+  - 新增 state：`taGuardianDrawerOpen: boolean`（弹窗显隐与名单是否为空解耦）、`taGuardianStat: { count, max }`（当前家人的真实 X/Y）。
+  - `openTaGuardianReadonly()` 取消「`managedUid` 取不到就早退」逻辑，改为进函数立刻 `setTaGuardianDrawerOpen(true)`，保证弹窗必弹；接口成功时把 `total` / `max_guardians` 写入 `taGuardianStat`，失败/未注册回退 `{count:0,max:3}`。
+  - 新增 useEffect：切换到家人 Tab 时主动拉取 `/api/guardian/v12/managed/{managed_user_id}/all-guardians` 用于卡片副标题统计（避免点击前显示错值）。
+  - `renderDualCards()`：`otherSideTitle` 非本人 Tab 改用 `taName ? `${taName} 的守护人` : 'TA 的守护人'`；`xForMe / yForMe` 非本人 Tab 改用 `taGuardianStat.count / taGuardianStat.max`，并把 `isUnlimitedForMe` 在家人 Tab 强制 false（不显示「不限」）。
+  - `renderTaGuardianReadonlyDrawer()`：渲染条件由 `list.length > 0 || guardianReadonlyDetail !== null` 改为 `taGuardianDrawerOpen`；新增标题区域（含右上角 ✕ 关闭按钮，data-testid `ta-guardians-drawer-close` / `ta-guardians-drawer-title`）；空状态加 `data-testid='ta-guardians-empty'` 提示「暂无守护人」；统一 `closeDrawer` 同时复位三个 state。
+- `backend/app/api/guardian_system_v12.py` — `GET /api/guardian/v12/managed/{managed_user_id}/all-guardians` 返回体新增 `max_guardians` 字段（基于被守护人本人 `_get_user_quotas` 取上限，异常或缺失回退 3），不破坏老字段（`items / total / caller_role / caller_is_primary` 不变）。
+- `backend/tests/test_ta_guardian_card_v1_20260602.py` — 新增 4 个契约测试：① 接口必须返回 `max_guardians` 字段；② 无守护人时仍返回 200 + `total=0` + `max_guardians=3`；③ 多守护人时 X(=total)/Y(=max_guardians) 各算各的且权限 `caller_role` 仍正确；④ 第三方调用仍 403。
+
+**保留不动**：
+- 本人 Tab「守护我的人」卡片所有逻辑（按钮 / `reverseGuardianSummary` / 升级会员 / 达上限置灰等）原样保留
+- 左侧「家庭成员」入口卡（仅本人 Tab 显示）原样保留
+- v12 守护人体系其他接口与既有测试集
+- 小程序 / 安卓 / iOS 端：本次未改动（H5 嵌入小程序自动可见同款；APP 通过 H5 WebView 自动可见）
+
+**测试/验证**：服务器容器内 `python -m pytest tests/test_ta_guardian_card_v1_20260602.py -v` **4/4 通过**；同时 `tests/test_guardian_system_v12.py::test_v12_all_guardians_drawer` 等核心既有用例继续通过；其他 4 个失败用例（`test_v12_i_guard_returns_relation_label_and_role_badge` / `test_v12_primary_guardian_proxy_pay_switch` / `test_health_archive_v1_i_guard_total_count_includes_all_status` / `test_dualcard_011_ward_invite_limit_reached`）经 `git stash` 验证为**历史漂移**（baseline commit 已失败），与本次改动无关。运行时 HTTPS 烟雾：`/api/health` HTTP 200、`/health-profile/` HTTP 200。
+
+**部署**：`deploy/_deploy_ta_guardian_card_v1_20260602.py` SFTP 上传 3 文件 → `docker compose build --no-cache backend && up -d backend` → `docker compose build --no-cache h5-web && up -d h5-web` → gateway 重连项目网络 → `nginx -s reload`。
+
+**变更端清单**：H5（已上线，重新构建并启动）+ 后端（已上线，重新构建并启动）。微信小程序 / 安卓 / iOS / Windows 桌面 / macOS 桌面 / CLI **本次均无源码改动，未重新打包**（保持原版本）。
+
+---
+
+## 上一次变更（2026-06-02 · 需求 / 系统通知点击后不跳转 · 全站统一 · H5 + 小程序 两端，安卓/iOS App 无改动 0 客户端打包，仅小程序重新打 zip）
 
 **任务标识**：`[PRD-MSG-NOTICE-NO-JUMP-V1 2026-06-02]`
 

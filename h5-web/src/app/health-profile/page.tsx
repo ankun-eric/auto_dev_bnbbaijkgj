@@ -291,6 +291,12 @@ function HealthProfileV2PageInner() {
   // [健康档案优化 PRD v1.0 §3.4] 非本人 Tab「守护 TA 的人」只读详情弹窗
   const [guardianReadonlyList, setGuardianReadonlyList] = useState<any[]>([]);
   const [guardianReadonlyDetail, setGuardianReadonlyDetail] = useState<any | null>(null);
+  // [PRD-TA-GUARDIAN-CARD-V1 2026-06-02]
+  // 抽屉是否打开（与列表是否为空解耦：保证空守护人时也能打开抽屉显示「暂无守护人」）
+  const [taGuardianDrawerOpen, setTaGuardianDrawerOpen] = useState<boolean>(false);
+  // [PRD-TA-GUARDIAN-CARD-V1 2026-06-02 §4.1] 当前家人「守护者 X / 上限 Y」统计
+  // count = 该家人当前活跃守护人数；max = 该家人的会员上限（未注册或读不到时回退 3）
+  const [taGuardianStat, setTaGuardianStat] = useState<{ count: number; max: number }>({ count: 0, max: 3 });
   const [todayDataUpdatedAt, setTodayDataUpdatedAt] = useState<string>('');
   const searchParams = useSearchParams();
 
@@ -1065,6 +1071,36 @@ function HealthProfileV2PageInner() {
     return flag?.guarded ? 'guarded' : 'unguarded';
   }, [selectedMember, guardedFlags]);
 
+  // [PRD-TA-GUARDIAN-CARD-V1 2026-06-02 §4.1 / §6.2]
+  // 切换到家人 Tab 时，自动拉取该家人的守护者统计（X=数量、Y=该家人会员上限）
+  // 用于卡片副标题展示，未注册家人无 managed_user_id 时回退 X=0/Y=3。
+  useEffect(() => {
+    if (!selectedMember || selectedMember.is_self) return;
+    const flag = guardedFlags.get(selectedMember.id);
+    const managedUid = flag?.managed_user_id;
+    if (!managedUid) {
+      setTaGuardianStat({ count: 0, max: 3 });
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res: any = await api.get(`/api/guardian/v12/managed/${managedUid}/all-guardians`);
+        if (cancelled) return;
+        const data = res.data || res;
+        const items = Array.isArray(data.items) ? data.items : [];
+        const total = typeof data.total === 'number' ? data.total : items.length;
+        const maxG = typeof data.max_guardians === 'number' && data.max_guardians > 0
+          ? data.max_guardians
+          : 3;
+        setTaGuardianStat({ count: total, max: maxG });
+      } catch {
+        if (!cancelled) setTaGuardianStat({ count: 0, max: 3 });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedMember, guardedFlags]);
+
   const showInvite = currentGuardStatus === 'unguarded';
 
   // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 路口B1 / §4.1]
@@ -1088,21 +1124,33 @@ function HealthProfileV2PageInner() {
 
   const openTaGuardianReadonly = async () => {
     if (!selectedMember || selectedMember.is_self) return;
+    // [PRD-TA-GUARDIAN-CARD-V1 2026-06-02 §6.1]
+    // 进函数立即打开抽屉，保证「无论有没有守护人 / 接口成功失败，弹窗都能弹出」
     setGuardianReadonlyDetail(null);
     setGuardianReadonlyList([]);
+    setTaGuardianDrawerOpen(true);
     try {
-      // 取目标用户 ID
       const flag = guardedFlags.get(selectedMember.id);
       const managedUid = flag?.managed_user_id;
       if (!managedUid) {
+        // 未注册家人：无 managed_user_id，弹窗显示空状态；统计 X=0, Y=默认 3
         setGuardianReadonlyList([]);
+        setTaGuardianStat({ count: 0, max: 3 });
         return;
       }
       const res: any = await api.get(`/api/guardian/v12/managed/${managedUid}/all-guardians`);
       const data = res.data || res;
-      setGuardianReadonlyList(Array.isArray(data.items) ? data.items : []);
+      const items = Array.isArray(data.items) ? data.items : [];
+      setGuardianReadonlyList(items);
+      const total = typeof data.total === 'number' ? data.total : items.length;
+      const maxG = typeof data.max_guardians === 'number' && data.max_guardians > 0
+        ? data.max_guardians
+        : 3;
+      setTaGuardianStat({ count: total, max: maxG });
     } catch {
+      // 接口失败也保持弹窗打开，列表置空、统计回退默认值
       setGuardianReadonlyList([]);
+      setTaGuardianStat({ count: 0, max: 3 });
     }
   };
 
@@ -1116,7 +1164,13 @@ function HealthProfileV2PageInner() {
   //   5. 家人 Tab 只读：黑字 + 无按钮（按钮全部不显示）
   const renderDualCards = () => {
     const isSelfTab = !!selectedMember?.is_self;
-    const otherSideTitle = isSelfTab ? '守护我的人' : '守护 TA 的人';
+    // [PRD-TA-GUARDIAN-CARD-V1 2026-06-02 §4.1 / §6.3]
+    // 非本人 Tab 时，卡片标题改为「XX 的守护人」（XX=家人昵称，中间一个空格）；
+    // 名字为空时回退「TA 的守护人」。
+    const taName = (selectedMember?.nickname || '').trim();
+    const otherSideTitle = isSelfTab
+      ? '守护我的人'
+      : (taName ? `${taName} 的守护人` : 'TA 的守护人');
     // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 路口C1] 入口卡命名与列表页对齐
     // [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-01 改动点1] 本人 Tab 入口卡命名由「档案列表」统一为「家庭成员」
     //   （直达 /health-profile/archive-list，列表页标题同步为「家庭成员」）
@@ -1135,10 +1189,19 @@ function HealthProfileV2PageInner() {
     const isUnlimitedByMe = !!guardianSummary.is_unlimited;
     const isFullByMe = !isUnlimitedByMe && xByMe >= yByMe;
 
-    // 「守护我的人」卡片字段
-    const xForMe = reverseGuardianSummary.total_count;
-    const yForMe = reverseGuardianSummary.max_guardians_for_me || 3;
-    const isUnlimitedForMe = !!reverseGuardianSummary.is_unlimited;
+    // 「守护我的人 / XX 的守护人」卡片字段
+    // [PRD-TA-GUARDIAN-CARD-V1 2026-06-02 §4.1 / §6.2]
+    // 本人 Tab：X/Y 仍来自 reverseGuardianSummary（本人的「谁在守护我」汇总）
+    // 非本人 Tab：X/Y 来自 taGuardianStat（当前家人的真实数据），不再误用本人统计
+    const xForMe = isSelfTab
+      ? reverseGuardianSummary.total_count
+      : taGuardianStat.count;
+    const yForMe = isSelfTab
+      ? (reverseGuardianSummary.max_guardians_for_me || 3)
+      : (taGuardianStat.max || 3);
+    const isUnlimitedForMe = isSelfTab
+      ? !!reverseGuardianSummary.is_unlimited
+      : false; // 家人 Tab 不展示「不限」
     const isFullForMe = !isUnlimitedForMe && xForMe >= yForMe;
 
     const renderSubtitleAndButton = (
@@ -1299,11 +1362,21 @@ function HealthProfileV2PageInner() {
   const renderTaGuardianReadonlyDrawer = () => {
     if (selectedMember?.is_self) return null;
     const list = guardianReadonlyList;
-    const showList = list.length > 0 || guardianReadonlyDetail !== null;
-    if (!showList) return null;
+    // [PRD-TA-GUARDIAN-CARD-V1 2026-06-02 §6.1]
+    // 抽屉显隐改为以 taGuardianDrawerOpen 为准，与列表是否为空解耦。
+    // 这样无守护人时也能进抽屉看到「暂无守护人」空状态。
+    if (!taGuardianDrawerOpen) return null;
     const fmt = (s?: string) => {
       if (!s) return '—';
       try { return new Date(s).toISOString().slice(0, 10); } catch { return s; }
+    };
+    // [PRD-TA-GUARDIAN-CARD-V1 2026-06-02 §6.3] 弹窗标题与卡片标题一致：「XX 的守护人」，兜底「TA 的守护人」
+    const taName = (selectedMember?.nickname || '').trim();
+    const drawerTitle = taName ? `${taName} 的守护人` : 'TA 的守护人';
+    const closeDrawer = () => {
+      setTaGuardianDrawerOpen(false);
+      setGuardianReadonlyList([]);
+      setGuardianReadonlyDetail(null);
     };
     return (
       <div
@@ -1311,7 +1384,7 @@ function HealthProfileV2PageInner() {
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 9999,
           display: 'flex', alignItems: 'flex-end',
         }}
-        onClick={() => { setGuardianReadonlyList([]); setGuardianReadonlyDetail(null); }}
+        onClick={closeDrawer}
         data-testid='ta-guardians-drawer'
       >
         <div
@@ -1321,12 +1394,25 @@ function HealthProfileV2PageInner() {
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>
-            守护 TA 的人 - {selectedMember?.nickname || '家人'}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ fontSize: 18, fontWeight: 700 }} data-testid='ta-guardians-drawer-title'>
+              {drawerTitle}
+            </div>
+            <button
+              data-testid='ta-guardians-drawer-close'
+              onClick={closeDrawer}
+              style={{
+                background: 'transparent', border: 'none', color: '#8C8C8C',
+                fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: 4,
+              }}
+              aria-label='关闭'
+            >✕</button>
           </div>
           <div style={{ fontSize: 12, color: '#8C8C8C', marginBottom: 12 }}>仅可查看，不可操作</div>
           {!guardianReadonlyDetail && list.length === 0 && (
-            <div style={{ padding: 24, textAlign: 'center', color: '#8C8C8C' }}>暂无守护人</div>
+            <div data-testid='ta-guardians-empty' style={{ padding: 24, textAlign: 'center', color: '#8C8C8C' }}>
+              暂无守护人
+            </div>
           )}
           {!guardianReadonlyDetail && list.map((g) => (
             <div

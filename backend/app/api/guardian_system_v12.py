@@ -405,9 +405,19 @@ async def list_all_guardians_of_managed(
                 caller_is_primary = it["is_primary_guardian"]
                 break
 
+    # [PRD-TA-GUARDIAN-CARD-V1 2026-06-02 §6.2]
+    # 新增 max_guardians 字段：基于该被守护人本身（managed_user_id）的会员套餐取上限，
+    # 取不到回退默认 3。前端用于卡片副标题「守护者 X / 上限 Y」中的 Y。
+    try:
+        managed_quotas = await _get_user_quotas(db, managed_user_id)
+        max_guardians = int(managed_quotas.get("max_guardians", 3) or 3)
+    except Exception:
+        max_guardians = 3
+
     return {
         "items": items,
         "total": len(items),
+        "max_guardians": max_guardians,
         "caller_role": caller_role,
         "caller_is_primary": caller_is_primary,
     }
