@@ -335,6 +335,11 @@ async def _collect_blocking_health_data(
     """
     segments: List[str] = []
 
+    print(
+        f"[DEBUG][DELMEM] enter user_id={user_id} member_id={member_id} "
+        f"member_user_id={member_user_id}"
+    )
+
     # 先取该成员名下的全部健康档案 id（一个成员理论上 1 份，做成列表更稳）
     profile_ids: List[int] = []
     try:
@@ -348,6 +353,8 @@ async def _collect_blocking_health_data(
     except Exception:
         profile_ids = []
 
+    print(f"[DEBUG][DELMEM] profile_ids={profile_ids}")
+
     async def _count(stmt) -> int:
         try:
             r = await db.execute(stmt)
@@ -356,16 +363,25 @@ async def _collect_blocking_health_data(
             return 0
 
     # 1) 健康档案子数据：既往病史 / 过敏史 / 家族病史（HealthInfoExtra，JSON 列计条数）
+    #
+    # [BUGFIX-DELETE-MEMBER-EMPTY-SHELL-IGNORE-V1 2026-06-02] 业务调整：用户点进
+    # 「档案附加信息」后未填写任何内容、未保存有效数据，系统也会生成一条所有 JSON 列
+    # 均为空的「空壳记录」。这种空壳没有任何实际内容，不应再作为「不能删除」的阻塞条件。
+    # 因此这里**只统计确实填了真实条目的内容**（既往病史/过敏史/家族病史条目数 > 0）才产生
+    # 卡点；纯空壳不再阻塞删除，删除成员时会在执行段把空壳行一并清掉（见下方删除逻辑），
+    # 既避免误拦用户，又不会因残留空壳撞上外键约束报错。
     if profile_ids:
         try:
             from app.models.models import HealthInfoExtra  # type: ignore
             extra_res = await db.execute(
                 select(HealthInfoExtra).where(HealthInfoExtra.profile_id.in_(profile_ids))
             )
+            n_rows = 0      # 该 profile 下 health_info_extra 的行数
             n_history = 0   # 既往病史 = 慢病 + 手术史
             n_allergy = 0   # 过敏史 = 药物 + 食物 + 其他
             n_family = 0    # 家族病史
             for ex in extra_res.scalars().all():
+                n_rows += 1
                 for col in (ex.chronic_diseases, ex.surgery_history):
                     if isinstance(col, list):
                         n_history += len(col)
@@ -374,6 +390,11 @@ async def _collect_blocking_health_data(
                         n_allergy += len(col)
                 if isinstance(ex.family_history, list):
                     n_family += len(ex.family_history)
+            print(
+                f"[DEBUG][DELMEM] info_extra rows={n_rows} n_history={n_history} "
+                f"n_allergy={n_allergy} n_family={n_family}"
+            )
+            # 只有「确实填了真实内容」才阻塞；纯空壳（条目数全为 0）直接放行，不再产生卡点。
             if n_history > 0:
                 segments.append(f"{n_history} 条既往病史")
             if n_allergy > 0:
@@ -406,6 +427,7 @@ async def _collect_blocking_health_data(
                     HealthEvent.profile_id.in_(profile_ids)
                 )
             )
+            print(f"[DEBUG][DELMEM] events_rows={n}")
             if n > 0:
                 segments.append(f"{n} 条健康事件")
         except Exception:
@@ -994,7 +1016,30 @@ async def delete_member_unified(
             HealthProfile.family_member_id == member_id,
         )
     )
-    for hp in hp_res.scalars().all():
+    hp_rows = hp_res.scalars().all()
+
+    # b-0) [BUGFIX-DELETE-MEMBER-EMPTY-SHELL-IGNORE-V1 2026-06-02] 先清掉挂在这些 profile 下的
+    # 「空壳」health_info_extra 行（用户点进附加信息但没填任何内容生成的空记录）。
+    # 上面的卡点统计已不再因空壳阻塞删除，但 health_info_extra 对 health_profiles 有外键约束，
+    # 若不先清掉，硬删 profile 时会撞上 FK 报错并被全局兜底翻译成「关联数据不存在……」。
+    # 注意：此处只会清到「空壳」——因为有真实条目的附加信息会在上面被拦下，根本走不到这里。
+    profile_ids_to_delete = [int(hp.id) for hp in hp_rows]
+    if profile_ids_to_delete:
+        try:
+            from app.models.models import HealthInfoExtra  # type: ignore
+            extra_res2 = await db.execute(
+                select(HealthInfoExtra).where(
+                    HealthInfoExtra.profile_id.in_(profile_ids_to_delete)
+                )
+            )
+            for ex in extra_res2.scalars().all():
+                await db.delete(ex)
+                if "health_info_extra" not in deleted_tables:
+                    deleted_tables.append("health_info_extra")
+        except Exception:
+            pass
+
+    for hp in hp_rows:
         await db.delete(hp)
         if "health_profile" not in deleted_tables:
             deleted_tables.append("health_profile")

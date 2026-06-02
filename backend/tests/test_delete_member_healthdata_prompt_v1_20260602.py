@@ -228,6 +228,64 @@ async def test_tc05_clean_member_deletes_directly(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_tc08_empty_shell_info_extra_does_not_block(client: AsyncClient):
+    """[BUGFIX-DELETE-MEMBER-EMPTY-SHELL-IGNORE-V1 2026-06-02]
+    用户点进「档案附加信息」但未填写任何内容，生成的「空壳」记录（所有 JSON 列为空），
+    不应再阻塞删除。删除成员时应直接成功，并自动把空壳行一并清掉，
+    且绝不再出现旧的「健康档案附加信息」卡点提示或旧通用兜底报错。
+    """
+    phone = f"199{uuid.uuid4().hex[:8]}"
+    uid = await _make_user(phone, "本人")
+    h = await _headers(client, phone)
+    mid = await _create_member(uid, "黎明")
+    pid = await _create_profile(uid, mid, "黎明")
+
+    # 制造一条空壳：点进去没填任何东西
+    async with test_session() as s:
+        s.add(HealthInfoExtra(profile_id=pid))
+        await s.commit()
+
+    res = await client.delete(f"/api/family/member/{mid}", headers=h)
+    assert res.status_code == 200, res.text
+    data = res.json()["data"]
+    assert data["reason_code"] == "OK"
+    assert "family_member" in data["deleted_tables"]
+    # 不能再出现旧的空壳卡点提示
+    assert "健康档案附加信息" not in res.text
+    assert OLD_FALLBACK_MSG not in res.text
+
+    # 空壳行应已被一并清掉
+    async with test_session() as s:
+        from sqlalchemy import select as sql_select, func as sql_func
+        cnt = await s.execute(
+            sql_select(sql_func.count(HealthInfoExtra.id)).where(
+                HealthInfoExtra.profile_id == pid
+            )
+        )
+        assert int(cnt.scalar() or 0) == 0
+
+
+@pytest.mark.asyncio
+async def test_tc09_empty_shell_does_not_hide_real_data(client: AsyncClient):
+    """空壳放行不影响真实内容拦截：附加信息里有真实条目时仍照常阻塞。"""
+    phone = f"199{uuid.uuid4().hex[:8]}"
+    uid = await _make_user(phone, "本人")
+    h = await _headers(client, phone)
+    mid = await _create_member(uid, "黎明")
+    pid = await _create_profile(uid, mid, "黎明")
+
+    async with test_session() as s:
+        s.add(HealthInfoExtra(profile_id=pid, chronic_diseases=["高血压", "糖尿病"]))
+        await s.commit()
+
+    res = await client.delete(f"/api/family/member/{mid}", headers=h)
+    assert res.status_code == 400, res.text
+    detail = res.json()["detail"]
+    assert detail["reason_code"] == "HAS_HEALTH_DATA"
+    assert "2 条既往病史" in detail["message"]
+
+
+@pytest.mark.asyncio
 async def test_tc06_health_metric_records_counted(client: AsyncClient):
     """健康记录（血压等）也能精确数出条数。"""
     phone = f"199{uuid.uuid4().hex[:8]}"
