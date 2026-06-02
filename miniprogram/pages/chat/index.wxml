@@ -1,3 +1,16 @@
+<!-- [PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 需求1+2] 输入框占位文字「问答已结合【XX】健康档案」
+     由 WXS 拼接；咨询人姓名过长时只取前几个字 + 省略号，保证「健康档案」可见。 -->
+<wxs module="hintWxs">
+  function buildPlaceholder(name) {
+    var n = (name || '本人');
+    var MAX = 6;
+    if (n.length > MAX) {
+      n = n.substring(0, MAX) + '…';
+    }
+    return '问答已结合【' + n + '】健康档案';
+  }
+  module.exports = { buildPlaceholder: buildPlaceholder };
+</wxs>
 <view class="chat-page">
   <!-- [PRD-425] 顶部操作栏：☰ + 标题(小康) + 未读徽标 + Aa（更多入口） -->
   <view class="chat-top-bar">
@@ -372,7 +385,7 @@
       </block>
       <block wx:else>
         <view class="input-wrapper">
-          <input class="chat-input" placeholder="发信息..." value="{{inputValue}}"
+          <input class="chat-input" placeholder="{{hintWxs.buildPlaceholder(consultTarget.name)}}" value="{{inputValue}}"
                  bindinput="onInput" confirm-type="send" bindconfirm="sendMessage"
                  adjust-position="{{false}}" focus="{{inputFocus}}" />
           <view class="send-btn-inline {{inputValue ? 'send-active' : ''}}" bindtap="sendMessage" wx:if="{{inputValue}}">
@@ -563,6 +576,8 @@
   <view class="record-overlay" wx:if="{{showRecordOverlay}}" catchtouchmove="preventTouchMove">
     <view class="record-overlay-mask"></view>
     <view class="record-overlay-content">
+      <!-- [PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 需求3] 语音浮层标题：语音输入中… -->
+      <text class="record-title">{{recordCancelling ? '松开手指 取消发送' : '语音输入中…'}}</text>
       <view class="record-wave-container">
         <view class="record-wave-bar record-wave-bar-1"></view>
         <view class="record-wave-bar record-wave-bar-2"></view>

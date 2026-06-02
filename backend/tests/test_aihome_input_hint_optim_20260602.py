@@ -1,17 +1,17 @@
-"""[PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02] AI 首页输入区优化 - 前端源码校验测试
+"""[PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02] AI 主页输入区优化 - 前端源码校验测试
 
-本次需求为纯前端 UI 优化，不涉及后端 API，覆盖三端（H5 / 小程序 / Flutter）：
+本次需求为纯前端 UI 优化，不涉及后端 API，覆盖两端（H5 / 小程序）：
 
-事件1（输入框上方提示文字）：
-- 文案精简去掉「的」：问答已结合【XX】健康档案
-- 字号缩小，独立元素显示在输入框上方，单行不被发送按钮挤断
+需求1（把「问答已结合健康档案」挪进输入框做占位文字）：
+- 删除输入框上方独立的小灰字「问答已结合【XX】健康档案」
+- 改为输入框内的灰色占位提示文字（placeholder），替换原「发消息或按住说话…」
+- 咨询人名字规则不变（本人 / 家人姓名）
 
-事件2（按住说话按压效果，5 项）：
-- ① 按下变色 + 轻微下沉缩小
-- ② 天蓝半透明录音浮层 + 声波动画
-- ③ 文字「按住说话」↔「松开发送」
-- ④ 按下瞬间震动反馈
-- ⑤ 上滑取消
+需求2（占位文字过长的处理，姓名截断 + 省略号）：
+- 当咨询人姓名较长时只取前几个字，超出部分用省略号，保证「健康档案」可见
+
+需求3（语音浮层文案修改）：
+- 按住说话弹出的语音浮层文案改为「语音输入中…」
 
 测试通过校验各端源码文件的关键字符串/正则，确保改造已落地、不被回滚。
 若运行环境无对应端源码（如最小化 backend 容器），对应用例 skip，避免误报。
@@ -39,133 +39,113 @@ def _find(rel_parts):
 
 
 H5_AI_HOME = _find(["h5-web", "src", "app", "(ai-chat)", "ai-home", "page.tsx"])
+MP_CHAT_WXML = _find(["miniprogram", "pages", "chat", "index.wxml"])
 MP_CHAT_JS = _find(["miniprogram", "pages", "chat", "index.js"])
 MP_CHAT_WXSS = _find(["miniprogram", "pages", "chat", "index.wxss"])
-FLUTTER_CHAT = _find(["flutter_app", "lib", "screens", "ai", "chat_screen.dart"])
 
 
 def _read(p: Path) -> str:
     return p.read_text(encoding="utf-8")
 
 
-# ─────────────────────────── H5 事件1 ───────────────────────────
+# ─────────────────────────── H5 需求1：占位文字 ───────────────────────────
 
 @pytest.mark.skipif(H5_AI_HOME is None, reason="h5-web source not available")
-def test_h5_hint_text_simplified_no_de():
-    """事件1：H5 提示文案精简为「问答已结合【XX】健康档案」（去掉「的」）。"""
+def test_h5_placeholder_carries_health_archive():
+    """需求1：H5 输入框 placeholder 承载「问答已结合【XX】健康档案」。"""
     src = _read(H5_AI_HOME)
-    assert "问答已结合【" in src
-    assert "】健康档案" in src
-    assert "】的健康档案" not in src, "H5 提示仍残留「的」字"
-
-
-@pytest.mark.skipif(H5_AI_HOME is None, reason="h5-web source not available")
-def test_h5_hint_is_independent_element_above_input():
-    """事件1：H5 提示由独立元素承载（位于输入框上方），而非 textarea placeholder。"""
-    src = _read(H5_AI_HOME)
-    assert "ai-home-input-hint" in src, "未找到独立提示元素"
-    # textarea 的 placeholder 不再承载「问答已结合…健康档案」长文案
     m = re.search(r"const\s+dynamicPlaceholder\s*=\s*`([^`]*)`", src)
     assert m, "未找到 dynamicPlaceholder 定义"
-    assert "健康档案" not in m.group(1), "placeholder 仍承载健康档案长文案，应改由上方独立提示承载"
+    ph = m.group(1)
+    assert "问答已结合【" in ph, "placeholder 未承载「问答已结合【XX】」"
+    assert "】健康档案" in ph, "placeholder 未承载「健康档案」"
 
 
 @pytest.mark.skipif(H5_AI_HOME is None, reason="h5-web source not available")
-def test_h5_hint_font_small_single_line():
-    """事件1：H5 提示字号缩小为 11px，单行 nowrap 防止被发送按钮挤断。"""
+def test_h5_independent_hint_removed():
+    """需求1：H5 删除输入框上方独立灰字提示元素（ai-home-input-hint 不再渲染）。"""
     src = _read(H5_AI_HOME)
-    idx = src.find("ai-home-input-hint")
-    window = src[max(0, idx - 200): idx + 600]
-    assert re.search(r"fontSize:\s*11\b", window), "提示字号未缩小为 11px"
-    assert "nowrap" in window, "提示未单行显示"
-
-
-# ─────────────────────────── H5 事件2 ───────────────────────────
-
-@pytest.mark.skipif(H5_AI_HOME is None, reason="h5-web source not available")
-def test_h5_press_feedback_scale_and_color():
-    """事件2-①：H5 按住录音时按钮缩小（scale(0.97)）并变色。"""
-    src = _read(H5_AI_HOME)
-    idx = src.find("ai-home-press-to-talk")
-    window = src[max(0, idx - 2000): idx + 500]
-    assert "scale(0.97)" in window, "按住说话按钮缺少按下缩小反馈"
-    assert "#0284C7" in window, "按住录音态未变色加深"
+    assert "data-testid=\"ai-home-input-hint\"" not in src, "输入框上方独立提示元素未删除"
 
 
 @pytest.mark.skipif(H5_AI_HOME is None, reason="h5-web source not available")
-def test_h5_record_overlay_skyblue_and_wave():
-    """事件2-②：H5 录音浮层为天蓝半透明 + 声波动画。"""
+def test_h5_old_short_placeholder_removed():
+    """需求1：H5 原通用短提示「发消息或按住说话…」不再作为 placeholder 文案。"""
     src = _read(H5_AI_HOME)
-    assert "ai-home-record-overlay" in src, "未找到录音浮层"
-    assert "ai-home-record-wave" in src, "未找到声波动画"
-    # 天蓝半透明背景（rgba(14,165,233,...)）
-    assert re.search(r"rgba\(14,\s*165,\s*233", src), "录音浮层背景非天蓝半透明"
+    m = re.search(r"const\s+dynamicPlaceholder\s*=\s*`([^`]*)`", src)
+    assert m, "未找到 dynamicPlaceholder 定义"
+    assert "发消息或按住说话" not in m.group(1), "placeholder 仍为旧短提示文案"
 
 
 @pytest.mark.skipif(H5_AI_HOME is None, reason="h5-web source not available")
-def test_h5_text_switch_release_to_send():
-    """事件2-③：H5 录音中文字切换为「松开发送」。"""
+def test_h5_name_truncation_with_ellipsis():
+    """需求2：H5 占位文字姓名过长时截断 + 省略号。"""
     src = _read(H5_AI_HOME)
-    idx = src.find("ai-home-press-to-talk")
-    window = src[max(0, idx - 200): idx + 400]
-    assert "松开发送" in window, "录音态文字未切换为松开发送"
-    assert "按住说话" in window
+    # 存在基于长度的截断逻辑（slice + 省略号）
+    assert re.search(r"\.slice\(0,\s*MAX_NAME_LEN\)", src), "未找到姓名截断逻辑"
+    assert "…" in src, "未找到省略号"
 
+
+# ─────────────────────────── H5 需求3：语音浮层文案 ───────────────────────────
 
 @pytest.mark.skipif(H5_AI_HOME is None, reason="h5-web source not available")
-def test_h5_vibration_on_press():
-    """事件2-④：H5 按下瞬间震动（navigator.vibrate）。"""
+def test_h5_voice_overlay_text_updated():
+    """需求3：H5 语音浮层文案改为「语音输入中…」，不再用「正在录音…」。"""
     src = _read(H5_AI_HOME)
-    assert re.search(r"navigator\.vibrate\??\.?\(", src), "H5 缺少按下震动反馈"
+    assert "语音输入中…" in src, "H5 语音浮层未改为「语音输入中…」"
+    assert "正在录音" not in src, "H5 仍残留「正在录音」文案"
 
 
-@pytest.mark.skipif(H5_AI_HOME is None, reason="h5-web source not available")
-def test_h5_swipe_up_cancel():
-    """事件2-⑤：H5 上滑取消（handleRecordTouchMove + recordCancelled）。"""
-    src = _read(H5_AI_HOME)
-    assert "handleRecordTouchMove" in src
-    assert "recordCancelled" in src
+# ─────────────────────────── 小程序 需求1+2：占位文字 ───────────────────────────
+
+@pytest.mark.skipif(MP_CHAT_WXML is None, reason="miniprogram source not available")
+def test_mp_placeholder_carries_health_archive():
+    """需求1：小程序输入框 placeholder 承载「问答已结合【XX】健康档案」。"""
+    src = _read(MP_CHAT_WXML)
+    assert "问答已结合【" in src, "小程序未承载「问答已结合【XX】」"
+    assert "】健康档案" in src, "小程序未承载「健康档案」"
+    # placeholder 由 WXS 拼接（不再是「发信息...」硬编码）
+    assert "buildPlaceholder" in src, "小程序 placeholder 未改为 WXS 拼接"
+    assert 'placeholder="发信息..."' not in src, "小程序仍为旧 placeholder「发信息...」"
 
 
-# ─────────────────────────── 小程序 事件2 ───────────────────────────
+@pytest.mark.skipif(MP_CHAT_WXML is None, reason="miniprogram source not available")
+def test_mp_name_truncation_with_ellipsis():
+    """需求2：小程序占位文字姓名过长时截断 + 省略号（WXS substring + …）。"""
+    src = _read(MP_CHAT_WXML)
+    assert re.search(r"substring\(0,\s*MAX\)", src), "小程序未找到姓名截断逻辑"
+    assert "+ '…'" in src or "+'…'" in src, "小程序未找到省略号拼接"
 
-@pytest.mark.skipif(MP_CHAT_JS is None, reason="miniprogram source not available")
-def test_mp_vibration_on_press():
-    """事件2-④：小程序按下震动（wx.vibrateShort）。"""
-    src = _read(MP_CHAT_JS)
-    assert "wx.vibrateShort" in src, "小程序缺少按下震动反馈"
+
+# ─────────────────────────── 小程序 需求3：语音浮层文案 ───────────────────────────
+
+@pytest.mark.skipif(MP_CHAT_WXML is None, reason="miniprogram source not available")
+def test_mp_voice_overlay_text_updated():
+    """需求3：小程序语音浮层文案为「语音输入中…」。"""
+    src = _read(MP_CHAT_WXML)
+    assert "语音输入中…" in src, "小程序语音浮层未含「语音输入中…」"
 
 
 @pytest.mark.skipif(MP_CHAT_WXSS is None, reason="miniprogram source not available")
-def test_mp_overlay_skyblue_and_press_scale():
-    """事件2-①②：小程序录音浮层天蓝半透明、声波白色、按下缩小。"""
+def test_mp_voice_overlay_title_style_exists():
+    """需求3：小程序语音浮层标题样式 .record-title 存在。"""
+    src = _read(MP_CHAT_WXSS)
+    assert ".record-title" in src, "小程序未定义语音浮层标题样式"
+
+
+# ─────────────────────────── 不回归：保留既有按压/声波体验 ───────────────────────────
+
+@pytest.mark.skipif(MP_CHAT_WXSS is None, reason="miniprogram source not available")
+def test_mp_overlay_skyblue_and_press_scale_kept():
+    """不回归：小程序录音浮层天蓝半透明、声波白色、按下缩小保持不变。"""
     src = _read(MP_CHAT_WXSS)
     assert re.search(r"rgba\(14,\s*165,\s*233", src), "小程序录音浮层背景非天蓝半透明"
-    # 声波白色
-    assert re.search(r"\.record-wave-bar\s*\{[^}]*background:\s*#ffffff", src, re.I), "声波未改为白色"
-    # 按下缩小
+    assert re.search(r"\.record-wave-bar\s*\{[^}]*background:\s*#ffffff", src, re.I), "声波未保持白色"
     assert re.search(r"\.hold-talk-active\s*\{[^}]*scale\(0\.97\)", src), "按住按钮缺少缩小反馈"
 
 
-# ─────────────────────────── Flutter 事件2 ───────────────────────────
-
-@pytest.mark.skipif(FLUTTER_CHAT is None, reason="flutter source not available")
-def test_flutter_vibration_on_press():
-    """事件2-④：Flutter 按下震动（HapticFeedback）。"""
-    src = _read(FLUTTER_CHAT)
-    assert "HapticFeedback" in src, "Flutter 缺少按下震动反馈"
-
-
-@pytest.mark.skipif(FLUTTER_CHAT is None, reason="flutter source not available")
-def test_flutter_press_scale_and_text_switch():
-    """事件2-①③：Flutter 按住缩小（AnimatedScale 0.97）+ 文字松开发送。"""
-    src = _read(FLUTTER_CHAT)
-    assert "AnimatedScale" in src, "Flutter 缺少按下缩小反馈"
-    assert "松开发送" in src, "Flutter 录音态文字未切换为松开发送"
-
-
-@pytest.mark.skipif(FLUTTER_CHAT is None, reason="flutter source not available")
-def test_flutter_overlay_skyblue():
-    """事件2-②：Flutter 录音浮层天蓝半透明背景。"""
-    src = _read(FLUTTER_CHAT)
-    assert re.search(r"0xFF0EA5E9\)\.withOpacity\(0\.78\)", src), "Flutter 录音浮层背景非天蓝半透明"
+@pytest.mark.skipif(H5_AI_HOME is None, reason="h5-web source not available")
+def test_h5_press_to_talk_kept():
+    """不回归：H5「按住说话」↔「松开发送」交互保持不变。"""
+    src = _read(H5_AI_HOME)
+    assert "按住说话" in src and "松开发送" in src, "H5 按住说话交互被破坏"

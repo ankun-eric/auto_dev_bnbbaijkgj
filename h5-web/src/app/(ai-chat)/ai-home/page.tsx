@@ -6252,36 +6252,8 @@ export default function AiHomePage() {
       >
         {/* [PRD-426] 删除输入框上方"+ 选择咨询人"浮层（含其内嵌的 RecommendCards 推荐题），底部"为(XX)咨询 ⇄"作为唯一咨询人切换入口 */}
 
-        {/* [PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 事件1] 输入框上方独立灰色小字提示：
-            · 文案精简去掉「的」：`问答已结合【XX】健康档案`
-            · 字号缩小（11px）保证常规名字下整行可完整显示，不被发送按钮挤断
-            · 颜色保持小灰字；语音态/键盘态均显示，贴着输入框上方 */}
-        {(() => {
-          const consultantRelationOrName = (() => {
-            if (!selectedConsultant) return '本人';
-            const rel = (selectedConsultant.relation_type_name || selectedConsultant.relationship_type || '').trim();
-            if (rel) return rel;
-            const name = (selectedConsultant.nickname || '').trim();
-            return name || '本人';
-          })();
-          return (
-            <div
-              data-testid="ai-home-input-hint"
-              style={{
-                fontSize: 11,
-                lineHeight: '16px',
-                color: THEME.textSecondary,
-                marginBottom: 6,
-                paddingLeft: 4,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {`问答已结合【${consultantRelationOrName}】健康档案`}
-            </div>
-          );
-        })()}
+        {/* [PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 需求1] 删除输入框上方独立灰字提示，
+            「问答已结合【XX】健康档案」改为放进输入框内作为灰色占位文字。 */}
 
         {(() => {
           // [PRD-AI-HOME-OPTIM-FINAL-V2 2026-05-19]
@@ -6293,10 +6265,14 @@ export default function AiHomePage() {
             const name = (selectedConsultant.nickname || '').trim();
             return name || '本人';
           })();
-          // [PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 事件1] textarea 内 placeholder 精简为通用短提示，
-          // 「问答已结合健康档案」改由输入框上方独立灰字提示承载，避免文案被发送按钮挤断。
-          const dynamicPlaceholder = `发消息或按住说话…`;
-          void consultantRelationOrName;
+          // [PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 需求1+2] 将「问答已结合【XX】健康档案」
+          // 作为输入框灰色占位文字。咨询人名字过长时只取前几个字 + 省略号，保证「健康档案」可见。
+          const MAX_NAME_LEN = 6;
+          const truncatedName =
+            consultantRelationOrName.length > MAX_NAME_LEN
+              ? `${consultantRelationOrName.slice(0, MAX_NAME_LEN)}…`
+              : consultantRelationOrName;
+          const dynamicPlaceholder = `问答已结合【${truncatedName}】健康档案`;
           // ② 与「选中咨询人卡片」同款渐变（= --gradient-primary 同源）
           const PRIMARY_GRADIENT = 'linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)';
           // ③ 麦克风/键盘 圆形按钮统一样式：40x40 + 渐变蓝底 + 白色图标（复用 ./chat 的 SVG 资源，描边改白色）
@@ -6461,7 +6437,7 @@ export default function AiHomePage() {
                       })}
                     </div>
                     <div style={{ color: '#fff', fontSize: 14, fontWeight: 500 }}>
-                      {recordCancelled ? '松开手指 取消发送' : '正在录音…'}
+                      {recordCancelled ? '松开手指 取消发送' : '语音输入中…'}
                     </div>
                     <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 6 }}>
                       {recordCancelled ? '' : '上滑可取消'}
