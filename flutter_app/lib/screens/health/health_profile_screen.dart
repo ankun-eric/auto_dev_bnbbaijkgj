@@ -1053,11 +1053,23 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
           'capColor': cap?['color'] ?? '',
         };
       }(),
-      {
-        'id': 'sleep', 'label': '睡眠', 'unit': 'h', 'icon': '🌙',
-        'value': _readMetric(tm, 'sleep', subKey: 'duration_h'),
-        'abnormal': (tm?['sleep'] is Map) && tm!['sleep']['is_abnormal'] == true,
-      },
+      // [PRD-SLEEP-ALIGN-BP-V1 2026-06-02] 睡眠四档胶囊（充足蓝 / 偏少·偏多黄 / 不足橙）+ 大号时长，对齐血压
+      () {
+        final sl = (tm?['sleep'] is Map) ? tm!['sleep'] as Map : null;
+        final raw = (sl != null && sl['value'] is Map) ? sl['value']['duration_h'] : null;
+        final slVal = (raw is num) ? raw.toDouble() : (raw is String ? double.tryParse(raw) : null);
+        final cap = _sleepCap(slVal);
+        return {
+          'id': 'sleep', 'label': '睡眠', 'unit': 'h', 'icon': '🌙',
+          'value': (slVal != null && slVal > 0 && slVal <= 24)
+              ? (slVal == slVal.roundToDouble() ? slVal.toInt().toString() : slVal.toString())
+              : '—',
+          // C2 异常竖条：睡眠不正常（偏少/不足/偏多）时显示
+          'abnormal': cap != null ? (cap['abnormal'] == true) : ((sl != null) && sl['is_abnormal'] == true),
+          'capLabel': cap?['label'] ?? '',
+          'capColor': cap?['color'] ?? '',
+        };
+      }(),
     ];
 
     final checked = med?['checked'] ?? 0;
@@ -1100,7 +1112,11 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: c['capColor'] == 'orange' ? const Color(0xFFF97316) : const Color(0xFF3B82F6),
+                            color: c['capColor'] == 'orange'
+                                ? const Color(0xFFF97316)
+                                : (c['capColor'] == 'yellow'
+                                    ? const Color(0xFFF5B73D)
+                                    : const Color(0xFF3B82F6)),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text('${c['capLabel']}', style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w700)),
@@ -1712,6 +1728,16 @@ class _HealthProfileScreenState extends State<HealthProfileScreen>
     if (v >= 95) return {'label': '正常', 'color': 'blue'};
     if (v >= 90) return {'label': '偏低', 'color': 'orange'};
     return {'label': '偏低明显', 'color': 'orange'};
+  }
+
+  // [PRD-SLEEP-ALIGN-BP-V1 2026-06-02] 睡眠按总时长定档（与 H5 judgeSleep 对齐）
+  //   7~9 充足蓝 / 6~7 偏少黄 / <6 不足橙 / >9 偏多黄；脏数据（<=0/>24）返回 null
+  Map<String, dynamic>? _sleepCap(double? v) {
+    if (v == null || v.isNaN || v <= 0 || v > 24) return null;
+    if (v < 6) return {'label': '睡眠不足', 'color': 'orange', 'abnormal': true};
+    if (v < 7) return {'label': '睡眠偏少', 'color': 'yellow', 'abnormal': true};
+    if (v <= 9) return {'label': '睡眠充足', 'color': 'blue', 'abnormal': false};
+    return {'label': '睡眠偏多', 'color': 'yellow', 'abnormal': true};
   }
 
   String _readMetric(Map? tm, String key, {String subKey = 'value'}) {

@@ -37,7 +37,7 @@ router = APIRouter(prefix="/api/health-metric-v1", tags=["PRD-HEALTH-METRIC-CARD
 
 # ─── 元数据 ───────────────────────────────────────────────────────────
 
-METRIC_TYPES = {"blood_pressure", "blood_glucose", "heart_rate", "spo2"}
+METRIC_TYPES = {"blood_pressure", "blood_glucose", "heart_rate", "spo2", "sleep"}
 
 METRIC_META: Dict[str, Dict[str, Any]] = {
     "blood_pressure": {
@@ -67,6 +67,14 @@ METRIC_META: Dict[str, Dict[str, Any]] = {
         "principal": "value",
         "secondary": None,
         "scene_options": ["静息", "运动后", "睡眠中", "自定义"],
+    },
+    # [PRD-SLEEP-ALIGN-BP-V1 2026-06-02] 睡眠：主数值为总睡眠时长 duration_h（小时）
+    "sleep": {
+        "label": "睡眠",
+        "unit": "h",
+        "principal": "duration_h",
+        "secondary": "deep_h",
+        "scene_options": [],
     },
 }
 
@@ -132,6 +140,20 @@ def _judge_status(metric_type: str, value: Dict[str, Any]) -> Dict[str, str]:
             if v < 95:
                 return {"key": "mild_low", "label": "偏低", "color": "yellow"}
             return {"key": "normal", "label": "正常", "color": "blue"}
+
+        if metric_type == "sleep":
+            # [PRD-SLEEP-ALIGN-BP-V1 2026-06-02] 按总睡眠时长定档（与 h5 sleep-level.ts 一致）
+            # 7~9 充足蓝 / 6~7 偏少黄 / <6 不足橙 / >9 偏多黄
+            v = float(value.get("duration_h") or 0)
+            if v <= 0 or v > 24:
+                return {"key": "unknown", "label": "未知", "color": "gray"}
+            if v < 6:
+                return {"key": "insufficient", "label": "睡眠不足", "color": "orange"}
+            if v < 7:
+                return {"key": "less", "label": "睡眠偏少", "color": "yellow"}
+            if v <= 9:
+                return {"key": "enough", "label": "睡眠充足", "color": "blue"}
+            return {"key": "more", "label": "睡眠偏多", "color": "yellow"}
     except Exception:
         pass
     return {"key": "unknown", "label": "未知", "color": "gray"}
@@ -346,6 +368,9 @@ def _rule_explain_single(metric_type: str, rec: HealthMetricRecord) -> str:
         sbp = vjson.get("systolic") or "-"
         dbp = vjson.get("diastolic") or "-"
         head = f"本次血压{scene_part} {sbp}/{dbp} {unit}，状态：{status['label']}。"
+    elif metric_type == "sleep":
+        v = vjson.get("duration_h")
+        head = f"本次睡眠{scene_part} {v} 小时，状态：{status['label']}。"
     else:
         v = vjson.get("value")
         head = f"本次{meta['label']}{scene_part} {v} {unit}，状态：{status['label']}。"
@@ -360,6 +385,11 @@ def _rule_explain_single(metric_type: str, rec: HealthMetricRecord) -> str:
         "mild_low": "轻度偏低，建议深呼吸放松、避免过度疲劳，必要时复测。",
         "mid_low": "较低，建议立即停止剧烈活动并休息，必要时就医。",
         "severe_low": "严重偏低，建议立即就医。",
+        # [PRD-SLEEP-ALIGN-BP-V1 2026-06-02] 睡眠档位建议
+        "enough": "睡眠时长充足，建议保持规律作息，固定时间上床和起床。",
+        "less": "睡眠偏少，建议适当提前入睡、减少睡前使用手机，保证充足休息。",
+        "insufficient": "睡眠明显不足，长期可能影响精力与免疫力，建议尽快调整作息，必要时咨询医生。",
+        "more": "睡眠偏多，偶尔补觉属正常；若长期过长且仍感疲惫，建议关注睡眠质量或咨询医生。",
         "unknown": "暂无足够数据评估，请继续记录监测。",
     }
     advice = advice_map.get(status["key"], "请保持监测，必要时咨询医生。")
@@ -382,6 +412,8 @@ def _rule_explain_trend(metric_type: str, records: List[HealthMetricRecord], day
         try:
             if metric_type == "blood_pressure":
                 v = float(vjson.get("systolic") or 0)
+            elif metric_type == "sleep":
+                v = float(vjson.get("duration_h") or 0)
             else:
                 v = float(vjson.get("value") or 0)
             if v > 0:

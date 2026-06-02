@@ -27,6 +27,8 @@ import { judgeBg as judgeBgLocal } from '@/lib/bg-level';
 import { judgeHeartRate, getHrPalette } from '@/lib/heart-rate-level';
 // [PRD-SPO2-CARD-V1 2026-06-02] 血氧小卡片对齐血压：三档胶囊（正常蓝 / 偏低黄 / 偏低明显橙）
 import { judgeSpo2, getSpo2Palette } from '@/lib/spo2-level';
+// [PRD-SLEEP-ALIGN-BP-V1 2026-06-02] 睡眠小卡片对齐血压：四档胶囊（充足蓝 / 偏少偏多黄 / 不足橙）+ 大号时长 + 来源行
+import { judgeSleep, getSleepPalette } from '@/lib/sleep-level';
 import { formatBpTimeSource } from '@/app/health-metric/[type]/page';
 
 const T = {
@@ -2086,6 +2088,72 @@ function HealthProfileV2PageInner() {
                       <div style={{ borderTop: '1px solid #F1F5F9', margin: '8px 0 6px' }} />
                       <div
                         data-testid="spo2-mini-time-source"
+                        style={{
+                          fontSize: 11, color: '#94A3B8', lineHeight: 1.3,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}
+                      >{timeSrc}</div>
+                    </>
+                  )}
+                  <div style={{ position: 'absolute', top: 12, right: 12, fontSize: 14, color: T.brand500, display: 'none' }}>›</div>
+                </div>
+              );
+            }
+            // [PRD-SLEEP-ALIGN-BP-V1 2026-06-02 §一] 睡眠小卡片：对齐血压（四档胶囊 C1 + 异常竖条 C2 + 大号时长 C3 + 时间·来源行 C4 + 整卡可点 C5）
+            if (c.id === 'sleep') {
+              const sl = tm?.sleep;
+              const slRaw = sl?.value?.duration_h != null ? Number(sl.value.duration_h) : null;
+              const slVal = slRaw != null && !Number.isNaN(slRaw) && slRaw > 0 && slRaw <= 24 ? slRaw : null;
+              const j = judgeSleep(slVal);
+              const cap = j ? getSleepPalette(j.color) : null;
+              const valStr = slVal != null ? (Number.isInteger(slVal) ? String(slVal) : slVal.toFixed(1)) : '--';
+              const timeSrc = slVal != null && sl?.measured_at
+                ? formatBpTimeSource(sl.measured_at, sl.source)
+                : '';
+              return (
+                <div
+                  key={c.id}
+                  data-testid={`prd469-metric-${c.id}`}
+                  data-sleep-mini-card="true"
+                  onClick={() => router.push(`/health-metric/sleep?profileId=${profile?.id || ''}`)}
+                  style={{
+                    background: '#FFFFFF',
+                    // C2 异常竖条：睡眠不正常时左侧橙色竖条
+                    borderLeft: (j && j.abnormal) ? '4px solid #F5B544' : '4px solid transparent',
+                    borderRadius: 16,
+                    padding: 14,
+                    boxShadow: '0 2px 12px rgba(14,165,233,0.08)',
+                    cursor: 'pointer',
+                    position: 'relative',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                    <span style={{ fontSize: 13, color: T.textSecondary }}>{c.icon} {c.label}</span>
+                    {/* C1 状态胶囊 */}
+                    {j && (
+                      <span
+                        data-testid="sleep-mini-capsule"
+                        style={{
+                          fontSize: 10, fontWeight: 700, color: cap!.capsuleText,
+                          background: cap!.capsuleBg,
+                          padding: '2px 8px', borderRadius: 999,
+                          maxWidth: '60%',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}
+                      >{j.label}</span>
+                    )}
+                  </div>
+                  {/* C3 大号时长数字 */}
+                  <div style={{ marginTop: 6 }}>
+                    <span style={{ fontSize: 26, fontWeight: 700, color: '#0C4A6E' }}>{valStr}</span>
+                    <span style={{ fontSize: 12, color: T.textSecondary, marginLeft: 4 }}>{c.unit}</span>
+                  </div>
+                  {/* C4 分隔线 + 时间·来源行 */}
+                  {timeSrc && (
+                    <>
+                      <div style={{ borderTop: '1px solid #F1F5F9', margin: '8px 0 6px' }} />
+                      <div
+                        data-testid="sleep-mini-time-source"
                         style={{
                           fontSize: 11, color: '#94A3B8', lineHeight: 1.3,
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',

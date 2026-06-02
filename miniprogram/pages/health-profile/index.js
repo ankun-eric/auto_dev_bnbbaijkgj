@@ -26,6 +26,8 @@ const BLOOD_TYPES = ['A', 'B', 'AB', 'O', '未知'];
 //   正常 = 蓝（#3B82F6）；偏慢/偏快/异常 = 橙（#F97316）
 const CAP_BLUE = { bg: '#3B82F6', color: '#FFFFFF' };
 const CAP_ORANGE = { bg: '#F97316', color: '#FFFFFF' };
+// [PRD-SLEEP-ALIGN-BP-V1 2026-06-02] 黄色预警档（睡眠偏少/偏多，对标血压「偏高」预警色）
+const CAP_YELLOW = { bg: '#F5B73D', color: '#FFFFFF' };
 
 // 血压：参考详情页 judgeBp 的档位文案（正常/偏高/偏低等）→ 颜色取「正常蓝、其余橙」
 function judgeBpMini(sbp, dbp) {
@@ -61,6 +63,16 @@ function judgeSpo2Mini(v) {
   if (v >= 95) return { label: '正常', cap: CAP_BLUE };
   if (v >= 90) return { label: '偏低', cap: CAP_ORANGE };
   return { label: '偏低明显', cap: CAP_ORANGE };
+}
+
+// [PRD-SLEEP-ALIGN-BP-V1 2026-06-02] 睡眠：按总时长定档（与 H5 judgeSleep 对齐）
+//   7~9 充足蓝 / 6~7 偏少黄 / <6 不足橙 / >9 偏多黄；脏数据（<=0/>24）返回 null
+function judgeSleepMini(v) {
+  if (v == null || isNaN(v) || v <= 0 || v > 24) return null;
+  if (v < 6) return { label: '睡眠不足', cap: CAP_ORANGE, abnormal: true };
+  if (v < 7) return { label: '睡眠偏少', cap: CAP_YELLOW, abnormal: true };
+  if (v <= 9) return { label: '睡眠充足', cap: CAP_BLUE, abnormal: false };
+  return { label: '睡眠偏多', cap: CAP_YELLOW, abnormal: true };
 }
 
 function miniSourceLabel(source) {
@@ -621,6 +633,13 @@ Page({
     const spJ = judgeSpo2Mini(spVal);
     const spTs = (sp && sp.measured_at && spVal != null) ? miniTimeSource(sp.measured_at, sp.source) : '';
 
+    // [PRD-SLEEP-ALIGN-BP-V1 2026-06-02] 睡眠四档胶囊 + 大号时长 + 时间·来源行（对齐 H5/血压）
+    const sl = tm && tm.sleep;
+    const slRaw = sl && sl.value && sl.value.duration_h != null ? Number(sl.value.duration_h) : null;
+    const slVal = (slRaw != null && !isNaN(slRaw) && slRaw > 0 && slRaw <= 24) ? slRaw : null;
+    const slJ = judgeSleepMini(slVal);
+    const slTs = (sl && sl.measured_at && slVal != null) ? miniTimeSource(sl.measured_at, sl.source) : '';
+
     const cells = [
       {
         id: 'blood_pressure', label: '血压', unit: 'mmHg', icon: '💓',
@@ -655,9 +674,11 @@ Page({
       },
       {
         id: 'sleep', label: '睡眠', unit: 'h', icon: '🌙',
-        value: v(tm && tm.sleep, 'duration_h'),
-        abnormal: !!(tm && tm.sleep && tm.sleep.is_abnormal),
-        capLabel: '', capBg: '', capColor: '', timeSource: '',
+        value: slVal != null ? slVal : '—',
+        // C2 异常竖条：睡眠不正常（偏少/不足/偏多）时显示
+        abnormal: slJ ? !!slJ.abnormal : !!(sl && sl.is_abnormal),
+        capLabel: slJ ? slJ.label : '', capBg: slJ ? slJ.cap.bg : '', capColor: slJ ? slJ.cap.color : '',
+        timeSource: slTs,
       },
     ];
     const med = (tm && tm.medication) || { checked: 0, total: 0, has_overdue: false };

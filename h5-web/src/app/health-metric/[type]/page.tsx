@@ -34,6 +34,7 @@ import { formatDateTime, parseServerTime, formatFriendlyTime } from '@/lib/datet
 import { judgeBp, getBpPalette, type BpJudgement } from '@/lib/bp-level';
 import { judgeHeartRate, getHrPalette, HR_NORMAL_RANGE_TEXT, type HrJudgement } from '@/lib/heart-rate-level';
 import { judgeSpo2, getSpo2Palette, SPO2_NORMAL_RANGE_TEXT, type Spo2Judgement } from '@/lib/spo2-level';
+import { judgeSleep, getSleepPalette, SLEEP_NORMAL_RANGE_TEXT, type SleepJudgement } from '@/lib/sleep-level';
 import {
   judgeBg, getBgPalette, normalizeScene, BG_SCENE_LABEL, BG_TARGET_RANGE,
   BG_SCENE_CODE, BG_SCENE_OPTIONS, formatBgSourceCapsule, sceneKeyToCode,
@@ -483,6 +484,19 @@ export default function HealthMetricDetailPage() {
   if (metricType === 'spo2') {
     return (
       <Spo2Page
+        history={history}
+        latest={latest}
+        profileId={profileId}
+        meta={meta}
+        refresh={fetchHistory}
+      />
+    );
+  }
+
+  // [PRD-SLEEP-ALIGN-BP-V1 2026-06-02] 睡眠 Tab 走专属精装布局（整套照搬血压详情页 6 区块，趋势用柱状图）
+  if (metricType === 'sleep') {
+    return (
+      <SleepPage
         history={history}
         latest={latest}
         profileId={profileId}
@@ -4481,6 +4495,767 @@ function Spo2Page(props: Spo2PageProps) {
         )}
       </Popup>
     </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// [PRD-SLEEP-ALIGN-BP-V1 2026-06-02] 睡眠详情页
+//   整套照搬血压精装 6 区块（顺序与血压一致），趋势改用「柱状图」：
+//   1) 顶部大卡片：超大时长数值 + 时间·来源 + 状态胶囊（按 7~9/6~7/<6/>9 四档变色）
+//   2) AI 解读本次睡眠（一整条大按钮）
+//   3) 操作按钮：手工录入（实心蓝）+ 绑定设备（白底蓝边）并排
+//   4) 趋势图：最近 7 天趋势 + 日/周切换（柱状图）
+//   5) AI 解读趋势
+//   6) 历史记录：每条带档位胶囊 + 「...」→ 修改 / 删除
+// ════════════════════════════════════════════════════════════════════════
+
+interface SleepPageProps {
+  history: MetricHistoryResponse | null;
+  latest: MetricRecord | undefined;
+  profileId: number;
+  meta: (typeof META)['sleep'];
+  refresh: () => Promise<void>;
+}
+
+type SleepTrendRange = 'day' | 'week';
+const SLEEP_RANGE_OPTS: { key: SleepTrendRange; label: string }[] = [
+  { key: 'day', label: '日' },
+  { key: 'week', label: '周' },
+];
+
+interface SleepPointDetail {
+  measured_at: string;
+  value: number | null;
+  label: string;
+  source: string;
+}
+
+/** 从记录中取睡眠总时长（小时），脏数据（<=0 / >24）返回 null。 */
+function sleepValueOf(r: MetricRecord | undefined | null): number | null {
+  if (!r) return null;
+  const raw = r.value?.duration_h != null ? Number(r.value.duration_h) : null;
+  if (raw == null || Number.isNaN(raw) || raw <= 0 || raw > 24) return null;
+  return raw;
+}
+
+/** 时长格式化：7.5 → 「7.5 小时」；整数不带小数。 */
+function formatSleepHours(v: number | null): string {
+  if (v == null) return '—';
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+
+function SleepPage(props: SleepPageProps) {
+  const { history, latest, refresh } = props;
+  const router = useRouter();
+
+  // 录入弹窗
+  const [popupVisible, setPopupVisible] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const [inputDeep, setInputDeep] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // 历史「...」操作面板 + 编辑 + 删除
+  const [actionRecord, setActionRecord] = useState<MetricRecord | null>(null);
+  const [editRecord, setEditRecord] = useState<MetricRecord | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [editDeep, setEditDeep] = useState('');
+  const [deletingRecord, setDeletingRecord] = useState<MetricRecord | null>(null);
+
+  // 趋势图
+  const [range, setRange] = useState<SleepTrendRange>('week');
+  const [pointPopup, setPointPopup] = useState<SleepPointDetail | null>(null);
+
+  // AI 解读抽屉与缓存（复用血压/血糖/血氧框架，调用通用指标 AI 接口）
+  const [aiDrawer, setAiDrawer] = useState<{ mode: 'single' | 'trend'; loading: boolean; text: string } | null>(null);
+  const aiCacheRef = (typeof window !== 'undefined') ? ((window as any).__sleepAiCache ||= new Map<string, { ts: number; text: string }>()) : new Map();
+
+  const sleepValue = sleepValueOf(latest);
+  const judgement: SleepJudgement | null = useMemo(() => judgeSleep(sleepValue), [sleepValue]);
+  // 无数据态默认走「正常蓝」色板
+  const palette = getSleepPalette(judgement?.color ?? 'blue');
+
+  const records: MetricRecord[] = history?.records || [];
+
+  const syncText = useMemo(() => {
+    if (!latest || sleepValue == null) return '尚无睡眠记录 · 请录入或绑定设备';
+    return formatBpTimeSource(latest.measured_at, latest.source);
+  }, [latest, sleepValue]);
+
+  const handleSave = useCallback(async () => {
+    if (!props.profileId) {
+      showToast('profileId 缺失', 'fail');
+      return;
+    }
+    const v = Number(inputValue);
+    if (!inputValue || Number.isNaN(v)) {
+      showToast('请输入有效的睡眠时长', 'fail');
+      return;
+    }
+    if (v <= 0 || v > 24) {
+      showToast('睡眠时长应在 0–24 小时之间', 'fail');
+      return;
+    }
+    setSaving(true);
+    try {
+      const value: Record<string, any> = { duration_h: v };
+      const deep = Number(inputDeep);
+      if (inputDeep && !Number.isNaN(deep) && deep >= 0) value.deep_h = deep;
+      await api.post(`/api/health-profile-v3/${props.profileId}/metric/sleep`, {
+        value, source: 'manual',
+      });
+      showToast('已保存', 'success');
+      setPopupVisible(false);
+      setInputValue('');
+      setInputDeep('');
+      await refresh();
+    } catch {
+      showToast('保存失败，请重试', 'fail');
+    } finally {
+      setSaving(false);
+    }
+  }, [inputValue, inputDeep, props.profileId, refresh]);
+
+  // 修改保存为 PUT 完整更新原记录（不新增）
+  const handleEditSave = useCallback(async () => {
+    if (!editRecord || !props.profileId) return;
+    const v = Number(editValue);
+    if (!editValue || Number.isNaN(v) || v <= 0 || v > 24) {
+      showToast('睡眠时长应在 0–24 小时之间', 'fail');
+      return;
+    }
+    try {
+      const value: Record<string, any> = { duration_h: v };
+      const deep = Number(editDeep);
+      if (editDeep && !Number.isNaN(deep) && deep >= 0) value.deep_h = deep;
+      await api.put(`/api/health-profile-v3/${props.profileId}/metric/sleep/${editRecord.id}`, {
+        value,
+        measured_at: editRecord.measured_at,
+      });
+      showToast('已更新', 'success');
+      setEditRecord(null);
+      await refresh();
+    } catch {
+      showToast('更新失败', 'fail');
+    }
+  }, [editRecord, editValue, editDeep, props.profileId, refresh]);
+
+  const handleDelete = useCallback(async (record: MetricRecord) => {
+    if (!props.profileId) return;
+    try {
+      await api.delete(`/api/health-profile-v3/${props.profileId}/metric/sleep/${record.id}`);
+      showToast('已删除', 'success');
+      setDeletingRecord(null);
+      await refresh();
+    } catch {
+      showToast('删除失败', 'fail');
+    }
+  }, [props.profileId, refresh]);
+
+  const handleBindDeviceClick = useCallback(() => {
+    showToast('即将上线', 'success');
+  }, []);
+
+  // AI 解读 — 复用通用指标 AI 接口（sleep），规则文案降级
+  const requestAi = useCallback(async (mode: 'single' | 'trend') => {
+    if (mode === 'single' && !latest?.id) {
+      showToast('暂无睡眠记录，请先录入一次再点击解读。', 'success');
+      return;
+    }
+    const cacheKey = mode === 'single' ? `single:${latest?.id ?? 0}` : `trend:${range}`;
+    const cached = aiCacheRef.get(cacheKey);
+    if (cached && Date.now() - cached.ts < 5 * 60 * 1000) {
+      setAiDrawer({ mode, loading: false, text: cached.text });
+      return;
+    }
+    setAiDrawer({ mode, loading: true, text: '' });
+    try {
+      let text = '';
+      if (mode === 'single') {
+        try {
+          const r: any = await api.post(
+            `/api/health-metric-v1/${props.profileId}/sleep/ai-explain-single`,
+            { record_id: Number(latest!.id) }
+          );
+          const d = r?.data?.data ?? r?.data ?? r;
+          text = d?.content || '';
+          if (!text) throw new Error('empty');
+        } catch {
+          const vStr = sleepValue != null ? formatSleepHours(sleepValue) : '-';
+          const j = judgement;
+          if (!j) {
+            text = '暂无可解读的睡眠数据。';
+          } else if (j.level === 'enough') {
+            text = `本次睡眠 ${vStr} 小时，处于理想区间（7~9 小时）。睡眠时长充足，建议保持规律作息，固定时间上床和起床。`;
+          } else if (j.level === 'less') {
+            text = `本次睡眠 ${vStr} 小时，略偏少（6~7 小时）。建议适当提前入睡、减少睡前使用手机，保证充足休息。`;
+          } else if (j.level === 'insufficient') {
+            text = `本次睡眠 ${vStr} 小时，明显不足（少于 6 小时）。长期睡眠不足可能影响精力与免疫力，建议尽快调整作息，必要时咨询医生。`;
+          } else {
+            text = `本次睡眠 ${vStr} 小时，偏多（超过 9 小时）。偶尔补觉属正常；若长期过长且仍感疲惫，建议关注睡眠质量或咨询医生。`;
+          }
+        }
+      } else {
+        try {
+          const r: any = await api.post(
+            `/api/health-metric-v1/${props.profileId}/sleep/ai-explain-trend`,
+            { range: '7d' }
+          );
+          const d = r?.data?.data ?? r?.data ?? r;
+          const lines: string[] = [];
+          if (d?.summary) lines.push(d.summary);
+          if (d?.trend) lines.push('', d.trend);
+          if (d?.advice) lines.push('', d.advice);
+          text = lines.join('\n');
+          if (!text.trim()) throw new Error('empty');
+        } catch {
+          text = '基于近期睡眠数据，建议保持规律作息、固定上床与起床时间，睡前减少咖啡因与电子屏幕；如长期睡眠不足或过长且伴有疲惫，请咨询医生。';
+        }
+      }
+      aiCacheRef.set(cacheKey, { ts: Date.now(), text });
+      setAiDrawer({ mode, loading: false, text });
+    } catch {
+      setAiDrawer({ mode, loading: false, text: '解读失败，请稍后重试。' });
+    }
+  }, [latest, range, aiCacheRef, props.profileId, judgement, sleepValue]);
+
+  // 趋势数据：日视图取当天唯一/最新一条，周视图按距今天数；空状态判定
+  const trendPoints = useMemo(() => {
+    const pts: { x: number; y: number; raw: MetricRecord }[] = [];
+    const now = new Date();
+    const todayBj = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const cutoffDays = range === 'week' ? 7 : 1;
+    records.forEach(r => {
+      const v = sleepValueOf(r);
+      if (v == null) return;
+      const d = parseServerTime(r.measured_at);
+      if (!d) return;
+      const dBj = new Date(d.getTime() + 8 * 60 * 60 * 1000);
+      const diffMs = todayBj.getTime() - dBj.getTime();
+      if (range === 'day') {
+        if (todayBj.getUTCFullYear() !== dBj.getUTCFullYear()
+          || todayBj.getUTCMonth() !== dBj.getUTCMonth()
+          || todayBj.getUTCDate() !== dBj.getUTCDate()) return;
+        pts.push({ x: 0, y: v, raw: r });
+      } else {
+        if (diffMs < 0 || diffMs > cutoffDays * 24 * 3600 * 1000) return;
+        pts.push({ x: cutoffDays - 1 - Math.floor(diffMs / (24 * 3600 * 1000)), y: v, raw: r });
+      }
+    });
+    return pts;
+  }, [records, range]);
+
+  const isEmptyForRange = trendPoints.length === 0;
+
+  return (
+    <div data-testid="sleep-tab-page" style={{ background: '#F4F7FB', minHeight: '100vh', paddingBottom: 24 }}>
+      <GreenNavBar>睡眠详情</GreenNavBar>
+
+      {/* 区块1：顶部主卡片：超大时长数值 + 时间·来源 + 居中状态胶囊（底卡按档位变色） */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <div
+          data-testid="sleep-status-card"
+          data-sleep-color={judgement?.color ?? 'blue'}
+          data-sleep-level={judgement?.level ?? 'unknown'}
+          style={{
+            background: palette.cardBg,
+            border: `1px solid ${palette.border}`,
+            borderRadius: 18,
+            padding: '20px 18px 18px',
+            position: 'relative',
+          }}
+        >
+          <div style={{ textAlign: 'center', paddingTop: 4 }}>
+            <span
+              data-testid="sleep-main-value"
+              style={{ fontSize: 58, fontWeight: 800, color: palette.text, letterSpacing: 1, lineHeight: 1.0 }}
+            >
+              {sleepValue != null ? formatSleepHours(sleepValue) : '--'}
+            </span>
+            <span style={{ fontSize: 18, fontWeight: 600, color: palette.text, marginLeft: 6, opacity: 0.7 }}>
+              小时
+            </span>
+          </div>
+
+          <div style={{ marginTop: 14, textAlign: 'center' }}>
+            <span data-testid="sleep-sync-text" style={{ fontSize: 13, color: palette.text, opacity: 0.85 }}>
+              {syncText}
+            </span>
+          </div>
+
+          {judgement && (
+            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center' }}>
+              <span
+                data-testid="sleep-capsule"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '6px 16px', borderRadius: 999,
+                  background: palette.capsuleBg, color: palette.capsuleText,
+                  fontSize: 13, fontWeight: 700,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                }}
+              >
+                <span aria-hidden="true">{judgement.icon}</span>
+                <span>{judgement.label}</span>
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 区块2：AI 解读本次睡眠 —— 顶部主卡片正下方（对齐血压第 2 步） */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <button
+          data-testid="sleep-ai-single"
+          onClick={() => requestAi('single')}
+          style={{
+            width: '100%', height: 44, borderRadius: 12,
+            background: 'linear-gradient(135deg, #38BDF8 0%, #0EA5E9 100%)', color: '#fff',
+            border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(14,165,233,0.24)',
+          }}
+        >🤖 AI 解读本次睡眠</button>
+      </div>
+
+      {/* 区块3：并排大按钮（手工录入实心 + 绑定设备描边） */}
+      <div data-testid="sleep-action-row" style={{ padding: '12px 16px 0', display: 'flex', gap: 10 }}>
+        <button
+          data-testid="sleep-action-manual"
+          onClick={() => setPopupVisible(true)}
+          style={{
+            flex: 1, height: 44, borderRadius: 12, border: 'none',
+            background: '#0EA5E9', color: '#fff',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            fontSize: 15, fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(14,165,233,0.24)',
+          }}
+        >
+          <PencilIcon size={16} color="#fff" />
+          <span>手工录入</span>
+        </button>
+        <button
+          data-testid="sleep-action-bind"
+          onClick={handleBindDeviceClick}
+          style={{
+            flex: 1, height: 44, borderRadius: 12,
+            background: '#fff', color: '#0EA5E9',
+            border: '1px solid #0EA5E9',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            fontSize: 15, fontWeight: 700, cursor: 'pointer',
+          }}
+        >
+          <span>⌚ 绑定设备</span>
+        </button>
+      </div>
+
+      {/* 区块4：趋势图：最近 7 天趋势 + 日/周切换（柱状图）+ 点击柱体弹窗 + 理想区参考线 */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <div
+          data-testid="sleep-trend-card"
+          style={{ background: '#fff', borderRadius: 16, padding: '14px 14px 12px', boxShadow: '0 2px 10px rgba(14,165,233,0.06)' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E' }}>
+              {range === 'day' ? '今日睡眠' : '最近 7 天趋势'}
+            </span>
+            <div data-testid="sleep-range-segmented" style={{ display: 'flex', gap: 4, background: '#F1F5F9', borderRadius: 12, padding: 2 }}>
+              {SLEEP_RANGE_OPTS.map(opt => (
+                <button
+                  key={opt.key}
+                  data-testid={`sleep-range-${opt.key}`}
+                  data-active={range === opt.key ? 'true' : 'false'}
+                  onClick={() => setRange(opt.key)}
+                  style={{
+                    padding: '4px 14px', borderRadius: 10, border: 'none',
+                    background: range === opt.key ? '#0EA5E9' : 'transparent',
+                    color: range === opt.key ? '#fff' : '#64748B',
+                    fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  }}
+                >{opt.label}</button>
+              ))}
+            </div>
+          </div>
+
+          {isEmptyForRange ? (
+            <div data-testid="sleep-trend-empty" style={{ padding: '30px 8px', textAlign: 'center' }}>
+              <svg width="84" height="64" viewBox="0 0 84 64" style={{ display: 'block', margin: '0 auto 8px' }} aria-hidden="true">
+                {[0, 1, 2, 3, 4].map(i => (
+                  <rect key={i} x={8 + i * 15} y={28 + (i % 2) * 10} width={9} height={28 - (i % 2) * 10} rx={2} fill="#BAE6FD" />
+                ))}
+              </svg>
+              <div style={{ fontSize: 14, color: '#6B7280' }}>暂无数据，点击上方「手工录入」开始记录</div>
+            </div>
+          ) : (
+            <SleepTrendChart points={trendPoints} range={range} onPointClick={setPointPopup} />
+          )}
+
+          {!isEmptyForRange && (
+            <div style={{ marginTop: 8, display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 14 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151' }}>
+                <span style={{ width: 14, height: 10, background: '#3B82F6', display: 'inline-block', borderRadius: 2 }} />
+                睡眠时长（理想区 7~9 小时）
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 区块5：趋势图下方「AI 解读趋势」按钮（对齐血压第 5 步） */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <button
+          data-testid="sleep-ai-trend"
+          onClick={() => requestAi('trend')}
+          style={{
+            width: '100%', height: 40, borderRadius: 10,
+            background: '#fff', color: '#0EA5E9',
+            border: '1px solid #0EA5E9', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+          }}
+        >🤖 AI 解读趋势</button>
+      </div>
+
+      {/* 区块6：历史记录（最近 5 条 + 全部入口，带档位配色 + 每条「...」可改可删） */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <div style={{ background: '#fff', borderRadius: 16, padding: '14px 14px', boxShadow: '0 2px 10px rgba(14,165,233,0.06)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E' }}>历史记录</span>
+            <span
+              data-testid="sleep-history-all-entry"
+              onClick={() => router.push(`/health-metric/sleep/history?profileId=${props.profileId}`)}
+              style={{ fontSize: 13, color: '#0EA5E9', cursor: 'pointer', fontWeight: 600 }}
+            >全部 ›</span>
+          </div>
+          {records.length === 0 ? (
+            <div style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', padding: '24px 0' }}>
+              暂无记录，点击上方「手工录入」开始记录
+            </div>
+          ) : (
+            records.slice(0, 5).map((r) => {
+              const v = sleepValueOf(r);
+              const j = judgeSleep(v);
+              const rowPalette = getSleepPalette(j?.color ?? 'blue');
+              const deep = r.value?.deep_h != null ? Number(r.value.deep_h) : null;
+              return (
+                <div
+                  key={r.id}
+                  data-testid={`sleep-history-row-${r.id}`}
+                  style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '10px 0', borderBottom: '1px solid #E5E7EB',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#0C4A6E' }}>
+                      {formatSleepHours(v)}
+                      <span style={{ fontSize: 12, color: '#6B7280', marginLeft: 4, fontWeight: 500 }}>小时</span>
+                      {deep != null && !Number.isNaN(deep) && deep > 0 && (
+                        <span style={{ fontSize: 12, color: '#6B7280', marginLeft: 8, fontWeight: 500 }}>深睡 {formatSleepHours(deep)}h</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+                      {formatDateTime(r.measured_at)} · {formatBpSource(r.source)}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {j && (
+                      <span
+                        style={{
+                          fontSize: 11, fontWeight: 700,
+                          padding: '3px 10px', borderRadius: 999,
+                          background: rowPalette.capsuleBg, color: rowPalette.capsuleText,
+                        }}
+                      >
+                        {j.label}
+                      </span>
+                    )}
+                    {/* 「...」三点入口 → 底部操作面板（修改 / 删除） */}
+                    <button
+                      data-testid={`sleep-row-more-${r.id}`}
+                      onClick={(e) => { e.stopPropagation(); setActionRecord(r); }}
+                      style={{
+                        background: 'transparent', border: 'none', cursor: 'pointer',
+                        fontSize: 20, fontWeight: 700, color: '#94A3B8', lineHeight: 1, padding: '0 4px',
+                      }}
+                      aria-label="更多操作"
+                    >⋯</button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* 手工填写弹窗 */}
+      <Popup
+        visible={popupVisible}
+        onMaskClick={() => setPopupVisible(false)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20 }}
+      >
+        <div data-testid="sleep-input-popup">
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#0C4A6E', marginBottom: 16 }}>手工填写睡眠</div>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 4 }}>总睡眠时长（小时）</div>
+            <Input
+              data-testid="sleep-input-value"
+              type="number"
+              placeholder="如 7.5"
+              value={inputValue}
+              onChange={(v) => setInputValue(v)}
+              style={{ '--font-size': '16px', padding: '10px 12px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' } as any}
+            />
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>{SLEEP_NORMAL_RANGE_TEXT}</div>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 4 }}>深睡时长（小时，选填）</div>
+            <Input
+              data-testid="sleep-input-deep"
+              type="number"
+              placeholder="如 2"
+              value={inputDeep}
+              onChange={(v) => setInputDeep(v)}
+              style={{ '--font-size': '16px', padding: '10px 12px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' } as any}
+            />
+          </div>
+          <Button
+            data-testid="sleep-input-save"
+            block color="primary" loading={saving} onClick={handleSave}
+            style={{ '--background-color': '#0ea5e9', '--border-radius': '22px', height: 44, fontSize: 16 } as any}
+          >保存</Button>
+        </div>
+      </Popup>
+
+      {/* 「...」底部操作面板（修改 / 删除）— 复用血压通用 MetricActionSheet */}
+      <MetricActionSheet
+        testid="sleep-action-sheet"
+        record={actionRecord}
+        onClose={() => setActionRecord(null)}
+        onEdit={(r) => {
+          setActionRecord(null);
+          setEditRecord(r);
+          setEditValue(sleepValueOf(r) != null ? String(sleepValueOf(r)) : '');
+          setEditDeep(r.value?.deep_h != null ? String(r.value.deep_h) : '');
+        }}
+        onDelete={(r) => { setActionRecord(null); setDeletingRecord(r); }}
+      />
+
+      {/* 编辑睡眠记录（PUT 完整更新原记录） */}
+      <Popup
+        visible={!!editRecord}
+        onMaskClick={() => setEditRecord(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '85vh', overflowY: 'auto' }}
+      >
+        {editRecord && (
+          <div data-testid="sleep-edit-popup">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E' }}>编辑睡眠记录</span>
+              <button onClick={() => setEditRecord(null)} style={{ background: 'transparent', border: 'none', fontSize: 18, color: '#9CA3AF', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>
+              {formatDateTime(editRecord.measured_at)}
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>总睡眠时长（小时）</div>
+              <Input
+                data-testid="sleep-edit-value"
+                type="number"
+                value={editValue}
+                onChange={(v) => setEditValue(v)}
+                style={{ '--font-size': '16px', padding: '10px 12px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' } as any}
+              />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>深睡时长（小时，选填）</div>
+              <Input
+                data-testid="sleep-edit-deep"
+                type="number"
+                value={editDeep}
+                onChange={(v) => setEditDeep(v)}
+                style={{ '--font-size': '16px', padding: '10px 12px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' } as any}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                data-testid="sleep-edit-delete"
+                onClick={() => setDeletingRecord(editRecord)}
+                style={{ flex: 1, padding: '10px 0', background: '#fff', color: '#DC2626',
+                  border: '1px solid #DC2626', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >删除</button>
+              <button
+                data-testid="sleep-edit-save"
+                onClick={handleEditSave}
+                style={{ flex: 2, padding: '10px 0', background: '#0ea5e9', color: '#fff',
+                  border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >保存</button>
+            </div>
+          </div>
+        )}
+      </Popup>
+
+      {/* 删除二次确认 */}
+      <Popup
+        visible={!!deletingRecord}
+        onMaskClick={() => setDeletingRecord(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20 }}
+      >
+        {deletingRecord && (
+          <div data-testid="sleep-delete-confirm">
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E', marginBottom: 10 }}>确认删除</div>
+            <div style={{ fontSize: 14, color: '#374151', marginBottom: 16 }}>
+              确认删除这条记录？此操作不可撤销。
+              <div style={{ fontSize: 12, color: '#6B7280', marginTop: 8 }}>
+                {formatDateTime(deletingRecord.measured_at)} · {formatSleepHours(sleepValueOf(deletingRecord))} 小时
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setDeletingRecord(null)}
+                style={{ flex: 1, padding: '10px 0', background: '#fff', color: '#475569',
+                  border: '1px solid #CBD5E1', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >取消</button>
+              <button
+                data-testid="sleep-delete-confirm-btn"
+                onClick={() => { handleDelete(deletingRecord); setEditRecord(null); }}
+                style={{ flex: 1, padding: '10px 0', background: '#DC2626', color: '#fff',
+                  border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >确认删除</button>
+            </div>
+          </div>
+        )}
+      </Popup>
+
+      {/* 数据点（柱体）点击弹窗 */}
+      <Popup
+        visible={!!pointPopup}
+        onMaskClick={() => setPointPopup(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 18 }}
+      >
+        {pointPopup && (() => {
+          const j = judgeSleep(pointPopup.value);
+          const pp = getSleepPalette(j?.color ?? 'blue');
+          return (
+            <div data-testid="sleep-point-popup">
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E', marginBottom: 10 }}>睡眠详情</div>
+              <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 8 }}>{formatDateTime(pointPopup.measured_at)}</div>
+              <div style={{ height: 1, background: '#E5E7EB', margin: '8px 0' }} />
+              <DetailRow k="睡眠时长" v={pointPopup.value != null ? `${formatSleepHours(pointPopup.value)} 小时` : '—'} />
+              <DetailRow k="档位" v={
+                <span data-testid="sleep-point-level" style={{
+                  padding: '2px 10px', borderRadius: 999,
+                  background: pp.capsuleBg, color: pp.capsuleText, fontSize: 12, fontWeight: 700,
+                }}>{pointPopup.label || '—'}</span>
+              } />
+              <DetailRow k="来源" v={formatBpSource(pointPopup.source)} />
+              <Button
+                block color="primary" onClick={() => setPointPopup(null)}
+                style={{ '--background-color': '#0EA5E9', '--border-radius': '12px', height: 40, fontSize: 14, marginTop: 14 } as any}
+              >知道了</Button>
+            </div>
+          );
+        })()}
+      </Popup>
+
+      {/* AI 解读抽屉 */}
+      <Popup
+        visible={!!aiDrawer}
+        onMaskClick={() => setAiDrawer(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '70vh', overflowY: 'auto' }}
+      >
+        {aiDrawer && (
+          <div data-testid="sleep-ai-drawer">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: '#0C4A6E' }}>🤖 AI 解读</span>
+              <button onClick={() => setAiDrawer(null)} style={{ background: 'transparent', border: 'none', fontSize: 20, color: '#9CA3AF', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 14 }}>
+              {aiDrawer.mode === 'single'
+                ? `基于：${latest && sleepValue != null ? formatDateTime(latest.measured_at) + ' 睡眠 ' + formatSleepHours(sleepValue) + ' 小时' : '当前无记录'}`
+                : `基于：${range === 'day' ? '今天' : '近 7 天'}所有睡眠记录`}
+            </div>
+            <div style={{ background: '#F8FAFC', borderRadius: 12, padding: 14, minHeight: 100, fontSize: 14, color: '#0F172A', lineHeight: 1.7 }}>
+              {aiDrawer.loading ? '正在分析…' : <AiExplainContent text={aiDrawer.text} />}
+            </div>
+            <div style={{ marginTop: 12, fontSize: 11, color: '#9CA3AF', textAlign: 'center' }}>
+              ⚠️ AI 建议仅供参考，不能替代医生诊断
+            </div>
+          </div>
+        )}
+      </Popup>
+    </div>
+  );
+}
+
+// [PRD-SLEEP-ALIGN-BP-V1 2026-06-02] 睡眠柱状趋势图（日/周 + 柱体可点击 + 理想区参考线 7/9）
+function SleepTrendChart({ points, range, onPointClick }: {
+  points: { x: number; y: number; raw: MetricRecord }[];
+  range: SleepTrendRange;
+  onPointClick: (d: SleepPointDetail) => void;
+}) {
+  const W = 340, H = 200;
+  const PAD = { top: 14, right: 18, bottom: 28, left: 32 };
+  const cw = W - PAD.left - PAD.right;
+  const ch = H - PAD.top - PAD.bottom;
+
+  const yMin = 0, yMax = 12;
+  const slots = range === 'week' ? 7 : 1;
+  const barW = range === 'week' ? Math.min(24, (cw / slots) * 0.5) : 48;
+
+  const xCenter = (x: number) => PAD.left + ((x + 0.5) / slots) * cw;
+  const yScale = (y: number) => PAD.top + ch - ((Math.max(yMin, Math.min(yMax, y)) - yMin) / (yMax - yMin)) * ch;
+
+  // 理想区参考线 7 与 9
+  const refLines = [
+    { y: 7, label: '7' },
+    { y: 9, label: '9' },
+  ];
+
+  const xLabels: { x: number; lab: string }[] = range === 'week'
+    ? Array.from({ length: 7 }, (_, i) => ({ x: i, lab: i === 6 ? '今' : `${6 - i}天前` }))
+    : [{ x: 0, lab: '今天' }];
+
+  return (
+    <svg data-testid="sleep-trend-svg" width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
+      {[0, 3, 6, 9, 12].map(y => (
+        <g key={y}>
+          <line x1={PAD.left} y1={yScale(y)} x2={W - PAD.right} y2={yScale(y)} stroke="#E5E7EB" strokeWidth={0.6} />
+          <text x={PAD.left - 4} y={yScale(y) + 3} textAnchor="end" fill="#9CA3AF" fontSize={9}>{y}</text>
+        </g>
+      ))}
+      {/* 理想区背景带（7~9 小时） */}
+      <rect
+        x={PAD.left} y={yScale(9)} width={cw} height={Math.max(0, yScale(7) - yScale(9))}
+        fill="#3B82F6" opacity={0.08}
+      />
+      {refLines.map(l => (
+        <g key={l.label}>
+          <line x1={PAD.left} y1={yScale(l.y)} x2={W - PAD.right} y2={yScale(l.y)} stroke="#3B82F6" strokeWidth={0.8} strokeDasharray="3 3" />
+          <text x={W - PAD.right + 2} y={yScale(l.y) + 3} fill="#3B82F6" fontSize={9}>{l.label}</text>
+        </g>
+      ))}
+      {xLabels.map((lab, i) => (
+        <text key={i} x={xCenter(lab.x)} y={H - 8} textAnchor="middle" fill="#9CA3AF" fontSize={10}>{lab.lab}</text>
+      ))}
+      {points.map((p, i) => {
+        const j = judgeSleep(p.y);
+        const fill = j ? getSleepPalette(j.color).capsuleBg : '#3B82F6';
+        const cx = xCenter(p.x);
+        const top = yScale(p.y);
+        const barH = Math.max(2, yScale(0) - top);
+        return (
+          <rect
+            key={i}
+            data-testid={`sleep-trend-bar-${i}`}
+            x={cx - barW / 2} y={top} width={barW} height={barH} rx={3}
+            fill={fill}
+            style={{ cursor: 'pointer' }}
+            onClick={() => onPointClick({
+              measured_at: p.raw.measured_at,
+              value: p.y,
+              label: j?.label || '',
+              source: p.raw.source,
+            })}
+          />
+        );
+      })}
+    </svg>
   );
 }
 
