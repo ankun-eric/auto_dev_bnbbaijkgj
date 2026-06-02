@@ -53,11 +53,22 @@ interface Props {
 
 const PRIMARY = '#5B6CFF';
 const PRIMARY_DARK = '#3D4CCC';
-const PRIMARY_BG_LIGHT = 'rgba(91,108,255,0.08)';
 const TEXT_DARK = '#1F2937';
 const TEXT_MUTED = '#6B7280';
 const TEXT_GRAY = '#374151';
 const BORDER_LIGHT = '#E5E7F0';
+
+// [PRD-MEMBER-COMPARE-CURRENT-COL-V1 2026-06-02] 方案 B「紫金高级」视觉资产
+// 解决旧版「当前」气泡 position:absolute top:-10 浮出表头被白色卡片边框遮挡的问题：
+// - 「当前」角标改为金色系（淡金底 + 金色描边 + 金色文字），内嵌在列头格子内、贴着会员名称旁边
+// - 当前列整列加淡紫色底色高亮
+// - 列头顶部加一条紫色横条，强化「这一整列是我的」视觉指引
+const CURRENT_COL_TOP_BAR = '#7C5CFF'; // 列头顶部紫色横条（App 主题紫同色系，略深以强化指引）
+const CURRENT_COL_BG = 'rgba(124,92,255,0.10)'; // 当前列淡紫底色高亮
+const CURRENT_COL_HEAD_BG = 'rgba(124,92,255,0.16)'; // 当前列列头淡紫底（略深，与数据区区分）
+const GOLD_BADGE_BG = '#FBF1D0'; // 金色角标 淡金底
+const GOLD_BADGE_BORDER = '#E0B43A'; // 金色角标 金色描边
+const GOLD_BADGE_TEXT = '#8A6A12'; // 金色角标 金色文字（深暖金，保证可读）
 
 // 付费列颜色梯度：[PRD-MEMBER-PURPLE-THEME-V1 2026-05-30] 改为蓝紫调梯度
 // 浅紫 → 主蓝紫 → 深蓝紫，与系统主色保持一致，废弃旧的橙红渐变
@@ -76,6 +87,32 @@ function fmtArchiveVal(v: number | null | undefined): string {
   if (v === null || v === undefined) return '--';
   if (v === -1 || (typeof v === 'number' && v >= 9999)) return '不限';
   return `上限 ${v} 人`;
+}
+
+// [PRD-MEMBER-COMPARE-CURRENT-COL-V1 2026-06-02] 方案 B「紫金高级」：内嵌金色「当前」角标
+// 内嵌在列头格子内、与会员名称同一行，不再浮出表头顶部，彻底解决被白色卡片边框遮挡的问题。
+function CurrentBadge() {
+  return (
+    <span
+      data-testid="mc-compare-current-badge"
+      style={{
+        display: 'inline-block',
+        marginLeft: 4,
+        verticalAlign: 'middle',
+        background: GOLD_BADGE_BG,
+        color: GOLD_BADGE_TEXT,
+        border: `1px solid ${GOLD_BADGE_BORDER}`,
+        fontSize: 9,
+        lineHeight: 1.2,
+        fontWeight: 700,
+        padding: '1px 5px',
+        borderRadius: 6,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      当前
+    </span>
+  );
 }
 
 export default function BenefitsCompareTable({ current, plans, ranks, freeQuota }: Props) {
@@ -202,6 +239,8 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
               >
                 权益项
               </th>
+              {/* [PRD-MEMBER-COMPARE-CURRENT-COL-V1 2026-06-02] 免费列：未开通付费会员视为「未开通会员」，
+                  按需求不再显示「当前」角标与高亮，保持原始列头样式（避免误导用户以为免费是已开通会员）。 */}
               <th
                 style={{
                   padding: '8px 6px',
@@ -209,34 +248,14 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
                   fontWeight: 700,
                   color: '#FFFFFF',
                   fontSize: 12,
-                  background: current.level === 'free' ? PRIMARY_DARK : PRIMARY,
+                  background: PRIMARY,
                   borderBottom: `1px solid ${BORDER_LIGHT}`,
                   whiteSpace: 'nowrap',
                   position: 'relative',
                 }}
                 data-testid="mc-compare-col-free"
-                data-current={current.level === 'free' ? '1' : '0'}
+                data-current="0"
               >
-                {current.level === 'free' && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: -10,
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      background: '#FFFFFF',
-                      color: PRIMARY,
-                      fontSize: 10,
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: 999,
-                      border: `1px solid ${PRIMARY}`,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    当前
-                  </div>
-                )}
                 免费会员
               </th>
               {sortedPaidPlans.map((p, idx) => {
@@ -246,40 +265,24 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
                   <th
                     key={p.id}
                     style={{
+                      // [PRD-MEMBER-COMPARE-CURRENT-COL-V1 2026-06-02] 方案 B「紫金高级」当前列列头：
+                      // 顶部紫色横条（boxShadow inset，不占额外高度、不溢出卡片）+ 淡紫底 + 金色内嵌角标
                       padding: '8px 6px',
                       textAlign: 'center',
                       fontWeight: 700,
-                      color: isCurrent ? '#FFFFFF' : color,
+                      color: color,
                       fontSize: 12,
-                      background: isCurrent ? PRIMARY : '#FFFFFF',
+                      background: isCurrent ? CURRENT_COL_HEAD_BG : '#FFFFFF',
                       borderBottom: `1px solid ${BORDER_LIGHT}`,
+                      boxShadow: isCurrent ? `inset 0 3px 0 0 ${CURRENT_COL_TOP_BAR}` : 'none',
                       whiteSpace: 'nowrap',
                       position: 'relative',
                     }}
                     data-testid={`mc-compare-col-${p.id}`}
                     data-current={isCurrent ? '1' : '0'}
                   >
-                    {isCurrent && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: -10,
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          background: '#FFFFFF',
-                          color: PRIMARY,
-                          fontSize: 10,
-                          fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: 999,
-                          border: `1px solid ${PRIMARY}`,
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        当前
-                      </div>
-                    )}
-                    {p.name}
+                    <span style={{ whiteSpace: 'nowrap' }}>{p.name}</span>
+                    {isCurrent && <CurrentBadge />}
                   </th>
                 );
               })}
@@ -299,13 +302,14 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
                 >
                   {r.label}
                 </td>
+                {/* [PRD-MEMBER-COMPARE-CURRENT-COL-V1 2026-06-02] 免费列：不再视为当前列，去除高亮，保持普通样式 */}
                 <td
                   style={{
                     padding: '8px 6px',
                     textAlign: 'center',
-                    color: current.level === 'free' ? PRIMARY_DARK : TEXT_GRAY,
-                    fontWeight: current.level === 'free' ? 700 : 400,
-                    background: current.level === 'free' ? PRIMARY_BG_LIGHT : 'transparent',
+                    color: TEXT_GRAY,
+                    fontWeight: 400,
+                    background: 'transparent',
                     borderBottom: ri < rows.length - 1 ? `1px solid ${BORDER_LIGHT}` : 'none',
                     whiteSpace: 'nowrap',
                     fontSize: 12,
@@ -320,16 +324,18 @@ export default function BenefitsCompareTable({ current, plans, ranks, freeQuota 
                     <td
                       key={p.id}
                       style={{
+                        // [PRD-MEMBER-COMPARE-CURRENT-COL-V1 2026-06-02] 当前付费列数据格：整列淡紫底高亮
                         padding: '8px 6px',
                         textAlign: 'center',
                         color: isCurrent ? PRIMARY_DARK : color,
                         fontWeight: 700,
-                        background: isCurrent ? PRIMARY_BG_LIGHT : 'transparent',
+                        background: isCurrent ? CURRENT_COL_BG : 'transparent',
                         borderBottom: ri < rows.length - 1 ? `1px solid ${BORDER_LIGHT}` : 'none',
                         whiteSpace: 'nowrap',
                         fontSize: 12,
                       }}
                       data-testid={`mc-compare-cell-${r.key}-${p.id}`}
+                      data-current={isCurrent ? '1' : '0'}
                     >
                       {(r.fmt || fmtVal)(r.getPaid(p))}
                     </td>
