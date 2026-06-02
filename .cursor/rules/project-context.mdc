@@ -5,7 +5,31 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-02 · Bug 修复 / 非本人成员健康卡看板「用药提醒」串档修复 · 仅后端一个文件，前端/小程序/App 零改动）
+## 最近一次变更（2026-06-02 · 新功能 / AI 首页输入区优化「提示文案精简 + 按住说话按压效果」· H5 + 微信小程序 + Flutter APP 四平台，后端零改动）
+
+**任务标识**：`[PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02]`
+
+**需求**：AI 首页（智能问答首页）底部输入区两处体验优化。事件1：输入框上方灰色小字提示原文案 `问答已结合【XX】的健康档案` 字号偏大且带「的」字偏长，最后「案」字被发送按钮挤掉 → 精简去「的」为 `问答已结合【XX】健康档案`，字号缩小为独立小灰字单行完整显示。事件2：语音「按住说话」按压无反馈 → 实现 5 项：① 按下变色+轻微下沉缩小 ② 天蓝半透明录音浮层+声波动画 ③ 文字「按住说话」↔「松开发送」 ④ 按下震动 ⑤ 上滑取消。录音浮层背景选定天蓝半透明（与主色统一），声波/文字白色。
+
+**改动（H5 + 小程序 + Flutter；后端零改动）**：
+- H5 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：① 输入栏上方新增独立灰字提示元素（testid `ai-home-input-hint`，`fontSize:11`+`nowrap`+`textOverflow:ellipsis`，文案 `问答已结合【${关系/姓名/本人}】健康档案`，语音/键盘态都显示），原 textarea placeholder 改为通用短提示 `发消息或按住说话…`。② 语音态「按住说话」按钮（`ai-home-press-to-talk`）录音时 `transform:scale(0.97)`+背景 `#0284C7` 变色+inset 阴影、文字「松开发送」/「松开取消」；新增天蓝半透明录音浮层 `ai-home-record-overlay`（`rgba(14,165,233,0.78)`+blur）含 9 条白色声波 `ai-home-record-wave`（`volumeLevel` 实时驱动高度）；`startRecording` 起录加 `navigator.vibrate(15)`。上滑取消沿用 `handleRecordTouchMove`/`recordCancelled`。
+- 小程序 `miniprogram/pages/chat/index.{js,wxss}`：`onRecordTouchStart` 加 `wx.vibrateShort({type:'light'})`；`.hold-talk-active` 加 `transform:scale(0.97)`；录音浮层 `.record-overlay-mask` 背景由黑改天蓝 `rgba(14,165,233,0.78)`、`.record-wave-bar` 声波由绿改白 `#ffffff`。
+- Flutter `flutter_app/lib/screens/ai/chat_screen.dart`：`_onHoldStart` 加 `HapticFeedback.lightImpact()`；「按住说话」按钮包 `AnimatedScale`（录音 0.97）、文字「松开结束」→「松开发送」；`_VoiceRecordOverlay` 背景由黑改天蓝 `Color(0xFF0EA5E9).withOpacity(0.78)`、声波由绿改白 `Colors.white`。
+
+**测试**：新增 `backend/tests/test_aihome_input_hint_optim_20260602.py`（14 用例：H5 事件1 文案去「的」/独立元素/字号小单行、H5 事件2 ①~⑤ 全项、小程序震动/天蓝浮层/白声波/按下缩小、Flutter 震动/缩小/文字/天蓝浮层）；并更新 `test_ai_home_optim_final_v2_20260519.py` 的 TC-07（提示改独立元素+去「的」）与 picker 未选中底色用例（适配 isLeft 三元写法）。服务器 backend 容器内拷入三端源码后运行：26 passed，零 Bug。
+
+**部署**：git push `origin/master` commit `53dc512f` → 服务器 `git fetch + reset --hard origin/master` → `docker compose build --no-cache h5-web && up -d h5-web`（仅 H5 单服务）→ gateway 重连 `{DEPLOY_ID}-network` + reload。外部 HTTPS：`/`=200、`/ai-home`=200（308→/ai-home/）、`/api/health`=405(HEAD)。
+
+**变更端清单**：H5（Docker 容器，已上线）+ 微信小程序（重新打包 zip 上传 gateway `downloads/`）+ Flutter APP 安卓 + iOS（lib/ 共享代码改动，GitHub Actions 远程构建 APK/IPA 均 success）。后端仅新增/更新测试文件、无业务改动。
+
+**本次多端新包（基础URL = https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27）**：
+- 微信小程序：`{base}/downloads/miniprogram_aihome_input_hint_20260602_131319_789a.zip`（HTTP 200）。
+- 安卓 APK：`{base}/downloads/app_aihome_input_hint_20260602_131356_0v79.apk`（HTTP 200，标签 `android-v20260602-131356-0v79`，run 26799913023 success）。
+- iOS：Release `https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260602-131352-y2i7`，IPA `.../releases/download/ios-v20260602-131352-y2i7/bini_health_ios.ipa`（run 26799908339 success，未签名包）。
+
+**用户手册**：`user_docs/AI首页输入区优化.md`
+
+## 历史变更（2026-06-02 · Bug 修复 / 非本人成员健康卡看板「用药提醒」串档修复 · 仅后端一个文件，前端/小程序/App 零改动）
 
 **任务标识**：`[BUGFIX-MED-CROSS-PROFILE 2026-06-02]`
 
