@@ -5,7 +5,31 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-02 · Bug 修复 / 血糖详情页「下方 5 条记录」整行交互去特殊处理 · 仅 H5 一端，小程序/App 内嵌同一 H5 自动一致，0 客户端打包）
+## 最近一次变更（2026-06-02 · 需求 / 系统通知点击后不跳转 · 全站统一 · H5 + 小程序 两端，安卓/iOS App 无改动 0 客户端打包，仅小程序重新打 zip）
+
+**任务标识**：`[PRD-MSG-NOTICE-NO-JUMP-V1 2026-06-02]`
+
+**需求**：点击"系统通知"记录后，**只把它标记为已读（红点消失），人停留在原地，不再跳转到任何详情页**。该规则全站统一（H5 铃铛抽屉「通知」分页 + H5 独立 `/messages` 页面 + 小程序 `pages/messages`），所有类型（家人邀请、家人授权、订单、健康提醒等）一刀切，全部不跳。后端数据结构和接口均不变，`click_action` / `click_action_params` 字段保留但前端不再消费。
+
+**改动文件（共 3 处，最小化改动）**：
+- `h5-web/src/components/ai-chat/ReminderDrawer.tsx` — `handleNoticeClick` 精简为 `await markNoticeRead(item)`，删除按 `message_type`/`order_id` 跳 `/family-bindlist`、`/family-invite?member_id=`、`/unified-order/{id}` 的三段 `router.push`+`onClose` 分支；依赖数组从 `[markNoticeRead, onClose, router]` 收敛为 `[markNoticeRead]`。`router` import 仍保留（goMedAll/goOrderAll/handleOrderAction 等还在用）。
+- `h5-web/src/app/messages/page.tsx` — `markRead` 函数内删除 `family_invite_accepted`/`family_auth_granted` 跳家人绑定列表、`family_invite_rejected`/`family_auth_rejected` 弹 toast 提示两个分支，只保留"标已读 + 更新本地 state"。`handleReinvite`（被拒消息的"重新邀请"显式按钮）保留原跳转行为，不在本次"点击通知记录"语义内。
+- `miniprogram/pages/messages/index.js` — `onMsgTap` 删除 `family_accept` 跳 `/pages/family-bindlist/index`、`navigate + click_action_params.url` 跳指定页两个分支，只保留 `markRead(item.id)`。`onAcceptAuth`/`onReinvite`（独立显式按钮的 catchtap）保留原跳转。
+
+**保留不动**：
+- 铃铛入口、未读红点角标、抽屉分段 Tab、单条标已读 / 全部已读、加载更多等所有非"跳转"逻辑
+- 后端 `/api/messages/*` 系列接口（GET 分页 / PUT `:id/read` / PUT `read-all` / GET `unread-count`）零改动
+- H5 消息中心的"重新邀请"显式按钮 + 小程序的"查看关联列表 / 重新邀请"显式按钮（带文字标签的操作按钮属"主动操作"，与"点击通知记录本身"不同语义）
+
+**测试/验证**：`deploy/_smoke_msg_no_jump_20260602.py` 7/7 通过——case1 服务器源码 `handleNoticeClick` 内 `router.push|onClose` 数=0、case2 H5 `markRead` 内 `router.push` 数=0、case3 小程序 `onMsgTap` 内 `wx.navigateTo` 数=0、case4 `ReminderDrawer.tsx` 中 `router.push` 总数=4（goMed/Order 仍使用）、case5 外部 HTTPS `/messages`=200、case6 外部 HTTPS H5 首页=200、case7 外部 HTTPS `/api/messages`=401（路由可达、未鉴权）。
+
+**部署**：`docker compose -f docker-compose.prod.yml build --no-cache h5-web` + `docker compose -f docker-compose.prod.yml up -d h5-web` 仅重建 H5 容器（后端 / db / admin 不动）。微信小程序通过 `deploy/_pack_mp_msg_no_jump.py` 打包并 SFTP+`docker cp` 上传到 `gateway-nginx:/data/static/apk/`，下载 URL：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/downloads/miniprogram_msg_no_jump_20260602_235702_16a5.zip` HTTP 200 已验证。
+
+**变更端清单**：H5（已上线最新 commit `856eaeb6`） + 微信小程序（已重新打包，新 zip 已上传服务器）。安卓 / iOS App（flutter_app）本次无源码改动，**未重新打包**（保持原版本）。
+
+---
+
+## 上一次变更（2026-06-02 · Bug 修复 / 血糖详情页「下方 5 条记录」整行交互去特殊处理 · 仅 H5 一端，小程序/App 内嵌同一 H5 自动一致，0 客户端打包）
 
 **任务标识**：`[PRD-BG-DETAIL-ROW-INTERACTION-UNIFY-V1 2026-06-02]`（补漏单）
 
