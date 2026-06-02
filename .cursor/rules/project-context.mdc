@@ -5,7 +5,29 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-02 · 优化 / 健康指标全部历史页「点整行弹菜单」去特殊处理 · 仅 H5 一端，小程序 web-view 自动继承，后端/移动端 0 改动，0 客户端打包）
+## 最近一次变更（2026-06-02 · 新功能 / 统一消息中心·铃铛单入口合并「今日待办 + 系统通知」· 仅 H5 一端，后端接口保留复用，小程序/移动端 0 改动，0 客户端打包）
+
+**任务标识**：`[PRD-MSG-CENTER-UNIFY-V1 2026-06-02]`
+
+**需求**：AI 首页只保留右上角一个 🔔 铃铛作为消息/待办唯一入口，把「今日待办」和「系统通知」合并进这个铃铛抽屉（顶部分段切换 Tab，待办默认）；修好系统通知"红色加载失败"Bug（根因：首页红点走 `/api/v1/notifications/unread-count` 聚合计数、列表只展示 `SystemMessage`，红点数≠列表）；H5 侧三套接口收敛到 `/api/messages/*` 一套；铃铛红点 = 待办未完成数 + 系统通知未读数 合并计数。范围仅 H5 + 后端接口收敛，小程序/App 不在本期。
+
+**改动（仅 H5；后端 `/api/messages/*` 接口复用、`/api/notifications/*` 因小程序仍在用故保留）**：
+- `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：未读计数来源 `/api/v1/notifications/unread-count` → `/api/messages/unread-count`（解析 `data?.unread_count ?? data?.data?.unread_count`）；新增 `bellMergedCount = 待办 reminderBadge + 系统通知 unreadCount`，顶栏铃铛红点改用合并计数；`renderUnreadBadge()` 改为 `() => null` 移除"咨询"旁红点跳转徽标（F1-1）。
+- `h5-web/src/components/ai-chat/ReminderDrawer.tsx`：新增 `DrawerTab('todo'|'notice')` 分段、`SystemNotificationItem` 类型、`NOTICE_TYPE_CONFIG` 类型图标/配色、`formatNoticeTime`；新增通知态 `notices/noticePage/noticeTotal/noticeLoading/noticeError/noticeLoadedOnce` 与 `fetchNotices`(走 `/api/messages` 分页)/`markNoticeRead`(`/api/messages/{id}/read`)/`markAllNoticesRead`(`/api/messages/read-all`)/`handleNoticeClick`(标已读+跳详情)/`loadMoreNotices`；抽屉顶部分段 Tab（testid `bell-drawer-segment`/`bell-drawer-tab-${seg.key}`），标题随分段切换「待办事项(N)」/「系统通知(N)」，待办面板 `bell-drawer-todo-panel`（用药+订单逻辑/数据源不动），通知面板 `bell-drawer-notice-panel`（加载/失败重试/空态区分）+ 新增 `NotificationRow` 组件（类型图标/未读高亮+红点）。
+- `h5-web/src/components/ai-chat/Sidebar.tsx`：侧栏铃铛未读计数 `/api/v1/notifications/unread-count` → `/api/messages/unread-count`；点击由 `navigateTo('/notifications')` → `navigateTo('/messages')`。
+- `h5-web/next.config.js`：新增 `/notifications` → `/messages` 301 永久重定向（F0-1 旧页下线兼容）。
+- 删除 `h5-web/src/app/notifications/page.tsx`（旧"消息通知"页）。
+- 测试 `backend/tests/test_msg_center_unify_v1_20260602.py`（26 用例：任务 A 后端 `/api/messages/*` 行为 9 项——分页/空态/类型过滤/未读数与列表一致/单条已读/不存在404/全部已读/鉴权/用户隔离；任务 B H5 源码静态断言 17 项——计数收敛、无 deprecated notifications 调用、旧页删除、301 重定向、咨询红点移除、侧栏铃铛改跳、合并计数、分段 Tab、待办面板保留、通知面板接口/点击已读/标题切换/失败空态/类型图标、PRD 标记）。
+
+**测试/验证**：本地 pytest 26/26 通过；服务器后端容器内 `docker cp` 测试文件后 `pytest -k test_messages_` 任务 A 9/9 通过（17 项 H5 静态断言在容器内无 H5 源码故 deselect，本地已通过）。外部 HTTPS：`/messages`=200（经 308 尾斜杠）、`/notifications`=308→follow 到 `/messages/`=200（旧页已重定向）、`/api/messages/unread-count`=401（未鉴权，接口在线）、`/ai-home`=200。零 Bug。
+
+**部署**：git push `origin/master`（commit `be27b963`）→ 服务器 `git fetch origin master --depth 1 + reset --hard origin/master` → 服务器端后台 nohup `docker compose -f docker-compose.prod.yml build --no-cache h5-web`（BUILD_EXIT=0）→ `up -d --force-recreate h5-web`（仅 H5 单服务）→ gateway-nginx 已在 `{DEPLOY_ID}-network` 内 + `nginx -t` ok + reload。
+
+**变更端清单**：仅 H5（Docker 容器，已上线）。后端 `/api/messages/*` 复用现有接口未改业务、未重建后端容器；小程序/安卓/苹果本次无变更、不打包（PRD 明确本期仅 H5）。
+
+**用户手册**：`user_docs/统一消息中心.md`
+
+## 历史变更（2026-06-02 · 优化 / 健康指标全部历史页「点整行弹菜单」去特殊处理 · 仅 H5 一端，小程序 web-view 自动继承，后端/移动端 0 改动，0 客户端打包）
 
 **任务标识**：`[PRD-METRIC-HISTORY-ROW-NOACTION-V1 2026-06-02]`
 
