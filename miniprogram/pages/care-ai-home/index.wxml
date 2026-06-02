@@ -44,16 +44,12 @@
     </view>
   </view>
 
-  <!-- [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] 「⊕ 加号圈」菜单合并：两版去重后统一 8 项
-       1.💬发起新对话 2.🔀切换模式 3.👑会员中心 4.🎁邀请好友
-       5.📷扫一扫 6.🔤字体大小 7.📤立即分享 8.❓帮助与反馈 -->
+  <!-- [PRD-AIHOME-OPTIM-SHARE-V1 2026-06-02 §需求1/2] 关怀模式「⊕ 加号圈」菜单（5 项）：
+       1.🔀切换模式 2.👑会员中心 3.📷扫一扫 4.🎁分享好友 5.❓帮助与反馈
+       关怀模式无 AI 对话，已删除「💬发起新对话」「🔤字体大小」；并删除「📤立即分享」「🎁邀请好友」。
+       「🎁 分享好友」点击弹出分享面板，与标准模式完全一致。 -->
   <view class="more-menu-mask" wx:if="{{moreMenuShow}}" catchtap="closeMoreMenu"></view>
   <view class="more-menu-card" wx:if="{{moreMenuShow}}" data-testid="care-home-more-menu-card">
-    <view class="more-menu-item" catchtap="onTapNewChat" data-testid="care-home-more-menu-item-发起新对话">
-      <text class="more-menu-icon">💬</text>
-      <text class="more-menu-label">发起新对话</text>
-    </view>
-    <view class="more-menu-divider"></view>
     <view class="more-menu-item" catchtap="onTapSwitchMode" data-testid="care-home-more-menu-item-切换模式">
       <text class="more-menu-icon">🔀</text>
       <text class="more-menu-label">切换模式</text>
@@ -65,24 +61,14 @@
       <text class="more-menu-label more-menu-label-gold">会员中心</text>
     </view>
     <view class="more-menu-divider"></view>
-    <view class="more-menu-item" catchtap="onTapInvite" data-testid="care-home-more-menu-item-邀请好友">
-      <text class="more-menu-icon">🎁</text>
-      <text class="more-menu-label">邀请好友</text>
-    </view>
-    <view class="more-menu-divider"></view>
     <view class="more-menu-item" catchtap="onTapScan" data-testid="care-home-more-menu-item-扫一扫">
       <text class="more-menu-icon">📷</text>
       <text class="more-menu-label">扫一扫</text>
     </view>
     <view class="more-menu-divider"></view>
-    <view class="more-menu-item" catchtap="onTapFontSize" data-testid="care-home-more-menu-item-字体大小">
-      <text class="more-menu-icon">🔤</text>
-      <text class="more-menu-label">字体大小</text>
-    </view>
-    <view class="more-menu-divider"></view>
-    <view class="more-menu-item" catchtap="onTapShare" data-testid="care-home-more-menu-item-立即分享">
-      <text class="more-menu-icon">📤</text>
-      <text class="more-menu-label">立即分享</text>
+    <view class="more-menu-item" catchtap="onTapShareFriend" data-testid="care-home-more-menu-item-分享好友">
+      <text class="more-menu-icon">🎁</text>
+      <text class="more-menu-label">分享好友</text>
     </view>
     <view class="more-menu-divider"></view>
     <view class="more-menu-item" catchtap="onTapHelpFeedback" data-testid="care-home-more-menu-item-帮助与反馈">
@@ -138,8 +124,8 @@
        只负责纯拉新分享，点击弹出分享面板（卡片预览 + 微信好友/生成海报/复制链接） -->
   <view class="share-section" data-testid="care-home-share-section">
     <view class="share-friend-btn" catchtap="openSharePanel" data-testid="care-home-share-friend-btn">
-      <text class="share-friend-icon">📤</text>
-      <text class="share-friend-label">分享给好友</text>
+      <text class="share-friend-icon">🎁</text>
+      <text class="share-friend-label">分享好友</text>
     </view>
     <view class="share-friend-sub">把宾尼小康推荐给亲友</view>
   </view>

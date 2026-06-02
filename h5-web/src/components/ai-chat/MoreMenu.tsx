@@ -11,11 +11,13 @@ interface MoreMenuProps {
   // [Bug 修复 v1.2 §11.1] 新增「会员中心」入口（替换原"我的硬件"语义；因健康档案里已有硬件入口）
   onMemberCenter?: () => void;
 
-  // [PRD-AI-HOME-3TAB-WARMBLUE-V1 2026-06-01 §五] AI 首页「+ 圆圈」菜单 V2：
-  //   当 menuVariant === 'ai-home-v2' 时，渲染 PRD 指定的 4 项：
-  //   发起新对话 / 切换模式（带当前模式小标签）/ 邀请好友 / 帮助与反馈
-  //   其它页面（如关怀首页）不传该 prop，保持原有菜单不变（向后兼容）。
-  menuVariant?: 'default' | 'ai-home-v2';
+  // [PRD-AI-HOME-3TAB-WARMBLUE-V1 2026-06-01 §五] AI 首页「+ 圆圈」菜单变体：
+  //   - 'ai-home-standard'：标准模式（有 AI 对话），7 项，含「发起新对话 / 字体大小」
+  //   - 'ai-home-care'：关怀模式（无 AI 对话），5 项，不含「发起新对话 / 字体大小」
+  //   - 'ai-home-v2'：旧统一变体（保留向后兼容，等价于标准模式但含已废弃项）
+  //   两个 AI 首页变体里的「🎁 分享好友」入口（图标/文案/行为）完全一致。
+  //   其它页面不传该 prop，保持原有菜单不变（向后兼容）。
+  menuVariant?: 'default' | 'ai-home-v2' | 'ai-home-standard' | 'ai-home-care';
   onNewChat?: () => void;
   onSwitchMode?: () => void;
   currentModeLabel?: string;
@@ -59,28 +61,43 @@ export default function MoreMenu({
     tag?: string;
   };
 
-  // [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] AI 首页「⊕ 加号圈」菜单合并：
-  //   标准版 / 关怀版去重后统一为 8 项，两版完全一致，顺序按「高频在前」：
-  //   1.💬发起新对话 2.🔀切换模式 3.👑会员中心 4.🎁邀请好友
-  //   5.📷扫一扫 6.🔤字体大小 7.📤立即分享 8.❓帮助与反馈
-  const items: MenuItem[] = menuVariant === 'ai-home-v2'
-    ? [
-        { icon: '💬', label: '发起新对话', action: onNewChat },
-        { icon: '🔀', label: '切换模式', action: onSwitchMode, tag: currentModeLabel },
-        { icon: '👑', label: '会员中心', action: onMemberCenter, gold: true },
-        { icon: '🎁', label: '邀请好友', action: onInviteFriend },
-        { icon: '📷', label: '扫一扫', action: onScan },
-        { icon: '🔤', label: '字体大小', action: onFontSize },
-        { icon: '📤', label: '立即分享', action: onShare },
-        { icon: '❓', label: '帮助与反馈', action: onHelpFeedback },
-      ]
-    : [
-        // [PRD-467 FR-01/FR-02] 「扫一扫」「字体大小」可点击；会员中心金色加亮
-        { icon: '👑', label: '会员中心', action: onMemberCenter, gold: true },
-        { icon: '📷', label: '扫一扫', action: onScan },
-        { icon: '🔤', label: '字体大小', action: onFontSize },
-        { icon: '📤', label: '立即分享', action: onShare },
-      ];
+  // [PRD-AIHOME-OPTIM-SHARE-V1 2026-06-02 §需求1/2] AI 首页「⊕ 加号圈」菜单整理：
+  //   - 删除「📤 立即分享」（合并进「🎁 分享好友」）与「🎁 邀请好友」（拉守护人入口不放这里）
+  //   - 新增统一「🎁 分享好友」入口（图标🎁 / 文案"分享好友" / 点击弹分享面板），两版完全一致
+  //   - 关怀模式无 AI 对话，删除「💬 发起新对话」「🔤 字体大小」
+  //   标准模式 7 项 / 关怀模式 5 项；「🎁 分享好友」由 onShare 触发，两版行为一致。
+  const SHARE_FRIEND_ITEM: MenuItem = { icon: '🎁', label: '分享好友', action: onShare };
+
+  let items: MenuItem[];
+  if (menuVariant === 'ai-home-care') {
+    // 关怀模式：切换模式 / 会员中心 / 扫一扫 / 🎁分享好友 / 帮助与反馈（5 项）
+    items = [
+      { icon: '🔀', label: '切换模式', action: onSwitchMode, tag: currentModeLabel },
+      { icon: '👑', label: '会员中心', action: onMemberCenter, gold: true },
+      { icon: '📷', label: '扫一扫', action: onScan },
+      SHARE_FRIEND_ITEM,
+      { icon: '❓', label: '帮助与反馈', action: onHelpFeedback },
+    ];
+  } else if (menuVariant === 'ai-home-standard' || menuVariant === 'ai-home-v2') {
+    // 标准模式：发起新对话 / 字体大小 / 切换模式 / 会员中心 / 扫一扫 / 🎁分享好友 / 帮助与反馈（7 项）
+    items = [
+      { icon: '💬', label: '发起新对话', action: onNewChat },
+      { icon: '🔤', label: '字体大小', action: onFontSize },
+      { icon: '🔀', label: '切换模式', action: onSwitchMode, tag: currentModeLabel },
+      { icon: '👑', label: '会员中心', action: onMemberCenter, gold: true },
+      { icon: '📷', label: '扫一扫', action: onScan },
+      SHARE_FRIEND_ITEM,
+      { icon: '❓', label: '帮助与反馈', action: onHelpFeedback },
+    ];
+  } else {
+    // [PRD-467 FR-01/FR-02] 其它页面默认菜单（向后兼容）
+    items = [
+      { icon: '👑', label: '会员中心', action: onMemberCenter, gold: true },
+      { icon: '📷', label: '扫一扫', action: onScan },
+      { icon: '🔤', label: '字体大小', action: onFontSize },
+      SHARE_FRIEND_ITEM,
+    ];
+  }
 
   // [BUGFIX-AI-HOME-MENU-MASK-V1 2026-06-01 §问题1] 透明遮罩铺满全屏：
   //   旧实现用 antd-mobile 顶部弹层组件（position=top），其 body 只占据顶部一小块区域，

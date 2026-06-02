@@ -75,14 +75,20 @@
     </view>
   </view>
 
-  <!-- [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] 「⊕ 加号圈」菜单合并：两版去重后统一 8 项
-       1.💬发起新对话 2.🔀切换模式 3.👑会员中心 4.🎁邀请好友
-       5.📷扫一扫 6.🔤字体大小 7.📤立即分享 8.❓帮助与反馈 -->
+  <!-- [PRD-AIHOME-OPTIM-SHARE-V1 2026-06-02 §需求1/2] 标准模式「⊕ 加号圈」菜单（7 项）：
+       1.💬发起新对话 2.🔤字体大小 3.🔀切换模式 4.👑会员中心 5.📷扫一扫 6.🎁分享好友 7.❓帮助与反馈
+       已删除「📤立即分享」（合并进🎁分享好友）与「🎁邀请好友」（拉守护人入口不放这里）。
+       「🎁 分享好友」点击弹出分享面板，与关怀模式完全一致。 -->
   <view class="more-menu-mask" wx:if="{{moreMenuShow}}" bindtap="closeMoreMenu"></view>
   <view class="more-menu-card" wx:if="{{moreMenuShow}}" data-testid="ai-home-more-menu-card">
     <view class="more-menu-item" bindtap="onTapNewChat" data-testid="ai-home-more-menu-item-发起新对话">
       <text class="more-menu-icon">💬</text>
       <text class="more-menu-label">发起新对话</text>
+    </view>
+    <view class="more-menu-divider"></view>
+    <view class="more-menu-item" bindtap="onTapFontSize" data-testid="ai-home-more-menu-item-字体大小">
+      <text class="more-menu-icon">🔤</text>
+      <text class="more-menu-label">字体大小</text>
     </view>
     <view class="more-menu-divider"></view>
     <view class="more-menu-item" bindtap="onTapSwitchMode" data-testid="ai-home-more-menu-item-切换模式">
@@ -96,24 +102,14 @@
       <text class="more-menu-label more-menu-label-gold">会员中心</text>
     </view>
     <view class="more-menu-divider"></view>
-    <view class="more-menu-item" bindtap="onTapInvite" data-testid="ai-home-more-menu-item-邀请好友">
-      <text class="more-menu-icon">🎁</text>
-      <text class="more-menu-label">邀请好友</text>
-    </view>
-    <view class="more-menu-divider"></view>
     <view class="more-menu-item" bindtap="onTapScan" data-testid="ai-home-more-menu-item-扫一扫">
       <text class="more-menu-icon">📷</text>
       <text class="more-menu-label">扫一扫</text>
     </view>
     <view class="more-menu-divider"></view>
-    <view class="more-menu-item" bindtap="onTapFontSize" data-testid="ai-home-more-menu-item-字体大小">
-      <text class="more-menu-icon">🔤</text>
-      <text class="more-menu-label">字体大小</text>
-    </view>
-    <view class="more-menu-divider"></view>
-    <view class="more-menu-item" bindtap="onTapShare" data-testid="ai-home-more-menu-item-立即分享">
-      <text class="more-menu-icon">📤</text>
-      <text class="more-menu-label">立即分享</text>
+    <view class="more-menu-item" bindtap="onTapShareFriend" data-testid="ai-home-more-menu-item-分享好友">
+      <text class="more-menu-icon">🎁</text>
+      <text class="more-menu-label">分享好友</text>
     </view>
     <view class="more-menu-divider"></view>
     <view class="more-menu-item" bindtap="onTapHelpFeedback" data-testid="ai-home-more-menu-item-帮助与反馈">

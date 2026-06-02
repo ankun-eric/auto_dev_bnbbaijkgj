@@ -349,8 +349,9 @@ class _AiHomeScreenState extends State<AiHomeScreen> with WidgetsBindingObserver
                   );
                   break;
                 case 'share':
+                  // [PRD-AIHOME-OPTIM-SHARE-V1 2026-06-02 §需求1] 分享好友：分享当前 AI 首页
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('分享开发中')),
+                    const SnackBar(content: Text('分享好友开发中')),
                   );
                   break;
               }
@@ -412,12 +413,14 @@ class _AiHomeScreenState extends State<AiHomeScreen> with WidgetsBindingObserver
                     ],
                   ),
                 ),
+                // [PRD-AIHOME-OPTIM-SHARE-V1 2026-06-02 §需求1] 「🎁 分享好友」统一入口
+                //   合并原「立即分享」，与 H5 / 小程序 / 关怀模式行为一致（分享当前 AI 首页）。
                 const PopupMenuItem<String>(
                   value: 'share',
                   child: Row(
                     children: [
-                      Text('📤 ', style: TextStyle(fontSize: 18)),
-                      Text('立即分享'),
+                      Text('🎁 ', style: TextStyle(fontSize: 18)),
+                      Text('分享好友'),
                     ],
                   ),
                 ),

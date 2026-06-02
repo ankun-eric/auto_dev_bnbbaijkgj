@@ -280,10 +280,12 @@ Page({
     wx.showToast({ title: '字体大小设置开发中', icon: 'none' });
   },
 
-  onTapShare() {
+  // [PRD-AIHOME-OPTIM-SHARE-V1 2026-06-02 §需求1] 「🎁 分享好友」统一入口
+  //   合并原「立即分享」，分享当前 AI 首页（/ai-home）。与关怀模式行为一致。
+  onTapShareFriend() {
     this.setData({ moreMenuShow: false });
     wx.showShareMenu({ withShareTicket: true });
-    wx.showToast({ title: '请点击右上角分享', icon: 'none' });
+    wx.showToast({ title: '请点击右上角分享给好友', icon: 'none' });
   },
 
   onDrawerClose() {

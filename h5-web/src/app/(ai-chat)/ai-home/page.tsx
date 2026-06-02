@@ -6470,18 +6470,18 @@ export default function AiHomePage() {
         onSelectSession={handleSelectSession}
         onNewConversation={handleNewConversation}
       />
-      {/* [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] 「+ 圆圈」更多菜单（统一 8 项，两版一致）：
-          💬发起新对话 / 🔀切换模式（带当前模式小标签）/ 👑会员中心 / 🎁邀请好友 /
-          📷扫一扫 / 🔤字体大小 / 📤立即分享 / ❓帮助与反馈 */}
+      {/* [PRD-AIHOME-OPTIM-SHARE-V1 2026-06-02 §需求1/2] 标准模式「+ 圆圈」更多菜单（7 项）：
+          💬发起新对话 / 🔤字体大小 / 🔀切换模式 / 👑会员中心 / 📷扫一扫 / 🎁分享好友 / ❓帮助与反馈
+          已删除「📤立即分享」（合并进🎁分享好友）与「🎁邀请好友」（拉守护人入口不放这里）。
+          「🎁 分享好友」点击弹出分享面板，与关怀模式完全一致。 */}
       <MoreMenu
         visible={moreMenuOpen}
         onClose={() => setMoreMenuOpen(false)}
-        menuVariant="ai-home-v2"
+        menuVariant="ai-home-standard"
         onNewChat={() => { setMoreMenuOpen(false); handleNewConversation(); }}
         currentModeLabel="标准版"
         onSwitchMode={() => { setMoreMenuOpen(false); handleSwitchToCareMode(); }}
         onMemberCenter={() => { setMoreMenuOpen(false); router.push('/member-center'); }}
-        onInviteFriend={() => { setMoreMenuOpen(false); router.push('/invite'); }}
         onScan={() => { setMoreMenuOpen(false); handleScan(); }}
         onFontSize={() => { setMoreMenuOpen(false); handleFontSize(); }}
         onShare={() => { setMoreMenuOpen(false); setShareOpen(true); }}

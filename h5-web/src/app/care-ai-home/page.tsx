@@ -709,8 +709,8 @@ export default function CareAiHomePage() {
             boxShadow: '0 4px 14px rgba(251,140,0,0.28)',
           }}
         >
-          <span aria-hidden="true">📤</span>
-          <span>分享给好友</span>
+          <span aria-hidden="true">🎁</span>
+          <span>分享好友</span>
         </button>
         <div style={{ textAlign: 'center', fontSize: 13, color: '#9CA3AF', marginTop: 8 }}>
           把宾尼小康推荐给亲友
@@ -742,19 +742,18 @@ export default function CareAiHomePage() {
         <span className="care-home-sos-core" aria-hidden="true">SOS</span>
       </button>
 
-      {/* [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求2] 更多菜单与标准版统一为 8 项（ai-home-v2 变体）：
-          💬发起新对话 / 🔀切换模式 / 👑会员中心 / 🎁邀请好友 / 📷扫一扫 / 🔤字体大小 / 📤立即分享 / ❓帮助与反馈 */}
+      {/* [PRD-AIHOME-OPTIM-SHARE-V1 2026-06-02 §需求1/2] 关怀模式「+ 圆圈」更多菜单（5 项）：
+          🔀切换模式 / 👑会员中心 / 📷扫一扫 / 🎁分享好友 / ❓帮助与反馈
+          关怀模式无 AI 对话，已删除「💬发起新对话」「🔤字体大小」；并删除「📤立即分享」「🎁邀请好友」。
+          「🎁 分享好友」点击弹出分享面板，与标准模式完全一致。 */}
       <MoreMenu
         visible={moreMenuOpen}
         onClose={() => setMoreMenuOpen(false)}
-        menuVariant="ai-home-v2"
+        menuVariant="ai-home-care"
         currentModeLabel="关怀版"
-        onNewChat={() => { setMoreMenuOpen(false); navigate('/care-ai-home'); }}
         onSwitchMode={() => { setMoreMenuOpen(false); handleSwitchToStandard(); }}
         onMemberCenter={() => { setMoreMenuOpen(false); navigate('/member-center'); }}
-        onInviteFriend={() => { setMoreMenuOpen(false); navigate('/invite'); }}
         onScan={() => { setMoreMenuOpen(false); showToast('扫一扫开发中'); }}
-        onFontSize={() => { setMoreMenuOpen(false); showToast('字体大小设置开发中'); }}
         onShare={() => { setMoreMenuOpen(false); setShareOpen(true); }}
         onHelpFeedback={() => { setMoreMenuOpen(false); navigate('/feedback'); }}
       />

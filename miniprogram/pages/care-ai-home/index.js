@@ -289,10 +289,11 @@ Page({
     wx.showToast({ title: '字体大小设置开发中', icon: 'none' });
   },
 
-  onTapShare() {
+  // [PRD-AIHOME-OPTIM-SHARE-V1 2026-06-02 §需求1] 「🎁 分享好友」统一入口
+  //   合并原「立即分享」，弹出分享面板（与底部「分享好友」大按钮、标准模式行为一致）。
+  onTapShareFriend() {
     this.setData({ moreMenuShow: false });
-    wx.showShareMenu({ withShareTicket: true });
-    wx.showToast({ title: '请点击右上角分享', icon: 'none' });
+    this.openSharePanel();
   },
 
   // ───── 右下角悬浮 SOS = 点「紧急呼叫」卡片 ─────
