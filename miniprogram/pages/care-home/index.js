@@ -65,6 +65,11 @@ Page({
     wx.navigateTo({ url: '/pages/family/index' });
   },
 
+  // [PRD-SAFETY-ROPE-V1 2026-06-03] 数字安全绳入口
+  goSafetyRope() {
+    wx.navigateTo({ url: '/pages/care-safety-rope/index' });
+  },
+
   onQuickAsk(e) {
     const q = e.currentTarget.dataset.q;
     wx.switchTab({ url: '/pages/ai/index' });

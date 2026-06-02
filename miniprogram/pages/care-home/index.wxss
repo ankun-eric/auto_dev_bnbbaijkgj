@@ -33,6 +33,16 @@ page { background: linear-gradient(180deg,#fff5e8 0%,#f0f6fb 100%); font-size: 3
 .quick-cell text { font-size: 26rpx; font-weight: 600; }
 
 .recommend-row { white-space: nowrap; padding: 0 32rpx 24rpx; }
+
+/* [PRD-SAFETY-ROPE-V1 2026-06-03] 数字安全绳入口卡片 */
+.safety-rope-card { display: flex; align-items: center; margin: 0 32rpx 24rpx;
+  background: linear-gradient(135deg, #74b9a6 0%, #4a9b8e 100%); border-radius: 24rpx;
+  padding: 24rpx 28rpx; color: #fff; box-shadow: 0 4rpx 16rpx rgba(74,155,142,0.25); }
+.sr-icon { font-size: 56rpx; margin-right: 24rpx; }
+.sr-body { flex: 1; }
+.sr-title { font-size: 32rpx; font-weight: 700; }
+.sr-sub { font-size: 24rpx; opacity: 0.92; margin-top: 4rpx; }
+.sr-arrow { font-size: 42rpx; margin-left: 16rpx; }
 .recommend-cell { display: inline-block; padding: 14rpx 28rpx; background: #fff5e8; color: #c95a1d; border-radius: 36rpx; margin-right: 16rpx; font-size: 26rpx; font-weight: 600; }
 
 .card { background: #fff; border-radius: 28rpx; padding: 32rpx; margin: 0 32rpx 24rpx; }

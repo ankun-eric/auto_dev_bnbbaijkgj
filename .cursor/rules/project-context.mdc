@@ -5,7 +5,59 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-02 · 需求 / 健康档案「守护 TA 的人」卡片：可只读进入 + 统计修正 + 标题修改 · 仅 H5 + 后端 两端，安卓 / iOS / 小程序无源码改动 0 客户端打包）
+## 最近一次变更（2026-06-03 · 新功能 / 数字安全绳（独居守护）· 后端 + H5 + 小程序 + Flutter App 四端，小程序已打 zip，APK/IPA 本次未触发远程构建）
+
+**任务标识**：`[PRD-SAFETY-ROPE-V1 2026-06-03]`
+
+**需求**：为独居人群（独居老人、独居青年、慢病独居人群）提供"数字安全绳"功能：用户每天点一下"我今天平安"按钮签到，连续 24/48 小时未签到时系统自动通过邮件 + 站内消息双渠道通知 1~3 位紧急联系人，附带最后签到时间/位置/手机号；用户重新签到后自动给联系人发"已平安"邮件解除预警。复用 care-sos 的地理定位能力 + 现有 EmailLog/SystemMessage 通知通道，新增独立 4 张表 + APScheduler 5 分钟扫描任务。
+
+**改动文件（共 16 处，覆盖 4 端）**：
+
+- 后端（4 处）：
+  - 新增 `backend/app/api/safety_rope_v1.py` — 完整 8 API 端点（status / config / checkin / checkins / contacts CRUD / alerts）+ 4 张表自动建表（兼容 MySQL/SQLite）+ `scan_and_notify()` 后台扫描函数（提前 1h 提醒 + 超时三渠道预警 + 自动解除）+ SMTP 邮件发送 + SystemMessage 落盘
+  - `backend/app/main.py` — `app.include_router(safety_rope_v1.router)`（importlib 容错挂载）
+  - `backend/app/services/notification_scheduler.py` — 添加 APScheduler 5 分钟周期任务 `safety_rope_scan`
+  - 新增 `backend/tests/test_safety_rope_v1_20260603.py` — 12 项 pytest 用例覆盖配置/签到/联系人 CRUD/限额/暂停/扫描/解除/E2E
+
+- H5（2 处）：
+  - 新增 `h5-web/src/app/care-safety-rope/page.tsx` — 完整功能页（顶栏 + 状态横幅 + 大签到按钮 + 阈值切换 + 暂停二次确认 + 联系人 CRUD 抽屉 + 历史预警折叠卡），获取地理位置 + 调 `/api/maps/user/reverse-geocoding` 拿到中文地址
+  - `h5-web/src/app/care-home/page.tsx` — 在推荐问胶囊上方插入绿色渐变「🪢 数字安全绳」入口卡片（data-testid `care-home-safety-rope-entry`）
+
+- 小程序（5 处）：
+  - 新增 `miniprogram/pages/care-safety-rope/` 目录（4 个文件：index.wxml / wxss / json / js）— 用 web-view 加载 H5 同款 `/care-safety-rope` 页面
+  - `miniprogram/app.json` — 新增页面路由 `pages/care-safety-rope/index`
+  - `miniprogram/pages/care-home/index.wxml` — 新增 `.safety-rope-card` 入口卡片
+  - `miniprogram/pages/care-home/index.wxss` — 卡片样式
+  - `miniprogram/pages/care-home/index.js` — `goSafetyRope()` 跳转方法
+
+- Flutter App（2 处）：
+  - 新增 `flutter_app/lib/screens/care/safety_rope_webview.dart` — WebView 容器（携带 access_token 加载 H5 `/care-safety-rope`）
+  - `flutter_app/lib/screens/care/care_home_screen.dart` — 健康简报上方新增「数字安全绳」绿色渐变入口卡片，点击进入 `SafetyRopeWebView`；导入 `safety_rope_webview.dart`
+
+**数据模型（4 张表）**：
+- `safety_rope_config(user_id PK, threshold_hours, status, paused_until, last_warning_pre_at, created_at, updated_at)`
+- `safety_rope_checkin(id, user_id, checkin_at, location_lat/lng/address)`
+- `safety_rope_contact(id, user_id, name, email, phone, relation, wechat_openid, sort_order)` —— 单用户最多 3 位
+- `safety_rope_alert(id, user_id, triggered_at, last_checkin_at, last_location, notified_contacts JSON, resolved_at, resolved_location)`
+
+**测试/验证**：
+- 本地 pytest：12/12 通过（含纯函数 _compute_runtime_state 单测 + HTTP 鉴权拦截 + 配置/签到/联系人 CRUD/限额/邮件格式校验 + 扫描器超时触发 + 自动解除）
+- 远程 E2E：注册新用户 → status/config/checkin/contacts(3+1 限额)/pause/resume/alerts/delete/update 共 12 个步骤全部通过
+- 外部 HTTPS：`/api/health=200`、`/api/safety-rope/status=401`（鉴权拦截）、`/care-safety-rope=308`（next 尾斜杠 → 200）、`/care-home=308 → 200`
+
+**部署**：`deploy/_deploy_safety_rope_v1_20260603.py` SFTP 直传 16 文件 → `docker compose build backend` + `up -d --no-deps backend` → `nohup docker compose build --no-cache h5-web` + `up -d --force-recreate h5-web` → `gateway-nginx nginx -t && reload`。后端容器与 H5 容器各自只重建一次，db/admin 不受影响。
+
+**变更端清单**：
+- 后端（已上线，容器重建）
+- H5（已上线，容器重建，无需用户重新下载）
+- 微信小程序（已打 zip + SFTP + docker cp 到 gateway-nginx，下载 URL：`https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/downloads/miniprogram_safety_rope_20260603_020052_e2bb.zip` HTTP 200 已验证）
+- 安卓 / iOS App：源码已更新（新增 `safety_rope_webview.dart` + 关怀模式首页入口卡片），**本次未触发 GitHub Actions 远程构建**（避免国内→GitHub 网络超时阻塞流水线）。当前安装的旧版 App 仍可通过浏览器/微信打开 H5 链接完整体验功能；下次发布周期会一并打包。
+
+**用户手册**：`user_docs/数字安全绳.md`
+
+---
+
+## 上一次变更（2026-06-02 · 需求 / 健康档案「守护 TA 的人」卡片：可只读进入 + 统计修正 + 标题修改 · 仅 H5 + 后端 两端，安卓 / iOS / 小程序无源码改动 0 客户端打包）
 
 **任务标识**：`[PRD-TA-GUARDIAN-CARD-V1 2026-06-02]`
 

@@ -391,6 +391,18 @@ def init_scheduler():
         replace_existing=True,
     )
 
+    # [PRD-SAFETY-ROPE-V1 2026-06-03] 数字安全绳扫描，每 5 分钟一次
+    try:
+        from app.api.safety_rope_v1 import scan_and_notify as _safety_rope_scan
+        scheduler.add_job(
+            _safety_rope_scan,
+            trigger=IntervalTrigger(minutes=5),
+            id="safety_rope_scan",
+            replace_existing=True,
+        )
+    except Exception as _e_sr:
+        logger.warning("safety_rope_scan add_job failed: %s", _e_sr)
+
     scheduler.start()
     logger.info("Notification scheduler started")
 

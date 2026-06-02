@@ -1818,6 +1818,17 @@ async def lifespan(app: FastAPI):
     except Exception as _e:
         import logging as _l
         _l.getLogger(__name__).error("family_self_backfill 异常（不影响启动）: %s", _e)
+    # [BUGFIX-SELF-TAB-ALWAYS-VISIBLE-V1 2026-06-03] 修复历史脏数据：本人 status 非 active 一次性归正
+    try:
+        from app.services.family_self_backfill_migration import (
+            migrate_family_self_status_to_active,
+        )
+        await migrate_family_self_status_to_active()
+    except Exception as _e:
+        import logging as _l
+        _l.getLogger(__name__).error(
+            "family_self_status_to_active 异常（不影响启动）: %s", _e
+        )
     # [BUG_FIX-FAMILY-NICKNAME-NOTNULL-20260530] 健康档案空姓名脏数据清理 + ALTER NOT NULL
     # 必须放在 family_self_backfill 之后，以确保本人档已被回填（避免误判脏数据）
     try:
@@ -2253,6 +2264,13 @@ app.include_router(content.router)
 app.include_router(notification.router)
 # PRD-425: AI 对话首页顶栏徽标——通知中心未读总数统一聚合接口
 app.include_router(notifications_unified.router)
+# [PRD-SAFETY-ROPE-V1 2026-06-03] 数字安全绳（独居守护）
+try:
+    from app.api import safety_rope_v1 as _safety_rope_v1  # noqa: E402
+    app.include_router(_safety_rope_v1.router)
+except Exception as _e_sr:  # pragma: no cover - defensive
+    import logging as _l
+    _l.getLogger(__name__).warning("[safety_rope_v1] include_router failed: %s", _e_sr)
 app.include_router(customer_service.router)
 app.include_router(drug.router)
 app.include_router(upload.router)

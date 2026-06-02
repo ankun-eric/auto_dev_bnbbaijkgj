@@ -509,6 +509,33 @@ export default function CareHomePage() {
         ))}
       </div>
 
+      {/* [PRD-SAFETY-ROPE-V1 2026-06-03] 数字安全绳入口卡片 */}
+      <div style={{ padding: '0 22px 14px' }}>
+        <div
+          data-testid="care-home-safety-rope-entry"
+          onClick={() => router.push(`${basePath}/care-safety-rope`)}
+          style={{
+            background: 'linear-gradient(135deg, #74b9a6 0%, #4a9b8e 100%)',
+            borderRadius: 16,
+            padding: '14px 16px',
+            color: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 4px 14px rgba(74,155,142,0.25)',
+          }}
+        >
+          <div style={{ fontSize: 32, marginRight: 12 }}>🪢</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 16, fontWeight: 700 }}>数字安全绳</div>
+            <div style={{ fontSize: 13, opacity: 0.92, marginTop: 2 }}>
+              每天点一下"我今天平安"，超时自动通知亲友
+            </div>
+          </div>
+          <div style={{ fontSize: 22, marginLeft: 8 }}>›</div>
+        </div>
+      </div>
+
       {/* 推荐问胶囊 */}
       <div
         style={{

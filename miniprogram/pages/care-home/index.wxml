@@ -42,6 +42,16 @@
     <view class="quick-cell" bindtap="goFamily"><view class="quick-icon bg-pink">👨‍👩‍👧</view><text>家人</text></view>
   </view>
 
+  <!-- [PRD-SAFETY-ROPE-V1 2026-06-03] 数字安全绳入口 -->
+  <view class="safety-rope-card" bindtap="goSafetyRope">
+    <view class="sr-icon">🪢</view>
+    <view class="sr-body">
+      <view class="sr-title">数字安全绳</view>
+      <view class="sr-sub">每天点一下"我今天平安"，超时自动通知亲友</view>
+    </view>
+    <view class="sr-arrow">›</view>
+  </view>
+
   <!-- 推荐问 -->
   <scroll-view scroll-x="true" class="recommend-row">
     <view class="recommend-cell" bindtap="onQuickAsk" data-q="我的血压怎么样？">我的血压怎么样？</view>

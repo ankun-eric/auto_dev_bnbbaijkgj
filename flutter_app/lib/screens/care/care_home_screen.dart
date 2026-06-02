@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import 'safety_rope_webview.dart';
 
 class CareHomeScreen extends StatefulWidget {
   const CareHomeScreen({super.key});
@@ -311,6 +312,63 @@ class _CareHomeScreenState extends State<CareHomeScreen> {
                           style: const TextStyle(fontSize: 18, color: Color(0xFF5A4838)),
                         ),
                       ],
+                    ),
+                  ),
+                  // [PRD-SAFETY-ROPE-V1 2026-06-03] 数字安全绳入口
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(22, 0, 22, 14),
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SafetyRopeWebView(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF74B9A6), Color(0xFF4A9B8E)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x404A9B8E),
+                              blurRadius: 14,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: const [
+                            Text('🪢', style: TextStyle(fontSize: 32)),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('数字安全绳',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700)),
+                                  SizedBox(height: 2),
+                                  Text('每天点一下"我今天平安"，超时自动通知亲友',
+                                      style: TextStyle(
+                                          color: Color(0xE6FFFFFF),
+                                          fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                            Text('›',
+                                style: TextStyle(
+                                    color: Colors.white, fontSize: 22)),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                   // 健康简报
