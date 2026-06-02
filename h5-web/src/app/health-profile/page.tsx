@@ -1272,19 +1272,24 @@ function HealthProfileV2PageInner() {
 
     return (
       <div style={{ padding: '0 16px 12px', display: 'flex', gap: 10 }}>
-        {/* 「我守护的人」/ 家人 Tab「TA 守护的人」 */}
+        {/* [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-ENTRY-SELF-ONLY-V1 2026-06-02]
+            左侧「家庭成员」入口卡仅在本人 Tab 渲染，对齐小程序 / App 行为。
+            非本人 Tab 整张卡片不出现（不再以「TA 守护的人」只读形态显示）。
+            右侧「守护我的人 / 守护 TA 的人」卡片保留不变，flex:1 会自动占满整行。 */}
+        {/* 「家庭成员」（仅本人 Tab） */}
+        {isSelfTab && (
         <div
-          data-testid={isSelfTab ? 'health-profile-i-guard-entry' : 'ta-i-guard-entry'}
+          data-testid='health-profile-i-guard-entry'
           onClick={() => {
             // [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 路口A1] 旧 i-guard 整体下线，
             // 入口卡跳转改为新的 archive-list（7 态状态机版）
-            if (isSelfTab) router.push('/health-profile/archive-list');
+            router.push('/health-profile/archive-list');
           }}
           style={{
             flex: 1, background: '#fff', borderRadius: 12, padding: '12px 12px',
             display: 'flex', flexDirection: 'column', gap: 8,
             boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-            cursor: isSelfTab ? 'pointer' : 'default',
+            cursor: 'pointer',
             minHeight: 88,
           }}
         >
@@ -1295,32 +1300,24 @@ function HealthProfileV2PageInner() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937' }}>{taTitle}</div>
             </div>
-            {isSelfTab && <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>}
+            <span style={{ fontSize: 16, color: '#9CA3AF' }}>›</span>
           </div>
-          {/* 副标题：
-              - 本人 Tab（资产/配额）：「已管理 X 人，还可添加 Y-X 人」（口径与档案列表顶部统计条对齐）
-              - 家人 Tab（关系/只读）：「守护对象：X 人（上限 Y 人）」保留 */}
+          {/* 副标题（本人 Tab）：「已管理 X / 上限 Y」，口径与档案列表顶部统计条对齐 */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
             <div
               data-testid='i-guard-subtitle'
               style={{ fontSize: 12, color: byMeView.textColor, lineHeight: 1.4, flex: 1, minWidth: 0 }}
             >
-              {/* [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #1]
-                  本人 Tab：纯数字斜杠格式「已管理 X/Y」，与档案列表内页对齐，去除冗长文案
-                  - 不限套餐（Y=-1/is_unlimited）只显示「已管理 X」
-                  - 不再展示「还可添加 N 人」「含本人/不含本人」等附加文案
-                  家人 Tab：保留原副标题（关系语境） */}
               {/* [PRD-MEMBER-COUNT-CONSISTENCY-V1 2026-05-31] 文案统一为「已管理 X / 上限 Y」
                   与会员中心蓝卡片完全一致 */}
-              {isSelfTab
-                ? (isUnlimitedByMe
-                    ? `已管理 ${xByMe} / 上限 不限`
-                    : `已管理 ${xByMe} / 上限 ${yByMe}`)
-                : `守护对象：${byMeView.subtitle}`}
+              {isUnlimitedByMe
+                ? `已管理 ${xByMe} / 上限 不限`
+                : `已管理 ${xByMe} / 上限 ${yByMe}`}
             </div>
             {byMeView.button}
           </div>
         </div>
+        )}
 
         {/* 「守护我的人」/ 家人 Tab「守护 TA 的人」 */}
         <div
