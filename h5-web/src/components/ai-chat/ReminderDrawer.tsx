@@ -2,18 +2,23 @@
 
 /**
  * [PRD-BELL-UNIFIED-V1 2026-05-19] 铃铛红点统一计数抽屉
+ * [PRD-MSG-CENTER-UNIFY-V1 2026-06-02] 统一消息中心 · 铃铛单入口合并
  *
- * 底部弹出抽屉，自适应高度（最高 80vh），两个区块：
+ * 底部弹出抽屉，自适应高度（最高 80vh），顶部「待办 / 通知」分段切换 Tab（待办默认选中）：
+ *
+ * 【待办】（催你办事，沿用现有逻辑，不动数据源）：
  *   - 💊 用药提醒：今天计划要吃但未点"已服用"的条目（按"次"算）
  *   - 🛒 待处理订单：pending_payment / pending_appointment / appointed /
  *                   pending_use / partial_used / pending_receipt（6 状态合并）
  *
- * 交互：
- *   - 用药条目：点击右侧"✓ 已服用"按钮触发打卡（不支持撤销，与今日用药一致）；
- *     已过点未服用条目显示 ⚠ 已超时 标签
- *   - 订单条目：点击就地展开详情（手风琴，同时只展开一条）；主操作按钮按状态文案；
- *     展开后包含订单号/商品名/规格/金额/下单时间/门店等共用字段 + 类型差异化字段
- *   - 处理完毕的条目置灰，折叠到「已完成 (N) ▼」分组里默认折叠
+ * 【通知】（告诉你消息，接入统一后的系统通知 /api/messages/*）：
+ *   - 系统通知列表（标题/内容/时间/类型图标/未读红点），分页加载
+ *   - 点击跳对应详情（订单详情 / 家人绑定列表 / 邀请页等），单条标已读、全部已读
+ *   - 待办 / 通知 数据源、用途完全不同，互不串数据
+ *
+ * 概念分清（PRD §一）：
+ *   - 今日待办 = 催你办事：今天该吃没吃的药、待支付/待预约/待核销/待收货的订单
+ *   - 系统通知 = 告诉你消息：家人血压/血糖异常、守护关系变动、家人邀请/授权、设备报警等
  *
  * 兼容 PRD-439 旧调用方：保留旧 props（onGoMedicationManage / onGoOrderList / onChangeBadge / consultantId）。
  */
@@ -22,6 +27,51 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { publishBellEvent } from '@/lib/bell-event-bus';
+
+// [PRD-MSG-CENTER-UNIFY-V1 2026-06-02 F2] 抽屉分段：待办（默认）/ 通知
+type DrawerTab = 'todo' | 'notice';
+
+// [PRD-MSG-CENTER-UNIFY-V1 2026-06-02 F3-1] 系统通知条目（数据源 /api/messages）
+export interface SystemNotificationItem {
+  id: number;
+  message_type: string;
+  title: string;
+  content: string | null;
+  is_read: boolean;
+  click_action?: string | null;
+  click_action_params?: Record<string, unknown> | null;
+  sender_nickname?: string | null;
+  created_at: string;
+}
+
+// [PRD-MSG-CENTER-UNIFY-V1 2026-06-02 F3-1] 通知按类型分组的图标 / 主题色
+const NOTICE_TYPE_CONFIG: Record<string, { icon: string; color: string }> = {
+  system: { icon: '🔔', color: '#1890ff' },
+  health_alert: { icon: '💚', color: '#0EA5E9' },
+  family_invite: { icon: '👨‍👩‍👧', color: '#0EA5E9' },
+  family_invite_accepted: { icon: '✅', color: '#0EA5E9' },
+  family_invite_rejected: { icon: '❌', color: '#fa8c16' },
+  family_auth_granted: { icon: '🔓', color: '#0EA5E9' },
+  family_auth_rejected: { icon: '🔒', color: '#fa8c16' },
+  medication_remind: { icon: '💊', color: '#1890ff' },
+  device_alarm: { icon: '🚨', color: '#EF4444' },
+};
+
+function formatNoticeTime(dateStr: string): string {
+  const t = new Date(dateStr.replace(' ', 'T')).getTime();
+  if (!Number.isFinite(t)) return dateStr;
+  const diff = (Date.now() - t) / 1000;
+  if (diff < 60) return '刚刚';
+  if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`;
+  if (diff < 86400 * 7) return `${Math.floor(diff / 86400)}天前`;
+  const d = new Date(t);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${mm}-${dd} ${hh}:${mi}`;
+}
 
 export interface MedicationItem {
   plan_id: number;
@@ -153,6 +203,19 @@ Props) {
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
+  // [PRD-MSG-CENTER-UNIFY-V1 2026-06-02 F2] 当前分段：待办（默认）/ 通知
+  const [activeTab, setActiveTab] = useState<DrawerTab>('todo');
+
+  // [PRD-MSG-CENTER-UNIFY-V1 2026-06-02 F2-3/F3] 系统通知（数据源 /api/messages）
+  const NOTICE_PAGE_SIZE = 20;
+  const [notices, setNotices] = useState<SystemNotificationItem[]>([]);
+  const [noticePage, setNoticePage] = useState(1);
+  const [noticeTotal, setNoticeTotal] = useState(0);
+  const [noticeLoading, setNoticeLoading] = useState(false);
+  // [F0-6] 加载失败兜底 + 网络异常/空态区分
+  const [noticeError, setNoticeError] = useState(false);
+  const [noticeLoadedOnce, setNoticeLoadedOnce] = useState(false);
+
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2200);
@@ -194,12 +257,113 @@ Props) {
     // 用药数据源恒为本人口径（不依赖 consultantId），故依赖数组为空
   }, []);
 
+  // [PRD-MSG-CENTER-UNIFY-V1 2026-06-02 F2-3/F3] 拉取系统通知列表（统一接口 /api/messages，分页）
+  const fetchNotices = useCallback(async (pageNum: number, reset = false) => {
+    setNoticeLoading(true);
+    if (reset) setNoticeError(false);
+    try {
+      const res: any = await api.get('/api/messages', {
+        params: { page: pageNum, page_size: NOTICE_PAGE_SIZE },
+      });
+      const data = res?.data ?? res;
+      const list: SystemNotificationItem[] = Array.isArray(data?.items) ? data.items : [];
+      const total = Number(data?.total ?? 0) || 0;
+      setNotices((prev) => (reset ? list : [...prev, ...list]));
+      setNoticeTotal(total);
+      setNoticePage(pageNum);
+      setNoticeError(false);
+    } catch {
+      // [F0-6] 加载失败兜底：标记错误态，UI 显示「加载失败，点击重试」
+      if (reset) setNotices([]);
+      setNoticeError(true);
+    } finally {
+      setNoticeLoading(false);
+      setNoticeLoadedOnce(true);
+    }
+  }, []);
+
   useEffect(() => {
     if (open) {
+      // 打开抽屉时：待办照旧拉取；通知首次进入抽屉也拉一次（保证红点合并计数与列表一致）
       fetchAll();
+      fetchNotices(1, true);
       setExpandedOrderId(null);
     }
-  }, [open, fetchAll]);
+  }, [open, fetchAll, fetchNotices]);
+
+  // [F3-2] 单条标记已读
+  const markNoticeRead = useCallback(
+    async (item: SystemNotificationItem) => {
+      if (item.is_read) return;
+      // 乐观更新
+      setNotices((prev) => prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n)));
+      try {
+        await api.put(`/api/messages/${item.id}/read`);
+        onChangeBadge?.();
+      } catch {
+        // 失败回滚
+        setNotices((prev) => prev.map((n) => (n.id === item.id ? { ...n, is_read: false } : n)));
+        showToast('操作失败，请重试');
+      }
+    },
+    [onChangeBadge],
+  );
+
+  // [F3-2] 全部已读
+  const markAllNoticesRead = useCallback(async () => {
+    const hasUnread = notices.some((n) => !n.is_read);
+    if (!hasUnread) return;
+    const backup = notices.slice();
+    setNotices((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    try {
+      await api.put('/api/messages/read-all');
+      onChangeBadge?.();
+      showToast('已全部标记为已读');
+    } catch {
+      setNotices(backup);
+      showToast('操作失败，请重试');
+    }
+  }, [notices, onChangeBadge]);
+
+  // [F2-3] 点击通知 → 标已读 + 跳对应详情
+  const handleNoticeClick = useCallback(
+    async (item: SystemNotificationItem) => {
+      await markNoticeRead(item);
+      const t = item.message_type;
+      const params = (item.click_action_params || {}) as Record<string, unknown>;
+      const memberId = params?.member_id;
+      const orderId = params?.order_id;
+      try {
+        if (t === 'family_invite_accepted' || t === 'family_auth_granted') {
+          onClose();
+          router.push('/family-bindlist');
+          return;
+        }
+        if (t === 'family_invite' || t === 'family_invite_rejected') {
+          onClose();
+          router.push(memberId ? `/family-invite?member_id=${memberId}` : '/family-bindlist');
+          return;
+        }
+        if (orderId) {
+          onClose();
+          router.push(`/unified-order/${orderId}`);
+          return;
+        }
+        // 其它类型：留在抽屉内（已读即可），不做跳转
+      } catch {
+        /* 跳转异常忽略 */
+      }
+    },
+    [markNoticeRead, onClose, router],
+  );
+
+  const loadMoreNotices = useCallback(() => {
+    if (noticeLoading || noticeError) return;
+    if (notices.length >= noticeTotal) return;
+    fetchNotices(noticePage + 1);
+  }, [noticeLoading, noticeError, notices.length, noticeTotal, noticePage, fetchNotices]);
+
+  const noticeUnreadCount = useMemo(() => notices.filter((n) => !n.is_read).length, [notices]);
 
   // [BUGFIX-AI-HOME-BELL-SELF-V1 2026-06-01] 打卡：对齐"用药提醒-全部"页
   //   接口 /api/medication-check-in（与列表页同一接口，确保两端状态完全同步）
@@ -343,7 +507,7 @@ Props) {
           color: '#1F2937',
         }}
       >
-        {/* 顶部标题栏：待办事项 (N) + 关闭按钮 */}
+        {/* 顶部标题栏：标题随分段变化（待办事项 (N) / 系统通知 (N)）+ 关闭按钮 */}
         <div
           style={{
             display: 'flex',
@@ -352,26 +516,116 @@ Props) {
             marginBottom: 12,
           }}
         >
-          <h3 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>
-            待办事项{totalCount > 0 && <span style={{ color: '#6B7280', fontWeight: 500 }}> ({totalCount})</span>}
+          {/* [PRD-MSG-CENTER-UNIFY-V1 2026-06-02 F2-4] 标题随当前分段变化 */}
+          <h3 data-testid="bell-drawer-title" style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>
+            {activeTab === 'todo' ? (
+              <>
+                待办事项
+                {totalCount > 0 && (
+                  <span style={{ color: '#6B7280', fontWeight: 500 }}> ({totalCount})</span>
+                )}
+              </>
+            ) : (
+              <>
+                系统通知
+                {noticeUnreadCount > 0 && (
+                  <span style={{ color: '#6B7280', fontWeight: 500 }}> ({noticeUnreadCount})</span>
+                )}
+              </>
+            )}
           </h3>
-          <button
-            data-testid="bell-drawer-close"
-            onClick={onClose}
-            aria-label="关闭"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              fontSize: 20,
-              color: '#6B7280',
-              cursor: 'pointer',
-              padding: 4,
-            }}
-          >
-            ✕
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* [F2-3/F3-2] 通知分段下显示「全部已读」 */}
+            {activeTab === 'notice' && noticeUnreadCount > 0 && (
+              <button
+                data-testid="bell-notice-read-all"
+                onClick={markAllNoticesRead}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: 13,
+                  color: '#0EA5E9',
+                  cursor: 'pointer',
+                  padding: 4,
+                }}
+              >
+                全部已读
+              </button>
+            )}
+            <button
+              data-testid="bell-drawer-close"
+              onClick={onClose}
+              aria-label="关闭"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                fontSize: 20,
+                color: '#6B7280',
+                cursor: 'pointer',
+                padding: 4,
+              }}
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
+        {/* [PRD-MSG-CENTER-UNIFY-V1 2026-06-02 F2-1 / §4.1] 分段切换 Tab：待办（默认）/ 通知 */}
+        <div
+          data-testid="bell-drawer-segment"
+          style={{
+            display: 'flex',
+            background: '#F3F4F6',
+            borderRadius: 10,
+            padding: 3,
+            marginBottom: 14,
+          }}
+        >
+          {([
+            { key: 'todo', label: '待办', count: totalCount },
+            { key: 'notice', label: '通知', count: noticeUnreadCount },
+          ] as { key: DrawerTab; label: string; count: number }[]).map((seg) => {
+            const isActive = activeTab === seg.key;
+            return (
+              <button
+                key={seg.key}
+                data-testid={`bell-drawer-tab-${seg.key}`}
+                data-active={isActive ? '1' : '0'}
+                onClick={() => setActiveTab(seg.key)}
+                style={{
+                  flex: 1,
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '8px 0',
+                  fontSize: 14,
+                  fontWeight: isActive ? 600 : 500,
+                  color: isActive ? '#0EA5E9' : '#6B7280',
+                  background: isActive ? '#fff' : 'transparent',
+                  boxShadow: isActive ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {seg.label}
+                {seg.count > 0 && (
+                  <span
+                    style={{
+                      marginLeft: 4,
+                      fontSize: 11,
+                      color: isActive ? '#0EA5E9' : '#9CA3AF',
+                    }}
+                  >
+                    ({seg.count > 99 ? '99+' : seg.count})
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ════════════ 待办分段（默认） ════════════ */}
+        {activeTab === 'todo' && (
+        <div data-testid="bell-drawer-todo-panel">
         {/* 加载失败兜底 */}
         {loadError && (
           <div
@@ -476,6 +730,73 @@ Props) {
             )}
 
           </>
+        )}
+        </div>
+        )}
+
+        {/* ════════════ 通知分段（系统通知 /api/messages） ════════════ */}
+        {activeTab === 'notice' && (
+          <div data-testid="bell-drawer-notice-panel">
+            {/* [F0-6] 加载失败兜底（与网络异常/空态区分） */}
+            {noticeError && (
+              <div
+                data-testid="bell-notice-error"
+                onClick={() => fetchNotices(1, true)}
+                style={{
+                  padding: '24px 0',
+                  textAlign: 'center',
+                  color: '#EF4444',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                }}
+              >
+                加载失败，点击重试
+              </div>
+            )}
+
+            {/* 首次加载中 */}
+            {!noticeError && noticeLoading && notices.length === 0 && (
+              <div style={{ color: '#9CA3AF', padding: '24px 0', textAlign: 'center', fontSize: 14 }}>
+                加载中…
+              </div>
+            )}
+
+            {/* 空态（已加载、无错误、列表为空） */}
+            {!noticeError && !noticeLoading && noticeLoadedOnce && notices.length === 0 && (
+              <div
+                data-testid="bell-notice-empty"
+                style={{ padding: '40px 0', textAlign: 'center', color: '#9CA3AF', fontSize: 14 }}
+              >
+                <div style={{ fontSize: 40, marginBottom: 8 }}>📭</div>
+                暂无系统通知
+              </div>
+            )}
+
+            {/* 通知列表 */}
+            {!noticeError && notices.length > 0 && (
+              <div>
+                {notices.map((n) => (
+                  <NotificationRow key={n.id} item={n} onClick={() => handleNoticeClick(n)} />
+                ))}
+                {/* 加载更多 */}
+                {notices.length < noticeTotal && (
+                  <div
+                    data-testid="bell-notice-load-more"
+                    onClick={loadMoreNotices}
+                    style={{
+                      padding: '12px 0',
+                      textAlign: 'center',
+                      color: '#0EA5E9',
+                      cursor: 'pointer',
+                      fontSize: 13,
+                    }}
+                  >
+                    {noticeLoading ? '加载中…' : '加载更多'}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         {toast && (
@@ -800,6 +1121,106 @@ function AppointmentRow({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * [PRD-MSG-CENTER-UNIFY-V1 2026-06-02 F2-3/F3] 系统通知条目行
+ *   - 类型图标 + 标题 + 内容 + 时间；未读高亮 + 红点
+ *   - 点击：标已读 + 跳对应详情（由 onClick 统一处理）
+ */
+function NotificationRow({
+  item,
+  onClick,
+}: {
+  item: SystemNotificationItem;
+  onClick: () => void;
+}) {
+  const cfg = NOTICE_TYPE_CONFIG[item.message_type] || NOTICE_TYPE_CONFIG.system;
+  const unread = !item.is_read;
+  return (
+    <div
+      data-testid="bell-notice-row"
+      data-type={item.message_type}
+      data-read={item.is_read ? '1' : '0'}
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        padding: '10px 8px',
+        marginBottom: 4,
+        borderRadius: 8,
+        cursor: 'pointer',
+        background: unread ? '#F0F9FF' : 'transparent',
+      }}
+    >
+      {/* 类型图标 */}
+      <div
+        style={{
+          position: 'relative',
+          width: 36,
+          height: 36,
+          borderRadius: '50%',
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 18,
+          background: `${cfg.color}15`,
+          marginRight: 10,
+        }}
+      >
+        {cfg.icon}
+        {/* 未读红点 */}
+        {unread && (
+          <span
+            data-testid="bell-notice-unread-dot"
+            style={{
+              position: 'absolute',
+              top: -1,
+              right: -1,
+              width: 9,
+              height: 9,
+              borderRadius: '50%',
+              background: '#EF4444',
+              boxShadow: '0 0 0 1.5px #fff',
+            }}
+          />
+        )}
+      </div>
+      {/* 标题 / 内容 / 时间 */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: unread ? 600 : 500,
+            color: unread ? '#111827' : '#4B5563',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {item.title}
+        </div>
+        {item.content ? (
+          <div
+            style={{
+              fontSize: 12,
+              color: '#6B7280',
+              marginTop: 2,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {item.content}
+          </div>
+        ) : null}
+        <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 3 }}>
+          {formatNoticeTime(item.created_at)}
+        </div>
+      </div>
     </div>
   );
 }

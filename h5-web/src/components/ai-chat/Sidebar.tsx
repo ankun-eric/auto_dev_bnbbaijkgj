@@ -398,12 +398,14 @@ export default function Sidebar({
       })
       .catch(() => {});
 
-    // F-02 铃铛红点（消息未读总数 ≥1 显示）
+    // [PRD-MSG-CENTER-UNIFY-V1 2026-06-02 F0-2/F0-4] 铃铛红点（消息未读总数 ≥1 显示）
+    //   数据源由旧聚合接口 /api/v1/notifications/unread-count 统一收敛到 /api/messages/unread-count
+    //   （与消息中心 /messages 列表同源），H5 不再调用 /api/v1/notifications/*。
     api
-      .get('/api/v1/notifications/unread-count')
+      .get('/api/messages/unread-count')
       .then((res: any) => {
         const data = res?.data ?? res;
-        const cnt = data?.data?.unreadCount ?? data?.unreadCount ?? data?.unread_count ?? 0;
+        const cnt = data?.unread_count ?? data?.data?.unread_count ?? 0;
         setUnread(Number(cnt) || 0);
       })
       .catch(() => setUnread(0));
@@ -1178,9 +1180,10 @@ export default function Sidebar({
                     <line x1="20" y1="20" x2="20" y2="20" />
                   </svg>
                 </button>
-                {/* F-02 铃铛（仅红点） */}
+                {/* [PRD-MSG-CENTER-UNIFY-V1 2026-06-02 F1-2] F-02 铃铛（仅红点）
+                    旧 /notifications 页已下线，统一跳转到消息中心 /messages（接口 /api/messages/*）。 */}
                 <button
-                  onClick={() => navigateTo('/notifications')}
+                  onClick={() => navigateTo('/messages')}
                   style={{
                     position: 'relative',
                     width: 24,

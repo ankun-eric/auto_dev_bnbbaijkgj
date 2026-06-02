@@ -1183,17 +1183,22 @@ export default function AiHomePage() {
     setFirstScreenRetryNonce((n) => n + 1);
   }, []);
 
-  // [PRD-425] 进入 /ai-home 时拉取一次通知中心未读总数；离开页面再回来视为重新进入
-  // 失败 / 超时 / 未登录 → 保持 null，徽标不显示（按 PRD §5.2 异常兜底）
+  // [PRD-MSG-CENTER-UNIFY-V1 2026-06-02 F0-3] 进入 /ai-home 时拉取一次「系统通知未读数」。
+  //   数据源由旧的聚合接口 /api/v1/notifications/unread-count（含已废弃的 Notification 表，
+  //   与 /messages 列表对不上，是「红点有数字、点进去加载失败」的诱因）统一收敛到
+  //   /api/messages/unread-count（与消息中心 /messages 列表同一数据源 SystemMessage），
+  //   彻底根治红点数 ≠ 列表数的问题。
+  // 失败 / 超时 / 未登录 → 保持 null，徽标不显示（按异常兜底逻辑）。
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : '';
         if (!token) return;
-        const res: any = await api.get('/api/v1/notifications/unread-count');
+        const res: any = await api.get('/api/messages/unread-count');
         const data = res?.data ?? res;
-        const cnt = data?.data?.unreadCount;
+        // /api/messages/unread-count 返回 { unread_count: N }
+        const cnt = data?.unread_count ?? data?.data?.unread_count;
         if (!cancelled && typeof cnt === 'number' && cnt >= 0) {
           setUnreadCount(cnt);
         }
@@ -3992,6 +3997,15 @@ export default function AiHomePage() {
     pendingUseOrderCount > 0
   );
 
+  // [PRD-MSG-CENTER-UNIFY-V1 2026-06-02 §二.4 / F0-3] 顶栏铃铛红点合并口径：
+  //   = 「待办未完成数」(reminderBadge，来自 /api/medication-reminder/badge：今日待打卡用药 + 待处理订单)
+  //   + 「系统通知未读数」(unreadCount，来自 /api/messages/unread-count)。
+  //   两块数据源、用途完全不同（待办=催办事、通知=告知消息），但红点合并求和统一展示。
+  //   unreadCount 为 null（未登录/接口异常）按 0 处理，避免误显示。
+  const bellMergedCount =
+    (reminderBadge > 0 ? reminderBadge : 0) +
+    (typeof unreadCount === 'number' && unreadCount > 0 ? unreadCount : 0);
+
   // [PRD-AIHOME-OPTIM-V1 2026-05-17 R2] 汉堡图标尺寸：
   // 高度 = "小康"字号 17px，宽度按原图标 22:18≈1.222 等比缩放
   // 三条横线：粗细 = 高度 * 2/18，间距 = 高度 * 4/18（与原 18px 高时的 2px/4px 等比）
@@ -4033,44 +4047,11 @@ export default function AiHomePage() {
     };
   }, [banners.length]);
 
-  // [PRD-425] 徽标展示形态：null=不显示；0=小红点；1~99=数字；>=100="99+"
-  const renderUnreadBadge = () => {
-    if (unreadCount === null) return null;
-    const isDot = unreadCount === 0;
-    const display = unreadCount >= 100 ? '99+' : String(unreadCount);
-    return (
-      <span
-        onClick={(e) => {
-          e.stopPropagation();
-          // 点击徽标 → 跳转通知中心（不自动清零）
-          router.push('/messages');
-        }}
-        style={{
-          position: 'absolute',
-          top: -6,
-          right: -14,
-          minWidth: isDot ? 8 : 16,
-          height: isDot ? 8 : 16,
-          padding: isDot ? 0 : '0 4px',
-          borderRadius: 9,
-          background: '#FF3B30',
-          color: '#fff',
-          fontSize: 10,
-          fontWeight: 600,
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          lineHeight: 1,
-          boxShadow: '0 0 0 1.5px #fff',
-          cursor: 'pointer',
-        }}
-        data-testid="ai-home-unread-badge"
-        aria-label={isDot ? '有新通知' : `${display} 条未读通知`}
-      >
-        {!isDot && display}
-      </span>
-    );
-  };
+  // [PRD-MSG-CENTER-UNIFY-V1 2026-06-02 F1-1 / §4.1] 入口唯一化：
+  //   原首页「咨询」Tab 旁的未读红点徽标（点击跳 /messages）已移除——
+  //   全站只保留顶栏右上角 🔔 铃铛作为消息/待办的唯一入口，红点统一由铃铛右上角承载，
+  //   不再出现「两个入口 / 并列红点跳转入口」。此处恒返回 null（彻底不渲染该徽标）。
+  const renderUnreadBadge = () => null;
 
   return (
     <div
@@ -4367,9 +4348,11 @@ export default function AiHomePage() {
             >
               <span style={{ position: 'relative', display: 'inline-flex', fontSize: 20, lineHeight: 1 }} aria-hidden="true">
                 🔔
-                {reminderBadge > 0 && (
+                {/* [PRD-MSG-CENTER-UNIFY-V1 2026-06-02 §二.4] 红点 = 待办未完成数 + 系统通知未读数 合并计数 */}
+                {bellMergedCount > 0 && (
                   <span
                     data-testid="ai-home-topbar-bell-reddot"
+                    data-count={bellMergedCount}
                     style={{
                       position: 'absolute',
                       top: -3,

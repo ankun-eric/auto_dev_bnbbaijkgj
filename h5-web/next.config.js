@@ -31,6 +31,14 @@ const nextConfig = {
         destination: '/ai-home',
         permanent: true,
       },
+      // [PRD-MSG-CENTER-UNIFY-V1 2026-06-02 F0-1 / §4.1] 旧「消息通知」页 /notifications 已下线，
+      //   统一收敛到消息中心 /messages（接口 /api/messages/*）。旧链接/历史/分享 301 永久重定向，
+      //   保证不出现 404，过渡期外部访问仍可达。
+      {
+        source: '/notifications',
+        destination: '/messages',
+        permanent: true,
+      },
     ];
   },
 };
