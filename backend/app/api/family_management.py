@@ -31,6 +31,10 @@ from app.schemas.family_management import (
     MergePreviewField,
     OperationLogResponse,
 )
+from app.services.family_bind_dedup_service import (
+    DUPLICATE_BIND_DETAIL,
+    is_duplicate_bind,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -418,6 +422,17 @@ async def accept_invitation(
     if managed_by_count >= MAX_MANAGED_BY_COUNT:
         raise HTTPException(status_code=400, detail=f"被管理人数已达上限（{MAX_MANAGED_BY_COUNT}人）")
 
+    # [BUGFIX-FAMILY-DUPLICATE-BIND-V1 2026-06-02] 同管理者名下唯一性校验
+    # 防止同一个人扫了管理者名下 A 成员的二维码后，又扫 B 成员的二维码重复绑定。
+    # "同一个人" = 用户 ID 相同或手机号相同，任一命中即拦截。
+    if await is_duplicate_bind(
+        db,
+        manager_user_id=invitation.inviter_user_id,
+        managed_user_id=current_user.id,
+        managed_phone=current_user.phone,
+    ):
+        raise HTTPException(status_code=400, detail=DUPLICATE_BIND_DETAIL)
+
     # [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 情况 2 邀请阶段没建 Tab，此时才建
     if invitation.member_id is None:
         existing_count_res = await db.execute(
@@ -541,6 +556,16 @@ async def accept_invitation(
         logger.info("[F9] data merge stats: %s", merge_stats)
     except Exception as e:
         logger.error("[F9] data merge failed (non-blocking): %s", e)
+
+    # [BUGFIX-FAMILY-DUPLICATE-BIND-V1 2026-06-02] 写库前兜底再判一次重，
+    # 防止并发（同时扫 A 和 B）或前置校验后状态被改动绕过。
+    if await is_duplicate_bind(
+        db,
+        manager_user_id=invitation.inviter_user_id,
+        managed_user_id=current_user.id,
+        managed_phone=current_user.phone,
+    ):
+        raise HTTPException(status_code=400, detail=DUPLICATE_BIND_DETAIL)
 
     management = FamilyManagement(
         manager_user_id=invitation.inviter_user_id,

@@ -26,6 +26,7 @@ from app.models.models import (
     SystemMessage,
     User,
 )
+from app.services.family_bind_dedup_service import is_duplicate_bind
 from app.schemas.reverse_guardian import (
     AcceptReverseInviteResponse,
     CancelReverseInviteRequest,
@@ -498,14 +499,18 @@ async def accept_reverse_invite(
     if invitation.invitee_user_id == current_user.id:
         raise HTTPException(status_code=400, detail="不能接受自己发出的邀请")
 
-    existing = await db.execute(
-        select(FamilyManagement).where(
-            FamilyManagement.manager_user_id == current_user.id,
-            FamilyManagement.managed_user_id == invitation.invitee_user_id,
-            FamilyManagement.status == "active",
-        )
+    # [BUGFIX-FAMILY-DUPLICATE-BIND-V1 2026-06-02] 复用统一判重逻辑，
+    # 同管理者名下不能重复绑定同一被守护人（用户 ID 或手机号任一命中即拦截）。
+    invitee_phone_res = await db.execute(
+        select(User.phone).where(User.id == invitation.invitee_user_id)
     )
-    if existing.scalar_one_or_none():
+    invitee_phone = invitee_phone_res.scalar_one_or_none()
+    if await is_duplicate_bind(
+        db,
+        manager_user_id=current_user.id,
+        managed_user_id=invitation.invitee_user_id,
+        managed_phone=invitee_phone,
+    ):
         raise HTTPException(status_code=400, detail="您已是对方的守护者")
 
     # 查找或创建被守护人在守护者名下的 FamilyMember 档案
@@ -534,6 +539,15 @@ async def accept_reverse_invite(
         )
         db.add(family_member)
         await db.flush()
+
+    # [BUGFIX-FAMILY-DUPLICATE-BIND-V1 2026-06-02] 写库前兜底再判一次重，防并发。
+    if await is_duplicate_bind(
+        db,
+        manager_user_id=current_user.id,
+        managed_user_id=invitation.invitee_user_id,
+        managed_phone=invitee_phone,
+    ):
+        raise HTTPException(status_code=400, detail="您已是对方的守护者")
 
     management = FamilyManagement(
         manager_user_id=current_user.id,
