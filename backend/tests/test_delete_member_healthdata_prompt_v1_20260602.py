@@ -15,7 +15,9 @@ HAS_HEALTH_DATA 提示，阻止删除，永不再落入通用兜底报错。
 - TC-04: 清空所有子数据后 → 可正常删除（reason_code=OK）
 - TC-05: 名下无任何子数据的干净成员 → 直接删除成功
 - TC-06: 健康记录（HealthMetricRecord）也能精确数出条数
-- TC-07: 中医诊断 / 健康提醒 / 报告历史也纳入排查
+- TC-07: 健康提醒 / 报告历史也纳入排查
+- TC-10: 中医诊断记录不再阻塞删除，删成员时自动清理（含答题明细）
+- TC-11: 中医诊断非阻塞，但同成员有真实病史时仍照常拦截、且中医诊断不混入提示
 """
 
 import uuid
@@ -321,8 +323,13 @@ async def test_tc06_health_metric_records_counted(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_tc07_tcm_reminder_reporthistory_counted(client: AsyncClient):
-    """中医诊断 / 健康提醒 / 报告历史 也纳入排查。"""
+async def test_tc07_reminder_reporthistory_counted(client: AsyncClient):
+    """健康提醒 / 报告历史 也纳入排查。
+
+    [BUGFIX-DELETE-MEMBER-TCM-AUTOCLEAN-V1 2026-06-02]
+    中医诊断记录已改为非阻塞（删成员时自动清理），故本用例不再断言它出现在拦截提示里。
+    中医诊断的专项验证见 test_tc10 / test_tc11。
+    """
     phone = f"199{uuid.uuid4().hex[:8]}"
     uid = await _make_user(phone, "本人")
     h = await _headers(client, phone)
@@ -330,7 +337,6 @@ async def test_tc07_tcm_reminder_reporthistory_counted(client: AsyncClient):
 
     import datetime as _dt
     async with test_session() as s:
-        s.add(TCMDiagnosis(user_id=uid, family_member_id=mid, constitution_type="阳虚质"))
         s.add(HealthReminder(
             user_id=uid, member_id=mid, reminder_type="checkup", title="复查",
             scheduled_date=_dt.date.today(), created_by=uid,
@@ -343,6 +349,79 @@ async def test_tc07_tcm_reminder_reporthistory_counted(client: AsyncClient):
     res = await client.delete(f"/api/family/member/{mid}", headers=h)
     assert res.status_code == 400, res.text
     msg = res.json()["detail"]["message"]
-    assert "1 条中医诊断记录" in msg
     assert "1 条健康提醒" in msg
     assert "1 条报告历史" in msg
+
+
+@pytest.mark.asyncio
+async def test_tc10_tcm_diagnosis_does_not_block_and_autocleaned(client: AsyncClient):
+    """[BUGFIX-DELETE-MEMBER-TCM-AUTOCLEAN-V1 2026-06-02]
+    成员名下仅有中医诊断记录（含答题明细）时，不再阻塞删除：
+    - 删除直接成功（reason_code=OK）；
+    - 中医诊断记录及其答题明细被自动一并清理；
+    - 绝不再出现「中医诊断记录」卡点提示或旧通用兜底报错。
+    """
+    from app.models.models import ConstitutionAnswer
+
+    phone = f"199{uuid.uuid4().hex[:8]}"
+    uid = await _make_user(phone, "本人")
+    h = await _headers(client, phone)
+    mid = await _create_member(uid, "朱微")
+
+    async with test_session() as s:
+        d = TCMDiagnosis(user_id=uid, family_member_id=mid, constitution_type="气虚质")
+        s.add(d)
+        await s.flush()
+        did = d.id
+        # 一并造一条答题明细（外键挂在 tcm_diagnoses.id 上）
+        s.add(ConstitutionAnswer(diagnosis_id=did, question_id=1, answer_value="经常"))
+        await s.commit()
+
+    res = await client.delete(f"/api/family/member/{mid}", headers=h)
+    assert res.status_code == 200, res.text
+    data = res.json()["data"]
+    assert data["reason_code"] == "OK"
+    assert "family_member" in data["deleted_tables"]
+    assert "tcm_diagnosis" in data["deleted_tables"]
+    # 不能再出现中医诊断卡点提示或旧兜底报错
+    assert "中医诊断记录" not in res.text
+    assert OLD_FALLBACK_MSG not in res.text
+
+    # 诊断记录及答题明细应已被一并清掉
+    async with test_session() as s:
+        from sqlalchemy import select as sql_select, func as sql_func
+        c1 = await s.execute(
+            sql_select(sql_func.count(TCMDiagnosis.id)).where(
+                TCMDiagnosis.family_member_id == mid
+            )
+        )
+        assert int(c1.scalar() or 0) == 0
+        c2 = await s.execute(
+            sql_select(sql_func.count(ConstitutionAnswer.id)).where(
+                ConstitutionAnswer.diagnosis_id == did
+            )
+        )
+        assert int(c2.scalar() or 0) == 0
+
+
+@pytest.mark.asyncio
+async def test_tc11_tcm_autoclean_with_other_blockers(client: AsyncClient):
+    """中医诊断非阻塞，但同成员还有真实病史时仍照常拦截（中医诊断不混入提示）。"""
+    phone = f"199{uuid.uuid4().hex[:8]}"
+    uid = await _make_user(phone, "本人")
+    h = await _headers(client, phone)
+    mid = await _create_member(uid, "朱微")
+    pid = await _create_profile(uid, mid, "朱微")
+
+    async with test_session() as s:
+        s.add(TCMDiagnosis(user_id=uid, family_member_id=mid, constitution_type="湿热质"))
+        s.add(HealthInfoExtra(profile_id=pid, chronic_diseases=["高血压"]))
+        await s.commit()
+
+    res = await client.delete(f"/api/family/member/{mid}", headers=h)
+    assert res.status_code == 400, res.text
+    detail = res.json()["detail"]
+    assert detail["reason_code"] == "HAS_HEALTH_DATA"
+    assert "1 条既往病史" in detail["message"]
+    # 中医诊断不应再混进拦截提示
+    assert "中医诊断记录" not in detail["message"]

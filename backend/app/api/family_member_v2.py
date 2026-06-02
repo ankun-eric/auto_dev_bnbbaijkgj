@@ -486,6 +486,14 @@ async def _collect_blocking_health_data(
         pass
 
     # 8) 中医诊断 / 体质结果（TCMDiagnosis 按 family_member_id）
+    # [BUGFIX-DELETE-MEMBER-TCM-AUTOCLEAN-V1 2026-06-02]
+    # 中医诊断记录（体质测评 / 舌诊 / 面诊结果）在前端「测评记录」列表里只能查看、
+    # 没有任何删除入口，后端也没有删除单条诊断的接口。若继续把它当成阻塞项，
+    # 用户会陷入「系统让先清，却无处可清」的死结，成员永远删不掉。
+    # 现改为：不再因中医诊断记录阻塞删除——删成员时由执行段自动一并清理
+    # （含其答题明细 ConstitutionAnswer），见 delete_member_unified 执行段。
+    #
+    # 注：此处保留统计代码（仅作日志观测，不再 append 到阻塞清单）。
     try:
         from app.models.models import TCMDiagnosis  # type: ignore
         n = await _count(
@@ -493,8 +501,7 @@ async def _collect_blocking_health_data(
                 TCMDiagnosis.family_member_id == member_id
             )
         )
-        if n > 0:
-            segments.append(f"{n} 条中医诊断记录")
+        print(f"[DEBUG][DELMEM] tcm_diagnoses(non-blocking, auto-clean)={n}")
     except Exception:
         pass
 
@@ -1038,6 +1045,36 @@ async def delete_member_unified(
                     deleted_tables.append("health_info_extra")
         except Exception:
             pass
+
+    # b-1) [BUGFIX-DELETE-MEMBER-TCM-AUTOCLEAN-V1 2026-06-02] 自动清理该成员名下的
+    # 中医诊断记录（体质测评 / 舌诊 / 面诊结果），连同其答题明细 ConstitutionAnswer。
+    # 这些记录前端只能查看、无删除入口，已不再当作阻塞项（见统计函数 §8），
+    # 故删成员时在此一并删除。先删子表 ConstitutionAnswer（外键挂在 tcm_diagnoses.id），
+    # 再删 tcm_diagnoses 主表，避免撞外键约束被全局兜底翻译成「关联数据不存在……」。
+    try:
+        from app.models.models import TCMDiagnosis, ConstitutionAnswer  # type: ignore
+        diag_res = await db.execute(
+            select(TCMDiagnosis).where(TCMDiagnosis.family_member_id == member_id)
+        )
+        diag_rows = diag_res.scalars().all()
+        diag_ids = [int(d.id) for d in diag_rows]
+        if diag_ids:
+            ans_res = await db.execute(
+                select(ConstitutionAnswer).where(
+                    ConstitutionAnswer.diagnosis_id.in_(diag_ids)
+                )
+            )
+            for ans in ans_res.scalars().all():
+                await db.delete(ans)
+                if "constitution_answer" not in deleted_tables:
+                    deleted_tables.append("constitution_answer")
+            for d in diag_rows:
+                await db.delete(d)
+                if "tcm_diagnosis" not in deleted_tables:
+                    deleted_tables.append("tcm_diagnosis")
+            await db.flush()
+    except Exception:
+        pass
 
     for hp in hp_rows:
         await db.delete(hp)
