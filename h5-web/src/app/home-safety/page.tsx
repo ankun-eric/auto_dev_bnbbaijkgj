@@ -452,35 +452,16 @@ function HomeSafetyPageInner() {
                 boxShadow: '0 1px 6px rgba(31,143,230,0.08)',
               }}
             >
-              {/* 上方：突出大数字「已绑定总数」 */}
-              <div style={{ textAlign: 'center', marginBottom: 4 }}>
-                <div style={{ fontSize: 12, color: '#5B7A99' }}>已绑定总数</div>
-                <div
-                  style={{
-                    fontSize: 40,
-                    fontWeight: 700,
-                    color: '#1F8FE6',
-                    lineHeight: 1.1,
-                    marginTop: 2,
-                  }}
-                >
-                  {totalBound}
-                  <span style={{ fontSize: 14, fontWeight: 500, color: '#5B7A99', marginLeft: 4 }}>
-                    台
-                  </span>
-                </div>
-              </div>
-
-              {/* 下方：3 个并列分类小项 */}
+              {/* [PRD-HOME-SAFETY-STATS-INLINE-V1 2026-06-02] 四项平铺一行：总数 + 三类，数字在上、名称在下，浅灰竖线分隔，窄屏强制不换行 */}
               <div
                 style={{
                   display: 'flex',
-                  marginTop: 14,
-                  paddingTop: 14,
-                  borderTop: '1px solid rgba(31,143,230,0.12)',
+                  flexWrap: 'nowrap',
+                  alignItems: 'stretch',
                 }}
               >
                 {[
+                  { label: '已绑定总数', value: totalBound, color: '#1F8FE6' },
                   { label: '紧急呼叫器', value: typeCounts.emergency, color: '#E53935' },
                   { label: '烟雾报警器', value: typeCounts.smoke, color: '#FB8C00' },
                   { label: '水浸报警器', value: typeCounts.water, color: '#FBC02D' },
@@ -489,12 +470,35 @@ function HomeSafetyPageInner() {
                     key={s.label}
                     style={{
                       flex: 1,
+                      minWidth: 0,
                       textAlign: 'center',
-                      borderLeft: i === 0 ? 'none' : '1px solid rgba(31,143,230,0.12)',
+                      borderLeft: i === 0 ? 'none' : '1px solid rgba(31,143,230,0.18)',
+                      padding: '0 2px',
                     }}
                   >
-                    <div style={{ fontSize: 22, fontWeight: 600, color: s.color }}>{s.value}</div>
-                    <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>{s.label}</div>
+                    <div
+                      style={{
+                        fontSize: 26,
+                        fontWeight: 700,
+                        color: s.color,
+                        lineHeight: 1.15,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {s.value}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: '#666',
+                        marginTop: 4,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {s.label}
+                    </div>
                   </div>
                 ))}
               </div>
