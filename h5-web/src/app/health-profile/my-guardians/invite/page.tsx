@@ -1,7 +1,8 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Dialog } from 'antd-mobile';
 import { showToast } from '@/lib/toast-unified';
 import { QRCodeCanvas } from 'qrcode.react';
 import api from '@/lib/api';
@@ -13,18 +14,27 @@ interface InviteData {
   expires_at: string;
   max_uses?: number;
   used_count?: number;
+  // [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02]
+  guardian_name?: string | null;
+  relation_type?: string | null;
 }
 
 const RELATION_OPTIONS = RELATION_DEFS.map((d) => d.name);
 
 function InvitePageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 查看已有邀请的二维码：通过 ?code=xxx 进入
+  const viewCode = searchParams?.get('code') || '';
+
   const [loading, setLoading] = useState(false);
   const [invite, setInvite] = useState<InviteData | null>(null);
   const [error, setError] = useState('');
 
   const [selectedRelation, setSelectedRelation] = useState<string>('');
   const [customRelation, setCustomRelation] = useState('');
+  // [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 名字必填
+  const [guardianName, setGuardianName] = useState('');
   const customRelationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [profileChecked, setProfileChecked] = useState(false);
@@ -33,14 +43,57 @@ function InvitePageInner() {
   const [profileId, setProfileId] = useState<number | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
 
+  // [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 查看已有邀请模式
+  const [viewMode, setViewMode] = useState<boolean>(!!viewCode);
+
   const THEME = {
     gradientStart: '#4CAF50',
     gradientEnd: '#66BB6A',
   };
 
   useEffect(() => {
-    checkProfile();
-  }, []);
+    if (viewCode) {
+      // 查看模式：直接拉取邀请详情，不走 profile 检查
+      loadExistingInvite(viewCode);
+    } else {
+      checkProfile();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewCode]);
+
+  // [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 加载已有邀请的二维码
+  const loadExistingInvite = async (code: string) => {
+    setLoading(true);
+    setError('');
+    try {
+      const res: any = await api.get(`/api/reverse-guardian/invite/${encodeURIComponent(code)}`);
+      const data = res.data || res;
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const qrUrl = `${origin}${basePath}/family-auth?code=${data.invite_code}&type=reverse`;
+      setInvite({
+        invite_code: data.invite_code,
+        qr_url: qrUrl,
+        expires_at: data.expires_at,
+        guardian_name: data.guardian_name,
+        relation_type: data.relation_type,
+      });
+      if (data.relation_type) {
+        setSelectedRelation(RELATION_OPTIONS.includes(data.relation_type) ? data.relation_type : '其他');
+        if (!RELATION_OPTIONS.includes(data.relation_type)) setCustomRelation(data.relation_type);
+      }
+      if (data.guardian_name) setGuardianName(data.guardian_name);
+      setProfileChecked(true);
+      setViewMode(true);
+    } catch (e: any) {
+      const detail = e?.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : '邀请已失效或不存在';
+      setError(msg);
+      showToast(msg, 'fail');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const checkProfile = async () => {
     try {
@@ -85,11 +138,17 @@ function InvitePageInner() {
     setProfileChecked(true);
   };
 
-  const createInvite = useCallback(async (relationOverride?: string) => {
+  const createInvite = useCallback(async (relationOverride?: string, nameOverride?: string) => {
+    // [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 名字必填校验（去首尾空格后非空）
+    const finalName = (nameOverride !== undefined ? nameOverride : guardianName).trim();
+    if (!finalName) {
+      showToast('请先填写名字', 'fail');
+      return;
+    }
     setLoading(true);
     setError('');
     try {
-      const body: any = {};
+      const body: any = { guardian_name: finalName };
       const rel = relationOverride !== undefined ? relationOverride : (selectedRelation === '其他' ? customRelation : selectedRelation);
       if (rel) body.relation_type = rel;
       const res: any = await api.post('/api/reverse-guardian/invite', body);
@@ -99,9 +158,15 @@ function InvitePageInner() {
       // [PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 解析结构化错误码
       const detail = e?.response?.data?.detail;
       let msg = '生成邀请失败';
+      let isLimit = false;
+      let curX: number | undefined;
+      let curY: number | undefined;
       if (detail && typeof detail === 'object') {
-        if (detail.code === 'GUARDIAN_LIMIT_REACHED') {
-          msg = detail.message || `守护者已达上限（${detail.x}/${detail.y}），请先升级会员或解绑现有守护者`;
+        if (detail.code === 'GUARDIAN_LIMIT_REACHED' || detail.code === 'WARD_LIMIT_REACHED') {
+          isLimit = true;
+          curX = detail.x;
+          curY = detail.y;
+          msg = detail.message || `守护者已达上限（${detail.x}/${detail.y}），请升级会员`;
         } else if (detail.message) {
           msg = String(detail.message);
         }
@@ -111,33 +176,51 @@ function InvitePageInner() {
         msg = String(e.message);
       }
       setError(msg);
-      showToast(msg, 'fail');
+      if (isLimit) {
+        // [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 被守护上限：弹升级提示框
+        const confirmed = await Dialog.confirm({
+          title: '已达被守护上限',
+          content: `当前已有 ${curX ?? '-'} 位守护者（含邀请中），上限 ${curY ?? '-'} 位。升级会员可提升上限。`,
+          cancelText: '稍后再说',
+          confirmText: '去升级',
+        });
+        if (confirmed) {
+          router.push('/membership');
+        }
+      } else {
+        showToast(msg, 'fail');
+      }
     } finally {
       setLoading(false);
     }
-  }, [selectedRelation, customRelation]);
+  }, [selectedRelation, customRelation, guardianName, router]);
 
   const handleRelationSelect = (rel: string) => {
     setSelectedRelation(rel);
     if (rel !== '其他') {
       setCustomRelation('');
-      createInvite(rel);
-    } else {
-      setInvite(null);
     }
+    // [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 名字必填后才能触发生成，故此处不自动生成
+    setInvite(null);
   };
 
   const handleCustomRelationChange = (val: string) => {
     const trimmed = val.slice(0, 8);
     setCustomRelation(trimmed);
     if (customRelationTimer.current) clearTimeout(customRelationTimer.current);
-    if (trimmed.length > 0) {
-      customRelationTimer.current = setTimeout(() => {
-        createInvite(trimmed);
-      }, 500);
-    } else {
-      setInvite(null);
-    }
+    setInvite(null);
+  };
+
+  // [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 名字输入变化时清掉旧二维码
+  const handleGuardianNameChange = (val: string) => {
+    setGuardianName(val);
+    setInvite(null);
+  };
+
+  // [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 保存（生成二维码）
+  const handleSaveAndGenerate = () => {
+    const rel = selectedRelation === '其他' ? customRelation : selectedRelation;
+    createInvite(rel || undefined);
   };
 
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -180,7 +263,11 @@ function InvitePageInner() {
     showToast('请点击右上角"..."分享给微信好友');
   };
 
-  const canShowQr = selectedRelation && (selectedRelation !== '其他' || customRelation.length > 0);
+  // [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 关系 + 名字均填写后才允许生成
+  const relationFilled = selectedRelation && (selectedRelation !== '其他' || customRelation.length > 0);
+  const nameFilled = guardianName.trim().length > 0;
+  const canShowQr = !!invite;
+  const canGenerate = !!relationFilled && nameFilled && !viewMode;
 
   return (
     <div style={{ background: '#F0F5FF', minHeight: '100vh', paddingBottom: 40 }}>
@@ -245,12 +332,56 @@ function InvitePageInner() {
                   onChange={(e) => handleCustomRelationChange(e.target.value)}
                   placeholder="请输入关系名称（1~8字）"
                   maxLength={8}
+                  disabled={viewMode}
                   style={{
                     width: '100%', padding: '10px 14px', borderRadius: 10,
                     border: `1.5px solid ${THEME.gradientStart}`, outline: 'none',
                     fontSize: 14, color: '#333', boxSizing: 'border-box',
+                    background: viewMode ? '#F3F4F6' : '#fff',
                   }}
                 />
+              </div>
+            )}
+
+            {/* [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 名字必填 */}
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#333', marginBottom: 8 }}>
+                名字 <span style={{ color: '#DC2626' }}>*</span>
+              </div>
+              <input
+                type="text"
+                data-testid="guardian-name-input"
+                value={guardianName}
+                onChange={(e) => handleGuardianNameChange(e.target.value)}
+                placeholder="请输入对方的名字（必填）"
+                maxLength={50}
+                disabled={viewMode}
+                style={{
+                  width: '100%', padding: '10px 14px', borderRadius: 10,
+                  border: '1.5px solid #E5E7EB', outline: 'none',
+                  fontSize: 14, color: '#333', boxSizing: 'border-box',
+                  background: viewMode ? '#F3F4F6' : '#fff',
+                }}
+              />
+            </div>
+
+            {/* [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 保存按钮（生成二维码前必须填名字+关系） */}
+            {!viewMode && (
+              <div style={{ marginTop: 14 }}>
+                <button
+                  data-testid="guardian-invite-save"
+                  onClick={handleSaveAndGenerate}
+                  disabled={!canGenerate || loading}
+                  style={{
+                    width: '100%', padding: '12px 0', borderRadius: 22,
+                    background: canGenerate && !loading
+                      ? `linear-gradient(135deg, ${THEME.gradientStart}, ${THEME.gradientEnd})`
+                      : '#E5E7EB',
+                    color: canGenerate && !loading ? '#fff' : '#9CA3AF',
+                    border: 'none', fontSize: 15, fontWeight: 600,
+                    cursor: canGenerate && !loading ? 'pointer' : 'not-allowed',
+                  }}
+                >{loading ? '生成中...' : '保存'}</button>
               </div>
             )}
           </div>
@@ -374,7 +505,7 @@ function InvitePageInner() {
             textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
             color: '#9CA3AF', fontSize: 14,
           }}>
-            请先选择关系类型，选择后将生成邀请二维码
+            请先选择关系并填写名字，然后点击「保存」生成邀请二维码
           </div>
         ) : null}
       </div>

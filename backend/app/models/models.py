@@ -2396,6 +2396,10 @@ class HealthCheckInItem(Base):
     custom_days = mapped_column(JSON, nullable=True)
     status = mapped_column(String(20), default="active")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
+    # [PRD-HEALTH-PLAN-CHECKIN-V1 2026-06-02] 计划起止时间 + 每周X次目标
+    start_date = mapped_column(Date, nullable=True)
+    end_date = mapped_column(Date, nullable=True)
+    weekly_target_count = mapped_column(Integer, nullable=True)
 
     user = relationship("User")
     records = relationship("HealthCheckInRecord", back_populates="item")
@@ -4749,6 +4753,8 @@ class ReverseGuardianInvitation(Base):
     used_count = mapped_column(Integer, default=0)
     expires_at = mapped_column(DateTime, nullable=False)
     relation_type = mapped_column(String(50), nullable=True)
+    # [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 发邀请时填写的「名字」（必填，去首尾空格后非空）
+    guardian_name = mapped_column(String(50), nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
     invitee = relationship("User", foreign_keys=[invitee_user_id])

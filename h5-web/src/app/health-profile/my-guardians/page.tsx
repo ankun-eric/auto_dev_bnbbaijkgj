@@ -7,6 +7,7 @@ import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { BH_TOKENS } from '@/lib/health-tokens';
+import { UNBIND_GUARDIAN_CONFIRM } from '@/lib/family-relation';
 
 // [PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 守护我的人 详情：合并 active + pending 两类
 interface Guardian {
@@ -22,6 +23,8 @@ interface Guardian {
   last_viewed_at?: string | null;
   invite_expires_at?: string | null;
   invite_status?: string | null;
+  // [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 邀请时填写的名字
+  guardian_name?: string | null;
 }
 
 const T = {
@@ -55,9 +58,12 @@ function MyGuardiansPageInner() {
 
   const handleRemove = async (g: Guardian) => {
     if (!g.management_id) return;
+    // [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 使用统一二次确认文案
     const confirmed = await Dialog.confirm({
-      title: '解除守护',
-      content: '解除后，对方将无法查看您的健康数据。确定要解除吗？',
+      title: UNBIND_GUARDIAN_CONFIRM.title,
+      content: UNBIND_GUARDIAN_CONFIRM.content,
+      cancelText: UNBIND_GUARDIAN_CONFIRM.cancelText,
+      confirmText: UNBIND_GUARDIAN_CONFIRM.confirmText,
     });
     if (!confirmed) return;
     try {
@@ -184,15 +190,30 @@ function MyGuardiansPageInner() {
                       </div>
                     </div>
                     {isPending ? (
-                      <button
-                        data-testid={`cancel-invite-${g.invitation_id}`}
-                        onClick={() => handleCancelInvite(g)}
-                        style={{
-                          padding: '6px 14px', borderRadius: 16,
-                          background: '#FFF7E6', color: '#D97706',
-                          border: '1px solid #F59E0B', fontSize: 12, fontWeight: 500, cursor: 'pointer',
-                        }}
-                      >取消邀请</button>
+                      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                        <button
+                          data-testid={`cancel-invite-${g.invitation_id}`}
+                          onClick={() => handleCancelInvite(g)}
+                          style={{
+                            padding: '6px 12px', borderRadius: 16,
+                            background: '#FFF7E6', color: '#D97706',
+                            border: '1px solid #F59E0B', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                          }}
+                        >取消邀请</button>
+                        {/* [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 重新打开二维码 */}
+                        <button
+                          data-testid={`view-invite-code-${g.invitation_id}`}
+                          onClick={() => router.push(`/health-profile/my-guardians/invite?code=${encodeURIComponent(g.invite_code || '')}`)}
+                          disabled={!g.invite_code}
+                          style={{
+                            padding: '6px 12px', borderRadius: 16,
+                            background: '#E0F2FE', color: '#0369A1',
+                            border: '1px solid #38BDF8', fontSize: 12, fontWeight: 500,
+                            cursor: g.invite_code ? 'pointer' : 'not-allowed',
+                            opacity: g.invite_code ? 1 : 0.5,
+                          }}
+                        >查看邀请码</button>
+                      </div>
                     ) : (
                       <button
                         onClick={() => handleRemove(g)}

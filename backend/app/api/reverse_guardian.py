@@ -215,11 +215,12 @@ async def list_my_guardians(
             item_type="pending",
             invitation_id=inv.id,
             invite_code=inv.invite_code,
-            nickname="待确认",
+            nickname=inv.guardian_name or "待确认",
             permission_scope=inv.relation_type or "待确认",
             invite_expires_at=inv.expires_at,
             invite_status="pending",
             guardian_since=inv.created_at,
+            guardian_name=inv.guardian_name,
         ))
         pending_count += 1
 
@@ -339,6 +340,7 @@ async def remove_guardian(
 @router.post("/invite", response_model=ReverseInviteCreateResponse)
 async def create_reverse_invite(
     relation_type: Optional[str] = Body(None, embed=True),
+    guardian_name: Optional[str] = Body(None, embed=True),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -346,7 +348,12 @@ async def create_reverse_invite(
 
     [PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 校验 X<Y（守护者总数<被管理上限），
     超额时返回 GUARDIAN_LIMIT_REACHED 错误码（HTTP 400）。
+
+    [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 新增「名字」参数（去首尾空格后非空即可，
+    与家庭成员邀请规则一致），存入 ReverseGuardianInvitation.guardian_name。
     """
+    # [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 名字归一化：去首尾空格
+    normalized_name = (guardian_name or "").strip() or None
     # 先把过期的 pending 清掉，再取消旧 pending（让出名额）
     pending_result = await db.execute(
         select(ReverseGuardianInvitation).where(
@@ -388,16 +395,19 @@ async def create_reverse_invite(
         used_count=0,
         expires_at=expires_at,
         relation_type=relation_type,
+        guardian_name=normalized_name,
     )
     db.add(invitation)
     await db.flush()
 
     qr_url = f"{BASE_URL}/family-invite?code={invite_code}&type=reverse"
-    logger.info("[reverse-guardian/invite] user=%s code=%s", current_user.id, invite_code)
+    logger.info("[reverse-guardian/invite] user=%s code=%s name=%s",
+                current_user.id, invite_code, normalized_name)
     return ReverseInviteCreateResponse(
         invite_code=invite_code,
         qr_url=qr_url,
         expires_at=expires_at,
+        guardian_name=normalized_name,
     )
 
 
@@ -464,6 +474,7 @@ async def get_reverse_invite_detail(
         invitee_avatar=invitee.avatar if invitee else None,
         inviter_real_name=inviter_real_name,
         relation_type=invitation.relation_type,
+        guardian_name=invitation.guardian_name,
         max_uses=invitation.max_uses,
         used_count=invitation.used_count,
         expires_at=invitation.expires_at,

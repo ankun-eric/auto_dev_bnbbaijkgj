@@ -1,51 +1,75 @@
+<!-- [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] active+pending 列表 -->
 <view class="page">
-  <!-- Loading -->
   <view class="loading-wrap" wx:if="{{loading}}">
     <view class="loading-spinner"></view>
     <text class="loading-text">加载中…</text>
   </view>
 
   <block wx:else>
-    <!-- 守护者列表 -->
     <view wx:if="{{guardians.length > 0}}" class="list">
-      <view class="guardian-item" wx:for="{{guardians}}" wx:key="id">
+      <view class="guardian-item {{item._isPending ? 'guardian-item-pending' : ''}}" wx:for="{{guardians}}" wx:key="invite_code">
         <view class="guardian-left">
           <view class="guardian-avatar">
             <image
-              wx:if="{{item.avatar}}"
+              wx:if="{{item.avatar && !item._isPending}}"
               class="guardian-avatar-img"
               src="{{item.avatar}}"
               mode="aspectFill"
             />
-            <view wx:else class="guardian-avatar-fallback">
-              <text class="guardian-avatar-text">{{item.nickname ? item.nickname[0] : '👤'}}</text>
+            <view wx:else class="guardian-avatar-fallback {{item._isPending ? 'guardian-avatar-pending' : ''}}">
+              <text class="guardian-avatar-text">{{item._isPending ? '邀' : (item.nickname ? item.nickname[0] : '👤')}}</text>
             </view>
           </view>
           <view class="guardian-info">
-            <text class="guardian-name">{{item.nickname || ('用户#' + item.user_id)}}</text>
-            <text class="guardian-time" wx:if="{{item.guardian_since}}">守护开始：{{item.guardian_since}}</text>
+            <view class="guardian-name-row">
+              <text class="guardian-name">{{item._isPending ? '邀请中' : (item.nickname || ('用户#' + item.user_id))}}</text>
+              <text wx:if="{{item._isPending}}" class="pending-tag">待确认</text>
+            </view>
+            <text class="guardian-time" wx:if="{{item.guardian_since}}">
+              {{item._isPending ? '邀请于：' : '守护开始：'}}{{item.guardian_since}}
+            </text>
             <view class="guardian-perms" wx:if="{{item.permission_scope}}">
               <text class="perm-tag">{{item.permission_scope}}</text>
             </view>
+            <view wx:if="{{item._isPending && item.guardian_name}}" class="guardian-perms">
+              <text class="perm-tag">名字：{{item.guardian_name}}</text>
+            </view>
           </view>
         </view>
-        <view
-          class="remove-btn"
-          data-id="{{item.management_id}}"
-          data-nickname="{{item.nickname}}"
-          bindtap="onRemoveGuardian"
-        >解除</view>
+        <!-- 操作按钮 -->
+        <block wx:if="{{item._isPending}}">
+          <view class="action-btn-group">
+            <view
+              class="cancel-btn"
+              data-id="{{item.invitation_id}}"
+              data-code="{{item.invite_code}}"
+              bindtap="onCancelInvite"
+            >取消邀请</view>
+            <!-- [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 查看邀请码（在取消邀请后面） -->
+            <view
+              class="view-code-btn"
+              data-code="{{item.invite_code}}"
+              bindtap="onViewInviteCode"
+            >查看邀请码</view>
+          </view>
+        </block>
+        <block wx:else>
+          <view
+            class="remove-btn"
+            data-id="{{item.management_id}}"
+            data-nickname="{{item.nickname}}"
+            bindtap="onRemoveGuardian"
+          >解除</view>
+        </block>
       </view>
     </view>
 
-    <!-- 空状态 -->
     <view wx:else class="empty-wrap">
       <text class="empty-icon">💚</text>
       <text class="empty-title">还没有人守护您</text>
       <text class="empty-desc">邀请家人或朋友守护您的健康档案，让关心您的人随时了解您的健康状况</text>
     </view>
 
-    <!-- 邀请按钮 -->
     <view class="invite-bar">
       <button class="invite-btn" bindtap="onInviteGuardian">邀请别人守护我</button>
     </view>

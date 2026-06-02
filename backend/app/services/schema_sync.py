@@ -3793,6 +3793,53 @@ async def _sync_home_safety_v2(conn: AsyncConnection) -> None:
                 pass
 
 
+async def _sync_reverse_guardian_invite_name_v1(conn: AsyncConnection) -> None:
+    """[PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 反向守护邀请新增「名字」字段 guardian_name。"""
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "reverse_guardian_invitations" not in tables:
+            return None
+        return {col["name"] for col in inspector.get_columns("reverse_guardian_invitations")}
+
+    columns = await conn.run_sync(_load)
+    if columns is None:
+        return
+    if "guardian_name" not in columns:
+        await conn.execute(text(
+            "ALTER TABLE reverse_guardian_invitations ADD COLUMN guardian_name VARCHAR(50) NULL"
+        ))
+
+
+async def _sync_health_checkin_items_v1(conn: AsyncConnection) -> None:
+    """[PRD-HEALTH-PLAN-CHECKIN-V1 2026-06-02] health_checkin_items 新增 start_date / end_date / weekly_target_count"""
+    def _load(sync_conn):
+        inspector = inspect(sync_conn)
+        tables = set(inspector.get_table_names())
+        if "health_checkin_items" not in tables:
+            return None
+        return {col["name"] for col in inspector.get_columns("health_checkin_items")}
+
+    cols = await conn.run_sync(_load)
+    if cols is None:
+        return
+    if "start_date" not in cols:
+        try:
+            await conn.execute(text("ALTER TABLE health_checkin_items ADD COLUMN start_date DATE NULL"))
+        except Exception as e:
+            print(f"[schema_sync] health_checkin_items.start_date add warn: {e}")
+    if "end_date" not in cols:
+        try:
+            await conn.execute(text("ALTER TABLE health_checkin_items ADD COLUMN end_date DATE NULL"))
+        except Exception as e:
+            print(f"[schema_sync] health_checkin_items.end_date add warn: {e}")
+    if "weekly_target_count" not in cols:
+        try:
+            await conn.execute(text("ALTER TABLE health_checkin_items ADD COLUMN weekly_target_count INT NULL"))
+        except Exception as e:
+            print(f"[schema_sync] health_checkin_items.weekly_target_count add warn: {e}")
+
+
 async def sync_register_schema(conn: AsyncConnection) -> None:
     def load_user_schema(sync_conn):
         inspector = inspect(sync_conn)
@@ -3880,6 +3927,9 @@ async def sync_register_schema(conn: AsyncConnection) -> None:
     await _sync_guardian_bugfix_v1(conn)
     # [PRD-MEMBER-FAMILY-MEMBER-V1.1 2026-05-30] max_managed 字段口径由「不含本人」改为「含本人」，一次性 +1 数据迁移
     await _sync_membership_v11_max_managed_include_self_migration(conn)
+    await _sync_reverse_guardian_invite_name_v1(conn)
+    # [PRD-HEALTH-PLAN-CHECKIN-V1 2026-06-02] health_checkin_items 新增 start_date / end_date / weekly_target_count
+    await _sync_health_checkin_items_v1(conn)
     await run_all_migrations(conn)
 
     columns, indexes, unique_constraints = await conn.run_sync(load_user_schema)

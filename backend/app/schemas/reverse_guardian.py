@@ -19,6 +19,8 @@ class GuardianItem(BaseModel):
     # pending 项专属
     invite_expires_at: Optional[datetime] = None
     invite_status: Optional[str] = None  # pending/active/expired
+    # [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 发邀请时填写的名字（pending 项回显，便于查看邀请码）
+    guardian_name: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -69,6 +71,8 @@ class ReverseInviteCreateResponse(BaseModel):
     invite_code: str
     qr_url: str
     expires_at: datetime
+    # [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 回显发邀请时填写的名字
+    guardian_name: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -81,6 +85,8 @@ class ReverseInviteDetailResponse(BaseModel):
     invitee_avatar: Optional[str] = None
     inviter_real_name: Optional[str] = None
     relation_type: Optional[str] = None
+    # [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 发邀请时填写的名字
+    guardian_name: Optional[str] = None
     max_uses: int
     used_count: int
     expires_at: datetime

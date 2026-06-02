@@ -129,6 +129,55 @@ page {
   border: 1rpx solid #FECACA;
 }
 
+/* [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] pending 卡片样式 */
+.guardian-item-pending {
+  border-left-color: #F59E0B;
+  background: #FFFBEB;
+}
+.guardian-avatar-pending {
+  background: linear-gradient(135deg, #F59E0B, #D97706);
+}
+.guardian-name-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.pending-tag {
+  font-size: 20rpx;
+  padding: 2rpx 12rpx;
+  border-radius: 12rpx;
+  background: #FEF3C7;
+  color: #D97706;
+  font-weight: 500;
+}
+.action-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+.cancel-btn {
+  padding: 10rpx 20rpx;
+  border-radius: 20rpx;
+  background: #FFF7E6;
+  color: #D97706;
+  border: 1rpx solid #F59E0B;
+  font-size: 22rpx;
+  font-weight: 500;
+  text-align: center;
+}
+.view-code-btn {
+  padding: 10rpx 20rpx;
+  border-radius: 20rpx;
+  background: #E0F2FE;
+  color: #0369A1;
+  border: 1rpx solid #38BDF8;
+  font-size: 22rpx;
+  font-weight: 500;
+  text-align: center;
+}
+
 /* Empty state */
 .empty-wrap {
   display: flex;

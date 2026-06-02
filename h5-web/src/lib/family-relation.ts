@@ -83,6 +83,17 @@ export const FAM_THEME = {
   divider: '#E2E8F0',
 };
 
+/**
+ * [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 解除守护 / 解除 二次确认统一文案
+ * 「家庭成员」卡片「解除守护」与「守护我的人」卡片「解除」共用同一套提醒风格文案。
+ */
+export const UNBIND_GUARDIAN_CONFIRM = {
+  title: '解除守护',
+  content: '解除后对方将无法查看您的健康数据，确定解除吗？',
+  cancelText: '取消',
+  confirmText: '确定',
+};
+
 /** 常见慢性病（10 个） */
 export const CHRONIC_DISEASE_OPTIONS = [
   '高血压', '糖尿病', '高血脂', '冠心病', '脑卒中',

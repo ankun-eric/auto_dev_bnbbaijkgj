@@ -86,9 +86,12 @@ Page({
   },
 
   onCancelManagement() {
+    // [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 二次确认文案统一
     wx.showModal({
       title: '解除守护',
-      content: '解除后将不再接收 TA 的健康提醒，确认解除吗？',
+      content: '解除后对方将无法查看您的健康数据，确定解除吗？',
+      cancelText: '取消',
+      confirmText: '确定',
       confirmColor: '#ef4444',
       success: async (r) => {
         if (!r.confirm) return;

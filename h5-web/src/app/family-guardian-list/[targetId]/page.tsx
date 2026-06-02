@@ -17,6 +17,7 @@ import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { BH_TOKENS } from '@/lib/health-tokens';
+import { UNBIND_GUARDIAN_CONFIRM } from '@/lib/family-relation';
 
 interface AiCallSetting {
   target_user_id: number;
@@ -112,9 +113,12 @@ export default function GuardianTargetDetailPage() {
       showToast('未找到守护关系', 'fail');
       return;
     }
+    // [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 使用统一二次确认文案
     const result = await Dialog.confirm({
-      title: '解除守护',
-      content: '解除后您将不再能管理 TA 的健康档案、用药计划与 AI 外呼提醒，确定吗？',
+      title: UNBIND_GUARDIAN_CONFIRM.title,
+      content: UNBIND_GUARDIAN_CONFIRM.content,
+      cancelText: UNBIND_GUARDIAN_CONFIRM.cancelText,
+      confirmText: UNBIND_GUARDIAN_CONFIRM.confirmText,
     });
     if (!result) return;
     try {
