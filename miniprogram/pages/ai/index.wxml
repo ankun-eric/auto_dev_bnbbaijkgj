@@ -46,7 +46,7 @@
   <view class="welcome welcome-strip">
     <view class="welcome-text">
       <view class="greeting" data-testid="ai-home-welcome-greeting">{{greetingText}} {{greetingIcon}}</view>
-      <view class="sub" data-testid="ai-home-welcome-text">我是小康，聊聊健康问题吧~</view>
+      <view class="sub" data-testid="ai-home-welcome-text">我是宾尼小康，聊聊健康问题吧~</view>
     </view>
     <view class="welcome-right-col">
       <view class="mode-capsule-wrap" data-testid="ai-home-mode-switcher">

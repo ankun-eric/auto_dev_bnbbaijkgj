@@ -462,8 +462,10 @@ class _AiHomeScreenState extends State<AiHomeScreen> with WidgetsBindingObserver
                                   color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 8),
+                            // [BUGFIX-AIHOME-STD-GREETING-ALIGN-V1 2026-06-02] 标准模式副标题统一为
+                            // 「我是宾尼小康，聊聊健康问题吧~」（与四端标准模式一字不差）。
                             const Text(
-                              '我是小康，聊聊健康问题吧~',
+                              '我是宾尼小康，聊聊健康问题吧~',
                               style: TextStyle(color: Colors.white, fontSize: 16),
                             ),
                           ],

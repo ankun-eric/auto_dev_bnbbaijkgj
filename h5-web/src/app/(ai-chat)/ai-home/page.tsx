@@ -645,6 +645,17 @@ function getGreeting(): string {
   return '晚上好';
 }
 
+// [BUGFIX-AIHOME-STD-GREETING-ALIGN-V1 2026-06-02] 标准模式欢迎区问候语统一为「关怀模式同款」：
+//   按当前时段在代码中写死「问候语 + 时段图标」，不带昵称，彻底不读后台 welcome 配置。
+//   时段 / 图标规则与关怀模式（care-ai-home/page.tsx 的 getGreeting）一字不差照搬：
+//     5:00~11:00 早上好 ☀️ ｜ 11:00~18:00 中午好 🌤️ ｜ 其它（含夜间）晚上好 🌙
+function getStandardGreeting(now: Date): { text: string; icon: string } {
+  const h = now.getHours();
+  if (h >= 5 && h < 11) return { text: '早上好', icon: '☀️' };
+  if (h >= 11 && h < 18) return { text: '中午好', icon: '🌤️' };
+  return { text: '晚上好', icon: '🌙' };
+}
+
 function formatTimestamp(iso: string): string {
   const d = parseServerTime(iso);
   if (!d) return '';
@@ -3848,7 +3859,14 @@ export default function AiHomePage() {
   const voiceInputVisible = (sw?.voice_input_visible ?? true) && (aiHomeConfig.input?.enable_voice ?? true);
   const floatingButtonVisible = (sw?.floating_button_visible ?? true) && (aiHomeConfig.floating_button?.enabled ?? true);
 
+  // [BUGFIX-AIHOME-STD-GREETING-ALIGN-V1 2026-06-02] 标准模式欢迎区大字问候语：
+  //   按当前时段在代码中即时算出「问候语 + 图标」（不带昵称、不读后台 welcome 配置），
+  //   与关怀模式 getGreeting 规则一字不差。渲染时计算，随时间段切换。
+  const stdGreeting = getStandardGreeting(new Date());
+
   // 主标题占位符替换（[Bug-419 H-5] 全部 ?. + 默认值兜底）
+  // [已弃用-标准模式欢迎区] renderMainTitle 原用于读后台 welcome.main_title 渲染大字问候语，
+  //   现标准模式欢迎区改用 stdGreeting 写死，不再调用本函数；保留以兼容其它潜在引用。
   const renderMainTitle = (): string => {
     const tpl = aiHomeConfig.welcome?.main_title || '早上好，{昵称}！';
     const nick = (aiHomeConfig.welcome?.show_nickname && user?.nickname) ? user.nickname : '';
@@ -4511,11 +4529,15 @@ export default function AiHomePage() {
                   }}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
+                    {/* [BUGFIX-AIHOME-STD-GREETING-ALIGN-V1 2026-06-02] 大字问候语：按时段写死「问候语 + 图标」，
+                        不带昵称、彻底不读后台 welcome 配置（原 renderMainTitle() 读 welcome.main_title 已弃用）；
+                        副标题固定「我是宾尼小康，聊聊健康问题吧~」（与关怀模式一字不差，原 pickedSubtitle 读后台已弃用）。
+                        时段/图标规则照搬关怀模式：5~11 早上好☀️ / 11~18 中午好🌤️ / 其它 晚上好🌙。 */}
                     <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 6 }} data-testid="ai-home-welcome-greeting">
-                      {renderMainTitle() || 'Hi~ 健康管理用小康'}
+                      {stdGreeting.text} {stdGreeting.icon}
                     </div>
                     <div style={{ fontSize: 16, opacity: 0.95 }} data-testid="ai-home-welcome-text">
-                      {pickedSubtitle || '我是您的AI健康助手'}
+                      我是宾尼小康，聊聊健康问题吧~
                     </div>
                   </div>
 
