@@ -325,36 +325,14 @@ Props) {
     }
   }, [notices, onChangeBadge]);
 
-  // [F2-3] 点击通知 → 标已读 + 跳对应详情
+  // [PRD-MSG-NOTICE-NO-JUMP-V1 2026-06-02] 需求变更：点击通知仅标记已读，全站统一不跳转
+  // 历史行为（已废弃）：根据 message_type / order_id 跳家人绑定列表 / 家人邀请页 / 订单详情
+  // 新行为：所有类型一刀切，红点消失即可，人停留在抽屉，不再做任何 router.push / onClose
   const handleNoticeClick = useCallback(
     async (item: SystemNotificationItem) => {
       await markNoticeRead(item);
-      const t = item.message_type;
-      const params = (item.click_action_params || {}) as Record<string, unknown>;
-      const memberId = params?.member_id;
-      const orderId = params?.order_id;
-      try {
-        if (t === 'family_invite_accepted' || t === 'family_auth_granted') {
-          onClose();
-          router.push('/family-bindlist');
-          return;
-        }
-        if (t === 'family_invite' || t === 'family_invite_rejected') {
-          onClose();
-          router.push(memberId ? `/family-invite?member_id=${memberId}` : '/family-bindlist');
-          return;
-        }
-        if (orderId) {
-          onClose();
-          router.push(`/unified-order/${orderId}`);
-          return;
-        }
-        // 其它类型：留在抽屉内（已读即可），不做跳转
-      } catch {
-        /* 跳转异常忽略 */
-      }
     },
-    [markNoticeRead, onClose, router],
+    [markNoticeRead],
   );
 
   const loadMoreNotices = useCallback(() => {

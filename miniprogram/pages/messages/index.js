@@ -90,25 +90,15 @@ Page({
     });
   },
 
+  // [PRD-MSG-NOTICE-NO-JUMP-V1 2026-06-02] 需求变更：点击通知仅标记已读，全站统一不跳转
+  // 历史行为（已废弃）：family_accept 跳家人绑定列表；navigate + params.url 跳指定页面。
+  // 新行为：所有类型一刀切，仅红点消失，人停留在列表，不再做任何 wx.navigateTo
   async onMsgTap(e) {
     const item = e.currentTarget.dataset.item;
     if (!item) return;
 
     if (!item.is_read) {
       this.markRead(item.id);
-    }
-
-    if (item.click_action === 'family_accept') {
-      wx.navigateTo({ url: '/pages/family-bindlist/index' });
-    } else if (item.click_action === 'family_reject') {
-      // show detail inline, already visible
-    } else if (item.click_action === 'navigate' && item.click_action_params) {
-      const params = typeof item.click_action_params === 'string'
-        ? JSON.parse(item.click_action_params)
-        : item.click_action_params;
-      if (params && params.url) {
-        wx.navigateTo({ url: params.url });
-      }
     }
   },
 

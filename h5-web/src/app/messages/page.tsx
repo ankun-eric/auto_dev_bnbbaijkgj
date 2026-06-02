@@ -93,6 +93,10 @@ export default function MessagesPage() {
     await fetchMessages(1, true);
   };
 
+  // [PRD-MSG-NOTICE-NO-JUMP-V1 2026-06-02] 需求变更：点击通知仅标记已读，全站统一不跳转
+  // 历史行为（已废弃）：family_invite_accepted / family_auth_granted 跳家人绑定列表；
+  //                     family_invite_rejected / family_auth_rejected 弹 toast 提示。
+  // 新行为：所有类型一刀切，仅红点消失，停留在列表，不再做任何 router.push 或 toast 提示
   const markRead = async (item: NotificationItem) => {
     if (!item.is_read) {
       try {
@@ -102,18 +106,6 @@ export default function MessagesPage() {
         );
         setUnreadCount((c) => Math.max(0, c - 1));
       } catch { /* ignore */ }
-    }
-
-    const msgType = item.message_type;
-
-    if (msgType === 'family_invite_accepted' || msgType === 'family_auth_granted') {
-      router.push('/family-bindlist');
-      return;
-    }
-
-    if (msgType === 'family_invite_rejected' || msgType === 'family_auth_rejected') {
-      showToast(item.content || '对方已拒绝邀请');
-      return;
     }
   };
 
