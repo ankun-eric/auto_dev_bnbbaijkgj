@@ -80,10 +80,15 @@ def test_picker_unselected_uses_neutral_bg():
     校验方式：itemBg 三元运算的 false 分支必须是浅灰，而非 m.is_self ? 渐变 : 浅灰。
     """
     src = _read(CONSULT_PICKER)
-    # 关键代码片段：const itemBg = isCurrent ? PRIMARY_GRADIENT : '#F8FAFC';
-    assert re.search(r"itemBg\s*=\s*isCurrent\s*\?\s*PRIMARY_GRADIENT\s*:\s*'#F8FAFC'", src), (
-        "itemBg 未按 选中=渐变 / 未选中=浅灰 的统一规则实现"
+    # 关键规则：选中 = PRIMARY_GRADIENT；未选中正常态 = '#F8FAFC'。
+    # 注：后续迭代为「对方已退出(isLeft)」新增了 '#F5F5F5' 浅灰分支，
+    # itemBg 变为三元嵌套（isLeft ? '#F5F5F5' : isCurrent ? PRIMARY_GRADIENT : '#F8FAFC'），
+    # 因此这里不再强匹配单一三元写法，只校验「选中=渐变」与「未选中=浅灰」两条核心规则同时成立。
+    assert "itemBg" in src, "未找到 itemBg 背景色计算"
+    assert re.search(r"isCurrent\s*\?\s*PRIMARY_GRADIENT", src), (
+        "选中态未使用 PRIMARY_GRADIENT 蓝色渐变"
     )
+    assert "'#F8FAFC'" in src, "未选中态浅灰底 '#F8FAFC' 未保留"
     # 旧实现 `m.is_self ? 'linear-gradient...' : '#F8FAFC'` 不应再出现
     assert "m.is_self ? 'linear-gradient" not in src, "本人卡片仍保留天生蓝底分支"
 
