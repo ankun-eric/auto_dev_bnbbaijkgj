@@ -472,13 +472,13 @@ function HomeSafetyPageInner() {
                       flex: 1,
                       minWidth: 0,
                       textAlign: 'center',
-                      borderLeft: i === 0 ? 'none' : '1px solid rgba(31,143,230,0.18)',
+                      borderLeft: i === 0 ? 'none' : '1px solid #E0E0E0',
                       padding: '0 2px',
                     }}
                   >
                     <div
                       style={{
-                        fontSize: 26,
+                        fontSize: 'clamp(18px, 6vw, 26px)',
                         fontWeight: 700,
                         color: s.color,
                         lineHeight: 1.15,
@@ -489,7 +489,7 @@ function HomeSafetyPageInner() {
                     </div>
                     <div
                       style={{
-                        fontSize: 12,
+                        fontSize: 'clamp(10px, 3vw, 12px)',
                         color: '#666',
                         marginTop: 4,
                         whiteSpace: 'nowrap',
