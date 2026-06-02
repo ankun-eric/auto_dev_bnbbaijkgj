@@ -5,7 +5,32 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-02 · 新功能 / 统一消息中心·铃铛单入口合并「今日待办 + 系统通知」· 仅 H5 一端，后端接口保留复用，小程序/移动端 0 改动，0 客户端打包）
+## 最近一次变更（2026-06-02 · Bug 修复 / 家庭成员重复绑定·同管理者名下唯一性校验· 仅后端，H5/小程序/App 0 改动，0 客户端打包）
+
+**任务标识**：`[BUGFIX-FAMILY-DUPLICATE-BIND-V1 2026-06-02]`
+
+**Bug 现象**：管理者新建 A、B 两个家庭成员档案并各发邀请二维码后，同一客户 S1 扫码绑定 A 成功后，还能再扫 B 的二维码重复绑定成功，导致同一个人在同一管理者名下出现两条 `FamilyManagement` 记录。
+
+**根因**：`backend/app/api/family_management.py` 的 `accept_invitation` 在绑定前只校验「被管理人数上限」（原 411~419 行），缺少「同一管理者名下不能重复绑同一个人」的唯一性校验。
+
+**修复口径**：同一管理者名下唯一（不做全局唯一）；"同一个人"= 用户 ID 相同或手机号相同任一命中；命中即拦截，文案「您已是该家庭的成员，无法重复绑定。」
+
+**改动（仅后端）**：
+- 新增 `backend/app/services/family_bind_dedup_service.py`：统一判重函数 `is_duplicate_bind(db, manager_user_id, managed_user_id, managed_phone)` —— 先按 `managed_user_id` 精确查 active 绑定，未命中再 `join User` 按手机号查；命中返回 True。常量 `DUPLICATE_BIND_DETAIL`。
+- 修改 `backend/app/api/family_management.py` `accept_invitation`：上限校验后（建 member 前）+ 真正 `db.add(FamilyManagement)` 前两处各加一道 `is_duplicate_bind` 拦截（防并发兜底），`current_user.phone` 作手机号入参。
+- 修改 `backend/app/api/reverse_guardian.py` 反向守护接受接口：原仅 `managed_user_id` 精确判重，改为复用 `is_duplicate_bind`（补手机号维度，查 invitee 手机号），并在写库前再兜底一次，保留文案「您已是对方的守护者」。
+- `backend/app/api/family_guardian.py:204` 确认迁移入口已有 `managed_member_id` 维度幂等判重，与本 Bug 无关，未改。
+- 测试 `backend/tests/test_family_duplicate_bind_v1_20260602.py`（TC-01 同管理者重复绑被拦 400+文案 / TC-02 其他客户不误伤 / TC-03 其他管理者不误拦 / TC-04 解绑后可重绑 / TC-05 手机号相同不同用户 ID 命中判重，service 层单测）。
+
+**测试/验证**：本地 pytest 新增 5/5 通过；家庭守护相关回归 `test_guardian_bugfix_v1/v2 + test_reverse_guardian + test_family_member_state_machine_v1` 共 59/59 通过。服务器容器内核验代码（含新文件、3 处 `is_duplicate_bind`）。外部 HTTPS：`/api/health`=200、`/`=200、`/api/family/invitation/{code}/accept`=401（鉴权拦截，路由+新逻辑在线）、`/api/family/management`=401。零 Bug。
+
+**部署**：git push `origin/master`（commit `363434b0`）→ 服务器无法连 GitHub（443 超时），按 remote-deploy-and-test 降级方案经 paramiko SFTP 直传 3 个后端文件 → `docker compose -f docker-compose.prod.yml build backend`（依赖层缓存命中，仅重 COPY 源码）→ `up -d backend`（仅后端单服务重建）→ gateway-nginx 已在 `{DEPLOY_ID}-network` 内。
+
+**变更端清单**：仅后端（Docker 容器，已上线）。H5/小程序/安卓/苹果本次无任何代码改动、不打包（全端调同一后端接口，后端修好后全端立即生效）。
+
+**用户手册**：`user_docs/家庭成员重复绑定修复.md`
+
+## 历史变更（2026-06-02 · 新功能 / 统一消息中心·铃铛单入口合并「今日待办 + 系统通知」· 仅 H5 一端，后端接口保留复用，小程序/移动端 0 改动，0 客户端打包）
 
 **任务标识**：`[PRD-MSG-CENTER-UNIFY-V1 2026-06-02]`
 
