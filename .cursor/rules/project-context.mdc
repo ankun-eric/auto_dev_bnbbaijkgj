@@ -339,6 +339,29 @@ alwaysApply: false
 
 ---
 
+## 近期变更（2026-06-02 · 优化 / 会员中心权益对比「当前会员列」高亮（方案B紫金高级）· 仅 H5，0 客户端打包）
+
+**任务标识**：`[PRD-MEMBER-COMPARE-CURRENT-COL-V1 2026-06-02]`
+
+**需求**：会员中心「权益对比」表格中标识「当前」会员等级的小气泡原本用 `position:absolute; top:-10` 浮出表头顶部，被外层白色卡片边框遮挡导致「当前」文字显示不完整。改为方案 B「紫金高级」：金色「当前」角标内嵌进当前列列头格子（贴会员名称旁），不再浮出；当前列整列淡紫底高亮 + 列头顶部紫色横条；未开通付费会员（免费用户）时全表无角标无高亮。
+
+**实现（纯样式，H5 1 文件）**：
+- `h5-web/src/app/member-center/components/BenefitsCompareTable.tsx`：
+  - 新增视觉常量 `CURRENT_COL_TOP_BAR/#7C5CFF`、`CURRENT_COL_BG`、`CURRENT_COL_HEAD_BG`（淡紫高亮）、`GOLD_BADGE_BG/#FBF1D0`、`GOLD_BADGE_BORDER/#E0B43A`、`GOLD_BADGE_TEXT/#8A6A12`（金色角标）。
+  - 新增内嵌角标组件 `CurrentBadge`（inline-block，贴名称旁，小圆角，不溢出）。
+  - 付费当前列列头：`boxShadow: inset 0 3px 0 紫色`（顶部横条不占额外高度、不溢出卡片）+ 淡紫底 + 名称后跟金色 `CurrentBadge`；废弃原 `position:absolute top:-10` 浮出气泡。
+  - 当前列数据格背景改为淡紫 `CURRENT_COL_BG`。
+  - 免费列不再因 `level==='free'` 显示「当前」与高亮（免费=未开通付费会员），列头保持蓝底原样。
+  - 「当前」列判定逻辑不变：仅 `current.level==='paid' && current.plan_id===p.id` 命中。
+
+**验证**：新增后端契约测试 `backend/tests/test_member_compare_current_col_v1_20260602.py`（验证 `/api/member/center` 的 `current.level`/`current.plan_id` 数据契约支撑前端当前列判定）容器内 **6 passed**，连同 `test_member_purple_theme_v1_20260530.py` 共 **14 passed**；外部 HTTPS `/member-center` 跟随尾斜杠重定向后 200、`/api/member/center` 405（端点存在可达）。
+
+**变更端清单**：仅 H5 web（容器 `6b099ed3-...-h5` 已 `--no-cache` 重建上线）。小程序会员中心为 `web-view` 加载本 H5、App 端为 webview 加载本 H5，均自动生效，**0 客户端打包**。
+
+**用户手册**：`user_docs/会员中心权益对比当前列高亮优化.md`
+
+---
+
 ## 近期变更（2026-06-02 · 优化 / 居家安全设备统计区改为「四项平铺一行」· 仅 H5，0 客户端打包）
 
 **任务标识**：`[PRD-HOME-SAFETY-STATS-INLINE-V1 2026-06-02]`
