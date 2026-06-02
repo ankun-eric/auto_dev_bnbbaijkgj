@@ -1,0 +1,5 @@
+fix: 修复非本人成员看板用药提醒串档Bug
+
+- 后端 health_dashboard_service.py 三处用药过滤改为按 is_self 精确分支
+- 本人看板仅取 family_member_id IS NULL，成员看板仅取 ==member.id
+- 新增 test_med_dashboard_cross_profile_fix 专项测试覆盖三处口径

@@ -5,7 +5,23 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-02 · 新功能 / 健康档案「家庭成员」入口卡仅本人 Tab 显示 · 仅 H5 一端，后端/小程序/App 零改动）
+## 最近一次变更（2026-06-02 · Bug 修复 / 非本人成员健康卡看板「用药提醒」串档修复 · 仅后端一个文件，前端/小程序/App 零改动）
+
+**任务标识**：`[BUGFIX-MED-CROSS-PROFILE 2026-06-02]`
+
+**Bug 现象**：健康档案 → 切「非本人」Tab → 查看某成员健康卡看板，其「用药提醒」卡片混进了「本人（账号登录者）」的用药记录。
+
+**根因**：`backend/app/services/health_dashboard_service.py` 中组装用药数据的三处过滤使用了 `or_(family_member_id == member.id, family_member_id.is_(None))`，把归属本人（`family_member_id` 为空）的用药也一并捞入成员看板。
+
+**修复**：三处统一改为按 `member.is_self` 精确分支——本人看板（`is_self=True`）仅取 `family_member_id IS NULL`；成员看板（`is_self=False`）仅取 `family_member_id == member.id`。涉及函数：`_calculate_medication_score`（用药评分）、`get_today_events`（时间线用药事件）、`get_medication_summary`（用药汇总）。`FamilyMember.is_self` 字段早已存在，不改数据库、不改前端/小程序/App。
+
+**测试**：新增 `backend/tests/test_med_dashboard_cross_profile_fix_20260602.py`（6 用例，覆盖三处口径 + 本人/成员/成员间互不串门），服务器容器内 6/6 通过；看板原有 `test_health_dashboard.py` 13/13 回归通过。
+
+**部署**：commit `97cfd7db` push → 服务器 `git fetch + reset --hard origin/master` → `docker compose build --no-cache backend && up -d backend`（仅后端单服务）。外部 HTTPS 验证：`/api/health`=200、看板接口未授权=401、`/`=200。本次仅后端代码改动，不重新打包任何客户端。
+
+**用户手册**：`user_docs/用药提醒串档修复.md`
+
+## 历史变更（2026-06-02 · 新功能 / 健康档案「家庭成员」入口卡仅本人 Tab 显示 · 仅 H5 一端，后端/小程序/App 零改动）
 
 **任务标识**：`[PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-ENTRY-SELF-ONLY-V1 2026-06-02]`
 
