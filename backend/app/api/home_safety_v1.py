@@ -820,9 +820,16 @@ async def list_my_devices(
     rows = (await db.execute(q)).scalars().all()
 
     groups: Dict[int, List[Dict[str, Any]]] = {t: [] for t in ALL_DEVICE_TYPES}
+    # [PRD-HOME-SAFETY-DEVICE-STATS-V1 2026-06-02] 设备统计卡片：
+    # total_bound = 该成员名下所有类型已绑定设备总数（含门磁/燃气等未单列类型）；
+    # type_counts = 各类型设备数量映射，供前端统计卡片展示分类小项。
+    total_bound = 0
+    type_counts: Dict[int, int] = {t: 0 for t in ALL_DEVICE_TYPES}
     for b in rows:
         if bool(getattr(b, "migrated_to_self", False)):
             has_migrated_to_self_devices = True
+        total_bound += 1
+        type_counts[b.device_type] = type_counts.get(b.device_type, 0) + 1
         ephone = b.emergency_phone or ""
         groups.setdefault(b.device_type, []).append(
             {
@@ -863,6 +870,13 @@ async def list_my_devices(
         # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 当前过滤的成员 + 是否包含迁移设备（供前端提示条判断）
         "active_member_id": target_member_id,
         "has_migrated_to_self_devices": has_migrated_to_self_devices,
+        # [PRD-HOME-SAFETY-DEVICE-STATS-V1 2026-06-02] 设备统计卡片数据
+        "total_bound": total_bound,
+        "type_counts": {
+            "emergency": type_counts.get(DEVICE_TYPE_EMERGENCY, 0),
+            "smoke": type_counts.get(DEVICE_TYPE_SMOKE, 0),
+            "water": type_counts.get(DEVICE_TYPE_WATER, 0),
+        },
     }
 
 

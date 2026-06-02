@@ -94,6 +94,11 @@ function HomeSafetyPageInner() {
   const [primaryTab, setPrimaryTab] = useState<PrimaryTab>(initialPrimaryTab);
   const [bindings, setBindings] = useState<BindingItem[]>([]);
   const [hasMigrated, setHasMigrated] = useState(false);
+  // [PRD-HOME-SAFETY-DEVICE-STATS-V1 2026-06-02] 当前成员设备统计
+  const [totalBound, setTotalBound] = useState(0);
+  const [typeCounts, setTypeCounts] = useState<{ emergency: number; smoke: number; water: number }>(
+    { emergency: 0, smoke: 0, water: 0 },
+  );
   const [showBindModal, setShowBindModal] = useState(false);
   const [bindDeviceType, setBindDeviceType] = useState<number>(1);
   const [bindMemberId, setBindMemberId] = useState<number | null>(null);
@@ -124,6 +129,16 @@ function HomeSafetyPageInner() {
         (r as any)?.data?.has_migrated_to_self_devices ??
         false;
       setHasMigrated(Boolean(hasMig));
+      // [PRD-HOME-SAFETY-DEVICE-STATS-V1 2026-06-02] 统计数据
+      const root: any = (r as any)?.total_bound != null ? r : (r as any)?.data ?? r;
+      const tb = Number(root?.total_bound);
+      const tc = root?.type_counts ?? {};
+      setTotalBound(Number.isFinite(tb) ? tb : all.length);
+      setTypeCounts({
+        emergency: Number(tc?.emergency) || 0,
+        smoke: Number(tc?.smoke) || 0,
+        water: Number(tc?.water) || 0,
+      });
     } catch (e: any) {
       console.error('[HOME-SAFETY] loadDevices error:', e?.message);
     }
@@ -301,7 +316,7 @@ function HomeSafetyPageInner() {
   }));
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F4F6F8', paddingBottom: 80 }}>
+    <div style={{ minHeight: '100vh', background: '#F4F6F8', paddingBottom: 24 }}>
       {/* 顶部 Header */}
       <div
         style={{
@@ -426,6 +441,98 @@ function HomeSafetyPageInner() {
               </span>
             </div>
           ) : null}
+
+          {/* [PRD-HOME-SAFETY-DEVICE-STATS-V1 2026-06-02] 设备统计卡片 */}
+          <div style={{ padding: '16px 16px 0' }}>
+            <div
+              style={{
+                background: 'linear-gradient(135deg,#EAF4FF 0%,#E6FBF6 100%)',
+                borderRadius: 14,
+                padding: '18px 16px',
+                boxShadow: '0 1px 6px rgba(31,143,230,0.08)',
+              }}
+            >
+              {/* 上方：突出大数字「已绑定总数」 */}
+              <div style={{ textAlign: 'center', marginBottom: 4 }}>
+                <div style={{ fontSize: 12, color: '#5B7A99' }}>已绑定总数</div>
+                <div
+                  style={{
+                    fontSize: 40,
+                    fontWeight: 700,
+                    color: '#1F8FE6',
+                    lineHeight: 1.1,
+                    marginTop: 2,
+                  }}
+                >
+                  {totalBound}
+                  <span style={{ fontSize: 14, fontWeight: 500, color: '#5B7A99', marginLeft: 4 }}>
+                    台
+                  </span>
+                </div>
+              </div>
+
+              {/* 下方：3 个并列分类小项 */}
+              <div
+                style={{
+                  display: 'flex',
+                  marginTop: 14,
+                  paddingTop: 14,
+                  borderTop: '1px solid rgba(31,143,230,0.12)',
+                }}
+              >
+                {[
+                  { label: '紧急呼叫器', value: typeCounts.emergency, color: '#E53935' },
+                  { label: '烟雾报警器', value: typeCounts.smoke, color: '#FB8C00' },
+                  { label: '水浸报警器', value: typeCounts.water, color: '#FBC02D' },
+                ].map((s, i) => (
+                  <div
+                    key={s.label}
+                    style={{
+                      flex: 1,
+                      textAlign: 'center',
+                      borderLeft: i === 0 ? 'none' : '1px solid rgba(31,143,230,0.12)',
+                    }}
+                  >
+                    <div style={{ fontSize: 22, fontWeight: 600, color: s.color }}>{s.value}</div>
+                    <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* 空数据引导提示 */}
+              {totalBound === 0 ? (
+                <div
+                  style={{
+                    marginTop: 12,
+                    textAlign: 'center',
+                    fontSize: 13,
+                    color: '#999',
+                  }}
+                >
+                  暂无设备，快去添加吧
+                </div>
+              ) : null}
+            </div>
+
+            {/* [PRD-HOME-SAFETY-DEVICE-STATS-V1 2026-06-02] 添加设备按钮（移动到统计卡片下方） */}
+            <button
+              onClick={() => openBindModal(1)}
+              style={{
+                width: '100%',
+                marginTop: 16,
+                padding: 12,
+                background: 'linear-gradient(135deg,#1F8FE6,#2EC4B6)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 24,
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              + 添加设备
+            </button>
+          </div>
 
           {/* 设备分组列表 */}
           <div style={{ padding: '16px' }}>
@@ -678,35 +785,6 @@ function HomeSafetyPageInner() {
             ))}
           </div>
 
-          {/* 底部固定添加按钮（仅设备列表 Tab） */}
-          <div
-            style={{
-              position: 'fixed',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              padding: 16,
-              background: 'rgba(255,255,255,0.96)',
-              borderTop: '1px solid #EEE',
-            }}
-          >
-            <button
-              onClick={() => openBindModal(1)}
-              style={{
-                width: '100%',
-                padding: 12,
-                background: 'linear-gradient(135deg,#1F8FE6,#2EC4B6)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 24,
-                fontSize: 15,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              + 添加设备
-            </button>
-          </div>
         </>
       )}
 
