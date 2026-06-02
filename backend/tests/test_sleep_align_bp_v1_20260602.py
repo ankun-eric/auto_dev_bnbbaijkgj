@@ -26,6 +26,28 @@ from httpx import AsyncClient
 from sqlalchemy import text
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def _ensure_metric_table():
+    """health_metric_record 主键 BigInteger 在 SQLite 不自增，重建为自增 INTEGER。"""
+    from .conftest import test_engine
+
+    async with test_engine.begin() as conn:
+        await conn.execute(text("DROP TABLE IF EXISTS health_metric_record"))
+        await conn.execute(text(
+            "CREATE TABLE health_metric_record ("
+            " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            " profile_id INTEGER NOT NULL,"
+            " metric_type VARCHAR(32) NOT NULL,"
+            " value_json JSON NOT NULL,"
+            " source VARCHAR(32),"
+            " measured_at DATETIME NOT NULL,"
+            " created_at DATETIME,"
+            " created_by INTEGER"
+            ")"
+        ))
+    yield
+
+
 @pytest_asyncio.fixture
 async def user_auth(client: AsyncClient, auth_headers):
     from sqlalchemy import select
@@ -246,7 +268,8 @@ def test_h5_sleep_detail_six_blocks():
     # D4 趋势柱状图 + 日/周切换
     assert "function SleepTrendChart" in src
     assert "sleep-trend-bar-" in src  # 柱体（rect）数据点
-    assert "sleep-range-day" in src and "sleep-range-week" in src
+    # 日/周切换：testid 由 `sleep-range-${opt.key}` 模板生成（day/week）
+    assert "sleep-range-" in src and "sleep-range-segmented" in src
     # D5 AI 解读趋势
     assert "sleep-ai-trend" in src
     # D6 历史记录胶囊 + 操作面板
