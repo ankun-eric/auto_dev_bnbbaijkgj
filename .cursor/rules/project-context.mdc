@@ -5,7 +5,19 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-02 · 新功能 / 睡眠卡片 & 睡眠详情页对齐血压改造 · H5 + 微信小程序 + Flutter APP 四平台 + 后端档位/AI 支持）
+## 最近一次变更（2026-06-02 · 新功能 / 健康档案「家庭成员」入口卡仅本人 Tab 显示 · 仅 H5 一端，后端/小程序/App 零改动）
+
+**任务标识**：`[PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-ENTRY-SELF-ONLY-V1 2026-06-02]`
+
+**需求**：健康档案页左侧「家庭成员」入口卡只在【本人】Tab 显示；切到其他成员 Tab 时整张卡片隐藏不出现。该卡本质是"本人名下管理的家庭成员清单"，出现在别人 Tab 易误解。微信小程序（`wx:if` 已限本人）、Flutter App（`if (isSelf)`）本就符合，仅 H5 表现不一致需对齐。右侧「守护我的人 / 守护 TA 的人」卡片保留不变。
+
+**实现**：`h5-web/src/app/health-profile/page.tsx` 的 `renderDualCards()` 中，把左侧入口卡（`taTitle`：本人「家庭成员」）用 `{isSelfTab && (...)}` 条件渲染包裹，非本人 Tab 不再渲染该卡（此前非本人会改名「TA 守护的人」只读显示）；右侧守护卡 `flex:1` 自动占满整行，布局无空白错位。仅删改 15/18 行，无新增组件、无后端/接口改动。
+
+**部署**：commit `46b6d2f1` push 到 `origin/master` → 服务器 `git fetch + reset --hard origin/master` → `docker compose -f docker-compose.prod.yml build --no-cache h5-web && up -d h5-web`（仅 H5 单服务）→ gateway 仍在 `{DEPLOY_ID}-network`。外部 HTTPS 全部可达：`/`=200、`/health-profile`=200、`/api/health`=200、`/api/docs`=200。本次无客户端代码改动（小程序/安卓/iOS/Flutter 均未触碰），不重新打包。
+
+**用户手册**：`user_docs/健康档案家庭成员入口卡仅本人显示.md`
+
+## 历史变更（2026-06-02 · 新功能 / 睡眠卡片 & 睡眠详情页对齐血压改造 · H5 + 微信小程序 + Flutter APP 四平台 + 后端档位/AI 支持）
 
 **任务标识**：`[PRD-SLEEP-ALIGN-BP-V1 2026-06-02]`
 
