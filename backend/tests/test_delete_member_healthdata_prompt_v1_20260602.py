@@ -38,6 +38,7 @@ from app.models.models import (
     TCMDiagnosis,
     HealthReminder,
     ReportHistory,
+    ChatSession,
     User,
     UserRole,
 )
@@ -425,3 +426,92 @@ async def test_tc11_tcm_autoclean_with_other_blockers(client: AsyncClient):
     assert "1 条既往病史" in detail["message"]
     # 中医诊断不应再混进拦截提示
     assert "中医诊断记录" not in detail["message"]
+
+
+@pytest.mark.asyncio
+async def test_tc12_self_check_chat_session_soft_deleted_on_member_delete(client: AsyncClient):
+    """[BUGFIX-DELETE-MEMBER-SOFTDEL-CHATSESSION-V1 2026-06-02]
+    删除成员时，挂在该成员名下的「健康自查会话」(chat_sessions) 应被同步软删
+    （is_deleted 置 True）：
+    - 健康自查会话从不阻塞删除，成员可直接删成功（reason_code=OK）；
+    - 删除后该会话 is_deleted=True，且 deleted_tables 含 chat_session；
+    - 会话行本身仍在（软删、可审计），不被硬删。
+    """
+    from sqlalchemy import select as sql_select, func as sql_func
+
+    phone = f"199{uuid.uuid4().hex[:8]}"
+    uid = await _make_user(phone, "本人")
+    h = await _headers(client, phone)
+    mid = await _create_member(uid, "自查用户")
+
+    async with test_session() as s:
+        s.add(ChatSession(
+            user_id=uid, family_member_id=mid,
+            session_type="symptom_check", title="健康自查",
+            is_deleted=False,
+        ))
+        await s.commit()
+
+    res = await client.delete(f"/api/family/member/{mid}", headers=h)
+    assert res.status_code == 200, res.text
+    data = res.json()["data"]
+    assert data["reason_code"] == "OK"
+    assert "chat_session" in data["deleted_tables"]
+    assert OLD_FALLBACK_MSG not in res.text
+
+    async with test_session() as s:
+        # 会话行仍在（软删），但 is_deleted=True
+        rows = (await s.execute(
+            sql_select(ChatSession).where(ChatSession.family_member_id == mid)
+        )).scalars().all()
+        assert len(rows) == 1, "会话应被软删保留行，而非硬删"
+        assert rows[0].is_deleted is True
+        # 未软删（is_deleted=False）的会话数应为 0
+        cnt_active = await s.execute(
+            sql_select(sql_func.count(ChatSession.id)).where(
+                ChatSession.family_member_id == mid,
+                ChatSession.is_deleted == False,  # noqa: E712
+            )
+        )
+        assert int(cnt_active.scalar() or 0) == 0
+
+
+@pytest.mark.asyncio
+async def test_tc13_self_check_never_blocks_and_only_active_softdeleted(client: AsyncClient):
+    """健康自查会话从不阻塞删除；已是 is_deleted=True 的历史会话不被重复处理。
+
+    同时验证：即便成员名下有多条会话（含已删/未删），删除成员仍直接成功，
+    且不会落入旧通用兜底报错。
+    """
+    from sqlalchemy import select as sql_select
+
+    phone = f"199{uuid.uuid4().hex[:8]}"
+    uid = await _make_user(phone, "本人")
+    h = await _headers(client, phone)
+    mid = await _create_member(uid, "自查用户2")
+
+    async with test_session() as s:
+        # 1 条未删（应被软删）
+        s.add(ChatSession(
+            user_id=uid, family_member_id=mid,
+            session_type="symptom_check", title="自查A", is_deleted=False,
+        ))
+        # 1 条早已软删（应保持原样，不重复处理）
+        s.add(ChatSession(
+            user_id=uid, family_member_id=mid,
+            session_type="symptom_check", title="自查B", is_deleted=True,
+        ))
+        await s.commit()
+
+    res = await client.delete(f"/api/family/member/{mid}", headers=h)
+    assert res.status_code == 200, res.text
+    assert res.json()["data"]["reason_code"] == "OK"
+    assert OLD_FALLBACK_MSG not in res.text
+
+    async with test_session() as s:
+        rows = (await s.execute(
+            sql_select(ChatSession).where(ChatSession.family_member_id == mid)
+        )).scalars().all()
+        # 两条都在（都软删保留行），且全部 is_deleted=True
+        assert len(rows) == 2
+        assert all(r.is_deleted is True for r in rows)

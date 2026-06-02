@@ -1109,6 +1109,27 @@ async def delete_member_unified(
         if "family_management" not in deleted_tables:
             deleted_tables.append("family_management")
 
+    # e) [BUGFIX-DELETE-MEMBER-SOFTDEL-CHATSESSION-V1 2026-06-02] 同步软删该成员名下的
+    # 「健康自查会话」（chat_sessions）。这类会话只通过 family_member_id 软关联到成员，
+    # 既不阻塞删除、也不会撞外键（成员行是软删保留的），但删成员后理应一并隐身，
+    # 避免库里留下指向「已删除成员」的可见会话。ChatSession 自带 is_deleted 布尔位，
+    # 此处只打标记、不删行、不动表结构，零风险且可逆；其下的 chat_messages 随会话一并隐身。
+    try:
+        from app.models.models import ChatSession  # type: ignore
+        cs_res = await db.execute(
+            select(ChatSession).where(
+                ChatSession.user_id == current_user.id,
+                ChatSession.family_member_id == member_id,
+                ChatSession.is_deleted == False,  # noqa: E712
+            )
+        )
+        for cs in cs_res.scalars().all():
+            cs.is_deleted = True
+            if "chat_session" not in deleted_tables:
+                deleted_tables.append("chat_session")
+    except Exception:
+        pass
+
     await db.flush()
 
     # [BUGFIX-DELETE-RATELIMIT-V1 2026-06-01] 仅在真正删除成功后才记一次额度。
