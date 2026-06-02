@@ -1672,6 +1672,9 @@ class _ChatScreenState extends State<ChatScreen> {
     _isCancelZone = false;
     _amplitudes = List.filled(7, 0.15);
 
+    // [PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 事件2-④] 按下瞬间轻微震动反馈
+    try { HapticFeedback.lightImpact(); } catch (_) {}
+
     setState(() => _isRecording = true);
     _showRecordOverlay();
 
@@ -3066,15 +3069,21 @@ class _ChatScreenState extends State<ChatScreen> {
       onLongPressMoveUpdate: (details) => _onHoldUpdate(details.localPosition),
       onLongPressEnd: (_) => _onHoldEnd(cancelled: false),
       onLongPressCancel: () { if (_isRecording) _onHoldEnd(cancelled: true); },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        height: 44,
-        decoration: BoxDecoration(
-          color: _isRecording ? const Color(0xFF3DA512) : const Color(0xFF52C41A),
-          borderRadius: BorderRadius.circular(_ChatTokens.inputRadius),
+      // [PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 事件2-①] 按住时轻微下沉缩小
+      child: AnimatedScale(
+        scale: _isRecording ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          height: 44,
+          decoration: BoxDecoration(
+            color: _isRecording ? const Color(0xFF3DA512) : const Color(0xFF52C41A),
+            borderRadius: BorderRadius.circular(_ChatTokens.inputRadius),
+          ),
+          alignment: Alignment.center,
+          // [PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 事件2-③] 文字「按住说话」↔「松开发送」
+          child: Text(_isRecording ? '松开发送' : '按住说话', style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500)),
         ),
-        alignment: Alignment.center,
-        child: Text(_isRecording ? '松开结束' : '按住说话', style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500)),
       ),
     );
   }
@@ -3152,8 +3161,10 @@ class _VoiceRecordOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final remaining = 30 - elapsed;
+    // [PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 事件2-②] 录音浮层背景改为天蓝半透明，
+    // 与产品主色统一；声波与文字用白色，在天蓝底上清晰可见。
     return Material(
-      color: Colors.black.withOpacity(0.5),
+      color: const Color(0xFF0EA5E9).withOpacity(0.78),
       child: SizedBox.expand(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -3176,7 +3187,7 @@ class _VoiceRecordOverlay extends StatelessWidget {
                       duration: const Duration(milliseconds: 150),
                       width: 6, height: 80 * amplitudes[i],
                       margin: const EdgeInsets.symmetric(horizontal: 3),
-                      decoration: BoxDecoration(color: const Color(0xFF52C41A), borderRadius: BorderRadius.circular(3)),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(3)),
                     );
                   }),
                 ),

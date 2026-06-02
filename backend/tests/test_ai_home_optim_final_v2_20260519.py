@@ -120,25 +120,37 @@ def test_picker_selected_button_disabled():
 # ─────────────────── ai-home/page.tsx 输入区 ───────────────────
 
 
-def test_aihome_placeholder_uses_consultant_relation():
-    """TC-07：输入框 placeholder 模板：问答已结合【XX】的健康档案~。
+def test_aihome_input_hint_present_above_input():
+    """TC-07（PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 事件1，已更新）：
+    输入框上方独立灰色小字提示文案：问答已结合【XX】健康档案（无「的」字）。
 
     XX 取自已选中咨询人的「关系」字段；为空时降级为姓名；本人态 XX=「本人」。
+    提示由独立元素（data-testid=ai-home-input-hint）承载，而非 textarea 的 placeholder。
     """
     src = _read(H5_AI_HOME)
-    # placeholder 文案前缀（必须存在）
-    assert "问答已结合【" in src, "placeholder 文案前缀未找到"
-    assert "的健康档案~" in src, "placeholder 文案后缀未找到"
-    # 必须从 selectedConsultant 的 relation_type_name / relationship_type 取值
+    # 精简后文案：问答已结合【XX】健康档案（不含「的」）
+    assert "问答已结合【" in src, "提示文案前缀未找到"
+    assert "】健康档案" in src, "提示文案后缀（无「的」）未找到"
+    # 旧文案「的健康档案」不应再作为提示主体出现（去「的」要求）
+    assert "】的健康档案" not in src, "提示文案仍残留「的」字，未按事件1要求精简"
+    # 独立提示元素存在
+    assert "ai-home-input-hint" in src, "未找到输入框上方独立提示元素 data-testid"
+    # 仍从 selectedConsultant 的关系字段取值
     assert re.search(
         r"selectedConsultant\.relation_type_name\s*\|\|\s*selectedConsultant\.relationship_type",
         src,
-    ), "placeholder 未从 selectedConsultant 的关系字段取值"
-    # dynamicPlaceholder 变量出现且被赋给 placeholder
-    assert "dynamicPlaceholder" in src
-    assert re.search(r"placeholder=\{\s*dynamicPlaceholder\s*\}", src), (
-        "placeholder 未绑定 dynamicPlaceholder 动态变量"
-    )
+    ), "提示未从 selectedConsultant 的关系字段取值"
+
+
+def test_aihome_input_hint_font_smaller():
+    """TC-07b（事件1）：提示字号缩小（11px），保证常规名字下整行可完整显示。"""
+    src = _read(H5_AI_HOME)
+    idx = src.find("ai-home-input-hint")
+    assert idx > 0, "未找到提示元素"
+    window = src[max(0, idx - 200): idx + 600]
+    assert re.search(r"fontSize:\s*11\b", window), "提示字号未缩小为 11px"
+    # 防止被发送按钮挤断：单行 + 溢出省略
+    assert "nowrap" in window, "提示未设置 nowrap 单行显示"
 
 
 def test_aihome_mic_keyboard_icons_use_chat_svg_white():

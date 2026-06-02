@@ -2939,6 +2939,8 @@ export default function AiHomePage() {
 
   const startRecording = async () => {
     try {
+      // [PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 事件2-④] 按下瞬间轻微震动反馈
+      try { navigator.vibrate?.(15); } catch {}
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
@@ -6250,9 +6252,39 @@ export default function AiHomePage() {
       >
         {/* [PRD-426] 删除输入框上方"+ 选择咨询人"浮层（含其内嵌的 RecommendCards 推荐题），底部"为(XX)咨询 ⇄"作为唯一咨询人切换入口 */}
 
+        {/* [PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 事件1] 输入框上方独立灰色小字提示：
+            · 文案精简去掉「的」：`问答已结合【XX】健康档案`
+            · 字号缩小（11px）保证常规名字下整行可完整显示，不被发送按钮挤断
+            · 颜色保持小灰字；语音态/键盘态均显示，贴着输入框上方 */}
+        {(() => {
+          const consultantRelationOrName = (() => {
+            if (!selectedConsultant) return '本人';
+            const rel = (selectedConsultant.relation_type_name || selectedConsultant.relationship_type || '').trim();
+            if (rel) return rel;
+            const name = (selectedConsultant.nickname || '').trim();
+            return name || '本人';
+          })();
+          return (
+            <div
+              data-testid="ai-home-input-hint"
+              style={{
+                fontSize: 11,
+                lineHeight: '16px',
+                color: THEME.textSecondary,
+                marginBottom: 6,
+                paddingLeft: 4,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {`问答已结合【${consultantRelationOrName}】健康档案`}
+            </div>
+          );
+        })()}
+
         {(() => {
           // [PRD-AI-HOME-OPTIM-FINAL-V2 2026-05-19]
-          // ① placeholder 动态计算：`问答已结合【XX】的健康档案~`
           //    XX 取已选中咨询人的「关系」段；关系为空时降级为姓名；本人态 XX=「本人」。
           const consultantRelationOrName = (() => {
             if (!selectedConsultant) return '本人';
@@ -6261,7 +6293,10 @@ export default function AiHomePage() {
             const name = (selectedConsultant.nickname || '').trim();
             return name || '本人';
           })();
-          const dynamicPlaceholder = `问答已结合【${consultantRelationOrName}】的健康档案~`;
+          // [PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 事件1] textarea 内 placeholder 精简为通用短提示，
+          // 「问答已结合健康档案」改由输入框上方独立灰字提示承载，避免文案被发送按钮挤断。
+          const dynamicPlaceholder = `发消息或按住说话…`;
+          void consultantRelationOrName;
           // ② 与「选中咨询人卡片」同款渐变（= --gradient-primary 同源）
           const PRIMARY_GRADIENT = 'linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)';
           // ③ 麦克风/键盘 圆形按钮统一样式：40x40 + 渐变蓝底 + 白色图标（复用 ./chat 的 SVG 资源，描边改白色）
@@ -6316,6 +6351,11 @@ export default function AiHomePage() {
           );
 
           if (voiceMode && voiceSupported) {
+            // [PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 事件2] 按住说话按压效果：
+            // ① 按下变色 + 轻微下沉缩小  ② 天蓝半透明录音浮层 + 声波动画
+            // ③ 文字「按住说话」↔「松开发送」  ④ 按下震动（见 startRecording）  ⑤ 上滑取消
+            // 声波条数与高度由 volumeLevel（0~1）实时驱动，取消态文字白色提示「松开取消」。
+            const WAVE_BARS = 9;
             return (
               <div className="flex items-center gap-3">
                 <button
@@ -6332,14 +6372,20 @@ export default function AiHomePage() {
                   style={{
                     height: 40,
                     borderRadius: 16,
-                    background: recordCancelled && recording ? '#d32f2f' : '#0EA5E9',
+                    // ① 按下变色：录音中加深为天蓝主色，取消态变红
+                    background: recording
+                      ? (recordCancelled ? '#d32f2f' : '#0284C7')
+                      : '#0EA5E9',
                     color: '#fff',
                     fontSize: 14,
                     fontWeight: 500,
                     userSelect: 'none',
                     WebkitUserSelect: 'none',
                     touchAction: 'none',
-                    transition: 'background 0.15s',
+                    transition: 'background 0.15s, transform 0.12s',
+                    // ① 轻微下沉缩小：按住录音时缩小一点点
+                    transform: recording ? 'scale(0.97)' : 'scale(1)',
+                    boxShadow: recording ? 'inset 0 2px 6px rgba(0,0,0,0.18)' : 'none',
                   }}
                   onTouchStart={handleRecordTouchStart}
                   onTouchMove={handleRecordTouchMove}
@@ -6348,8 +6394,80 @@ export default function AiHomePage() {
                   onMouseUp={() => { if (recordCancelled) cancelRecording(); else stopRecording(); }}
                   data-testid="ai-home-press-to-talk"
                 >
-                  {recording ? (recordCancelled ? '松开取消' : '松开结束') : '按住说话'}
+                  {recording ? (recordCancelled ? '松开取消' : '松开发送') : '按住说话'}
                 </div>
+
+                {/* ② 录音浮层（天蓝半透明）+ 声波动画 */}
+                {recording && (
+                  <div
+                    data-testid="ai-home-record-overlay"
+                    style={{
+                      position: 'fixed',
+                      left: '50%',
+                      top: '28%',
+                      transform: 'translate(-50%, -50%)',
+                      zIndex: 2000,
+                      width: 200,
+                      minHeight: 140,
+                      borderRadius: 20,
+                      // 天蓝半透明：与产品主色统一，半透明能透出底部少量内容
+                      background: recordCancelled
+                        ? 'rgba(211,47,47,0.78)'
+                        : 'rgba(14,165,233,0.78)',
+                      backdropFilter: 'blur(4px)',
+                      WebkitBackdropFilter: 'blur(4px)',
+                      boxShadow: '0 8px 28px rgba(2,132,199,0.35)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '20px 16px',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    {/* 声波动画：白色波形，高度随音量实时变化 */}
+                    <div
+                      data-testid="ai-home-record-wave"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 4,
+                        height: 48,
+                        marginBottom: 16,
+                      }}
+                    >
+                      {Array.from({ length: WAVE_BARS }).map((_, i) => {
+                        // 中间高两侧低的钟形基线 + 音量驱动 + 轻微相位错落
+                        const center = (WAVE_BARS - 1) / 2;
+                        const shape = 1 - Math.abs(i - center) / (center + 1);
+                        const base = 8 + shape * 10;
+                        const dynamic = volumeLevel * (18 + shape * 22);
+                        const phase = ((Date.now() / 120 + i) % 6) / 6;
+                        const wobble = volumeLevel > 0.02 ? Math.sin(phase * Math.PI * 2) * 4 : 0;
+                        const h = Math.max(6, Math.min(46, base + dynamic + wobble));
+                        return (
+                          <div
+                            key={i}
+                            style={{
+                              width: 4,
+                              height: h,
+                              borderRadius: 2,
+                              background: '#ffffff',
+                              transition: 'height 0.08s linear',
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                    <div style={{ color: '#fff', fontSize: 14, fontWeight: 500 }}>
+                      {recordCancelled ? '松开手指 取消发送' : '正在录音…'}
+                    </div>
+                    <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 6 }}>
+                      {recordCancelled ? '' : '上滑可取消'}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           }

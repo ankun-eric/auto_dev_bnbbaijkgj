@@ -871,7 +871,9 @@
 }
 
 .hold-talk-active {
+  /* [PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 事件2-①] 按下变色 + 轻微下沉缩小 */
   background: #389e0d;
+  transform: scale(0.97);
 }
 
 .hold-talk-text {
@@ -894,12 +896,14 @@
 }
 
 .record-overlay-mask {
+  /* [PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 事件2-②] 录音浮层背景改为天蓝半透明，
+     与产品主色统一，半透明能透出底部少量内容；声波与文字用白色清晰可见 */
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(14, 165, 233, 0.78);
 }
 
 .record-overlay-content {
@@ -922,7 +926,8 @@
 
 .record-wave-bar {
   width: 10rpx;
-  background: #52c41a;
+  /* 天蓝底色上声波用白色 */
+  background: #ffffff;
   border-radius: 5rpx;
   animation: recordWave 1s ease-in-out infinite;
 }

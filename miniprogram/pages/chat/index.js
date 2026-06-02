@@ -2620,6 +2620,8 @@ Page({
   onRecordTouchStart(e) {
     this._touchStartY = e.touches[0].clientY;
     this._touchStartTime = Date.now();
+    // [PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 事件2-④] 按下瞬间轻微震动反馈
+    try { wx.vibrateShort({ type: 'light' }); } catch (e2) {}
     this.setData({
       isRecording: true,
       showRecordOverlay: true,
