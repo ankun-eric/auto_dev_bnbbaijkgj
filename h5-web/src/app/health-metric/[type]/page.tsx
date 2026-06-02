@@ -33,6 +33,7 @@ import api from '@/lib/api';
 import { formatDateTime, parseServerTime, formatFriendlyTime } from '@/lib/datetime';
 import { judgeBp, getBpPalette, type BpJudgement } from '@/lib/bp-level';
 import { judgeHeartRate, getHrPalette, HR_NORMAL_RANGE_TEXT, type HrJudgement } from '@/lib/heart-rate-level';
+import { judgeSpo2, getSpo2Palette, SPO2_NORMAL_RANGE_TEXT, type Spo2Judgement } from '@/lib/spo2-level';
 import {
   judgeBg, getBgPalette, normalizeScene, BG_SCENE_LABEL, BG_TARGET_RANGE,
   BG_SCENE_CODE, BG_SCENE_OPTIONS, formatBgSourceCapsule, sceneKeyToCode,
@@ -469,6 +470,19 @@ export default function HealthMetricDetailPage() {
   if (metricType === 'heart_rate') {
     return (
       <HeartRatePage
+        history={history}
+        latest={latest}
+        profileId={profileId}
+        meta={meta}
+        refresh={fetchHistory}
+      />
+    );
+  }
+
+  // [PRD-GLU-SPO2-DETAIL-ALIGN-BP-V1 2026-06-02 §需求2] 血氧 Tab 走专属精装布局（整套照搬血压详情页 6 区块）
+  if (metricType === 'spo2') {
+    return (
+      <Spo2Page
         history={history}
         latest={latest}
         profileId={profileId}
@@ -2608,6 +2622,20 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
         </div>
       </div>
 
+      {/* [PRD-GLU-SPO2-DETAIL-ALIGN-BP-V1 2026-06-02 §需求1] AI 解读本次血糖：从趋势图后移到顶部最新记录卡片正下方（对齐血压第 2 步） */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <button
+          data-testid="bg-ai-single"
+          onClick={() => requestAi('single')}
+          style={{
+            width: '100%', height: 44, borderRadius: 12,
+            background: 'linear-gradient(135deg, #38BDF8 0%, #0EA5E9 100%)', color: '#fff',
+            border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(14,165,233,0.24)',
+          }}
+        >🤖 AI 解读本次血糖</button>
+      </div>
+
       {/* [PRD-GLUCOSE-CARD-ALIGN-BP-V1 2026-05-31 §改动1] 主卡片下方并排大按钮：手工录入（实心蓝）｜ 绑定设备（描边白底），对齐血压详情页 */}
       <div data-testid="bg-action-row" style={{ padding: '12px 16px 0', display: 'flex', gap: 10 }}>
         <button
@@ -2695,23 +2723,13 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
         </div>
       </div>
 
-      {/* [PRD-GLUCOSE-CARD-ALIGN-BP-V1 2026-05-31 §改动4] AI 解读区（完整保留：本次 + 趋势），顺序对齐血压：趋势图之后 */}
+      {/* [PRD-GLU-SPO2-DETAIL-ALIGN-BP-V1 2026-06-02 §需求1] AI 解读趋势：保留在趋势图下方（对齐血压第 5 步）；「解读本次」已移到顶部主卡片下方 */}
       <div style={{ padding: '12px 16px 0' }}>
-        <button
-          data-testid="bg-ai-single"
-          onClick={() => requestAi('single')}
-          style={{
-            width: '100%', height: 44, borderRadius: 12,
-            background: 'linear-gradient(135deg, #38BDF8 0%, #0EA5E9 100%)', color: '#fff',
-            border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(14,165,233,0.24)',
-          }}
-        >🤖 AI 解读本次血糖</button>
         <button
           data-testid="bg-ai-trend"
           onClick={() => requestAi('trend')}
           style={{
-            width: '100%', height: 40, borderRadius: 10, marginTop: 10,
+            width: '100%', height: 40, borderRadius: 10,
             background: '#fff', color: '#0EA5E9',
             border: '1px solid #0EA5E9', fontSize: 14, fontWeight: 700, cursor: 'pointer',
           }}
@@ -3776,6 +3794,763 @@ function HeartRatePage(props: HeartRatePageProps) {
         )}
       </Popup>
     </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// [PRD-GLU-SPO2-DETAIL-ALIGN-BP-V1 2026-06-02 §需求2/3] 血氧（SpO₂）详情页
+//   整套照搬血压精装 6 区块（顺序与血压一致）：
+//   1) 顶部大卡片：超大数值 98% + 时间·来源 + 状态胶囊（按 ≥95/90~94/<90 三档变色）
+//   2) AI 解读本次血氧（一整条大按钮）
+//   3) 操作按钮：手工录入（实心蓝）+ 绑定设备（白底蓝边）并排
+//   4) 趋势图：最近 7 天趋势 + 日/周切换
+//   5) AI 解读趋势
+//   6) 历史记录：每条「...」→ 修改 / 删除（复用 MetricActionSheet + PUT 完整更新 + 二次确认删除）
+// ════════════════════════════════════════════════════════════════════════
+
+interface Spo2PageProps {
+  history: MetricHistoryResponse | null;
+  latest: MetricRecord | undefined;
+  profileId: number;
+  meta: (typeof META)['spo2'];
+  refresh: () => Promise<void>;
+}
+
+type Spo2TrendRange = 'day' | 'week';
+const SPO2_RANGE_OPTS: { key: Spo2TrendRange; label: string }[] = [
+  { key: 'day', label: '日' },
+  { key: 'week', label: '周' },
+];
+
+interface Spo2PointDetail {
+  measured_at: string;
+  value: number | null;
+  label: string;
+  source: string;
+  period?: string | null;
+}
+
+function spo2ValueOf(r: MetricRecord | undefined | null): number | null {
+  if (!r) return null;
+  const raw = r.value?.value != null ? Number(r.value.value) : null;
+  return raw != null && !Number.isNaN(raw) && raw > 0 ? raw : null;
+}
+
+function Spo2Page(props: Spo2PageProps) {
+  const { history, latest, meta, refresh } = props;
+  const router = useRouter();
+
+  // 录入弹窗
+  const [popupVisible, setPopupVisible] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const [inputPeriod, setInputPeriod] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // 历史「...」操作面板 + 编辑 + 删除
+  const [actionRecord, setActionRecord] = useState<MetricRecord | null>(null);
+  const [editRecord, setEditRecord] = useState<MetricRecord | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [editPeriod, setEditPeriod] = useState('');
+  const [deletingRecord, setDeletingRecord] = useState<MetricRecord | null>(null);
+
+  // 趋势图
+  const [range, setRange] = useState<Spo2TrendRange>('week');
+  const [pointPopup, setPointPopup] = useState<Spo2PointDetail | null>(null);
+
+  // AI 解读抽屉与缓存（复用血压/血糖/心率框架，调用通用指标 AI 接口）
+  const [aiDrawer, setAiDrawer] = useState<{ mode: 'single' | 'trend'; loading: boolean; text: string } | null>(null);
+  const aiCacheRef = (typeof window !== 'undefined') ? ((window as any).__spo2AiCache ||= new Map<string, { ts: number; text: string }>()) : new Map();
+
+  const spo2Value = spo2ValueOf(latest);
+  const judgement: Spo2Judgement | null = useMemo(() => judgeSpo2(spo2Value), [spo2Value]);
+  // 无数据态默认走「正常蓝」色板
+  const palette = getSpo2Palette(judgement?.color ?? 'blue');
+
+  const records: MetricRecord[] = history?.records || [];
+
+  const syncText = useMemo(() => {
+    if (!latest || spo2Value == null) return '尚无血氧记录 · 请录入或绑定设备';
+    return formatBpTimeSource(latest.measured_at, latest.source);
+  }, [latest, spo2Value]);
+
+  const handleSave = useCallback(async () => {
+    if (!props.profileId) {
+      showToast('profileId 缺失', 'fail');
+      return;
+    }
+    const v = Number(inputValue);
+    if (!inputValue || Number.isNaN(v)) {
+      showToast('请输入有效的血氧值', 'fail');
+      return;
+    }
+    if (v < 50 || v > 100) {
+      showToast('血氧应在 50–100 之间', 'fail');
+      return;
+    }
+    setSaving(true);
+    try {
+      const value: Record<string, any> = { value: v };
+      if (inputPeriod) value.period = inputPeriod;
+      await api.post(`/api/health-profile-v3/${props.profileId}/metric/spo2`, {
+        value, source: 'manual',
+      });
+      showToast('已保存', 'success');
+      setPopupVisible(false);
+      setInputValue('');
+      setInputPeriod('');
+      await refresh();
+    } catch {
+      showToast('保存失败，请重试', 'fail');
+    } finally {
+      setSaving(false);
+    }
+  }, [inputValue, inputPeriod, props.profileId, refresh]);
+
+  // [PRD-GLU-SPO2-DETAIL-ALIGN-BP-V1 §需求3] 修改保存为 PUT 完整更新原记录（不新增）
+  const handleEditSave = useCallback(async () => {
+    if (!editRecord || !props.profileId) return;
+    const v = Number(editValue);
+    if (!editValue || Number.isNaN(v) || v < 50 || v > 100) {
+      showToast('血氧应在 50–100 之间', 'fail');
+      return;
+    }
+    try {
+      await api.put(`/api/health-profile-v3/${props.profileId}/metric/spo2/${editRecord.id}`, {
+        value: { value: v, period: editPeriod || undefined },
+        measured_at: editRecord.measured_at,
+      });
+      showToast('已更新', 'success');
+      setEditRecord(null);
+      await refresh();
+    } catch {
+      showToast('更新失败', 'fail');
+    }
+  }, [editRecord, editValue, editPeriod, props.profileId, refresh]);
+
+  const handleDelete = useCallback(async (record: MetricRecord) => {
+    if (!props.profileId) return;
+    try {
+      await api.delete(`/api/health-profile-v3/${props.profileId}/metric/spo2/${record.id}`);
+      showToast('已删除', 'success');
+      setDeletingRecord(null);
+      await refresh();
+    } catch {
+      showToast('删除失败', 'fail');
+    }
+  }, [props.profileId, refresh]);
+
+  const handleBindDeviceClick = useCallback(() => {
+    showToast('即将上线', 'success');
+  }, []);
+
+  // [PRD-GLU-SPO2-DETAIL-ALIGN-BP-V1 §需求2] AI 解读 — 复用通用指标 AI 接口（spo2），规则文案降级
+  const requestAi = useCallback(async (mode: 'single' | 'trend') => {
+    if (mode === 'single' && !latest?.id) {
+      showToast('暂无血氧记录，请先录入一次再点击解读。', 'success');
+      return;
+    }
+    const cacheKey = mode === 'single' ? `single:${latest?.id ?? 0}` : `trend:${range}`;
+    const cached = aiCacheRef.get(cacheKey);
+    if (cached && Date.now() - cached.ts < 5 * 60 * 1000) {
+      setAiDrawer({ mode, loading: false, text: cached.text });
+      return;
+    }
+    setAiDrawer({ mode, loading: true, text: '' });
+    try {
+      let text = '';
+      if (mode === 'single') {
+        try {
+          const r: any = await api.post(
+            `/api/health-metric-v1/${props.profileId}/spo2/ai-explain-single`,
+            { record_id: Number(latest!.id) }
+          );
+          const d = r?.data?.data ?? r?.data ?? r;
+          text = d?.content || '';
+          if (!text) throw new Error('empty');
+        } catch {
+          const vStr = spo2Value != null ? spo2Value : '-';
+          const j = judgement;
+          if (!j) {
+            text = '暂无可解读的血氧数据。';
+          } else if (j.level === 'normal') {
+            text = `本次血氧 ${vStr}%，处于正常范围（≥ 95%）。提示血液携氧充足，建议保持规律作息与适量运动，继续按当前节奏监测。`;
+          } else if (j.level === 'low') {
+            text = `本次血氧 ${vStr}%，略偏低（90%~94%）。建议先静坐休息、深呼吸几分钟后复测；若持续偏低或伴有胸闷、气促，建议就医评估。`;
+          } else {
+            text = `本次血氧 ${vStr}%，明显偏低（低于 90%）。请尽快就医评估；如出现明显呼吸困难、口唇发紫，请立即就医或拨打急救电话。`;
+          }
+        }
+      } else {
+        try {
+          const r: any = await api.post(
+            `/api/health-metric-v1/${props.profileId}/spo2/ai-explain-trend`,
+            { range: '7d' }
+          );
+          const d = r?.data?.data ?? r?.data ?? r;
+          const lines: string[] = [];
+          if (d?.summary) lines.push(d.summary);
+          if (d?.trend) lines.push('', d.trend);
+          if (d?.advice) lines.push('', d.advice);
+          text = lines.join('\n');
+          if (!text.trim()) throw new Error('empty');
+        } catch {
+          text = '基于近期血氧数据，建议在安静状态下固定时段测量并记录；如静息血氧多次低于 95%，或伴有气促、乏力，请就医评估呼吸与心肺功能。';
+        }
+      }
+      aiCacheRef.set(cacheKey, { ts: Date.now(), text });
+      setAiDrawer({ mode, loading: false, text });
+    } catch {
+      setAiDrawer({ mode, loading: false, text: '解读失败，请稍后重试。' });
+    }
+  }, [latest, range, aiCacheRef, props.profileId, judgement, spo2Value]);
+
+  // 趋势数据：日视图按小时散点，周视图按距今天数；空状态判定
+  const trendPoints = useMemo(() => {
+    const pts: { x: number; y: number; raw: MetricRecord }[] = [];
+    const now = new Date();
+    const todayBj = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const cutoffDays = range === 'week' ? 7 : 1;
+    records.forEach(r => {
+      const v = spo2ValueOf(r);
+      if (v == null) return;
+      const d = parseServerTime(r.measured_at);
+      if (!d) return;
+      const dBj = new Date(d.getTime() + 8 * 60 * 60 * 1000);
+      const diffMs = todayBj.getTime() - dBj.getTime();
+      if (range === 'day') {
+        if (todayBj.getUTCFullYear() !== dBj.getUTCFullYear()
+          || todayBj.getUTCMonth() !== dBj.getUTCMonth()
+          || todayBj.getUTCDate() !== dBj.getUTCDate()) return;
+        pts.push({ x: dBj.getUTCHours() + dBj.getUTCMinutes() / 60, y: v, raw: r });
+      } else {
+        if (diffMs < 0 || diffMs > cutoffDays * 24 * 3600 * 1000) return;
+        pts.push({ x: cutoffDays - 1 - Math.floor(diffMs / (24 * 3600 * 1000)), y: v, raw: r });
+      }
+    });
+    return pts;
+  }, [records, range]);
+
+  const isEmptyForRange = trendPoints.length === 0;
+
+  return (
+    <div data-testid="spo2-tab-page" style={{ background: '#F4F7FB', minHeight: '100vh', paddingBottom: 24 }}>
+      <GreenNavBar>血氧详情</GreenNavBar>
+
+      {/* 区块1：顶部主卡片：超大数值 + 时间·来源 + 居中状态胶囊（底卡按档位变色） */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <div
+          data-testid="spo2-status-card"
+          data-spo2-color={judgement?.color ?? 'blue'}
+          data-spo2-level={judgement?.level ?? 'unknown'}
+          style={{
+            background: palette.cardBg,
+            border: `1px solid ${palette.border}`,
+            borderRadius: 18,
+            padding: '20px 18px 18px',
+            position: 'relative',
+          }}
+        >
+          <div style={{ textAlign: 'center', paddingTop: 4 }}>
+            <span
+              data-testid="spo2-main-value"
+              style={{ fontSize: 58, fontWeight: 800, color: palette.text, letterSpacing: 1, lineHeight: 1.0 }}
+            >
+              {spo2Value != null ? spo2Value : '—'}
+            </span>
+            <span style={{ fontSize: 18, fontWeight: 600, color: palette.text, marginLeft: 6, opacity: 0.7 }}>
+              %
+            </span>
+          </div>
+
+          <div style={{ marginTop: 14, textAlign: 'center' }}>
+            <span data-testid="spo2-sync-text" style={{ fontSize: 13, color: palette.text, opacity: 0.85 }}>
+              {syncText}
+            </span>
+          </div>
+
+          {judgement && (
+            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center' }}>
+              <span
+                data-testid="spo2-capsule"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '6px 16px', borderRadius: 999,
+                  background: palette.capsuleBg, color: palette.capsuleText,
+                  fontSize: 13, fontWeight: 700,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                }}
+              >
+                <span aria-hidden="true">{judgement.icon}</span>
+                <span>{judgement.label}</span>
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 区块2：AI 解读本次血氧 —— 顶部主卡片正下方（对齐血压第 2 步） */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <button
+          data-testid="spo2-ai-single"
+          onClick={() => requestAi('single')}
+          style={{
+            width: '100%', height: 44, borderRadius: 12,
+            background: 'linear-gradient(135deg, #38BDF8 0%, #0EA5E9 100%)', color: '#fff',
+            border: 'none', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(14,165,233,0.24)',
+          }}
+        >🤖 AI 解读本次血氧</button>
+      </div>
+
+      {/* 区块3：并排大按钮（手工录入实心 + 绑定设备描边） */}
+      <div data-testid="spo2-action-row" style={{ padding: '12px 16px 0', display: 'flex', gap: 10 }}>
+        <button
+          data-testid="spo2-action-manual"
+          onClick={() => setPopupVisible(true)}
+          style={{
+            flex: 1, height: 44, borderRadius: 12, border: 'none',
+            background: '#0EA5E9', color: '#fff',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            fontSize: 15, fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(14,165,233,0.24)',
+          }}
+        >
+          <PencilIcon size={16} color="#fff" />
+          <span>手工录入</span>
+        </button>
+        <button
+          data-testid="spo2-action-bind"
+          onClick={handleBindDeviceClick}
+          style={{
+            flex: 1, height: 44, borderRadius: 12,
+            background: '#fff', color: '#0EA5E9',
+            border: '1px solid #0EA5E9',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            fontSize: 15, fontWeight: 700, cursor: 'pointer',
+          }}
+        >
+          <span>📷 绑定设备</span>
+        </button>
+      </div>
+
+      {/* 区块4：趋势图：最近 7 天趋势 + 日/周切换 + 点击数据点弹窗 + 正常参考线（95/90） */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <div
+          data-testid="spo2-trend-card"
+          style={{ background: '#fff', borderRadius: 16, padding: '14px 14px 12px', boxShadow: '0 2px 10px rgba(14,165,233,0.06)' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E' }}>
+              {range === 'day' ? '今日趋势' : '最近 7 天趋势'}
+            </span>
+            <div data-testid="spo2-range-segmented" style={{ display: 'flex', gap: 4, background: '#F1F5F9', borderRadius: 12, padding: 2 }}>
+              {SPO2_RANGE_OPTS.map(opt => (
+                <button
+                  key={opt.key}
+                  data-testid={`spo2-range-${opt.key}`}
+                  data-active={range === opt.key ? 'true' : 'false'}
+                  onClick={() => setRange(opt.key)}
+                  style={{
+                    padding: '4px 14px', borderRadius: 10, border: 'none',
+                    background: range === opt.key ? '#0EA5E9' : 'transparent',
+                    color: range === opt.key ? '#fff' : '#64748B',
+                    fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  }}
+                >{opt.label}</button>
+              ))}
+            </div>
+          </div>
+
+          {isEmptyForRange ? (
+            <div data-testid="spo2-trend-empty" style={{ padding: '30px 8px', textAlign: 'center' }}>
+              <svg width="80" height="64" viewBox="0 0 80 64" style={{ display: 'block', margin: '0 auto 8px' }} aria-hidden="true">
+                <path d="M6 40 L18 40 L24 24 L32 52 L40 32 L48 44 L56 40 L74 40" stroke="#0EA5E9" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <div style={{ fontSize: 14, color: '#6B7280' }}>暂无数据，点击上方「手工录入」开始记录</div>
+            </div>
+          ) : (
+            <Spo2TrendChart points={trendPoints} range={range} onPointClick={setPointPopup} />
+          )}
+
+          {!isEmptyForRange && (
+            <div style={{ marginTop: 8, display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 14 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151' }}>
+                <span style={{ width: 18, height: 3, background: '#0EA5E9', display: 'inline-block', borderRadius: 2 }} />
+                血氧（参考线 90 / 95）
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 区块5：趋势图下方「AI 解读趋势」按钮（对齐血压第 5 步） */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <button
+          data-testid="spo2-ai-trend"
+          onClick={() => requestAi('trend')}
+          style={{
+            width: '100%', height: 40, borderRadius: 10,
+            background: '#fff', color: '#0EA5E9',
+            border: '1px solid #0EA5E9', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+          }}
+        >🤖 AI 解读趋势</button>
+      </div>
+
+      {/* 区块6：历史记录（最近 5 条 + 全部入口，带档位配色 + 每条「...」可改可删） */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <div style={{ background: '#fff', borderRadius: 16, padding: '14px 14px', boxShadow: '0 2px 10px rgba(14,165,233,0.06)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E' }}>历史记录</span>
+            <span
+              data-testid="spo2-history-all-entry"
+              onClick={() => router.push(`/health-metric/spo2/history?profileId=${props.profileId}`)}
+              style={{ fontSize: 13, color: '#0EA5E9', cursor: 'pointer', fontWeight: 600 }}
+            >全部 ›</span>
+          </div>
+          {records.length === 0 ? (
+            <div style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', padding: '24px 0' }}>
+              暂无记录，点击上方「手工录入」开始记录
+            </div>
+          ) : (
+            records.slice(0, 5).map((r) => {
+              const v = spo2ValueOf(r);
+              const j = judgeSpo2(v);
+              const rowPalette = getSpo2Palette(j?.color ?? 'blue');
+              const period = typeof r.value?.period === 'string' ? r.value.period : '';
+              return (
+                <div
+                  key={r.id}
+                  data-testid={`spo2-history-row-${r.id}`}
+                  style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '10px 0', borderBottom: '1px solid #E5E7EB',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#0C4A6E' }}>
+                      {v ?? '-'}
+                      <span style={{ fontSize: 12, color: '#6B7280', marginLeft: 4, fontWeight: 500 }}>%</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+                      {formatDateTime(r.measured_at)} · {formatBpSource(r.source)}
+                      {period ? ` · ${period}` : ''}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {j && (
+                      <span
+                        style={{
+                          fontSize: 11, fontWeight: 700,
+                          padding: '3px 10px', borderRadius: 999,
+                          background: rowPalette.capsuleBg, color: rowPalette.capsuleText,
+                        }}
+                      >
+                        {j.label}
+                      </span>
+                    )}
+                    {/* 「...」三点入口 → 底部操作面板（修改 / 删除） */}
+                    <button
+                      data-testid={`spo2-row-more-${r.id}`}
+                      onClick={(e) => { e.stopPropagation(); setActionRecord(r); }}
+                      style={{
+                        background: 'transparent', border: 'none', cursor: 'pointer',
+                        fontSize: 20, fontWeight: 700, color: '#94A3B8', lineHeight: 1, padding: '0 4px',
+                      }}
+                      aria-label="更多操作"
+                    >⋯</button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* 手工填写弹窗 */}
+      <Popup
+        visible={popupVisible}
+        onMaskClick={() => setPopupVisible(false)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20 }}
+      >
+        <div data-testid="spo2-input-popup">
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#0C4A6E', marginBottom: 16 }}>手工填写血氧</div>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 4 }}>血氧饱和度（%）</div>
+            <Input
+              data-testid="spo2-input-value"
+              type="number"
+              placeholder="如 97"
+              value={inputValue}
+              onChange={(v) => setInputValue(v)}
+              style={{ '--font-size': '16px', padding: '10px 12px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' } as any}
+            />
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>{SPO2_NORMAL_RANGE_TEXT}</div>
+          </div>
+          {meta.period && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>测量场景</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {meta.period.options.map((opt) => (
+                  <button
+                    key={opt}
+                    onClick={() => setInputPeriod(opt)}
+                    style={{
+                      padding: '6px 14px',
+                      background: inputPeriod === opt ? '#0ea5e9' : '#e0f2fe',
+                      color: inputPeriod === opt ? '#fff' : '#0369a1',
+                      border: 'none', borderRadius: 18, fontSize: 14, cursor: 'pointer',
+                    }}
+                  >{opt}</button>
+                ))}
+              </div>
+            </div>
+          )}
+          <Button
+            data-testid="spo2-input-save"
+            block color="primary" loading={saving} onClick={handleSave}
+            style={{ '--background-color': '#0ea5e9', '--border-radius': '22px', height: 44, fontSize: 16 } as any}
+          >保存</Button>
+        </div>
+      </Popup>
+
+      {/* 「...」底部操作面板（修改 / 删除）— 复用血压通用 MetricActionSheet */}
+      <MetricActionSheet
+        testid="spo2-action-sheet"
+        record={actionRecord}
+        onClose={() => setActionRecord(null)}
+        onEdit={(r) => {
+          setActionRecord(null);
+          setEditRecord(r);
+          setEditValue(spo2ValueOf(r) != null ? String(spo2ValueOf(r)) : '');
+          setEditPeriod(typeof r.value?.period === 'string' ? r.value.period : '');
+        }}
+        onDelete={(r) => { setActionRecord(null); setDeletingRecord(r); }}
+      />
+
+      {/* 编辑血氧记录（PUT 完整更新原记录） */}
+      <Popup
+        visible={!!editRecord}
+        onMaskClick={() => setEditRecord(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '85vh', overflowY: 'auto' }}
+      >
+        {editRecord && (
+          <div data-testid="spo2-edit-popup">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E' }}>编辑血氧记录</span>
+              <button onClick={() => setEditRecord(null)} style={{ background: 'transparent', border: 'none', fontSize: 18, color: '#9CA3AF', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>
+              {formatDateTime(editRecord.measured_at)}
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>血氧饱和度（%）</div>
+              <Input
+                data-testid="spo2-edit-value"
+                type="number"
+                value={editValue}
+                onChange={(v) => setEditValue(v)}
+                style={{ '--font-size': '16px', padding: '10px 12px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' } as any}
+              />
+            </div>
+            {meta.period && (
+              <>
+                <div style={{ fontSize: 13, color: '#0369a1', marginBottom: 6 }}>测量场景</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                  {meta.period.options.map((opt) => (
+                    <button
+                      key={opt}
+                      data-testid={`spo2-edit-period-${opt}`}
+                      onClick={() => setEditPeriod(opt)}
+                      style={{
+                        padding: '6px 14px',
+                        background: editPeriod === opt ? '#0ea5e9' : '#e0f2fe',
+                        color: editPeriod === opt ? '#fff' : '#0369a1',
+                        border: 'none', borderRadius: 18, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                      }}
+                    >{opt}</button>
+                  ))}
+                </div>
+              </>
+            )}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                data-testid="spo2-edit-delete"
+                onClick={() => setDeletingRecord(editRecord)}
+                style={{ flex: 1, padding: '10px 0', background: '#fff', color: '#DC2626',
+                  border: '1px solid #DC2626', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >删除</button>
+              <button
+                data-testid="spo2-edit-save"
+                onClick={handleEditSave}
+                style={{ flex: 2, padding: '10px 0', background: '#0ea5e9', color: '#fff',
+                  border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >保存</button>
+            </div>
+          </div>
+        )}
+      </Popup>
+
+      {/* 删除二次确认 */}
+      <Popup
+        visible={!!deletingRecord}
+        onMaskClick={() => setDeletingRecord(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20 }}
+      >
+        {deletingRecord && (
+          <div data-testid="spo2-delete-confirm">
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E', marginBottom: 10 }}>确认删除</div>
+            <div style={{ fontSize: 14, color: '#374151', marginBottom: 16 }}>
+              确认删除这条记录？此操作不可撤销。
+              <div style={{ fontSize: 12, color: '#6B7280', marginTop: 8 }}>
+                {formatDateTime(deletingRecord.measured_at)} · {spo2ValueOf(deletingRecord) ?? '-'} %
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setDeletingRecord(null)}
+                style={{ flex: 1, padding: '10px 0', background: '#fff', color: '#475569',
+                  border: '1px solid #CBD5E1', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >取消</button>
+              <button
+                data-testid="spo2-delete-confirm-btn"
+                onClick={() => { handleDelete(deletingRecord); setEditRecord(null); }}
+                style={{ flex: 1, padding: '10px 0', background: '#DC2626', color: '#fff',
+                  border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >确认删除</button>
+            </div>
+          </div>
+        )}
+      </Popup>
+
+      {/* 数据点点击弹窗 */}
+      <Popup
+        visible={!!pointPopup}
+        onMaskClick={() => setPointPopup(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 18 }}
+      >
+        {pointPopup && (() => {
+          const j = judgeSpo2(pointPopup.value);
+          const pp = getSpo2Palette(j?.color ?? 'blue');
+          return (
+            <div data-testid="spo2-point-popup">
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#0C4A6E', marginBottom: 10 }}>血氧详情</div>
+              <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 8 }}>{formatDateTime(pointPopup.measured_at)}</div>
+              <div style={{ height: 1, background: '#E5E7EB', margin: '8px 0' }} />
+              <DetailRow k="血氧" v={pointPopup.value != null ? `${pointPopup.value} %` : '—'} />
+              <DetailRow k="档位" v={
+                <span data-testid="spo2-point-level" style={{
+                  padding: '2px 10px', borderRadius: 999,
+                  background: pp.capsuleBg, color: pp.capsuleText, fontSize: 12, fontWeight: 700,
+                }}>{pointPopup.label || '—'}</span>
+              } />
+              {pointPopup.period && <DetailRow k="测量场景" v={pointPopup.period} />}
+              <DetailRow k="来源" v={formatBpSource(pointPopup.source)} />
+              <Button
+                block color="primary" onClick={() => setPointPopup(null)}
+                style={{ '--background-color': '#0EA5E9', '--border-radius': '12px', height: 40, fontSize: 14, marginTop: 14 } as any}
+              >知道了</Button>
+            </div>
+          );
+        })()}
+      </Popup>
+
+      {/* AI 解读抽屉 */}
+      <Popup
+        visible={!!aiDrawer}
+        onMaskClick={() => setAiDrawer(null)}
+        bodyStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, maxHeight: '70vh', overflowY: 'auto' }}
+      >
+        {aiDrawer && (
+          <div data-testid="spo2-ai-drawer">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: '#0C4A6E' }}>🤖 AI 解读</span>
+              <button onClick={() => setAiDrawer(null)} style={{ background: 'transparent', border: 'none', fontSize: 20, color: '#9CA3AF', cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 14 }}>
+              {aiDrawer.mode === 'single'
+                ? `基于：${latest && spo2Value != null ? formatDateTime(latest.measured_at) + ' 血氧 ' + spo2Value + ' %' : '当前无记录'}`
+                : `基于：${range === 'day' ? '今天' : '近 7 天'}所有血氧记录`}
+            </div>
+            <div style={{ background: '#F8FAFC', borderRadius: 12, padding: 14, minHeight: 100, fontSize: 14, color: '#0F172A', lineHeight: 1.7 }}>
+              {aiDrawer.loading ? '正在分析…' : <AiExplainContent text={aiDrawer.text} />}
+            </div>
+            <div style={{ marginTop: 12, fontSize: 11, color: '#9CA3AF', textAlign: 'center' }}>
+              ⚠️ AI 建议仅供参考，不能替代医生诊断
+            </div>
+          </div>
+        )}
+      </Popup>
+    </div>
+  );
+}
+
+// [PRD-GLU-SPO2-DETAIL-ALIGN-BP-V1 2026-06-02] 血氧单线趋势图（日/周 + 数据点可点击 + 参考线 90/95）
+function Spo2TrendChart({ points, range, onPointClick }: {
+  points: { x: number; y: number; raw: MetricRecord }[];
+  range: Spo2TrendRange;
+  onPointClick: (d: Spo2PointDetail) => void;
+}) {
+  const W = 340, H = 200;
+  const PAD = { top: 14, right: 18, bottom: 28, left: 32 };
+  const cw = W - PAD.left - PAD.right;
+  const ch = H - PAD.top - PAD.bottom;
+
+  const xMax = range === 'week' ? 6 : 24;
+  const yMin = 80, yMax = 100;
+
+  const xScale = (x: number) => PAD.left + (x / xMax) * cw;
+  const yScale = (y: number) => PAD.top + ch - ((Math.max(yMin, Math.min(yMax, y)) - yMin) / (yMax - yMin)) * ch;
+
+  const sorted = [...points].sort((a, b) => a.x - b.x);
+  const pathD = sorted.map((p, i) => `${i === 0 ? 'M' : 'L'}${xScale(p.x).toFixed(1)},${yScale(p.y).toFixed(1)}`).join(' ');
+
+  const refLines = [
+    { y: 90, label: '90' },
+    { y: 95, label: '95' },
+  ];
+
+  const xLabels: { x: number; lab: string }[] = range === 'week'
+    ? Array.from({ length: 7 }, (_, i) => ({ x: i, lab: i === 6 ? '今' : `${6 - i}天前` }))
+    : [{ x: 0, lab: '0' }, { x: 6, lab: '早' }, { x: 12, lab: '中' }, { x: 18, lab: '晚' }, { x: 23.5, lab: '夜' }];
+
+  return (
+    <svg data-testid="spo2-trend-svg" width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
+      {[80, 85, 90, 95, 100].map(y => (
+        <g key={y}>
+          <line x1={PAD.left} y1={yScale(y)} x2={W - PAD.right} y2={yScale(y)} stroke="#E5E7EB" strokeWidth={0.6} />
+          <text x={PAD.left - 4} y={yScale(y) + 3} textAnchor="end" fill="#9CA3AF" fontSize={9}>{y}</text>
+        </g>
+      ))}
+      {refLines.map(l => (
+        <g key={l.label}>
+          <line x1={PAD.left} y1={yScale(l.y)} x2={W - PAD.right} y2={yScale(l.y)} stroke="#F97316" strokeWidth={0.8} strokeDasharray="3 3" />
+          <text x={W - PAD.right + 2} y={yScale(l.y) + 3} fill="#F97316" fontSize={9}>{l.label}</text>
+        </g>
+      ))}
+      {xLabels.map((lab, i) => (
+        <text key={i} x={xScale(lab.x)} y={H - 8} textAnchor="middle" fill="#9CA3AF" fontSize={10}>{lab.lab}</text>
+      ))}
+      <path d={pathD} fill="none" stroke="#0EA5E9" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      {sorted.map((p, i) => {
+        const j = judgeSpo2(p.y);
+        const fill = j?.color === 'orange' ? '#F97316' : (j?.color === 'yellow' ? '#F59E0B' : '#0EA5E9');
+        return (
+          <circle
+            key={i}
+            data-testid={`spo2-trend-point-${i}`}
+            cx={xScale(p.x)} cy={yScale(p.y)} r={4} fill={fill} stroke="#fff" strokeWidth={1.2}
+            style={{ cursor: 'pointer' }}
+            onClick={() => onPointClick({
+              measured_at: p.raw.measured_at,
+              value: p.y,
+              label: j?.label || '',
+              source: p.raw.source,
+              period: typeof p.raw.value?.period === 'string' ? p.raw.value.period : null,
+            })}
+          />
+        );
+      })}
+    </svg>
   );
 }
 
