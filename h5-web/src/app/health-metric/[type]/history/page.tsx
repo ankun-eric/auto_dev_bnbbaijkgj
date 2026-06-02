@@ -12,6 +12,11 @@
  *   每条手工录入记录后补「…」三点入口 → 底部操作面板（修改 / 删除），
  *   修改弹窗与详情页一致（血压改收缩压/舒张压/时段，其它指标改单值），
  *   删除保留二次确认，删除后列表自动刷新。设备同步记录仍只读（保留只读详情弹窗）。
+ *
+ * [PRD-METRIC-HISTORY-ROW-NOACTION-V1 2026-06-02] 去除「点整行弹菜单」特殊处理（H5+小程序两端一致）：
+ *   手工录入记录点整行不再弹出修改/删除操作面板，操作入口统一收敛到右侧「⋯」三点按钮；
+ *   设备同步记录（只读）点整行仍弹只读详情，保持原样不动。
+ *   注：小程序指标历史页为 web-view 空壳，直接加载本 H5 页面，故改此一处两端自动一致。
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -83,12 +88,19 @@ const STATUS_OPTIONS_BY_TYPE: Record<string, { key: string; label: string }[]> =
     { key: 'severe_low', label: '严重偏低' },
     { key: 'normal', label: '正常' },
   ],
+  // [PRD-SLEEP-ALL-HISTORY-FIX-V1 2026-06-02] 睡眠四档（与详情页 sleep-level / 后端 _judge_status 完全一致）
+  sleep: [
+    { key: 'insufficient', label: '睡眠不足' },
+    { key: 'less', label: '睡眠偏少' },
+    { key: 'enough', label: '睡眠充足' },
+    { key: 'more', label: '睡眠偏多' },
+  ],
 };
 
 // [PRD-BP-DETAIL-OPTIMIZE-V2 2026-06-01 §需求2] 各指标编辑弹窗的字段/时段元数据（与详情页 METRIC_META 对齐）
 interface EditMeta {
   label: string;
-  fields: { name: string; label: string; suffix?: string; placeholder?: string }[];
+  fields: { name: string; label: string; suffix?: string; placeholder?: string; optional?: boolean }[];
   period?: { key: string; label: string; options: string[] };
 }
 const EDIT_META_BY_TYPE: Record<string, EditMeta> = {
@@ -115,6 +127,14 @@ const EDIT_META_BY_TYPE: Record<string, EditMeta> = {
     fields: [{ name: 'value', label: '血氧饱和度', suffix: '%', placeholder: '如 97' }],
     period: { key: 'period', label: '时段', options: ['晨起', '午间', '晚间'] },
   },
+  // [PRD-SLEEP-ALL-HISTORY-FIX-V1 2026-06-02] 睡眠：睡眠时长（必填）+ 深睡时长（选填），与详情页 METRIC_META.sleep 对齐
+  sleep: {
+    label: '睡眠',
+    fields: [
+      { name: 'duration_h', label: '睡眠时长', suffix: '小时', placeholder: '如 7.5' },
+      { name: 'deep_h', label: '深睡时长', suffix: '小时，选填', placeholder: '如 2', optional: true },
+    ],
+  },
 };
 
 const DATE_RANGE_OPTIONS = [
@@ -138,9 +158,25 @@ const STATUS_COLOR: Record<string, { bg: string; text: string }> = {
   gray: { bg: '#F1F5F9', text: '#475569' },
 };
 
+// [PRD-SLEEP-ALL-HISTORY-FIX-V1 2026-06-02] 睡眠时长格式化（整数不带小数，否则一位小数），与详情页 formatSleepHours 一致
+function formatSleepHours(v: number | null): string {
+  if (v == null || Number.isNaN(v)) return '—';
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+
 function formatMetricValue(metricType: string, value: Record<string, any>, unit: string): string {
   if (metricType === 'blood_pressure') {
     return `${value?.systolic ?? '-'}/${value?.diastolic ?? '-'} ${unit}`;
+  }
+  // [PRD-SLEEP-ALL-HISTORY-FIX-V1 2026-06-02] 睡眠双值结构 { duration_h, deep_h }：
+  // 显示「X 小时」，若有深睡则补「· 深睡 Yh」（对齐详情页历史行）
+  if (metricType === 'sleep') {
+    const rawDur = value?.duration_h != null ? Number(value.duration_h) : null;
+    const dur = rawDur != null && !Number.isNaN(rawDur) && rawDur > 0 && rawDur <= 24 ? rawDur : null;
+    const rawDeep = value?.deep_h != null ? Number(value.deep_h) : null;
+    const deep = rawDeep != null && !Number.isNaN(rawDeep) && rawDeep > 0 ? rawDeep : null;
+    const main = `${formatSleepHours(dur)} 小时`;
+    return deep != null ? `${main} · 深睡 ${formatSleepHours(deep)}h` : main;
   }
   return `${value?.value ?? '-'} ${unit}`;
 }
@@ -278,9 +314,13 @@ export default function HealthMetricHistoryPage() {
     const m = EDIT_META_BY_TYPE[metricType];
     if (!m) return;
     // 校验数值
+    // [PRD-SLEEP-ALL-HISTORY-FIX-V1 2026-06-02] 选填字段（如睡眠深睡时长）留空时跳过，不计入 nums
     const nums: Record<string, number> = {};
     for (const fd of m.fields) {
       const raw = editFields[fd.name];
+      if (fd.optional && (raw == null || String(raw).trim() === '')) {
+        continue;
+      }
       const n = Number(raw);
       if (!raw || Number.isNaN(n)) {
         showToast(`请输入有效的${fd.label}`, 'fail');
@@ -296,10 +336,27 @@ export default function HealthMetricHistoryPage() {
         return;
       }
     }
+    // [PRD-SLEEP-ALL-HISTORY-FIX-V1 2026-06-02] 睡眠时长校验：0~24 小时，深睡不超过总时长
+    if (metricType === 'sleep') {
+      const dur = nums['duration_h'];
+      if (dur <= 0 || dur > 24) {
+        showToast('睡眠时长应在 0~24 小时之间', 'fail');
+        return;
+      }
+      const deep = nums['deep_h'];
+      if (deep != null && (deep < 0 || deep > dur)) {
+        showToast('深睡时长不能超过总睡眠时长', 'fail');
+        return;
+      }
+    }
     const pKey = m.period?.key || 'period';
     let value: any;
     if (metricType === 'blood_pressure') {
       value = { systolic: nums['systolic'], diastolic: nums['diastolic'], [pKey]: editPeriod || undefined };
+    } else if (metricType === 'sleep') {
+      // [PRD-SLEEP-ALL-HISTORY-FIX-V1 2026-06-02] 睡眠双值：{ duration_h, deep_h? }，与详情页保存格式完全一致
+      value = { duration_h: nums['duration_h'] };
+      if (nums['deep_h'] != null) value.deep_h = nums['deep_h'];
     } else if (m.fields.length === 1 && m.fields[0].name === 'value') {
       // 单值指标：value 直接传数值，时段单独带
       value = nums['value'];
@@ -307,11 +364,15 @@ export default function HealthMetricHistoryPage() {
       value = { ...nums, [pKey]: editPeriod || undefined };
     }
     try {
-      await api.put(`/api/health-profile-v3/${profileId}/metric/${metricType}/${editItem.id}`, {
+      // [PRD-SLEEP-ALL-HISTORY-FIX-V1 2026-06-02] 睡眠无时段维度，不附带 period
+      const putBody: any = {
         value,
-        [pKey]: editPeriod || undefined,
         measured_at: editItem.measured_at,
-      });
+      };
+      if (metricType !== 'sleep' && m.period) {
+        putBody[pKey] = editPeriod || undefined;
+      }
+      await api.put(`/api/health-profile-v3/${profileId}/metric/${metricType}/${editItem.id}`, putBody);
       showToast('已更新', 'success');
       setEditItem(null);
       await fetchPage(1, true);
@@ -388,10 +449,9 @@ export default function HealthMetricHistoryPage() {
                 metricType={metricType}
                 unit={meta?.unit || ''}
                 onClickRow={() => {
-                  if (item.editable) {
-                    // 可编辑记录：点行也打开操作面板，体验与「…」一致
-                    setActionItem(item);
-                  } else {
+                  // [PRD-METRIC-HISTORY-ROW-NOACTION-V1 2026-06-02] 手工录入记录点整行不再弹操作面板，
+                  // 操作入口统一走右侧「⋯」。仅设备同步（只读）记录点整行弹只读详情，保持原样。
+                  if (!item.editable) {
                     setReadOnlyItem(item);
                   }
                 }}
@@ -659,7 +719,9 @@ function HistoryRow({
         onClick={onClickRow}
         style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '12px 0', cursor: 'pointer', background: '#fff',
+          // [PRD-METRIC-HISTORY-ROW-NOACTION-V1 2026-06-02] 手工录入记录点整行无操作，去掉手型指针避免误导；
+          // 设备同步（只读）记录点整行仍弹只读详情，保留指针样式。
+          padding: '12px 0', cursor: item.editable ? 'default' : 'pointer', background: '#fff',
         }}
       >
         <div style={{ flex: 1 }}>
