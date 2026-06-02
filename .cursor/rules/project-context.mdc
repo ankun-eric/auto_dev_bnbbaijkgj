@@ -5,7 +5,31 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-02 · 新功能 / AI 首页优化「+圈分享入口整理 + 关怀模式删 AI 对话设置」· H5 + 微信小程序 + Flutter APP 四平台，后端零改动）
+## 最近一次变更（2026-06-02 · 新功能 / 健康档案血糖·血氧详情页优化对齐血压精装布局 · H5 + 微信小程序，App 不做，后端零改动）
+
+**任务标识**：`[PRD-GLU-SPO2-DETAIL-ALIGN-BP-V1 2026-06-02]`
+
+**需求**：让血糖、血氧详情页向标杆「血压详情页」对齐（血压本次不动）。① 血糖：把「🤖 AI 解读本次血糖」从趋势图后单独拎出移到顶部最新记录卡片正下方（对齐血压第 2 步），「🤖 AI 解读趋势」保留在趋势图下方（第 5 步），一个按钮不删。② 血氧：旧简单模板整套照搬血压 6 区块（顶部大卡片→AI 解读本次血氧→手工录入/绑定设备→最近 7 天趋势图含日/周切换→AI 解读趋势→历史记录列表）；状态胶囊三档：≥95% 正常 / 90~94% 偏低提示 / <90% 明显偏低建议就医。③ 血糖+血氧历史记录每条加「...」操作面板（修改/删除）：修改可改数值/场景/测量时间并 PUT 完整更新原记录（不新增重复），删除二次确认后 toast「已删除」+ 刷新。
+
+**改动（H5；后端零改动）**：
+- H5 `h5-web/src/app/health-metric/[type]/page.tsx`：① 血糖分支把 `bg-ai-single`（🤖 AI 解读本次血糖）从趋势图后移到主卡片正下方、`bg-action-row` 之前；`bg-ai-trend` 保留在趋势图下方。② 新增 `Spo2Page` 组件（仿 `HeartRatePage`，适配血氧）含 6 区块、`spo2-tab-page`/`spo2-status-card`/`spo2-ai-single`「🤖 AI 解读本次血氧」/`spo2-ai-trend`/`spo2-action-row`/`spo2-trend-chart`/`Spo2TrendChart` + 日周切换 + 历史「...」修改/删除复用通用操作面板；`HealthMetricDetailPage` 增加 `metricType==='spo2'` 路由分支。
+- H5 `h5-web/src/lib/spo2-level.ts`（新增）：`judgeSpo2`/`getSpo2Palette`/`SPO2_NORMAL_RANGE_TEXT`，实现 ≥95 正常(蓝)/90~94 偏低(黄)/<90 明显偏低(橙) 三档判定与配色（复用 `getBpPalette`）。
+- 微信小程序：健康档案详情页为 `web-view` 内嵌同一 H5 页面，H5 改动自动生效，小程序原生代码零改动（仅重新打包供导入体验）。
+
+**测试**：`backend/tests/test_glu_spo2_detail_align_bp_v1_20260602.py`（21 用例：H5 源码静态断言——血糖 AI 双按钮位置、血氧 6 区块结构/胶囊三档/日周切换/历史「...」、小程序 web-view 引用；后端 spo2 CRUD 含 PUT 完整更新+删除、AI 解读 single/trend 接口）。服务器 backend 容器 21 passed，零 Bug。
+
+**部署**：git push `origin/master` → 服务器 GitHub fetch + `git reset --hard` → `docker compose -f docker-compose.prod.yml build --no-cache h5-web && up -d h5-web`（仅 H5 单服务）→ gateway 重连 `{DEPLOY_ID}-network` + reload。外部 HTTPS：`/`、`/api/health` 200，`/health-metric/spo2`、`/health-metric/blood_glucose` 308→页面正常；已部署 JS 命中 `spo2-tab-page`/`spo2-status-card`/「AI 解读本次血氧」。
+
+**变更端清单**：H5（Docker 容器，已上线）+ 微信小程序（web-view 自动生效，重新打包 zip 上传 gateway `downloads/`）。App iOS/安卓本次不做。后端仅新增测试文件、无业务改动。
+
+**本次新包（基础URL = https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27）**：
+- 微信小程序：`{base}/downloads/miniprogram_glu_spo2_20260602_104446_679e.zip`（HTTP 200）。
+
+**用户手册**：`user_docs/健康档案血糖血氧详情页优化_用户体验手册.md`
+
+---
+
+## 历史变更（2026-06-02 · 新功能 / AI 首页优化「+圈分享入口整理 + 关怀模式删 AI 对话设置」· H5 + 微信小程序 + Flutter APP 四平台，后端零改动）
 
 **任务标识**：`[PRD-AIHOME-OPTIM-SHARE-V1 2026-06-02]`
 
