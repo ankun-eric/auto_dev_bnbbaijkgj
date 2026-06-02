@@ -308,6 +308,204 @@ async def _has_active_medication(db: AsyncSession, member_id: int, member_user_i
     return False
 
 
+async def _collect_blocking_health_data(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    member_id: int,
+    member_user_id: Optional[int],
+) -> List[str]:
+    """[BUGFIX-DELETE-MEMBER-HEALTHDATA-PROMPT-V1 2026-06-02]
+    删除家庭成员前，逐项统计该成员名下**所有可能导致删不掉**的健康相关子数据，
+    返回一组「具体类别 + 数量」的人类可读片段（如「3 条既往病史」「2 份体检报告」）。
+
+    背景：真正执行删除时会硬删该成员的 `health_profiles` 行，而档案下挂着的
+    `health_info_extra`（既往病史/过敏史/家族病史）、`health_events`（健康事件）、
+    `medical_record_cards`（病历卡）等子表对 `health_profiles.id` 有外键约束，
+    一旦还有子数据就会触发数据库 FK 报错，被全局兜底翻译成「关联数据不存在……」
+    这句驴唇不对马嘴的提示。本函数在删除**之前**把所有卡点一次性数清楚，
+    交由调用方汇总成一条「该成员名下还有 XX，请先清空后再删除」的清晰提示。
+
+    统计范围严格聚焦「删除家庭成员」这一个操作所涉及的子数据，逐类降级容错：
+    任一类查询失败都不影响其他类（不会因为某张表不存在就整体崩溃）。
+
+    片段顺序与 PRD 表格一致：
+      既往病史 → 过敏史 → 家族病史 → 健康记录 → 健康事件 → 病历卡
+      → 体检报告 → 用药提醒 → 用药计划 → 中医诊断 → 健康提醒 → 报告历史
+    """
+    segments: List[str] = []
+
+    # 先取该成员名下的全部健康档案 id（一个成员理论上 1 份，做成列表更稳）
+    profile_ids: List[int] = []
+    try:
+        pr = await db.execute(
+            select(HealthProfile.id).where(
+                HealthProfile.user_id == user_id,
+                HealthProfile.family_member_id == member_id,
+            )
+        )
+        profile_ids = [int(x) for x in pr.scalars().all()]
+    except Exception:
+        profile_ids = []
+
+    async def _count(stmt) -> int:
+        try:
+            r = await db.execute(stmt)
+            return int(r.scalar() or 0)
+        except Exception:
+            return 0
+
+    # 1) 健康档案子数据：既往病史 / 过敏史 / 家族病史（HealthInfoExtra，JSON 列计条数）
+    if profile_ids:
+        try:
+            from app.models.models import HealthInfoExtra  # type: ignore
+            extra_res = await db.execute(
+                select(HealthInfoExtra).where(HealthInfoExtra.profile_id.in_(profile_ids))
+            )
+            n_history = 0   # 既往病史 = 慢病 + 手术史
+            n_allergy = 0   # 过敏史 = 药物 + 食物 + 其他
+            n_family = 0    # 家族病史
+            for ex in extra_res.scalars().all():
+                for col in (ex.chronic_diseases, ex.surgery_history):
+                    if isinstance(col, list):
+                        n_history += len(col)
+                for col in (ex.drug_allergies, ex.food_allergies, ex.other_allergies):
+                    if isinstance(col, list):
+                        n_allergy += len(col)
+                if isinstance(ex.family_history, list):
+                    n_family += len(ex.family_history)
+            if n_history > 0:
+                segments.append(f"{n_history} 条既往病史")
+            if n_allergy > 0:
+                segments.append(f"{n_allergy} 条过敏史")
+            if n_family > 0:
+                segments.append(f"{n_family} 条家族病史")
+        except Exception:
+            pass
+
+    # 2) 健康记录（血压/血糖/心率/睡眠/血氧等，HealthMetricRecord 按 profile_id）
+    if profile_ids:
+        try:
+            from app.models.health_v3 import HealthMetricRecord  # type: ignore
+            n = await _count(
+                select(func.count(HealthMetricRecord.id)).where(
+                    HealthMetricRecord.profile_id.in_(profile_ids)
+                )
+            )
+            if n > 0:
+                segments.append(f"{n} 条健康记录")
+        except Exception:
+            pass
+
+    # 3) 健康事件 / 时间轴（HealthEvent 按 profile_id，对 health_profiles 有 FK）
+    if profile_ids:
+        try:
+            from app.models.models import HealthEvent  # type: ignore
+            n = await _count(
+                select(func.count(HealthEvent.id)).where(
+                    HealthEvent.profile_id.in_(profile_ids)
+                )
+            )
+            if n > 0:
+                segments.append(f"{n} 条健康事件")
+        except Exception:
+            pass
+
+    # 4) 病历卡（MedicalRecordCard 按 profile_id，对 health_profiles 有 FK）
+    if profile_ids:
+        try:
+            from app.models.models import MedicalRecordCard  # type: ignore
+            n = await _count(
+                select(func.count(MedicalRecordCard.id)).where(
+                    MedicalRecordCard.profile_id.in_(profile_ids)
+                )
+            )
+            if n > 0:
+                segments.append(f"{n} 份病历")
+        except Exception:
+            pass
+
+    # 5) 体检报告（CheckupReport 按 family_member_id）
+    try:
+        from app.models.models import CheckupReport  # type: ignore
+        n = await _count(
+            select(func.count(CheckupReport.id)).where(
+                CheckupReport.family_member_id == member_id
+            )
+        )
+        if n > 0:
+            segments.append(f"{n} 份体检报告")
+    except Exception:
+        pass
+
+    # 6) 用药提醒（MedicationReminder 按 family_member_id）
+    try:
+        from app.models.models import MedicationReminder  # type: ignore
+        n = await _count(
+            select(func.count(MedicationReminder.id)).where(
+                MedicationReminder.family_member_id == member_id
+            )
+        )
+        if n > 0:
+            segments.append(f"{n} 条用药提醒")
+    except Exception:
+        pass
+
+    # 7) 用药计划（MedicationPlan 按 patient_id；本人账号维度按 member_user_id）
+    try:
+        from app.models.models import MedicationPlan  # type: ignore
+        conds = [MedicationPlan.patient_id == member_id]
+        if member_user_id:
+            conds.append(MedicationPlan.user_id == member_user_id)
+        n = await _count(select(func.count(MedicationPlan.id)).where(or_(*conds)))
+        if n > 0:
+            segments.append(f"{n} 个服药计划")
+    except Exception:
+        pass
+
+    # 8) 中医诊断 / 体质结果（TCMDiagnosis 按 family_member_id）
+    try:
+        from app.models.models import TCMDiagnosis  # type: ignore
+        n = await _count(
+            select(func.count(TCMDiagnosis.id)).where(
+                TCMDiagnosis.family_member_id == member_id
+            )
+        )
+        if n > 0:
+            segments.append(f"{n} 条中医诊断记录")
+    except Exception:
+        pass
+
+    # 9) 健康提醒（HealthReminder 按 member_id）
+    try:
+        from app.models.models import HealthReminder  # type: ignore
+        n = await _count(
+            select(func.count(HealthReminder.id)).where(
+                HealthReminder.member_id == member_id
+            )
+        )
+        if n > 0:
+            segments.append(f"{n} 条健康提醒")
+    except Exception:
+        pass
+
+    # 10) 报告历史（ReportHistory 按 family_member_id，排除软删）
+    try:
+        from app.models.models import ReportHistory  # type: ignore
+        stmt = select(func.count(ReportHistory.id)).where(
+            ReportHistory.family_member_id == member_id
+        )
+        if hasattr(ReportHistory, "is_deleted"):
+            stmt = stmt.where(ReportHistory.is_deleted == False)  # noqa: E712
+        n = await _count(stmt)
+        if n > 0:
+            segments.append(f"{n} 条报告历史")
+    except Exception:
+        pass
+
+    return segments
+
+
 def _peek_delete_rate_limit(user_id: int) -> bool:
     """[BUGFIX-DELETE-RATELIMIT-V1 2026-06-01] 只查不记账。
     返回 True 表示当日额度未满（可继续删除）；False 表示已达上限。
@@ -754,6 +952,33 @@ async def delete_member_unified(
                 "block_field": "medication",
             },
         )
+
+    # 5) [BUGFIX-DELETE-MEMBER-HEALTHDATA-PROMPT-V1 2026-06-02] 健康子数据校验
+    #
+    # 此前真正执行删除时会硬删该成员的 health_profiles 行，但档案下若还挂着既往病史/
+    # 过敏史/健康记录/病历/体检报告等子数据，会触发数据库外键约束报错，再被全局兜底
+    # 翻译成「关联数据不存在，请检查所绑定的表单/分类是否有效」这句看不懂的提示。
+    #
+    # 现在改为：在执行删除**之前**一次性把该成员名下所有卡点数据逐类数清楚，
+    # 若存在任一类阻塞数据，则汇总「类别 + 数量」返回一条结构化、可读的纯文字提示，
+    # 阻止删除（HAS_HEALTH_DATA），彻底告别那句驴唇不对马嘴的兜底报错。
+    if not payload.force:
+        blocking = await _collect_blocking_health_data(
+            db,
+            user_id=current_user.id,
+            member_id=member_id,
+            member_user_id=member.member_user_id,
+        )
+        if blocking:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "reason_code": "HAS_HEALTH_DATA",
+                    "message": f"该成员名下还有{ '、'.join(blocking) }，请先清空后再删除。",
+                    "block_field": "health_data",
+                    "blocking_items": blocking,
+                },
+            )
 
     # ── 执行删除 ──
     deleted_tables: list[str] = []
