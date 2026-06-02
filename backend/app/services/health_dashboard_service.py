@@ -243,14 +243,18 @@ async def _calculate_medication_score(db: AsyncSession, member: FamilyMember, to
             MedicationReminder.end_date >= seven_days_ago,
         ),
     )
-    # Also filter by family_member_id if reminders are per-member
+    # [BUGFIX-MED-CROSS-PROFILE] 按看板归属精确过滤，避免本人用药串入成员看板：
+    # 本人看板（is_self）→ 仅 family_member_id 为空的本人记录；
+    # 成员看板 → 仅 family_member_id == 该成员 的记录。
     if hasattr(MedicationReminder, "family_member_id"):
-        reminders_stmt = reminders_stmt.where(
-            or_(
-                MedicationReminder.family_member_id == member.id,
-                MedicationReminder.family_member_id.is_(None),
+        if getattr(member, "is_self", False):
+            reminders_stmt = reminders_stmt.where(
+                MedicationReminder.family_member_id.is_(None)
             )
-        )
+        else:
+            reminders_stmt = reminders_stmt.where(
+                MedicationReminder.family_member_id == member.id
+            )
 
     res = await db.execute(reminders_stmt)
     reminders = list(res.scalars().all())
@@ -413,13 +417,12 @@ async def get_today_events(
             MedicationReminder.end_date >= today,
         ),
     )
+    # [BUGFIX-MED-CROSS-PROFILE] 按看板归属精确过滤，避免本人用药串入成员看板。
     if hasattr(MedicationReminder, "family_member_id"):
-        rem_stmt = rem_stmt.where(
-            or_(
-                MedicationReminder.family_member_id == member.id,
-                MedicationReminder.family_member_id.is_(None),
-            )
-        )
+        if getattr(member, "is_self", False):
+            rem_stmt = rem_stmt.where(MedicationReminder.family_member_id.is_(None))
+        else:
+            rem_stmt = rem_stmt.where(MedicationReminder.family_member_id == member.id)
     reminders = (await db.execute(rem_stmt)).scalars().all()
 
     reminder_ids = [r.id for r in reminders]
@@ -479,13 +482,12 @@ async def get_medication_summary(db: AsyncSession, member: FamilyMember, today: 
             MedicationReminder.end_date >= today,
         ),
     )
+    # [BUGFIX-MED-CROSS-PROFILE] 按看板归属精确过滤，避免本人用药串入成员看板。
     if hasattr(MedicationReminder, "family_member_id"):
-        rem_stmt = rem_stmt.where(
-            or_(
-                MedicationReminder.family_member_id == member.id,
-                MedicationReminder.family_member_id.is_(None),
-            )
-        )
+        if getattr(member, "is_self", False):
+            rem_stmt = rem_stmt.where(MedicationReminder.family_member_id.is_(None))
+        else:
+            rem_stmt = rem_stmt.where(MedicationReminder.family_member_id == member.id)
     reminders = (await db.execute(rem_stmt)).scalars().all()
 
     reminder_ids = [r.id for r in reminders]
