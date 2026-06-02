@@ -5,7 +5,26 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-02 · 新功能 / AI 主页输入区优化「提示挪进输入框做占位文字 + 语音浮层文案改语音输入中」· H5 + 微信小程序两端，后端零改动）
+## 最近一次变更（2026-06-02 · 新功能 / 家庭成员邀请入口统一为「漂亮二维码页」· 仅 H5 一端，后端/小程序/移动端 0 改动，0 客户端打包）
+
+**任务标识**：`[PRD-FAMILY-INVITE-QRCODE-UNIFY 2026-06-02]`
+
+**需求**：把「健康档案 - 家庭成员」里所有发起邀请的地方，全部统一成 AI 首页那个漂亮的二维码邀请页（`/family-invite?member_id=xxx`，带渐变卡片 + 二维码图片 + 保存到本地/复制链接/转发微信好友），废弃原来只有「邀请码 + 复制链接」的纯文字弹窗。只换界面/交互，不动业务含义——二维码携带的仍是按 `member_id` 绑定的原有邀请。
+
+**改动（仅 H5；后端/小程序/移动端零改动）**：
+- `h5-web/src/app/health-profile/page.tsx`（改动点1）：顶部「邀请家庭成员」保存成功后的 `onSuccess` 由「只弹已添加提示」改为：接收回传 `createdMember`（无 id 时刷新 `/api/family/members` 取最新非本人成员兜底），刷新列表后弹「成员已添加成功🎉 / 去邀请 TA / 暂不邀请」提示框（复刻 AI 首页 `ConsultTargetPicker` 交互，testid `hp-invite-now-dialog`/`hp-invite-now-btn`/`hp-invite-skip-btn`），点「去邀请 TA」`router.push('/family-invite?member_id=' + id)`。
+- `h5-web/src/app/health-profile/archive-list/page.tsx`（改动点2）：`handlePrimaryAction` 中 `invite`/`view_invite_code`/`reinvite` 三动作统一改为 `router.push('/family-invite?member_id=' + member_id)`，不再调 `/api/family/member/{id}/invite` 也不再弹邀请码抽屉；移除 `inviteCodeView` state、`<InviteCodeDrawer>` 渲染与 `InviteCodeDrawer` 组件/Props 定义（纯文字弹窗彻底废弃）。
+- 改动点3：二维码页顶部标题仍为「邀请 TA 加入我的健康守护」，不改。
+
+**测试/验证**：本地 `next build` 编译成功（`/health-profile`、`/health-profile/archive-list`、`/family-invite` 三路由均 Compiled successfully）。服务器冒烟：h5 产物 `health-profile/page.js` + static chunk 含 `hp-invite-now-dialog`/`hp-invite-now-btn`；`archive-list` chunk 含 `family-invite` 引用且无 `InviteCode` 残留。外部 HTTPS 全部 200：`/`、`/health-profile`、`/health-profile/archive-list`、`/family-invite`、`/family-invite?member_id=1`、`/api/health`。零 Bug。
+
+**部署**：因服务器访问 GitHub 超时不可达，按 Skill 降级方案用 SFTP 直传 2 个改动文件到 `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`，`docker compose -f docker-compose.prod.yml build --no-cache h5-web`（服务器端后台 nohup 构建避免 SSH 流中断，BUILD_EXIT=0）→ `up -d --force-recreate h5-web` → gateway-nginx 重连 `{DEPLOY_ID}-network` + reload。本地代码已 push `origin/master`（commit `e8a4bac9`）。
+
+**变更端清单**：仅 H5（Docker 容器，已上线）。小程序/安卓/苹果本次无变更、不打包（PRD 明确本期以 H5 为准）。
+
+**用户手册**：`user_docs/家庭成员邀请统一二维码页.md`
+
+## 历史变更（2026-06-02 · 新功能 / AI 主页输入区优化「提示挪进输入框做占位文字 + 语音浮层文案改语音输入中」· H5 + 微信小程序两端，后端零改动）
 
 **任务标识**：`[PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 第二轮]`
 
