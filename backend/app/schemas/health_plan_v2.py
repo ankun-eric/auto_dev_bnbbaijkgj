@@ -114,6 +114,10 @@ class HealthCheckInItemCreate(BaseModel):
     remind_times: Optional[List[str]] = None
     repeat_frequency: Optional[str] = "daily"
     custom_days: Optional[List[int]] = None
+    # [PRD-HEALTH-PLAN-CHECKIN-V1 2026-06-02] 起止时间 + 每周X次目标
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    weekly_target_count: Optional[int] = None
 
 
 class HealthCheckInItemUpdate(BaseModel):
@@ -123,6 +127,9 @@ class HealthCheckInItemUpdate(BaseModel):
     remind_times: Optional[List[str]] = None
     repeat_frequency: Optional[str] = None
     custom_days: Optional[List[int]] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    weekly_target_count: Optional[int] = None
 
 
 class HealthCheckInItemResponse(BaseModel):
@@ -137,6 +144,9 @@ class HealthCheckInItemResponse(BaseModel):
     status: str
     created_at: datetime
     today_completed: Optional[bool] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    weekly_target_count: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 

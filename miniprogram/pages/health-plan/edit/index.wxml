@@ -1,0 +1,42 @@
+<view class="edit-page">
+  <view class="form-card">
+    <view class="form-label"><text class="red">*</text> 计划名称</view>
+    <input class="form-input" placeholder="如：每天喝 8 杯水" maxlength="50" value="{{name}}" bindinput="onNameInput" />
+  </view>
+
+  <view class="form-card">
+    <view class="form-label"><text class="red">*</text> 打卡频率</view>
+    <view class="freq-row">
+      <view class="freq-btn {{freqType === 'daily' ? 'freq-btn-active' : ''}}" data-v="daily" bindtap="onFreqTap">每天</view>
+      <view class="freq-btn {{freqType === 'weekly' ? 'freq-btn-active' : ''}}" data-v="weekly" bindtap="onFreqTap">每周 X 次</view>
+    </view>
+    <view wx:if="{{freqType === 'weekly'}}" class="weekly-count-row">
+      <text class="form-sub">每周打卡次数</text>
+      <input class="weekly-count-input" type="number" value="{{weeklyCount}}" bindinput="onWeeklyCountChange" />
+    </view>
+    <view class="form-tip">仅按「天」打卡，不设置具体时间点。</view>
+  </view>
+
+  <view class="form-card">
+    <view class="form-label">计划起止时间</view>
+    <picker mode="date" value="{{startDate}}" bindchange="onStartDateChange">
+      <view class="date-row">
+        <text class="form-sub">开始日期</text>
+        <text class="date-val">{{startDate || '请选择（默认今天）'}}</text>
+      </view>
+    </picker>
+    <picker mode="date" value="{{endDate}}" bindchange="onEndDateChange">
+      <view class="date-row">
+        <text class="form-sub">结束日期</text>
+        <view class="date-right">
+          <text class="date-val">{{endDate || '不限期'}}</text>
+          <text wx:if="{{endDate}}" class="date-clear" catchtap="onClearEndDate">清除</text>
+        </view>
+      </view>
+    </picker>
+  </view>
+
+  <view class="bottom-bar">
+    <button class="submit-btn" loading="{{submitting}}" bindtap="onSubmit">{{isEdit ? '保存修改' : '创建计划'}}</button>
+  </view>
+</view>

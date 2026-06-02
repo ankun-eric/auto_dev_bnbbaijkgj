@@ -1,154 +1,110 @@
-const { get, post } = require('../../utils/request');
-const { showCheckinPointsToast } = require('../../utils/checkin-points');
+// [PRD-HEALTH-PLAN-CHECKIN-V1 2026-06-02] 健康打卡落地页（重做版）
+const { get, post, del, put } = require('../../utils/request');
+
+function freqLabel(item) {
+  if (item.repeat_frequency === 'weekly' && item.weekly_target_count) {
+    return `每周 ${item.weekly_target_count} 次`;
+  }
+  return '每天';
+}
+
+function periodLabel(item) {
+  if (!item.start_date && !item.end_date) return '长期';
+  const s = item.start_date || '今起';
+  const e = item.end_date || '不限期';
+  return `${s} ~ ${e}`;
+}
 
 Page({
   data: {
-    categories: [
-      { key: 'medication', icon: '💊', name: '用药提醒', desc: '按时服药，健康管理', color: '#52c41a', url: '/pages/health-plan/medications/index' },
-      { key: 'checkin', icon: '✅', name: '健康打卡', desc: '每日打卡，养成习惯', color: '#13c2c2', url: '/pages/health-plan/checkin/index' },
-      { key: 'plan', icon: '📋', name: '自定义计划', desc: '个性化健康计划', color: '#1890ff', url: '/pages/health-plan/categories/index' }
-    ],
-    stats: null,
-    statsLoading: false,
-    todoGroups: [],
-    todoTotalCompleted: 0,
-    todoTotalCount: 0,
-    todayLoading: false,
-    aiGenerating: false,
-    pointsRefreshKey: 0,
-    checkinDialog: false,
-    checkinDialogType: '',
-    checkinDialogId: 0,
-    checkinDialogSourceId: 0,
-    checkinDialogName: '',
-    checkinDialogTarget: 0,
-    checkinDialogUnit: '',
-    checkinDialogValue: ''
+    loading: true,
+    items: [],
+    overview: { active_count: 0, today_done_count: 0, week_completion_rate: 0 },
+    actionMenuId: 0,
+    actionMenuVisible: false,
   },
 
   onShow() {
-    this.loadStats();
-    this.loadTodayTodos();
+    this.load();
   },
 
   onPullDownRefresh() {
-    Promise.all([this.loadStats(), this.loadTodayTodos()])
-      .finally(() => wx.stopPullDownRefresh());
+    this.load().finally(() => wx.stopPullDownRefresh());
   },
 
-  async loadStats() {
-    this.setData({ statsLoading: true });
+  async load() {
     try {
-      const res = await get('/api/health-plan/statistics', {}, { showLoading: false, suppressErrorToast: true });
-      if (res) {
-        res.streak_days = res.consecutive_days || res.streak_days || 0;
-        res.total_checkins = (res.today_completed || 0);
-      }
-      this.setData({ stats: res });
-    } catch (e) {
-      this.setData({ stats: null });
-    } finally {
-      this.setData({ statsLoading: false });
-    }
-  },
-
-  async loadTodayTodos() {
-    this.setData({ todayLoading: true });
-    try {
-      const res = await get('/api/health-plan/today-todos', {}, { showLoading: false, suppressErrorToast: true });
-      if (res && res.groups) {
-        this.setData({
-          todoGroups: res.groups || [],
-          todoTotalCompleted: res.total_completed || 0,
-          todoTotalCount: res.total_count || 0,
-        });
-      } else {
-        this.setData({ todoGroups: [], todoTotalCompleted: 0, todoTotalCount: 0 });
-      }
-    } catch (e) {
-      this.setData({ todoGroups: [], todoTotalCompleted: 0, todoTotalCount: 0 });
-    } finally {
-      this.setData({ todayLoading: false });
-    }
-  },
-
-  onCategoryTap(e) {
-    const { url } = e.currentTarget.dataset;
-    if (url) wx.navigateTo({ url });
-  },
-
-  async onAiGenerate() {
-    if (this.data.aiGenerating) return;
-    this.setData({ aiGenerating: true });
-    try {
-      await post('/api/health-plan/ai-generate', {});
-      wx.showToast({ title: 'AI计划已生成', icon: 'success' });
-      this.loadTodayTodos();
-    } catch (e) {
-      // error handled by request
-    } finally {
-      this.setData({ aiGenerating: false });
-    }
-  },
-
-  goStatistics() {
-    wx.navigateTo({ url: '/pages/health-plan/statistics/index' });
-  },
-
-  onTodoCheckin(e) {
-    const { type, id, sourceId, targetValue, targetUnit, name } = e.currentTarget.dataset;
-    if (targetValue && targetValue > 0) {
+      const [listRes, ovRes] = await Promise.all([
+        get('/api/health-plan/checkin-items', {}, { showLoading: false, suppressErrorToast: true }),
+        get('/api/health-plan/checkin-overview', {}, { showLoading: false, suppressErrorToast: true }),
+      ]);
+      const list = (listRes && listRes.items) ? listRes.items : [];
+      const items = list.map((it) => Object.assign({}, it, {
+        _freq: freqLabel(it),
+        _period: periodLabel(it),
+      }));
       this.setData({
-        checkinDialog: true,
-        checkinDialogType: type,
-        checkinDialogId: id,
-        checkinDialogSourceId: sourceId,
-        checkinDialogName: name || '',
-        checkinDialogTarget: targetValue,
-        checkinDialogUnit: targetUnit || '',
-        checkinDialogValue: '',
+        items,
+        overview: ovRes || { active_count: 0, today_done_count: 0, week_completion_rate: 0 },
+        loading: false,
       });
-      return;
-    }
-    this.doCheckin(type, id, sourceId, null);
-  },
-
-  onCheckinDialogInput(e) {
-    this.setData({ checkinDialogValue: e.detail.value });
-  },
-
-  onCheckinDialogCancel() {
-    this.setData({ checkinDialog: false });
-  },
-
-  onCheckinDialogConfirm() {
-    const { checkinDialogType, checkinDialogId, checkinDialogSourceId, checkinDialogValue } = this.data;
-    const val = checkinDialogValue ? parseFloat(checkinDialogValue) : null;
-    this.setData({ checkinDialog: false });
-    this.doCheckin(checkinDialogType, checkinDialogId, checkinDialogSourceId, val);
-  },
-
-  async doCheckin(type, id, sourceId, value) {
-    let url = '';
-    let body = {};
-    if (type === 'medication') {
-      url = `/api/health-plan/medications/${id}/checkin`;
-    } else if (type === 'checkin') {
-      url = `/api/health-plan/checkin-items/${id}/checkin`;
-      if (value != null) body.actual_value = value;
-    } else if (type === 'plan_task') {
-      url = `/api/health-plan/user-plans/${sourceId}/tasks/${id}/checkin`;
-      if (value != null) body.actual_value = value;
-    }
-    if (!url) return;
-    try {
-      const result = await post(url, body);
-      showCheckinPointsToast(result);
-      this.setData({ pointsRefreshKey: this.data.pointsRefreshKey + 1 });
-      this.loadTodayTodos();
-      this.loadStats();
     } catch (e) {
-      // error handled by request
+      this.setData({ loading: false });
     }
-  }
+  },
+
+  async onCheckin(e) {
+    const id = e.currentTarget.dataset.id;
+    const item = this.data.items.find((x) => x.id === id);
+    if (!item || item.today_completed) return;
+    try {
+      await post(`/api/health-plan/checkin-items/${id}/checkin`, {});
+      wx.showToast({ title: '打卡成功', icon: 'success' });
+      this.load();
+    } catch (err) {
+      // already toasted
+    }
+  },
+
+  onMoreTap(e) {
+    const id = e.currentTarget.dataset.id;
+    this.setData({ actionMenuId: id, actionMenuVisible: true });
+  },
+
+  onActionMenuCancel() {
+    this.setData({ actionMenuVisible: false });
+  },
+
+  onEdit() {
+    const id = this.data.actionMenuId;
+    this.setData({ actionMenuVisible: false });
+    wx.navigateTo({ url: `/pages/health-plan/edit/index?id=${id}` });
+  },
+
+  onDelete() {
+    const id = this.data.actionMenuId;
+    this.setData({ actionMenuVisible: false });
+    wx.showModal({
+      title: '删除计划',
+      content: '确定删除该计划吗？该计划的打卡记录也会一并清除。',
+      confirmText: '删除',
+      confirmColor: '#ff4d4f',
+      success: async (r) => {
+        if (!r.confirm) return;
+        try {
+          await del(`/api/health-plan/checkin-items/${id}`);
+          wx.showToast({ title: '已删除', icon: 'success' });
+          this.load();
+        } catch (err) {}
+      },
+    });
+  },
+
+  onCreate() {
+    wx.navigateTo({ url: '/pages/health-plan/edit/index' });
+  },
+
+  onGoResult() {
+    wx.navigateTo({ url: '/pages/health-plan/result/index' });
+  },
 });

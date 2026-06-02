@@ -1,0 +1,63 @@
+<view class="result-page">
+  <view class="result-hero">
+    <view class="hero-num-col">
+      <text class="hero-num">{{summary.streak_days || 0}}</text>
+      <text class="hero-label">连续天数</text>
+    </view>
+    <view class="hero-divider"></view>
+    <view class="hero-num-col">
+      <text class="hero-num">{{summary.total_checkins || 0}}</text>
+      <text class="hero-label">累计打卡</text>
+    </view>
+    <view class="hero-divider"></view>
+    <view class="hero-num-col">
+      <text class="hero-num">{{summary.overall_completion_rate || 0}}%</text>
+      <text class="hero-label">完成率</text>
+    </view>
+  </view>
+
+  <view class="calendar-card">
+    <view class="cal-header">
+      <text class="cal-nav" bindtap="onPrevMonth">‹</text>
+      <text class="cal-title">{{year}} 年 {{month}} 月</text>
+      <text class="cal-nav" bindtap="onNextMonth">›</text>
+    </view>
+    <view class="cal-week">
+      <text wx:for="{{weekdayNames}}" wx:key="*this" class="cal-week-text">{{item}}</text>
+    </view>
+    <view class="cal-grid">
+      <view
+        wx:for="{{cells}}"
+        wx:key="dateStr"
+        wx:for-index="idx"
+        class="cal-cell {{item.cnt ? 'cal-cell-done' : ''}} {{item.isToday ? 'cal-cell-today' : ''}} {{item.canMakeup ? 'cal-cell-makeup' : ''}}"
+        bindtap="onCellTap"
+        data-idx="{{idx}}"
+      >
+        <text>{{item.day}}</text>
+      </view>
+    </view>
+    <view class="cal-legend">
+      <text class="legend-dot legend-done"></text><text class="legend-text">已打卡</text>
+      <text class="legend-dot legend-makeup"></text><text class="legend-text">可补卡（最近3天）</text>
+    </view>
+  </view>
+
+  <view class="rank-card">
+    <view class="rank-title">各计划完成率</view>
+    <view wx:if="{{!summary.plans || summary.plans.length === 0}}" class="rank-empty">暂无数据</view>
+    <view wx:else>
+      <view class="rank-item" wx:for="{{summary.plans}}" wx:key="id">
+        <view class="rank-row">
+          <view class="rank-left">
+            <text class="rank-badge" style="background: {{item._color}};">{{item._rank}}</text>
+            <text class="rank-name">{{item.name}}</text>
+          </view>
+          <text class="rank-rate" style="color: {{item._color}};">{{item._rateInt}}%</text>
+        </view>
+        <view class="rank-bar"><view class="rank-bar-fill" style="width: {{item._rateInt}}%; background: {{item._color}};"></view></view>
+        <text class="rank-meta">已打 {{item.done}} / 应打 {{item.expected}}</text>
+      </view>
+    </view>
+  </view>
+</view>

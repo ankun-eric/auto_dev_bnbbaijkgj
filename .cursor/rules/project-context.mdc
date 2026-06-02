@@ -5,7 +5,59 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-03 · 新功能 / 数字安全绳（独居守护）· 后端 + H5 + 小程序 + Flutter App 四端，小程序已打 zip，APK/IPA 本次未触发远程构建）
+## 最近一次变更（2026-06-03 · 新功能 / 健康计划（健康打卡）重做 · 后端 + H5 + 小程序 + Flutter App 四端全部打包，零 Bug）
+
+**任务标识**：`[PRD-HEALTH-PLAN-CHECKIN-V1 2026-06-02 / 部署 2026-06-03]`
+
+**需求**：恢复并重做历史下线的「健康打卡 / 健康计划」功能。落地页 `/health-plan` 直接是打卡首页（不经"用药提醒/健康打卡/自定义计划"总目录），用户自建打卡计划（仅"每天"或"每周X次"，不做时间点），每天点一下打卡，看连续天数、月历高亮、完成率柱状图。计划卡片右上角"⋯"菜单提供「编辑」「删除」（删除二次确认 + 同步清除打卡记录）。允许补打最近 3 天内漏掉的打卡。后台管理端只读。
+
+**改动文件（覆盖 4 端）**：
+
+- 后端：
+  - `backend/app/api/health_plan_v2.py` — 完整 CRUD + 打卡 + 补卡 + 总览 + 月历 + 成果汇总（`/api/health-plan/checkin-items` `*/checkin` `*/makeup` `/checkin-overview` `/checkin-calendar` `/checkin-stats-summary`）
+  - `backend/app/api/admin_health_plan.py` — 管理端只读 `/api/admin/health-plan/user-checkin-plans` `/checkin-statistics` `/user-checkin-details`
+  - `backend/app/schemas/health_plan_v2.py` — `HealthCheckInItemCreate/Update/Response` schema
+  - `backend/tests/test_health_plan_checkin_v1_20260602.py` — 11 项 pytest 用例（创建/编辑/删除级联清理/今日打卡/补卡 3 天边界/总览/月历/成果汇总/管理端只读）
+
+- H5：
+  - `h5-web/src/app/health-plan/page.tsx` — 打卡首页（顶部蓝紫横幅 + 总览卡 + 计划列表 + ⋯菜单 + 浮动+按钮）
+  - `h5-web/src/app/health-plan/edit/page.tsx` — 新建/编辑页（名称 + 频率 + 起止时间）
+  - `h5-web/src/app/health-plan/result/page.tsx` — 成果页（连续天数 + 月历高亮 + 计划完成率柱状图）
+  - `h5-web/src/app/health-plan/checkin/page.tsx` — 旧版兼容跳转，重定向到 `/health-plan`
+
+- 微信小程序：
+  - `miniprogram/pages/health-plan/index.{js,wxml,wxss,json}` — 重做落地页
+  - `miniprogram/pages/health-plan/edit/` — 新增 编辑页
+  - `miniprogram/pages/health-plan/result/` — 新增 成果页
+
+- Flutter App（安卓 + iOS 共享）：
+  - `flutter_app/lib/screens/plan/health_plan_screen.dart` — 重做主页面
+  - `flutter_app/lib/screens/plan/checkin_plan_edit_screen.dart` — 新增/编辑
+  - `flutter_app/lib/screens/plan/checkin_result_screen.dart` — 成果页
+  - `flutter_app/lib/services/api_service.dart` — 新增 `getCheckinItems / getCheckinOverview / checkinCheckinItem / deleteCheckinItem` 等
+  - `flutter_app/lib/main.dart` — 路由注册 `/hp-checkin-edit` `/hp-checkin-result`
+
+**数据模型（沿用旧表）**：
+- `health_check_in_items(id, user_id, name, repeat_frequency [daily|weekly], weekly_target_count, start_date, end_date, status, ...)`
+- `health_check_in_records(id, item_id, user_id, check_in_date, ...)` — 删除计划时级联清空
+
+**测试/验证**：
+- 远程 pytest：11/11 全部通过（容器内：`docker exec backend pytest tests/test_health_plan_checkin_v1_20260602.py`）
+- 外部 HTTPS smoke：`/health-plan=200` `/health-plan/edit=200` `/health-plan/result=200` `/health-plan/checkin=200` `/api/health=200`
+
+**部署**：`deploy/_deploy_health_plan_v1_20260603.py` SFTP 直传 10 文件 → `docker compose restart backend` → `docker compose build backend && up -d backend` → `docker compose build h5-web && up -d h5-web`。
+
+**多端打包结果**：
+- H5：已部署，[https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-plan](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-plan)
+- 微信小程序 zip：[`miniprogram_health_plan_v1_20260603_021815_e7a1.zip`](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/downloads/miniprogram_health_plan_v1_20260603_021815_e7a1.zip)（HTTP 200）
+- 安卓 APK：[`app_health_plan_20260603_022916_9e0d.apk`](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/downloads/app_health_plan_20260603_022916_9e0d.apk)（GitHub Actions 远程构建 `android-v20260603-021911-e2c7`，82MB，HTTP 200）
+- iOS IPA：[GitHub Release ios-v20260603-022019-a7b2](https://github.com/ankun-eric/auto_dev_bnbbaijkgj/releases/tag/ios-v20260603-022019-a7b2)（远程 macOS Runner 构建成功）
+
+**用户手册**：`user_docs/健康计划.md`
+
+---
+
+## 上一次变更（2026-06-03 · 新功能 / 数字安全绳（独居守护）· 后端 + H5 + 小程序 + Flutter App 四端，小程序已打 zip，APK/IPA 本次未触发远程构建）
 
 **任务标识**：`[PRD-SAFETY-ROPE-V1 2026-06-03]`
 

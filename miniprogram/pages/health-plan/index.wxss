@@ -1,125 +1,99 @@
-.plan-page {
-  padding: 24rpx;
-  min-height: 100vh;
-  background: #f5f5f5;
-}
+.hp-landing { min-height: 100vh; background: #F5F5F7; padding-bottom: 120rpx; }
 
-/* 统计概览 */
-.stats-overview { margin-bottom: 24rpx; }
-.stats-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20rpx; }
-.stats-title-text { font-size: 30rpx; font-weight: 600; color: #333; }
-.stats-arrow { font-size: 24rpx; color: #999; }
-.stats-row { display: flex; justify-content: space-around; }
-.stat-col { display: flex; flex-direction: column; align-items: center; }
-.stat-value { font-size: 44rpx; font-weight: bold; }
-.stat-label { font-size: 22rpx; color: #999; margin-top: 8rpx; }
-.text-green { color: #52c41a; }
-.text-cyan { color: #13c2c2; }
-.text-blue { color: #1890ff; }
-.stats-empty { text-align: center; padding: 20rpx 0; }
-.text-hint { font-size: 26rpx; color: #999; }
-
-/* 分类入口 */
-.category-grid { margin-bottom: 24rpx; }
-.category-card {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16rpx;
-  padding: 28rpx 24rpx;
-}
-.category-card:last-child { margin-bottom: 0; }
-.category-icon-wrap {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 20rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 20rpx;
-  flex-shrink: 0;
-}
-.category-icon { font-size: 36rpx; }
-.category-text { flex: 1; }
-.category-name { font-size: 30rpx; color: #333; font-weight: 600; display: block; }
-.category-desc { font-size: 24rpx; color: #999; display: block; margin-top: 6rpx; }
-.category-arrow { font-size: 36rpx; color: #ccc; flex-shrink: 0; }
-
-/* AI按钮 */
-.ai-btn {
-  margin-bottom: 24rpx;
-  background: linear-gradient(135deg, #52c41a, #13c2c2) !important;
+.hp-banner {
+  padding: 48rpx 32rpx 64rpx;
+  background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
   color: #fff;
+}
+.hp-banner-title { font-size: 40rpx; font-weight: bold; }
+.hp-banner-desc { font-size: 24rpx; opacity: 0.85; margin-top: 8rpx; display: block; }
+
+.hp-overview-card {
+  margin: -36rpx 24rpx 0;
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 32rpx 16rpx;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  box-shadow: 0 8rpx 24rpx rgba(99,102,241,0.10);
 }
-.ai-btn-disabled { opacity: 0.7; }
-.ai-btn-inner { display: flex; align-items: center; flex: 1; }
-.ai-icon { font-size: 48rpx; margin-right: 20rpx; }
-.ai-text { flex: 1; }
-.ai-title { font-size: 30rpx; font-weight: 600; display: block; }
-.ai-desc { font-size: 24rpx; color: rgba(255,255,255,0.85); display: block; margin-top: 6rpx; }
-.ai-arrow { font-size: 36rpx; color: rgba(255,255,255,0.7); }
-.ai-loading-text { font-size: 24rpx; color: rgba(255,255,255,0.85); }
+.hp-stat { flex: 1; display: flex; flex-direction: column; align-items: center; }
+.hp-stat-num { font-size: 40rpx; font-weight: bold; }
+.hp-stat-num.purple { color: #6366F1; }
+.hp-stat-num.purple-light { color: #8B5CF6; }
+.hp-stat-num.pink { color: #A855F7; }
+.hp-stat-label { font-size: 22rpx; color: #9CA3AF; margin-top: 8rpx; }
+.hp-stat-divider { width: 1rpx; height: 64rpx; background: #f0f0f0; }
 
-/* 今日待办 */
-.today-section { margin-bottom: 24rpx; }
-.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16rpx; }
-.section-title { font-size: 30rpx; font-weight: 600; color: #333; }
-.section-count { font-size: 22rpx; color: #999; }
-.loading-hint, .empty-hint { text-align: center; padding: 40rpx 0; }
-.empty-hint { display: flex; flex-direction: column; align-items: center; }
-.empty-icon { font-size: 48rpx; margin-bottom: 12rpx; }
-.empty-text { font-size: 26rpx; color: #999; }
+.hp-list-header { display: flex; align-items: center; justify-content: space-between; padding: 32rpx 32rpx 16rpx; }
+.hp-list-title { font-size: 30rpx; font-weight: bold; }
+.hp-list-action { font-size: 24rpx; color: #6366F1; }
 
-.todo-groups { margin-top: 8rpx; }
-.todo-group { margin-bottom: 16rpx; }
-.todo-group:last-child { margin-bottom: 0; }
-.todo-group-header { display: flex; align-items: center; justify-content: space-between; padding: 10rpx 0; }
-.todo-group-title-row { display: flex; align-items: center; }
-.todo-group-icon { font-size: 28rpx; margin-right: 8rpx; }
-.todo-group-name { font-size: 26rpx; font-weight: 600; color: #333; }
-.todo-group-count { font-size: 22rpx; color: #999; }
-.todo-group-empty { padding: 12rpx 0 12rpx 36rpx; }
-.todo-group-empty-text { font-size: 24rpx; color: #ccc; }
+.hp-loading { text-align: center; padding: 64rpx 0; color: #9CA3AF; font-size: 24rpx; }
 
-.todo-subgroup { margin-bottom: 8rpx; }
-.todo-subgroup:last-child { margin-bottom: 0; }
-.todo-subgroup-header { display: flex; align-items: center; justify-content: space-between; padding: 8rpx 0 8rpx 36rpx; }
-.todo-subgroup-name { font-size: 24rpx; color: #666; font-weight: 500; }
-.todo-subgroup-count { font-size: 20rpx; color: #999; }
-.subgroup-empty { opacity: 0.5; }
-.todo-subgroup-empty-tag { font-size: 20rpx; color: #ccc; }
+.hp-empty {
+  margin: 16rpx 24rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 80rpx 32rpx;
+  text-align: center;
+}
+.hp-empty-icon { font-size: 60rpx; display: block; }
+.hp-empty-text { font-size: 26rpx; color: #9CA3AF; display: block; margin-top: 16rpx; margin-bottom: 24rpx; }
+.hp-empty-btn { display: inline-block; padding: 16rpx 48rpx; border-radius: 12rpx; background: #6366F1; color: #fff; font-size: 28rpx; }
 
-.todo-item {
+.hp-plan-card {
+  margin: 0 24rpx 16rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 28rpx 24rpx;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 14rpx 0 14rpx 36rpx;
-  border-bottom: 1rpx solid #f9f9f9;
 }
-.todo-item:last-child { border-bottom: none; }
-.todo-item-done { opacity: 0.6; }
-.todo-left { display: flex; align-items: center; flex: 1; overflow: hidden; }
-.todo-check { width: 36rpx; height: 36rpx; border-radius: 50%; border: 2rpx solid #d9d9d9; display: flex; align-items: center; justify-content: center; margin-right: 14rpx; flex-shrink: 0; }
-.todo-checked { background: #52c41a; border-color: #52c41a; }
-.check-mark { font-size: 20rpx; color: #fff; font-weight: bold; }
-.todo-info { flex: 1; overflow: hidden; }
-.todo-name { font-size: 28rpx; color: #333; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.todo-done { text-decoration: line-through; color: #999; }
-.todo-time { font-size: 22rpx; color: #999; display: block; margin-top: 4rpx; }
-.todo-btn { flex-shrink: 0; margin-left: 16rpx; }
-.todo-btn-text { font-size: 24rpx; color: #fff; background: #52c41a; padding: 8rpx 24rpx; border-radius: 24rpx; }
-.todo-btn-done { flex-shrink: 0; margin-left: 16rpx; }
-.done-mark { font-size: 28rpx; color: #52c41a; font-weight: bold; }
+.hp-plan-main { flex: 1; min-width: 0; }
+.hp-plan-name { font-size: 30rpx; font-weight: bold; color: #1F2937; }
+.hp-plan-meta { font-size: 22rpx; color: #9CA3AF; margin-top: 8rpx; }
+.hp-plan-actions { display: flex; align-items: center; gap: 16rpx; margin-left: 16rpx; }
+.hp-plan-more { color: #9CA3AF; font-size: 36rpx; padding: 8rpx 12rpx; line-height: 1; }
+.hp-plan-btn {
+  min-width: 120rpx;
+  height: 56rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  color: #fff;
+  font-size: 26rpx;
+  font-weight: 600;
+  text-align: center;
+  line-height: 56rpx;
+  padding: 0 24rpx;
+}
+.hp-plan-btn-done {
+  background: #E5E7EB;
+  color: #9CA3AF;
+}
 
-/* 打卡数值输入对话框 */
-.checkin-dialog-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999; display: flex; align-items: center; justify-content: center; }
-.checkin-dialog { width: 560rpx; background: #fff; border-radius: 24rpx; padding: 40rpx; }
-.checkin-dialog-title { font-size: 30rpx; font-weight: 600; color: #333; display: block; text-align: center; margin-bottom: 12rpx; }
-.checkin-dialog-hint { font-size: 24rpx; color: #999; display: block; text-align: center; margin-bottom: 32rpx; }
-.checkin-dialog-input { border: 2rpx solid #e8e8e8; border-radius: 12rpx; padding: 20rpx 24rpx; font-size: 32rpx; text-align: center; margin-bottom: 32rpx; }
-.checkin-dialog-actions { display: flex; justify-content: space-between; }
-.checkin-dialog-btn { flex: 1; text-align: center; padding: 18rpx 0; border-radius: 36rpx; font-size: 28rpx; }
-.checkin-dialog-cancel { background: #f5f5f5; color: #666; margin-right: 16rpx; }
-.checkin-dialog-confirm { background: #52c41a; color: #fff; }
+.hp-fab {
+  position: fixed;
+  right: 36rpx;
+  bottom: 80rpx;
+  width: 96rpx;
+  height: 96rpx;
+  line-height: 96rpx;
+  text-align: center;
+  font-size: 56rpx;
+  color: #fff;
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  border-radius: 50%;
+  box-shadow: 0 8rpx 24rpx rgba(99,102,241,0.35);
+  z-index: 100;
+}
+
+.hp-action-mask {
+  position: fixed; left: 0; right: 0; top: 0; bottom: 0;
+  background: rgba(0,0,0,0.4); z-index: 200;
+  display: flex; align-items: flex-end;
+}
+.hp-action-sheet { width: 100%; background: #fff; border-radius: 24rpx 24rpx 0 0; }
+.hp-action-item { text-align: center; padding: 32rpx; font-size: 30rpx; border-bottom: 1rpx solid #f0f0f0; }
+.hp-action-danger { color: #ff4d4f; }
+.hp-action-cancel { color: #9CA3AF; border-top: 8rpx solid #f5f5f5; border-bottom: none; }

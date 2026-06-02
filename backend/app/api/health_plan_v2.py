@@ -818,6 +818,10 @@ async def create_checkin_item(
         remind_times=data.remind_times,
         repeat_frequency=data.repeat_frequency or "daily",
         custom_days=data.custom_days,
+        # [PRD-HEALTH-PLAN-CHECKIN-V1 2026-06-02] 起止时间 + 每周X次目标
+        start_date=data.start_date,
+        end_date=data.end_date,
+        weekly_target_count=data.weekly_target_count,
     )
     db.add(item)
     await db.flush()
@@ -927,8 +931,327 @@ async def delete_checkin_item(
     if not item:
         raise HTTPException(status_code=404, detail="打卡项不存在")
     item.status = "deleted"
+    # [PRD-HEALTH-PLAN-CHECKIN-V1 2026-06-02] 删除计划时同步清除打卡记录（PRD §5.4 二次确认文案约定）
+    from sqlalchemy import delete as _sa_delete
+    await db.execute(
+        _sa_delete(HealthCheckInRecord).where(
+            HealthCheckInRecord.item_id == item_id,
+            HealthCheckInRecord.user_id == current_user.id,
+        )
+    )
     await db.flush()
     return {"message": "删除成功"}
+
+
+# ──────────────── [PRD-HEALTH-PLAN-CHECKIN-V1 2026-06-02] 补卡（限最近3天）────────────────
+
+
+@router.post("/checkin-items/{item_id}/makeup")
+async def makeup_checkin(
+    item_id: int,
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """补卡：允许补打最近 3 天（不含今天）内漏掉的打卡。
+
+    入参：{ "date": "YYYY-MM-DD" }
+    """
+    target_date_raw = payload.get("date") if isinstance(payload, dict) else None
+    if not target_date_raw:
+        raise HTTPException(status_code=400, detail="缺少 date 参数")
+    try:
+        target_date = date.fromisoformat(str(target_date_raw))
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="date 格式应为 YYYY-MM-DD")
+
+    today = date.today()
+    if target_date > today:
+        raise HTTPException(status_code=400, detail="不能补未来日期的卡")
+    diff_days = (today - target_date).days
+    if diff_days < 1 or diff_days > 3:
+        raise HTTPException(status_code=400, detail="只能补最近 3 天内（不含今天）的卡")
+
+    result = await db.execute(
+        select(HealthCheckInItem).where(
+            HealthCheckInItem.id == item_id,
+            HealthCheckInItem.user_id == current_user.id,
+            HealthCheckInItem.status == "active",
+        )
+    )
+    item = result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="打卡项不存在")
+
+    # 日期不能早于计划开始日
+    if item.start_date and target_date < item.start_date:
+        raise HTTPException(status_code=400, detail="补卡日期早于计划开始日期")
+
+    existing = await db.execute(
+        select(HealthCheckInRecord).where(
+            HealthCheckInRecord.item_id == item_id,
+            HealthCheckInRecord.user_id == current_user.id,
+            HealthCheckInRecord.check_in_date == target_date,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="该日已打卡")
+
+    record = HealthCheckInRecord(
+        item_id=item_id,
+        user_id=current_user.id,
+        check_in_date=target_date,
+        actual_value=None,
+        is_completed=True,
+        check_in_time=datetime.utcnow(),
+    )
+    db.add(record)
+    await db.flush()
+    return {"message": "补卡成功", "date": target_date.isoformat()}
+
+
+# ──────────────── [PRD-HEALTH-PLAN-CHECKIN-V1 2026-06-02] 首页总览 + 月历 ────────────────
+
+
+@router.get("/checkin-overview")
+async def get_checkin_overview(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """打卡首页总览：进行中计划数、今日已打卡数、本周完成率。
+
+    本期口径：仅统计「健康打卡（HealthCheckInItem）」。
+    - 进行中计划数：status=active 且（end_date 为空 或 end_date >= today）
+    - 今日已打卡数：HealthCheckInRecord today 的不同 item 数
+    - 本周完成率：最近 7 天内，每天「应打卡项数 / 实际打卡项数」的平均值（按 0~100 百分比）
+    """
+    today = date.today()
+    week_ago = today - timedelta(days=6)
+
+    # 进行中计划
+    active_items_res = await db.execute(
+        select(HealthCheckInItem).where(
+            HealthCheckInItem.user_id == current_user.id,
+            HealthCheckInItem.status == "active",
+            or_(
+                HealthCheckInItem.end_date.is_(None),
+                HealthCheckInItem.end_date >= today,
+            ),
+        )
+    )
+    active_items = active_items_res.scalars().all()
+    active_count = len(active_items)
+
+    # 今日已打卡数（独立 item）
+    today_done_res = await db.execute(
+        select(func.count(func.distinct(HealthCheckInRecord.item_id))).where(
+            HealthCheckInRecord.user_id == current_user.id,
+            HealthCheckInRecord.check_in_date == today,
+            HealthCheckInRecord.is_completed == True,
+        )
+    )
+    today_done = int(today_done_res.scalar() or 0)
+
+    # 本周完成率：逐天计算
+    rates: list[float] = []
+    # 获取本周所有打卡记录
+    rec_res = await db.execute(
+        select(HealthCheckInRecord.item_id, HealthCheckInRecord.check_in_date).where(
+            HealthCheckInRecord.user_id == current_user.id,
+            HealthCheckInRecord.check_in_date >= week_ago,
+            HealthCheckInRecord.check_in_date <= today,
+            HealthCheckInRecord.is_completed == True,
+        )
+    )
+    day_done_map: dict[date, set[int]] = {}
+    for iid, d in rec_res.all():
+        day_done_map.setdefault(d, set()).add(iid)
+
+    for offset in range(7):
+        d = week_ago + timedelta(days=offset)
+        # 该日「应打卡」项：status=active 且 created_at.date() <= d 且 (end_date 为空 或 >= d) 且 (start_date 为空 或 <= d)
+        # 这里宽松地：用 active_items 在该日「期内」的判定
+        expected_ids: set[int] = set()
+        for it in active_items:
+            it_start = it.start_date
+            it_end = it.end_date
+            it_created = getattr(it, "created_at", None)
+            if hasattr(it_created, "date"):
+                it_created = it_created.date()
+            if it_created and it_created > d:
+                continue
+            if it_start and it_start > d:
+                continue
+            if it_end and it_end < d:
+                continue
+            expected_ids.add(it.id)
+        expected = len(expected_ids)
+        done_ids = day_done_map.get(d, set())
+        done = len(done_ids & expected_ids) if expected_ids else len(done_ids)
+        if expected > 0:
+            rates.append(round(done / expected * 100, 1))
+        else:
+            rates.append(0.0)
+    week_rate = round(sum(rates) / 7, 1) if rates else 0.0
+
+    return {
+        "active_count": active_count,
+        "today_done_count": today_done,
+        "week_completion_rate": week_rate,
+    }
+
+
+@router.get("/checkin-calendar")
+async def get_checkin_calendar(
+    year: int = Query(..., ge=2000, le=3000),
+    month: int = Query(..., ge=1, le=12),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """月历视图：返回指定月份内有打卡的日期与该日已打卡的计划数。"""
+    from calendar import monthrange
+    first_day = date(year, month, 1)
+    last_day = date(year, month, monthrange(year, month)[1])
+
+    res = await db.execute(
+        select(
+            HealthCheckInRecord.check_in_date,
+            func.count(func.distinct(HealthCheckInRecord.item_id)),
+        ).where(
+            HealthCheckInRecord.user_id == current_user.id,
+            HealthCheckInRecord.check_in_date >= first_day,
+            HealthCheckInRecord.check_in_date <= last_day,
+            HealthCheckInRecord.is_completed == True,
+        ).group_by(HealthCheckInRecord.check_in_date)
+    )
+    days = []
+    for d, cnt in res.all():
+        if d is None:
+            continue
+        if isinstance(d, str):
+            try:
+                d = date.fromisoformat(d)
+            except ValueError:
+                continue
+        elif hasattr(d, "date") and not isinstance(d, date):
+            d = d.date()
+        days.append({"date": d.isoformat(), "count": int(cnt or 0)})
+
+    return {
+        "year": year,
+        "month": month,
+        "days": days,
+    }
+
+
+@router.get("/checkin-stats-summary")
+async def get_checkin_stats_summary(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """打卡成果页：连续天数、累计打卡、总体完成率，及各计划完成率。
+
+    口径仅统计「健康打卡（HealthCheckInItem）」。
+    - 连续天数：自今天向前推，连续每天均有至少一次打卡的天数
+    - 累计打卡：HealthCheckInRecord 总条数
+    - 总体完成率：所有计划的「实打 / 应打」总和比
+    - 各计划完成率：每个 active 计划的完成率
+    """
+    today = date.today()
+
+    # 累计打卡
+    total_res = await db.execute(
+        select(func.count(HealthCheckInRecord.id)).where(
+            HealthCheckInRecord.user_id == current_user.id,
+            HealthCheckInRecord.is_completed == True,
+        )
+    )
+    total_checkins = int(total_res.scalar() or 0)
+
+    # 连续天数：查所有打卡日期，从今天往回数
+    all_dates_res = await db.execute(
+        select(func.distinct(HealthCheckInRecord.check_in_date)).where(
+            HealthCheckInRecord.user_id == current_user.id,
+            HealthCheckInRecord.is_completed == True,
+        )
+    )
+    date_set: set[date] = set()
+    for row in all_dates_res.all():
+        v = row[0]
+        if v is None:
+            continue
+        if isinstance(v, str):
+            try:
+                v = date.fromisoformat(v)
+            except ValueError:
+                continue
+        elif hasattr(v, "date") and not isinstance(v, date):
+            v = v.date()
+        date_set.add(v)
+    streak = 0
+    cursor = today
+    while cursor in date_set and streak < 3650:
+        streak += 1
+        cursor -= timedelta(days=1)
+
+    # 各计划完成率：对每个 active 计划计算「应打天数」与「实打天数」
+    items_res = await db.execute(
+        select(HealthCheckInItem).where(
+            HealthCheckInItem.user_id == current_user.id,
+            HealthCheckInItem.status == "active",
+        )
+    )
+    items = items_res.scalars().all()
+
+    plans: list[dict] = []
+    overall_expected = 0
+    overall_done = 0
+    for it in items:
+        it_start = it.start_date
+        it_created = getattr(it, "created_at", None)
+        if hasattr(it_created, "date"):
+            it_created = it_created.date()
+        anchor = it_start or it_created or today
+        if anchor > today:
+            expected = 0
+        else:
+            end_anchor = min(it.end_date or today, today)
+            if end_anchor < anchor:
+                expected = 0
+            else:
+                expected = (end_anchor - anchor).days + 1
+        # 「每周X次」时，按周等价处理：将期内天数换算为 weeks * weekly_target
+        if (it.repeat_frequency == "weekly") and (it.weekly_target_count and it.weekly_target_count > 0):
+            weeks = max(1, expected // 7 + (1 if expected % 7 else 0))
+            expected = min(expected, weeks * it.weekly_target_count)
+        done_res = await db.execute(
+            select(func.count(HealthCheckInRecord.id)).where(
+                HealthCheckInRecord.item_id == it.id,
+                HealthCheckInRecord.user_id == current_user.id,
+                HealthCheckInRecord.is_completed == True,
+            )
+        )
+        done = int(done_res.scalar() or 0)
+        rate = round(min(done, expected) / expected * 100, 1) if expected > 0 else 0.0
+        plans.append({
+            "id": it.id,
+            "name": it.name,
+            "expected": expected,
+            "done": done,
+            "completion_rate": rate,
+        })
+        overall_expected += expected
+        overall_done += min(done, expected)
+
+    overall_rate = round(overall_done / overall_expected * 100, 1) if overall_expected > 0 else 0.0
+    plans.sort(key=lambda p: p["completion_rate"], reverse=True)
+
+    return {
+        "streak_days": streak,
+        "total_checkins": total_checkins,
+        "overall_completion_rate": overall_rate,
+        "plans": plans,
+    }
 
 
 @router.post("/checkin-items/{item_id}/checkin")

@@ -1,32 +1,24 @@
 'use client';
 
 /**
- * [PRD-439 F-08] 健康打卡入口下线
+ * [PRD-HEALTH-PLAN-CHECKIN-V1 2026-06-02] 重新接通 /health-plan/checkin
  *
- * 原 /health-plan/checkin 页面已被 ai-home 中的 🔔 提醒铃铛 + 今日待办抽屉取代。
- * 这里仅做客户端重定向到 /ai-home，并提示"已升级"。
- *
- * 历史打卡数据保留在数据库，本页面不再访问。
+ * 旧版被强制跳回 /ai-home 已废止。本次：将该路径作为旧链接兼容入口，重定向到新的
+ * 打卡落地页 /health-plan（落地页即打卡首页）。
  */
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { showToast } from '@/lib/toast-unified';
 
-export default function CheckinPage() {
+export default function CheckinLegacyRedirect() {
   const router = useRouter();
-
   useEffect(() => {
-    showToast('健康打卡已升级为提醒，请在首页右下角 🔔 查看');
-    const timer = setTimeout(() => {
-      router.replace('/ai-home');
-    }, 300);
-    return () => clearTimeout(timer);
+    router.replace('/health-plan');
   }, [router]);
 
   return (
     <div
-      data-testid="prd439-checkin-redirect"
+      data-testid="health-plan-checkin-redirect-v1"
       style={{
         minHeight: '100vh',
         display: 'flex',
@@ -37,7 +29,7 @@ export default function CheckinPage() {
         background: '#F5F5F7',
       }}
     >
-      正在跳转…
+      正在打开健康打卡...
     </div>
   );
 }

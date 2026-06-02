@@ -1,0 +1,59 @@
+.result-page { min-height: 100vh; background: #F5F5F7; padding-bottom: 64rpx; }
+
+.result-hero {
+  display: flex;
+  align-items: center;
+  padding: 48rpx 24rpx;
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  color: #fff;
+}
+.hero-num-col { flex: 1; text-align: center; }
+.hero-num { font-size: 56rpx; font-weight: bold; display: block; }
+.hero-label { font-size: 22rpx; opacity: 0.85; margin-top: 8rpx; display: block; }
+.hero-divider { width: 1rpx; height: 64rpx; background: rgba(255,255,255,0.3); }
+
+.calendar-card {
+  margin: -24rpx 24rpx 24rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 28rpx 24rpx;
+}
+.cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx; }
+.cal-title { font-size: 30rpx; font-weight: bold; }
+.cal-nav { font-size: 40rpx; color: #6366F1; padding: 0 24rpx; }
+.cal-week { display: flex; }
+.cal-week-text { flex: 1; text-align: center; font-size: 22rpx; color: #9CA3AF; padding: 12rpx 0; }
+.cal-grid { display: flex; flex-wrap: wrap; }
+.cal-cell {
+  width: 14.285%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  color: #1F2937;
+  border-radius: 10rpx;
+  box-sizing: border-box;
+  margin: 4rpx 0;
+}
+.cal-cell-done { background: linear-gradient(135deg, #6366F1, #8B5CF6); color: #fff; font-weight: 600; }
+.cal-cell-today { background: #EEF2FF; color: #6366F1; font-weight: 600; }
+.cal-cell-makeup { background: #FFF7ED; border: 1rpx dashed #F59E0B; }
+.cal-legend { display: flex; align-items: center; flex-wrap: wrap; margin-top: 16rpx; }
+.legend-dot { width: 20rpx; height: 20rpx; border-radius: 4rpx; display: inline-block; margin-right: 8rpx; }
+.legend-dot.legend-done { background: linear-gradient(135deg, #6366F1, #8B5CF6); }
+.legend-dot.legend-makeup { background: #FFF7ED; border: 1rpx dashed #F59E0B; }
+.legend-text { font-size: 22rpx; color: #9CA3AF; margin-right: 24rpx; }
+
+.rank-card { margin: 0 24rpx; background: #fff; border-radius: 16rpx; padding: 28rpx 24rpx; }
+.rank-title { font-size: 30rpx; font-weight: bold; margin-bottom: 16rpx; }
+.rank-empty { text-align: center; color: #9CA3AF; padding: 32rpx 0; font-size: 26rpx; }
+.rank-item { margin-bottom: 28rpx; }
+.rank-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8rpx; }
+.rank-left { display: flex; align-items: center; }
+.rank-badge { width: 36rpx; height: 36rpx; border-radius: 50%; color: #fff; text-align: center; line-height: 36rpx; font-size: 22rpx; font-weight: bold; margin-right: 12rpx; }
+.rank-name { font-size: 26rpx; color: #1F2937; }
+.rank-rate { font-size: 26rpx; font-weight: 600; }
+.rank-bar { width: 100%; height: 8rpx; background: #f0f0f0; border-radius: 4rpx; overflow: hidden; }
+.rank-bar-fill { height: 100%; border-radius: 4rpx; }
+.rank-meta { font-size: 22rpx; color: #9CA3AF; margin-top: 6rpx; display: block; }

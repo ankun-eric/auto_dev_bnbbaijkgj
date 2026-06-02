@@ -605,3 +605,66 @@ async def admin_user_daily_summary(
         current += timedelta(days=1)
 
     return {"daily_data": daily_data, "users": all_users}
+
+
+# ──────────────── [PRD-HEALTH-PLAN-CHECKIN-V1 2026-06-02] 管理端只读：健康打卡计划列表 ────────────────
+
+
+@router.get("/user-checkin-plans")
+async def admin_list_user_checkin_plans(
+    user_id: Optional[int] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """[只读] 列出所有用户创建的健康打卡计划及其打卡统计。"""
+    query = select(HealthCheckInItem).where(HealthCheckInItem.status != "deleted")
+    count_query = select(func.count(HealthCheckInItem.id)).where(HealthCheckInItem.status != "deleted")
+    if user_id:
+        query = query.where(HealthCheckInItem.user_id == user_id)
+        count_query = count_query.where(HealthCheckInItem.user_id == user_id)
+
+    total_result = await db.execute(count_query)
+    total = int(total_result.scalar() or 0)
+
+    res = await db.execute(
+        query.order_by(HealthCheckInItem.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    items = res.scalars().all()
+
+    users_res = await db.execute(
+        select(User.id, User.phone, User.nickname).where(
+            User.id.in_([it.user_id for it in items]) if items else User.id == -1
+        )
+    )
+    user_map = {r[0]: {"phone": r[1], "nickname": r[2]} for r in users_res.all()}
+
+    out = []
+    for it in items:
+        count_res = await db.execute(
+            select(func.count(HealthCheckInRecord.id)).where(
+                HealthCheckInRecord.item_id == it.id,
+                HealthCheckInRecord.is_completed == True,
+            )
+        )
+        checkin_count = int(count_res.scalar() or 0)
+        u = user_map.get(it.user_id, {})
+        out.append({
+            "id": it.id,
+            "user_id": it.user_id,
+            "user_phone": u.get("phone"),
+            "user_nickname": u.get("nickname"),
+            "name": it.name,
+            "repeat_frequency": it.repeat_frequency,
+            "weekly_target_count": it.weekly_target_count,
+            "start_date": it.start_date.isoformat() if it.start_date else None,
+            "end_date": it.end_date.isoformat() if it.end_date else None,
+            "status": it.status,
+            "checkin_count": checkin_count,
+            "created_at": it.created_at.isoformat() if it.created_at else None,
+        })
+
+    return {"items": out, "total": total, "page": page, "page_size": page_size}
