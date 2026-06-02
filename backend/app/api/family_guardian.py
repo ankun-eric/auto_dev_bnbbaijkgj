@@ -21,6 +21,10 @@ from app.models.models import (
     User,
     VirtualMemberMigration,
 )
+from app.services.family_bind_dedup_service import (
+    DUPLICATE_BIND_DETAIL,
+    is_duplicate_bind,
+)
 from app.services.family_guardian_service import (
     guardians_of,
     list_alert_logs_for_user,
@@ -195,6 +199,16 @@ async def confirm_migration(
     ).scalar_one_or_none()
     if not member:
         raise HTTPException(status_code=404, detail="家庭成员不存在")
+
+    # [BUGFIX-FAMILY-DUPLICATE-BIND-V1 2026-06-02] 复用统一判重逻辑，
+    # 同管理者（建档人）名下不能重复绑定同一被守护人（用户 ID 或手机号任一命中即拦截）。
+    if await is_duplicate_bind(
+        db,
+        manager_user_id=m.creator_user_id,
+        managed_user_id=current_user.id,
+        managed_phone=current_user.phone,
+    ):
+        raise HTTPException(status_code=400, detail=DUPLICATE_BIND_DETAIL)
 
     # 绑定 member.member_user_id；清空 virtual_phone
     member.member_user_id = current_user.id
