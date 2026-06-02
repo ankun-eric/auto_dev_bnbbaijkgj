@@ -28,11 +28,11 @@ import {
   findRelationDef,
   computeDefaultBirthday,
   validateRelationAge,
-  calcAge,
   extractSelfBirthYear,
   FAM_THEME as T,
-  CHRONIC_DISEASE_OPTIONS,
 } from '@/lib/family-relation';
+// [PRD-HEALTH-INFO-SHARED 2026-06-02] 公共「健康信息填写区」子组件（邀请家人时同样可填手术史/家族病史/个人习惯）
+import HealthInfoFields, { BLUE_THEME, HealthInfoValue } from '@/components/health-profile-v5/HealthInfoFields';
 
 interface ExistingMember {
   id: number;
@@ -72,10 +72,13 @@ export default function NewFamilyMemberModal({ onClose, onSuccess }: Props) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [height, setHeight] = useState<string>('');
   const [weight, setWeight] = useState<string>('');
-  const [chronics, setChronics] = useState<string[]>([]);
-  const [drugAllergy, setDrugAllergy] = useState<string>('');
-  const [foodAllergy, setFoodAllergy] = useState<string>('');
-  const [otherAllergy, setOtherAllergy] = useState<string>('');
+  // [PRD-HEALTH-INFO-SHARED 2026-06-02] 健康信息（既往病史/过敏史/手术史/家族病史/个人习惯）
+  // 统一由公共子组件维护。
+  const [healthInfo, setHealthInfo] = useState<HealthInfoValue>({
+    chronic_diseases: [], surgery_history: [],
+    drug_allergies: [], food_allergies: [], other_allergies: [],
+    family_history: [],
+  });
 
   // 校验态
   const [errFields, setErrFields] = useState<Set<string>>(new Set());
@@ -239,15 +242,14 @@ export default function NewFamilyMemberModal({ onClose, onSuccess }: Props) {
       };
       if (height) body.height = Number(height);
       if (weight) body.weight = Number(weight);
-      if (chronics.length) body.medical_histories = chronics;
-      // 后端 allergies 是 List[str]，前端把三组按 "药物:xxx、食物:xxx" 形态合并为字符串数组
+      // 既往病史 -> medical_histories（List[str]）
+      const chronicNames = (healthInfo.chronic_diseases || []).map((c) => c.name).filter(Boolean);
+      if (chronicNames.length) body.medical_histories = chronicNames;
+      // 后端 allergies 是 List[str]，前端把三组按 "药物:xxx" 形态合并为字符串数组
       const allergies: string[] = [];
-      const pushParts = (prefix: string, raw: string) => {
-        raw.split(/[,，;；\s]+/).filter(Boolean).forEach((s) => allergies.push(`${prefix}:${s}`));
-      };
-      if (drugAllergy.trim()) pushParts('药物', drugAllergy);
-      if (foodAllergy.trim()) pushParts('食物', foodAllergy);
-      if (otherAllergy.trim()) pushParts('其他', otherAllergy);
+      (healthInfo.drug_allergies || []).forEach((s) => s && allergies.push(`药物:${s}`));
+      (healthInfo.food_allergies || []).forEach((s) => s && allergies.push(`食物:${s}`));
+      (healthInfo.other_allergies || []).forEach((s) => s && allergies.push(`其他:${s}`));
       if (allergies.length) body.allergies = allergies;
 
       // [PRD-FAMILY-MEMBER-OPTIM-FINAL 2026-05-31 修复版] 拿到后端返回的新成员 id，
@@ -259,6 +261,39 @@ export default function NewFamilyMemberModal({ onClose, onSuccess }: Props) {
         : (respData?.data && typeof respData.data.id === 'number')
         ? respData.data.id
         : undefined;
+
+      // [PRD-HEALTH-INFO-SHARED 2026-06-02] 把手术史/家族病史/个人习惯等扩展健康信息
+      // 落到新成员的 health-info（HealthInfoExtra）。需先取到新成员的 profile_id。
+      const hasExtra =
+        (healthInfo.surgery_history || []).length > 0 ||
+        (healthInfo.family_history || []).length > 0 ||
+        !!healthInfo.habit_smoking || !!healthInfo.habit_drinking ||
+        !!healthInfo.habit_exercise || !!healthInfo.habit_diet ||
+        chronicNames.length > 0 ||
+        allergies.length > 0;
+      if (typeof createdId === 'number' && hasExtra) {
+        try {
+          const pres: any = await api.get(`/api/health/profile/member/${createdId}`);
+          const profileId: number | undefined = (pres?.data?.id ?? pres?.id);
+          if (typeof profileId === 'number') {
+            await api.put(`/api/prd469/health-info/${profileId}`, {
+              chronic_diseases: healthInfo.chronic_diseases || [],
+              surgery_history: healthInfo.surgery_history || [],
+              drug_allergies: healthInfo.drug_allergies || [],
+              food_allergies: healthInfo.food_allergies || [],
+              other_allergies: healthInfo.other_allergies || [],
+              family_history: healthInfo.family_history || [],
+              habit_smoking: healthInfo.habit_smoking,
+              habit_drinking: healthInfo.habit_drinking,
+              habit_exercise: healthInfo.habit_exercise,
+              habit_diet: healthInfo.habit_diet,
+            });
+          }
+        } catch {
+          // 扩展健康信息保存失败不阻断主流程（成员已创建成功）
+        }
+      }
+
       showToast('添加成功');
       if (typeof createdId === 'number') {
         onSuccess({ id: createdId, nickname });
@@ -544,57 +579,32 @@ export default function NewFamilyMemberModal({ onClose, onSuccess }: Props) {
           </div>
 
           {moreOpen && (
-            <div style={{ padding: '0 4px 8px' }}>
-              <div style={{ display: 'flex' }}>
-                <FieldRow label="身高(cm)" inline>
+            <div style={{ padding: '4px 12px 12px' }}>
+              {/* 身高 / 体重 同行两列并排 */}
+              <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 6, fontWeight: 600 }}>身高 (cm)</div>
                   <input
                     type="number" value={height} onChange={(e) => setHeight(e.target.value)}
-                    placeholder="0-300" style={inputStyle} data-testid="fm-v2-height"
+                    placeholder="如 170" style={inputStyle} data-testid="fm-v2-height"
                   />
-                </FieldRow>
-                <FieldRow label="体重(kg)" inline>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 6, fontWeight: 600 }}>体重 (kg)</div>
                   <input
                     type="number" value={weight} onChange={(e) => setWeight(e.target.value)}
-                    placeholder="0-300" style={inputStyle} data-testid="fm-v2-weight"
+                    placeholder="如 60" style={inputStyle} data-testid="fm-v2-weight"
                   />
-                </FieldRow>
-              </div>
-              <div style={{ padding: '8px 12px 4px' }}>
-                <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 6, fontWeight: 600 }}>既往病史</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {CHRONIC_DISEASE_OPTIONS.map((d) => {
-                    const active = chronics.includes(d);
-                    return (
-                      <button
-                        key={d}
-                        onClick={() => setChronics((p) => p.includes(d) ? p.filter((x) => x !== d) : [...p, d])}
-                        style={{
-                          padding: '4px 10px', borderRadius: 14, fontSize: 12,
-                          background: active ? T.pillBgActive : T.pillBg,
-                          color: active ? T.primaryDark : T.textPrimary,
-                          border: active ? `1px solid ${T.pillBorderActive}` : '1px solid transparent',
-                          cursor: 'pointer',
-                        }}
-                      >{d}</button>
-                    );
-                  })}
                 </div>
               </div>
-              <div style={{ padding: '10px 12px 4px' }}>
-                <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 6, fontWeight: 600 }}>过敏史</div>
-                <input
-                  value={drugAllergy} onChange={(e) => setDrugAllergy(e.target.value)}
-                  placeholder="药物过敏（如：青霉素、头孢）" style={{ ...inputStyle, marginBottom: 6 }}
-                />
-                <input
-                  value={foodAllergy} onChange={(e) => setFoodAllergy(e.target.value)}
-                  placeholder="食物过敏（如：海鲜、坚果）" style={{ ...inputStyle, marginBottom: 6 }}
-                />
-                <input
-                  value={otherAllergy} onChange={(e) => setOtherAllergy(e.target.value)}
-                  placeholder="其他过敏（如：花粉、尘螨）" style={inputStyle}
-                />
-              </div>
+
+              {/* [PRD-HEALTH-INFO-SHARED 2026-06-02] 公共健康信息子组件：
+                  过敏史 / 手术史 / 家族病史 / 个人习惯（含既往病史） */}
+              <HealthInfoFields
+                value={healthInfo}
+                onChange={setHealthInfo}
+                theme={BLUE_THEME}
+              />
             </div>
           )}
         </div>

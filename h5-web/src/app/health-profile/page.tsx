@@ -11,6 +11,8 @@ import api from '@/lib/api';
 import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMemberModal';
 // [PRD-HEALTH-PROFILE-SELF-COMPLETE 2026-05-29] 本人资料完善弹窗 + 抽屉
 import CompleteSelfProfileDrawer from '@/components/health-profile-v5/CompleteSelfProfileDrawer';
+// [PRD-HEALTH-INFO-SHARED 2026-06-02] 公共「健康信息填写区」子组件（两处复用：编辑档案 + 添加成员）
+import HealthInfoFields, { GREEN_THEME } from '@/components/health-profile-v5/HealthInfoFields';
 
 // [BUG_FIX 2026-05-29] 会话级 / 24h 软抑制 keys —— 替代 useRef 实现"本会话只弹一次 + 24h snooze"
 const SELF_COMPLETE_DIALOG_SHOWN_KEY = 'self_complete_dialog_shown_v1';
@@ -217,8 +219,7 @@ function CircleProgress({ percent, size = 48 }: { percent: number; size?: number
   );
 }
 
-const CHRONIC_PRESETS = ['高血压', '糖尿病', '高血脂', '冠心病', '脑卒中', '慢阻肺', '哮喘', '慢性肾病', '甲状腺', '痛风'];
-const FAMILY_RELATIONS = ['爸爸', '妈妈', '爷爷', '奶奶', '外公', '外婆', '兄弟', '姐妹', '其他'];
+// [PRD-HEALTH-INFO-SHARED 2026-06-02] 既往病史预设 / 家族关系预设已下沉到公共子组件 HealthInfoFields。
 
 const V5_RECORD_CATS = [
   { key: 'case_note', label: '病例单', emoji: '📋', color: '#3B82F6' },
@@ -292,13 +293,9 @@ function HealthProfileV2PageInner() {
     drug_allergies: [], food_allergies: [], other_allergies: [],
     family_history: [],
   });
-  const [showAddFamily, setShowAddFamily] = useState(false);
-  const [showAddSurgery, setShowAddSurgery] = useState(false);
-  const [familyForm, setFamilyForm] = useState({ relation: '爸爸', disease: '', note: '' });
-  const [surgeryForm, setSurgeryForm] = useState({ name: '', time: '', note: '' });
-  const [editingFamilyIdx, setEditingFamilyIdx] = useState<number | null>(null);
-  const [editingSurgeryIdx, setEditingSurgeryIdx] = useState<number | null>(null);
   const [editRelation, setEditRelation] = useState('');
+  // [PRD-HEALTH-INFO-SHARED 2026-06-02] Hero 编辑抽屉「其他（选填）」折叠区开关
+  const [heroMoreOpen, setHeroMoreOpen] = useState(false);
 
   // Overview state (from HealthArchiveV5Inject)
   const [overview, setOverview] = useState<{
@@ -811,81 +808,8 @@ function HealthProfileV2PageInner() {
     return tags;
   }, [healthInfo]);
 
-  // ─── Health info editing helpers (inlined from HealthInfoBlock) ─
-
-  const toggleChronic = (name: string) => {
-    setHealthInfoDraft((d) => {
-      const exists = d.chronic_diseases.find((c) => c.name === name);
-      const next = exists
-        ? d.chronic_diseases.filter((c) => c.name !== name)
-        : [...d.chronic_diseases, { name }];
-      return { ...d, chronic_diseases: next };
-    });
-  };
-
-  const addFamilyHistory = () => {
-    if (!familyForm.disease.trim()) {
-      showToast('请输入疾病名称', 'fail');
-      return;
-    }
-    const item = { relation: familyForm.relation, disease: familyForm.disease.trim(), note: familyForm.note.trim() || undefined };
-    let newList: any[];
-    if (editingFamilyIdx !== null) {
-      newList = [...(healthInfoDraft.family_history || [])];
-      newList[editingFamilyIdx] = item;
-      setEditingFamilyIdx(null);
-    } else {
-      newList = [...(healthInfoDraft.family_history || []), item];
-    }
-    setHealthInfoDraft({ ...healthInfoDraft, family_history: newList });
-    setFamilyForm({ relation: '爸爸', disease: '', note: '' });
-    setShowAddFamily(false);
-  };
-
-  const removeFamilyHistory = (idx: number) => {
-    const newList = (healthInfoDraft.family_history || []).filter((_, i) => i !== idx);
-    setHealthInfoDraft({ ...healthInfoDraft, family_history: newList });
-  };
-
-  const editFamilyHistory = (idx: number) => {
-    const item = (healthInfoDraft.family_history || [])[idx];
-    if (!item) return;
-    setFamilyForm({ relation: item.relation || '爸爸', disease: item.disease || '', note: item.note || '' });
-    setEditingFamilyIdx(idx);
-    setShowAddFamily(true);
-  };
-
-  const addSurgeryHistory = () => {
-    if (!surgeryForm.name.trim()) {
-      showToast('请输入手术名称', 'fail');
-      return;
-    }
-    const item = { name: surgeryForm.name.trim(), time: surgeryForm.time || undefined, note: surgeryForm.note.trim() || undefined };
-    let newList: any[];
-    if (editingSurgeryIdx !== null) {
-      newList = [...(healthInfoDraft.surgery_history || [])];
-      newList[editingSurgeryIdx] = item;
-      setEditingSurgeryIdx(null);
-    } else {
-      newList = [...(healthInfoDraft.surgery_history || []), item];
-    }
-    setHealthInfoDraft({ ...healthInfoDraft, surgery_history: newList });
-    setSurgeryForm({ name: '', time: '', note: '' });
-    setShowAddSurgery(false);
-  };
-
-  const removeSurgeryHistory = (idx: number) => {
-    const newList = (healthInfoDraft.surgery_history || []).filter((_, i) => i !== idx);
-    setHealthInfoDraft({ ...healthInfoDraft, surgery_history: newList });
-  };
-
-  const editSurgeryHistory = (idx: number) => {
-    const item = (healthInfoDraft.surgery_history || [])[idx];
-    if (!item) return;
-    setSurgeryForm({ name: item.name || '', time: item.time || '', note: item.note || '' });
-    setEditingSurgeryIdx(idx);
-    setShowAddSurgery(true);
-  };
+  // [PRD-HEALTH-INFO-SHARED 2026-06-02] 既往病史/过敏史/手术史/家族病史/个人习惯
+  // 的编辑逻辑已迁移到公共子组件 HealthInfoFields，这里不再保留内联 helpers。
 
   // ─── Member Bar (Capsule/Pill layout) ───────────────────────────
 
@@ -1030,6 +954,7 @@ function HealthProfileV2PageInner() {
               setHeroEditDraft(profile);
               setEditRelation(selectedMember?.relation_type_name || selectedMember?.relationship_type || '');
               if (healthInfo) setHealthInfoDraft(healthInfo);
+              setHeroMoreOpen(false);
               setShowHeroEdit(true);
             }}
             style={{
@@ -1087,6 +1012,7 @@ function HealthProfileV2PageInner() {
                   setEditRelation(selectedMember?.relation_type_name || selectedMember?.relationship_type || '');
                   if (healthInfo) setHealthInfoDraft(healthInfo);
                   else setHealthInfoDraft({ chronic_diseases: [], surgery_history: [], drug_allergies: [], food_allergies: [], other_allergies: [], family_history: [] });
+                  setHeroMoreOpen(false);
                   setShowHeroEdit(true);
                 }}
                 style={{
@@ -2364,14 +2290,21 @@ function HealthProfileV2PageInner() {
                   <div data-testid="hero-edit-birthday-err" style={{ fontSize: 11, color: '#EF4444', marginTop: 4, marginLeft: 70 }}>请选择出生日期</div>
                 )}
               </div>
-              {/* 身高/体重 同行 */}
-              <div style={{ display: 'flex', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f3f4f6', gap: 12 }}>
-                <span style={{ width: 70, fontSize: 14, color: '#6b7280', flexShrink: 0 }}>身高/体重</span>
-                <div style={{ flex: 1, display: 'flex', gap: 8 }}>
-                  <input type="number" placeholder="身高cm" value={String(heroEditDraft.height ?? '')} onChange={(e) => setHeroEditDraft({ ...heroEditDraft, height: e.target.value ? Number(e.target.value) : null })}
-                    style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, textAlign: 'right', boxSizing: 'border-box' }} />
-                  <input type="number" placeholder="体重kg" value={String(heroEditDraft.weight ?? '')} onChange={(e) => setHeroEditDraft({ ...heroEditDraft, weight: e.target.value ? Number(e.target.value) : null })}
-                    style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, textAlign: 'right', boxSizing: 'border-box' }} />
+              {/* [PRD-HEALTH-INFO-SHARED 2026-06-02] 身高、体重同行两列并排（修复原布局拥挤/截断） */}
+              <div style={{ padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 6 }}>身高 (cm)</div>
+                    <input type="number" placeholder="如 170" value={String(heroEditDraft.height ?? '')} onChange={(e) => setHeroEditDraft({ ...heroEditDraft, height: e.target.value ? Number(e.target.value) : null })}
+                      data-testid="hero-edit-height"
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 6 }}>体重 (kg)</div>
+                    <input type="number" placeholder="如 60" value={String(heroEditDraft.weight ?? '')} onChange={(e) => setHeroEditDraft({ ...heroEditDraft, weight: e.target.value ? Number(e.target.value) : null })}
+                      data-testid="hero-edit-weight"
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }} />
+                  </div>
                 </div>
               </div>
               {/* 血型 */}
@@ -2386,101 +2319,28 @@ function HealthProfileV2PageInner() {
               </div>
             </div>
 
-            {/* Section 2: Health Info */}
+            {/* Section 2: 其他（选填）—— 折叠区，内嵌公共健康信息子组件（一份代码，两处共用） */}
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: T.brand700, marginBottom: 12, paddingBottom: 6, borderBottom: `2px solid ${T.brand100}` }}>
-                健康信息
+              <div
+                onClick={() => setHeroMoreOpen((v) => !v)}
+                data-testid="hero-edit-more-toggle"
+                style={{
+                  fontSize: 15, fontWeight: 700, color: T.brand700, marginBottom: heroMoreOpen ? 12 : 0,
+                  paddingBottom: 6, borderBottom: `2px solid ${T.brand100}`,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer',
+                }}
+              >
+                <span>其他（选填）</span>
+                <span style={{ color: '#9ca3af', transition: 'transform .2s', transform: heroMoreOpen ? 'rotate(90deg)' : 'rotate(0)' }}>›</span>
               </div>
 
-              <EditSection title="既往病史（慢病）">
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {CHRONIC_PRESETS.map((c) => {
-                    const active = healthInfoDraft.chronic_diseases.some((x) => x.name === c);
-                    return (
-                      <button
-                        key={c}
-                        onClick={() => toggleChronic(c)}
-                        style={{
-                          padding: '6px 12px', borderRadius: 14,
-                          background: active ? T.brand500 : '#f3f4f6',
-                          color: active ? '#fff' : '#374151',
-                          border: 'none', fontSize: 13, cursor: 'pointer',
-                        }}
-                      >{c}</button>
-                    );
-                  })}
-                </div>
-              </EditSection>
-
-              <EditSection title="过敏史">
-                <TagsInput label="药物过敏" tags={healthInfoDraft.drug_allergies}
-                  onChange={(v) => setHealthInfoDraft({ ...healthInfoDraft, drug_allergies: v })} />
-                <TagsInput label="食物过敏" tags={healthInfoDraft.food_allergies}
-                  onChange={(v) => setHealthInfoDraft({ ...healthInfoDraft, food_allergies: v })} />
-                <TagsInput label="其他过敏（花粉/尘螨等）" tags={healthInfoDraft.other_allergies}
-                  onChange={(v) => setHealthInfoDraft({ ...healthInfoDraft, other_allergies: v })} />
-              </EditSection>
-
-              <EditSection title="手术史">
-                {(healthInfoDraft.surgery_history || []).map((s, idx) => (
-                  <div key={idx} data-testid={`prd469-surgery-${idx}`}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
-                    <span style={{ fontSize: 13, color: '#374151' }}>
-                      🏥 {s.name}{s.time ? ` (${s.time})` : ''}{s.note ? ` — ${s.note}` : ''}
-                    </span>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => editSurgeryHistory(idx)}
-                        style={{ padding: '4px 8px', border: 'none', background: 'none', color: T.brand500, fontSize: 12, cursor: 'pointer' }}>编辑</button>
-                      <button onClick={() => removeSurgeryHistory(idx)}
-                        style={{ padding: '4px 8px', border: 'none', background: 'none', color: '#ef4444', fontSize: 12, cursor: 'pointer' }}>删除</button>
-                    </div>
-                  </div>
-                ))}
-                <button
-                  onClick={() => { setSurgeryForm({ name: '', time: '', note: '' }); setEditingSurgeryIdx(null); setShowAddSurgery(true); }}
-                  data-testid="prd469-add-surgery-btn"
-                  style={{ marginTop: 8, padding: '8px 16px', borderRadius: 16,
-                    background: T.brand100, color: T.brand700, border: 'none', fontSize: 13, cursor: 'pointer' }}>
-                  + 添加手术史
-                </button>
-              </EditSection>
-
-              <EditSection title="家族病史">
-                {(healthInfoDraft.family_history || []).map((fh, idx) => (
-                  <div key={idx} data-testid={`prd469-family-${idx}`}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
-                    <span style={{ fontSize: 13, color: '#374151' }}>
-                      👤 {fh.relation}：{fh.disease}{fh.note ? ` (${fh.note})` : ''}
-                    </span>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => editFamilyHistory(idx)}
-                        style={{ padding: '4px 8px', border: 'none', background: 'none', color: T.brand500, fontSize: 12, cursor: 'pointer' }}>编辑</button>
-                      <button onClick={() => removeFamilyHistory(idx)}
-                        style={{ padding: '4px 8px', border: 'none', background: 'none', color: '#ef4444', fontSize: 12, cursor: 'pointer' }}>删除</button>
-                    </div>
-                  </div>
-                ))}
-                <button
-                  onClick={() => { setFamilyForm({ relation: '爸爸', disease: '', note: '' }); setEditingFamilyIdx(null); setShowAddFamily(true); }}
-                  data-testid="prd469-add-family-btn"
-                  style={{ marginTop: 8, padding: '8px 16px', borderRadius: 16,
-                    background: T.brand100, color: T.brand700, border: 'none', fontSize: 13, cursor: 'pointer' }}>
-                  + 添加家族病史
-                </button>
-              </EditSection>
-
-              <EditSection title="个人习惯">
-                <HabitRow label="抽烟" value={healthInfoDraft.habit_smoking} options={['有', '无']}
-                  onChange={(v) => setHealthInfoDraft({ ...healthInfoDraft, habit_smoking: v })} />
-                <HabitRow label="饮酒" value={healthInfoDraft.habit_drinking} options={['有', '无']}
-                  onChange={(v) => setHealthInfoDraft({ ...healthInfoDraft, habit_drinking: v })} />
-                <HabitRow label="运动频率" value={healthInfoDraft.habit_exercise} options={['无', '偶尔', '经常']}
-                  onChange={(v) => setHealthInfoDraft({ ...healthInfoDraft, habit_exercise: v })} />
-                <HabitRow label="饮食偏好" value={healthInfoDraft.habit_diet} options={['清淡', '重口味', '素食', '其他']}
-                  onChange={(v) => setHealthInfoDraft({ ...healthInfoDraft, habit_diet: v })} />
-              </EditSection>
+              {heroMoreOpen && (
+                <HealthInfoFields
+                  value={healthInfoDraft}
+                  onChange={(v) => setHealthInfoDraft(v as typeof healthInfoDraft)}
+                  theme={GREEN_THEME}
+                />
+              )}
             </div>
           </div>
 
@@ -2498,112 +2358,6 @@ function HealthProfileV2PageInner() {
                 cursor: requiredAllOk ? 'pointer' : 'not-allowed',
               }}
             >保存</button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // ─── Sub-modals: Family History + Surgery History ───────────────
-
-  const renderFamilyFormModal = () => {
-    if (!showAddFamily) return null;
-    return (
-      <div
-        data-testid="prd469-family-form-modal"
-        style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-          zIndex: 110, display: 'flex', alignItems: 'flex-end',
-        }}
-      >
-        <div style={{ background: '#fff', width: '100%', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
-          <div style={{ padding: '14px 16px', display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${T.brand100}` }}>
-            <span style={{ fontSize: 17, fontWeight: 700 }}>{editingFamilyIdx !== null ? '编辑家族病史' : '添加家族病史'}</span>
-            <span onClick={() => setShowAddFamily(false)} style={{ fontSize: 22, color: '#9ca3af', cursor: 'pointer' }}>×</span>
-          </div>
-          <div style={{ padding: 16 }}>
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 6 }}>与您的关系</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {FAMILY_RELATIONS.map((r) => (
-                  <button key={r} onClick={() => setFamilyForm({ ...familyForm, relation: r })}
-                    style={{ padding: '6px 12px', borderRadius: 14,
-                      background: familyForm.relation === r ? T.brand500 : '#f3f4f6',
-                      color: familyForm.relation === r ? '#fff' : '#374151',
-                      border: 'none', fontSize: 13, cursor: 'pointer' }}>
-                    {r}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 6 }}>疾病名称</div>
-              <input type="text" value={familyForm.disease}
-                onChange={(e) => setFamilyForm({ ...familyForm, disease: e.target.value })}
-                placeholder="如：高血压"
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 14, boxSizing: 'border-box' }} />
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 6 }}>备注（可选）</div>
-              <input type="text" value={familyForm.note}
-                onChange={(e) => setFamilyForm({ ...familyForm, note: e.target.value })}
-                placeholder="如：确诊于2020年"
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 14, boxSizing: 'border-box' }} />
-            </div>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button onClick={() => setShowAddFamily(false)}
-                style={{ flex: 1, padding: '12px 0', borderRadius: 24, background: '#fff', border: `1px solid ${T.brand200}`, fontSize: 15, fontWeight: 600 }}>取消</button>
-              <button onClick={addFamilyHistory} data-testid="prd469-save-family"
-                style={{ flex: 1, padding: '12px 0', borderRadius: 24, background: T.brand500, color: '#fff', border: 'none', fontSize: 15, fontWeight: 600 }}>保存</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderSurgeryFormModal = () => {
-    if (!showAddSurgery) return null;
-    return (
-      <div
-        data-testid="prd469-surgery-form-modal"
-        style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-          zIndex: 110, display: 'flex', alignItems: 'flex-end',
-        }}
-      >
-        <div style={{ background: '#fff', width: '100%', borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
-          <div style={{ padding: '14px 16px', display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${T.brand100}` }}>
-            <span style={{ fontSize: 17, fontWeight: 700 }}>{editingSurgeryIdx !== null ? '编辑手术史' : '添加手术史'}</span>
-            <span onClick={() => setShowAddSurgery(false)} style={{ fontSize: 22, color: '#9ca3af', cursor: 'pointer' }}>×</span>
-          </div>
-          <div style={{ padding: 16 }}>
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 6 }}>手术名称</div>
-              <input type="text" value={surgeryForm.name}
-                onChange={(e) => setSurgeryForm({ ...surgeryForm, name: e.target.value })}
-                placeholder="如：阑尾切除术"
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 14, boxSizing: 'border-box' }} />
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 6 }}>手术时间</div>
-              <input type="date" value={surgeryForm.time}
-                onChange={(e) => setSurgeryForm({ ...surgeryForm, time: e.target.value })}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 14, boxSizing: 'border-box' }} />
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 6 }}>备注（可选）</div>
-              <input type="text" value={surgeryForm.note}
-                onChange={(e) => setSurgeryForm({ ...surgeryForm, note: e.target.value })}
-                placeholder="如：恢复良好"
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 14, boxSizing: 'border-box' }} />
-            </div>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button onClick={() => setShowAddSurgery(false)}
-                style={{ flex: 1, padding: '12px 0', borderRadius: 24, background: '#fff', border: `1px solid ${T.brand200}`, fontSize: 15, fontWeight: 600 }}>取消</button>
-              <button onClick={addSurgeryHistory} data-testid="prd469-save-surgery"
-                style={{ flex: 1, padding: '12px 0', borderRadius: 24, background: T.brand500, color: '#fff', border: 'none', fontSize: 15, fontWeight: 600 }}>保存</button>
-            </div>
           </div>
         </div>
       </div>
@@ -2696,8 +2450,6 @@ function HealthProfileV2PageInner() {
       )}
 
       {renderHeroEditModal()}
-      {renderFamilyFormModal()}
-      {renderSurgeryFormModal()}
       {renderRecordDrawer()}
       {renderTaGuardianReadonlyDrawer()}
 
@@ -2875,79 +2627,6 @@ function HeroEditRow({
           }}
         />
       )}
-    </div>
-  );
-}
-
-function EditSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: 14, fontWeight: 600, color: '#15803d', marginBottom: 10 }}>{title}</div>
-      {children}
-    </div>
-  );
-}
-
-function HabitRow({ label, value, options, onChange }: {
-  label: string; value?: string; options: string[];
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f3f4f6' }}>
-      <span style={{ width: 80, fontSize: 14, color: '#374151' }}>{label}</span>
-      <div style={{ flex: 1, display: 'flex', gap: 8 }}>
-        {options.map((opt) => (
-          <button
-            key={opt}
-            onClick={() => onChange(opt)}
-            style={{
-              padding: '4px 10px', borderRadius: 10,
-              background: value === opt ? T.brand500 : '#f3f4f6',
-              color: value === opt ? '#fff' : '#374151',
-              border: 'none', fontSize: 13, cursor: 'pointer',
-            }}
-          >{opt}</button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TagsInput({ label, tags, onChange }: {
-  label: string; tags: string[]; onChange: (v: string[]) => void;
-}) {
-  const [val, setVal] = useState('');
-  return (
-    <div style={{ marginBottom: 12 }}>
-      <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 6 }}>{label}</div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
-        {tags.map((t, i) => (
-          <span
-            key={i}
-            style={{
-              padding: '4px 10px', borderRadius: 12,
-              background: T.brand100, color: T.brand700, fontSize: 13,
-            }}
-          >
-            {t}
-            <span
-              onClick={() => onChange(tags.filter((_, j) => j !== i))}
-              style={{ marginLeft: 6, cursor: 'pointer', color: '#9ca3af' }}
-            >×</span>
-          </span>
-        ))}
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <input
-          type="text" value={val} onChange={(e) => setVal(e.target.value)}
-          placeholder="输入后点击添加"
-          style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: `1px solid ${T.brand200}`, fontSize: 13 }}
-        />
-        <button
-          onClick={() => { if (val.trim()) { onChange([...tags, val.trim()]); setVal(''); } }}
-          style={{ padding: '8px 16px', borderRadius: 8, background: T.brand500, color: '#fff', border: 'none', fontSize: 13 }}
-        >添加</button>
-      </div>
     </div>
   );
 }
