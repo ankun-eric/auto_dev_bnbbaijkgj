@@ -5,7 +5,24 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-02 · 新功能 / AI 首页输入区优化「提示文案精简 + 按住说话按压效果」· H5 + 微信小程序 + Flutter APP 四平台，后端零改动）
+## 最近一次变更（2026-06-02 · 新功能 / 健康档案「编辑」抽屉化改造 + 抽公共健康信息子组件「过敏史/手术史/家族病史/个人习惯」两处复用 · 仅 H5 一端，后端零改动）
+
+**任务标识**：`[PRD-HEALTH-INFO-SHARED 2026-06-02]`
+
+**需求**：① 健康档案页 Hero 卡「编辑」改为与「邀请家庭成员」同款的底部半屏抽屉；② 修掉原「身高/体重」一行输入框被屏幕边缘截断的拥挤布局；③ 把「过敏史 + 手术史 + 家族病史 + 个人习惯」这块健康信息填写区抽成一个公共子组件，做到一份代码、两处共用（编辑档案 + 添加/邀请成员）。其中手术史、家族病史为本次真正新增进公共组件，个人习惯属于把现有的搬进公共组件共用。不改后端字段结构。
+
+**实现（仅 H5；后端零改动）**：
+- 新增公共子组件 `h5-web/src/components/health-profile-v5/HealthInfoFields.tsx`：受控组件（`value`/`onChange`），封装 既往病史(慢病胶囊) / 过敏史(药物·食物·其他 TagsInput) / 手术史(结构化卡片+「+添加」子弹窗，可编辑删除) / 家族病史(关系网格+疾病+备注，可编辑删除) / 个人习惯(抽烟·饮酒·运动频率·饮食偏好) 五区；自带手术史/家族病史的添加·编辑子弹窗；主题可注入（导出 `GREEN_THEME` 档案绿 / `BLUE_THEME` 成员蓝）。关键 testid：`health-info-fields`、`hif-add-surgery-btn`、`hif-add-family-btn`、`hif-save-surgery`、`hif-save-family`。
+- 改 `h5-web/src/app/health-profile/page.tsx` 的 `renderHeroEditModal`：身高/体重改为同行两列各带独立标签（修截断，testid `hero-edit-height`/`hero-edit-weight`）；删除原内联的 既往/过敏/手术/家族/习惯大段 `EditSection` 及本地 `EditSection`/`HabitRow`/`TagsInput` 与相关 state/helper，替换为折叠「其他（选填）」区（`hero-edit-more-toggle`，state `heroMoreOpen`）内嵌 `<HealthInfoFields theme={GREEN_THEME}>`。
+- 改 `h5-web/src/components/health-profile-v5/NewFamilyMemberModal.tsx`：用单个 `healthInfo: HealthInfoValue` 替换原 `chronics/drugAllergy/foodAllergy/otherAllergy` 多 state；「其他（选填）」内身高体重并排 + 内嵌 `<HealthInfoFields theme={BLUE_THEME}>`；`handleSubmit` 先 POST `/api/family/members` 创建成员，若含扩展信息则再 GET `/api/health/profile/member/{id}` 取 `profile_id` 后 PUT `/api/prd469/health-info/{profileId}` 落库（失败不阻断主流程）。删除未用导入 `calcAge`/`CHRONIC_DISEASE_OPTIONS`。
+
+**测试**：本地 `npm run build` 编译通过；服务器冒烟：h5 产物 `/app/.next`（server chunk 4564.js + static 7581）含 `health-info-fields`/`hif-add-surgery-btn`/「添加手术史」/「添加家族病史」标识；接口 `/api/family/members`、`/api/health/profile/member/1`、`/api/prd469/health-info/1` 均 401（路由存在·需鉴权，非 404/5xx）。
+
+**部署**：commit `343f47a` push `origin/master` → 服务器 `git fetch + reset --hard origin/master` → `docker compose build --no-cache h5-web && up -d h5-web`（仅 H5 单服务）→ gateway 重连 `{DEPLOY_ID}-network` + reload。外部 HTTPS：`/`=200、`/health-profile/`=200（含 `health-profile`/`__next` 标识）。本次仅 H5 代码改动，小程序/安卓/iOS/Flutter 均未触碰，不重新打包。
+
+**用户手册**：`user_docs/健康档案编辑抽屉与公共健康信息.md`
+
+## 历史变更（2026-06-02 · 新功能 / AI 首页输入区优化「提示文案精简 + 按住说话按压效果」· H5 + 微信小程序 + Flutter APP 四平台，后端零改动）
 
 **任务标识**：`[PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02]`
 
