@@ -5,7 +5,25 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-02 · 新功能 / 家庭成员邀请入口统一为「漂亮二维码页」· 仅 H5 一端，后端/小程序/移动端 0 改动，0 客户端打包）
+## 最近一次变更（2026-06-02 · 优化 / 健康指标全部历史页「点整行弹菜单」去特殊处理 · 仅 H5 一端，小程序 web-view 自动继承，后端/移动端 0 改动，0 客户端打包）
+
+**任务标识**：`[PRD-METRIC-HISTORY-ROW-NOACTION-V1 2026-06-02]`
+
+**需求**：去掉健康指标「全部历史记录」页（血糖/血压/心率/血氧四指标通用同一页 `/health-metric/[type]/history`）的「点整行弹菜单」特殊处理，让交互与其他页面一致——操作入口统一收敛到右侧「⋯」三点按钮。手工录入记录点整行不再弹「修改/删除」操作面板；设备同步记录（只读）点整行仍弹只读详情，保持原样不动；右侧「⋯」修改/删除、删除二次确认全部保留。小程序指标历史页为 `web-view` 空壳直接加载本 H5 页面，改此一处两端自动一致。
+
+**改动（仅 H5；后端业务/小程序/移动端零改动）**：
+- `h5-web/src/app/health-metric/[type]/history/page.tsx`：列表项 `onClickRow` 由「`item.editable` 时 `setActionItem(item)`、否则 `setReadOnlyItem(item)`」改为「仅 `!item.editable`（设备同步）时 `setReadOnlyItem(item)`，手工录入点整行无操作」；整行 `cursor` 改为 `item.editable ? 'default' : 'pointer'`（手工录入去掉手型指针避免误导）。右侧 `metric-row-more-{id}`「⋯」→ `onClickMore` → `setActionItem(item)` 保留为唯一操作入口；`metric-history-action-sheet`/`-edit`/`-delete`、`metric-delete-confirm` 二次确认、`metric-readonly-popup` 只读详情均保留。
+- 测试 `backend/tests/test_metric_history_row_noaction_v1_20260602.py`（12 项前端源码静态断言：点整行不再 `setActionItem`、设备同步仍 `setReadOnlyItem`、「⋯」入口与操作面板/删除确认/只读弹窗保留、cursor 条件化、四指标通用、小程序 web-view 空壳）。
+
+**测试/验证**：本地 pytest 12/12 通过；服务器后端容器内（docker cp H5+小程序源码进 `/app` 后）pytest 12/12 通过。外部 HTTPS 全部 200：`/`、`/health-metric/blood_glucose/history`、`/api/health`。零 Bug。
+
+**部署**：服务器 `git fetch origin --depth 1 + reset --hard origin/master`（commit `3533ce1`，NOACTION 改动早在 commit `0da31cdb` 已并入并推送）→ `docker compose -f docker-compose.prod.yml build --no-cache h5-web` → `up -d h5-web`（仅 H5 单服务，其他容器不受影响）。
+
+**变更端清单**：仅 H5（Docker 容器，已上线）。小程序（web-view 空壳，源码未改、自动继承）/安卓/苹果（Flutter App 源码未改）本次无变更、不打包。
+
+**用户手册**：`user_docs/血糖历史记录点整行去特殊处理.md`
+
+## 历史变更（2026-06-02 · 新功能 / 家庭成员邀请入口统一为「漂亮二维码页」· 仅 H5 一端，后端/小程序/移动端 0 改动，0 客户端打包）
 
 **任务标识**：`[PRD-FAMILY-INVITE-QRCODE-UNIFY 2026-06-02]`
 
