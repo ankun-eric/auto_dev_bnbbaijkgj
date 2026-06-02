@@ -5,7 +5,28 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-02 · 新功能 / 健康档案「编辑」抽屉化改造 + 抽公共健康信息子组件「过敏史/手术史/家族病史/个人习惯」两处复用 · 仅 H5 一端，后端零改动）
+## 最近一次变更（2026-06-02 · 新功能 / AI 主页输入区优化「提示挪进输入框做占位文字 + 语音浮层文案改语音输入中」· H5 + 微信小程序两端，后端零改动）
+
+**任务标识**：`[PRD-AIHOME-INPUT-HINT-OPTIM 2026-06-02 第二轮]`
+
+**需求**：AI 主页（与 AI 健康管家对话问答的界面）输入区两点优化。需求1：把原本单独显示在输入框上方一行的「问答已结合【XX】健康档案」灰字提示，挪进输入框里作为灰色占位文字（替换原「发消息或按住说话…」），咨询人名字规则不变（本人/家人姓名）。需求2：占位文字过长时只取姓名前几个字 + 省略号，保证「健康档案」可见（H5/小程序一致）。需求3：按住说话语音浮层文案由「正在录音…」改为「语音输入中…」。手机 App、咨询人逻辑、语音识别功能本身均不改动。
+
+**改动（仅 H5 + 小程序；后端零改动）**：
+- H5 `h5-web/src/app/(ai-chat)/ai-home/page.tsx`：删除输入框上方独立灰字提示元素（原 `ai-home-input-hint`）；`dynamicPlaceholder` 改为 `问答已结合【${truncatedName}】健康档案`，其中 `truncatedName` 取 `consultantRelationOrName`（关系→姓名→本人降级），长度超 `MAX_NAME_LEN=6` 时 `slice(0,6)+…`；录音浮层文案 `正在录音…` → `语音输入中…`。
+- 小程序 `miniprogram/pages/chat/index.wxml`：新增 WXS 模块 `hintWxs.buildPlaceholder(name)`（`substring(0,6)+'…'` 截断 + 拼 `问答已结合【】健康档案`），输入框 `placeholder` 由硬编码「发信息...」改为该 WXS 拼接；录音遮罩新增标题 `<text class="record-title">语音输入中…</text>`（取消态显示「松开手指 取消发送」）。`miniprogram/pages/chat/index.wxss`：新增 `.record-title` 白色标题样式。
+
+**测试**：重写 `backend/tests/test_aihome_input_hint_optim_20260602.py`（11 用例：H5 placeholder 含健康档案/删除独立提示/无旧短提示/姓名截断/语音浮层文案；小程序 placeholder WXS 拼接/截断/语音浮层文案/标题样式；H5+小程序不回归按压与声波体验）。本地 11 passed；服务器项目目录 `python3 -m pytest --noconftest` 11 passed，零 Bug。
+
+**部署**：git push `origin/master` commit `d79efbde` → 服务器 `git fetch + reset --hard origin/master` → `docker compose build --no-cache h5-web && up -d h5-web`（仅 H5 单服务）→ gateway 已在 `{DEPLOY_ID}-network` 内 + reload。外部 HTTPS：`/`=200、`/api/health`=405(GET，路由存在)。
+
+**变更端清单**：H5（Docker 容器，已上线）+ 微信小程序（重新打包 zip 上传 gateway `downloads/`）。手机 App（安卓/苹果）本次无变更、不打包。
+
+**本次新包（基础URL = https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27）**：
+- 微信小程序：`{base}/downloads/miniprogram_aihome_input_20260602_163245_5d6b.zip`（HTTP 200）。
+
+**用户手册**：`user_docs/AI主页输入区优化_占位提示与语音浮层.md`
+
+## 历史变更（2026-06-02 · 新功能 / 健康档案「编辑」抽屉化改造 + 抽公共健康信息子组件「过敏史/手术史/家族病史/个人习惯」两处复用 · 仅 H5 一端，后端零改动）
 
 **任务标识**：`[PRD-HEALTH-INFO-SHARED 2026-06-02]`
 
