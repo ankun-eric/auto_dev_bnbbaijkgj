@@ -2772,32 +2772,16 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
               const j = judgeBg(v, sc);
               const rowPalette = getBgPalette(j?.color ?? 'blue');
               const src = formatBgSourceCapsule(r.source);
-              const isSwiped = swipedRowId === r.id;
               return (
                 <div
                   key={r.id}
                   data-testid={`bg-history-row-${r.id}`}
                   style={{ position: 'relative', overflow: 'hidden', borderBottom: '1px solid #E5E7EB' }}
-                  onTouchStart={(e) => { (e.currentTarget as any)._sx = e.touches[0].clientX; }}
-                  onTouchEnd={(e) => {
-                    const sx = (e.currentTarget as any)._sx;
-                    const dx = sx ? sx - e.changedTouches[0].clientX : 0;
-                    if (dx > 40) setSwipedRowId(r.id);
-                    else if (dx < -40) setSwipedRowId(null);
-                  }}
                 >
                   <div
-                    onClick={() => {
-                      if (isSwiped) { setSwipedRowId(null); return; }
-                      setEditRecord(r);
-                      setEditScene(sc);
-                      setEditValue(String(v ?? ''));
-                    }}
                     style={{
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '10px 0', cursor: 'pointer',
-                      transform: isSwiped ? 'translateX(-72px)' : 'translateX(0)',
-                      transition: 'transform 0.2s',
+                      padding: '10px 0',
                       background: '#fff',
                     }}
                   >
@@ -2823,10 +2807,10 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
                           {j.label}
                         </span>
                       )}
-                      {/* [PRD-BP-DETAIL-OPTIMIZE-V1 AC-09] 「...」三点入口 → 底部操作面板 */}
+                      {/* [PRD-BG-DETAIL-ROW-INTERACTION-UNIFY-V1] 「...」三点入口 → 底部操作面板（保留唯一操作入口） */}
                       <button
                         data-testid={`bg-row-more-${r.id}`}
-                        onClick={(e) => { e.stopPropagation(); setSwipedRowId(null); setActionRecord(r); }}
+                        onClick={(e) => { e.stopPropagation(); setActionRecord(r); }}
                         style={{
                           background: 'transparent', border: 'none', cursor: 'pointer',
                           fontSize: 20, fontWeight: 700, color: '#94A3B8', lineHeight: 1,
@@ -2836,18 +2820,6 @@ function BloodGlucosePage({ history, latest, profileId, devices, refresh }: Bloo
                       >⋯</button>
                     </div>
                   </div>
-                  {/* 左滑显示的删除按钮 */}
-                  <button
-                    data-testid={`bg-row-delete-${r.id}`}
-                    onClick={(e) => { e.stopPropagation(); setDeletingRecord(r); }}
-                    style={{
-                      position: 'absolute', top: 0, right: 0, bottom: 0, width: 64,
-                      background: '#DC2626', color: '#fff', border: 'none', cursor: 'pointer',
-                      fontSize: 13, fontWeight: 600,
-                      transform: isSwiped ? 'translateX(0)' : 'translateX(64px)',
-                      transition: 'transform 0.2s',
-                    }}
-                  >删除</button>
                 </div>
               );
             })

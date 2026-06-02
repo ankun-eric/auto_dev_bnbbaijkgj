@@ -5,7 +5,37 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-02 · Bug 修复 / 睡眠「全部历史」显示与编辑保存 · 仅 H5 一端，小程序/App 内嵌同一 H5 自动一致，0 客户端打包）
+## 最近一次变更（2026-06-02 · Bug 修复 / 血糖详情页「下方 5 条记录」整行交互去特殊处理 · 仅 H5 一端，小程序/App 内嵌同一 H5 自动一致，0 客户端打包）
+
+**任务标识**：`[PRD-BG-DETAIL-ROW-INTERACTION-UNIFY-V1 2026-06-02]`（补漏单）
+
+**背景**：上一次修复 `[METRIC-HISTORY-ROW-NOACTION-V1]` 已经统一了【全部历史记录页】的整行交互（点整行无反应、左滑不滑出删除按钮、操作入口仅留「⋯」三点按钮）。但**血糖指标详情页**首屏直接展示的最近 5 条记录漏改，仍保留两套"特殊待遇"：① 点整行直接弹出「编辑血糖记录」弹窗；② 左滑整行滑出红色「删除」按钮。本次为补漏单，把这两套特殊处理一次去干净。
+
+**改动文件（仅 1 处）**：`h5-web/src/app/health-metric/[type]/page.tsx` BloodGlucosePage 组件中 `records.slice(0, 5).map(...)` 渲染块（约 2769~2825 行）
+
+**精确改动**：
+- 移除外层 `<div>` 的 `onTouchStart` / `onTouchEnd` 左滑监听（不再追踪 `_sx` / 计算 dx 触发 setSwipedRowId）
+- 移除内层 `<div>` 的 `onClick`（不再 `setEditRecord(r) + setEditScene + setEditValue` 弹编辑弹窗）
+- 移除内层 `<div>` 的 `cursor: 'pointer'` 和 `transform: isSwiped ? 'translateX(-72px)' : 'translateX(0)'`、`transition` 等左滑视觉效果
+- 移除整块"左滑显示的删除按钮"`<button data-testid="bg-row-delete-${r.id}">`（绝对定位、红色背景）
+- 「⋯」按钮 `bg-row-more-${r.id}` onClick 简化为 `setActionRecord(r)`（不再先调 `setSwipedRowId(null)`，因不再有左滑态）
+- 删除变量 `const isSwiped = swipedRowId === r.id;`（不再使用，仅留 `useState<number | null>` 声明，因第 2446 行 `handleDelete` 删除成功后仍调 `setSwipedRowId(null)`，保留以避免无害的副效应改动）
+
+**保留不动**：
+- 右侧「⋯」三点按钮 → 底部操作面板（修改 / 删除）—— 唯一操作入口
+- 删除前的二次确认弹窗（`deletingRecord` + `bg-delete-confirm-btn`）
+- 全部历史页的整行交互（已在上一次修复中统一）
+- 血压详情页的 5 条记录（本身整行就没有 onClick，无需改）
+
+**部署**：`docker compose build h5-web` + `docker compose up -d h5-web`（`{DEPLOY_ID}-h5` 容器重建并启动）。外部 HTTPS 验证：`/health-metric/blood_glucose/` HTTP 200；容器内构建产物已确认不再含 `bg-row-delete-` testid 字符串。
+
+**变更端清单**：仅 H5（容器名 `{DEPLOY_ID}-h5`，已上线）；小程序血糖详情页为 `<web-view>` 包装同一 H5、App 内嵌同一 H5，**两端零代码改动、零打包**，刷新即生效。
+
+**用户手册**：`user_docs/血糖详情页记录整行交互去特殊处理.md`
+
+**踩坑教训**：本次属于"漏网之鱼"修复 —— 上次只统一了通用 `[type]/history/page.tsx`，但各指标详情页内部还各自实现了首屏 5 条记录的渲染（不走通用组件）。今后做"整行交互统一"类需求时，必须同时检查：① `[type]/history/page.tsx`（通用）；② `[type]/page.tsx` 内每个指标 Page 组件里的 `records.slice(0, 5).map` 块。
+
+## 上一次变更（2026-06-02 · Bug 修复 / 睡眠「全部历史」显示与编辑保存 · 仅 H5 一端，小程序/App 内嵌同一 H5 自动一致，0 客户端打包）
 
 **任务标识**：`[PRD-SLEEP-ALL-HISTORY-FIX-V1 2026-06-02]`（修复代码已存在于 commit `0da31cdb`）
 
