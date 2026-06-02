@@ -1,0 +1,5 @@
+docs: 居家安全设备统计卡片用户手册 + 同步项目索引
+
+- user_docs：新增「居家安全设备优化」用户体验手册
+- 索引：project-context.mdc 追加本次变更记录（PRD-HOME-SAFETY-DEVICE-STATS-V1）
+- 部署/验证辅助脚本

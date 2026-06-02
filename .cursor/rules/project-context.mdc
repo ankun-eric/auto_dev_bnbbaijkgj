@@ -281,6 +281,25 @@ alwaysApply: false
 
 ---
 
+## 近期变更（2026-06-02 · 新功能 / 居家安全设备页设备统计卡片 + 添加按钮移位 · 后端+H5，0 客户端打包）
+
+**任务标识**：`[PRD-HOME-SAFETY-DEVICE-STATS-V1 2026-06-02]`
+
+**需求**：「健康档案 → 居家安全设备」页面，在顶部家庭成员切换 Tab 下方新增「设备统计卡片」（仅统计当前选中成员名下设备），并把「+ 添加设备」按钮从底部固定位置挪到统计卡片下方。
+
+**实现（后端 1 文件 + H5 1 文件 + 1 测试）**：
+- `backend/app/api/home_safety_v1.py`：`GET /api/home_safety/devices` 响应新增 `total_bound`（当前成员名下所有类型已绑定设备总数，含门磁/燃气等未单列类型）与 `type_counts`（`{emergency, smoke, water}` 三类计数）。
+- `h5-web/src/app/home-safety/page.tsx`：成员 Tab 下方新增统计卡片——上方突出「已绑定总数」大数字，下方并列「紧急呼叫器/烟雾报警器/水浸报警器」三个分类小项；总数为 0 时显示引导文案「暂无设备，快去添加吧」；将「+ 添加设备」按钮移至统计卡片下方（移除原底部固定按钮）；增删设备后通过 `loadDevices()` 实时刷新统计。
+- 测试：`backend/tests/test_home_safety_device_stats_v1_20260602.py`（4 用例：空数据 0/0/0、绑定后总数与分类计数、总数≥分类之和口径、解绑后回落）。
+
+**部署验证**：服务器 `git fetch + reset --hard` 至本次提交后 `docker compose build --no-cache backend h5-web && up -d` 重建。外部 HTTPS 验证：`/api/health`=200、`/api/home_safety/devices`=401（鉴权）、`/home-safety` 跟随尾斜杠重定向后 200；线上 E2E（注册→登录→空统计 0/0/0→绑定紧急+烟雾→total_bound=2、type_counts={emergency:1,smoke:1,water:0}）通过。
+
+**变更端清单**：后端 + H5 web（均为 Docker 容器，已重建上线）。微信小程序/安卓/iOS/桌面端 0 改动，无需重新打包。
+
+**用户手册**：`user_docs/居家安全设备优化.md`
+
+---
+
 ## 近期变更（2026-06-02 · Bug 修复 / 删除家庭成员「删不掉」+ 看不懂的报错 · 仅后端，0 客户端改动）
 
 **任务标识**：`[BUGFIX-DELETE-MEMBER-HEALTHDATA-PROMPT-V1 2026-06-02]`

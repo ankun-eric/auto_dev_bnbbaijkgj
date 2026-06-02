@@ -1,0 +1,5 @@
+feat: 居家安全设备页新增设备统计卡片并调整添加按钮位置
+
+- 后端：/api/home_safety/devices 返回 total_bound 与 type_counts（紧急/烟雾/水浸）
+- H5：成员 Tab 下方新增设备统计卡片（总数大数字+3 分类小项+空数据引导），将「+ 添加设备」按钮移至统计卡片下方
+- 测试：新增设备统计卡片用例 test_home_safety_device_stats_v1_20260602
