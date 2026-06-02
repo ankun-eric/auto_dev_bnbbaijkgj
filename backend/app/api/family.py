@@ -83,12 +83,20 @@ async def list_family_members(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-02 改动点3]
+    # 顶部成员 Tab 与入口卡「已管理 N」的成员口径必须一致：
+    # - 入口卡 count_managed_family_members 使用 status != 'deleted'
+    # - 官方权威状态机 /api/family/member/state/list 使用 status != 'deleted'
+    # - 旧口径 status == 'active' 会漏掉 cancelled_by_target / pending 等中间态
+    # 现统一为「排除已软删除」语义。本项目历史上 DELETE 接口写入的是 'removed'，
+    # 状态机接口约定的是 'deleted'，因此两个软删除标记都需排除。
+    DELETED_STATUSES = ("deleted", "removed")
     result = await db.execute(
         select(FamilyMember)
         .options(selectinload(FamilyMember.relation_type))
         .where(
             FamilyMember.user_id == current_user.id,
-            FamilyMember.status == "active",
+            FamilyMember.status.notin_(DELETED_STATUSES),
         )
     )
     members = list(result.scalars().all())

@@ -34,6 +34,12 @@ export interface FamilyMemberLite {
   relationship_type?: string;
   relation_type_name?: string;
   is_self?: boolean;
+  // [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-02 改动点3]
+  // 后端 /api/family/members 已统一为 status != 'deleted' 口径，
+  // 对于「对方已退出（cancelled_by_target）」的成员会回传 target_left=true，
+  // Tab 上以灰色 + 「已解绑」小字标记，避免用户误以为该成员仍然受守护。
+  target_left?: boolean;
+  status?: string;
 }
 
 interface Props {
@@ -118,12 +124,16 @@ export default function FamilyMemberTabs({
       {members.map((m) => {
         const active = activeMemberId === m.id;
         const label = memberLabel(m);
+        // [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-02 改动点3]
+        // 已解绑成员（target_left=true 或 status 非 active）灰色化 + 「已解绑」小字
+        const isLeft = !!m.target_left || (m.status != null && m.status !== 'active' && m.status !== 'deleted');
         return (
           <button
             key={m.id}
             onClick={() => onChange(m.id)}
             data-testid={`fmt-tab-${m.id}`}
             data-active={active ? '1' : '0'}
+            data-target-left={isLeft ? '1' : '0'}
             style={{
               flex: '0 0 auto',
               display: 'flex',
@@ -136,13 +146,18 @@ export default function FamilyMemberTabs({
               cursor: 'pointer',
               position: 'relative',
               minWidth: 52,
+              opacity: isLeft && !active ? 0.55 : 1,
             }}
           >
             <div
               style={{
                 transform: active ? 'scale(1.06)' : 'scale(1)',
                 transition: 'transform 120ms ease',
-                filter: active ? 'drop-shadow(0 6px 4px rgba(14,165,233,0.25))' : 'none',
+                filter: active
+                  ? 'drop-shadow(0 6px 4px rgba(14,165,233,0.25))'
+                  : isLeft
+                    ? 'grayscale(0.7)'
+                    : 'none',
               }}
             >
               <MemberBadge
@@ -157,7 +172,7 @@ export default function FamilyMemberTabs({
             <span
               style={{
                 fontSize: 13,
-                color: active ? BRAND_PRIMARY : '#666',
+                color: active ? BRAND_PRIMARY : isLeft ? '#9CA3AF' : '#666',
                 fontWeight: active ? 600 : 400,
                 lineHeight: 1.2,
                 whiteSpace: 'nowrap',
@@ -165,6 +180,18 @@ export default function FamilyMemberTabs({
             >
               {label}
             </span>
+            {isLeft ? (
+              <span
+                style={{
+                  fontSize: 10,
+                  color: '#9CA3AF',
+                  lineHeight: 1.1,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                已解绑
+              </span>
+            ) : null}
             {active ? (
               <span
                 style={{

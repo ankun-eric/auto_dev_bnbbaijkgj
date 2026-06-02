@@ -17,7 +17,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Popup, Toast } from 'antd-mobile';
+import { Popup, Toast, Dialog } from 'antd-mobile';
 import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
@@ -27,6 +27,8 @@ import InviteFamilyCard from '@/app/member-center/components/InviteFamilyCard';
 // 「邀请家庭成员」按钮改为复用「新增咨询人」同一套新增成员填写页面，
 // 与 AI 首页 → 咨询人 → 新增咨询人 完全一致（ConsultTargetPicker 复用的就是该组件）。
 import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMemberModal';
+// [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 解除守护二次确认统一文案
+import { UNBIND_GUARDIAN_CONFIRM } from '@/lib/family-relation';
 
 // ───────────── 类型 ─────────────
 
@@ -352,7 +354,15 @@ export default function ArchiveListPage() {
   };
 
   // 解除守护
+  // [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 补上二次确认弹框（与「守护我的人」解除共用同一套文案）
   const handleUnbind = async (m: MemberStateItem) => {
+    const confirmed = await Dialog.confirm({
+      title: UNBIND_GUARDIAN_CONFIRM.title,
+      content: UNBIND_GUARDIAN_CONFIRM.content,
+      cancelText: UNBIND_GUARDIAN_CONFIRM.cancelText,
+      confirmText: UNBIND_GUARDIAN_CONFIRM.confirmText,
+    });
+    if (!confirmed) return;
     try {
       await api.post(`/api/family/member/${m.member_id}/unbind`, {});
       showToast('已解除守护', 'success');
@@ -391,8 +401,10 @@ export default function ArchiveListPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: PAGE_BG, paddingBottom: 100 }}>
-      {/* [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-01 改动点1] 列表页标题统一为「家庭成员」 */}
-      <GreenNavBar title='家庭成员' onBack={() => router.back()} />
+      {/* [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-02 改动点1]
+          顶部固定显示「家庭成员」标题 + 左侧返回箭头「<」，与其它二级页样式一致。
+          注意：GreenNavBar 通过 children 渲染标题，原 title= 属性是无效写法（导致标题看不见）。 */}
+      <GreenNavBar back={() => router.back()}>家庭成员</GreenNavBar>
 
       {/* [BUG-FIX-ARCHIVE-LIST-UI-OPTIM 2026-05-30 #2]
           删除「本套餐可管理 X 人」横条 —— 顶部入口卡片已展示「已管理 X/Y」，此处冗余。
