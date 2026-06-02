@@ -550,6 +550,30 @@ class ApiService {
     return _dio.post('${ApiConfig.hpCheckinItems}/$id/checkin', data: data);
   }
 
+  // [PRD-HEALTH-PLAN-CHECKIN-V1 2026-06-02]
+  Future<Response> getCheckinOverview() async {
+    return _dio.get('/api/health-plan/checkin-overview');
+  }
+
+  Future<Response> getCheckinCalendar(int year, int month) async {
+    return _dio.get('/api/health-plan/checkin-calendar', queryParameters: {
+      'year': year,
+      'month': month,
+    });
+  }
+
+  Future<Response> getCheckinStatsSummary() async {
+    return _dio.get('/api/health-plan/checkin-stats-summary');
+  }
+
+  Future<Response> makeupCheckin(int itemId, String date) async {
+    return _dio.post('${ApiConfig.hpCheckinItems}/$itemId/makeup', data: {'date': date});
+  }
+
+  Future<Response> getCheckinItemDetail(int id) async {
+    return _dio.get('${ApiConfig.hpCheckinItems}/$id');
+  }
+
   // Health Plan V2 - Template Categories & Custom Plans
   Future<Response> getTemplateCategories() async {
     return _dio.get(ApiConfig.hpTemplateCategories);

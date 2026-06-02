@@ -39,6 +39,8 @@ import 'screens/points/points_mall_screen.dart';
 import 'screens/points/points_detail_screen.dart';
 import 'screens/points/points_product_detail_screen.dart';
 import 'screens/plan/health_plan_screen.dart';
+import 'screens/plan/checkin_plan_edit_screen.dart';
+import 'screens/plan/checkin_result_screen.dart';
 import 'screens/plan/medication_list_screen.dart';
 import 'screens/plan/medication_form_screen.dart';
 import 'screens/plan/checkin_list_screen.dart';
@@ -250,6 +252,8 @@ class BiniHealthApp extends StatelessWidget {
           '/hp-create-plan': (context) => const CreatePlanScreen(),
           '/hp-user-plan': (context) => const UserPlanDetailScreen(),
           '/hp-statistics': (context) => const StatisticsScreen(),
+          '/hp-checkin-edit': (context) => const CheckinPlanEditScreen(),
+          '/hp-checkin-result': (context) => const CheckinResultScreen(),
           '/articles': (context) => const ArticlesScreen(),
           '/article-detail': (context) => const ArticleDetailScreen(),
           '/profile': (context) => const ProfileScreen(),
