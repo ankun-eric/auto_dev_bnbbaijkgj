@@ -240,6 +240,14 @@ function HealthProfileV2PageInner() {
   const [medications, setMedications] = useState<MedicationPlanCard[]>([]);
   const [isLinked, setIsLinked] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
+  // [PRD-FAMILY-INVITE-QRCODE-UNIFY 2026-06-02 改动点1]
+  // 顶部「邀请家庭成员」保存成功后，补上与 AI 首页完全一致的「成员已添加成功🎉 → 去邀请 TA / 暂不邀请」提示框，
+  // 点「去邀请 TA」携带新成员 member_id 跳转漂亮二维码页 /family-invite。
+  const [inviteChoice, setInviteChoice] = useState<{
+    visible: boolean;
+    nickname: string;
+    newMemberId: number | null;
+  }>({ visible: false, nickname: '', newMemberId: null });
   const [heroMetrics, setHeroMetrics] = useState<HeroMetric[]>([]);
   const [showHeroEdit, setShowHeroEdit] = useState(false);
   const [heroEditDraft, setHeroEditDraft] = useState<HealthProfileBasic | null>(null);
@@ -2441,12 +2449,106 @@ function HealthProfileV2PageInner() {
       {showAddMember && (
         <NewFamilyMemberModal
           onClose={() => setShowAddMember(false)}
-          onSuccess={() => {
+          onSuccess={async (createdMember) => {
+            // [PRD-FAMILY-INVITE-QRCODE-UNIFY 2026-06-02 改动点1]
+            // 保存成功 → 关闭表单 + 刷新列表，然后弹「成员已添加成功🎉 / 去邀请 TA / 暂不邀请」提示框。
+            // 点「去邀请 TA」会携带新成员 member_id 跳转漂亮二维码页，与 AI 首页流程一致。
             setShowAddMember(false);
-            fetchMembers();
-            showToast('已添加家庭成员');
+            let newMemberId: number | null =
+              typeof createdMember?.id === 'number' ? createdMember.id : null;
+            let newMemberNickname = createdMember?.nickname || '';
+            // 兜底：若回调没拿到 id，刷新成员列表后取最新非本人成员
+            try {
+              const res: any = await api.get('/api/family/members');
+              const data = res?.data || res;
+              const list: any[] = Array.isArray(data?.items)
+                ? data.items
+                : Array.isArray(data)
+                ? data
+                : [];
+              if (newMemberId == null && list.length) {
+                const candidates = list.filter((m: any) => !m.is_self);
+                const newest = candidates.sort(
+                  (a: any, b: any) => (Number(b.id) || 0) - (Number(a.id) || 0),
+                )[0];
+                if (newest) {
+                  newMemberId = Number(newest.id);
+                  if (!newMemberNickname) newMemberNickname = newest.nickname || newest.name || '';
+                }
+              }
+            } catch { /* ignore */ }
+            await fetchMembers();
+            setInviteChoice({ visible: true, nickname: newMemberNickname, newMemberId });
           }}
         />
+      )}
+
+      {/* [PRD-FAMILY-INVITE-QRCODE-UNIFY 2026-06-02 改动点1]
+          「邀请家庭成员」保存成功后的提示框，复刻 AI 首页 ConsultTargetPicker 的「成员已添加成功🎉」交互：
+          - 去邀请 TA → /family-invite?member_id=xxx（漂亮二维码页）
+          - 暂不邀请 → 关闭，回到列表（前面已 fetchMembers + Toast 由弹框承载） */}
+      {inviteChoice.visible && (
+        <div
+          data-testid="hp-invite-now-dialog"
+          style={{
+            position: 'fixed', inset: 0, zIndex: 3200,
+            background: 'rgba(15,23,42,0.55)',
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          }}
+          onClick={() => setInviteChoice({ visible: false, nickname: '', newMemberId: null })}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%', background: '#fff',
+              borderTopLeftRadius: 16, borderTopRightRadius: 16,
+              padding: 20, minHeight: '30vh',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontSize: 17, fontWeight: 700, color: '#0F172A' }}>成员已添加成功🎉</div>
+              <button
+                onClick={() => setInviteChoice({ visible: false, nickname: '', newMemberId: null })}
+                style={{ background: 'none', border: 'none', fontSize: 20, color: '#94A3B8', cursor: 'pointer' }}
+              >×</button>
+            </div>
+            <div style={{
+              padding: '20px 16px', background: '#F0F9FF', borderRadius: 12,
+              marginBottom: 20, fontSize: 14, color: '#0F172A', lineHeight: 1.6,
+            }}>
+              {inviteChoice.nickname ? `「${inviteChoice.nickname}」` : 'TA'}已成功加入您的家庭健康档案。
+              <br />
+              要现在邀请 TA 来一起管理健康吗？发个二维码给 TA，扫一扫就能加入。
+            </div>
+            <button
+              data-testid="hp-invite-now-btn"
+              onClick={() => {
+                const mid = inviteChoice.newMemberId;
+                setInviteChoice({ visible: false, nickname: '', newMemberId: null });
+                if (mid == null) {
+                  showToast('成员信息缺失，请从档案列表进入邀请', 'fail');
+                  return;
+                }
+                router.push(`/family-invite?member_id=${mid}`);
+              }}
+              style={{
+                width: '100%', padding: '12px 14px', borderRadius: 22,
+                background: 'linear-gradient(135deg, #38BDF8, #0284C7)',
+                color: '#fff', fontSize: 15, fontWeight: 700, border: 'none',
+                cursor: 'pointer', boxShadow: '0 4px 12px rgba(2,132,199,0.25)',
+              }}
+            >去邀请 TA</button>
+            <button
+              data-testid="hp-invite-skip-btn"
+              onClick={() => setInviteChoice({ visible: false, nickname: '', newMemberId: null })}
+              style={{
+                width: '100%', marginTop: 10, padding: '10px 14px', borderRadius: 22,
+                background: '#FFFFFF', color: '#0EA5E9', fontSize: 14,
+                border: '1px solid #0EA5E9', cursor: 'pointer',
+              }}
+            >暂不邀请</button>
+          </div>
+        </div>
       )}
 
       {renderHeroEditModal()}

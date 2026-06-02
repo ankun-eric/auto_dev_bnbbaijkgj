@@ -94,66 +94,10 @@ const PRIMARY_ACTION_LABEL: Record<string, string> = {
   reinvite: '重新邀请',
 };
 
-// ───────────── 邀请码展示抽屉 ─────────────
-
-interface InviteCodeDrawerProps {
-  open: boolean;
-  inviteCode?: string;
-  expiresAt?: string;
-  remainingHours?: number;
-  memberName?: string;
-  onClose: () => void;
-}
-
-function InviteCodeDrawer({ open, inviteCode, expiresAt, remainingHours, memberName, onClose }: InviteCodeDrawerProps) {
-  const qrUrl = inviteCode
-    ? `https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/family-auth?code=${inviteCode}`
-    : '';
-  return (
-    <Popup
-      visible={open}
-      onMaskClick={onClose}
-      position='bottom'
-      bodyStyle={{ borderTopLeftRadius: 20, borderTopRightRadius: 20, minHeight: '50vh' }}
-    >
-      <div style={{ padding: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div style={{ fontSize: 17, fontWeight: 700, color: TEXT_PRIMARY }}>邀请码</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, color: TEXT_SECONDARY, cursor: 'pointer' }}>×</button>
-        </div>
-        {memberName && (
-          <div style={{ marginBottom: 16, fontSize: 14, color: TEXT_SECONDARY }}>
-            发送给：<span style={{ color: TEXT_PRIMARY, fontWeight: 600 }}>{memberName}</span>
-          </div>
-        )}
-        <div style={{ padding: '16px', background: '#F1F5F9', borderRadius: 10, marginBottom: 12, wordBreak: 'break-all' }}>
-          <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6 }}>邀请码</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: TEXT_PRIMARY, fontFamily: 'monospace' }}>{inviteCode}</div>
-        </div>
-        <div style={{ padding: '16px', background: '#F1F5F9', borderRadius: 10, marginBottom: 12, wordBreak: 'break-all' }}>
-          <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 6 }}>分享链接</div>
-          <div style={{ fontSize: 12, color: PRIMARY_COLOR, fontFamily: 'monospace' }}>{qrUrl}</div>
-        </div>
-        {remainingHours !== undefined && remainingHours !== null && (
-          <div style={{ fontSize: 12, color: TEXT_SECONDARY, marginBottom: 16 }}>
-            剩余 {remainingHours} 小时过期
-          </div>
-        )}
-        <button
-          onClick={() => {
-            if (navigator.clipboard && qrUrl) {
-              navigator.clipboard.writeText(qrUrl);
-              showToast('链接已复制', 'success');
-            }
-          }}
-          style={primaryBtnStyle(false)}
-        >
-          复制邀请链接
-        </button>
-      </div>
-    </Popup>
-  );
-}
+// ───────────── 邀请码展示抽屉（已停用） ─────────────
+// [PRD-FAMILY-INVITE-QRCODE-UNIFY 2026-06-02 改动点2]
+// 原纯文字版「邀请码 + 复制链接」抽屉（InviteCodeDrawer）已移除：
+// 去邀请 / 查看邀请码 / 重新邀请 统一跳转 /family-invite?member_id=xxx 漂亮二维码页。
 
 // ───────────── 删除确认抽屉 ─────────────
 
@@ -284,7 +228,6 @@ export default function ArchiveListPage() {
   const [newMemberOpen, setNewMemberOpen] = useState(false);
   const [moreMenuMember, setMoreMenuMember] = useState<MemberStateItem | null>(null);
   const [deleteMember, setDeleteMember] = useState<MemberStateItem | null>(null);
-  const [inviteCodeView, setInviteCodeView] = useState<MemberStateItem | null>(null);
   // [PRD-INVITE-FAMILY-CARD-V1.1 2026-05-30 §3] 健康档案位「邀请家人入口卡片」所需套餐名
   // 来源 /api/member/center -> current.plan_name；接口失败时兜底为空（卡片内部走 '会员套餐' 兜底文案）
   const [planName, setPlanName] = useState<string>('');
@@ -370,44 +313,23 @@ export default function ArchiveListPage() {
   };
 
   // 卡片主按钮点击
+  // [PRD-FAMILY-INVITE-QRCODE-UNIFY 2026-06-02 改动点2]
+  // 「去邀请 / 查看邀请码 / 重新邀请」三个动作全部统一跳转到漂亮二维码页 /family-invite?member_id=xxx，
+  // 彻底废弃旧的纯文字 InviteCodeDrawer 弹窗。二维码页内部会按 member_id 调
+  // POST /api/family/invitation 生成/复用邀请，因此本页不再单独调 /invite 接口，
+  // 邀请的创建与展示统一由二维码页承载（业务含义不变：仍是按 member_id 绑定该家庭成员）。
   const handlePrimaryAction = async (m: MemberStateItem) => {
     if (m.primary_action === 'view_profile') {
       // 跳转档案详情（如有）
       router.push(`/health-profile?member_id=${m.member_id}`);
       return;
     }
-    if (m.primary_action === 'invite') {
-      // S2 → 调发邀请接口
-      try {
-        await api.post(`/api/family/member/${m.member_id}/invite`, {});
-        await fetchList();
-        showToast('邀请已创建', 'success');
-        // 重新拉取并展示邀请码
-        const updated: any = await api.get('/api/family/member/state/list');
-        const u = updated.data || updated;
-        const newMember = u.items.find((x: MemberStateItem) => x.member_id === m.member_id);
-        if (newMember) setInviteCodeView(newMember);
-      } catch (e: any) {
-        showToast(e?.response?.data?.detail || '邀请失败', 'fail');
-      }
-      return;
-    }
-    if (m.primary_action === 'view_invite_code') {
-      setInviteCodeView(m);
-      return;
-    }
-    if (m.primary_action === 'reinvite') {
-      try {
-        const res: any = await api.post(`/api/family/member/${m.member_id}/invite`, {});
-        await fetchList();
-        showToast('已重新发起邀请', 'success');
-        const updated: any = await api.get('/api/family/member/state/list');
-        const u = updated.data || updated;
-        const newMember = u.items.find((x: MemberStateItem) => x.member_id === m.member_id);
-        if (newMember) setInviteCodeView(newMember);
-      } catch (e: any) {
-        showToast(e?.response?.data?.detail || '重新邀请失败', 'fail');
-      }
+    if (
+      m.primary_action === 'invite' ||
+      m.primary_action === 'view_invite_code' ||
+      m.primary_action === 'reinvite'
+    ) {
+      router.push(`/family-invite?member_id=${m.member_id}`);
       return;
     }
   };
@@ -562,15 +484,9 @@ export default function ArchiveListPage() {
         onConfirm={() => deleteMember && handleDelete(deleteMember)}
       />
 
-      {/* 邀请码展示 */}
-      <InviteCodeDrawer
-        open={!!inviteCodeView}
-        inviteCode={inviteCodeView?.invite_code}
-        expiresAt={inviteCodeView?.invite_expires_at}
-        remainingHours={inviteCodeView?.invite_remaining_hours}
-        memberName={inviteCodeView?.nickname}
-        onClose={() => setInviteCodeView(null)}
-      />
+      {/* [PRD-FAMILY-INVITE-QRCODE-UNIFY 2026-06-02 改动点2]
+          旧的纯文字「邀请码展示抽屉」(InviteCodeDrawer) 已停用：
+          去邀请 / 查看邀请码 / 重新邀请 统一跳转 /family-invite?member_id=xxx 漂亮二维码页。 */}
 
       {/* [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29 §3.1 验收 8.1#5] AI 外呼额度抽屉 */}
       <AiQuotaDrawer
