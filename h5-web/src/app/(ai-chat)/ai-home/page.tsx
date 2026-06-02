@@ -816,6 +816,24 @@ export default function AiHomePage() {
   // 不再有折叠态、不再有右上角圆形小康头像悬浮按钮、不再有"收起/展开"切换。
   const messageScrollRef = useRef<HTMLDivElement>(null);
 
+  // [BUGFIX-AIHOME-SCROLL-HINT-V1 2026-06-02] AI 标准版首页底部「下拉箭头」缺失修复
+  // 未滚到底（距底 > 阈值）时显示底部居中向下小箭头，滚到底自动隐藏；点击平滑滚到底。
+  const [showScrollHint, setShowScrollHint] = useState(false);
+  const SCROLL_HINT_THRESHOLD = 40;
+  const updateScrollHint = useCallback(() => {
+    const el = messageScrollRef.current;
+    if (!el) return;
+    const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    // 内容不足一屏（无法滚动）时不显示
+    const scrollable = el.scrollHeight - el.clientHeight > SCROLL_HINT_THRESHOLD;
+    setShowScrollHint(scrollable && distanceToBottom > SCROLL_HINT_THRESHOLD);
+  }, []);
+  const handleScrollToBottom = useCallback(() => {
+    const el = messageScrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+  }, []);
+
   const [banners, setBanners] = useState<Banner[]>([]);
   const [funcButtons, setFuncButtons] = useState<FunctionButton[]>([]);
   // [PRD-AIHOME-SKELETON-V1 2026-05-19] 首屏加载状态机：
@@ -1227,6 +1245,25 @@ export default function AiHomePage() {
       });
     }
   }, [messages.length]);
+
+  // [BUGFIX-AIHOME-SCROLL-HINT-V1 2026-06-02] 监听滚动容器：实时根据当前位置判断是否显示底部向下箭头。
+  // 绑定 scroll + resize；内容变化（消息增减、打字机持续输出）后也重算一次。
+  useEffect(() => {
+    const el = messageScrollRef.current;
+    if (!el) return;
+    updateScrollHint();
+    el.addEventListener('scroll', updateScrollHint, { passive: true });
+    window.addEventListener('resize', updateScrollHint);
+    return () => {
+      el.removeEventListener('scroll', updateScrollHint);
+      window.removeEventListener('resize', updateScrollHint);
+    };
+  }, [updateScrollHint]);
+
+  useEffect(() => {
+    // 消息数量/内容变化后，DOM 高度更新，重算箭头显隐
+    requestAnimationFrame(updateScrollHint);
+  }, [messages, updateScrollHint]);
 
   // [PRD-AI-HOME-OPTIM-V4 2026-05-21] M1 · 60 分钟定时刷新机制
   //
@@ -6025,6 +6062,53 @@ export default function AiHomePage() {
           </div>
         )}
       </div>
+
+      {/* [BUGFIX-AIHOME-SCROLL-HINT-V1 2026-06-02] 底部居中向下小箭头（轻微上下跳动）：
+          未滚到底时显示，点击平滑滚到内容最底部，滚到底自动隐藏。视觉照搬关怀模式。 */}
+      {showScrollHint && (
+        <button
+          type="button"
+          data-testid="ai-home-scroll-hint"
+          onClick={handleScrollToBottom}
+          aria-label="滚动到底部"
+          style={{
+            position: 'absolute',
+            left: '50%',
+            bottom: 96,
+            transform: 'translateX(-50%)',
+            zIndex: 30,
+            width: 36,
+            height: 36,
+            borderRadius: '50%',
+            border: 'none',
+            background: 'rgba(255,255,255,0.92)',
+            boxShadow: '0 2px 9px rgba(0,0,0,0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            padding: 0,
+          }}
+        >
+          <span
+            data-testid="ai-home-scroll-hint-arrow"
+            style={{
+              fontSize: 22,
+              lineHeight: 1,
+              color: '#1976D2',
+              animation: 'aiHomeArrowBounce 1.2s ease-in-out infinite',
+            }}
+          >
+            ⌄
+          </span>
+        </button>
+      )}
+      <style jsx>{`
+        @keyframes aiHomeArrowBounce {
+          0%, 100% { transform: translateY(-3px); }
+          50% { transform: translateY(3px); }
+        }
+      `}</style>
 
       {/* [PRD-AI-HOME-3TAB-WARMBLUE-V1 2026-06-01 §三] 原右侧可拖动悬浮铃铛已下线：
           铃铛改为顶栏右上角固定按钮（不可拖、不再飘），见上方 ai-home-topbar-bell。

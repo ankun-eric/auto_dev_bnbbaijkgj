@@ -655,3 +655,19 @@
 .verified-icon {
   margin-right: 10rpx;
 }
+
+/* [BUGFIX-AIHOME-SCROLL-HINT-V1 2026-06-02] 底部居中向下小箭头（轻微上下跳动，可点击滚到底） */
+.scroll-hint {
+  position: fixed; left: 50%; bottom: 28rpx; transform: translateX(-50%);
+  z-index: 120; width: 72rpx; height: 72rpx; border-radius: 50%;
+  background: rgba(255,255,255,0.92); box-shadow: 0 4rpx 18rpx rgba(0,0,0,0.15);
+  display: flex; align-items: center; justify-content: center;
+}
+.scroll-hint-arrow {
+  font-size: 44rpx; color: #1976D2; line-height: 1;
+  animation: ai-arrow-bounce 1.2s ease-in-out infinite;
+}
+@keyframes ai-arrow-bounce {
+  0%, 100% { transform: translateY(-6rpx); }
+  50% { transform: translateY(6rpx); }
+}

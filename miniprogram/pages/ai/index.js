@@ -41,8 +41,13 @@ Page({
     showNewBadge: Date.now() < new Date('2026-06-25T00:00:00Z').getTime(),
     // [PRD-MODE-CAPSULE-V1 2026-05-31] 模式切换下拉胶囊展开态 + 切换中防重复点击
     modeDropdownShow: false,
-    modeSwitching: false
+    modeSwitching: false,
+    // [BUGFIX-AIHOME-SCROLL-HINT-V1 2026-06-02] 底部向下箭头：内容超一屏且未滚到底时显示，到底隐藏
+    showScrollHint: false
   },
+
+  // [BUGFIX-AIHOME-SCROLL-HINT-V1 2026-06-02] 记录页面可滚动总高，用于判断是否已到底
+  _scrollMaxTop: 0,
 
   onLoad(options) {
     // [PRD-AIHOME-WELCOME-UNIFY-V1 2026-06-02] 初始化欢迎区问候语与机器人 LOGO
@@ -75,6 +80,44 @@ Page({
     // [PRD-AI-HOME-OPTIM-V4 M1 · 2026-05-21] 60 分钟定时自动刷新机制
     // 进入页面时根据距上次会话 updated_at 是否 ≥ 阈值，决定是否清空"最近会话"展示并触发埋点
     this.runV4RefreshCheck();
+    // [BUGFIX-AIHOME-SCROLL-HINT-V1 2026-06-02] 进入后判定内容是否超一屏，决定底部箭头初始显隐
+    setTimeout(() => this.evalScrollHint(), 350);
+  },
+
+  // [BUGFIX-AIHOME-SCROLL-HINT-V1 2026-06-02] 计算页面内容总高与视口高度：
+  // 内容超一屏（可滚动）则记录最大可滚动距离并显示底部向下箭头，否则隐藏。
+  evalScrollHint() {
+    const query = wx.createSelectorQuery().in(this);
+    query.select('.ai-page').boundingClientRect();
+    query.selectViewport().boundingClientRect();
+    query.exec((rects) => {
+      if (!rects || rects.length < 2 || !rects[0] || !rects[1]) return;
+      const contentH = rects[0].height || 0;
+      const viewH = rects[1].height || 0;
+      this._scrollMaxTop = Math.max(0, contentH - viewH);
+      const canScroll = this._scrollMaxTop > 40;
+      this.setData({ showScrollHint: canScroll });
+    });
+  },
+
+  // [BUGFIX-AIHOME-SCROLL-HINT-V1 2026-06-02] 页面滚动监听：未到底显示箭头，滚到底自动隐藏
+  onPageScroll(e) {
+    const top = (e && e.scrollTop) || 0;
+    const max = this._scrollMaxTop || 0;
+    if (max <= 40) {
+      if (this.data.showScrollHint) this.setData({ showScrollHint: false });
+      return;
+    }
+    const atBottom = top >= max - 40;
+    const show = !atBottom;
+    if (show !== this.data.showScrollHint) {
+      this.setData({ showScrollHint: show });
+    }
+  },
+
+  // [BUGFIX-AIHOME-SCROLL-HINT-V1 2026-06-02] 点击底部箭头：平滑滚动到内容最底部
+  onTapScrollHint() {
+    wx.pageScrollTo({ scrollTop: (this._scrollMaxTop || 0) + 200, duration: 300 });
   },
 
   // [PRD-AI-HOME-OPTIM-V4 M1] 60 分钟刷新检测

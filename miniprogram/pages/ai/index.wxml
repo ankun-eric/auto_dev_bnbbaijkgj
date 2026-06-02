@@ -167,6 +167,12 @@
     <text class="new-chat-text">+新建对话</text>
   </view>
 
+  <!-- [BUGFIX-AIHOME-SCROLL-HINT-V1 2026-06-02] 底部居中向下小箭头（轻微上下跳动）：
+       内容超一屏且未滚到底时显示，点击平滑滚到底，到底自动隐藏。视觉照搬关怀模式。 -->
+  <view class="scroll-hint" wx:if="{{showScrollHint}}" bindtap="onTapScrollHint" data-testid="ai-home-scroll-hint">
+    <text class="scroll-hint-arrow">⌄</text>
+  </view>
+
   <!-- 对话历史抽屉 -->
   <chat-drawer
     show="{{drawerShow}}"
