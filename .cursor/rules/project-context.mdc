@@ -5,6 +5,31 @@ alwaysApply: false
 
 # Project Context
 
+## 最近一次变更（2026-06-03 · Bug 修复「数字安全绳 v1 部署未生效」· 仅部署链路修复 · 无源码改动）
+
+**任务标识**：`[BUGFIX-SAFETY-ROPE-V1-DEPLOY-FIX 2026-06-03]`
+
+**根因**：上一轮 commit `c933a87b fix(safety-rope): 数字安全绳 v2 锁死版` 已把后端 `safety_rope_v1.py`、H5 `care-home/page.tsx` 入口卡片、`care-safety-rope/page.tsx` 表单等改动落库；但服务器测试环境部署时**未真正同步源码**——服务器侧 `backend/app/main.py` 是旧版（缺第 2267-2273 行 `app.include_router(_safety_rope_v1.router)`）、`h5-web/src/app/care-home/page.tsx` 也是旧版（无 `care-home-safety-rope-entry` 卡片）。表现：13 项端到端冒烟里 12 项失败、所有 `/api/safety-rope/*` 接口 404。
+
+**修复动作**：
+1. 把本地 `backend/`、`h5-web/` 全量 tar 上传到 `/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/`，备份旧目录后展开
+2. 远程执行 `docker compose build --no-cache backend h5-web` 强制无缓存重建
+3. 远程执行 `docker compose up -d --force-recreate backend h5-web` 重新创建容器
+4. 通过 `app.routes` 反射验证 11 个 `/api/safety-rope/*` 路径全部注册成功
+5. 13/13 端到端冒烟全过
+
+**未改动源码**：本会话**没有修改任何 backend / h5-web / miniprogram / flutter_app / admin-web 的源代码**，仅修复部署链路。客户端（小程序、Android、iOS、Windows）**无需重新打包**。
+
+**新增辅助文件**（仅诊断 / 部署辅助脚本，可清理）：
+- `_ssh_helper.py` / `_upload_helper.py` — Paramiko 基础 SSH/SCP 工具
+- `_diag_safety_rope.py` — 远程诊断脚本（容器内 OpenAPI 路径检测）
+- `_remote_redeploy.sh` — 远程一键 rebuild + recreate + verify
+- `_remote_probe.sh` — 容器内 routes 反射探针
+- `_final_smoke_safety_rope.py` — 13 项端到端冒烟（部署后必通过）
+- `user_docs/数字安全绳v1部署生效修复.md` — 用户体验手册
+
+---
+
 ## 最近一次变更（2026-06-03 · Bug 治本「家庭成员 status 字段 v4 最终治本」· 后端 + H5 + 小程序三端 · 1 个小程序包）
 
 **任务标识**：`[BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V4 2026-06-03]`
