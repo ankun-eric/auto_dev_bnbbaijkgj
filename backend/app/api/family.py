@@ -2,7 +2,7 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -90,13 +90,21 @@ async def list_family_members(
     # - 旧口径 status == 'active' 会漏掉 cancelled_by_target / pending 等中间态
     # 现统一为「排除已软删除」语义。本项目历史上 DELETE 接口写入的是 'removed'，
     # 状态机接口约定的是 'deleted'，因此两个软删除标记都需排除。
+    #
+    # [BUGFIX-SELF-TAB-ALWAYS-VISIBLE-V1 2026-06-03] 本人记录(is_self=True)无视 status 过滤：
+    # 早期注册流程历史脏数据可能把本人 status 写成 'pending' 等非 active 值（实测 6399 账号），
+    # 本人作为账号持有者天然不应被任何业务状态过滤，必须永远出现在顶部 Tab 的第一位。
+    # 因此过滤条件改为：本人记录直接放行；其余成员仍按"排除已软删除"口径。
     DELETED_STATUSES = ("deleted", "removed")
     result = await db.execute(
         select(FamilyMember)
         .options(selectinload(FamilyMember.relation_type))
         .where(
             FamilyMember.user_id == current_user.id,
-            FamilyMember.status.notin_(DELETED_STATUSES),
+            or_(
+                FamilyMember.is_self.is_(True),
+                FamilyMember.status.notin_(DELETED_STATUSES),
+            ),
         )
     )
     members = list(result.scalars().all())
@@ -152,6 +160,28 @@ async def list_family_members(
             target_left_member_ids.add(int(mgmt.managed_member_id))
     for it in items:
         it["target_left"] = int(it.get("id", 0)) in target_left_member_ids
+
+    # [PRD-FAMILY-V3-STATE-MODEL-V1 2026-06-03] 注入 V3 主+子状态及视图开关字段
+    # 前端可据此渲染:
+    #   - sub_status='unbinded' / 'self_deleted' => 进入极简「老人 Tab」视图(仅 Hero + 他的守护人卡片)
+    #   - can_reinvite=True => Hero 卡片渲染「重新邀请」按钮
+    #   - can_edit=True => 编辑按钮可见
+    try:
+        from app.services.family_member_status import derive_v3_state
+        member_by_id = {m.id: m for m in ordered}
+        for it in items:
+            mb = member_by_id.get(it.get("id"))
+            if mb is None:
+                continue
+            v3 = await derive_v3_state(db, member=mb)
+            it["v3_main_status"] = v3["main_status"]
+            it["v3_sub_status"] = v3["sub_status"]
+            it["v3_can_reinvite"] = v3["can_reinvite"]
+            it["v3_can_edit"] = v3["can_edit"]
+            it["v3_show_simplified_view"] = v3["show_simplified_view"]
+    except Exception as _v3_err:
+        # V3 字段是增强字段,推导失败不影响主流程
+        logger.warning(f"V3 state derivation skipped: {_v3_err}")
 
     return {"items": items, "total": len(items)}
 

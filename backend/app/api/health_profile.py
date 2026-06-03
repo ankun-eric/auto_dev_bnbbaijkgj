@@ -143,8 +143,17 @@ async def get_member_health_profile(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03]
+    # 应急修复:对齐家人 Tab 的过滤口径,排除已软删除/已解绑成员。
+    # 6399 账号现场:苏俊林(family_member.id=8 status='removed')之前在家人 Tab 已隐藏,
+    # 但因本接口不看 status,健康档案仍然返回该成员档案,造成两边口径不一致。
+    from app.services.family_status_constants import DELETED_OR_REMOVED_STATUSES
     member_result = await db.execute(
-        select(FamilyMember).where(FamilyMember.id == member_id, FamilyMember.user_id == current_user.id)
+        select(FamilyMember).where(
+            FamilyMember.id == member_id,
+            FamilyMember.user_id == current_user.id,
+            FamilyMember.status.notin_(DELETED_OR_REMOVED_STATUSES),
+        )
     )
     member = member_result.scalar_one_or_none()
     if not member:
@@ -182,8 +191,14 @@ async def upsert_member_health_profile(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 同 GET /profile/member/{member_id},编辑接口同样排除软删除/解绑成员
+    from app.services.family_status_constants import DELETED_OR_REMOVED_STATUSES
     member_result = await db.execute(
-        select(FamilyMember).where(FamilyMember.id == member_id, FamilyMember.user_id == current_user.id)
+        select(FamilyMember).where(
+            FamilyMember.id == member_id,
+            FamilyMember.user_id == current_user.id,
+            FamilyMember.status.notin_(DELETED_OR_REMOVED_STATUSES),
+        )
     )
     member = member_result.scalar_one_or_none()
     if not member:

@@ -5,7 +5,51 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-03 · 新功能 / 健康计划（健康打卡）重做 · 后端 + H5 + 小程序 + Flutter App 四端全部打包，零 Bug）
+## 最近一次变更（2026-06-03 · 需求 / V3 终版「家庭成员状态模型 & 一人一档治本方案」第一阶段：应急修复 SOP + V3 后端基础 · 后端 + H5 两端，小程序/APP 无源码改动 0 客户端打包）
+
+**任务标识**：`[PRD-FAMILY-V3-EMERGENCY-FIX + PRD-FAMILY-V3-STATE-MODEL-V1 2026-06-03]`
+
+**需求**：解决 6399 账号反馈"家人 Tab 看不到苏俊林、李 X，但家庭档案能看到"的两侧口径不一致 Bug，并落地 PRD V3 终版第 1.1 / 1.4 节决策（主+子状态、解绑后极简视图、Hero「重新邀请」按钮）。
+
+**改动文件（共 7 处）**：
+
+- 后端：
+  - 新增 `backend/app/services/family_status_constants.py` — `DELETED_OR_REMOVED_STATUSES = ("deleted","removed")` 单一真值常量
+  - 新增 `backend/app/services/family_member_status.py` — V3 主+子状态推导服务 `derive_v3_state()`，根据 family_members + family_management + family_invitations 推导出 V3 主状态 (unbound/bound/deleted) 和 8 种子状态（not_applied/applying/rejected/unbinded/invited_expired/bound/self_deleted/admin_deleted）+ `can_reinvite` / `can_edit` / `show_simplified_view` 视图开关
+  - `backend/app/api/family.py` — `list_family_members` 注入 V3 字段（v3_main_status / v3_sub_status / v3_can_reinvite / v3_can_edit / v3_show_simplified_view）
+  - `backend/app/api/family_member_v2.py` — 4 处过滤口径从 `status != 'deleted'` 统一为 `status.notin_(DELETED_OR_REMOVED_STATUSES)`，3 处 `member.status == 'deleted'` 改为 `in (deleted, removed)`
+  - `backend/app/api/health_profile.py` — `/profile/member/{id}` GET/PUT 加入 status 过滤（应急修复核心：6399 现场是这两个接口完全不看 status 导致的两侧不一致）
+  - 新增 `backend/tests/test_family_v3_state_model_20260603.py` — 10 项 pytest 用例（应急修复 3 项 + V3 接口字段集成 2 项 + derive_v3_state 单元 5 项）
+
+- H5：
+  - `h5-web/src/app/health-profile/page.tsx` — FamilyMember 接口扩展 5 个 V3 字段；非本人 Tab 在 `v3_show_simplified_view=true` 时进入极简视图（仅 Hero + 「他的守护人」卡片 + 提示行，隐藏健康看板/提醒/设备/用药/医疗事件等所有业务模块）；Hero 卡片右上角"编辑"左侧追加「重新邀请」/「邀请」按钮（data-testid `prd-v3-hero-reinvite-btn`），点击直达 `/family-invite?member_id=`
+
+**数据模型（沿用旧表，本阶段不改 schema）**：
+- `family_members`、`family_management`、`family_invitations`、`health_profiles` — 完全保持现有结构
+- 后续阶段（PRD §3.1~3.4）将新增 `main_status` / `sub_status` 列、`health_profile_links` 表、`origin_source` 字段等
+
+**测试/验证**：
+- 本地 pytest：10/10 通过（含数据库 schema NOT NULL 字段补齐）
+- 远程容器 pytest：`docker compose exec backend python -m pytest tests/test_family_v3_state_model_20260603.py -v` **10/10 通过（5.30s）**
+- 外部 HTTPS smoke：`/api/health=200`、`/health-profile/=200`、`/api/family/members=401`（未鉴权，路由可达）
+
+**部署**：`deploy/_deploy_family_v3_emergency_20260603.py` SFTP 上传 7 文件 → `docker compose build --no-cache backend && up -d backend` → 容器内 pytest 10/10 → `docker compose build h5-web && up -d h5-web`。
+
+**变更端清单**：
+- 后端（已上线，容器重建）
+- H5（已上线，容器重建，无需用户重新下载）
+- 微信小程序：源码未改动，**未重新打包**。但因后端过滤口径已统一，原版小程序看到的"已解绑成员仍在档案列表"现象自动修复
+- 安卓 / iOS App：源码未改动，**未重新打包**。通过 H5 WebView 自动获得本次更新
+
+**用户手册**：`user_docs/家庭成员状态模型V3_解绑后极简视图.md`
+
+**后续待办（PRD §1.5 路径 3）**：
+- 本阶段为"今晚先应急修复 + 后台并行启动治本"中的应急修复 + 治本基础
+- 后续阶段（14 人天计划）将逐步落地：family_members 表 main_status/sub_status 列双写、health_profile_links 表、profile_merger 服务、老人解绑短信验证码、灰度发布等
+
+---
+
+## 上一次变更（2026-06-03 · 新功能 / 健康计划（健康打卡）重做 · 后端 + H5 + 小程序 + Flutter App 四端全部打包，零 Bug）
 
 **任务标识**：`[PRD-HEALTH-PLAN-CHECKIN-V1 2026-06-02 / 部署 2026-06-03]`
 

@@ -76,6 +76,13 @@ interface FamilyMember {
     expires_at: string;
     remaining_hours: number;
   } | null;
+  // [PRD-FAMILY-V3-STATE-MODEL-V1 2026-06-03] V3 主+子状态及视图开关
+  v3_main_status?: 'unbound' | 'bound' | 'deleted' | null;
+  v3_sub_status?: string | null;
+  v3_can_reinvite?: boolean;
+  v3_can_edit?: boolean;
+  // PRD 决策点 14~18:解绑/已删除后老人 Tab 进入极简视图(只剩 Hero+他的守护人卡片)
+  v3_show_simplified_view?: boolean;
 }
 
 const BADGE_COLOR_PALETTE: { bg: string; fg: string }[] = [
@@ -979,6 +986,27 @@ function HealthProfileV2PageInner() {
               fontSize: 11, fontWeight: 500, cursor: 'pointer',
             }}
           >编辑</button>
+
+          {/* [PRD-FAMILY-V3-STATE-MODEL-V1 2026-06-03 决策点 17] 非本人 + 状态非已绑定/邀请中:展示「重新邀请」按钮
+              交互:点击直接进入邀请流程(复用 family-invite 页面携带 member_id) */}
+          {selectedMember && !selectedMember.is_self && selectedMember.v3_can_reinvite && (
+            <button
+              data-testid="prd-v3-hero-reinvite-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                router.push(`/family-invite?member_id=${selectedMember.id}`);
+              }}
+              style={{
+                position: 'absolute', top: 10, right: 64,
+                padding: '3px 10px', borderRadius: 10,
+                background: '#fff', color: T.brand,
+                border: 'none',
+                fontSize: 11, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              {selectedMember.v3_sub_status === 'not_applied' ? '邀请' : '重新邀请'}
+            </button>
+          )}
 
           {/* Upper: Avatar + Name + Age + Relation + Gender */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -2476,60 +2504,82 @@ function HealthProfileV2PageInner() {
       </div>
 
       {renderHero()}
-      {selectedMember && (
-        <div style={{ padding: '0 16px 8px' }}>
-          <div
-            data-testid="health-dashboard-entry"
-            onClick={() => router.push(`/health-dashboard?member_id=${selectedMemberId}`)}
-            style={{
-              background: 'linear-gradient(135deg, #0EA5E9 0%, #38BDF8 100%)',
-              color: '#fff',
-              fontSize: 15,
-              fontWeight: 700,
-              height: 42,
-              borderRadius: 21,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(14,165,233,0.35)',
-            }}
-          >
-            {selectedMember.is_self ? '查看我的健康看板 →' : `查看 ${selectedMember.nickname || '家人'} 的健康看板 →`}
-          </div>
-        </div>
-      )}
-      {renderInviteArea()}
-      {renderDualCards()}
-      {renderAlertBanner()}
-      {/* 提醒管理入口 */}
-      <div style={{ padding: '0 16px 12px' }}>
-        <div
-          data-testid="health-reminders-entry"
-          onClick={() => router.push(`/health-reminders?member_id=${selectedMemberId || ''}`)}
-          style={{
-            background: '#fff',
-            borderRadius: 12,
-            padding: '14px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-            cursor: 'pointer',
-            borderLeft: '4px solid #F59E0B',
-          }}
-        >
-          <span style={{ fontSize: 20, marginRight: 10 }}>🔔</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: '#1F2937' }}>提醒管理</div>
-            <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>复诊·体检·复查提醒</div>
-          </div>
-          <span style={{ fontSize: 14, color: '#9CA3AF' }}>›</span>
-        </div>
-      </div>
-      {renderDevicesEntry()}
-      {renderMedicationPlan()}
-      {renderMedicalRecords()}
-      {renderTodayHealthData()}
+      {/* [PRD-FAMILY-V3-STATE-MODEL-V1 2026-06-03 §1.4 极简视图]
+          解绑 / 已删除成员的非本人 Tab 进入"极简视图":
+          只保留 Hero 卡片 + 「他的守护人」卡片;隐藏健康看板入口、提醒管理、设备、用药等所有
+          后续模块。Hero 卡片本身已按 v3_can_reinvite 渲染「重新邀请」按钮。 */}
+      {(() => {
+        const v3Simplified = !!selectedMember && !selectedMember.is_self && !!selectedMember.v3_show_simplified_view;
+        if (v3Simplified) {
+          return (
+            <>
+              {/* 仅渲染「他的守护人」卡片(renderDualCards 在非本人 Tab 仅渲染右侧那张卡) */}
+              {renderDualCards()}
+              <div data-testid='v3-unbound-simplified-tip' style={{ padding: '8px 16px', color: '#6B7280', fontSize: 12, textAlign: 'center' }}>
+                您与该家人已解除守护关系。如需继续守护，可在 Hero 卡片上点击「重新邀请」。
+              </div>
+            </>
+          );
+        }
+        return (
+          <>
+            {selectedMember && (
+              <div style={{ padding: '0 16px 8px' }}>
+                <div
+                  data-testid="health-dashboard-entry"
+                  onClick={() => router.push(`/health-dashboard?member_id=${selectedMemberId}`)}
+                  style={{
+                    background: 'linear-gradient(135deg, #0EA5E9 0%, #38BDF8 100%)',
+                    color: '#fff',
+                    fontSize: 15,
+                    fontWeight: 700,
+                    height: 42,
+                    borderRadius: 21,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(14,165,233,0.35)',
+                  }}
+                >
+                  {selectedMember.is_self ? '查看我的健康看板 →' : `查看 ${selectedMember.nickname || '家人'} 的健康看板 →`}
+                </div>
+              </div>
+            )}
+            {renderInviteArea()}
+            {renderDualCards()}
+            {renderAlertBanner()}
+            {/* 提醒管理入口 */}
+            <div style={{ padding: '0 16px 12px' }}>
+              <div
+                data-testid="health-reminders-entry"
+                onClick={() => router.push(`/health-reminders?member_id=${selectedMemberId || ''}`)}
+                style={{
+                  background: '#fff',
+                  borderRadius: 12,
+                  padding: '14px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                  cursor: 'pointer',
+                  borderLeft: '4px solid #F59E0B',
+                }}
+              >
+                <span style={{ fontSize: 20, marginRight: 10 }}>🔔</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: '#1F2937' }}>提醒管理</div>
+                  <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>复诊·体检·复查提醒</div>
+                </div>
+                <span style={{ fontSize: 14, color: '#9CA3AF' }}>›</span>
+              </div>
+            </div>
+            {renderDevicesEntry()}
+            {renderMedicationPlan()}
+            {renderMedicalRecords()}
+            {renderTodayHealthData()}
+          </>
+        );
+      })()}
 
       {/* Modals */}
       {showAddMember && (

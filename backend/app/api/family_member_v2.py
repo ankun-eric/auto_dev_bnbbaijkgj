@@ -233,10 +233,13 @@ async def count_managed_family_members(db: AsyncSession, user_id: int) -> int:
     - 排除软删除：status != 'deleted'
     - 仅统计当前用户名下的记录：user_id = :uid
     """
+    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 与家人 Tab/健康档案过滤口径统一,
+    # 同时排除 'removed'(旧 DELETE 接口写入)和 'deleted'(状态机软删),不再两边漂移
+    from app.services.family_status_constants import DELETED_OR_REMOVED_STATUSES
     r = await db.execute(
         select(func.count(FamilyMember.id)).where(
             FamilyMember.user_id == user_id,
-            FamilyMember.status != "deleted",
+            FamilyMember.status.notin_(DELETED_OR_REMOVED_STATUSES),
         )
     )
     return int(r.scalar() or 0)
@@ -680,11 +683,13 @@ async def list_member_states(
     """
     now = datetime.utcnow()
 
-    # 1) 全部 family_member（含本人，排除 deleted）
+    # 1) 全部 family_member（含本人，排除 deleted/removed）
+    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 同时排除 'removed' 与 'deleted',与 family.py / health_profile.py 统一
+    from app.services.family_status_constants import DELETED_OR_REMOVED_STATUSES as _DRS
     mb_res = await db.execute(
         select(FamilyMember).where(
             FamilyMember.user_id == current_user.id,
-            FamilyMember.status != "deleted",
+            FamilyMember.status.notin_(_DRS),
         ).order_by(FamilyMember.is_self.desc(), FamilyMember.created_at.asc())
     )
     members = mb_res.scalars().all()
@@ -832,11 +837,13 @@ async def get_member_quota(
     )
     guarded_count = int(r2.scalar() or 0)
 
+    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 本人卡片排除已软删除/解绑
+    from app.services.family_status_constants import DELETED_OR_REMOVED_STATUSES as _DRS_SELF
     self_member = (await db.execute(
         select(FamilyMember).where(
             FamilyMember.user_id == current_user.id,
             FamilyMember.is_self == True,  # noqa: E712
-            FamilyMember.status != "deleted",
+            FamilyMember.status.notin_(_DRS_SELF),
         )
     )).scalars().first()
 
@@ -892,8 +899,10 @@ async def delete_member_unified(
             },
         )
 
+    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 同时识别 deleted/removed 两种软删除标记
+    from app.services.family_status_constants import DELETED_OR_REMOVED_STATUSES as _DRS_DEL
     member = await db.get(FamilyMember, member_id)
-    if not member or member.status == "deleted":
+    if not member or member.status in _DRS_DEL:
         raise HTTPException(
             status_code=404,
             detail={
@@ -1162,8 +1171,10 @@ async def reinvite_member(
     4) 生成新邀请码 + 二维码 URL
     """
     now = datetime.utcnow()
+    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 兼容 deleted/removed
+    from app.services.family_status_constants import DELETED_OR_REMOVED_STATUSES as _DRS_INV
     member = await db.get(FamilyMember, member_id)
-    if not member or member.status == "deleted":
+    if not member or member.status in _DRS_INV:
         raise HTTPException(status_code=404, detail="该档案不存在或已被删除")
     if member.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="您没有权限操作该档案")
@@ -1237,8 +1248,10 @@ async def unbind_member(
     - 名下无设备
     """
     now = datetime.utcnow()
+    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 兼容 deleted/removed
+    from app.services.family_status_constants import DELETED_OR_REMOVED_STATUSES as _DRS_UB
     member = await db.get(FamilyMember, member_id)
-    if not member or member.status == "deleted":
+    if not member or member.status in _DRS_UB:
         raise HTTPException(status_code=404, detail="该档案不存在或已被删除")
     if member.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="您没有权限操作该档案")
