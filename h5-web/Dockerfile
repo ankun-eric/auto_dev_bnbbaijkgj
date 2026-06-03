@@ -1,4 +1,4 @@
-FROM node:18-alpine AS builder
+FROM crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_doker_base/node:20-alpine AS builder
 WORKDIR /app
 COPY package.json ./
 RUN npm config set registry https://registry.npmmirror.com && npm install --legacy-peer-deps
@@ -10,7 +10,7 @@ ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
 RUN mkdir -p public
 RUN npm run build
 
-FROM node:18-alpine AS runner
+FROM crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_doker_base/node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/.next/standalone ./
