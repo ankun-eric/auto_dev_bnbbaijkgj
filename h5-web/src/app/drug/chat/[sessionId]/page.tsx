@@ -57,7 +57,7 @@ const welcomeMessage: Message = {
 };
 
 const BASE_SHARE_URL =
-  'https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/shared/drug';
+  'https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/shared/drug';
 
 function formatMsgTime(dateStr?: string) {
   if (!dateStr) return '';

@@ -47,7 +47,7 @@ router = APIRouter(prefix="/api/reverse-guardian", tags=["反向守护"])
 
 INVITE_EXPIRE_HOURS = 24
 MAX_INVITE_USES = 3
-BASE_URL = "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27"
+BASE_URL = "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com"
 
 # [PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 错误码常量
 ERR_GUARDIAN_LIMIT_REACHED = "GUARDIAN_LIMIT_REACHED"

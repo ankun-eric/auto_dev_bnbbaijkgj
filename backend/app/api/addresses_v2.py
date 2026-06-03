@@ -425,7 +425,7 @@ async def version_check(
     if platform == "ios":
         download = "https://apps.apple.com/cn/app/bini-health/id000000000"
     else:
-        download = "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/bini_health_latest.apk"
+        download = "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/bini_health_latest.apk"
     force = bool(current_version) and _is_lower_version(current_version, min_version)
     return VersionCheckResponse(
         minVersion=min_version,

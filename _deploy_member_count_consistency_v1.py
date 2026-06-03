@@ -54,7 +54,7 @@ def main():
     run(sshcmd(f"docker restart {PROJECT_PREFIX}-backend"))
     time.sleep(15)
 
-    health_url = "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/health"
+    health_url = "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/health"
     for i in range(20):
         r = run(f'curl -k -s -o /dev/null -w "%{{http_code}}" {health_url}', check=False, timeout=30)
         code = (r.stdout or "").strip()
@@ -83,7 +83,7 @@ def main():
     run(sshcmd(f"cd {REMOTE_DIR} && docker compose up -d --build h5-web 2>&1 | tail -80"), timeout=1200)
     time.sleep(20)
 
-    h5_url = "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/member-center"
+    h5_url = "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/member-center"
     for i in range(30):
         r = run(f'curl -k -s -o /dev/null -w "%{{http_code}}" {h5_url}', check=False, timeout=30)
         code = (r.stdout or "").strip()

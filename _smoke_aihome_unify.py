@@ -1,6 +1,6 @@
 import urllib.request, ssl, sys
 
-BASE = "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27"
+BASE = "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com"
 ctx = ssl.create_default_context()
 
 def fetch(path):

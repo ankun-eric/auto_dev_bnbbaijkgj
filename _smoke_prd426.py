@@ -10,7 +10,7 @@ import requests
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-BASE = "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27"
+BASE = "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com"
 
 def hit(label, path, expect_status=(200, 301, 302, 308)):
     url = f"{BASE}{path}"

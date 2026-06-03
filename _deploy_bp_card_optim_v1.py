@@ -1,7 +1,7 @@
 """[PRD-BP-CARD-OPTIMIZE-V1 2026-05-30] 远程部署脚本：H5 镜像重建 + 容器重启。
 
 部署唯一标识：6b099ed3-7175-4a78-91f4-44570c84ed27
-基础URL：https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27
+基础URL：https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com
 """
 from __future__ import annotations
 import sys

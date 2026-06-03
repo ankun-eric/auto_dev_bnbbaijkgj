@@ -19,7 +19,7 @@ import sys
 import urllib.request
 import urllib.error
 
-BASE = "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27"
+BASE = "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com"
 SSH_HOST = "ubuntu@newbb.test.bangbangvip.com"
 CONTAINER = "6b099ed3-7175-4a78-91f4-44570c84ed27-h5"
 REMOTE_ROOT = "/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27"

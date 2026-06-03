@@ -27,7 +27,7 @@ def ssh_exec(commands, timeout=300):
 
 if __name__ == "__main__":
     proj_dir = "/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27"
-    token_url = "https://ankun-eric:{GH_TOKEN}@github.com/ankun-eric/auto_dev_bnbbaijkgj.git"
+    token_url = "https://ankun-eric:{GH_TOKEN}@codeup.aliyun.com/6a05a6159b7ce0afb00c035e/6b099ed3-7175-4a78-91f4-44570c84ed27.git"
     
     commands = [
         f"cd {proj_dir} && git remote set-url origin {token_url}",

@@ -2,7 +2,7 @@
 import time
 import requests
 
-BASE = "https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27"
+BASE = "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com"
 API = f"{BASE}/api"
 
 phone = f"139{int(time.time()) % 100000000:08d}"

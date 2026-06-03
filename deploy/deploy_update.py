@@ -32,7 +32,7 @@ def main():
     code, out, err = run_ssh(client, f"cd {PROJECT_DIR} && git fetch origin && git reset --hard origin/master && git clean -fd && git log -1 --oneline")
     if code != 0:
         print("Git pull failed, trying with token URL...")
-        run_ssh(client, f"cd {PROJECT_DIR} && git remote set-url origin https://ankun-eric:{{GH_TOKEN}}@github.com/ankun-eric/auto_dev_bnbbaijkgj.git")
+        run_ssh(client, f"cd {PROJECT_DIR} && git remote set-url origin https://ankun-eric:{{GH_TOKEN}}@codeup.aliyun.com/6a05a6159b7ce0afb00c035e/6b099ed3-7175-4a78-91f4-44570c84ed27.git")
         code, out, err = run_ssh(client, f"cd {PROJECT_DIR} && git fetch origin && git reset --hard origin/master && git clean -fd && git log -1 --oneline")
         if code != 0:
             print("FATAL: Git pull failed even with token.")

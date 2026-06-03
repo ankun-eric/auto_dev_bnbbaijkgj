@@ -217,7 +217,7 @@ async def create_invitation(
         pass
 
     qr_url = f"/api/family/invitation/{invite_code}"
-    qr_content_url = f"https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/family-auth?code={invite_code}"
+    qr_content_url = f"https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/family-auth?code={invite_code}"
 
     return InvitationCreateResponse(
         invite_code=invite_code,

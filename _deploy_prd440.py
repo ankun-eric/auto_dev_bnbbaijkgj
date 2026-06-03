@@ -84,7 +84,7 @@ def main():
     # 8) 验证可达
     rc, out, _ = exec_ssh(
         ssh,
-        f'curl -s -o /dev/null -w "%{{http_code}}" -m 15 http://localhost/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/',
+        f'curl -s -o /dev/null -w "%{{http_code}}" -m 15 http://localhost//',
     )
     print(f"\nlocal http_code: {out.strip()}", flush=True)
 

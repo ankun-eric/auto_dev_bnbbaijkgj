@@ -847,7 +847,7 @@ async def invite_history_for_managed(
         if s == "pending" and inv.expires_at and inv.expires_at < now:
             s = "expired"
         label, color = status_labels.get(s, (s, "gray"))
-        qr_url = f"https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/family-auth?code={inv.invite_code}" if s == "pending" else None
+        qr_url = f"https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/family-auth?code={inv.invite_code}" if s == "pending" else None
         items.append({
             "id": inv.id,
             "invite_code": inv.invite_code,

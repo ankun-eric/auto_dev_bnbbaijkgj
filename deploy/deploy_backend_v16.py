@@ -7,7 +7,7 @@ PORT = 22
 USER = "ubuntu"
 PASS = "Newbang888"
 PROJECT_DIR = "/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27"
-GIT_URL = "https://ankun-eric:{GH_TOKEN}@github.com/ankun-eric/auto_dev_bnbbaijkgj.git"
+GIT_URL = "https://ankun-eric:{GH_TOKEN}@codeup.aliyun.com/6a05a6159b7ce0afb00c035e/6b099ed3-7175-4a78-91f4-44570c84ed27.git"
 
 def run_ssh(client, cmd, timeout=300):
     print(f"\n>>> {cmd[:200]}{'...' if len(cmd)>200 else ''}")

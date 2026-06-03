@@ -244,9 +244,9 @@ def ensure_network(ssh, uid, prefix):
 
 def verify_links(ssh):
     urls = {
-        "H5 Frontend": f"https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/",
-        "Admin Frontend": f"https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/admin/",
-        "API Docs": f"https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/docs",
+        "H5 Frontend": f"https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/",
+        "Admin Frontend": f"https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/",
+        "API Docs": f"https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/docs",
     }
     
     results = {}

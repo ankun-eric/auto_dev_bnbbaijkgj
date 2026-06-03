@@ -15,7 +15,7 @@ PASS = "Newbang888"
 PROJECT_DIR = f"/home/ubuntu/{DEPLOY_ID}"
 GIT_USER = os.environ.get("GIT_USER", "ankun-eric")
 GIT_TOKEN = os.environ.get("GIT_TOKEN", "")
-GIT_URL = f"https://{GIT_USER}:{GIT_TOKEN}@github.com/ankun-eric/auto_dev_bnbbaijkgj.git"
+GIT_URL = f"https://{GIT_USER}:{GIT_TOKEN}@codeup.aliyun.com/6a05a6159b7ce0afb00c035e/6b099ed3-7175-4a78-91f4-44570c84ed27.git"
 
 
 def main():

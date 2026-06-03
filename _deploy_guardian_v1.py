@@ -58,10 +58,10 @@ def main():
     # Step 6: Health check
     print("\n=== Step 6: Health checks ===")
     checks = [
-        ("Backend API docs", "curl -s -o /dev/null -w '%{http_code}' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/docs"),
-        ("H5 homepage", "curl -s -o /dev/null -w '%{http_code}' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/"),
-        ("Reverse guardian API", "curl -s -o /dev/null -w '%{http_code}' https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/reverse-guardian/guardian-count"),
-        ("Health profile", "curl -s -o /dev/null -w '%{http_code}' -L https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/health-profile"),
+        ("Backend API docs", "curl -s -o /dev/null -w '%{http_code}' https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/docs"),
+        ("H5 homepage", "curl -s -o /dev/null -w '%{http_code}' https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/"),
+        ("Reverse guardian API", "curl -s -o /dev/null -w '%{http_code}' https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/reverse-guardian/guardian-count"),
+        ("Health profile", "curl -s -o /dev/null -w '%{http_code}' -L https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-profile"),
     ]
     
     all_ok = True
