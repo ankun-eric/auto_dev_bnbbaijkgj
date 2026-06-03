@@ -2602,6 +2602,79 @@ async def _sync_family_members_archive_optim_v2(conn: AsyncConnection) -> None:
         except Exception as e:
             print(f"[schema_sync] family_members.guardian_alert_minutes add warn: {e}")
 
+    # [PRD-FAMILY-V3-STATUS-INPLACE-UPGRADE 2026-06-03] V3 主+子状态原地升级
+    # 1) 新增 sub_status 列 + 3 个辅助审计列(不动 status 列名)
+    # 2) 数据迁移:active→bound, removed→deleted(self_deleted), deleted→deleted(admin_deleted)
+    # 3) 回扫 family_management 中 cancelled 的关系,把成员卡片标记为 unbound/unbinded
+    if "sub_status" not in cols:
+        try:
+            await conn.execute(text(
+                "ALTER TABLE family_members ADD COLUMN sub_status VARCHAR(30) NULL"
+            ))
+        except Exception as e:
+            print(f"[schema_sync] family_members.sub_status add warn: {e}")
+    if "status_changed_at" not in cols:
+        try:
+            await conn.execute(text(
+                "ALTER TABLE family_members ADD COLUMN status_changed_at DATETIME NULL"
+            ))
+        except Exception as e:
+            print(f"[schema_sync] family_members.status_changed_at add warn: {e}")
+    if "status_changed_by" not in cols:
+        try:
+            await conn.execute(text(
+                "ALTER TABLE family_members ADD COLUMN status_changed_by INT NULL"
+            ))
+        except Exception as e:
+            print(f"[schema_sync] family_members.status_changed_by add warn: {e}")
+    if "status_reason" not in cols:
+        try:
+            await conn.execute(text(
+                "ALTER TABLE family_members ADD COLUMN status_reason VARCHAR(100) NULL"
+            ))
+        except Exception as e:
+            print(f"[schema_sync] family_members.status_reason add warn: {e}")
+
+    # 数据迁移:仅当存在 active/removed 老枚举时才执行,且只跑一次(幂等)
+    try:
+        # 2.1 active → bound/bound
+        await conn.execute(text(
+            "UPDATE family_members SET status='bound', sub_status='bound', "
+            "status_changed_at=NOW(), status_reason='V3_MIGRATION' "
+            "WHERE status='active'"
+        ))
+        # 2.2 removed → deleted/self_deleted
+        await conn.execute(text(
+            "UPDATE family_members SET status='deleted', sub_status='self_deleted', "
+            "status_changed_at=NOW(), status_reason='V3_MIGRATION' "
+            "WHERE status='removed'"
+        ))
+        # 2.3 deleted 但 sub_status 为空 → 补 admin_deleted
+        await conn.execute(text(
+            "UPDATE family_members SET sub_status='admin_deleted', "
+            "status_changed_at=COALESCE(status_changed_at, NOW()), "
+            "status_reason=COALESCE(status_reason, 'V3_MIGRATION') "
+            "WHERE status='deleted' AND (sub_status IS NULL OR sub_status='')"
+        ))
+        # 2.4 回扫 family_management cancelled → 成员标记为 unbound/unbinded
+        await conn.execute(text(
+            "UPDATE family_members fm "
+            "JOIN family_management mg "
+            "  ON mg.managed_member_id = fm.id AND mg.manager_user_id = fm.user_id "
+            "SET fm.status='unbound', fm.sub_status='unbinded', "
+            "    fm.status_changed_at=COALESCE(mg.updated_at, NOW()), "
+            "    fm.status_reason='V3_MIGRATION_UNBIND' "
+            "WHERE mg.status IN ('cancelled', 'removed', 'cancelled_by_target') "
+            "  AND fm.status='bound'"
+        ))
+        # 2.5 兜底:任何 sub_status 仍为空的 bound 记录补 bound
+        await conn.execute(text(
+            "UPDATE family_members SET sub_status='bound' "
+            "WHERE status='bound' AND (sub_status IS NULL OR sub_status='')"
+        ))
+    except Exception as e:
+        print(f"[schema_sync] family_members V3 status migration warn: {e}")
+
     # 已存在数据补充 avatar_color_index：按 user_id 内的 created_at 顺序循环
     try:
         await conn.execute(text(

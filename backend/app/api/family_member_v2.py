@@ -1021,8 +1021,12 @@ async def delete_member_unified(
     # ── 执行删除 ──
     deleted_tables: list[str] = []
 
-    # a) 软删 family_member
+    # a) 软删 family_member [PRD-FAMILY-V3-STATUS-INPLACE-UPGRADE 2026-06-03] 补 V3 子状态
     member.status = "deleted"
+    member.sub_status = "self_deleted"
+    member.status_changed_at = now
+    member.status_changed_by = current_user.id
+    member.status_reason = "user_delete_card_v2"
     deleted_tables.append("family_member")
 
     # b) 软删 health_profile

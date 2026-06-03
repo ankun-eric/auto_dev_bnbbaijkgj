@@ -1,17 +1,67 @@
-# [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] V3 状态过滤统一常量
-# 用途：所有家庭成员/家庭档案查询接口必须使用同一套"软删除/解绑"过滤口径，
-# 杜绝 6399 账号反馈的"家人 Tab 看不到苏俊林、家庭档案能看到"现象。
+# [PRD-FAMILY-V3-STATUS-INPLACE-UPGRADE 2026-06-03] V3 状态字段原地升级常量
 #
-# 真值口径：
-#   - "已删除"语义统一覆盖 deleted（家庭成员状态机软删）+ removed（旧 DELETE 接口写入）
-#   - 即两个软删除标记都视为"已隐藏",无论是从顶部 Tab 还是健康档案视图,都必须排除。
+# ──────────────────────────────────────────────────────────────────
+# 治本背景：
+#   原 status 字段值为 active / removed / deleted（语义模糊、与 V3 主+子状态
+#   不对齐）。本次原地升级把 status 列内的值替换成 V3 主状态新枚举：
 #
-# V3 治本上线后,family_members 会改用 main_status='deleted' 字段,届时本常量将被
-# upgrade 为新口径,但同一兼容期 30 天内,旧 status 字段仍是真值来源。
+#       active   →  bound           （子状态 bound）
+#       removed  →  deleted         （子状态 self_deleted）
+#       deleted  →  deleted         （子状态 admin_deleted）
+#       已解绑回扫 → unbound         （子状态 unbinded）
+#
+#   同时新增 sub_status 列存放子状态（8 种）。列名 status 保留不动，
+#   保证 SQLAlchemy ORM 字段名、所有 JOIN 写法、所有索引都不需要重命名。
+# ──────────────────────────────────────────────────────────────────
 
 from typing import Tuple
 
-# 旧版 status 字段中表示"已删除/已隐藏"的所有取值
-DELETED_OR_REMOVED_STATUSES: Tuple[str, ...] = ("deleted", "removed")
+# ============ V3 新枚举:主状态 ============
+MAIN_STATUS_BOUND = "bound"          # 守护关系生效中
+MAIN_STATUS_UNBOUND = "unbound"      # 未绑定/已解绑
+MAIN_STATUS_DELETED = "deleted"      # 卡片已软删除
 
-__all__ = ["DELETED_OR_REMOVED_STATUSES"]
+# ============ V3 新枚举:子状态 ============
+SUB_STATUS_BOUND = "bound"
+SUB_STATUS_NOT_APPLIED = "not_applied"
+SUB_STATUS_APPLYING = "applying"
+SUB_STATUS_REJECTED = "rejected"
+SUB_STATUS_UNBINDED = "unbinded"
+SUB_STATUS_INVITED_EXPIRED = "invited_expired"
+SUB_STATUS_SELF_DELETED = "self_deleted"
+SUB_STATUS_ADMIN_DELETED = "admin_deleted"
+
+# ============ 过滤口径:已删除/已隐藏 ============
+# "已删除"统一收口到 deleted 主状态(治本后唯一软删除标记)
+DELETED_STATUSES: Tuple[str, ...] = (MAIN_STATUS_DELETED,)
+
+# "已隐藏"包含 deleted + unbound(已解绑也视为 Tab 隐藏)
+HIDDEN_STATUSES: Tuple[str, ...] = (MAIN_STATUS_DELETED, MAIN_STATUS_UNBOUND)
+
+# ============ 兼容期常量(30 天) ============
+# 兼容老数据/灰度回滚:同时排除 deleted + removed(老软删) + unbound(已解绑)
+# 治本上线 30 天后,确认无老数据残留,可以摘掉 'removed'
+DELETED_OR_REMOVED_STATUSES: Tuple[str, ...] = (
+    MAIN_STATUS_DELETED,
+    "removed",            # 老枚举兼容
+    MAIN_STATUS_UNBOUND,  # 已解绑视为 Tab 隐藏
+)
+
+# ============ "守护中"的判定 ============
+# 替代原 status == 'active' 的所有过滤
+ACTIVE_STATUSES: Tuple[str, ...] = (MAIN_STATUS_BOUND,)
+
+# 兼容期"守护中"过滤口径(灰度期同时认 bound + 老的 active)
+ACTIVE_STATUSES_COMPAT: Tuple[str, ...] = (MAIN_STATUS_BOUND, "active")
+
+__all__ = [
+    # 新枚举
+    "MAIN_STATUS_BOUND", "MAIN_STATUS_UNBOUND", "MAIN_STATUS_DELETED",
+    "SUB_STATUS_BOUND", "SUB_STATUS_NOT_APPLIED", "SUB_STATUS_APPLYING",
+    "SUB_STATUS_REJECTED", "SUB_STATUS_UNBINDED", "SUB_STATUS_INVITED_EXPIRED",
+    "SUB_STATUS_SELF_DELETED", "SUB_STATUS_ADMIN_DELETED",
+    # 过滤口径
+    "DELETED_STATUSES", "HIDDEN_STATUSES",
+    "DELETED_OR_REMOVED_STATUSES",
+    "ACTIVE_STATUSES", "ACTIVE_STATUSES_COMPAT",
+]

@@ -384,7 +384,8 @@ async def _ensure_self_family_member(user: User, db: AsyncSession) -> FamilyMemb
         relationship_type="self",
         nickname=(user.nickname or "本人"),
         is_self=True,
-        status="active",
+        status="bound",
+        sub_status="bound",
     )
     db.add(member)
     try:

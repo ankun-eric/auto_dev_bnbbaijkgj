@@ -409,7 +409,7 @@ async def internal_user_registered_hook(
     rows = await db.execute(
         select(FamilyMember).where(
             FamilyMember.virtual_phone == payload.phone,
-            FamilyMember.status == "active",
+            FamilyMember.status == "bound",
         )
     )
     created = 0

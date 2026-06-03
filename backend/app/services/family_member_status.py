@@ -1,18 +1,17 @@
-"""[PRD-FAMILY-V3-STATE-MODEL-V1 2026-06-03] V3 终版 — 家庭成员主+子状态聚合模块
+"""[PRD-FAMILY-V3-STATUS-INPLACE-UPGRADE 2026-06-03] V3 终版 — 家庭成员主+子状态聚合模块
 
-PRD 第 1.1 节锁定决策：
-- 主状态枚举：unbound / bound / deleted
-- 子状态枚举：not_applied / applying / rejected / unbinded / invited_expired
-            / bound / self_deleted / admin_deleted
+升级说明：
+- V1 阶段(应急修复)：本服务为"只读推导器"，基于老 status 字段实时算 V3 主+子状态
+- V2 阶段(当前)：family_members 表已原地升级，status 直接存 bound/unbound/deleted，
+  sub_status 直接存 8 种子状态。本模块改为"直接读库 + 邀请过期兜底"。
 
-本模块在不强制改 schema（兼容期 30 天）的前提下,基于现有 FamilyMember.status
-+ FamilyManagement / FamilyInvitation 推导出 V3 主+子状态,供前端在「老人 Tab」
-渲染 Hero 卡片 + 「他的守护人」卡片视图时使用。
-
-迁移路径：
-1. 当前阶段（阶段 1）：本服务为只读推导器,旧 status 字段仍是真值来源
-2. 后续阶段：family_members 表加 main_status/sub_status 列后,本服务会做双写读
-3. 30 天后：旧 status 字段下线,本服务直接读新列
+返回的 V3StateInfo 字段含义：
+- main_status: bound / unbound / deleted
+- sub_status:  bound / not_applied / applying / rejected / unbinded
+              / invited_expired / self_deleted / admin_deleted
+- can_reinvite:        是否可显示「重新邀请」按钮
+- can_edit:            是否可显示「编辑」按钮
+- show_simplified_view: 是否进入解绑后极简视图(只剩 Hero+他的守护人卡片)
 """
 from __future__ import annotations
 
@@ -42,13 +41,39 @@ SubStatus = Literal[
 class V3StateInfo(TypedDict):
     main_status: MainStatus
     sub_status: SubStatus
-    # 配套展示字段
-    can_reinvite: bool      # 是否可显示"重新邀请"按钮(状态非 bound/applying)
-    can_edit: bool          # 是否可显示"编辑"按钮(非 deleted)
-    show_simplified_view: bool  # 解绑后是否进入极简视图(只剩 Hero+他的守护人卡片)
+    can_reinvite: bool
+    can_edit: bool
+    show_simplified_view: bool
 
 
-# ─────────────── 主推导函数 ───────────────
+# ─────────────── 主状态读取 ───────────────
+
+# 老枚举到新枚举的兜底映射(防止迁移期残留)
+_LEGACY_STATUS_MAP = {
+    "active": ("bound", "bound"),
+    "removed": ("deleted", "self_deleted"),
+}
+
+
+def _normalize_status(member: FamilyMember) -> tuple[str, str]:
+    """把成员状态归一化到 V3 新枚举(兼容老数据)。"""
+    raw_main = (member.status or "bound").strip()
+    raw_sub = (getattr(member, "sub_status", None) or "").strip()
+
+    if raw_main in _LEGACY_STATUS_MAP:
+        main, default_sub = _LEGACY_STATUS_MAP[raw_main]
+        return main, (raw_sub or default_sub)
+
+    if raw_main == "deleted":
+        return "deleted", (raw_sub or "self_deleted")
+    if raw_main == "unbound":
+        return "unbound", (raw_sub or "unbinded")
+    if raw_main == "bound":
+        return "bound", (raw_sub or "bound")
+
+    # 兜底:未知值当 bound
+    return "bound", (raw_sub or "bound")
+
 
 async def derive_v3_state(
     db: AsyncSession,
@@ -56,15 +81,18 @@ async def derive_v3_state(
     member: FamilyMember,
     now: Optional[datetime] = None,
 ) -> V3StateInfo:
-    """根据 family_members + family_management + family_invitations 推导 V3 主+子状态。
+    """根据 family_members.status/sub_status(治本后真值)推导 V3 状态。
 
-    输入：单个 member 实体(已含 user_id, status, member_user_id 等字段)
-    输出：V3StateInfo
+    特殊兜底:
+    - 本人卡片永远 bound/bound
+    - 当 main_status='bound' 且数据库里没有 active 守护关系时,
+      实时探测邀请记录,可能上浮 applying / rejected / invited_expired
+      (这是 cron 没跑到的兜底,保证视图层不出错)
     """
     if now is None:
         now = datetime.utcnow()
 
-    # 0. 本人卡片不参与 V3 状态机(直接给一个特殊 sentinel)
+    # 0. 本人卡片
     if member.is_self:
         return V3StateInfo(
             main_status="bound",
@@ -74,17 +102,42 @@ async def derive_v3_state(
             show_simplified_view=False,
         )
 
-    # 1. 旧 status 软删除映射
-    if member.status in ("deleted", "removed"):
+    main, sub = _normalize_status(member)
+
+    # 1. deleted 主状态:直接定型,进入极简视图
+    if main == "deleted":
         return V3StateInfo(
             main_status="deleted",
-            sub_status="self_deleted",
-            can_reinvite=True,         # PRD 决策点 17: deleted 卡片仍可重新邀请
+            sub_status=sub if sub in ("self_deleted", "admin_deleted") else "self_deleted",
+            can_reinvite=True,          # PRD 决策点 17: deleted 卡片仍可重新邀请
             can_edit=False,
             show_simplified_view=True,
         )
 
-    # 2. 检查是否有 active 守护关系(=> bound/bound)
+    # 2. unbound 主状态:已解绑,进入极简视图
+    if main == "unbound":
+        # 实时探测邀请是否在进行中(unbound 的子状态可能从 unbinded 升级为 applying)
+        live_sub = await _probe_invitation_substatus(db, member=member, now=now)
+        if live_sub:
+            return V3StateInfo(
+                main_status="unbound",
+                sub_status=live_sub,
+                can_reinvite=(live_sub != "applying"),
+                can_edit=True,
+                show_simplified_view=(live_sub == "unbinded"),
+            )
+        return V3StateInfo(
+            main_status="unbound",
+            sub_status=sub if sub in (
+                "not_applied", "applying", "rejected",
+                "unbinded", "invited_expired",
+            ) else "unbinded",
+            can_reinvite=(sub != "applying"),
+            can_edit=True,
+            show_simplified_view=(sub == "unbinded"),
+        )
+
+    # 3. bound 主状态:校验 active 守护关系是否真的存在(应急兜底)
     active_mgmt = (await db.execute(
         select(FamilyManagement).where(
             FamilyManagement.manager_user_id == member.user_id,
@@ -101,7 +154,19 @@ async def derive_v3_state(
             show_simplified_view=False,
         )
 
-    # 3. 检查是否有已 cancelled 的守护关系(=> unbound/unbinded)
+    # 4. 标记为 bound 但实际无 active 守护关系:进入容错推导
+    #    - 探测到邀请记录   → 用邀请态(applying / rejected / invited_expired)
+    #    - 探测到 cancelled 关系 → unbinded
+    #    - 都没有           → not_applied(全新卡片,还没发过邀请)
+    live_sub = await _probe_invitation_substatus(db, member=member, now=now)
+    if live_sub:
+        return V3StateInfo(
+            main_status="unbound",
+            sub_status=live_sub,
+            can_reinvite=(live_sub != "applying"),
+            can_edit=True,
+            show_simplified_view=(live_sub == "unbinded"),
+        )
     cancelled_mgmt = (await db.execute(
         select(FamilyManagement).where(
             FamilyManagement.manager_user_id == member.user_id,
@@ -115,58 +180,8 @@ async def derive_v3_state(
             sub_status="unbinded",
             can_reinvite=True,
             can_edit=True,
-            show_simplified_view=True,  # 解绑后进入极简视图
+            show_simplified_view=True,
         )
-
-    # 4. 检查邀请状态
-    inv_q = await db.execute(
-        select(FamilyInvitation).where(
-            FamilyInvitation.inviter_user_id == member.user_id,
-            FamilyInvitation.member_id == member.id,
-        ).order_by(FamilyInvitation.created_at.desc())
-    )
-    invitations = list(inv_q.scalars().all())
-    latest_pending = None
-    has_rejected = False
-    has_expired = False
-    for inv in invitations:
-        if inv.status == "pending":
-            if inv.expires_at and inv.expires_at > now:
-                latest_pending = inv
-                break
-            else:
-                has_expired = True
-        elif inv.status == "rejected":
-            has_rejected = True
-        elif inv.status == "expired":
-            has_expired = True
-
-    if latest_pending:
-        return V3StateInfo(
-            main_status="unbound",
-            sub_status="applying",
-            can_reinvite=False,
-            can_edit=True,
-            show_simplified_view=False,
-        )
-    if has_rejected:
-        return V3StateInfo(
-            main_status="unbound",
-            sub_status="rejected",
-            can_reinvite=True,
-            can_edit=True,
-            show_simplified_view=False,
-        )
-    if has_expired:
-        return V3StateInfo(
-            main_status="unbound",
-            sub_status="invited_expired",
-            can_reinvite=True,
-            can_edit=True,
-            show_simplified_view=False,
-        )
-
-    # 5. 一切皆无 => 未发起过申请
     return V3StateInfo(
         main_status="unbound",
         sub_status="not_applied",
@@ -174,6 +189,43 @@ async def derive_v3_state(
         can_edit=True,
         show_simplified_view=False,
     )
+
+
+async def _probe_invitation_substatus(
+    db: AsyncSession,
+    *,
+    member: FamilyMember,
+    now: datetime,
+) -> Optional[SubStatus]:
+    """实时探测邀请态:applying / rejected / invited_expired / not_applied。
+    返回 None 表示没有任何邀请记录。"""
+    inv_q = await db.execute(
+        select(FamilyInvitation).where(
+            FamilyInvitation.inviter_user_id == member.user_id,
+            FamilyInvitation.member_id == member.id,
+        ).order_by(FamilyInvitation.created_at.desc())
+    )
+    invitations = list(inv_q.scalars().all())
+    if not invitations:
+        return None
+
+    has_rejected = False
+    has_expired = False
+    for inv in invitations:
+        if inv.status == "pending":
+            if inv.expires_at and inv.expires_at > now:
+                return "applying"
+            has_expired = True
+        elif inv.status == "rejected":
+            has_rejected = True
+        elif inv.status == "expired":
+            has_expired = True
+
+    if has_rejected:
+        return "rejected"
+    if has_expired:
+        return "invited_expired"
+    return "not_applied"
 
 
 __all__ = ["V3StateInfo", "MainStatus", "SubStatus", "derive_v3_state"]

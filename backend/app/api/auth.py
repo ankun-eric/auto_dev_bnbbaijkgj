@@ -102,7 +102,8 @@ async def ensure_self_family_member(db: AsyncSession, user_id: int) -> None:
         relationship_type="本人",
         nickname=default_nickname,
         is_self=True,
-        status="active",
+        status="bound",
+        sub_status="bound",
         relation_type_id=relation_type_id,
     ))
     await db.flush()

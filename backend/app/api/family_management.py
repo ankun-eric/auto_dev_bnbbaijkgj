@@ -109,7 +109,7 @@ async def create_invitation(
             select(FamilyMember).where(
                 FamilyMember.id == data.member_id,
                 FamilyMember.user_id == current_user.id,
-                FamilyMember.status == "active",
+                FamilyMember.status == "bound",
             )
         )
         member = member_result.scalar_one_or_none()
@@ -438,7 +438,7 @@ async def accept_invitation(
         existing_count_res = await db.execute(
             select(func.count(FamilyMember.id)).where(
                 FamilyMember.user_id == invitation.inviter_user_id,
-                FamilyMember.status == "active",
+                FamilyMember.status == "bound",
             )
         )
         existing_count = int(existing_count_res.scalar() or 0)

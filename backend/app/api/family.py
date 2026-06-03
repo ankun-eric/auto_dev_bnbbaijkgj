@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -211,7 +212,7 @@ async def add_family_member(
     count_res = await db.execute(
         select(func.count(FamilyMember.id)).where(
             FamilyMember.user_id == current_user.id,
-            FamilyMember.status == "active",
+            FamilyMember.status == "bound",
         )
     )
     existing_count = int(count_res.scalar() or 0)
@@ -349,7 +350,11 @@ async def remove_family_member(
     if health_profile:
         await db.delete(health_profile)
 
-    member.status = "removed"
+    member.status = "deleted"
+    member.sub_status = "self_deleted"
+    member.status_changed_at = datetime.utcnow()
+    member.status_changed_by = current_user.id
+    member.status_reason = "user_delete_family_member"
     await db.flush()
     return {"message": "已移除家庭成员"}
 
@@ -387,7 +392,7 @@ async def send_sos(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(FamilyMember).where(FamilyMember.user_id == current_user.id, FamilyMember.status == "active")
+        select(FamilyMember).where(FamilyMember.user_id == current_user.id, FamilyMember.status == "bound")
     )
     members = result.scalars().all()
 

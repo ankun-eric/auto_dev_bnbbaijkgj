@@ -288,11 +288,15 @@ async def remove_guardian(
         select(FamilyMember).where(
             FamilyMember.user_id == mgmt.manager_user_id,
             FamilyMember.member_user_id == current_user.id,
-            FamilyMember.status == "active",
+            FamilyMember.status == "bound",
         )
     )
     for fm in fm_result.scalars().all():
-        fm.status = "removed"
+        fm.status = "deleted"
+        fm.sub_status = "self_deleted"
+        fm.status_changed_at = datetime.utcnow()
+        fm.status_changed_by = current_user.id
+        fm.status_reason = "reverse_guardian_unbind"
 
     log = ManagementOperationLog(
         management_id=mgmt.id,
@@ -529,7 +533,7 @@ async def accept_reverse_invite(
         select(FamilyMember).where(
             FamilyMember.user_id == current_user.id,
             FamilyMember.member_user_id == invitation.invitee_user_id,
-            FamilyMember.status == "active",
+            FamilyMember.status == "bound",
         )
     )
     family_member = fm_result.scalar_one_or_none()
@@ -545,7 +549,8 @@ async def accept_reverse_invite(
             member_user_id=invitation.invitee_user_id,
             relationship_type="other",
             nickname=invitee.nickname if invitee else None,
-            status="active",
+            status="bound",
+            sub_status="bound",
             is_self=False,
         )
         db.add(family_member)

@@ -91,3 +91,35 @@ async def migrate_family_self() -> None:
             )
     except Exception as e:
         logger.error("[migrate] family_self_backfill: 异常（不影响启动）: %s", e)
+
+
+async def migrate_family_self_status_to_active() -> None:
+    """[BUGFIX-SELF-TAB-ALWAYS-VISIBLE-V1 2026-06-03]
+    [PRD-FAMILY-V3-STATUS-INPLACE-UPGRADE 2026-06-03] V3 升级后写 'bound' 而非 'active'
+
+    一次性把所有 ``is_self=True`` 但 status 不是 'bound' 的脏数据修正为 'bound/bound'。
+    成因：早期注册流程未显式写入 status，遗留出 'pending'/'active' 等历史态记录,
+    会导致顶部成员 Tab 第一格本人胶囊在按 status 过滤的接口中消失。
+    幂等：可重复执行，无脏数据时为 no-op。
+    """
+    try:
+        async with async_session() as db:
+            res = await db.execute(
+                text(
+                    "UPDATE family_members SET status='bound', sub_status='bound' "
+                    "WHERE is_self = 1 AND (status IS NULL OR status <> 'bound')"
+                )
+            )
+            try:
+                affected = res.rowcount  # MySQL 支持
+            except Exception:
+                affected = -1
+            await db.commit()
+            logger.info(
+                "[migrate] family_self_status_to_active: 修正完成 affected=%s",
+                affected,
+            )
+    except Exception as e:
+        logger.error(
+            "[migrate] family_self_status_to_active: 异常（不影响启动）: %s", e
+        )

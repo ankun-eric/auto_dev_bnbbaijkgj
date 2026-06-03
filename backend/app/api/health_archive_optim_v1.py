@@ -323,7 +323,7 @@ async def family_members_guarded_flags(
     mem_res = await db.execute(
         select(FamilyMember).where(
             FamilyMember.user_id == current_user.id,
-            FamilyMember.status == "active",
+            FamilyMember.status == "bound",
         )
     )
     members = list(mem_res.scalars().all())

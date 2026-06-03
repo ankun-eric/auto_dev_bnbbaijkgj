@@ -1175,7 +1175,8 @@ async def _fix_legacy_users_missing_self_member(db: AsyncSession):
             relationship_type="本人",
             nickname="本人",
             is_self=True,
-            status="active",
+            status="bound",
+            sub_status="bound",
             relation_type_id=relation_type_id,
         )
         db.add(member)

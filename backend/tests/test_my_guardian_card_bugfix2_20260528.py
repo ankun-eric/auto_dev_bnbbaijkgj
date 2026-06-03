@@ -63,7 +63,9 @@ async def _make_orphan_member(user_id: int, nickname: str = "外婆", relation: 
             relationship_type=relation,
             nickname=nickname,
             is_self=False,
-            status="active",
+            # [PRD-FAMILY-V3-STATUS-INPLACE-UPGRADE 2026-06-03] V3 升级后用 bound
+            status="bound",
+            sub_status="bound",
         )
         s.add(m)
         await s.flush()

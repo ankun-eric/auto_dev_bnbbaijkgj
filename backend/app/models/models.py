@@ -382,7 +382,16 @@ class FamilyMember(Base):
     weight = mapped_column(Float, nullable=True)
     medical_histories = mapped_column(JSON, nullable=True)
     allergies = mapped_column(JSON, nullable=True)
-    status = mapped_column(String(20), default="active")
+    # [PRD-FAMILY-V3-STATUS-INPLACE-UPGRADE 2026-06-03] 主状态原地升级:
+    #   旧枚举: active / removed / deleted
+    #   新枚举: bound / unbound / deleted (V3 主状态)
+    # 列名 status 保持不变,只升级值域。配合 sub_status 表达完整 V3 状态机。
+    status = mapped_column(String(20), default="bound")
+    # [PRD-FAMILY-V3-STATUS-INPLACE-UPGRADE 2026-06-03] V3 子状态(8 种)
+    sub_status = mapped_column(String(30), default="bound", nullable=True)
+    status_changed_at = mapped_column(DateTime, nullable=True)
+    status_changed_by = mapped_column(Integer, nullable=True)
+    status_reason = mapped_column(String(100), nullable=True)
     is_self = mapped_column(Boolean, default=False, nullable=False)
     relation_type_id = mapped_column(Integer, ForeignKey("relation_types.id"), nullable=True)
     # [PRD-FAMILY-GUARDIAN-V1] 虚拟老人档案手机号：用于注册时按手机号匹配迁移

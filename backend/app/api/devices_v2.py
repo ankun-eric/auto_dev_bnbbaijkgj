@@ -155,7 +155,7 @@ async def _resolve_member(db: AsyncSession, user: User, member_id: int) -> Optio
         select(FamilyMember).where(
             FamilyMember.id == int(member_id),
             FamilyMember.user_id == user.id,
-            FamilyMember.status == "active",
+            FamilyMember.status == "bound",
         )
     )
     m = res.scalar_one_or_none()
@@ -328,7 +328,7 @@ async def _resolve_self_member_id(db: AsyncSession, user_id: int) -> Optional[in
         select(FamilyMember).where(
             FamilyMember.user_id == user_id,
             FamilyMember.is_self == True,  # noqa: E712
-            FamilyMember.status == "active",
+            FamilyMember.status == "bound",
         ).limit(1)
     )
     m = res.scalar_one_or_none()
@@ -380,7 +380,7 @@ async def bind_device(
             select(FamilyMember).where(
                 FamilyMember.id == member_id,
                 FamilyMember.user_id == current_user.id,
-                FamilyMember.status == "active",
+                FamilyMember.status == "bound",
             )
         )
         if mres.scalar_one_or_none() is None:
@@ -485,7 +485,7 @@ async def edit_binding(
                 select(FamilyMember).where(
                     FamilyMember.id == member_id,
                     FamilyMember.user_id == current_user.id,
-                    FamilyMember.status == "active",
+                    FamilyMember.status == "bound",
                 )
             )
             if mres.scalar_one_or_none() is None:

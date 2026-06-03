@@ -613,7 +613,7 @@ async def list_family_v13(
 
         orphan_q = select(FamilyMember).where(
             FamilyMember.user_id == current_user.id,
-            FamilyMember.status == "active",
+            FamilyMember.status == "bound",
             FamilyMember.is_self == False,
         )
         if seen_member_ids:
@@ -1021,7 +1021,7 @@ async def remove_family_card(
     if payload.managed_member_id:
         # 关联的 FamilyMember 是否存在
         fm = await db.get(FamilyMember, payload.managed_member_id)
-        if fm and fm.user_id == current_user.id and fm.status == "active":
+        if fm and fm.user_id == current_user.id and fm.status == "bound":
             # 查是否已有对应 FamilyManagement
             mgmt_check = (await db.execute(
                 select(FamilyManagement).where(
@@ -1031,7 +1031,12 @@ async def remove_family_card(
             )).scalars().first()
             if not mgmt_check:
                 # 纯 FamilyMember 孤儿档案 → 软删 + 同步移除关联邀请
+                # [PRD-FAMILY-V3-STATUS-INPLACE-UPGRADE 2026-06-03] 补 V3 子状态
                 fm.status = "deleted"
+                fm.sub_status = "self_deleted"
+                fm.status_changed_at = now
+                fm.status_changed_by = current_user.id
+                fm.status_reason = "orphan_member_remove_v13"
                 # 同步移除关联的 invitation
                 related_invs = (await db.execute(
                     select(FamilyInvitation).where(

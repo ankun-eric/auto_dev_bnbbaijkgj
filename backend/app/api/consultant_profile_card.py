@@ -52,7 +52,7 @@ async def _get_member_with_self_fallback(
             select(FamilyMember).where(
                 FamilyMember.user_id == user.id,
                 FamilyMember.is_self == True,  # noqa: E712
-                FamilyMember.status == "active",
+                FamilyMember.status == "bound",
             )
         )
         return result.scalar_one_or_none()

@@ -71,7 +71,7 @@ async def list_members_v2(
     result = await db.execute(
         select(FamilyMember).where(
             FamilyMember.user_id == current_user.id,
-            FamilyMember.status == "active",
+            FamilyMember.status == "bound",
         )
     )
     members = list(result.scalars().all())
@@ -203,7 +203,7 @@ async def hero_counts(
     res = await db.execute(
         select(func.count(FamilyMember.id)).where(
             FamilyMember.user_id == current_user.id,
-            FamilyMember.status == "active",
+            FamilyMember.status == "bound",
         )
     )
     family_count = int(res.scalar() or 0)
