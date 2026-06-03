@@ -125,8 +125,15 @@ export default function FamilyMemberTabs({
         const active = activeMemberId === m.id;
         const label = memberLabel(m);
         // [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-02 改动点3]
-        // 已解绑成员（target_left=true 或 status 非 active）灰色化 + 「已解绑」小字
-        const isLeft = !!m.target_left || (m.status != null && m.status !== 'active' && m.status !== 'deleted');
+        // 已解绑成员（target_left=true 或 status 非 active）灰色化
+        const isLeft = !!m.target_left || (m.status != null && m.status !== 'active' && m.status !== 'deleted' && m.status !== 'bound');
+        // [BUGFIX-HOME-SAFETY-MEMBER-TAB-STATUS-BADGE 2026-06-03]
+        // 决策：头像下方一律不再渲染「已解绑/已绑定」状态文字；
+        // 改为只在已绑定的非本人头像右上角展示绿色小勾角标。
+        // - 本人：不显示角标（本人无绑定关系概念）
+        // - 已绑定的家庭成员（非本人、未解绑、非已删除）：右上角绿色 ✓
+        // - 未绑定 / 已解绑：右上角无标识
+        const showBoundCheck = !m.is_self && !isLeft;
         return (
           <button
             key={m.id}
@@ -134,6 +141,7 @@ export default function FamilyMemberTabs({
             data-testid={`fmt-tab-${m.id}`}
             data-active={active ? '1' : '0'}
             data-target-left={isLeft ? '1' : '0'}
+            data-bound-check={showBoundCheck ? '1' : '0'}
             style={{
               flex: '0 0 auto',
               display: 'flex',
@@ -151,6 +159,7 @@ export default function FamilyMemberTabs({
           >
             <div
               style={{
+                position: 'relative',
                 transform: active ? 'scale(1.06)' : 'scale(1)',
                 transition: 'transform 120ms ease',
                 filter: active
@@ -168,6 +177,30 @@ export default function FamilyMemberTabs({
                 fontSize={15}
                 showPlaceholderTag={false}
               />
+              {showBoundCheck ? (
+                <span
+                  data-testid={`fmt-bound-check-${m.id}`}
+                  aria-label="已绑定"
+                  style={{
+                    position: 'absolute',
+                    top: -2,
+                    right: -2,
+                    width: 14,
+                    height: 14,
+                    borderRadius: '50%',
+                    background: '#22C55E',
+                    color: '#fff',
+                    fontSize: 10,
+                    lineHeight: '14px',
+                    textAlign: 'center',
+                    fontWeight: 700,
+                    boxShadow: '0 0 0 1.5px #fff',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  ✓
+                </span>
+              ) : null}
             </div>
             <span
               style={{
@@ -180,18 +213,6 @@ export default function FamilyMemberTabs({
             >
               {label}
             </span>
-            {isLeft ? (
-              <span
-                style={{
-                  fontSize: 10,
-                  color: '#9CA3AF',
-                  lineHeight: 1.1,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                已解绑
-              </span>
-            ) : null}
             {active ? (
               <span
                 style={{

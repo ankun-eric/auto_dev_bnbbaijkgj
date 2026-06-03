@@ -988,7 +988,11 @@ function HealthProfileV2PageInner() {
           >编辑</button>
 
           {/* [PRD-FAMILY-V3-STATE-MODEL-V1 2026-06-03 决策点 17] 非本人 + 状态非已绑定/邀请中:展示「重新邀请」按钮
-              交互:点击直接进入邀请流程(复用 family-invite 页面携带 member_id) */}
+              交互:点击直接进入邀请流程(复用 family-invite 页面携带 member_id)
+              [BUGFIX-HERO-INVITE-BTN-CONTRAST 2026-06-03]
+              原方案:白底 + 品牌色文字。在 Hero 卡渐变背景下文字与按钮底色对比度极低,
+              用户反馈"白底白字看不见"。改为橙色渐变 + 白字胶囊按钮,清晰可见且
+              与"编辑"按钮排版仍对齐。 */}
           {selectedMember && !selectedMember.is_self && selectedMember.v3_can_reinvite && (
             <button
               data-testid="prd-v3-hero-reinvite-btn"
@@ -998,10 +1002,14 @@ function HealthProfileV2PageInner() {
               }}
               style={{
                 position: 'absolute', top: 10, right: 64,
-                padding: '3px 10px', borderRadius: 10,
-                background: '#fff', color: T.brand,
+                padding: '3px 12px', borderRadius: 12,
+                background: 'linear-gradient(135deg, #FF8A3D 0%, #FF6B1A 100%)',
+                color: '#FFFFFF',
                 border: 'none',
                 fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(255, 107, 26, 0.3)',
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                lineHeight: 1.5,
               }}
             >
               {selectedMember.v3_sub_status === 'not_applied' ? '邀请' : '重新邀请'}

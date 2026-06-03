@@ -218,6 +218,18 @@ async def add_family_member(
     existing_count = int(count_res.scalar() or 0)
     next_color_index = existing_count % 5
 
+    # [BUGFIX-FAMILY-MEMBER-SUB-STATUS-DEFAULT 2026-06-03]
+    # 新建家人成员时显式赋值 status/sub_status,与 V3 状态机推导兜底一致,
+    # 避免依赖 ORM default 在某些路径上失效写入 NULL。
+    # - 已直接绑定到关联用户 (member_user_id 非空): bound/bound
+    # - 未关联到任何用户 (纯档案,需后续邀请绑定): unbound/not_applied
+    if data.member_user_id:
+        initial_status = "bound"
+        initial_sub_status = "bound"
+    else:
+        initial_status = "unbound"
+        initial_sub_status = "not_applied"
+
     member = FamilyMember(
         user_id=current_user.id,
         member_user_id=data.member_user_id,
@@ -232,6 +244,8 @@ async def add_family_member(
         allergies=data.allergies if data.allergies else None,
         is_self=False,
         avatar_color_index=next_color_index,
+        status=initial_status,
+        sub_status=initial_sub_status,
     )
     db.add(member)
     await db.flush()

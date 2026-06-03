@@ -451,6 +451,10 @@ async def accept_invitation(
             is_self=False,
             avatar_color_index=existing_count % 5,
             member_user_id=current_user.id,
+            # [BUGFIX-FAMILY-MEMBER-SUB-STATUS-DEFAULT 2026-06-03]
+            # 显式赋值与 V3 推导兜底一致,避免落 NULL。接受邀请即视为已绑定。
+            status="bound",
+            sub_status="bound",
         )
         db.add(member)
         await db.flush()

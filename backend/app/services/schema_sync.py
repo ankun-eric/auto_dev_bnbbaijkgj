@@ -2657,12 +2657,16 @@ async def _sync_family_members_archive_optim_v2(conn: AsyncConnection) -> None:
             "WHERE status='deleted' AND (sub_status IS NULL OR sub_status='')"
         ))
         # 2.4 回扫 family_management cancelled → 成员标记为 unbound/unbinded
+        # [BUGFIX-V3-MIGRATION-COL-NOT-EXIST 2026-06-03]
+        # 原 SQL 引用了 mg.updated_at,但 family_management 表无该列(只有
+        # created_at + cancelled_at)。改为 COALESCE(mg.cancelled_at, mg.created_at, NOW()),
+        # 保持时间语义一致(优先取取消时间,其次创建时间)并避免"列不存在"告警。
         await conn.execute(text(
             "UPDATE family_members fm "
             "JOIN family_management mg "
             "  ON mg.managed_member_id = fm.id AND mg.manager_user_id = fm.user_id "
             "SET fm.status='unbound', fm.sub_status='unbinded', "
-            "    fm.status_changed_at=COALESCE(mg.updated_at, NOW()), "
+            "    fm.status_changed_at=COALESCE(mg.cancelled_at, mg.created_at, NOW()), "
             "    fm.status_reason='V3_MIGRATION_UNBIND' "
             "WHERE mg.status IN ('cancelled', 'removed', 'cancelled_by_target') "
             "  AND fm.status='bound'"

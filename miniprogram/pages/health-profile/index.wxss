@@ -186,14 +186,22 @@
 .guardian-area {
   padding: 0 24rpx 16rpx;
 }
+/* [BUGFIX-HERO-INVITE-BTN-CONTRAST 2026-06-03]
+   非本人档案下「邀请守护」按钮统一为橙色渐变 + 白字,与 H5 端 Hero 卡片
+   邀请按钮配色保持一致,避免与档案蓝色 Hero 卡片色调冲突。 */
 .guardian-invite-btn {
-  background: #0EA5E9;
-  color: #fff;
+  background: linear-gradient(135deg, #FF8A3D 0%, #FF6B1A 100%);
+  color: #FFFFFF;
   text-align: center;
   padding: 24rpx;
   border-radius: 16rpx;
   font-size: 30rpx;
   font-weight: 600;
+  box-shadow: 0 4rpx 16rpx rgba(255, 107, 26, 0.3);
+}
+.guardian-invite-btn:active {
+  transform: scale(0.98);
+  box-shadow: 0 2rpx 8rpx rgba(255, 107, 26, 0.4);
 }
 .guardian-manage-btn {
   background: #fff;
