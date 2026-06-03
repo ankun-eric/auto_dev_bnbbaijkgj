@@ -358,7 +358,11 @@ async def create_reverse_invite(
     """
     # [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 名字归一化：去首尾空格
     normalized_name = (guardian_name or "").strip() or None
-    # 先把过期的 pending 清掉，再取消旧 pending（让出名额）
+    # [BUGFIX-GUARDIAN-INVITE-MULTI-PENDING 2026-06-03]
+    # 数据卫生：仅把已过期的 pending 标记为 expired，不再"自动取消旧 pending"。
+    # 原先"创建新邀请时强制 cancel 所有旧 pending"的逻辑会让列表里始终只剩 1 条 pending，
+    # 与"X 受 Y 限制、允许多条 pending 并存"的新需求冲突，故移除。
+    now_dt = datetime.utcnow()
     pending_result = await db.execute(
         select(ReverseGuardianInvitation).where(
             ReverseGuardianInvitation.invitee_user_id == current_user.id,
@@ -366,13 +370,11 @@ async def create_reverse_invite(
         )
     )
     for old_inv in pending_result.scalars().all():
-        if old_inv.expires_at < datetime.utcnow():
+        if old_inv.expires_at < now_dt:
             old_inv.status = "expired"
-        else:
-            old_inv.status = "cancelled"
     await db.flush()
 
-    # X<Y 校验：active + 剩余 pending（已全部取消，故为 0）
+    # X<Y 校验：active + 仍有效的 pending（未过期、未用满）
     active_count, pending_count, total_x = await _count_my_guardians_x(db, current_user.id)
     cfg = await _get_user_membership_config(db, current_user.id)
     y_limit = int(cfg["max_managed_by"])

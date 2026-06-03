@@ -5,7 +5,32 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-03 · Bug 修复「数字安全绳 v2 锁死版」· 后端 + H5 两端 · 0 客户端打包）
+## 最近一次变更（2026-06-03 · Bug 修复「守护我的人 · 多 pending 共存 + 列表卡片样式 + 邀请流程分两步」· 后端 + H5 两端 · 0 客户端打包）
+
+**任务标识**：`[BUGFIX-GUARDIAN-INVITE-MULTI-PENDING 2026-06-03]`
+
+**Bug 清单（PRD 3 项）**：
+1. 新建邀请流程不分步：关系/名字/二维码挤在同一页 → 改为"先填资料 → 再出二维码"两步切换
+2. 再邀请只剩 1 条记录：每次创建新邀请前会强制 `cancel` 所有未过期 pending → **删除该逻辑**，仅过期标记 + X<Y 上限校验
+3. 列表邀请态卡片样式：头像显示"邀"字 + 按钮挤一行 → 头像显示对方名字首字 + 按钮独立成行 + 查看邀请码改本页抽屉
+
+**改动文件（共 4 处）**：
+- 后端：
+  - `backend/app/api/reverse_guardian.py` — `create_reverse_invite`：去掉 "for old_inv ... old_inv.status='cancelled'"，保留 expires_at 过期数据卫生 + X<Y 上限校验返回 `GUARDIAN_LIMIT_REACHED`
+  - `backend/tests/test_guardian_multi_pending_20260603.py` — 新增 4 个 pytest 用例（多 pending 共存、上限拦截、过期标记、旧 pending 保留）
+- H5：
+  - `h5-web/src/app/health-profile/my-guardians/invite/page.tsx` — 改造为 `step: 'form' | 'qrcode'` 两步切换；按钮文案 "保存" → "确认"；第二步顶部箭头 / 底部按钮均 `router.replace(LIST_PATH)` 直回列表
+  - `h5-web/src/app/health-profile/my-guardians/page.tsx` — 名额条 `X/Y`、上限按钮置灰 + "已达上限 X/Y" 小字、邀请态卡片头像首字、按钮独立一行、`viewQrCode` 改本页抽屉（QRCodeCanvas）、二次确认取消邀请文案统一
+
+**部署验证**：
+- 容器内 pytest：28 通过（24 reverse_guardian + 4 新增）
+- 外部 HTTPS smoke：AT-6 多 pending 共存 ✓、AT-7 上限拦截 GUARDIAN_LIMIT_REACHED 400 ✓、取消邀请 ✓
+
+**用户手册**：`user_docs/守护我的人_Bug修复体验手册_20260603.md`
+
+---
+
+## 上一次变更（2026-06-03 · Bug 修复「数字安全绳 v2 锁死版」· 后端 + H5 两端 · 0 客户端打包）
 
 **任务标识**：`[BUGFIX-SAFETY-ROPE-V1 2026-06-03]`
 
