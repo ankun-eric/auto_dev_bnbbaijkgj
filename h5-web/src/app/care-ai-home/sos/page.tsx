@@ -512,6 +512,8 @@ function ContactMaintainModal({
   const [name, setName] = useState('');
   const [relation, setRelation] = useState('');
   const [phone, setPhone] = useState('');
+  // [BUGFIX-SAFETY-ROPE-V1 2026-06-03] SOS 联系人关系统一为 7 芯片单选
+  const RELATION_CHIPS = ['子女', '配偶', '父母', '邻居', '朋友', '护工', '其他'];
   const [saving, setSaving] = useState(false);
   const [homeAddress, setHomeAddress] = useState('');
   const [addrSaving, setAddrSaving] = useState(false);
@@ -654,7 +656,33 @@ function ContactMaintainModal({
         {/* 新增 */}
         <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 10 }}>新增联系人</div>
         <input style={inputStyle} placeholder="姓名" value={name} onChange={(e) => setName(e.target.value)} data-testid="care-sos-input-name" />
-        <input style={inputStyle} placeholder="关系（如 儿子 / 女儿 / 家庭医生）" value={relation} onChange={(e) => setRelation(e.target.value)} data-testid="care-sos-input-relation" />
+        {/* [BUGFIX-SAFETY-ROPE-V1 2026-06-03] 关系字段统一改为 7 芯片单选 */}
+        <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>关系（选填）</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }} data-testid="care-sos-relation-chips">
+          {RELATION_CHIPS.map((r) => {
+            const selected = relation === r;
+            return (
+              <button
+                key={r}
+                type="button"
+                data-testid={`care-sos-relation-${r}`}
+                onClick={() => setRelation(selected ? '' : r)}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 20,
+                  border: selected ? '2px solid #1565C0' : '1px solid #E0E0E0',
+                  background: selected ? '#1976D2' : '#FFF',
+                  color: selected ? '#FFF' : '#555',
+                  fontSize: 13,
+                  fontWeight: selected ? 700 : 500,
+                  cursor: 'pointer',
+                }}
+              >
+                {r}
+              </button>
+            );
+          })}
+        </div>
         <input
           style={inputStyle}
           placeholder="电话（必填）"

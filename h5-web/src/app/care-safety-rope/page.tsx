@@ -1,20 +1,24 @@
 'use client';
 
 // [PRD-SAFETY-ROPE-V1 2026-06-03] 数字安全绳（独居守护）H5 页面
-// 入口：关怀模式首页 → "数字安全绳" 卡片；独立 URL /care-safety-rope
+// [BUGFIX-SAFETY-ROPE-V1 2026-06-03] v2 锁死版：
+//  - Bug2 阈值选中态：绿色填充 + 加粗 + 右上角白底绿勾 ✓
+//  - Bug3 紧急联系人表单：删除邮箱字段；手机号必填 + 注册校验 + 保存按钮置灰联动；关系 7 芯片单选
+//  - Bug4 签到后顶部 banner：立即 refetch；改为"上次签到 + 下次截止"两行
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
 interface Contact {
   id: number;
   name: string;
-  email: string;
+  email?: string | null;
   phone?: string | null;
   relation?: string | null;
   wechat_openid?: string | null;
   sort_order: number;
+  matched_user_id?: number | null;
 }
 
 interface StatusResp {
@@ -46,21 +50,25 @@ interface AlertItem {
   resolved_location: string | null;
 }
 
+// 7 芯片关系选项
+const RELATION_CHIPS = ['子女', '配偶', '父母', '邻居', '朋友', '护工', '其他'] as const;
+
 function formatDt(s: string | null | undefined): string {
   if (!s) return '—';
   try {
     const d = new Date(s);
     if (isNaN(d.getTime())) return s;
     const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   } catch {
     return s;
   }
 }
 
+const PHONE_RE = /^1[3-9]\d{9}$/;
+
 export default function SafetyRopePage() {
   const router = useRouter();
-  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
   const [status, setStatus] = useState<StatusResp | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -72,12 +80,16 @@ export default function SafetyRopePage() {
   // 联系人编辑
   const [editingContact, setEditingContact] = useState<Partial<Contact> | null>(null);
   const [editingMode, setEditingMode] = useState<'create' | 'edit'>('create');
+  const [phoneCheck, setPhoneCheck] = useState<{
+    state: 'idle' | 'checking' | 'ok' | 'fail';
+    msg: string;
+    matched_name?: string;
+  }>({ state: 'idle', msg: '' });
 
-  // 暂停确认
   const [pauseConfirm, setPauseConfirm] = useState(false);
-
-  // 历史抽屉
   const [historyOpen, setHistoryOpen] = useState(false);
+
+  const phoneCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadAll = useCallback(async () => {
     try {
@@ -109,7 +121,6 @@ export default function SafetyRopePage() {
     if (checkinLoading) return;
     setCheckinLoading(true);
     try {
-      // 尝试拿位置（不强制）
       let payload: any = {};
       if (typeof navigator !== 'undefined' && navigator.geolocation) {
         await new Promise<void>((resolve) => {
@@ -137,6 +148,7 @@ export default function SafetyRopePage() {
       } else {
         showFeedback('收到你的平安信号 ❤ 今天也要照顾好自己哦');
       }
+      // [Bug4] 签到成功立即 refetch，确保顶部 banner 立即更新
       await loadAll();
     } catch (e: any) {
       showFeedback('签到失败：' + (e?.response?.data?.detail || e?.message));
@@ -181,20 +193,86 @@ export default function SafetyRopePage() {
     }
   };
 
+  // [Bug3] 手机号失焦校验
+  const checkPhone = useCallback(async (phone: string) => {
+    if (!phone) {
+      setPhoneCheck({ state: 'idle', msg: '' });
+      return;
+    }
+    if (!PHONE_RE.test(phone)) {
+      setPhoneCheck({ state: 'fail', msg: '请填写正确的 11 位手机号' });
+      return;
+    }
+    setPhoneCheck({ state: 'checking', msg: '校验中…' });
+    try {
+      const resp = await api.get('/api/safety-rope/contacts/check-phone', {
+        params: { phone },
+      });
+      const r = resp.data;
+      if (r?.registered) {
+        setPhoneCheck({
+          state: 'ok',
+          msg: r.reason || `✓ 已识别用户：${r.name}`,
+          matched_name: r.name,
+        });
+      } else {
+        setPhoneCheck({
+          state: 'fail',
+          msg: r?.reason || '该手机号还未注册 bini-health，请先邀请 TA 注册',
+        });
+      }
+    } catch (e: any) {
+      setPhoneCheck({
+        state: 'fail',
+        msg: '校验失败：' + (e?.response?.data?.detail || e?.message),
+      });
+    }
+  }, []);
+
+  const onPhoneChange = (value: string) => {
+    setEditingContact((c) => (c ? { ...c, phone: value } : c));
+    setPhoneCheck({ state: 'idle', msg: '' });
+    // 防抖：用户输入 500ms 后自动校验
+    if (phoneCheckTimer.current) clearTimeout(phoneCheckTimer.current);
+    if (value.length >= 11) {
+      phoneCheckTimer.current = setTimeout(() => checkPhone(value), 400);
+    }
+  };
+
   const handleContactSubmit = async () => {
-    if (!editingContact || !editingContact.name || !editingContact.email) {
-      showFeedback('请填写姓名和邮箱');
+    if (!editingContact) return;
+    if (!editingContact.name || !editingContact.name.trim()) {
+      showFeedback('请填写姓名');
+      return;
+    }
+    if (!editingContact.phone || !PHONE_RE.test(editingContact.phone)) {
+      showFeedback('请填写正确的 11 位手机号');
+      return;
+    }
+    if (editingMode === 'create' && phoneCheck.state !== 'ok') {
+      showFeedback('请先确认手机号已注册');
       return;
     }
     try {
       if (editingMode === 'create') {
-        await api.post('/api/safety-rope/contacts', editingContact);
+        const payload = {
+          name: editingContact.name.trim(),
+          phone: editingContact.phone.trim(),
+          relation: editingContact.relation || undefined,
+        };
+        await api.post('/api/safety-rope/contacts', payload);
         showFeedback('联系人已添加');
       } else if (editingContact.id) {
-        await api.put(`/api/safety-rope/contacts/${editingContact.id}`, editingContact);
+        const payload: any = {
+          name: editingContact.name?.trim(),
+          phone: editingContact.phone?.trim(),
+          relation: editingContact.relation,
+        };
+        await api.put(`/api/safety-rope/contacts/${editingContact.id}`, payload);
         showFeedback('联系人已更新');
       }
       setEditingContact(null);
+      setPhoneCheck({ state: 'idle', msg: '' });
       await loadAll();
     } catch (e: any) {
       showFeedback('保存失败：' + (e?.response?.data?.detail || e?.message));
@@ -210,7 +288,8 @@ export default function SafetyRopePage() {
     } catch {}
   };
 
-  const statusBanner = () => {
+  // [Bug4] 顶部状态条：上次签到 + 下次截止
+  const checkinBanner = () => {
     if (!status) return null;
     if (status.runtime_status === 'paused') {
       return (
@@ -221,6 +300,8 @@ export default function SafetyRopePage() {
         </div>
       );
     }
+    const lastAt = status.last_checkin?.checkin_at;
+    const nextAt = status.next_checkin_at;
     if (status.runtime_status === 'alerting') {
       return (
         <div data-testid="sr-banner-alerting"
@@ -230,16 +311,25 @@ export default function SafetyRopePage() {
         </div>
       );
     }
-    if (status.runtime_status === 'near_timeout') {
+    if (lastAt) {
+      const bg = status.runtime_status === 'near_timeout' ? '#fff3e0' : '#e8f5e9';
+      const color = status.runtime_status === 'near_timeout' ? '#bf6d00' : '#1b5e20';
       return (
-        <div data-testid="sr-banner-near"
-             style={{ background: '#fff3e0', color: '#bf6d00', padding: '12px 16px',
-                      borderRadius: 12, marginBottom: 12, fontSize: 15 }}>
-          ⏰ 还有不到 1 小时就到签到时间，记得签到哦~
+        <div data-testid="sr-banner-checked"
+             style={{ background: bg, color, padding: '12px 16px',
+                      borderRadius: 12, marginBottom: 12, fontSize: 14, lineHeight: 1.6 }}>
+          <div style={{ fontWeight: 700 }}>✅ 上次签到：{formatDt(lastAt)}</div>
+          {nextAt && <div>⏰ 下次签到截止：{formatDt(nextAt)}</div>}
         </div>
       );
     }
-    return null;
+    return (
+      <div data-testid="sr-banner-empty"
+           style={{ background: '#e3f2fd', color: '#0d47a1', padding: '12px 16px',
+                    borderRadius: 12, marginBottom: 12, fontSize: 14 }}>
+        👋 还没有签到过，点下方按钮报个平安吧
+      </div>
+    );
   };
 
   if (loading) {
@@ -261,17 +351,12 @@ export default function SafetyRopePage() {
       </div>
 
       <div style={{ padding: '16px' }}>
-        {statusBanner()}
+        {checkinBanner()}
 
         {/* 大签到按钮 */}
         <div style={{ background: '#fff', borderRadius: 16, padding: '24px 16px',
                        textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
                        marginBottom: 16 }}>
-          <div style={{ fontSize: 14, color: '#888', marginBottom: 8 }}>
-            {status?.today_checked
-              ? `今天已签到 · 上次签到 ${formatDt(status?.last_checkin?.checkin_at)}`
-              : '今天还没签到'}
-          </div>
           <button
             data-testid="sr-checkin-btn"
             disabled={checkinLoading}
@@ -308,26 +393,63 @@ export default function SafetyRopePage() {
           <div style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 14, color: '#666', marginBottom: 8 }}>超时阈值</div>
             <div style={{ display: 'flex', gap: 8 }}>
-              {[24, 48].map((h) => (
-                <button
-                  key={h}
-                  data-testid={`sr-threshold-${h}`}
-                  onClick={() => handleThresholdChange(h)}
-                  style={{
-                    flex: 1,
-                    padding: '10px 0',
-                    borderRadius: 10,
-                    border: 'none',
-                    background:
-                      status?.config.threshold_hours === h ? '#4a9b8e' : '#eee',
-                    color: status?.config.threshold_hours === h ? '#fff' : '#555',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {h} 小时
-                </button>
-              ))}
+              {[24, 48].map((h) => {
+                const selected = status?.config.threshold_hours === h;
+                return (
+                  <button
+                    key={h}
+                    data-testid={`sr-threshold-${h}`}
+                    data-selected={selected ? 'true' : 'false'}
+                    onClick={() => handleThresholdChange(h)}
+                    style={{
+                      flex: 1,
+                      position: 'relative',
+                      padding: '12px 0',
+                      borderRadius: 10,
+                      border: selected ? '2px solid #2e7d32' : '1px solid #e0e0e0',
+                      // [Bug2] 选中态：绿色填充 + 加粗
+                      background: selected
+                        ? 'linear-gradient(135deg, #43a047 0%, #2e7d32 100%)'
+                        : '#f5f5f5',
+                      color: selected ? '#fff' : '#666',
+                      fontWeight: selected ? 800 : 500,
+                      fontSize: 15,
+                      cursor: 'pointer',
+                      boxShadow: selected
+                        ? '0 4px 12px rgba(67,160,71,0.35)'
+                        : 'none',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    {h} 小时
+                    {selected && (
+                      // [Bug2] 右上角白底绿勾 ✓
+                      <span
+                        data-testid={`sr-threshold-${h}-check`}
+                        style={{
+                          position: 'absolute',
+                          top: -8,
+                          right: -8,
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: '#fff',
+                          color: '#2e7d32',
+                          fontSize: 14,
+                          fontWeight: 900,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                          border: '2px solid #2e7d32',
+                        }}
+                      >
+                        ✓
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -366,7 +488,11 @@ export default function SafetyRopePage() {
             {contacts.length < 3 && (
               <button
                 data-testid="sr-contact-add"
-                onClick={() => { setEditingContact({}); setEditingMode('create'); }}
+                onClick={() => {
+                  setEditingContact({});
+                  setEditingMode('create');
+                  setPhoneCheck({ state: 'idle', msg: '' });
+                }}
                 style={{ marginLeft: 'auto', padding: '6px 12px', borderRadius: 8,
                          border: 'none', background: '#4a9b8e', color: '#fff', cursor: 'pointer' }}
               >
@@ -379,36 +505,65 @@ export default function SafetyRopePage() {
               还没有紧急联系人，至少添加 1 位才能在超时时收到通知
             </div>
           ) : (
-            contacts.map((c) => (
-              <div key={c.id} data-testid={`sr-contact-${c.id}`}
-                   style={{ padding: '12px 0', borderBottom: '1px solid #f0f0f0',
-                            display: 'flex', alignItems: 'center' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600 }}>
-                    {c.name} <span style={{ fontSize: 12, color: '#888', fontWeight: 400 }}>
-                      · {c.relation || '其他'}
-                    </span>
+            contacts.map((c) => {
+              // 手机号脱敏：13********9
+              const maskedPhone = c.phone
+                ? c.phone.replace(/^(\d{3})\d{4}(\d{4})$/, '$1****$2')
+                : '';
+              return (
+                <div key={c.id} data-testid={`sr-contact-${c.id}`}
+                     style={{ padding: '12px 0', borderBottom: '1px solid #f0f0f0',
+                              display: 'flex', alignItems: 'center' }}>
+                  {/* 圆头像 */}
+                  <div style={{
+                    width: 40, height: 40, borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #74b9a6 0%, #4a9b8e 100%)',
+                    color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 16, fontWeight: 700, flexShrink: 0,
+                  }}>
+                    {(c.name || '?').slice(0, 1)}
                   </div>
-                  <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
-                    {c.email}{c.phone ? ` · ${c.phone}` : ''}
+                  <div style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{c.name}</span>
+                      {c.relation && (
+                        <span style={{
+                          fontSize: 11,
+                          color: '#2e7d32',
+                          background: '#e8f5e9',
+                          borderRadius: 6,
+                          padding: '1px 6px',
+                          fontWeight: 500,
+                        }}>
+                          {c.relation}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                      📱 {maskedPhone || '未填写'}
+                    </div>
                   </div>
+                  <button
+                    onClick={() => {
+                      setEditingContact(c);
+                      setEditingMode('edit');
+                      setPhoneCheck({ state: 'idle', msg: '' });
+                    }}
+                    style={{ marginRight: 8, padding: '4px 10px', border: 'none',
+                             background: 'transparent', color: '#4a9b8e', cursor: 'pointer' }}
+                  >
+                    编辑
+                  </button>
+                  <button
+                    onClick={() => handleContactDelete(c.id)}
+                    style={{ padding: '4px 10px', border: 'none',
+                             background: 'transparent', color: '#e57373', cursor: 'pointer' }}
+                  >
+                    删除
+                  </button>
                 </div>
-                <button
-                  onClick={() => { setEditingContact(c); setEditingMode('edit'); }}
-                  style={{ marginRight: 8, padding: '4px 10px', border: 'none',
-                           background: 'transparent', color: '#4a9b8e', cursor: 'pointer' }}
-                >
-                  编辑
-                </button>
-                <button
-                  onClick={() => handleContactDelete(c.id)}
-                  style={{ padding: '4px 10px', border: 'none',
-                           background: 'transparent', color: '#e57373', cursor: 'pointer' }}
-                >
-                  删除
-                </button>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -467,50 +622,111 @@ export default function SafetyRopePage() {
 
       {/* 联系人弹窗 */}
       {editingContact && (
-        <div onClick={() => setEditingContact(null)}
+        <div onClick={() => { setEditingContact(null); setPhoneCheck({ state: 'idle', msg: '' }); }}
              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
                       display: 'flex', alignItems: 'flex-end', zIndex: 1100 }}>
           <div onClick={(e) => e.stopPropagation()}
+               data-testid="sr-contact-modal"
                style={{ width: '100%', background: '#fff', padding: 20,
-                        borderTopLeftRadius: 18, borderTopRightRadius: 18 }}>
+                        borderTopLeftRadius: 18, borderTopRightRadius: 18,
+                        maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>
               {editingMode === 'create' ? '添加紧急联系人' : '编辑联系人'}
             </div>
-            <input data-testid="sr-contact-name" placeholder="姓名 *"
+
+            {/* 姓名 */}
+            <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>姓名 <span style={{ color: '#e53935' }}>*</span></div>
+            <input data-testid="sr-contact-name" placeholder="如：张儿子"
                    value={editingContact.name || ''}
                    onChange={(e) => setEditingContact({ ...editingContact, name: e.target.value })}
-                   style={{ width: '100%', padding: 12, marginBottom: 10, borderRadius: 8,
-                            border: '1px solid #ddd', fontSize: 15 }} />
-            <input data-testid="sr-contact-email" placeholder="邮箱 *"
-                   value={editingContact.email || ''}
-                   onChange={(e) => setEditingContact({ ...editingContact, email: e.target.value })}
-                   style={{ width: '100%', padding: 12, marginBottom: 10, borderRadius: 8,
-                            border: '1px solid #ddd', fontSize: 15 }} />
-            <input placeholder="手机号（选填）"
+                   style={{ width: '100%', padding: 12, marginBottom: 12, borderRadius: 8,
+                            border: '1px solid #ddd', fontSize: 15, boxSizing: 'border-box' }} />
+
+            {/* 手机号 + 注册校验 */}
+            <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
+              手机号 <span style={{ color: '#e53935' }}>*</span>
+              <span style={{ color: '#999', fontSize: 11, marginLeft: 4 }}>（必须是 bini-health 已注册用户）</span>
+            </div>
+            <input data-testid="sr-contact-phone" placeholder="11 位手机号"
+                   inputMode="tel"
                    value={editingContact.phone || ''}
-                   onChange={(e) => setEditingContact({ ...editingContact, phone: e.target.value })}
-                   style={{ width: '100%', padding: 12, marginBottom: 10, borderRadius: 8,
-                            border: '1px solid #ddd', fontSize: 15 }} />
-            <select value={editingContact.relation || ''}
-                    onChange={(e) => setEditingContact({ ...editingContact, relation: e.target.value })}
-                    style={{ width: '100%', padding: 12, marginBottom: 16, borderRadius: 8,
-                             border: '1px solid #ddd', fontSize: 15, background: '#fff' }}>
-              <option value="">请选择关系</option>
-              <option value="子女">子女</option>
-              <option value="配偶">配偶</option>
-              <option value="邻居">邻居</option>
-              <option value="朋友">朋友</option>
-              <option value="社区">社区</option>
-              <option value="其他">其他</option>
-            </select>
+                   onChange={(e) => onPhoneChange(e.target.value)}
+                   onBlur={(e) => checkPhone(e.target.value)}
+                   style={{
+                     width: '100%',
+                     padding: 12,
+                     marginBottom: phoneCheck.msg ? 4 : 12,
+                     borderRadius: 8,
+                     border: phoneCheck.state === 'ok'
+                       ? '2px solid #43a047'
+                       : phoneCheck.state === 'fail'
+                       ? '2px solid #e53935'
+                       : '1px solid #ddd',
+                     fontSize: 15,
+                     boxSizing: 'border-box',
+                   }} />
+            {phoneCheck.msg && (
+              <div data-testid="sr-contact-phone-check"
+                   style={{
+                     fontSize: 12,
+                     marginBottom: 12,
+                     color: phoneCheck.state === 'ok' ? '#2e7d32' :
+                            phoneCheck.state === 'fail' ? '#c62828' : '#888',
+                   }}>
+                {phoneCheck.msg}
+              </div>
+            )}
+
+            {/* 关系 — 7 芯片单选 */}
+            <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>关系（选填）</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 18 }}>
+              {RELATION_CHIPS.map((r) => {
+                const selected = editingContact.relation === r;
+                return (
+                  <button
+                    key={r}
+                    data-testid={`sr-relation-${r}`}
+                    data-selected={selected ? 'true' : 'false'}
+                    onClick={() => setEditingContact({ ...editingContact, relation: selected ? '' : r })}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: 22,
+                      border: selected ? '2px solid #2e7d32' : '1px solid #ddd',
+                      background: selected ? '#43a047' : '#fff',
+                      color: selected ? '#fff' : '#555',
+                      fontSize: 14,
+                      fontWeight: selected ? 700 : 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {r}
+                  </button>
+                );
+              })}
+            </div>
+
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setEditingContact(null)}
+              <button onClick={() => { setEditingContact(null); setPhoneCheck({ state: 'idle', msg: '' }); }}
                       style={{ flex: 1, padding: 12, borderRadius: 8, border: '1px solid #ddd',
                                background: '#fff', cursor: 'pointer' }}>取消</button>
-              <button data-testid="sr-contact-save" onClick={handleContactSubmit}
-                      style={{ flex: 1, padding: 12, borderRadius: 8, border: 'none',
-                               background: '#4a9b8e', color: '#fff', fontWeight: 600,
-                               cursor: 'pointer' }}>保存</button>
+              <button data-testid="sr-contact-save"
+                      onClick={handleContactSubmit}
+                      disabled={editingMode === 'create' && phoneCheck.state !== 'ok'}
+                      style={{
+                        flex: 1,
+                        padding: 12,
+                        borderRadius: 8,
+                        border: 'none',
+                        background: editingMode === 'create' && phoneCheck.state !== 'ok'
+                          ? '#bdbdbd'
+                          : '#4a9b8e',
+                        color: '#fff',
+                        fontWeight: 600,
+                        cursor: editingMode === 'create' && phoneCheck.state !== 'ok' ? 'not-allowed' : 'pointer',
+                      }}>
+                保存
+              </button>
             </div>
           </div>
         </div>

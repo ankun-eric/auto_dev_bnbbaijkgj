@@ -1,33 +1,29 @@
 """
 [PRD-SAFETY-ROPE-V1 2026-06-03] 数字安全绳（独居守护）后端 API
 
-提供：
-- 配置管理（阈值/暂停/状态）
-- 签到（每日平安）
-- 紧急联系人 CRUD
-- 预警记录查询
-- 后台扫描任务调用入口（被定时任务调用）
+[BUGFIX-SAFETY-ROPE-V1 2026-06-03] v2 锁死版：
+- 彻底移除 SMTP 邮件发送（国内场景不需要）→ 根治 create_contact 阻塞导致 "添加成功但列表无记录" 的 Bug
+- 紧急联系人：手机号必填，且必须是 bini-health 已注册用户；保存时写入 matched_user_id
+- 关系字段统一为 7 芯片：子女 / 配偶 / 父母 / 邻居 / 朋友 / 护工 / 其他
+- 邮箱字段保留为可选（兼容旧数据库），不再强制
+- 新增 GET /contacts/check-phone：表单失焦时校验手机号是否已注册
+- 预警通知改走 SystemMessage（matched_user_id）
 """
 from __future__ import annotations
 
 import logging
-import os
-import smtplib
-import secrets
+import re
 from datetime import datetime, timedelta
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
-import re
-from pydantic import BaseModel, Field, field_validator
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db, async_session
 from app.core.security import get_current_user
-from app.models.models import EmailLog, SystemConfig, SystemMessage, User
+from app.models.models import SystemMessage, User
 
 logger = logging.getLogger(__name__)
 
@@ -49,43 +45,28 @@ class ConfigUpdateRequest(BaseModel):
     paused_days: Optional[int] = Field(None, description="暂停天数；为空且 paused=True 表示无限期")
 
 
-_EMAIL_RE = re.compile(r"^[a-zA-Z0-9_.+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-.]+$")
+# 7 芯片关系白名单
+ALLOWED_RELATIONS = {"子女", "配偶", "父母", "邻居", "朋友", "护工", "其他"}
 
-
-def _validate_email(v: Optional[str]) -> Optional[str]:
-    if v is None:
-        return v
-    v = v.strip()
-    if not _EMAIL_RE.match(v):
-        raise ValueError("邮箱格式不正确")
-    return v
+_PHONE_RE = re.compile(r"^1[3-9]\d{9}$")
 
 
 class ContactCreateRequest(BaseModel):
-    name: str = Field(..., max_length=50)
-    email: str = Field(..., max_length=200)
-    phone: Optional[str] = Field(None, max_length=20)
+    name: str = Field(..., max_length=50, min_length=1)
+    phone: str = Field(..., max_length=20)
     relation: Optional[str] = Field(None, max_length=20)
+    # 兼容字段：邮箱不再强制，前端表单已删除
+    email: Optional[str] = Field(None, max_length=200)
     wechat_openid: Optional[str] = Field(None, max_length=100)
-
-    @field_validator("email")
-    @classmethod
-    def _v_email(cls, v):
-        return _validate_email(v)
 
 
 class ContactUpdateRequest(BaseModel):
     name: Optional[str] = Field(None, max_length=50)
-    email: Optional[str] = Field(None, max_length=200)
     phone: Optional[str] = Field(None, max_length=20)
     relation: Optional[str] = Field(None, max_length=20)
+    email: Optional[str] = Field(None, max_length=200)
     wechat_openid: Optional[str] = Field(None, max_length=100)
     sort_order: Optional[int] = Field(None, ge=1, le=3)
-
-    @field_validator("email")
-    @classmethod
-    def _v_email(cls, v):
-        return _validate_email(v)
 
 
 # ─────────────── Helpers ───────────────
@@ -122,10 +103,11 @@ async def _ensure_tables(db: AsyncSession) -> None:
             " id INTEGER PRIMARY KEY AUTOINCREMENT,"
             " user_id INTEGER NOT NULL,"
             " name VARCHAR(50) NOT NULL,"
-            " email VARCHAR(200) NOT NULL,"
+            " email VARCHAR(200) NULL,"
             " phone VARCHAR(20) NULL,"
             " relation VARCHAR(20) NULL,"
             " wechat_openid VARCHAR(100) NULL,"
+            " matched_user_id INTEGER NULL,"
             " sort_order INTEGER NOT NULL DEFAULT 1,"
             " created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"
             ")"
@@ -172,10 +154,11 @@ async def _ensure_tables(db: AsyncSession) -> None:
             " id BIGINT NOT NULL AUTO_INCREMENT,"
             " user_id INT NOT NULL,"
             " name VARCHAR(50) NOT NULL,"
-            " email VARCHAR(200) NOT NULL,"
+            " email VARCHAR(200) NULL,"
             " phone VARCHAR(20) NULL,"
             " relation VARCHAR(20) NULL,"
             " wechat_openid VARCHAR(100) NULL,"
+            " matched_user_id INT NULL,"
             " sort_order INT NOT NULL DEFAULT 1,"
             " created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,"
             " PRIMARY KEY (id),"
@@ -196,6 +179,33 @@ async def _ensure_tables(db: AsyncSession) -> None:
             " KEY idx_sra_user (user_id, triggered_at)"
             ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
         ))
+
+    # 兼容旧表：补加 matched_user_id 列、email 允许 NULL
+    try:
+        if is_sqlite:
+            # SQLite 不支持 ALTER COLUMN，仅尝试添加列
+            try:
+                await db.execute(text("ALTER TABLE safety_rope_contact ADD COLUMN matched_user_id INTEGER NULL"))
+            except Exception:
+                pass
+        else:
+            # MySQL：添加 matched_user_id 列（如已存在会失败，吞掉）
+            try:
+                await db.execute(text(
+                    "ALTER TABLE safety_rope_contact ADD COLUMN matched_user_id INT NULL"
+                ))
+            except Exception:
+                pass
+            # 把 email 改为允许 NULL
+            try:
+                await db.execute(text(
+                    "ALTER TABLE safety_rope_contact MODIFY email VARCHAR(200) NULL"
+                ))
+            except Exception:
+                pass
+    except Exception:
+        pass
+
     await db.commit()
 
 
@@ -260,7 +270,6 @@ async def _get_last_checkin(db: AsyncSession, user_id: int) -> Optional[dict]:
 
 
 def _compute_runtime_state(cfg: dict, last_checkin: Optional[dict], now: Optional[datetime] = None) -> dict:
-    """根据配置 + 最近签到，计算运行态。"""
     if now is None:
         now = datetime.utcnow()
     threshold_hours = int(cfg.get("threshold_hours") or 48)
@@ -294,8 +303,6 @@ def _compute_runtime_state(cfg: dict, last_checkin: Optional[dict], now: Optiona
         runtime = "near_timeout"
     else:
         runtime = "alerting" if status == "alerting" else "near_timeout"
-        if status == "alerting":
-            runtime = "alerting"
 
     return {
         "runtime_status": runtime,
@@ -303,103 +310,6 @@ def _compute_runtime_state(cfg: dict, last_checkin: Optional[dict], now: Optiona
         "remaining_hours": round(delta, 2),
         "paused_until": None,
     }
-
-
-# ─────────────── Email & SMTP ───────────────
-
-
-def _smtp_env_config() -> Optional[dict]:
-    """从环境变量读取 SMTP 配置（兜底）。"""
-    host = os.environ.get("SMTP_HOST") or os.environ.get("EMAIL_NOTIFY_SMTP_HOST")
-    port = os.environ.get("SMTP_PORT") or os.environ.get("EMAIL_NOTIFY_SMTP_PORT")
-    user = os.environ.get("SMTP_USER") or os.environ.get("EMAIL_NOTIFY_SMTP_USER")
-    pwd = os.environ.get("SMTP_PASSWORD") or os.environ.get("EMAIL_NOTIFY_SMTP_PASSWORD")
-    if host and port and user and pwd:
-        try:
-            return {"host": host, "port": int(port), "user": user, "password": pwd}
-        except ValueError:
-            return None
-    return None
-
-
-async def _load_smtp_config(db: AsyncSession) -> Optional[dict]:
-    """优先从 SystemConfig 读取邮件 SMTP 配置；找不到则尝试环境变量。"""
-    try:
-        result = await db.execute(select(SystemConfig).where(
-            SystemConfig.config_key.in_([
-                "email_notify_enable",
-                "email_notify_smtp_host",
-                "email_notify_smtp_port",
-                "email_notify_smtp_user",
-                "email_notify_smtp_password",
-            ])
-        ))
-        m = {c.config_key: c.config_value for c in result.scalars().all()}
-        if (m.get("email_notify_enable", "").lower() == "true"
-                and m.get("email_notify_smtp_host")
-                and m.get("email_notify_smtp_port")
-                and m.get("email_notify_smtp_user")
-                and m.get("email_notify_smtp_password")):
-            pwd = m["email_notify_smtp_password"]
-            try:
-                from app.services.sms_service import decrypt_secret_key
-                pwd = decrypt_secret_key(pwd)
-            except Exception:
-                pass
-            return {
-                "host": m["email_notify_smtp_host"],
-                "port": int(m["email_notify_smtp_port"]),
-                "user": m["email_notify_smtp_user"],
-                "password": pwd,
-            }
-    except Exception as exc:
-        logger.warning("safety_rope: load smtp from SystemConfig failed: %s", exc)
-    return _smtp_env_config()
-
-
-def _send_email_sync(smtp_cfg: dict, to_email: str, subject: str, html_body: str) -> tuple[bool, str]:
-    try:
-        msg = MIMEMultipart()
-        msg["From"] = smtp_cfg["user"]
-        msg["To"] = to_email
-        msg["Subject"] = subject
-        msg.attach(MIMEText(html_body, "html", "utf-8"))
-
-        port = smtp_cfg["port"]
-        if port == 465:
-            server = smtplib.SMTP_SSL(smtp_cfg["host"], port, timeout=15)
-        else:
-            server = smtplib.SMTP(smtp_cfg["host"], port, timeout=15)
-            server.starttls()
-        server.login(smtp_cfg["user"], smtp_cfg["password"])
-        server.sendmail(smtp_cfg["user"], [to_email], msg.as_string())
-        server.quit()
-        return True, ""
-    except Exception as exc:
-        return False, str(exc)[:500]
-
-
-async def _send_email(db: AsyncSession, to_email: str, subject: str, html_body: str) -> bool:
-    """统一邮件发送 + EmailLog 落盘。SMTP 未配置时仅记录 pending 日志返回 False。"""
-    smtp_cfg = await _load_smtp_config(db)
-    log = EmailLog(
-        to_email=to_email,
-        subject=subject,
-        content=html_body,
-        status="pending",
-        is_test=False,
-    )
-    if not smtp_cfg:
-        log.status = "skipped"
-        log.error_message = "SMTP not configured"
-        db.add(log)
-        return False
-    ok, err = _send_email_sync(smtp_cfg, to_email, subject, html_body)
-    log.status = "success" if ok else "failed"
-    if not ok:
-        log.error_message = err
-    db.add(log)
-    return ok
 
 
 async def _send_system_message(db: AsyncSession, recipient_user_id: int, title: str,
@@ -410,6 +320,15 @@ async def _send_system_message(db: AsyncSession, recipient_user_id: int, title: 
         title=title,
         content=content,
     ))
+
+
+async def _find_user_by_phone(db: AsyncSession, phone: str) -> Optional[User]:
+    """根据手机号查找已注册用户。"""
+    if not phone:
+        return None
+    phone = phone.strip()
+    result = await db.execute(select(User).where(User.phone == phone))
+    return result.scalar_one_or_none()
 
 
 # ─────────────── API: Status ───────────────
@@ -504,7 +423,6 @@ async def checkin(
     await _ensure_tables(db)
     cfg = await _get_or_create_config(db, current_user.id)
 
-    # 记录签到
     now = datetime.utcnow()
     await db.execute(text(
         "INSERT INTO safety_rope_checkin (user_id, checkin_at, location_lat, location_lng, location_address) "
@@ -517,13 +435,11 @@ async def checkin(
         "addr": (body.location_address or "")[:255] if body.location_address else None,
     })
 
-    # 若之前是预警中，自动解除并通知联系人
     was_alerting = cfg.get("status") == "alerting"
     if was_alerting:
         await db.execute(text(
             "UPDATE safety_rope_config SET status='normal', updated_at=CURRENT_TIMESTAMP WHERE user_id=:uid"
         ), {"uid": current_user.id})
-        # 找最近一条未解除的预警，标记 resolved
         alert_row = (await db.execute(text(
             "SELECT id FROM safety_rope_alert WHERE user_id=:uid AND resolved_at IS NULL "
             "ORDER BY triggered_at DESC LIMIT 1"
@@ -533,21 +449,21 @@ async def checkin(
                 "UPDATE safety_rope_alert SET resolved_at=:t, resolved_location=:loc WHERE id=:aid"
             ), {"t": now, "loc": (body.location_address or "")[:255] if body.location_address else None,
                 "aid": alert_row[0]})
-        # 通知联系人解除
+        # 通知联系人解除（仅站内信，给 matched_user_id）
         contacts = (await db.execute(text(
-            "SELECT name, email FROM safety_rope_contact WHERE user_id=:uid ORDER BY sort_order"
+            "SELECT name, matched_user_id FROM safety_rope_contact WHERE user_id=:uid ORDER BY sort_order"
         ), {"uid": current_user.id})).fetchall()
         user_name = current_user.nickname or current_user.phone or f"用户{current_user.id}"
         loc_text = body.location_address or "（未提供位置）"
         for c in contacts:
-            await _send_email(
-                db, c[1],
-                f"【数字安全绳·已平安解除】{user_name}",
-                f"<p><b>{user_name}</b> 已于 {now.strftime('%Y-%m-%d %H:%M')}（UTC）在 App 中重新签到。</p>"
-                f"<p>最新位置：{loc_text}</p>"
-                f"<p>之前的预警已自动解除，TA 已平安。</p>"
-                f"<p style='color:#888;font-size:12px'>—— bini-health 数字安全绳</p>"
-            )
+            matched_uid = c[1]
+            if matched_uid:
+                await _send_system_message(
+                    db, matched_uid,
+                    f"【数字安全绳·已平安解除】{user_name}",
+                    f"{user_name} 已于 {now.strftime('%Y-%m-%d %H:%M')}（UTC）重新签到。最新位置：{loc_text}。之前的预警已自动解除。",
+                    message_type="safety_rope_resolved",
+                )
 
     await db.commit()
     return {"success": True, "checkin_at": now.isoformat(), "alert_resolved": was_alerting}
@@ -581,6 +497,34 @@ async def list_checkins(
 # ─────────────── API: Contacts ───────────────
 
 
+@router.get("/contacts/check-phone")
+async def check_phone(
+    phone: str = Query(..., max_length=20),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """表单失焦时校验：手机号是否为 bini-health 已注册用户。"""
+    phone = (phone or "").strip()
+    if not _PHONE_RE.match(phone):
+        return {"valid": False, "registered": False, "reason": "手机号格式不正确"}
+
+    user = await _find_user_by_phone(db, phone)
+    if not user:
+        return {
+            "valid": True,
+            "registered": False,
+            "reason": "该手机号还未注册 bini-health，请先邀请 TA 注册",
+        }
+    name = user.nickname or f"用户{user.id}"
+    return {
+        "valid": True,
+        "registered": True,
+        "user_id": user.id,
+        "name": name,
+        "reason": f"✓ 已识别用户：{name}",
+    }
+
+
 @router.get("/contacts")
 async def list_contacts(
     current_user: User = Depends(get_current_user),
@@ -588,7 +532,7 @@ async def list_contacts(
 ) -> dict[str, Any]:
     await _ensure_tables(db)
     rows = (await db.execute(text(
-        "SELECT id, name, email, phone, relation, wechat_openid, sort_order "
+        "SELECT id, name, email, phone, relation, wechat_openid, sort_order, matched_user_id "
         "FROM safety_rope_contact WHERE user_id=:uid ORDER BY sort_order, id"
     ), {"uid": current_user.id})).fetchall()
     return {
@@ -601,6 +545,7 @@ async def list_contacts(
                 "relation": r[4],
                 "wechat_openid": r[5],
                 "sort_order": r[6],
+                "matched_user_id": r[7],
             } for r in rows
         ],
         "max_count": 3,
@@ -614,38 +559,69 @@ async def create_contact(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     await _ensure_tables(db)
+
+    # 校验：姓名
+    name = (body.name or "").strip()
+    if not name:
+        raise HTTPException(400, "请填写姓名")
+
+    # 校验：手机号必填 + 格式
+    phone = (body.phone or "").strip()
+    if not _PHONE_RE.match(phone):
+        raise HTTPException(400, "请填写正确的 11 位手机号")
+
+    # 校验：必须是 bini-health 已注册用户
+    matched_user = await _find_user_by_phone(db, phone)
+    if not matched_user:
+        raise HTTPException(400, "该手机号还未注册 bini-health，请先邀请 TA 注册")
+
+    # 校验：关系字段（如填写）必须在 7 芯片白名单内
+    relation = (body.relation or "").strip() or None
+    if relation and relation not in ALLOWED_RELATIONS:
+        raise HTTPException(400, f"关系必须是以下之一：{'/'.join(ALLOWED_RELATIONS)}")
+
     cnt = (await db.execute(text(
         "SELECT COUNT(1) FROM safety_rope_contact WHERE user_id=:uid"
     ), {"uid": current_user.id})).scalar() or 0
     if cnt >= 3:
         raise HTTPException(400, "紧急联系人最多 3 位")
     sort_order = int(cnt) + 1
+
     await db.execute(text(
-        "INSERT INTO safety_rope_contact (user_id, name, email, phone, relation, wechat_openid, sort_order) "
-        "VALUES (:uid, :name, :email, :phone, :rel, :openid, :so)"
+        "INSERT INTO safety_rope_contact (user_id, name, email, phone, relation, wechat_openid, sort_order, matched_user_id) "
+        "VALUES (:uid, :name, :email, :phone, :rel, :openid, :so, :mid)"
     ), {
         "uid": current_user.id,
-        "name": body.name,
-        "email": body.email,
-        "phone": body.phone,
-        "rel": body.relation,
+        "name": name,
+        "email": body.email,  # 兼容：保留为 NULL
+        "phone": phone,
+        "rel": relation,
         "openid": body.wechat_openid,
         "so": sort_order,
+        "mid": matched_user.id,
     })
     await db.commit()
 
-    # 给联系人发确认邮件
-    user_name = current_user.nickname or current_user.phone or f"用户{current_user.id}"
-    await _send_email(
-        db, body.email,
-        f"【数字安全绳】您被设为 {user_name} 的紧急联系人",
-        f"<p>您好 <b>{body.name}</b>：</p>"
-        f"<p>{user_name} 已将您设为「数字安全绳」紧急联系人。</p>"
-        f"<p>当 TA 连续未签到超过设定时长时，您将收到预警邮件。届时请尽快联系 TA，确认其安全。</p>"
-        f"<p style='color:#888;font-size:12px'>—— bini-health 数字安全绳</p>"
-    )
-    await db.commit()
-    return {"success": True}
+    # 给被设为联系人的注册用户发站内信（必达，不走邮件）
+    inviter_name = current_user.nickname or current_user.phone or f"用户{current_user.id}"
+    try:
+        await _send_system_message(
+            db, matched_user.id,
+            f"【数字安全绳】您被 {inviter_name} 设为紧急联系人",
+            f"{inviter_name} 已将您设为「数字安全绳」紧急联系人。"
+            f"当 TA 连续未签到超过设定时长时，您将收到预警通知，"
+            f"届时请尽快联系 TA，确认其安全。",
+            message_type="safety_rope_invite",
+        )
+        await db.commit()
+    except Exception as exc:
+        logger.warning("safety_rope: send invite system message failed: %s", exc)
+
+    return {
+        "success": True,
+        "matched_user_id": matched_user.id,
+        "matched_name": matched_user.nickname or f"用户{matched_user.id}",
+    }
 
 
 @router.put("/contacts/{contact_id}")
@@ -661,6 +637,23 @@ async def update_contact(
     ), {"cid": contact_id, "uid": current_user.id})).first()
     if not row:
         raise HTTPException(404, "联系人不存在")
+
+    # 如果修改了手机号，需重新校验注册状态
+    new_matched_id = None
+    if body.phone is not None:
+        phone = body.phone.strip()
+        if not _PHONE_RE.match(phone):
+            raise HTTPException(400, "请填写正确的 11 位手机号")
+        u = await _find_user_by_phone(db, phone)
+        if not u:
+            raise HTTPException(400, "该手机号还未注册 bini-health")
+        new_matched_id = u.id
+
+    if body.relation is not None:
+        rel = body.relation.strip()
+        if rel and rel not in ALLOWED_RELATIONS:
+            raise HTTPException(400, f"关系必须是以下之一：{'/'.join(ALLOWED_RELATIONS)}")
+
     updates = []
     params: dict[str, Any] = {"cid": contact_id, "uid": current_user.id}
     for fld in ("name", "email", "phone", "relation", "wechat_openid", "sort_order"):
@@ -668,6 +661,10 @@ async def update_contact(
         if v is not None:
             updates.append(f"{fld}=:{fld}")
             params[fld] = v
+    if new_matched_id is not None:
+        updates.append("matched_user_id=:mid")
+        params["mid"] = new_matched_id
+
     if updates:
         await db.execute(text(
             f"UPDATE safety_rope_contact SET {', '.join(updates)} WHERE id=:cid AND user_id=:uid"
@@ -731,7 +728,10 @@ async def list_alerts(
 
 
 async def scan_and_notify() -> dict[str, int]:
-    """扫描所有用户，对到期者触发预警/提前提醒。供 APScheduler 周期调用。"""
+    """扫描所有用户，对到期者触发预警/提前提醒。供 APScheduler 周期调用。
+    
+    [BUGFIX-SAFETY-ROPE-V1 2026-06-03] 改为只走站内信，移除邮件通道。
+    """
     import json
     stats = {"scanned": 0, "pre_warned": 0, "alerted": 0}
     async with async_session() as db:
@@ -769,13 +769,6 @@ async def scan_and_notify() -> dict[str, int]:
                             "还有 1 小时就到签到时间啦，记得打开 App 点一下「我今天平安」~",
                             message_type="safety_rope_pre_warning",
                         )
-                        if user.email:
-                            await _send_email(
-                                db, user.email,
-                                "【数字安全绳】该签到啦",
-                                "<p>您今日尚未签到，请打开 App 点击「我今天平安」完成签到。</p>"
-                                "<p style='color:#888;font-size:12px'>—— bini-health 数字安全绳</p>"
-                            )
                         await db.execute(text(
                             "UPDATE safety_rope_config SET last_warning_pre_at=:t WHERE user_id=:uid"
                         ), {"t": now, "uid": uid})
@@ -788,44 +781,46 @@ async def scan_and_notify() -> dict[str, int]:
                         continue
                     user_name = user.nickname or user.phone or f"用户{uid}"
                     contacts = (await db.execute(text(
-                        "SELECT id, name, email, phone FROM safety_rope_contact "
+                        "SELECT id, name, phone, matched_user_id FROM safety_rope_contact "
                         "WHERE user_id=:uid ORDER BY sort_order"
                     ), {"uid": uid})).fetchall()
                     notified = []
                     for c in contacts:
-                        c_id, c_name, c_email, c_phone = c
-                        body_html = (
-                            f"<p><b>【数字安全绳预警】</b></p>"
-                            f"<p>您是 <b>{user_name}</b> 的紧急联系人。</p>"
-                            f"<p>TA 已经连续 {threshold_hours} 小时没有在 App 中签到了。</p>"
-                            f"<p>📅 最后签到时间：{last_at.strftime('%Y-%m-%d %H:%M')}（UTC）</p>"
-                            f"<p>📍 最后签到位置：{last.get('location_address') or '（未提供）'}</p>"
-                            f"<p>📞 TA 的手机号：{(user.phone or '未提供')}</p>"
-                            f"<p>建议：</p><ol>"
-                            f"<li>立刻拨打电话联系 TA</li>"
-                            f"<li>如联系不上，可前往最后签到位置查看</li>"
-                            f"<li>必要时联系所在地社区/物业/警方</li></ol>"
-                            f"<p style='color:#888;font-size:12px'>—— bini-health 数字安全绳</p>"
+                        c_id, c_name, c_phone, c_matched = c
+                        content = (
+                            f"【数字安全绳预警】您是 {user_name} 的紧急联系人。"
+                            f"TA 已经连续 {threshold_hours} 小时没有签到了。"
+                            f"📅 最后签到时间：{last_at.strftime('%Y-%m-%d %H:%M')}（UTC）"
+                            f"📍 最后签到位置：{last.get('location_address') or '（未提供）'}"
+                            f"📞 TA 的手机号：{(user.phone or '未提供')}"
+                            f"建议立刻拨打电话联系 TA；如联系不上，可前往最后签到位置查看；必要时联系当地社区/物业/警方。"
                         )
-                        ok = await _send_email(
-                            db, c_email,
-                            f"【数字安全绳预警】{user_name} 超时未签到",
-                            body_html,
-                        )
+                        # 站内信（仅当已 matched）
+                        ok = False
+                        if c_matched:
+                            try:
+                                await _send_system_message(
+                                    db, int(c_matched),
+                                    f"【数字安全绳预警】{user_name} 超时未签到",
+                                    content,
+                                    message_type="safety_rope_alert",
+                                )
+                                ok = True
+                            except Exception as exc:
+                                logger.warning("safety_rope: notify contact %s failed: %s", c_id, exc)
                         notified.append({
                             "contact_id": c_id,
                             "name": c_name,
-                            "email": c_email,
-                            "email_status": "success" if ok else "failed",
+                            "phone": c_phone,
+                            "status": "success" if ok else "skipped",
                         })
-                    # 给本人也发一条系统消息提示
+                    # 给本人发系统消息
                     await _send_system_message(
                         db, uid,
                         "您已超时未签到",
                         "您已超时未签到，系统已通知您的紧急联系人。请尽快重新签到。",
                         message_type="safety_rope_alert",
                     )
-                    # 写预警记录 + 更新状态
                     await db.execute(text(
                         "INSERT INTO safety_rope_alert (user_id, triggered_at, last_checkin_at, "
                         "last_location, notified_contacts) VALUES (:uid, :t, :lc, :loc, :nc)"
@@ -850,7 +845,6 @@ async def scan_and_notify() -> dict[str, int]:
 async def trigger_scan(
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """管理员手工触发扫描（用于测试）。"""
     if current_user.role not in ("admin",):
         raise HTTPException(403, "仅管理员可触发")
     return await scan_and_notify()

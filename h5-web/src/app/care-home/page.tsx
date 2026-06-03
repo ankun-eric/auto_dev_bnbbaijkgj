@@ -509,30 +509,32 @@ export default function CareHomePage() {
         ))}
       </div>
 
-      {/* [PRD-SAFETY-ROPE-V1 2026-06-03] 数字安全绳入口卡片 */}
+      {/* [PRD-SAFETY-ROPE-V1 2026-06-03] [BUGFIX-SAFETY-ROPE-V1 2026-06-03 Bug1]
+          数字安全绳入口卡片 — 紧贴 SOS（在快捷胶囊下方做绿色横卡，作为页面内主入口） */}
       <div style={{ padding: '0 22px 14px' }}>
         <div
           data-testid="care-home-safety-rope-entry"
           onClick={() => router.push(`${basePath}/care-safety-rope`)}
           style={{
-            background: 'linear-gradient(135deg, #74b9a6 0%, #4a9b8e 100%)',
-            borderRadius: 16,
-            padding: '14px 16px',
+            background: 'linear-gradient(135deg, #66bb6a 0%, #2e7d32 100%)',
+            borderRadius: 18,
+            padding: '16px 18px',
             color: '#fff',
             display: 'flex',
             alignItems: 'center',
             cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(74,155,142,0.25)',
+            boxShadow: '0 6px 18px rgba(46,125,50,0.32)',
+            border: '2px solid #fff',
           }}
         >
-          <div style={{ fontSize: 32, marginRight: 12 }}>🪢</div>
+          <div style={{ fontSize: 40, marginRight: 14 }}>🪢</div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 700 }}>数字安全绳</div>
-            <div style={{ fontSize: 13, opacity: 0.92, marginTop: 2 }}>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>数字安全绳</div>
+            <div style={{ fontSize: 13, opacity: 0.95, marginTop: 3 }}>
               每天点一下"我今天平安"，超时自动通知亲友
             </div>
           </div>
-          <div style={{ fontSize: 22, marginLeft: 8 }}>›</div>
+          <div style={{ fontSize: 24, marginLeft: 8, fontWeight: 700 }}>›</div>
         </div>
       </div>
 
@@ -810,6 +812,35 @@ export default function CareHomePage() {
         }}
       >
         SOS
+      </div>
+
+      {/* [BUGFIX-SAFETY-ROPE-V1 2026-06-03 Bug1] 数字安全绳悬浮球——紧贴 SOS（左侧），双入口可见 */}
+      <div
+        data-testid="care-home-safety-rope-fab"
+        onClick={() => router.push(`${basePath}/care-safety-rope`)}
+        style={{
+          position: 'fixed',
+          right: 100,
+          bottom: 96,
+          width: 72,
+          height: 72,
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #66bb6a 0%, #2e7d32 100%)',
+          color: '#fff',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 13,
+          fontWeight: 700,
+          boxShadow: '0 0 0 8px rgba(46,125,50,.18), 0 4px 16px rgba(46,125,50,.4)',
+          zIndex: 99,
+          cursor: 'pointer',
+          lineHeight: 1.1,
+        }}
+      >
+        <span style={{ fontSize: 22 }}>🪢</span>
+        <span style={{ fontSize: 10, marginTop: 2 }}>安全绳</span>
       </div>
     </div>
   );

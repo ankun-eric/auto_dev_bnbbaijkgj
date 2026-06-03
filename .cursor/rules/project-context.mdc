@@ -5,7 +5,44 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-03 · 需求 / V3 终版「家庭成员状态模型 & 一人一档治本方案」第一阶段：应急修复 SOP + V3 后端基础 · 后端 + H5 两端，小程序/APP 无源码改动 0 客户端打包）
+## 最近一次变更（2026-06-03 · Bug 修复「数字安全绳 v2 锁死版」· 后端 + H5 两端 · 0 客户端打包）
+
+**任务标识**：`[BUGFIX-SAFETY-ROPE-V1 2026-06-03]`
+
+**Bug 清单（用户反馈 4 个）**：
+1. (P0) 关怀模式 SOS 旁边没看到数字安全绳图标
+2. (P1) 超时阈值，选中的记录要加选中效果
+3. (P0) 紧急联系人添加后，提示成功但没看到记录 ← **核心根因**：`create_contact` 同步调用 SMTP 发送邮件，阻塞 FastAPI worker → 网关超时 → 事务被 `get_db` 回滚
+4. (P0) 打卡后顶部文案还是「今天还没签到」
+
+**改动文件（共 5 处）**：
+- 后端：
+  - `backend/app/api/safety_rope_v1.py` — **彻底删除 SMTP 调用与 EmailLog 依赖**；`ContactCreateRequest` 邮箱改可选、手机号改必填且 11 位格式校验；新增 `GET /api/safety-rope/contacts/check-phone?phone=...` 接口（表单失焦时校验手机号是否注册）；`POST /contacts` 服务端二次校验手机号是否为已注册用户、查到则写 `matched_user_id` + 发站内信「您被 XXX 设为紧急联系人」；关系字段 7 芯片白名单（子女/配偶/父母/邻居/朋友/护工/其他）；表加列 `matched_user_id` + email 改 NULL；scan_and_notify 改走站内信
+  - `backend/tests/test_safety_rope_v1_20260603.py` — 整套重写：13 个用例覆盖 check-phone 三态、缺手机号/未注册/关系白名单拒收、添加后立即可见、签到立即反映等
+- H5：
+  - `h5-web/src/app/care-safety-rope/page.tsx` — Bug2 阈值选中态（绿色填充 + 加粗 + 右上角白底绿勾 ✓）；Bug3 表单删除邮箱字段、手机号必填 + 失焦自动调 check-phone、保存按钮根据 `phoneCheck.state` 置灰、关系改 7 芯片单选；Bug4 顶部 banner 改"上次签到 + 下次截止"两行，签到成功 `await loadAll()` 立即 refetch；联系人卡片改圆头像 + 关系 chip + 脱敏手机号
+  - `h5-web/src/app/care-home/page.tsx` — Bug1 入口卡片改更显眼的绿色横卡；**新增「安全绳」绿色悬浮球，紧贴 SOS 红球（right: 100, bottom: 96）**
+  - `h5-web/src/app/care-ai-home/sos/page.tsx` — SOS 联系人维护弹窗的"关系"字段从文本框改为 7 芯片单选
+
+**测试/验证**：
+- 远程端到端冒烟测试（`deploy/_smoke_safety_rope_bugfix.py`）：**13/13 全部通过，零 Bug**
+- HTTPS 烟雾：`/api/health=200`，`/api/safety-rope/status=401`（未登录）、`/contacts/check-phone=401`、3 个 H5 页面均 200
+
+**部署**：`deploy/_deploy_safety_rope_v2_bugfix.py` + `_deploy_h5_continue.py` + `_fix_db_network.py`（修复了 db 容器残留在旧 compose 网络的历史问题，将 db 容器 connect 到 backend 所在的 `6b099ed3-...-network` 网络上）。SFTP 直传 5 文件 → 重建 backend + h5-web 容器 → reload nginx。
+
+**变更端清单**：
+- 后端（已上线，容器重建）
+- H5（已上线，容器重建）
+- 微信小程序：**未改动源码，未打包** — 小程序通过 web-view 加载 H5，自动获得本次修复
+- 安卓 / iOS APP：**未改动源码，未打包** — APP 通过 WebView 加载 H5，自动获得本次修复
+
+**用户手册**：`user_docs/数字安全绳-Bug修复v2.md`
+
+**遗留**：原 `SystemConfig.email_notify_*` 配置项保留兼容；scan_and_notify 中 `_send_email` 调用已全部移除，仅保留站内信通道。
+
+---
+
+## 历史变更（2026-06-03 · 需求 / V3 终版「家庭成员状态模型 & 一人一档治本方案」第一阶段：应急修复 SOP + V3 后端基础 · 后端 + H5 两端，小程序/APP 无源码改动 0 客户端打包）
 
 **任务标识**：`[PRD-FAMILY-V3-EMERGENCY-FIX + PRD-FAMILY-V3-STATE-MODEL-V1 2026-06-03]`
 
