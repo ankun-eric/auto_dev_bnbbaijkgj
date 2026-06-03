@@ -1,6 +1,6 @@
 # 宾尼健康 (Bini Health) 项目索引
 
-> **最后更新**: 2026-06-03  
+> **最后更新**: 2026-06-04  
 > **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
 > **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
 > **Git 主仓库**: Codeup (codeup.aliyun.com)  
@@ -35,7 +35,10 @@ bnbbaijkgj/
 │   │   │   ├── family_management.py
 │   │   │   ├── family_member_v2.py
 │   │   │   ├── guardian_system_v13.py
-│   │   │   ├── scan.py
+│   │   │   ├── home_safety_v1.py   # 居家安全设备 v1
+│   │   │   ├── care_ai_home.py      # 关怀版 AI 首页
+│   │   │   ├── care_card_v1.py      # 关怀卡片 v1
+│   │   │   ├── safety_rope_v1.py    # 数字安全绳 v1（独居守护）
 │   │   │   └── ...
 │   │   ├── models/           # SQLAlchemy 数据模型
 │   │   ├── schemas/          # Pydantic Schema
@@ -47,6 +50,8 @@ bnbbaijkgj/
 ├── h5-web/                   # Next.js H5 用户端
 │   ├── src/app/              # App Router 页面
 │   │   ├── (ai-chat)/ai-home/  # AI 首页
+│   │   ├── care-home/          # 关怀模式首页（含数字安全绳入口卡片+悬浮球）
+│   │   ├── care-safety-rope/   # 数字安全绳功能页（签到/阈值/联系人）
 │   │   ├── health-profile/   # 健康档案
 │   │   ├── member-center/    # 会员中心
 │   │   ├── login/            # 登录页
