@@ -30,8 +30,16 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        - BUILD_COMMIT=${BUILD_COMMIT:-unknown}
     container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-backend
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')\" || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
     environment:
       DATABASE_URL: mysql+aiomysql://root:bini_health_2026@6b099ed3-7175-4a78-91f4-44570c84ed27-db:3306/bini_health
       SECRET_KEY: bini-health-secret-key-2026-very-secure
@@ -74,6 +82,12 @@ services:
         - NEXT_PUBLIC_BASE_PATH=/admin
     container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-admin
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/admin || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
     environment:
       NEXT_PUBLIC_API_URL: /api
       NEXT_PUBLIC_BASE_PATH: /admin
@@ -96,6 +110,12 @@ services:
         - NEXT_PUBLIC_BASE_PATH=
     container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/ || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
     environment:
       NEXT_PUBLIC_API_URL: /api
       NEXT_PUBLIC_BASE_PATH: 
