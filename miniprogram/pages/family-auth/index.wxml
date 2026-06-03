@@ -72,7 +72,7 @@
 
     <view class="success-actions">
       <button class="primary-btn" bindtap="goHome">返回首页</button>
-      <text class="link-btn" bindtap="goBindList">查看我的家人</text>
+      <text class="link-btn" bindtap="goBindList">查看家庭成员</text>
     </view>
   </view>
 

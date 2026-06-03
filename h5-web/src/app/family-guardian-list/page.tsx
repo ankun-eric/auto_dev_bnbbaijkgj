@@ -70,7 +70,7 @@ function FamilyGuardianListInner() {
 
   return (
     <div style={{ background: BH_TOKENS.bgPage, minHeight: '100vh', paddingBottom: 80 }}>
-      <GreenNavBar>家庭守护列表</GreenNavBar>
+      <GreenNavBar>家庭成员</GreenNavBar>
       <div style={{ padding: '12px 16px' }}>
         <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>
           {loading ? '加载中…' : `已守护 ${items.filter((it) => !it.is_self).length} 人 + 本人对自己`}
@@ -112,7 +112,7 @@ function FamilyGuardianListInner() {
 
         {!loading && items.length === 0 && (
           <div style={{ textAlign: 'center', padding: '60px 0', color: '#9ca3af', fontSize: 13 }}>
-            暂无守护关系。可在「健康档案」中选中家人发起邀请共管。
+            暂无家庭成员。可在「健康档案」中选中家庭成员发起邀请共管。
           </div>
         )}
 

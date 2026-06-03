@@ -76,13 +76,15 @@ interface FamilyMember {
     expires_at: string;
     remaining_hours: number;
   } | null;
-  // [PRD-FAMILY-V3-STATE-MODEL-V1 2026-06-03] V3 主+子状态及视图开关
-  v3_main_status?: 'unbound' | 'bound' | 'deleted' | null;
-  v3_sub_status?: string | null;
-  v3_can_reinvite?: boolean;
-  v3_can_edit?: boolean;
+  // [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V2 2026-06-03]
+  // v3_main_status / v3_sub_status 字段已下线，
+  // 后端 status / sub_status 即为治本后的真值，直接使用即可。
+  status?: 'unbound' | 'bound' | 'deleted' | 'active' | string | null;
+  sub_status?: string | null;
+  can_reinvite?: boolean;
+  can_edit?: boolean;
   // PRD 决策点 14~18:解绑/已删除后老人 Tab 进入极简视图(只剩 Hero+他的守护人卡片)
-  v3_show_simplified_view?: boolean;
+  show_simplified_view?: boolean;
 }
 
 const BADGE_COLOR_PALETTE: { bg: string; fg: string }[] = [
@@ -993,7 +995,7 @@ function HealthProfileV2PageInner() {
               原方案:白底 + 品牌色文字。在 Hero 卡渐变背景下文字与按钮底色对比度极低,
               用户反馈"白底白字看不见"。改为橙色渐变 + 白字胶囊按钮,清晰可见且
               与"编辑"按钮排版仍对齐。 */}
-          {selectedMember && !selectedMember.is_self && selectedMember.v3_can_reinvite && (
+          {selectedMember && !selectedMember.is_self && selectedMember.can_reinvite && (
             <button
               data-testid="prd-v3-hero-reinvite-btn"
               onClick={(e) => {
@@ -1012,7 +1014,7 @@ function HealthProfileV2PageInner() {
                 lineHeight: 1.5,
               }}
             >
-              {selectedMember.v3_sub_status === 'not_applied' ? '邀请' : '重新邀请'}
+              {selectedMember.sub_status === 'not_applied' ? '邀请' : '重新邀请'}
             </button>
           )}
 
@@ -2515,9 +2517,9 @@ function HealthProfileV2PageInner() {
       {/* [PRD-FAMILY-V3-STATE-MODEL-V1 2026-06-03 §1.4 极简视图]
           解绑 / 已删除成员的非本人 Tab 进入"极简视图":
           只保留 Hero 卡片 + 「他的守护人」卡片;隐藏健康看板入口、提醒管理、设备、用药等所有
-          后续模块。Hero 卡片本身已按 v3_can_reinvite 渲染「重新邀请」按钮。 */}
+          后续模块。Hero 卡片本身已按 can_reinvite 渲染「重新邀请」按钮。 */}
       {(() => {
-        const v3Simplified = !!selectedMember && !selectedMember.is_self && !!selectedMember.v3_show_simplified_view;
+        const v3Simplified = !!selectedMember && !selectedMember.is_self && !!selectedMember.show_simplified_view;
         if (v3Simplified) {
           return (
             <>

@@ -127,13 +127,11 @@ export default function FamilyMemberTabs({
         // [PRD-HEALTH-ARCHIVE-FAMILY-MEMBER-V1 2026-06-02 改动点3]
         // 已解绑成员（target_left=true 或 status 非 active）灰色化
         const isLeft = !!m.target_left || (m.status != null && m.status !== 'active' && m.status !== 'deleted' && m.status !== 'bound');
-        // [BUGFIX-HOME-SAFETY-MEMBER-TAB-STATUS-BADGE 2026-06-03]
-        // 决策：头像下方一律不再渲染「已解绑/已绑定」状态文字；
-        // 改为只在已绑定的非本人头像右上角展示绿色小勾角标。
-        // - 本人：不显示角标（本人无绑定关系概念）
-        // - 已绑定的家庭成员（非本人、未解绑、非已删除）：右上角绿色 ✓
-        // - 未绑定 / 已解绑：右上角无标识
-        const showBoundCheck = !m.is_self && !isLeft;
+        // [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V2 2026-06-03]
+        // 治本：打勾的唯一判断标准 = 非本人 + status 是 'bound'（或老枚举 'active'）。
+        // 之前用 "!isLeft" 做"反向排除"导致中间态（applying/pending/not_applied）误打勾，
+        // 现改为"正向确认"——后端 status 字段已通过事件原子事务保证真值，前端直接读库真值即可。
+        const showBoundCheck = !m.is_self && (m.status === 'bound' || m.status === 'active');
         return (
           <button
             key={m.id}

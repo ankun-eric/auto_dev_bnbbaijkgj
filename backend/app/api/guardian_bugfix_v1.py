@@ -524,6 +524,16 @@ async def unguard_relation(
     mgmt.cancelled_at = datetime.utcnow()
     mgmt.cancelled_by = current_user.id
 
+    # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V2 2026-06-03] 治本：守护关系取消同步回滚 FamilyMember
+    from app.services.family_member_status_rollback import (
+        rollback_member_for_management_cancel,
+    )
+    await rollback_member_for_management_cancel(
+        db,
+        manager_user_id=mgmt.manager_user_id,
+        managed_member_id=mgmt.managed_member_id,
+    )
+
     await db.flush()
 
     # [BUGFIX-DELETE-RATELIMIT-V1 2026-06-01] 仅在成功解除后才记一次额度

@@ -81,13 +81,15 @@ async def derive_v3_state(
     member: FamilyMember,
     now: Optional[datetime] = None,
 ) -> V3StateInfo:
-    """根据 family_members.status/sub_status(治本后真值)推导 V3 状态。
+    """[BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V2 2026-06-03] 治本后的简化版
 
-    特殊兜底:
-    - 本人卡片永远 bound/bound
-    - 当 main_status='bound' 且数据库里没有 active 守护关系时,
-      实时探测邀请记录,可能上浮 applying / rejected / invited_expired
-      (这是 cron 没跑到的兜底,保证视图层不出错)
+    既然 family_members.status / sub_status 已经在 4 类事件触发点上完成事务
+    原子同步更新（见 family_member_status_rollback.py），库里的值就是真值，
+    本函数不再需要"探测纠错"的兜底逻辑，直接读库返回即可。
+
+    本人卡片永远 bound/bound。
+
+    保留 db 入参是为了向后兼容调用方签名（短期内不动调用点），未来可以摘掉。
     """
     if now is None:
         now = datetime.utcnow()
@@ -104,28 +106,16 @@ async def derive_v3_state(
 
     main, sub = _normalize_status(member)
 
-    # 1. deleted 主状态:直接定型,进入极简视图
     if main == "deleted":
         return V3StateInfo(
             main_status="deleted",
             sub_status=sub if sub in ("self_deleted", "admin_deleted") else "self_deleted",
-            can_reinvite=True,          # PRD 决策点 17: deleted 卡片仍可重新邀请
+            can_reinvite=True,
             can_edit=False,
             show_simplified_view=True,
         )
 
-    # 2. unbound 主状态:已解绑,进入极简视图
     if main == "unbound":
-        # 实时探测邀请是否在进行中(unbound 的子状态可能从 unbinded 升级为 applying)
-        live_sub = await _probe_invitation_substatus(db, member=member, now=now)
-        if live_sub:
-            return V3StateInfo(
-                main_status="unbound",
-                sub_status=live_sub,
-                can_reinvite=(live_sub != "applying"),
-                can_edit=True,
-                show_simplified_view=(live_sub == "unbinded"),
-            )
         return V3StateInfo(
             main_status="unbound",
             sub_status=sub if sub in (
@@ -137,55 +127,11 @@ async def derive_v3_state(
             show_simplified_view=(sub == "unbinded"),
         )
 
-    # 3. bound 主状态:校验 active 守护关系是否真的存在(应急兜底)
-    active_mgmt = (await db.execute(
-        select(FamilyManagement).where(
-            FamilyManagement.manager_user_id == member.user_id,
-            FamilyManagement.managed_member_id == member.id,
-            FamilyManagement.status == "active",
-        )
-    )).scalars().first()
-    if active_mgmt:
-        return V3StateInfo(
-            main_status="bound",
-            sub_status="bound",
-            can_reinvite=False,
-            can_edit=True,
-            show_simplified_view=False,
-        )
-
-    # 4. 标记为 bound 但实际无 active 守护关系:进入容错推导
-    #    - 探测到邀请记录   → 用邀请态(applying / rejected / invited_expired)
-    #    - 探测到 cancelled 关系 → unbinded
-    #    - 都没有           → not_applied(全新卡片,还没发过邀请)
-    live_sub = await _probe_invitation_substatus(db, member=member, now=now)
-    if live_sub:
-        return V3StateInfo(
-            main_status="unbound",
-            sub_status=live_sub,
-            can_reinvite=(live_sub != "applying"),
-            can_edit=True,
-            show_simplified_view=(live_sub == "unbinded"),
-        )
-    cancelled_mgmt = (await db.execute(
-        select(FamilyManagement).where(
-            FamilyManagement.manager_user_id == member.user_id,
-            FamilyManagement.managed_member_id == member.id,
-            FamilyManagement.status.in_(("cancelled", "removed", "cancelled_by_target")),
-        )
-    )).scalars().first()
-    if cancelled_mgmt:
-        return V3StateInfo(
-            main_status="unbound",
-            sub_status="unbinded",
-            can_reinvite=True,
-            can_edit=True,
-            show_simplified_view=True,
-        )
+    # main == "bound"：治本后这就是真值，直接返回
     return V3StateInfo(
-        main_status="unbound",
-        sub_status="not_applied",
-        can_reinvite=True,
+        main_status="bound",
+        sub_status="bound",
+        can_reinvite=False,
         can_edit=True,
         show_simplified_view=False,
     )

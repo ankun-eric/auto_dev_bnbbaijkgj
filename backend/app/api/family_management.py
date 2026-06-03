@@ -183,6 +183,10 @@ async def create_invitation(
         )
         for old_inv in pending_result.scalars().all():
             old_inv.status = "cancelled"
+            # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V2 2026-06-03]
+            # 注意：这里是"重新邀请前清理旧 pending"，紧接着会建一条新 pending，
+            # 业务语义是"延续邀请态"，不应把 FamilyMember 回滚为 unbound，否则
+            # 会出现"刚点了重新邀请就显示已解绑"的体验问题。故跳过回滚。
     # [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 情况 2：允许并存多条 pending，不去重
 
     invite_code = uuid.uuid4().hex
@@ -292,6 +296,14 @@ async def get_invitation_detail(
     if status == "pending" and invitation.expires_at < datetime.utcnow():
         status = "expired"
         invitation.status = "expired"
+        # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V2 2026-06-03] 治本：邀请过期同步回滚 FamilyMember
+        from app.services.family_member_status_rollback import (
+            rollback_member_for_invitation_event,
+            EVENT_INVITATION_EXPIRED,
+        )
+        await rollback_member_for_invitation_event(
+            db, invitation, EVENT_INVITATION_EXPIRED
+        )
         await db.flush()
 
     invalid_reason = _normalize_invalid_reason(status)
@@ -406,6 +418,14 @@ async def accept_invitation(
 
     if invitation.expires_at < datetime.utcnow():
         invitation.status = "expired"
+        # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V2 2026-06-03] 治本：邀请过期同步回滚 FamilyMember
+        from app.services.family_member_status_rollback import (
+            rollback_member_for_invitation_event,
+            EVENT_INVITATION_EXPIRED,
+        )
+        await rollback_member_for_invitation_event(
+            db, invitation, EVENT_INVITATION_EXPIRED
+        )
         await db.flush()
         raise HTTPException(status_code=400, detail="邀请已过期")
 
@@ -659,10 +679,28 @@ async def reject_invitation(
 
     if invitation.expires_at < datetime.utcnow():
         invitation.status = "expired"
+        # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V2 2026-06-03] 治本：邀请过期同步回滚 FamilyMember
+        from app.services.family_member_status_rollback import (
+            rollback_member_for_invitation_event,
+            EVENT_INVITATION_EXPIRED,
+        )
+        await rollback_member_for_invitation_event(
+            db, invitation, EVENT_INVITATION_EXPIRED
+        )
         await db.flush()
         raise HTTPException(status_code=400, detail="邀请已过期")
 
     invitation.status = "cancelled"
+    # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V2 2026-06-03] 治本：对方拒绝邀请同步回滚 FamilyMember
+    # 注：历史命名缘故，"拒绝"接口在 invitation 表里写的是 'cancelled'，
+    # 但业务语义就是"被拒绝"，因此 FamilyMember 的 sub_status 用 'rejected'。
+    from app.services.family_member_status_rollback import (
+        rollback_member_for_invitation_event,
+        EVENT_INVITATION_REJECTED,
+    )
+    await rollback_member_for_invitation_event(
+        db, invitation, EVENT_INVITATION_REJECTED
+    )
 
     inviter_result = await db.execute(
         select(User).where(User.id == invitation.inviter_user_id)
@@ -816,6 +854,17 @@ async def cancel_management(
     mgmt.status = "cancelled"
     mgmt.cancelled_at = datetime.utcnow()
     mgmt.cancelled_by = current_user.id
+
+    # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V2 2026-06-03] 治本：守护关系取消同步回滚 FamilyMember
+    # 守护人视角与被守护人视角都要回滚自己侧的 FamilyMember 卡片
+    from app.services.family_member_status_rollback import (
+        rollback_member_for_management_cancel,
+    )
+    await rollback_member_for_management_cancel(
+        db,
+        manager_user_id=mgmt.manager_user_id,
+        managed_member_id=mgmt.managed_member_id,
+    )
 
     log = ManagementOperationLog(
         management_id=mgmt.id,

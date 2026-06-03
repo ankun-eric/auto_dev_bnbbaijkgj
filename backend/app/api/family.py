@@ -162,11 +162,12 @@ async def list_family_members(
     for it in items:
         it["target_left"] = int(it.get("id", 0)) in target_left_member_ids
 
-    # [PRD-FAMILY-V3-STATE-MODEL-V1 2026-06-03] 注入 V3 主+子状态及视图开关字段
-    # 前端可据此渲染:
-    #   - sub_status='unbinded' / 'self_deleted' => 进入极简「老人 Tab」视图(仅 Hero + 他的守护人卡片)
-    #   - can_reinvite=True => Hero 卡片渲染「重新邀请」按钮
-    #   - can_edit=True => 编辑按钮可见
+    # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V2 2026-06-03]
+    # v3_main_status / v3_sub_status 字段已下线（治本后 status / sub_status 即真值）。
+    # 但 can_reinvite / can_edit / show_simplified_view 这三个视图开关仍由
+    # derive_v3_state 计算后回填到 sub_status 同字段，便于前端复用。
+    # 同时为兼容存量前端代码，临时把 status/sub_status 也通过 derive 函数走一遍
+    # （治本后该函数对干净数据是恒等映射，对未迁移的脏数据仍能保底正确）。
     try:
         from app.services.family_member_status import derive_v3_state
         member_by_id = {m.id: m for m in ordered}
@@ -175,14 +176,15 @@ async def list_family_members(
             if mb is None:
                 continue
             v3 = await derive_v3_state(db, member=mb)
-            it["v3_main_status"] = v3["main_status"]
-            it["v3_sub_status"] = v3["sub_status"]
-            it["v3_can_reinvite"] = v3["can_reinvite"]
-            it["v3_can_edit"] = v3["can_edit"]
-            it["v3_show_simplified_view"] = v3["show_simplified_view"]
+            # 主+子状态：用 derive 结果覆盖（治本后等于库真值，对脏数据是兜底纠错）
+            it["status"] = v3["main_status"]
+            it["sub_status"] = v3["sub_status"]
+            it["can_reinvite"] = v3["can_reinvite"]
+            it["can_edit"] = v3["can_edit"]
+            it["show_simplified_view"] = v3["show_simplified_view"]
     except Exception as _v3_err:
-        # V3 字段是增强字段,推导失败不影响主流程
-        logger.warning(f"V3 state derivation skipped: {_v3_err}")
+        # 视图开关字段是增强字段,推导失败不影响主流程
+        logger.warning(f"family state derivation skipped: {_v3_err}")
 
     return {"items": items, "total": len(items)}
 
@@ -196,10 +198,15 @@ async def add_family_member(
     if not data.relation_type_id and not data.relationship_type:
         raise HTTPException(status_code=400, detail="成员关系为必填项")
 
+    # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V4 2026-06-03] 防御性堵漏 #7：
+    # 治本范围已明确——系统不支持"直接建档+绑定"路径（必须先建档再走邀请流）。
+    # 旧代码在传入 member_user_id 时把 status 直接写成 'bound'，是脏数据的源头之一。
+    # 现在硬性拒绝：新建家庭成员时 member_user_id 必须为空，否则 400。
     if data.member_user_id:
-        result = await db.execute(select(User).where(User.id == data.member_user_id))
-        if not result.scalar_one_or_none():
-            raise HTTPException(status_code=404, detail="关联用户不存在")
+        raise HTTPException(
+            status_code=400,
+            detail="不允许直接绑定守护人，请通过邀请流程建立守护关系",
+        )
 
     # [BUG_FIX-FAMILY-NICKNAME-NOTNULL-20260530] 姓名必填强校验：
     # 不允许 None / 空串 / 纯空格；统一返回 400 "姓名不能为空"。
@@ -218,17 +225,11 @@ async def add_family_member(
     existing_count = int(count_res.scalar() or 0)
     next_color_index = existing_count % 5
 
-    # [BUGFIX-FAMILY-MEMBER-SUB-STATUS-DEFAULT 2026-06-03]
-    # 新建家人成员时显式赋值 status/sub_status,与 V3 状态机推导兜底一致,
-    # 避免依赖 ORM default 在某些路径上失效写入 NULL。
-    # - 已直接绑定到关联用户 (member_user_id 非空): bound/bound
-    # - 未关联到任何用户 (纯档案,需后续邀请绑定): unbound/not_applied
-    if data.member_user_id:
-        initial_status = "bound"
-        initial_sub_status = "bound"
-    else:
-        initial_status = "unbound"
-        initial_sub_status = "not_applied"
+    # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V4 2026-06-03]
+    # 治本后，新建家庭成员一律为 unbound/not_applied —— 已通过上方硬校验
+    # 拒绝了 member_user_id 非空的请求，这里不再有 "建档即 bound" 的分支。
+    initial_status = "unbound"
+    initial_sub_status = "not_applied"
 
     member = FamilyMember(
         user_id=current_user.id,
@@ -352,6 +353,13 @@ async def remove_family_member(
 
     if member.is_self:
         raise HTTPException(status_code=400, detail="本人成员不可删除")
+
+    # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V4 2026-06-03] 防御性堵漏 #8：
+    # 删除前必须确认成员未处于绑定态——若 status='bound'（或老枚举 'active'）
+    # 直接拒绝，迫使调用方先走"解除守护关系"流程，避免删后留下游离 mgmt 记录。
+    cur_status = (member.status or "").strip()
+    if cur_status in ("bound", "active"):
+        raise HTTPException(status_code=400, detail="请先解除绑定关系再删除档案")
 
     # 软删除该成员的健康档案
     hp_result = await db.execute(

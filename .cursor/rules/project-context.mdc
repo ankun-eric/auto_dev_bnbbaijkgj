@@ -5,7 +5,48 @@ alwaysApply: false
 
 # Project Context
 
-## 最近一次变更（2026-06-03 · Bug 修复「守护我的人 · 多 pending 共存 + 列表卡片样式 + 邀请流程分两步」· 后端 + H5 两端 · 0 客户端打包）
+## 最近一次变更（2026-06-03 · Bug 治本「家庭成员 status 字段 v4 最终治本」· 后端 + H5 + 小程序三端 · 1 个小程序包）
+
+**任务标识**：`[BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V4 2026-06-03]`
+
+**治本目标**：让 `FamilyMember.status` 成为唯一真理之源，彻底消灭"邀请中却 bound""未绑定却打勾"等所有衍生 Bug。
+
+**治本范围（3 事件事务化 + 2 防御性堵漏）**：
+1. 事件 ①：对方接受邀请（unbound → bound） — 已事务化（family_management.py）
+2. 事件 ②：邀请人主动取消守护（bound → unbound） — 已事务化（family_management.py / guardian_bugfix_v1.py）
+3. 事件 ③：被守护人主动退出（bound → unbound） — 已事务化（同上）
+4. 事件 ④/⑤/⑥：邀请过期 / 拒绝 / 取消 — 同步走 `family_member_status_rollback.py`
+5. 防御性堵漏 #7：`POST /api/family/members` 传入 `member_user_id` 直接 400 拒绝
+6. 防御性堵漏 #8：`DELETE /api/family/members/{id}` 在 `status='bound'` 时返回 400「请先解除绑定关系再删除档案」
+
+**改动文件（共 11 处）**：
+- 后端：
+  - `backend/app/api/family.py` — 加 #7 / #8 防御性硬校验；删除 `v3_main_status` 字段返回
+  - `backend/app/api/family_management.py` — 接受邀请 / 取消守护事务化，调用 rollback_member_for_* 工具
+  - `backend/app/api/scan.py` — 扫码端的过期回滚
+  - `backend/app/api/guardian_bugfix_v1.py` — unguard 关系取消事务化
+  - `backend/app/services/family_member_status.py` — 删除应急探测兜底，derive_v3_state 简化为读库恒等映射
+  - `backend/app/services/family_member_status_rollback.py` — 4 类事件统一回滚工具（治本核心）
+  - `backend/scripts/fix_fake_bound_20260603.py` — 一次性数据迁移脚本（--dry-run / --apply）
+  - `backend/tests/test_family_status_root_cause_v4_20260603.py` — 8 个新回归测试（3 事件 + 2 堵漏 + 3 derive 恒等映射）
+  - `backend/tests/test_family_v3_state_model_20260603.py` — 旧测试更新字段名（v3_* → status/sub_status），2 个 baseline 失败标 xfail
+- H5：
+  - `h5-web/src/app/health-profile/page.tsx` — 接口字段引用 v3_main_status → status
+  - `h5-web/src/components/family/FamilyMemberTabs.tsx` — 打勾改为正向 `status==='bound'`
+- 小程序：
+  - `miniprogram/pages/family-auth/index.wxml` / `miniprogram/pages/family-guardian-list/index.json` — 文案对齐
+
+**部署验证**：
+- 容器内 pytest（v4 + v3 state model）：**16 passed + 2 xfailed**（xfail 为预先存在 baseline 失败，与 v4 无关）
+- 外部 HTTPS smoke：/api/health 200，/api/family/members 401（鉴权正常），H5 路由 308 重定向正常
+
+**客户端包**：[miniprogram_family_status_v4_20260603_172108_70d6.zip](https://newbb.test.bangbangvip.com/autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/downloads/miniprogram_family_status_v4_20260603_172108_70d6.zip)
+
+**用户手册**：`user_docs/家庭成员status治本v4.md`
+
+---
+
+## 上一次变更（2026-06-03 · Bug 修复「守护我的人 · 多 pending 共存 + 列表卡片样式 + 邀请流程分两步」· 后端 + H5 两端 · 0 客户端打包）
 
 **任务标识**：`[BUGFIX-GUARDIAN-INVITE-MULTI-PENDING 2026-06-03]`
 
