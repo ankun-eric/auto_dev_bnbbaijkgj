@@ -1,0 +1,112 @@
+# 宾尼健康 (Bini Health) 项目索引
+
+> **最后更新**: 2026-06-03  
+> **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
+> **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
+> **Git 主仓库**: Codeup (codeup.aliyun.com)  
+> **GitHub 仓库**: 仅用于 APP 打包 (github-app-pack)
+
+---
+
+## 项目概述
+
+宾尼健康是一款 AI 驱动的健康管理平台，包含 AI 问诊、健康档案、居家安全、会员体系、商城等功能模块。
+
+## 技术栈
+
+| 端 | 技术栈 | 目录 |
+|----|--------|------|
+| 后端 API | Python 3.12 + FastAPI + SQLAlchemy + MySQL | `backend/` |
+| H5 用户端 | Next.js 14 (App Router) + TypeScript | `h5-web/` |
+| 管理后台 | Next.js 14 (App Router) + TypeScript | `admin-web/` |
+| 微信小程序 | 原生小程序 + WXSS | `miniprogram/` |
+| Android/iOS | Flutter 3.32 | `flutter_app/` |
+| 数据库 | MySQL 8.0 | Docker 容器 |
+| 部署 | Docker Compose + Gateway Nginx | `docker-compose.prod.yml` |
+
+## 核心目录结构
+
+```
+bnbbaijkgj/
+├── backend/                  # Python FastAPI 后端
+│   ├── app/
+│   │   ├── main.py           # FastAPI 主入口
+│   │   ├── api/              # API 路由模块
+│   │   │   ├── family_management.py
+│   │   │   ├── family_member_v2.py
+│   │   │   ├── guardian_system_v13.py
+│   │   │   ├── scan.py
+│   │   │   └── ...
+│   │   ├── models/           # SQLAlchemy 数据模型
+│   │   ├── schemas/          # Pydantic Schema
+│   │   └── database.py       # 数据库连接配置
+│   ├── tests/                # 后端测试
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── init.sql
+├── h5-web/                   # Next.js H5 用户端
+│   ├── src/app/              # App Router 页面
+│   │   ├── (ai-chat)/ai-home/  # AI 首页
+│   │   ├── health-profile/   # 健康档案
+│   │   ├── member-center/    # 会员中心
+│   │   ├── login/            # 登录页
+│   │   └── ...
+│   ├── Dockerfile
+│   └── package.json
+├── admin-web/                # Next.js 管理后台
+│   ├── src/app/
+│   ├── Dockerfile
+│   └── package.json
+├── flutter_app/              # Flutter App (Android/iOS)
+│   ├── lib/                  # Dart 源代码
+│   ├── pubspec.yaml
+│   └── ...
+├── miniprogram/              # 微信小程序
+│   ├── pages/
+│   ├── app.json
+│   └── app.js
+├── deploy/                   # 部署脚本与工具
+│   └── deploy_msg.txt        # 部署配置参数
+├── docker-compose.prod.yml   # 生产环境 Docker Compose
+├── gateway-routes.conf       # Gateway Nginx 路由配置
+├── .github/workflows/        # GitHub Actions (APP打包)
+│   ├── android-build.yml
+│   └── ios-build.yml
+├── user_docs/                # 用户文档
+├── docs/                     # 项目文档
+├── tests/                    # 综合测试
+└── .noob-ai/index/           # 项目索引
+```
+
+## 部署架构
+
+```
+用户 HTTPS 请求
+    ↓
+gateway-nginx (独立主网关, 端口 443)
+    ├── {DEPLOY_ID}.domain.com → 项目 Docker 网络
+    │   ├── /api/    → backend:8000
+    │   ├── /admin/  → admin-web:3000
+    │   └── /        → h5-web:3001
+    └── SSL 证书: *.noob-ai.test.bangbangvip.com
+
+项目 Docker 容器:
+├── 6b099ed3-...-db        (MySQL 8.0)
+├── 6b099ed3-...-backend   (FastAPI, 8000)
+├── 6b099ed3-...-admin     (Next.js Admin, 3000)
+└── 6b099ed3-...-h5        (Next.js H5, 3001)
+```
+
+## Git 仓库
+
+| 用途 | 远程名 | 仓库地址 |
+|------|--------|----------|
+| 主仓库 | `codeup` | codeup.aliyun.com/6a05a6159b7ce0afb00c035e/... |
+| APP打包 | `github-app-pack` | github.com/ankun-eric/auto_dev_bnbbaijkgj |
+
+## Docker 镜像
+
+基础镜像从 ACR 获取: `crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_doker_base/`
+- Python: `python:3.12-slim`
+- Node.js: `node:20-alpine`
+- MySQL: `mysql:8.0`
