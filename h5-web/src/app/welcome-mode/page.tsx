@@ -28,7 +28,7 @@ export default function WelcomeModePage() {
       localStorage.setItem('ui_mode', mode);
     } catch {}
     if (mode === 'care') {
-      router.replace(`${basePath}/care-home`);
+      router.replace(`${basePath}/care-ai-home`);
     } else {
       router.replace(`${basePath}/`);
     }

@@ -9,7 +9,7 @@
 //   3. 核心入口区（5 张大字整行卡片）
 //   4. 右下角悬浮 SOS
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { saveModePreference } from '@/lib/mode-preference';
@@ -40,11 +40,9 @@ export default function CareAiHomePage() {
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
   const [medText, setMedText] = useState<string>('');
-  const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
   const [modeSwitching, setModeSwitching] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [toast, setToast] = useState<string>('');
-  const modeDropdownRef = useRef<HTMLDivElement | null>(null);
   // [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化3] 分享给好友面板开关
   const [shareOpen, setShareOpen] = useState(false);
   // [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化2] 底部「向下小箭头」是否显示（内容超一屏且未下滑时显示）
@@ -138,18 +136,6 @@ export default function CareAiHomePage() {
     navigate('/ai-home/medication-reminder');
   };
 
-  // 面板外点击收起
-  useEffect(() => {
-    if (!modeDropdownOpen) return;
-    const onDocClick = (e: MouseEvent) => {
-      if (modeDropdownRef.current && !modeDropdownRef.current.contains(e.target as Node)) {
-        setModeDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
-  }, [modeDropdownOpen]);
-
   const handleSwitchToStandard = async () => {
     if (modeSwitching) return;
     setModeSwitching(true);
@@ -159,12 +145,19 @@ export default function CareAiHomePage() {
       /* 偏好保存失败不阻断跳转 */
     }
     showToast('已切换到标准模式 ✓');
-    setModeDropdownOpen(false);
     setTimeout(() => router.push('/ai-home'), 300);
   };
 
-  // 5 张大字整行卡片
+  // 6 张大字整行卡片（数字安全绳在第 1 位）
   const cards = [
+    {
+      key: 'safety-rope',
+      icon: '🪢',
+      bg: 'linear-gradient(135deg, #66bb6a 0%, #2e7d32 100%)',
+      title: '数字安全绳',
+      desc: '每天点一下"我今天平安"，超时自动通知亲友',
+      onClick: () => navigate('/care-safety-rope'),
+    },
     {
       key: 'medication',
       icon: '💊',
@@ -439,6 +432,30 @@ export default function CareAiHomePage() {
         }}
         data-testid="care-home-welcome"
       >
+        {/* 模式切换文字链：欢迎区右上角半透明白色胶囊 */}
+        <button
+          type="button"
+          onClick={handleSwitchToStandard}
+          disabled={modeSwitching}
+          data-testid="care-home-mode-switch-link"
+          style={{
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            background: 'rgba(255,255,255,0.25)',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: 20,
+            padding: '6px 14px',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: modeSwitching ? 'default' : 'pointer',
+            whiteSpace: 'nowrap',
+            zIndex: 5,
+          }}
+        >
+          去标准版 ?
+        </button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 6 }} data-testid="care-home-greeting">
             {greeting.text} {greeting.icon}
@@ -475,139 +492,7 @@ export default function CareAiHomePage() {
           </button>
         </div>
 
-        {/* [BUGFIX-CARE-AIHOME-MODE-LOGO-ALIGN-V1 2026-06-02 §第2点 方案甲] 右侧竖排对齐：
-            「模式切换」胶囊从欢迎区右上角浮动（原 position:absolute）改为挪进右侧竖排容器，
-            摞在 LOGO 正上方，两者在同一条竖中轴线上下居中对齐（右侧竖排对齐）。
-            - 左侧文字（问候/欢迎/今日提醒）位置、样式保持不变；
-            - LOGO 大小、样式保持不变；顶部留白不切小、不做整列居中；
-            - 模式切换的点击事件 / 下拉状态随胶囊一并迁移，功能不变。 */}
-        <div
-          style={{
-            flexShrink: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 10,
-          }}
-          data-testid="care-home-mode-logo-column"
-        >
-        {/* [PRD-AIHOME-UNIFY-V1 2026-06-01 §需求3] 「模式切换」胶囊（方案1：胶囊带文字）
-            - 显示当前模式名「关怀版 ▾」，点击弹下拉：标准版（可切换）/ 关怀版（当前打勾）
-            - 与 ⊕菜单里的「切换模式」并存，两个入口同时存在 */}
-        <div
-          ref={modeDropdownRef}
-          style={{ position: 'relative', zIndex: 5 }}
-          data-testid="care-home-mode-switcher"
-        >
-          <button
-            type="button"
-            onClick={() => setModeDropdownOpen((v) => !v)}
-            disabled={modeSwitching}
-            aria-haspopup="listbox"
-            aria-expanded={modeDropdownOpen}
-            aria-label="模式切换"
-            data-testid="care-home-mode-capsule"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              background: 'rgba(255,255,255,0.22)',
-              color: '#FFFFFF',
-              border: '1px solid rgba(255,255,255,0.45)',
-              padding: '5px 10px',
-              borderRadius: 14,
-              fontSize: 13,
-              fontWeight: 600,
-              lineHeight: 1,
-              whiteSpace: 'nowrap',
-              cursor: modeSwitching ? 'default' : 'pointer',
-              minHeight: 28,
-            }}
-          >
-            <span data-testid="care-home-mode-capsule-label">关怀版</span>
-            <span
-              aria-hidden="true"
-              style={{
-                display: 'inline-block',
-                fontSize: 10,
-                lineHeight: 1,
-                transform: modeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.15s ease',
-              }}
-            >
-              ▾
-            </span>
-          </button>
-
-          {modeDropdownOpen ? (
-            <div
-              role="listbox"
-              data-testid="care-home-mode-dropdown-panel"
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 6px)',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                minWidth: 120,
-                background: '#FFFFFF',
-                borderRadius: 10,
-                boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-                border: '1px solid #E5E7EB',
-                overflow: 'hidden',
-                zIndex: 50,
-              }}
-            >
-              {/* 标准版（切换） */}
-              <div
-                role="option"
-                aria-selected={false}
-                onClick={handleSwitchToStandard}
-                data-testid="care-home-mode-option-standard"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 8,
-                  padding: '10px 14px',
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: '#374151',
-                  background: '#FFFFFF',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <span>标准版</span>
-                <span aria-hidden="true" style={{ width: 14 }} />
-              </div>
-              {/* 关怀版（当前，高亮打勾） */}
-              <div
-                role="option"
-                aria-selected={true}
-                onClick={() => setModeDropdownOpen(false)}
-                data-testid="care-home-mode-option-care"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 8,
-                  padding: '10px 14px',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: '#2E7D32',
-                  background: '#E8F5E9',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <span>关怀版</span>
-                <span aria-hidden="true">✓</span>
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        {/* 右侧：宾尼小康机器人 LOGO + 窄白边白圈（样式①）—— 位于胶囊正下方，上下对齐 */}
+        {/* 右侧：宾尼小康机器人 LOGO */}
         <div
           data-testid="care-home-robot-logo"
           style={{
@@ -631,12 +516,13 @@ export default function CareAiHomePage() {
             style={{ width: 74, height: 74, borderRadius: '50%', objectFit: 'cover' }}
           />
         </div>
-        </div>
       </div>
 
-      {/* 3. 核心入口区 —— 5 张大字整行卡片 */}
+      {/* 3. 核心入口区 —— 6 张大字整行卡片 */}
       <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }} data-testid="care-home-cards">
-        {cards.map((c) => (
+        {cards.map((c) => {
+          const isSafetyRope = c.key === 'safety-rope';
+          return (
           <button
             key={c.key}
             onClick={c.onClick}
@@ -646,13 +532,14 @@ export default function CareAiHomePage() {
               alignItems: 'center',
               gap: 16,
               width: '100%',
-              background: '#FFFFFF',
-              border: '1px solid #EEF1F4',
+              background: isSafetyRope ? 'linear-gradient(135deg, #66bb6a 0%, #2e7d32 100%)' : '#FFFFFF',
+              border: isSafetyRope ? '2px solid #fff' : '1px solid #EEF1F4',
               borderRadius: 18,
               padding: '18px 16px',
               cursor: 'pointer',
               textAlign: 'left',
-              boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
+              boxShadow: isSafetyRope ? '0 6px 18px rgba(46,125,50,0.32)' : '0 2px 10px rgba(0,0,0,0.04)',
+              color: isSafetyRope ? '#fff' : undefined,
             }}
           >
             <div
@@ -661,7 +548,7 @@ export default function CareAiHomePage() {
                 width: 56,
                 height: 56,
                 borderRadius: 16,
-                background: c.bg,
+                background: isSafetyRope ? 'rgba(255,255,255,0.2)' : c.bg,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -672,16 +559,17 @@ export default function CareAiHomePage() {
               {c.icon}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 21, fontWeight: 700, color: '#1F2937', marginBottom: 4 }}>
+              <div style={{ fontSize: 21, fontWeight: 700, color: isSafetyRope ? '#fff' : '#1F2937', marginBottom: 4 }}>
                 {c.title}
               </div>
-              <div style={{ fontSize: 14, color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 14, color: isSafetyRope ? 'rgba(255,255,255,0.9)' : '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {c.desc}
               </div>
             </div>
-            <span style={{ flexShrink: 0, fontSize: 24, color: '#C4CDD5' }} aria-hidden="true">›</span>
+            <span style={{ flexShrink: 0, fontSize: 24, color: isSafetyRope ? 'rgba(255,255,255,0.8)' : '#C4CDD5' }} aria-hidden="true">›</span>
           </button>
-        ))}
+          );
+        })}
       </div>
 
       {/* [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化3] 「分享给好友」按钮（合并原「邀请好友 / 立即分享」）
@@ -717,7 +605,40 @@ export default function CareAiHomePage() {
         </div>
       </div>
 
-      {/* 4. 右下角悬浮 SOS（红圆 + 扩散光圈，点击进入紧急呼叫流程） */}
+      {/* 4. 右下角悬浮球：绿色安全绳在上，红色 SOS 在下 */}
+      {/* 绿色安全绳悬浮球 */}
+      <button
+        type="button"
+        onClick={() => navigate('/care-safety-rope')}
+        aria-label="数字安全绳"
+        data-testid="care-home-safety-rope-fab"
+        style={{
+          position: 'fixed',
+          right: 18,
+          bottom: 106,
+          zIndex: 150,
+          width: 64,
+          height: 64,
+          borderRadius: '50%',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          background: 'linear-gradient(135deg, #66bb6a 0%, #2e7d32 100%)',
+          color: '#fff',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 13,
+          fontWeight: 700,
+          boxShadow: '0 0 0 8px rgba(46,125,50,.18), 0 4px 16px rgba(46,125,50,.4)',
+          lineHeight: 1.1,
+        }}
+      >
+        <span style={{ fontSize: 22 }}>🪢</span>
+        <span style={{ fontSize: 10, marginTop: 2 }}>安全绳</span>
+      </button>
+      {/* SOS 悬浮球（红圆 + 扩散光圈，点击进入紧急呼叫流程） */}
       <button
         type="button"
         onClick={() => navigate('/care-ai-home/sos')}
