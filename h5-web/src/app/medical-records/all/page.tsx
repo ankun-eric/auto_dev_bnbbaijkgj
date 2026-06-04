@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import GreenNavBar from '@/components/GreenNavBar';
 import { BH_TOKENS } from '@/lib/health-tokens';
+import { formatRecordTime } from '@/lib/datetime';
 
 const TABS = [
   { key: 'case_note', label: '病例单' },
@@ -130,7 +131,7 @@ function MedicalRecordsAllInner() {
                         </div>
                       )}
                       {item.created_at && (
-                        <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>{item.created_at}</div>
+                        <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>{formatRecordTime(item.created_at)}</div>
                       )}
                     </div>
                     <span style={{ fontSize: 16, color: '#9CA3AF', marginLeft: 8 }}>›</span>

@@ -139,3 +139,24 @@ export function formatFriendlyTime(iso?: string | number | Date | null): string 
   if (target.year === now.year) return `${pad2(target.month)}-${pad2(target.day)}`;
   return `${target.year}-${pad2(target.month)}-${pad2(target.day)}`;
 }
+
+/**
+ * [BUG_FIX_MEDICAL_RECORDS_TIME_FORMAT_20260605] 就医资料记录列表时间格式化
+ * - 今天的记录：今日 HH:mm
+ * - 非今天的记录：YYYY-MM-DD HH:mm
+ * 与设备本地时区无关，统一使用北京时间。
+ */
+export function formatRecordTime(iso?: string | number | Date | null): string {
+  const d = parseServerTime(iso);
+  if (!d) return '';
+  const now = nowBjParts();
+  const target = toBjParts(d);
+  const targetStartUtc = bjStartOfDayUtcMs(target);
+  const todayStartUtc = bjStartOfDayUtcMs(now);
+  const diffDays = Math.floor((todayStartUtc - targetStartUtc) / 86400000);
+
+  if (diffDays === 0) {
+    return `今日 ${pad2(target.hour)}:${pad2(target.minute)}`;
+  }
+  return formatDateTime(iso, 'YYYY-MM-DD HH:mm');
+}

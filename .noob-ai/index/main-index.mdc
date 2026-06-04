@@ -1,6 +1,6 @@
 # 宾尼健康 (Bini Health) 项目索引
 
-> **最后更新**: 2026-06-05 02:35 (改版：care-ai-home 页面优化 - 废弃care-home页面，整合数字安全绳到卡片第1位，悬浮球改为竖排，模式切换改为文字链，后端清理care-home独占接口)  
+> **最后更新**: 2026-06-05 03:21 (Bug修复：就医资料时间格式修复 - 体检报告/病例单/药物/其他四个tab及健康档案首页抽屉，时间从ISO 8601格式改为友好格式：今日显示"今日 HH:mm"，历史记录显示"YYYY-MM-DD HH:mm"，新增formatRecordTime函数)  
 > **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
 > **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
 > **Git 主仓库**: Codeup (codeup.aliyun.com)  

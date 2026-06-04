@@ -21,7 +21,7 @@ import MemberBadge from '@/components/family/MemberBadge';
 import { formatGender } from '@/utils/format';
 import { BH_TOKENS } from '@/lib/health-tokens';
 import { RELATION_DEFS } from '@/lib/family-relation';
-import { parseServerTime } from '@/lib/datetime';
+import { parseServerTime, formatRecordTime } from '@/lib/datetime';
 // [PRD-BP-CARD-OPTIMIZE-V1 2026-05-30] 血压档位判定 + 时间·来源格式化（与详情页保持一致）
 import { judgeBp, getBpPalette } from '@/lib/bp-level';
 import { judgeBg as judgeBgLocal } from '@/lib/bg-level';
@@ -1778,7 +1778,7 @@ function HealthProfileV2PageInner() {
                         {item.title || item.name || '未命名'}
                       </div>
                       {item.created_at && (
-                        <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>{item.created_at}</div>
+                        <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>{formatRecordTime(item.created_at)}</div>
                       )}
                     </div>
                     <span style={{ fontSize: 14, color: '#9CA3AF', marginLeft: 8 }}>›</span>
