@@ -1,0 +1,1778 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>益智乐园</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { height:100%; font-family:"PingFang SC","Microsoft YaHei",sans-serif; }
+body {
+  background: linear-gradient(180deg, #e3f2fd 0%, #bbdefb 50%, #90caf9 100%);
+  min-height:100vh; color:#0d47a1;
+  padding: 18px 14px 30px;
+  overflow-x:hidden;
+}
+.container { max-width:720px; margin:0 auto; }
+
+/* ========== 页面切换 ========== */
+.page { display:none; animation: fadeIn 0.3s ease; }
+.page.active { display:block; }
+@keyframes fadeIn { from {opacity:0; transform:translateY(8px);} to {opacity:1; transform:none;} }
+
+/* ========== 导航栏 ========== */
+.nav-bar {
+  display:flex; align-items:center; gap:12px;
+  background:rgba(255,255,255,0.7);
+  backdrop-filter:blur(8px);
+  border-radius:18px;
+  padding:14px 18px;
+  margin-bottom:18px;
+  box-shadow:0 4px 12px rgba(33,150,243,0.08);
+}
+.back-btn {
+  width:40px; height:40px; border-radius:12px;
+  background:rgba(2,136,209,0.1);
+  display:flex; align-items:center; justify-content:center;
+  color:#0288d1; font-size:24px; font-weight:bold;
+  cursor:pointer;
+
+</html>}
+.nav-title { font-size:22px; font-weight:bold; color:#0d47a1; flex:1; }
+.nav-right { font-size:13px; }
+
+/* ========== 首页 - 用户栏 ========== */
+.top-bar {
+  display:flex; align-items:center; justify-content:space-between;
+  background:rgba(255,255,255,0.7);
+  backdrop-filter:blur(8px);
+  border-radius:18px;
+  padding:14px 18px;
+  margin-bottom:22px;
+  box-shadow:0 4px 12px rgba(33,150,243,0.08);
+}
+.user-info { display:flex; align-items:center; gap:12px; }
+.avatar {
+  width:52px; height:52px; border-radius:50%;
+  background:linear-gradient(135deg,#4fc3f7,#0288d1);
+  color:white; font-size:22px; font-weight:bold;
+  display:flex; align-items:center; justify-content:center;
+}
+.user-name { font-size:20px; font-weight:bold; color:#0d47a1; }
+.user-loc { font-size:14px; color:#5c7ea3; margin-top:2px; }
+.change-loc {
+  font-size:14px; color:#0288d1;
+  background:rgba(2,136,209,0.1);
+  padding:6px 12px; border-radius:12px;
+  border:1px solid rgba(2,136,209,0.2);
+  cursor:pointer;
+}
+
+/* ========== 首页 - 标题 ========== */
+.page-title { text-align:center; margin:30px 0 28px; }
+.page-title h1 {
+  font-size:38px; color:#0d47a1; margin-bottom:8px;
+  text-shadow:0 2px 4px rgba(255,255,255,0.8);
+}
+.page-title p { font-size:17px; color:#1565c0; }
+
+/* ========== 首页 - 功能卡片 ========== */
+.menu-grid { display:flex; flex-direction:column; gap:22px; }
+.menu-card {
+  background:rgba(255,255,255,0.85);
+  border-radius:28px;
+  padding:32px 28px;
+  box-shadow:0 8px 24px rgba(33,150,243,0.18);
+  border:2px solid rgba(255,255,255,0.6);
+  cursor:pointer;
+  transition:all 0.2s;
+  position:relative;
+  overflow:hidden;
+}
+.menu-card:active { transform:scale(0.98); box-shadow:0 4px 12px rgba(33,150,243,0.12); }
+.menu-card::before {
+  content:"";
+  position:absolute;
+  top:-40px; right:-40px;
+  width:140px; height:140px;
+  border-radius:50%;
+  opacity:0.15;
+}
+.card-math::before { background:linear-gradient(135deg,#ffb74d,#ff9800); }
+.card-rank::before { background:linear-gradient(135deg,#4fc3f7,#0288d1); }
+.card-team::before { background:linear-gradient(135deg,#81c784,#43a047); }
+
+.card-icon {
+  width:80px; height:80px;
+  border-radius:22px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:46px;
+  margin-bottom:18px;
+}
+.card-math .card-icon { background:linear-gradient(135deg,#fff3e0,#ffe0b2); }
+.card-rank .card-icon { background:linear-gradient(135deg,#e1f5fe,#b3e5fc); }
+.card-team .card-icon { background:linear-gradient(135deg,#e8f5e9,#c8e6c9); }
+.card-title { font-size:32px; font-weight:bold; color:#0d47a1; margin-bottom:12px; }
+.card-subs {
+  display:flex; align-items:center; flex-wrap:wrap; gap:4px;
+  font-size:20px; color:#1976d2;
+}
+.sub-item { font-weight:500; }
+.dot { color:#90caf9; margin:0 8px; font-size:22px; }
+.card-desc { margin-top:14px; font-size:16px; color:#5c7ea3; line-height:1.5; }
+.footer { text-align:center; margin-top:30px; font-size:14px; color:#5c7ea3; }
+
+/* ========== 浮动分享按钮 ========== */
+.float-share {
+  position:fixed;
+  right:20px; bottom:30px;
+  width:60px; height:60px;
+  border-radius:50%;
+  background:linear-gradient(135deg,#66bb6a,#43a047);
+  color:white;
+  display:flex; align-items:center; justify-content:center;
+  font-size:30px;
+  box-shadow:0 6px 18px rgba(102,187,106,0.4);
+  cursor:pointer;
+  z-index:10;
+}
+.float-share:active { transform:scale(0.92); }
+
+/* ========== 数学游戏 - 难度选择 ========== */
+.difficulty-title { text-align:center; margin:20px 0 26px; }
+.difficulty-title h1 { font-size:32px; color:#0d47a1; margin-bottom:8px; }
+.difficulty-title p { font-size:16px; color:#1565c0; }
+.difficulty-grid { display:flex; flex-direction:column; gap:18px; }
+.diff-card {
+  background:rgba(255,255,255,0.88);
+  border-radius:24px;
+  padding:24px 22px;
+  box-shadow:0 6px 18px rgba(33,150,243,0.15);
+  border:2px solid rgba(255,255,255,0.6);
+  cursor:pointer; transition:all 0.2s;
+  display:flex; align-items:center; gap:18px;
+}
+.diff-card:active { transform:scale(0.98); }
+.diff-icon {
+  width:64px; height:64px; flex-shrink:0;
+  border-radius:18px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:34px;
+}
+.diff-basic .diff-icon { background:linear-gradient(135deg,#c8e6c9,#a5d6a7); }
+.diff-mid .diff-icon { background:linear-gradient(135deg,#ffe0b2,#ffcc80); }
+.diff-hard .diff-icon { background:linear-gradient(135deg,#ffcdd2,#ef9a9a); }
+.diff-info { flex:1; }
+.diff-name { font-size:26px; font-weight:bold; color:#0d47a1; margin-bottom:4px; }
+.diff-rule { font-size:15px; color:#5c7ea3; line-height:1.5; }
+.diff-time {
+  background:rgba(2,136,209,0.1);
+  color:#0288d1;
+  padding:6px 12px; border-radius:12px;
+  font-size:15px; font-weight:bold;
+  margin-top:6px; display:inline-block;
+}
+
+/* ========== 数学游戏 - 答题 ========== */
+.game-header {
+  background:rgba(255,255,255,0.88);
+  border-radius:20px;
+  padding:18px;
+  margin-bottom:20px;
+  box-shadow:0 4px 12px rgba(33,150,243,0.1);
+}
+.game-stat {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:14px;
+}
+.stat-item { text-align:center; flex:1; }
+.stat-label { font-size:13px; color:#5c7ea3; margin-bottom:4px; }
+.stat-value { font-size:24px; font-weight:bold; color:#0d47a1; }
+.stat-time { color:#e53935; }
+.progress-bar {
+  height:10px; background:#e3f2fd;
+  border-radius:5px; overflow:hidden;
+}
+.progress-fill {
+  height:100%;
+  background:linear-gradient(90deg,#4fc3f7,#0288d1);
+  transition:width 0.3s;
+}
+.question-box {
+  background:rgba(255,255,255,0.95);
+  border-radius:24px;
+  padding:40px 24px;
+  margin-bottom:22px;
+  text-align:center;
+  box-shadow:0 8px 20px rgba(33,150,243,0.12);
+}
+.question-num { font-size:18px; color:#5c7ea3; margin-bottom:18px; }
+.question-text {
+  font-size:48px; font-weight:bold;
+  color:#0d47a1;
+  letter-spacing:2px;
+}
+.answer-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.answer-btn {
+  background:white;
+  border:3px solid #bbdefb;
+  border-radius:20px;
+  padding:24px 12px;
+  font-size:28px;
+  font-weight:bold;
+  color:#0d47a1;
+  cursor:pointer;
+  transition:all 0.15s;
+}
+.answer-btn:active { background:#e3f2fd; transform:scale(0.96); }
+.answer-btn.correct { background:#c8e6c9; border-color:#66bb6a; color:#2e7d32; }
+.answer-btn.wrong { background:#ffcdd2; border-color:#ef5350; color:#c62828; }
+
+/* ========== 数学游戏 - 结果 ========== */
+.result-card {
+  background:rgba(255,255,255,0.92);
+  border-radius:28px;
+  padding:36px 28px;
+  text-align:center;
+  box-shadow:0 8px 24px rgba(33,150,243,0.15);
+  margin-top:20px;
+}
+.result-emoji { font-size:80px; margin-bottom:14px; }
+.result-title { font-size:30px; font-weight:bold; color:#0d47a1; margin-bottom:6px; }
+.result-sub { font-size:16px; color:#5c7ea3; margin-bottom:28px; }
+.score-big {
+  font-size:80px; font-weight:bold;
+  background:linear-gradient(135deg,#0288d1,#4fc3f7);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  line-height:1;
+  margin-bottom:8px;
+}
+.score-label { font-size:16px; color:#5c7ea3; margin-bottom:24px; }
+.result-detail {
+  display:flex; justify-content:space-around;
+  padding:18px 0;
+  border-top:1px dashed #bbdefb;
+  border-bottom:1px dashed #bbdefb;
+  margin-bottom:24px;
+}
+.detail-item { text-align:center; }
+.detail-num { font-size:24px; font-weight:bold; color:#0d47a1; }
+.detail-label { font-size:13px; color:#5c7ea3; margin-top:4px; }
+.detail-rank { font-size:18px; font-weight:bold; color:#0288d1; }
+
+.btn-row { display:flex; flex-direction:column; gap:12px; }
+.big-btn {
+  border:none;
+  border-radius:18px;
+  padding:18px;
+  font-size:20px; font-weight:bold;
+  cursor:pointer;
+  transition:all 0.2s;
+}
+.big-btn:active { transform:scale(0.97); }
+.btn-primary {
+  background:linear-gradient(135deg,#0288d1,#4fc3f7);
+  color:white;
+  box-shadow:0 4px 12px rgba(2,136,209,0.3);
+}
+.btn-share-btn {
+  background:linear-gradient(135deg,#66bb6a,#43a047);
+  color:white;
+  box-shadow:0 4px 12px rgba(102,187,106,0.3);
+}
+.btn-second {
+  background:white;
+  color:#0288d1;
+  border:2px solid #bbdefb;
+}
+
+/* ========== 排行榜 ========== */
+.loc-card {
+  background:rgba(255,255,255,0.88);
+  border-radius:20px;
+  padding:16px 18px;
+  margin-bottom:18px;
+  display:flex; align-items:center; justify-content:space-between;
+  box-shadow:0 4px 12px rgba(33,150,243,0.1);
+}
+.loc-info { flex:1; }
+.loc-label { font-size:13px; color:#5c7ea3; margin-bottom:4px; }
+.loc-path { font-size:17px; font-weight:bold; color:#0d47a1; }
+.loc-path .empty { color:#9e9e9e; font-weight:normal; }
+.loc-btn {
+  background:linear-gradient(135deg,#0288d1,#4fc3f7);
+  color:white;
+  padding:10px 16px;
+  border-radius:14px;
+  font-size:15px; font-weight:bold;
+  cursor:pointer;
+  border:none;
+}
+.loc-btn:active { transform:scale(0.97); }
+
+.myrank-grid {
+  display:grid; grid-template-columns:1fr 1fr 1fr;
+  gap:10px; margin-bottom:20px;
+}
+.mr-card {
+  background:rgba(255,255,255,0.88);
+  border-radius:18px;
+  padding:16px 8px;
+  text-align:center;
+  box-shadow:0 4px 12px rgba(33,150,243,0.1);
+}
+.mr-label { font-size:13px; color:#5c7ea3; margin-bottom:8px; }
+.mr-num {
+  font-size:32px; font-weight:bold;
+  background:linear-gradient(135deg,#0288d1,#4fc3f7);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  line-height:1;
+}
+.mr-num.empty { background:none; -webkit-text-fill-color:#bbb; font-size:24px; }
+.mr-unit { font-size:13px; color:#5c7ea3; margin-top:4px; }
+
+.tabs {
+  display:flex;
+  background:rgba(255,255,255,0.88);
+  border-radius:16px;
+  padding:6px;
+  margin-bottom:16px;
+  box-shadow:0 4px 12px rgba(33,150,243,0.08);
+}
+.tab {
+  flex:1;
+  text-align:center;
+  padding:12px;
+  border-radius:12px;
+  font-size:16px; font-weight:bold;
+  color:#5c7ea3;
+  cursor:pointer;
+  transition:all 0.2s;
+}
+.tab.active {
+  background:linear-gradient(135deg,#0288d1,#4fc3f7);
+  color:white;
+  box-shadow:0 3px 8px rgba(2,136,209,0.25);
+}
+.rank-list {
+  background:rgba(255,255,255,0.92);
+  border-radius:20px;
+  padding:8px 0;
+  box-shadow:0 4px 14px rgba(33,150,243,0.1);
+  overflow:hidden;
+}
+.rank-row {
+  display:flex; align-items:center;
+  padding:14px 16px;
+  border-bottom:1px solid #f0f4f8;
+  gap:12px;
+}
+.rank-row:last-child { border-bottom:none; }
+.rank-row.me {
+  background:linear-gradient(90deg, rgba(2,136,209,0.08), rgba(79,195,247,0.05));
+  border-left:4px solid #0288d1;
+}
+.rk-no {
+  width:38px; flex-shrink:0;
+  font-size:18px; font-weight:bold;
+  color:#5c7ea3;
+  text-align:center;
+}
+.rk-no.top1 { color:#FFD700; font-size:24px; }
+.rk-no.top2 { color:#C0C0C0; font-size:22px; }
+.rk-no.top3 { color:#CD7F32; font-size:22px; }
+.rk-avatar {
+  width:42px; height:42px; border-radius:50%;
+  background:linear-gradient(135deg,#4fc3f7,#0288d1);
+  color:white; font-weight:bold;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.rk-name { flex:1; font-size:16px; color:#0d47a1; font-weight:500; }
+.me-tag {
+  background:#0288d1; color:white;
+  padding:2px 8px; border-radius:8px;
+  font-size:12px; margin-left:6px;
+}
+.rk-score { font-size:18px; font-weight:bold; color:#0288d1; }
+
+.empty-tip { text-align:center; padding:40px 20px; color:#5c7ea3; }
+.empty-tip .emoji { font-size:50px; margin-bottom:14px; }
+.empty-tip p { font-size:16px; line-height:1.6; }
+.load-more { text-align:center; padding:14px; color:#0288d1; font-size:15px; cursor:pointer; }
+.live-tag {
+  display:inline-block;
+  background:#e8f5e9;
+  color:#43a047;
+  padding:3px 10px;
+  border-radius:10px;
+  font-size:12px;
+  margin-left:8px;
+}
+.live-dot {
+  display:inline-block;
+  width:6px; height:6px; border-radius:50%;
+  background:#43a047;
+  margin-right:4px;
+  animation:blink 1.5s infinite;
+}
+@keyframes blink { 0%,100% {opacity:1;} 50% {opacity:0.3;} }
+
+/* ========== 地区选择器弹窗 ========== */
+.picker-mask {
+  position:fixed; inset:0;
+  background:rgba(0,0,0,0.55);
+  display:none;
+  align-items:flex-end;
+  justify-content:center;
+  z-index:200;
+}
+.picker-mask.show { display:flex; animation:fadeIn 0.2s; }
+.picker-panel {
+  background:white;
+  width:100%;
+  max-width:760px;
+  border-radius:24px 24px 0 0;
+  overflow:hidden;
+  animation:slideUp 0.3s;
+}
+@keyframes slideUp { from {transform:translateY(100%);} to {transform:none;} }
+.picker-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 18px;
+  border-bottom:1px solid #eee;
+  background:linear-gradient(135deg,#e3f2fd,#bbdefb);
+}
+.picker-head h3 { font-size:18px; color:#0d47a1; }
+.picker-cancel, .picker-confirm {
+  font-size:16px; padding:6px 12px;
+  cursor:pointer;
+  border-radius:8px;
+}
+.picker-cancel { color:#666; }
+.picker-confirm { color:#0288d1; font-weight:bold; }
+.picker-path {
+  padding:12px 18px;
+  background:#f5fafd;
+  font-size:14px;
+  color:#0d47a1;
+  border-bottom:1px solid #eee;
+  min-height:42px;
+  display:flex; align-items:center;
+  gap:6px;
+  flex-wrap:wrap;
+}
+.pp-item {
+  background:#e1f5fe;
+  color:#0277bd;
+  padding:3px 10px;
+  border-radius:10px;
+  font-size:13px;
+}
+.pp-arrow { color:#90caf9; }
+.pp-empty { color:#9e9e9e; font-size:13px; }
+
+.picker-cols {
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr 1fr;
+  height:340px;
+  border-bottom:1px solid #eee;
+}
+.picker-col {
+  border-right:1px solid #eee;
+  overflow-y:auto;
+  background:white;
+}
+.picker-col:last-child { border-right:none; }
+.picker-col-head {
+  position:sticky; top:0;
+  background:#f5fafd;
+  padding:8px;
+  font-size:12px;
+  color:#5c7ea3;
+  text-align:center;
+  font-weight:bold;
+  border-bottom:1px solid #eee;
+  z-index:1;
+}
+.picker-item {
+  padding:12px 8px;
+  font-size:14px;
+  color:#333;
+  text-align:center;
+  cursor:pointer;
+  border-bottom:1px solid #f5f5f5;
+  line-height:1.3;
+}
+.picker-item:active { background:#e3f2fd; }
+.picker-item.selected {
+  background:linear-gradient(135deg,#0288d1,#4fc3f7);
+  color:white;
+  font-weight:bold;
+}
+.picker-item.disabled { color:#bbb; cursor:default; }
+.col-empty { padding:24px 8px; text-align:center; color:#bbb; font-size:13px; }
+.picker-foot { padding:14px 18px; display:flex; gap:12px; }
+.pf-btn {
+  flex:1;
+  padding:12px;
+  border-radius:14px;
+  font-size:16px;
+  font-weight:bold;
+  border:none;
+  cursor:pointer;
+}
+.pf-skip { background:#f5f5f5; color:#666; }
+.pf-ok {
+  background:linear-gradient(135deg,#0288d1,#4fc3f7);
+  color:white;
+}
+.pf-ok:disabled { opacity:0.5; }
+
+/* ========== 组队挑战 ========== */
+.team-card {
+  background:rgba(255,255,255,0.88);
+  border-radius:24px;
+  padding:24px 20px;
+  box-shadow:0 6px 18px rgba(33,150,243,0.12);
+  border:2px solid rgba(255,255,255,0.6);
+  margin-bottom:20px;
+}
+.team-card h3 {
+  font-size:22px; color:#0d47a1; margin-bottom:16px;
+  text-align:center;
+}
+.team-form-row {
+  display:flex; align-items:center; gap:12px;
+  margin-bottom:14px;
+}
+.team-form-row label {
+  font-size:16px; color:#0d47a1; font-weight:bold;
+  min-width:70px;
+}
+.team-select {
+  flex:1;
+  padding:10px 14px;
+  border:2px solid #bbdefb;
+  border-radius:14px;
+  font-size:16px;
+  color:#0d47a1;
+  background:white;
+  -webkit-appearance:none;
+  appearance:none;
+}
+.challenge-list { margin-bottom:20px; }
+.challenge-item {
+  background:rgba(255,255,255,0.88);
+  border-radius:18px;
+  padding:16px 18px;
+  margin-bottom:12px;
+  box-shadow:0 3px 10px rgba(33,150,243,0.08);
+  display:flex; align-items:center; justify-content:space-between;
+  cursor:pointer;
+}
+.challenge-info { flex:1; }
+.challenge-code {
+  font-size:14px; color:#0288d1;
+  background:rgba(2,136,209,0.08);
+  padding:2px 10px; border-radius:8px;
+  display:inline-block; margin-bottom:6px;
+}
+.challenge-desc { font-size:15px; color:#0d47a1; }
+.challenge-meta { font-size:13px; color:#5c7ea3; margin-top:4px; }
+.challenge-status {
+  font-size:14px; font-weight:bold;
+  padding:6px 12px; border-radius:10px;
+}
+.challenge-status.active-c { background:#e8f5e9; color:#43a047; }
+.challenge-status.done { background:#f5f5f5; color:#9e9e9e; }
+.section-title {
+  font-size:20px; font-weight:bold; color:#0d47a1;
+  margin-bottom:14px; padding-left:4px;
+}
+
+/* ========== 组队结果 ========== */
+.team-result-card {
+  background:rgba(255,255,255,0.92);
+  border-radius:24px;
+  padding:24px 20px;
+  box-shadow:0 6px 18px rgba(33,150,243,0.12);
+  margin-bottom:20px;
+  text-align:center;
+}
+.team-result-card .rank-row { border-bottom:1px solid #f0f4f8; padding:10px 8px; }
+
+/* ========== 分享弹窗 ========== */
+.modal-mask {
+  position:fixed; inset:0;
+  background:rgba(0,0,0,0.5);
+  display:none; align-items:center; justify-content:center;
+  z-index:300;
+}
+.modal-mask.show { display:flex; }
+.modal {
+  background:white;
+  border-radius:24px;
+  padding:28px 22px;
+  width:88%; max-width:380px;
+  text-align:center;
+}
+.modal h3 { font-size:22px; color:#0d47a1; margin-bottom:18px; }
+.share-options { display:flex; gap:16px; justify-content:center; margin-bottom:20px; }
+.share-opt {
+  flex:1;
+  padding:18px 8px;
+  background:#e8f5e9;
+  border-radius:16px;
+  cursor:pointer;
+}
+.share-opt:active { background:#c8e6c9; }
+.share-opt .si { font-size:36px; margin-bottom:6px; }
+.share-opt .sl { font-size:14px; color:#2e7d32; }
+.modal-close {
+  background:#f5f5f5;
+  padding:14px;
+  border-radius:14px;
+  color:#666;
+  font-size:16px;
+  cursor:pointer;
+}
+
+/* ========== 响应式 ========== */
+@media (max-width:480px) {
+  .picker-item { font-size:13px; padding:10px 4px; }
+  .picker-col-head { font-size:11px; }
+  .card-title { font-size:26px; }
+  .card-subs { font-size:17px; }
+  .page-title h1 { font-size:30px; }
+  .question-text { font-size:36px; }
+  .answer-btn { font-size:24px; padding:20px 8px; }
+}
+@media (max-width:380px) {
+  .card-title { font-size:24px; }
+  .page-title h1 { font-size:28px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ==================== 首页 ==================== -->
+<div class="page active" id="page-home">
+  <div class="top-bar">
+    <div class="user-info">
+      <div class="avatar" id="homeAvatar">王</div>
+      <div>
+        <div class="user-name" id="homeName">王奶奶</div>
+        <div class="user-loc" id="homeLoc">📍 广州市天河区石牌街道</div>
+      </div>
+    </div>
+    <div class="change-loc" onclick="showPage('page-ranking')">切换</div>
+  </div>
+  <div class="page-title">
+    <h1>益智乐园</h1>
+    <p>动动脑，更年轻</p>
+  </div>
+  <div class="menu-grid">
+    <div class="menu-card card-math" onclick="showPage('page-math-difficulty')">
+      <div class="card-icon">🧮</div>
+      <div class="card-title">数学游戏</div>
+      <div class="card-subs">
+        <span class="sub-item">基础</span><span class="dot">·</span>
+        <span class="sub-item">进阶</span><span class="dot">·</span>
+        <span class="sub-item">挑战</span>
+      </div>
+      <div class="card-desc">每天动动脑，越玩越聪明</div>
+    </div>
+    <div class="menu-card card-rank" onclick="showPage('page-ranking')">
+      <div class="card-icon">🏆</div>
+      <div class="card-title">排行榜</div>
+      <div class="card-subs">
+        <span class="sub-item">街道</span><span class="dot">·</span>
+        <span class="sub-item">区域</span><span class="dot">·</span>
+        <span class="sub-item">城市</span>
+      </div>
+      <div class="card-desc">看看您在街坊邻居中排第几</div>
+    </div>
+    <div class="menu-card card-team" onclick="showPage('page-team')">
+      <div class="card-icon">👥</div>
+      <div class="card-title">组队挑战</div>
+      <div class="card-subs">
+        <span class="sub-item">组队</span><span class="dot">·</span>
+        <span class="sub-item">PK</span><span class="dot">·</span>
+        <span class="sub-item">排行</span>
+      </div>
+      <div class="card-desc">邀请好友一起答题，比比谁的队伍更强</div>
+    </div>
+  </div>
+  <div class="footer">益智乐园 · 让晚年更精彩</div>
+</div>
+
+<!-- ==================== 数学游戏 - 难度选择 ==================== -->
+<div class="page" id="page-math-difficulty">
+  <div class="nav-bar">
+    <div class="back-btn" onclick="showPage('page-home')">‹</div>
+    <div class="nav-title">数学游戏</div>
+  </div>
+  <div class="difficulty-title">
+    <h1>选择难度</h1>
+    <p>循序渐进，越玩越聪明</p>
+  </div>
+  <div class="difficulty-grid">
+    <div class="diff-card diff-basic" onclick="startGame('basic')">
+      <div class="diff-icon">🌱</div>
+      <div class="diff-info">
+        <div class="diff-name">基础训练</div>
+        <div class="diff-rule">1～9以内 加减法（3个1位数）</div>
+        <div class="diff-time">⏱ 3分钟 · 10道题</div>
+      </div>
+    </div>
+    <div class="diff-card diff-mid" onclick="startGame('mid')">
+      <div class="diff-icon">🌳</div>
+      <div class="diff-info">
+        <div class="diff-name">进阶训练</div>
+        <div class="diff-rule">1～9以内 加减乘（3个1位数）</div>
+        <div class="diff-time">⏱ 5分钟 · 10道题</div>
+      </div>
+    </div>
+    <div class="diff-card diff-hard" onclick="startGame('hard')">
+      <div class="diff-icon">🔥</div>
+      <div class="diff-info">
+        <div class="diff-name">挑战训练</div>
+        <div class="diff-rule">10～99以内 加减法（3个两位数）</div>
+        <div class="diff-time">⏱ 10分钟 · 10道题</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 数学游戏 - 答题 ==================== -->
+<div class="page" id="page-math-game">
+  <div class="nav-bar">
+    <div class="back-btn" onclick="quitGame()">‹</div>
+    <div class="nav-title" id="navGameTitle">基础训练</div>
+  </div>
+  <div class="game-header">
+    <div class="game-stat">
+      <div class="stat-item">
+        <div class="stat-label">进度</div>
+        <div class="stat-value"><span id="cur">1</span>/10</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">得分</div>
+        <div class="stat-value" id="score">0</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">剩余时间</div>
+        <div class="stat-value stat-time" id="timer">03:00</div>
+      </div>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progress" style="width:10%"></div>
+    </div>
+  </div>
+  <div class="question-box">
+    <div class="question-num">第 <span id="qNum">1</span> 题</div>
+    <div class="question-text" id="qText">3 + 5 - 2 = ?</div>
+  </div>
+  <div class="answer-grid" id="answerGrid">
+  </div>
+</div>
+
+<!-- ==================== 数学游戏 - 结果 ==================== -->
+<div class="page" id="page-math-result">
+  <div class="nav-bar">
+    <div class="back-btn" onclick="showPage('page-math-difficulty')">‹</div>
+    <div class="nav-title">答题结果</div>
+  </div>
+  <div class="result-card">
+    <div class="result-emoji" id="resEmoji">🎉</div>
+    <div class="result-title" id="resTitle">真棒！</div>
+    <div class="result-sub" id="resSub">您完成了基础训练</div>
+    <div class="score-big" id="resScore">80</div>
+    <div class="score-label">本次得分</div>
+    <div class="result-detail">
+      <div class="detail-item">
+        <div class="detail-num" id="resRight">8</div>
+        <div class="detail-label">答对题数</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-num" id="resTime">2:14</div>
+        <div class="detail-label">用时</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-rank" id="resRank">第 5 名</div>
+        <div class="detail-label">街道排名</div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="big-btn btn-share-btn" onclick="showShare()">📨 邀请好友来挑战</button>
+      <button class="big-btn btn-primary" onclick="resetGame()">再玩一次</button>
+      <button class="big-btn btn-second" onclick="showPage('page-ranking')">查看排行榜</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 排行榜 ==================== -->
+<div class="page" id="page-ranking">
+  <div class="nav-bar">
+    <div class="back-btn" onclick="showPage('page-home')">‹</div>
+    <div class="nav-title">排行榜</div>
+    <span class="live-tag"><span class="live-dot"></span>实时</span>
+  </div>
+  <div class="loc-card">
+    <div class="loc-info">
+      <div class="loc-label">我的居住地</div>
+      <div class="loc-path" id="locPath">
+        <span class="empty">尚未选择，点击右侧设置</span>
+      </div>
+    </div>
+    <button class="loc-btn" onclick="openPicker()">选择街道</button>
+  </div>
+  <div class="myrank-grid">
+    <div class="mr-card">
+      <div class="mr-label">街道排名</div>
+      <div class="mr-num" id="rankStreet">—</div>
+      <div class="mr-unit">/120 人</div>
+    </div>
+    <div class="mr-card">
+      <div class="mr-label">区域排名</div>
+      <div class="mr-num" id="rankDistrict">—</div>
+      <div class="mr-unit">/1580 人</div>
+    </div>
+    <div class="mr-card">
+      <div class="mr-label">城市排名</div>
+      <div class="mr-num" id="rankCity">—</div>
+      <div class="mr-unit">/12.4万人</div>
+    </div>
+  </div>
+  <div class="tabs">
+    <div class="tab active" data-tab="street" onclick="switchRankTab('street')">街道榜</div>
+    <div class="tab" data-tab="district" onclick="switchRankTab('district')">区榜</div>
+    <div class="tab" data-tab="city" onclick="switchRankTab('city')">市榜</div>
+  </div>
+  <div class="rank-list" id="rankList"></div>
+  <div class="load-more" onclick="loadMore()">加载更多 ›</div>
+</div>
+
+<!-- ==================== 组队挑战 ==================== -->
+<div class="page" id="page-team">
+  <div class="nav-bar">
+    <div class="back-btn" onclick="showPage('page-home')">‹</div>
+    <div class="nav-title">组队挑战</div>
+  </div>
+
+  <!-- 发起挑战 -->
+  <div class="team-card" id="teamCreateCard">
+    <h3>🚩 发起组队挑战</h3>
+    <div class="team-form-row">
+      <label>难度</label>
+      <select class="team-select" id="teamDiff">
+        <option value="basic">基础训练（3分钟）</option>
+        <option value="mid">进阶训练（5分钟）</option>
+        <option value="hard">挑战训练（10分钟）</option>
+      </select>
+    </div>
+    <div class="team-form-row">
+      <label>队伍人数</label>
+      <select class="team-select" id="teamSize">
+        <option value="2">2 人</option>
+        <option value="3">3 人</option>
+        <option value="4" selected>4 人</option>
+        <option value="5">5 人</option>
+      </select>
+    </div>
+    <button class="big-btn btn-primary" style="width:100%;" onclick="createChallenge()">发起挑战</button>
+    <button class="big-btn btn-second" style="width:100%;margin-top:10px;" onclick="joinChallenge()">🔗 加入已有挑战</button>
+  </div>
+
+  <!-- 进行中挑战 -->
+  <div class="section-title">📋 进行中的挑战</div>
+  <div class="challenge-list" id="activeChallenges">
+    <div class="empty-tip">
+      <div class="emoji">📭</div>
+      <p>暂无进行中的挑战<br>快发起一个吧！</p>
+    </div>
+  </div>
+
+  <!-- 历史记录 -->
+  <div class="section-title">📜 挑战历史</div>
+  <div class="challenge-list" id="historyChallenges">
+    <div class="empty-tip">
+      <div class="emoji">📜</div>
+      <p>暂无历史记录</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 组队答题页 ==================== -->
+<div class="page" id="page-team-game">
+  <div class="nav-bar">
+    <div class="back-btn" onclick="quitTeamGame()">‹</div>
+    <div class="nav-title" id="navTeamTitle">组队答题</div>
+  </div>
+  <div class="game-header">
+    <div class="game-stat">
+      <div class="stat-item">
+        <div class="stat-label">进度</div>
+        <div class="stat-value"><span id="tcur">1</span>/10</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">得分</div>
+        <div class="stat-value" id="tscore">0</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">剩余时间</div>
+        <div class="stat-value stat-time" id="ttimer">03:00</div>
+      </div>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="tprogress" style="width:10%"></div>
+    </div>
+  </div>
+  <div class="question-box">
+    <div class="question-num">第 <span id="tqNum">1</span> 题</div>
+    <div class="question-text" id="tqText">3 + 5 - 2 = ?</div>
+  </div>
+  <div class="answer-grid" id="tanswerGrid"></div>
+</div>
+
+<!-- ==================== 组队结果页 ==================== -->
+<div class="page" id="page-team-result">
+  <div class="nav-bar">
+    <div class="back-btn" onclick="showPage('page-team')">‹</div>
+    <div class="nav-title">挑战结果</div>
+  </div>
+  <div class="team-result-card" id="teamResultCard"></div>
+  <div class="btn-row">
+    <button class="big-btn btn-share-btn" onclick="showShare()">📨 分享成绩</button>
+    <button class="big-btn btn-primary" onclick="showPage('page-team')">返回挑战</button>
+  </div>
+</div>
+</div>
+
+<!-- ==================== 四级联动选择器弹窗 ==================== -->
+<div class="picker-mask" id="pickerMask">
+  <div class="picker-panel">
+    <div class="picker-head">
+      <span class="picker-cancel" onclick="closePicker()">取消</span>
+      <h3>选择我的街道</h3>
+      <span class="picker-confirm" onclick="confirmPicker()">完成</span>
+    </div>
+    <div class="picker-path" id="pickerPath">
+      <span class="pp-empty">请依次选择：省 → 市 → 区 → 街道</span>
+    </div>
+    <div class="picker-cols">
+      <div class="picker-col">
+        <div class="picker-col-head">省份</div>
+        <div id="col-province"></div>
+      </div>
+      <div class="picker-col">
+        <div class="picker-col-head">城市</div>
+        <div id="col-city"><div class="col-empty">请先选省</div></div>
+      </div>
+      <div class="picker-col">
+        <div class="picker-col-head">区/县</div>
+        <div id="col-district"><div class="col-empty">请先选市</div></div>
+      </div>
+      <div class="picker-col">
+        <div class="picker-col-head">街道</div>
+        <div id="col-street"><div class="col-empty">请先选区</div></div>
+      </div>
+    </div>
+    <div class="picker-foot">
+      <button class="pf-btn pf-skip" onclick="randomPick()">随便选一个</button>
+      <button class="pf-btn pf-ok" id="pfOk" onclick="confirmPicker()" disabled>确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 浮动分享按钮 ==================== -->
+<div class="float-share" onclick="showShare()" title="邀请好友">📨</div>
+
+<!-- ==================== 分享弹窗 ==================== -->
+<div class="modal-mask" id="shareModal">
+  <div class="modal">
+    <h3>邀请好友一起玩</h3>
+    <div class="share-options">
+      <div class="share-opt" onclick="doShare('好友')">
+        <div class="si">💬</div>
+        <div class="sl">微信好友</div>
+      </div>
+      <div class="share-opt" onclick="doShare('朋友圈')">
+        <div class="si">👥</div>
+        <div class="sl">朋友圈</div>
+      </div>
+      <div class="share-opt" onclick="doShare('海报')">
+        <div class="si">🖼</div>
+        <div class="sl">生成海报</div>
+      </div>
+    </div>
+    <div class="modal-close" onclick="hideShare()">取消</div>
+  </div>
+</div>
+
+<script>
+/* ==========================================
+   全局状态 & 导航
+   ========================================== */
+let currentPage = 'page-home';
+
+function showPage(pageId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById(pageId);
+  if (target) {
+    target.classList.add('active');
+    currentPage = pageId;
+    window.scrollTo(0, 0);
+    if (pageId === 'page-ranking') initRankPage();
+    if (pageId === 'page-team') initTeamPage();
+    if (pageId === 'page-home') initHomePage();
+  }
+}
+
+/* ==========================================
+   首页初始化
+   ========================================== */
+function initHomePage() {
+  const loc = JSON.parse(localStorage.getItem('myLoc') || '{}');
+  const name = localStorage.getItem('userName') || '王奶奶';
+  document.getElementById('homeName').textContent = name;
+  document.getElementById('homeAvatar').textContent = name[0];
+  if (loc.street) {
+    document.getElementById('homeLoc').textContent = '📍 ' + loc.province + loc.city + loc.district + loc.street;
+  } else {
+    document.getElementById('homeLoc').textContent = '📍 请先选择居住街道';
+  }
+}
+
+/* ==========================================
+   数学游戏
+   ========================================== */
+const diffConfig = {
+  basic: { time: 180, name: '基础训练' },
+  mid:   { time: 300, name: '进阶训练' },
+  hard:  { time: 600, name: '挑战训练' },
+};
+
+let mathState = {
+  difficulty: 'basic',
+  total: 10,
+  current: 0,
+  score: 0,
+  right: 0,
+  timeLeft: 180,
+  timer: null,
+  startTime: 0,
+  questions: [],
+};
+
+function rand(min, max) { return Math.floor(Math.random()*(max-min+1))+min; }
+
+function genQuestion(diff) {
+  let a, b, c, op1, op2, ans, text;
+  if (diff === 'basic') {
+    a = rand(1,9); b = rand(1,9); c = rand(1,9);
+    op1 = ['+','-'][rand(0,1)]; op2 = ['+','-'][rand(0,1)];
+    ans = eval(`${a}${op1}${b}${op2}${c}`);
+    text = `${a} ${op1} ${b} ${op2} ${c}`;
+  } else if (diff === 'mid') {
+    a = rand(1,9); b = rand(1,9); c = rand(1,9);
+    op1 = ['+','-','×'][rand(0,2)]; op2 = ['+','-','×'][rand(0,2)];
+    const e1 = op1 === '×' ? '*' : op1;
+    const e2 = op2 === '×' ? '*' : op2;
+    ans = eval(`${a}${e1}${b}${e2}${c}`);
+    text = `${a} ${op1} ${b} ${op2} ${c}`;
+  } else {
+    a = rand(10,99); b = rand(10,99); c = rand(10,99);
+    op1 = ['+','-'][rand(0,1)]; op2 = ['+','-'][rand(0,1)];
+    ans = eval(`${a}${op1}${b}${op2}${c}`);
+    text = `${a} ${op1} ${b} ${op2} ${c}`;
+  }
+  const opts = new Set([ans]);
+  while (opts.size < 4) {
+    const offset = rand(-5, 5);
+    if (offset !== 0) opts.add(ans + offset);
+  }
+  const optArr = Array.from(opts).sort(() => Math.random()-0.5);
+  return { text, ans, options: optArr };
+}
+
+function startGame(diff) {
+  mathState.difficulty = diff;
+  mathState.total = 10;
+  mathState.current = 0;
+  mathState.score = 0;
+  mathState.right = 0;
+  mathState.timeLeft = diffConfig[diff].time;
+  mathState.startTime = Date.now();
+  mathState.questions = [];
+  for (let i = 0; i < 10; i++) mathState.questions.push(genQuestion(diff));
+  document.getElementById('navGameTitle').textContent = diffConfig[diff].name;
+  showPage('page-math-game');
+  renderMathQ();
+  startMathTimer();
+}
+
+function renderMathQ() {
+  const q = mathState.questions[mathState.current];
+  document.getElementById('cur').textContent = mathState.current + 1;
+  document.getElementById('qNum').textContent = mathState.current + 1;
+  document.getElementById('qText').textContent = q.text + ' = ?';
+  document.getElementById('score').textContent = mathState.score;
+  document.getElementById('progress').style.width = ((mathState.current+1)/mathState.total*100) + '%';
+  const grid = document.getElementById('answerGrid');
+  grid.innerHTML = '';
+  q.options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'answer-btn';
+    btn.textContent = opt;
+    btn.onclick = () => mathAnswer(opt, btn);
+    grid.appendChild(btn);
+  });
+}
+
+function mathAnswer(val, btn) {
+  const q = mathState.questions[mathState.current];
+  const allBtn = document.querySelectorAll('#answerGrid .answer-btn');
+  allBtn.forEach(b => b.onclick = null);
+  if (val === q.ans) {
+    btn.classList.add('correct');
+    mathState.score += 10;
+    mathState.right++;
+  } else {
+    btn.classList.add('wrong');
+    allBtn.forEach(b => { if (+b.textContent === q.ans) b.classList.add('correct'); });
+  }
+  setTimeout(() => {
+    mathState.current++;
+    if (mathState.current >= mathState.total) {
+      finishMathGame();
+    } else {
+      renderMathQ();
+    }
+  }, 600);
+}
+
+function startMathTimer() {
+  updateMathTimerDisp();
+  clearInterval(mathState.timer);
+  mathState.timer = setInterval(() => {
+    mathState.timeLeft--;
+    updateMathTimerDisp();
+    if (mathState.timeLeft <= 0) {
+      clearInterval(mathState.timer);
+      finishMathGame();
+    }
+  }, 1000);
+}
+
+function updTimerStr(s) {
+  const m = String(Math.floor(s/60)).padStart(2,'0');
+  const r = String(s%60).padStart(2,'0');
+  return `${m}:${r}`;
+}
+function updateMathTimerDisp() {
+  document.getElementById('timer').textContent = updTimerStr(mathState.timeLeft);
+}
+
+function finishMathGame() {
+  clearInterval(mathState.timer);
+  const used = Math.floor((Date.now() - mathState.startTime)/1000);
+  const usedStr = updTimerStr(Math.min(used, diffConfig[mathState.difficulty].time));
+  document.getElementById('resScore').textContent = mathState.score;
+  document.getElementById('resRight').textContent = mathState.right;
+  document.getElementById('resTime').textContent = usedStr;
+  document.getElementById('resSub').textContent = '您完成了' + diffConfig[mathState.difficulty].name;
+  const loc = JSON.parse(localStorage.getItem('myLoc') || '{}');
+  const rank = loc.street ? Math.floor(Math.random()*20)+1 : '-';
+  document.getElementById('resRank').textContent = loc.street ? '第 ' + rank + ' 名' : '第 — 名';
+  let emoji = '🎉', title = '真棒！';
+  if (mathState.score >= 90) { emoji = '🏆'; title = '太厉害啦！'; }
+  else if (mathState.score >= 70) { emoji = '👍'; title = '真棒！'; }
+  else if (mathState.score >= 50) { emoji = '😊'; title = '不错哦~'; }
+  else { emoji = '💪'; title = '继续加油！'; }
+  document.getElementById('resEmoji').textContent = emoji;
+  document.getElementById('resTitle').textContent = title;
+  saveMathScore(mathState);
+  showPage('page-math-result');
+}
+
+function saveMathScore(state) {
+  const records = JSON.parse(localStorage.getItem('mathScores') || '[]');
+  records.push({
+    diff: state.difficulty,
+    score: state.score,
+    right: state.right,
+    total: state.total,
+    time: Math.floor((Date.now() - state.startTime)/1000),
+    date: new Date().toISOString()
+  });
+  if (records.length > 50) records.splice(0, records.length - 50);
+  localStorage.setItem('mathScores', JSON.stringify(records));
+}
+
+function resetGame() {
+  showPage('page-math-difficulty');
+}
+
+function quitGame() {
+  if (confirm('确定退出本次答题吗？得分将不会保存。')) {
+    clearInterval(mathState.timer);
+    showPage('page-math-difficulty');
+  }
+}
+
+/* ==========================================
+   排行榜
+   ========================================== */
+const regionData = {
+  "广东省": {
+    "广州市": {
+      "天河区": ["石牌街道","天河南街道","沙东街道","元岗街道","员村街道","新塘街道","车陂街道"],
+      "越秀区": ["东山街道","农林街道","梅花村街道","黄花岗街道","建设街道","华乐街道"],
+      "海珠区": ["赤岗街道","新港街道","江南中街道","素社街道","海幢街道","南华西街道"],
+      "白云区": ["景泰街道","松洲街道","三元里街道","棠景街道","新市街道","同德街道"],
+      "番禺区": ["市桥街道","沙头街道","东环街道","桥南街道","小谷围街道","大龙街道"],
+      "黄埔区": ["黄埔街道","鱼珠街道","红山街道","大沙街道","文冲街道","穗东街道"]
+    },
+    "深圳市": {
+      "福田区": ["福田街道","南园街道","园岭街道","莲花街道","华富街道","梅林街道","沙头街道"],
+      "罗湖区": ["桂园街道","黄贝街道","南湖街道","笋岗街道","东门街道","翠竹街道"],
+      "南山区": ["南头街道","南山街道","沙河街道","蛇口街道","招商街道","粤海街道"],
+      "宝安区": ["新安街道","西乡街道","福永街道","沙井街道","松岗街道","石岩街道"],
+      "龙岗区": ["龙岗街道","龙城街道","坪地街道","坂田街道","布吉街道","横岗街道"],
+      "龙华区": ["龙华街道","民治街道","大浪街道","观湖街道","福城街道","观澜街道"]
+    },
+    "珠海市": {
+      "香洲区": ["翠香街道","梅华街道","狮山街道","拱北街道","吉大街道","湾仔街道"],
+      "斗门区": ["井岸镇","白蕉镇","乾务镇","斗门镇","莲洲镇"],
+      "金湾区": ["三灶镇","红旗镇","平沙镇","南水镇"]
+    },
+    "佛山市": {
+      "禅城区": ["祖庙街道","石湾镇街道","张槎街道","南庄镇"],
+      "南海区": ["桂城街道","九江镇","西樵镇","丹灶镇","狮山镇","大沥镇","里水镇"],
+      "顺德区": ["大良街道","容桂街道","伦教街道","勒流街道","北滘镇","陈村镇","乐从镇"],
+      "高明区": ["荷城街道","杨和镇","明城镇","更合镇"],
+      "三水区": ["西南街道","云东海街道","白坭镇","乐平镇","芦苞镇","大塘镇"]
+    },
+    "惠州市": {
+      "惠城区": ["桥东街道","桥西街道","江北街道","龙丰街道","河南岸街道","江南街道"],
+      "惠阳区": ["淡水街道","秋长街道","新圩镇","镇隆镇","沙田镇","平潭镇"],
+      "博罗县": ["罗阳街道","龙溪街道","龙华镇","园洲镇","石湾镇","福田镇"],
+      "惠东县": ["平山街道","大岭街道","稔山镇","平海镇","巽寮滨海旅游度假区"]
+    },
+    "东莞市": {
+      "莞城街道": ["莞城街道"],
+      "南城街道": ["南城街道"],
+      "东城街道": ["东城街道"],
+      "万江街道": ["万江街道"],
+      "虎门镇": ["虎门镇"],
+      "长安镇": ["长安镇"],
+      "厚街镇": ["厚街镇"]
+    },
+    "中山市": {
+      "石岐街道": ["石岐街道"],
+      "东区街道": ["东区街道"],
+      "西区街道": ["西区街道"],
+      "南区街道": ["南区街道"],
+      "小榄镇": ["小榄镇"],
+      "古镇镇": ["古镇镇"],
+      "三角镇": ["三角镇"]
+    },
+    "江门市": {
+      "蓬江区": ["白沙街道","环市街道","潮连街道","荷塘镇","棠下镇","杜阮镇"],
+      "江海区": ["滘头街道","滘北街道","江南街道","外海街道","礼乐街道"],
+      "新会区": ["会城街道","大泽镇","司前镇","沙堆镇","古井镇","三江镇"],
+      "台山市": ["台城街道","大江镇","水步镇","四九镇","白沙镇","三合镇"]
+    },
+    "肇庆市": {
+      "端州区": ["城东街道","城西街道","城南街道","城北街道","睦岗街道","黄岗街道"],
+      "鼎湖区": ["坑口街道","桂城街道","广利街道","沙浦镇","凤凰镇","莲花镇"],
+      "高要区": ["南岸街道","金渡镇","金利镇","白土镇","回龙镇","蛟塘镇"]
+    },
+    "清远市": {
+      "清城区": ["凤城街道","东城街道","洲心街道","横荷街道","龙塘镇","石角镇"],
+      "清新区": ["太和镇","三坑镇","山塘镇","太平镇","禾云镇","龙颈镇"],
+      "英德市": ["英城街道","横石塘镇","望埠镇","桥头镇","青塘镇","白沙镇"]
+    }
+  }
+};
+
+let myLoc = JSON.parse(localStorage.getItem('myLoc') || '{}');
+let pickerSel = { province:'', city:'', district:'', street:'' };
+let currentRankTab = 'street';
+
+function initRankPage() {
+  renderLocPath();
+  renderMyRank();
+  renderRankList();
+}
+
+function renderLocPath() {
+  const el = document.getElementById('locPath');
+  myLoc = JSON.parse(localStorage.getItem('myLoc') || '{}');
+  if (myLoc.province && myLoc.street) {
+    el.innerHTML = myLoc.province + myLoc.city + myLoc.district + myLoc.street;
+  } else {
+    el.innerHTML = '<span class="empty">尚未选择，点击右侧设置</span>';
+  }
+}
+
+function renderMyRank() {
+  if (myLoc.street) {
+    document.getElementById('rankStreet').textContent = Math.floor(Math.random()*15)+1;
+    document.getElementById('rankDistrict').textContent = Math.floor(Math.random()*100)+1;
+    document.getElementById('rankCity').textContent = Math.floor(Math.random()*500)+1;
+  } else {
+    document.getElementById('rankStreet').textContent = '—';
+    document.getElementById('rankDistrict').textContent = '—';
+    document.getElementById('rankCity').textContent = '—';
+  }
+}
+
+const mockNames = ['李奶奶','张大爷','王婆婆','刘伯伯','陈阿姨','黄叔叔','吴姐姐','周大爷','徐大妈','孙伯','马大爷','朱阿姨','胡奶奶','郭叔叔','何婆婆'];
+function genRankList(tab) {
+  const list = [];
+  const total = tab === 'street' ? 12 : (tab === 'district' ? 15 : 20);
+  for (let i = 0; i < total; i++) {
+    const isMe = i === 4 && myLoc.street;
+    list.push({
+      no: i+1,
+      name: isMe ? '我' : mockNames[i % mockNames.length] + (i > 14 ? (i-14) : ''),
+      score: 980 - i * 35 + Math.floor(Math.random()*15),
+      me: isMe
+    });
+  }
+  return list;
+}
+
+function renderRankList() {
+  const el = document.getElementById('rankList');
+  myLoc = JSON.parse(localStorage.getItem('myLoc') || '{}');
+  if (!myLoc.street) {
+    el.innerHTML = '<div class="empty-tip"><div class="emoji">📍</div><p>请先选择您所在的街道<br>才能看到对应排行榜</p></div>';
+    return;
+  }
+  const list = genRankList(currentRankTab);
+  el.innerHTML = list.map(r => {
+    const noClass = r.no === 1 ? 'top1' : r.no === 2 ? 'top2' : r.no === 3 ? 'top3' : '';
+    const noText = r.no === 1 ? '🥇' : r.no === 2 ? '🥈' : r.no === 3 ? '🥉' : r.no;
+    return '<div class="rank-row' + (r.me ? ' me' : '') + '">' +
+      '<div class="rk-no ' + noClass + '">' + noText + '</div>' +
+      '<div class="rk-avatar">' + r.name[0] + '</div>' +
+      '<div class="rk-name">' + r.name + (r.me ? '<span class="me-tag">我</span>' : '') + '</div>' +
+      '<div class="rk-score">' + r.score + '分</div></div>';
+  }).join('');
+}
+
+function switchRankTab(tab) {
+  currentRankTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  renderRankList();
+}
+
+function loadMore() {
+  alert('已加载更多榜单数据');
+}
+
+/* ==========================================
+   地区选择器
+   ========================================== */
+function openPicker() {
+  myLoc = JSON.parse(localStorage.getItem('myLoc') || '{}');
+  pickerSel = { ...myLoc };
+  renderPickerAll();
+  document.getElementById('pickerMask').classList.add('show');
+}
+
+function closePicker() {
+  document.getElementById('pickerMask').classList.remove('show');
+}
+
+function renderPickerAll() {
+  renderCol('province');
+  renderCol('city');
+  renderCol('district');
+  renderCol('street');
+  renderPickerPath();
+  updateOkBtn();
+}
+
+function renderPickerPath() {
+  const el = document.getElementById('pickerPath');
+  const parts = [];
+  if (pickerSel.province) parts.push(pickerSel.province);
+  if (pickerSel.city) parts.push(pickerSel.city);
+  if (pickerSel.district) parts.push(pickerSel.district);
+  if (pickerSel.street) parts.push(pickerSel.street);
+  if (parts.length === 0) {
+    el.innerHTML = '<span class="pp-empty">请依次选择：省 → 市 → 区 → 街道</span>';
+  } else {
+    el.innerHTML = parts.map((p,i) =>
+      '<span class="pp-item">' + p + '</span>' + (i < parts.length-1 ? '<span class="pp-arrow">›</span>' : '')
+    ).join('');
+  }
+}
+
+function renderCol(level) {
+  const colEl = document.getElementById('col-' + level);
+  let items = [];
+  if (level === 'province') {
+    items = Object.keys(regionData);
+  } else if (level === 'city') {
+    if (!pickerSel.province) { colEl.innerHTML = '<div class="col-empty">请先选省</div>'; return; }
+    items = Object.keys(regionData[pickerSel.province] || {});
+  } else if (level === 'district') {
+    if (!pickerSel.city) { colEl.innerHTML = '<div class="col-empty">请先选市</div>'; return; }
+    items = Object.keys((regionData[pickerSel.province] || {})[pickerSel.city] || {});
+  } else if (level === 'street') {
+    if (!pickerSel.district) { colEl.innerHTML = '<div class="col-empty">请先选区</div>'; return; }
+    items = (((regionData[pickerSel.province] || {})[pickerSel.city] || {})[pickerSel.district] || []);
+  }
+  if (items.length === 0) {
+    colEl.innerHTML = '<div class="col-empty">暂无数据</div>';
+    return;
+  }
+  colEl.innerHTML = items.map(name => {
+    const selected = pickerSel[level] === name ? 'selected' : '';
+    return '<div class="picker-item ' + selected + '" onclick="selectPickerItem(\'' + level + '\',\'' + name + '\')">' + name + '</div>';
+  }).join('');
+}
+
+function selectPickerItem(level, name) {
+  pickerSel[level] = name;
+  const order = ['province','city','district','street'];
+  const idx = order.indexOf(level);
+  for (let i = idx+1; i < order.length; i++) {
+    pickerSel[order[i]] = '';
+  }
+  renderPickerAll();
+}
+
+function updateOkBtn() {
+  const btn = document.getElementById('pfOk');
+  btn.disabled = !(pickerSel.province && pickerSel.city && pickerSel.district && pickerSel.street);
+}
+
+function confirmPicker() {
+  if (!(pickerSel.province && pickerSel.city && pickerSel.district && pickerSel.street)) {
+    alert('请完整选择 省 → 市 → 区 → 街道');
+    return;
+  }
+  myLoc = { ...pickerSel };
+  localStorage.setItem('myLoc', JSON.stringify(myLoc));
+  closePicker();
+  initRankPage();
+  initHomePage();
+}
+
+function randomPick() {
+  const provinces = Object.keys(regionData);
+  const p = provinces[Math.floor(Math.random()*provinces.length)];
+  const cities = Object.keys(regionData[p]);
+  const c = cities[Math.floor(Math.random()*cities.length)];
+  const districts = Object.keys(regionData[p][c]);
+  const d = districts[Math.floor(Math.random()*districts.length)];
+  const streets = regionData[p][c][d];
+  const s = streets[Math.floor(Math.random()*streets.length)];
+  pickerSel = { province:p, city:c, district:d, street:s };
+  renderPickerAll();
+}
+
+/* ==========================================
+   组队挑战
+   ========================================== */
+let teamState = {
+  challenges: JSON.parse(localStorage.getItem('teamChallenges') || '[]'),
+  currentChallenge: null,
+  myTeamScore: 0,
+};
+
+function initTeamPage() {
+  teamState.challenges = JSON.parse(localStorage.getItem('teamChallenges') || '[]');
+  renderActiveChallenges();
+  renderHistoryChallenges();
+}
+
+function createChallenge() {
+  const diff = document.getElementById('teamDiff').value;
+  const size = parseInt(document.getElementById('teamSize').value);
+  const code = 'TC' + Date.now().toString(36).toUpperCase().slice(-6);
+  const challenge = {
+    id: code,
+    code: code,
+    difficulty: diff,
+    difficultyName: diffConfig[diff].name,
+    teamSize: size,
+    members: [{ name: (localStorage.getItem('userName') || '王奶奶'), score: 0, done: false }],
+    createdAt: new Date().toISOString(),
+    status: 'active',
+    totalScore: 0,
+  };
+  teamState.challenges.unshift(challenge);
+  localStorage.setItem('teamChallenges', JSON.stringify(teamState.challenges));
+  alert('挑战已创建！\n挑战编号：' + code + '\n\n请分享编号给好友，好友加入后即可开始答题PK！');
+  initTeamPage();
+}
+
+function joinChallenge() {
+  const code = prompt('请输入挑战编号：');
+  if (!code) return;
+  teamState.challenges = JSON.parse(localStorage.getItem('teamChallenges') || '[]');
+  const challenge = teamState.challenges.find(c => c.code === code.toUpperCase());
+  if (!challenge) {
+    alert('未找到该挑战，请确认编号是否正确');
+    return;
+  }
+  if (challenge.status !== 'active') {
+    alert('该挑战已结束');
+    return;
+  }
+  if (challenge.members.length >= challenge.teamSize) {
+    alert('该挑战队伍已满员');
+    return;
+  }
+  const name = localStorage.getItem('userName') || '新成员';
+  challenge.members.push({ name: name, score: 0, done: false });
+  localStorage.setItem('teamChallenges', JSON.stringify(teamState.challenges));
+  alert('已加入挑战：' + code + '\n\n请开始答题吧！');
+  teamState.currentChallenge = challenge;
+  startTeamGame(challenge);
+}
+
+function renderActiveChallenges() {
+  const el = document.getElementById('activeChallenges');
+  const active = teamState.challenges.filter(c => c.status === 'active');
+  if (active.length === 0) {
+    el.innerHTML = '<div class="empty-tip"><div class="emoji">📭</div><p>暂无进行中的挑战<br>快发起一个吧！</p></div>';
+    return;
+  }
+  el.innerHTML = active.map(c => {
+    const doneCount = c.members.filter(m => m.done).length;
+    return '<div class="challenge-item" onclick="openChallenge(\'' + c.id + '\')">' +
+      '<div class="challenge-info">' +
+        '<span class="challenge-code">' + c.code + '</span>' +
+        '<div class="challenge-desc">' + c.difficultyName + ' · ' + c.teamSize + '人队</div>' +
+        '<div class="challenge-meta">已完成 ' + doneCount + '/' + c.members.length + ' 人</div>' +
+      '</div>' +
+      '<div class="challenge-status active-c">进行中</div>' +
+    '</div>';
+  }).join('');
+}
+
+function renderHistoryChallenges() {
+  const el = document.getElementById('historyChallenges');
+  const history = teamState.challenges.filter(c => c.status === 'done');
+  if (history.length === 0) {
+    el.innerHTML = '<div class="empty-tip"><div class="emoji">📜</div><p>暂无历史记录</p></div>';
+    return;
+  }
+  el.innerHTML = history.slice(0, 10).map(c => {
+    return '<div class="challenge-item" onclick="viewChallengeResult(\'' + c.id + '\')">' +
+      '<div class="challenge-info">' +
+        '<span class="challenge-code">' + c.code + '</span>' +
+        '<div class="challenge-desc">' + c.difficultyName + ' · ' + c.teamSize + '人队</div>' +
+        '<div class="challenge-meta">队伍总分：' + c.totalScore + ' 分</div>' +
+      '</div>' +
+      '<div class="challenge-status done">已结束</div>' +
+    '</div>';
+  }).join('');
+}
+
+function openChallenge(id) {
+  teamState.challenges = JSON.parse(localStorage.getItem('teamChallenges') || '[]');
+  const challenge = teamState.challenges.find(c => c.id === id);
+  if (!challenge) return;
+  teamState.currentChallenge = challenge;
+  const currentUser = localStorage.getItem('userName') || '王奶奶';
+  const myMember = challenge.members.find(m => m.name === currentUser);
+  if (myMember && myMember.done) {
+    alert('您已完成该挑战的答题！等待其他队员完成...');
+    showTeamResult(challenge);
+    return;
+  }
+  startTeamGame(challenge);
+}
+
+let teamGameState = null;
+
+function startTeamGame(challenge) {
+  const diff = challenge.difficulty;
+  teamGameState = {
+    difficulty: diff,
+    total: 10,
+    current: 0,
+    score: 0,
+    right: 0,
+    timeLeft: diffConfig[diff].time,
+    timer: null,
+    startTime: Date.now(),
+    questions: [],
+    challengeId: challenge.id,
+  };
+  for (let i = 0; i < 10; i++) teamGameState.questions.push(genQuestion(diff));
+  document.getElementById('navTeamTitle').textContent = '组队答题 - ' + diffConfig[diff].name;
+  showPage('page-team-game');
+  renderTeamQ();
+  startTeamTimer();
+}
+
+function renderTeamQ() {
+  if (!teamGameState) return;
+  const q = teamGameState.questions[teamGameState.current];
+  document.getElementById('tcur').textContent = teamGameState.current + 1;
+  document.getElementById('tqNum').textContent = teamGameState.current + 1;
+  document.getElementById('tqText').textContent = q.text + ' = ?';
+  document.getElementById('tscore').textContent = teamGameState.score;
+  document.getElementById('tprogress').style.width = ((teamGameState.current+1)/teamGameState.total*100) + '%';
+  const grid = document.getElementById('tanswerGrid');
+  grid.innerHTML = '';
+  q.options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'answer-btn';
+    btn.textContent = opt;
+    btn.onclick = () => teamAnswer(opt, btn);
+    grid.appendChild(btn);
+  });
+}
+
+function teamAnswer(val, btn) {
+  const q = teamGameState.questions[teamGameState.current];
+  const allBtn = document.querySelectorAll('#tanswerGrid .answer-btn');
+  allBtn.forEach(b => b.onclick = null);
+  if (val === q.ans) {
+    btn.classList.add('correct');
+    teamGameState.score += 10;
+    teamGameState.right++;
+  } else {
+    btn.classList.add('wrong');
+    allBtn.forEach(b => { if (+b.textContent === q.ans) b.classList.add('correct'); });
+  }
+  setTimeout(() => {
+    teamGameState.current++;
+    if (teamGameState.current >= teamGameState.total) {
+      finishTeamGame();
+    } else {
+      renderTeamQ();
+    }
+  }, 600);
+}
+
+function startTeamTimer() {
+  updateTeamTimerDisp();
+  clearInterval(teamGameState.timer);
+  teamGameState.timer = setInterval(() => {
+    teamGameState.timeLeft--;
+    updateTeamTimerDisp();
+    if (teamGameState.timeLeft <= 0) {
+      clearInterval(teamGameState.timer);
+      finishTeamGame();
+    }
+  }, 1000);
+}
+
+function updateTeamTimerDisp() {
+  document.getElementById('ttimer').textContent = updTimerStr(teamGameState.timeLeft);
+}
+
+function finishTeamGame() {
+  clearInterval(teamGameState.timer);
+  const used = Math.floor((Date.now() - teamGameState.startTime)/1000);
+  const finalScore = teamGameState.score;
+  const challengeId = teamGameState.challengeId;
+
+  teamState.challenges = JSON.parse(localStorage.getItem('teamChallenges') || '[]');
+  const challenge = teamState.challenges.find(c => c.id === challengeId);
+  if (challenge) {
+    const currentUser = localStorage.getItem('userName') || '王奶奶';
+    const member = challenge.members.find(m => m.name === currentUser);
+    if (member) {
+      member.score = finalScore;
+      member.done = true;
+    }
+    const allDone = challenge.members.every(m => m.done);
+    if (allDone) {
+      challenge.status = 'done';
+      challenge.totalScore = challenge.members.reduce((s, m) => s + m.score, 0);
+    }
+    localStorage.setItem('teamChallenges', JSON.stringify(teamState.challenges));
+    teamState.myTeamScore = finalScore;
+    showTeamResult(challenge);
+  }
+}
+
+function showTeamResult(challenge) {
+  if (!challenge) return;
+  const sorted = [...challenge.members].sort((a, b) => b.score - a.score);
+  const currentUser = localStorage.getItem('userName') || '王奶奶';
+  let html = '<h3 style="font-size:22px;color:#0d47a1;margin-bottom:16px;">🏆 ' + challenge.code + ' 挑战结果</h3>';
+  html += '<div style="font-size:16px;color:#5c7ea3;margin-bottom:16px;">' + challenge.difficultyName + ' · ' + challenge.teamSize + '人队</div>';
+  html += '<div style="font-size:36px;font-weight:bold;color:#0288d1;margin-bottom:20px;">队伍总分：' + (challenge.totalScore || '—') + ' 分</div>';
+  html += '<div style="margin-bottom:16px;">';
+  sorted.forEach((m, i) => {
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+    const isMe = m.name === currentUser;
+    html += '<div class="rank-row' + (isMe ? ' me' : '') + '">' +
+      '<div style="width:30px;font-size:20px;">' + medal + '</div>' +
+      '<div class="rk-avatar">' + m.name[0] + '</div>' +
+      '<div class="rk-name">' + m.name + (isMe ? '<span class="me-tag">我</span>' : '') +
+        (m.done ? '' : ' <span style="font-size:12px;color:#ff9800;">等待中...</span>') + '</div>' +
+      '<div class="rk-score">' + (m.done ? m.score + '分' : '—') + '</div></div>';
+  });
+  html += '</div>';
+  if (challenge.status === 'active') {
+    html += '<div style="font-size:14px;color:#ff9800;margin-top:8px;">⏳ 等待其他队员完成答题...</div>';
+  }
+  document.getElementById('teamResultCard').innerHTML = html;
+  showPage('page-team-result');
+}
+
+function viewChallengeResult(id) {
+  teamState.challenges = JSON.parse(localStorage.getItem('teamChallenges') || '[]');
+  const challenge = teamState.challenges.find(c => c.id === id);
+  if (challenge) showTeamResult(challenge);
+}
+
+function quitTeamGame() {
+  if (confirm('确定退出组队答题吗？得分将不会保存。')) {
+    clearInterval(teamGameState && teamGameState.timer);
+    teamGameState = null;
+    showPage('page-team');
+  }
+}
+
+/* ==========================================
+   分享功能
+   ========================================== */
+function showShare() { document.getElementById('shareModal').classList.add('show'); }
+function hideShare() { document.getElementById('shareModal').classList.remove('show'); }
+function doShare(type) {
+  hideShare();
+  alert('已分享到' + type + '！\n好友点击链接即可加入。');
+}
+
+/* ==========================================
+   点击弹窗外关闭
+   ========================================== */
+document.getElementById('pickerMask').addEventListener('click', function(e) {
+  if (e.target === this) closePicker();
+});
+document.getElementById('shareModal').addEventListener('click', function(e) {
+  if (e.target === this) hideShare();
+});
+
+/* ==========================================
+   初始化
+   ========================================== */
+(function init() {
+  if (!localStorage.getItem('userName')) {
+    localStorage.setItem('userName', '王奶奶');
+  }
+  initHomePage();
+})();
+</script>
+</body>
+</html>
