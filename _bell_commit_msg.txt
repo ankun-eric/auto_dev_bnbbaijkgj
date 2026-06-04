@@ -1,0 +1,8 @@
+fix(h5): AI首页铃铛用药提醒本人化 + 状态/按钮对齐用药提醒全部页
+
+- 顶栏铃铛打开抽屉前强制重置咨询人为 null（本人口径），避免显示其他咨询人用药
+- ReminderDrawer 用药数据源固定不带 consultant_id，恒为登录账号本人
+- 用药条目按后端 status 4 态渲染（done/upcoming/overdue/pending），状态文案与按钮文案逐条对齐「用药提醒-全部」页
+- 已服用条目按钮改为「✓ 完成」支持撤销（5 分钟内），接入 /revoke 接口
+- 待办计数 = status !== 'done'，与「全部」页"待服用"一致
+[BUGFIX-AI-HOME-BELL-SELF-V1 2026-06-01]

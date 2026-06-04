@@ -98,9 +98,9 @@ export default function SafetyRopePage() {
         api.get('/api/safety-rope/contacts'),
         api.get('/api/safety-rope/alerts'),
       ]);
-      setStatus(s.data);
-      setContacts(c.data?.items || []);
-      setAlerts(a.data?.items || []);
+      setStatus(s);
+      setContacts(c?.items || []);
+      setAlerts(a?.items || []);
     } catch (e: any) {
       console.warn('safety-rope load', e?.message);
     } finally {
@@ -133,7 +133,7 @@ export default function SafetyRopePage() {
                   latitude: pos.coords.latitude,
                   longitude: pos.coords.longitude,
                 });
-                if (rg.data?.address) payload.location_address = rg.data.address;
+                if (rg?.address) payload.location_address = rg.address;
               } catch {}
               resolve();
             },
@@ -143,7 +143,7 @@ export default function SafetyRopePage() {
         });
       }
       const resp = await api.post('/api/safety-rope/checkin', payload);
-      if (resp.data?.alert_resolved) {
+      if (resp?.alert_resolved) {
         showFeedback('已平安解除预警 ❤ 已通知联系人');
       } else {
         showFeedback('收到你的平安信号 ❤ 今天也要照顾好自己哦');
@@ -208,7 +208,7 @@ export default function SafetyRopePage() {
       const resp = await api.get('/api/safety-rope/contacts/check-phone', {
         params: { phone },
       });
-      const r = resp.data;
+      const r = resp;
       if (r?.registered) {
         setPhoneCheck({
           state: 'ok',

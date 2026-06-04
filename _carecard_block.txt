@@ -1,0 +1,5 @@
+
+
+# [PRD-CARE-MODE-OPTIM-V1 2026-05-31] 关怀模式优化：注册个人信息卡/SOS 联系人 API
+from app.api import care_card_v1 as _care_card_v1  # noqa: E402
+app.include_router(_care_card_v1.router)

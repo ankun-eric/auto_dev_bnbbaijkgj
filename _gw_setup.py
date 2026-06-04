@@ -1,0 +1,13 @@
+from _ssh_helper import run
+print("=== /home/ubuntu/gateway/conf.d listing ===")
+rc,out,err=run("ls /home/ubuntu/gateway/conf.d/ 2>&1", timeout=10)
+print(out)
+print("\n=== nginx.conf for gateway ===")
+rc,out,err=run("cat /home/ubuntu/gateway/nginx.conf 2>&1", timeout=10)
+print(out)
+print("\n=== example existing project route ===")
+rc,out,err=run("cat /home/ubuntu/gateway/conf.d/4ad2bc0a-9c36-4b60-9c81-69e945e53cc4.conf 2>&1", timeout=10)
+print(out)
+print("\n=== ls /home/ubuntu/gateway/conf.d/gateway-routes/ ===")
+rc,out,err=run("ls /home/ubuntu/gateway/conf.d/gateway-routes/ 2>&1", timeout=10)
+print(out)

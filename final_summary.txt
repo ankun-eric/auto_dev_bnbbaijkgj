@@ -1,0 +1,20 @@
+=== Admin Account ===
+mysql: [Warning] Using a password on the command line interface can be insecure.
+id	phone	role	is_superuser	status
+1	13800000000	admin	1	active
+16	13800050505	admin	1	active
+36	13800013800	admin	0	NULL
+
+=== Admin Login Test ===
+Login: {"detail":"账号未配置可用身份"}
+
+=== Container Health ===
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5: Up 52 seconds (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin: Up 52 seconds (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend: Up 53 seconds (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-db: Up 58 seconds (healthy)
+
+
+=== Cleanup temp files ===
+Python files in project dir: 659
+

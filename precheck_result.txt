@@ -1,0 +1,112 @@
+=== 1. Gateway Nginx Configs ===
+total 92
+drwxrwxr-x    3 1000     1001         12288 Jun  3 11:38 .
+drwxr-xr-x    1 root     root          4096 Jun  3 11:36 ..
+-rw-r--r--    1 1000     1001          1637 May 28 12:14 0451a430-e3c8-49e2-b627-329938d2313d.conf
+-rw-rw-r--    1 1000     1001          2441 May 28 11:03 20d0760a-5230-4867-a343-a91a95e05d50.conf
+-rw-rw-r--    1 1000     1001          2441 May 28 11:03 309c268a-80c8-431f-9747-e2c53ada724f.conf
+-rw-rw-r--    1 1000     1001          2026 Jun  2 05:22 3c3ddda4-aa5d-4d34-a40e-c2f886ed6186.conf.disabled
+-rw-rw-r--    1 1000     1001          1143 May 28 11:03 5fa64f53-c6e8-443c-9a5c-611e554ddde1.conf
+-rw-rw-r--    1 1000     1001          2274 May 28 11:04 617ba922-acf8-4859-9737-1854bad08497.conf
+-rw-rw-r--    1 1000     1001          2441 May 28 11:03 6333c7ee-e664-4874-acb1-75365bd58709.conf
+-rw-rw-r--    1 1000     1001          3555 May 31 15:06 6b099ed3-7175-4a78-91f4-44570c84ed27.conf.disabled.1780486562
+-rw-rw-r--    1 1000     1001          2958 Jun  3 11:38 6b099ed3-7175-4a78-91f4-44570c84ed27.server
+-rw-rw-r--    1 1000     1001          2441 May 28 11:03 76078d4e-cf0a-40d0-92bc-ad40ea4436b2.conf
+-rw-rw-r--    1 1000     1001          2441 May 28 11:03 85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf
+-rw-rw-r--    1 1000     1001          1346 Jun  1 17:38 9782217d-bbe9-45df-b57b-6f1db576316c.conf
+-rw-r--r--    1 root     root          2843 Jun  1 16:49 9f0604d2-45b2-41c9-ac88-7a317a80702f.conf.bak
+-rw-rw-r--    1 1000     1001           784 May 28 09:44 deploy_test.conf
+drwxr-xr-x    2 root     root          4096 Apr 16 16:30 gateway-routes
+-rw-rw-r--    1 1000     1001            18 Jun  1 10:01 test_gateway.txt
+-rw-rw-r--    1 1000     1001          1632 May 28 08:44 test_line_prj.conf
+-rw-rw-r--    1 1000     1001          1230 Jun  1 13:32 yumingtest.conf.bak
+-rw-rw-r--    1 1000     1001          1230 May 31 20:50 yumingtest.conf.disabled
+
+
+=== 2. Project Route Config ===
+ls: cannot access '/home/ubuntu/gateway/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf': No such file or directory
+
+
+=== 3. Docker Networks ===
+NETWORK ID     NAME                                                                                DRIVER    SCOPE
+b37cf10b2a92   0faabede-ad8a-439d-a946-b887ffcd8dee-network                                        bridge    local
+a37e7e2d883a   1f2b22da-528e-4e13-acee-6511a7b5b172-network                                        bridge    local
+cc38313c222f   2c2b48f8-c6fa-4411-b719-8d910baf4f9a-network                                        bridge    local
+eab71b7f9f2e   3c3ddda4-aa5d-4d34-a40e-c2f886ed6186-network                                        bridge    local
+22394377d932   4ad2bc0a-9c36-4b60-9c81-69e945e53cc4-network                                        bridge    local
+49281cd771ff   5fa64f53-c6e8-443c-9a5c-611e554ddde1-network                                        bridge    local
+8c261b7d5252   6b099ed3-7175-4a78-91f4-44570c84ed27-network                                        bridge    local
+0eee32921c9e   6b099ed3-7175-4a78-91f4-44570c84ed27_6b099ed3-7175-4a78-91f4-44570c84ed27-network   bridge    local
+264d340a6b9b   6cfef81e-8bc8-482f-b248-3b58fed571cb-network                                        bridge    local
+dfb489d2b563   7eabb913-3d3e-4361-9dbd-dcdf42fa061e-network                                        bridge    local
+597c5903f639   9b51e155-b3d1-4515-8137-03bfd66446a1-network                                        bridge    local
+7920bf78492a   9f0604d2-45b2-41c9-ac88-7a317a80702f-network                                        bridge    local
+865d7e7e8ae6   09fca155-2b91-45be-a4aa-87b3dfdd0d3e-network                                        bridge    local
+8963923b44a7   20d0760a-5230-4867-a343-a91a95e05d50_20d0760a-5230-4867-a343-a91a95e05d50-network   bridge    local
+6245f702116b   309c268a-80c8-431f-9747-e2c53ada724f-network                                        bridge    local
+f4c8a1359fde   0451a430-e3c8-49e2-b627-329938d2313d-network                                        bridge    local
+67b1768256e8   617ba922-acf8-4859-9737-1854bad08497-network                                        bridge    local
+d3b5e2e20b8e   745ea1f0-7b9d-449c-bd36-a2e4a2599d06-network                                        bridge    local
+9c22b1571e05   753c9809-44ae-49bc-92b3-fa7bce455378-network                                        bridge    local
+5d3d32023e8a   793d88c4-949b-478a-a551-147cc100d2b1-network                                        bridge    local
+fdda566da591   911e7350-7584-4898-bb92-ac568a699575-network                                        bridge    local
+18903fb18b41   6333c7ee-e664-4874-acb1-75365bd58709-network                                        bridge    local
+630442a497c3   76078d4e-cf0a-40d0-92bc-ad40ea4436b2-network                                        bridge    local
+40b64b4325ae   8946923e-5887-4d14-a54f-2cb39819c8f2-network                                        bridge    local
+c9c3ec61b41d   9782217d-bbe9-45df-b57b-6f1db576316c-network                                        bridge    local
+ea1409610796   85048269-7f40-4ae8-88e2-0f3ce1ce19d1-network                                        bridge    local
+c7f5e79c1e05   a46094c5-4cff-434b-a815-3e73fc6d39a6-network                                        bridge    local
+14091a26be7f   b04670f8-ef50-4fcc-92b5-e25f73121b54-network                                        bridge    local
+8c232c5c7b4e   bridge                                                                              bridge    local
+2cb51fbb6545   c57cd78e-baf2-4648-be33-611be54734d9-network                                        bridge    local
+1347c845715f   c935e952-5c8f-44c5-8d09-7d77698407fa-network                                        bridge    local
+0925e741c1ac   dbc8a82b-07f9-4b5f-b1b7-9cd7118f018f-network                                        bridge    local
+2e7acefbe9c9   dce395b9-f2ce-4853-8c63-a7ccdfe5793a-network                                        bridge    local
+514cf45db9b9   deploy_test-network                                                                 bridge    local
+e4f86c6a0aea   ed7f67c4-b4f4-4e66-9d43-010316c4069e-network                                        bridge    local
+147e224e746c   ffaac1e1-9e0f-426b-b852-5ad04a963b72-network                                        bridge    local
+bcf30b0343f0   gateway-network                                                                     bridge    local
+f6f6551ddc04   host                                                                                host      local
+e938ae98479f   none                                                                                null      local
+ac6d719f959e   test_line_prj-network                                                               bridge    local
+8f160c598d82   yumingtest-network                                                                  bridge    local
+
+=== 4. Disk Space ===
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/vda2       217G  143G   66G  69% /
+
+=== 5. Docker Version ===
+Docker version 29.4.0, build 9d7ad9f
+
+=== 6. ACR Login ===
+Login Succeeded
+
+
+=== 7. App Network ===
+[
+    {
+        "Name": "6b099ed3-7175-4a78-91f4-44570c84ed27-network",
+        "Id": "8c261b7d5252113fe53c075cb1a39698dca601556918a6dda0c3e6e596e00dc8",
+        "Created": "2026-05-28T18:40:31.149548194+08:00",
+        "Scope": "local",
+        "Driver": "bridge",
+        "EnableIPv4": true,
+        "EnableIPv6": false,
+        "IPAM": {
+
+
+=== 8. Existing Containers ===
+NAMES                                          STATUS
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5        Up 30 minutes
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin     Up 30 minutes
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend   Up 30 minutes
+6b099ed3-7175-4a78-91f4-44570c84ed27-db        Up 30 minutes (healthy)
+
+=== 9. Memory ===
+total        used        free      shared  buff/cache   available
+Mem:           15609       10927        1028          60        4051        4681
+
+=== 10. Docker Compose ===
+Docker Compose version v5.1.2
+
+

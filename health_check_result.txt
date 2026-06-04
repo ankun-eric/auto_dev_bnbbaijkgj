@@ -1,0 +1,15 @@
+=== Check wget in h5 container ===
+wget: /usr/bin/wget
+ 
+admin wget: /usr/bin/wget
+ 
+
+=== Try healthcheck command directly ===
+h5 wget test: wget: can't connect to remote host: Connection refused
+ 
+admin wget test: wget: can't connect to remote host: Connection refused
+ 
+
+=== Container inspect health ===
+h5 health: {"Status":"unhealthy","FailingStreak":11,"Log":[{"Start":"2026-06-03T20:19:32.366795597+08:00","End":"2026-06-03T20:19:32.413206075+08:00","ExitCode":1,"Output":"wget: can't connect to remote host: Connection refused\n"},{"Start":"2026-06-03T20:19:47.414150364+08:00","End":"2026-06-03T20:19:47.464791197+08:00","ExitCode":1,"Output":"wget: can't connect to remote host: Connection refused\n"},{"Start":"2026-06-03T20:20:02.465650165+08:00","End":"2026-06-03T20:20:02.511122443+08:00","ExitCode":1,"O
+admin health: {"Status":"unhealthy","FailingStreak":11,"Log":[{"Start":"2026-06-03T20:19:32.334836334+08:00","End":"2026-06-03T20:19:32.377811555+08:00","ExitCode":1,"Output":"wget: can't connect to remote host: Connection refused\n"},{"Start":"2026-06-03T20:19:47.378824224+08:00","End":"2026-06-03T20:19:47.438001071+08:00","ExitCode":1,"Output":"wget: can't connect to remote host: Connection refused\n"},{"Start":"2026-06-03T20:20:02.439273386+08:00","End":"2026-06-03T20:20:02.481497+08:00","ExitCode":1,"Outp

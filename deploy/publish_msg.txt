@@ -1,0 +1,49 @@
+﻿# 测试环境
+TEST_IP=newbb.test.bangbangvip.com
+TEST_SSH_PORT=22
+TEST_SSH_USER=ubuntu
+TEST_SSH_PASS=Newbang888
+TEST_DOMAIN=6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com
+TEST_BASE_DOMAIN=noob-ai.test.bangbangvip.com
+
+# 生产环境
+PROD_IP=chat.benne-ai.com
+PROD_SSH_PORT=22
+PROD_SSH_USER=ubuntu
+PROD_SSH_PASS=Benne-ai@#
+PROD_DOMAIN=chat.benne-ai.com
+PROD_BASE_DOMAIN=
+
+# CodeUp Git 仓库
+CODEUP_REPO_URL=https://codeup.aliyun.com/6a05a6159b7ce0afb00c035e/6b099ed3-7175-4a78-91f4-44570c84ed27.git
+CODEUP_USER=kun-an
+CODEUP_TOKEN=pt-djWjY3sqZzsvJ2nrhjV5e6mn_53e2cacd-e746-4659-8db4-024903ec9b74
+
+# GitHub 仓库（APP 打包使用）
+GITHUB_REPO_URL=https://github.com/ankun-eric/auto_dev_bnbbaijkgj
+GITHUB_USER=ankun-eric
+GITHUB_TOKEN=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
+
+# APP 信息（如项目包含 APP）
+APP_FRAMEWORK=flutter
+IOS_BUNDLE_ID=com.benekang.app
+ANDROID_PACKAGE=com.benekang.app
+
+# ACR 容器镜像服务
+ACR_REGISTRY=crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com
+ACR_PROJECT_NS=noob_ai_apps
+ACR_BASE_NS=noob_doker_base
+ACR_USER=ankun888
+ACR_PASS=xiaobai888
+
+# 发布标识
+DEPLOY_ID=6b099ed3-7175-4a78-91f4-44570c84ed27
+
+# 生产环境数据库
+数据库位置=腾讯云的云数据库
+DB_TYPE=mysql
+DB_HOST=gz-cdb-nniq1lmp.sql.tencentcdb.com
+DB_PORT=27082
+DB_USER=root
+DB_PASS=xiaokangaab
+DB_BACKUP=false

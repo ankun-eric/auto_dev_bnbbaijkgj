@@ -1,0 +1,7 @@
+spawn ssh -o StrictHostKeyChecking=no ubuntu@newbb.test.bangbangvip.com
+expect ":"
+send "Newbang888\r"
+expect "$"
+send "docker inspect 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 --format='{{json .Config.Env}}' | head -c 500\r"
+expect "$"
+send "exit\r"

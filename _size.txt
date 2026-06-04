@@ -1,0 +1,4 @@
+  File "<string>", line 1
+    import subprocess,os; r=subprocess.run(['git','ls-files','-z','--cached'],capture_output=True); files=[f for f in r.stdout.decode('utf-8','replace').split('\x00') if f]; total=sum(os.path.getsize(f) for f in files if os.path.exists(f)); units=['B','KB','MB','GB']; v=total; u=0; [v:=v/1024 or u:=u+1 for _ in range(3)] if False else None; print(f'Tracked files: {len(files)}\nTotal size: {total} bytes ({total/1024/1024:.2f} MB)')
+                                                                                                                                                                                                                                                                                                          ^^
+SyntaxError: invalid syntax

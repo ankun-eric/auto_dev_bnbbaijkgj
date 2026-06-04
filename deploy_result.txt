@@ -1,0 +1,66 @@
+============================================================
+Deploy Start: DEPLOY_ID=6b099ed3-7175-4a78-91f4-44570c84ed27
+Domain: https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com
+============================================================
+
+[1] Connecting to server...
+    SSH connected OK
+
+[2] ACR Login...
+Login Succeeded
+
+[3] Git pull from Codeup...
+    fatal: 'codeup' does not appear to be a git repository
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
+
+[4] Stopping old containers...
+    Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Stopping 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Stopping 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Stopped 
+ Container 6b
+
+[5] Building images (no-cache)...
+    BUILD_COMMIT=b0126a1cf95b8fe71b80f2f0d25c540c3e740a04
+    Build output (59839 chars)
+    Build errors (last 500):
+    -7175-4a78-91f4-44570c84ed27-admin-web:latest done
+#41 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+#41 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.5s done
+#41 DONE 1.9s
+
+#42 [admin-web] resolving provenance for metadata file
+#42 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Built 
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built
+
+
+[6] Starting containers...
+    Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Creating 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Created 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Creating 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Created 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-a
+
+[7] Waiting for containers to be healthy...
+    [1] 4 containers, 4 running: ['6b099ed3-7175-4a78-91f4-44570c84ed27-admin Up 10 seconds', '6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Up 10 seconds', '6b099ed3-7175-4a78-91f4-44570c84ed27-backend Up 11 seconds', '6b099ed3-7175-4a78-91f4-44570c84ed27-db Up 16 seconds (healthy)']
+    All containers are running!
+
+[8] Updating gateway nginx config...
+    cp:  
+
+[9] Reloading gateway nginx...
+    nginx -t: 2026/06/03 12:11:42 [warn] 482#482: the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.server:11
+nginx: [warn]  
+    reload: 2026/06/03 12:11:42 [warn] 488#488: the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.server:11
+nginx: [warn]  
+
+[10] Verifying HTTPS...
+    /api/health -> HTTP 200
+    / (H5) -> HTTP 200
+    /admin/ -> HTTP 200
+
+[11] Checking default admin account (admin/admin123)...

@@ -1,0 +1,69 @@
+=== Step 1: Upload files ===
+  -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/api/home_safety_v1.py
+  -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/app/services/schema_sync.py
+  -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/backend/tests/test_home_safety_v2.py
+  -> /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/admin-web/src/app/(admin)/home-safety/page.tsx
+Upload done.
+
+=== Step 2: Verify httpx in backend container ===
+httpx:  Error response from daemon: Container f923f03a0049e853856bc3ff9e3a0c9f7b046dca1ea09a01ad361d0e044231f0 is restarting, wait until the container is running
+
+=== Step 3: Rebuild + restart backend container ===
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.0s
+
+#5 [1/6] FROM docker.io/library/python:3.11-slim@sha256:9a7765b36773a37061455b332f18e265e7f58f6fea9c419a550d2a8b0e9db834
+#5 resolve docker.io/library/python:3.11-slim@sha256:9a7765b36773a37061455b332f18e265e7f58f6fea9c419a550d2a8b0e9db834 0.0s done
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 326.81kB 0.0s done
+#6 DONE 0.1s
+
+#7 [2/6] WORKDIR /app
+#7 CACHED
+
+#8 [3/6] COPY requirements.txt .
+#8 CACHED
+
+#9 [4/6] RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.cloud.tencent.com/pypi/simple --trusted-host mirrors.cloud.tencent.com --timeout 120
+#9 CACHED
+
+#10 [5/6] COPY . .
+#10 DONE 1.2s
+
+#11 [6/6] RUN mkdir -p uploads
+#11 DONE 0.4s
+
+#12 exporting to image
+#12 exporting layers
+#12 exporting layers 1.2s done
+#12 exporting manifest sha256:64b44e8b3a5077c4e490c592dbdd77a698d57c9f7114d37f52dffdf207955f1f 0.0s done
+#12 exporting config sha256:a8e8afa16fe9a89e5bb96cc179e18070bd449e7cf9b6454b4c09e290a3e83e8a 0.0s done
+#12 exporting attestation manifest sha256:87b38d4283a81dfb95facb8049a0c258729afeee805283720f571dcca0584ee9 0.0s done
+#12 exporting manifest list sha256:4731e66f717008125524baf3c22fa10ac45a4813866a1073c78c742408937f12 0.0s done
+#12 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest done
+#12 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest
+#12 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest 0.3s done
+#12 DONE 1.6s
+
+#13 resolving provenance for metadata file
+#13 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Built 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+
+
+=== Step 4: Wait for backend healthy ===
+  WARNING: backend not ready after 90s
+
+=== Step 5: Run v1 + v2 home_safety tests inside backend container ===
+/usr/local/bin/python: No module named pytest
+

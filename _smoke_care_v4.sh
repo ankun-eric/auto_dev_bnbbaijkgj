@@ -1,0 +1,15 @@
+BASE="https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com"
+echo "===== 1) reverse-geocoding bounds (expect 400) ====="
+curl -s -o /dev/null -w "HTTP %{http_code}\n" -X POST "$BASE/api/maps/reverse-geocoding" -H "Content-Type: application/json" -d '{"latitude":999,"longitude":116.4}'
+echo "===== 2) reverse-geocoding valid (expect 200 with address) ====="
+curl -s -X POST "$BASE/api/maps/reverse-geocoding" -H "Content-Type: application/json" -d '{"latitude":39.9087,"longitude":116.3975}' | head -c 400; echo
+echo "===== 3) share-location invalid token (expect 404) ====="
+curl -s -o /dev/null -w "HTTP %{http_code}\n" "$BASE/api/care-card/share-location/not_exist_token_xyz"
+echo "===== 4) H5 SOS page (expect 200 html) ====="
+curl -s -o /dev/null -w "HTTP %{http_code}\n" "$BASE/care-ai-home/sos"
+echo "===== 5) H5 today-health page ====="
+curl -s -o /dev/null -w "HTTP %{http_code}\n" "$BASE/care-ai-home/today-health"
+echo "===== 6) H5 share-location view page (token route prerender) ====="
+curl -s -o /dev/null -w "HTTP %{http_code}\n" "$BASE/care-ai-home/share-location/sometoken"
+echo "===== 7) H5 care-ai-home page ====="
+curl -s -o /dev/null -w "HTTP %{http_code}\n" "$BASE/care-ai-home"

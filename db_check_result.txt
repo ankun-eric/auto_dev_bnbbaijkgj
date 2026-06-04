@@ -1,0 +1,47 @@
+=== Users table columns ===
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Field	Type	Null	Key	Default	Extra
+id	int	NO	PRI	NULL	auto_increment
+phone	varchar(20)	YES	UNI	NULL	
+password_hash	varchar(255)	YES		NULL	
+nickname	varchar(100)	YES		NULL	
+avatar	varchar(500)	YES		NULL	
+role	enum('user','admin','doctor','merchant','content_editor')	NO		user	
+wechat_openid	varchar(100)	YES	UNI	NULL	
+apple_id	varchar(100)	YES	UNI	NULL	
+member_card_no	varchar(50)	YES	UNI	NULL	
+member_level	int	YES		NULL	
+points	int	YES		NULL	
+status	varchar(20)	YES		NULL	
+is_superuser	tinyint(1)	NO		0	
+chat_font_size	varchar(20)	YES		NULL	
+created_at	datetime	YES		NULL	
+updated_at	datetime	YES		NULL	
+user_no	varchar(8)	YES	UNI	NULL	
+referrer_no	varchar(8)	YES	MUL	NULL	
+member_card_no_old	varchar(64)	YES		NULL	
+last_login_at	datetime	YES		NULL	
+
+
+
+=== Admin users (phone like admin) ===
+mysql: [Warning] Using a password on the command line interface can be insecure.
+id	phone	role
+1	13800000000	admin
+
+
+
+=== All users count ===
+mysql: [Warning] Using a password on the command line interface can be insecure.
+total_users
+206
+
+
+
+=== Container health status ===
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Up 48 seconds (health: starting)
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin Up 48 seconds (health: starting)
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend Up 48 seconds (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-db Up 54 seconds (healthy)
+
+

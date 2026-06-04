@@ -1,0 +1,10 @@
+docs: 睡眠全部历史显示与编辑修复 · 用户手册 + 同步项目索引 + 部署脚本
+
+- 用户手册：user_docs/睡眠全部历史显示与编辑修复.md
+- 项目索引：在最近一次变更追加睡眠 Bug 修复条目（commit 0da31cdb 已修复，本次部署生效）
+- 部署脚本：deploy/_deploy_sleep_all_history_fix_20260602.py 等
+- 验证：服务器 backend 容器内 20 passed (8 sleep + 12 noaction)
+- 仅 H5 改动，已 --no-cache 重建 6b099ed3-...-h5 并 reload gateway
+- 小程序/App 内嵌同一 H5 自动一致，零打包
+
+Co-authored-by: Cursor <cursoragent@cursor.com>
