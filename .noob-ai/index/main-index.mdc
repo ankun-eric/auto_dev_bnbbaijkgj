@@ -1,6 +1,6 @@
 # 宾尼健康 (Bini Health) 项目索引
 
-> **最后更新**: 2026-06-04 17:24 (Bucket 路径批量替换迁移工具：数据库旧 Bucket 引用已全部替换为新 Bucket)  
+> **最后更新**: 2026-06-04 18:33 (Bug修复：新建咨询人后邀请时status查询条件不匹配，V3状态机兼容修复)  
 > **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
 > **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
 > **Git 主仓库**: Codeup (codeup.aliyun.com)  
