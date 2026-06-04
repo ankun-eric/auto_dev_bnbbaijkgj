@@ -147,15 +147,7 @@ async def verify(db, columns):
     return remaining == 0
 async def write_migration_log(db, log_entries):
     """将迁移结果写入数据库日志表 _migration_bucket_log"""
-    for table_name, col_name, updated in log_entries:
-        await db.execute(
-            text(
-                "INSERT INTO _migration_bucket_log (table_name, column_name, affected_rows) "
-                "VALUES (:tbl, :col, :cnt)"
-            ),
-            {"tbl": table_name, "col": col_name, "cnt": updated},
-        )
-    # 日志表在 SQL 脚本中创建，这里确保已存在
+    # 确保日志表存在（先建表，再写入）
     await db.execute(text(
         "CREATE TABLE IF NOT EXISTS _migration_bucket_log ("
         "  id INT AUTO_INCREMENT PRIMARY KEY,"
@@ -165,6 +157,14 @@ async def write_migration_log(db, log_entries):
         "  executed_at DATETIME DEFAULT NOW()"
         ")"
     ))
+    for table_name, col_name, updated in log_entries:
+        await db.execute(
+            text(
+                "INSERT INTO _migration_bucket_log (table_name, column_name, affected_rows) "
+                "VALUES (:tbl, :col, :cnt)"
+            ),
+            {"tbl": table_name, "col": col_name, "cnt": updated},
+        )
 
 
 async def rollback(db, columns):
