@@ -105,11 +105,14 @@ async def create_invitation(
     member: FamilyMember | None = None
     target_member_id: int | None = None
     if data.member_id:
+        # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V4 2026-06-03 兼容修复]
+        # V3 状态机后新建成员 status 为 unbound（而非老的 bound），
+        # 邀请接口只应排除已软删除的记录（deleted/removed），不应限定 bound。
         member_result = await db.execute(
             select(FamilyMember).where(
                 FamilyMember.id == data.member_id,
                 FamilyMember.user_id == current_user.id,
-                FamilyMember.status == "bound",
+                FamilyMember.status.notin_(["deleted", "removed"]),
             )
         )
         member = member_result.scalar_one_or_none()
@@ -455,10 +458,12 @@ async def accept_invitation(
 
     # [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 情况 2 邀请阶段没建 Tab，此时才建
     if invitation.member_id is None:
+        # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V4 2026-06-03 兼容修复]
+        # V3 状态机后只排除已软删除记录（deleted/removed），不限定 bound。
         existing_count_res = await db.execute(
             select(func.count(FamilyMember.id)).where(
                 FamilyMember.user_id == invitation.inviter_user_id,
-                FamilyMember.status == "bound",
+                FamilyMember.status.notin_(["deleted", "removed"]),
             )
         )
         existing_count = int(existing_count_res.scalar() or 0)
