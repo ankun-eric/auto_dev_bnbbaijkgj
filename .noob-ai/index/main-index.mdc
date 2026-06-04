@@ -1,6 +1,6 @@
 # 宾尼健康 (Bini Health) 项目索引
 
-> **最后更新**: 2026-06-04 18:33 (Bug修复：新建咨询人后邀请时status查询条件不匹配，V3状态机兼容修复)  
+> **最后更新**: 2026-06-04 19:05 (新功能：益智乐园H5页面 - 老年人数学游戏+排行+组队挑战)  
 > **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
 > **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
 > **Git 主仓库**: Codeup (codeup.aliyun.com)  
@@ -59,6 +59,8 @@ bnbbaijkgj/
 │   │   ├── member-center/    # 会员中心
 │   │   ├── login/            # 登录页
 │   │   └── ...
+│   ├── public/
+│   │   └── brain-game.html   # 益智乐园 H5（数学游戏+排行+组队挑战，适老化设计）
 │   ├── Dockerfile
 │   └── package.json
 ├── admin-web/                # Next.js 管理后台
