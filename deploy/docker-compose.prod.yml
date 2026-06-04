@@ -43,10 +43,13 @@ services:
     build:
       context: ../admin-web
       dockerfile: ../deploy/Dockerfile.admin
+      args:
+        NEXT_PUBLIC_API_URL: /api
+        NEXT_PUBLIC_BASE_PATH: /admin
     container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-admin
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/admin || curl -sf http://127.0.0.1:3000/admin || node -e \"process.exit(1)\" || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/admin/ || wget -qO- http://127.0.0.1:3000/ || node -e \"process.exit(1)\" || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -69,10 +72,13 @@ services:
     build:
       context: ../h5-web
       dockerfile: ../deploy/Dockerfile.h5
+      args:
+        NEXT_PUBLIC_API_URL: /api
+        NEXT_PUBLIC_BASE_PATH: ""
     container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/ || curl -sf http://127.0.0.1:3001/ || node -e \"process.exit(1)\" || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/ || node -e \"process.exit(1)\" || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 10
