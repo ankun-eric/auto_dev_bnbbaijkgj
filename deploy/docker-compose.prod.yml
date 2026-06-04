@@ -1,10 +1,13 @@
 services:
   backend:
     image: crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_ai_apps/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest
+    build:
+      context: ../backend
+      dockerfile: ../deploy/Dockerfile.backend
     container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-backend
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')\" || exit 1"]
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')\" || wget -qO- http://127.0.0.1:8000/api/health || curl -sf http://127.0.0.1:8000/api/health || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -37,10 +40,13 @@ services:
 
   admin-web:
     image: crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_ai_apps/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+    build:
+      context: ../admin-web
+      dockerfile: ../deploy/Dockerfile.admin
     container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-admin
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/admin || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/admin || curl -sf http://127.0.0.1:3000/admin || node -e \"process.exit(1)\" || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -60,10 +66,13 @@ services:
 
   h5-web:
     image: crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_ai_apps/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+    build:
+      context: ../h5-web
+      dockerfile: ../deploy/Dockerfile.h5
     container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/ || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/ || curl -sf http://127.0.0.1:3001/ || node -e \"process.exit(1)\" || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 10

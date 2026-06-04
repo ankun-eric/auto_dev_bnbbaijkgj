@@ -498,6 +498,11 @@ async def accept_invitation(
         member = member_result.scalar_one_or_none()
         if not member:
             raise HTTPException(status_code=404, detail="关联的家庭成员不存在")
+        # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V4 2026-06-04]
+        # 情况 1（已有成员）：接受邀请后必须将成员状态更新为 bound，
+        # 与情况 2 保持一致，确保 SOS 等依赖 bound 状态的接口能正确匹配。
+        member.status = "bound"
+        member.sub_status = "bound"
 
     # --- 档案合并逻辑 ---
     member.member_user_id = current_user.id

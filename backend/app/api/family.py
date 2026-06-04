@@ -216,10 +216,13 @@ async def add_family_member(
 
     # [BUGFIX-HEALTH-ARCHIVE-MEMBER-TAB-V2 2026-05-19] 新成员入档时分配 avatar_color_index：
     # 当前用户已入档成员数（含本人） % 5
+    # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V4 2026-06-03 兼容修复]
+    # V3 状态机后新建成员 status 为 unbound（而非老的 bound），
+    # 此处的颜色索引计数只应排除已软删除记录（deleted/removed），不限定 bound。
     count_res = await db.execute(
         select(func.count(FamilyMember.id)).where(
             FamilyMember.user_id == current_user.id,
-            FamilyMember.status == "bound",
+            FamilyMember.status.notin_(["deleted", "removed"]),
         )
     )
     existing_count = int(count_res.scalar() or 0)
