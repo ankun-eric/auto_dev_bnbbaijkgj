@@ -1,6 +1,6 @@
 # 宾尼健康 (Bini Health) 项目索引
 
-> **最后更新**: 2026-06-04 19:05 (新功能：益智乐园H5页面 - 老年人数学游戏+排行+组队挑战)  
+> **最后更新**: 2026-06-05 02:35 (改版：care-ai-home 页面优化 - 废弃care-home页面，整合数字安全绳到卡片第1位，悬浮球改为竖排，模式切换改为文字链，后端清理care-home独占接口)  
 > **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
 > **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
 > **Git 主仓库**: Codeup (codeup.aliyun.com)  
@@ -36,9 +36,11 @@ bnbbaijkgj/
 │   │   │   ├── family_member_v2.py
 │   │   │   ├── guardian_system_v13.py
 │   │   │   ├── home_safety_v1.py   # 居家安全设备 v1
-│   │   │   ├── care_ai_home.py      # 关怀版 AI 首页
+│   │   │   ├── ai_home_care_v1.py    # 关怀版V1（仅保留user-preferences接口，其余已删除）
+│   │   │   ├── care_ai_home.py      # 关怀版 AI 首页新接口
 │   │   │   ├── care_card_v1.py      # 关怀卡片 v1
 │   │   │   ├── safety_rope_v1.py    # 数字安全绳 v1（独居守护）
+│   │   │   ├── brain_game.py        # 益智乐园（数学游戏+排行+组队挑战）
 │   │   │   └── ...
 │   │   ├── models/           # SQLAlchemy 数据模型
 │   │   ├── schemas/          # Pydantic Schema
@@ -53,11 +55,12 @@ bnbbaijkgj/
 ├── h5-web/                   # Next.js H5 用户端
 │   ├── src/app/              # App Router 页面
 │   │   ├── (ai-chat)/ai-home/  # AI 首页
-│   │   ├── care-home/          # 关怀模式首页（含数字安全绳入口卡片+悬浮球）
+│   │   ├── care-ai-home/       # 关怀版AI首页V4（卡片第1位数字安全绳、悬浮球竖排绿上红下、模式切换文字链）
 │   │   ├── care-safety-rope/   # 数字安全绳功能页（签到/阈值/联系人）
 │   │   ├── health-profile/   # 健康档案
 │   │   ├── member-center/    # 会员中心
 │   │   ├── login/            # 登录页
+│   │   ├── brain-game/        # 益智乐园（老年人数学游戏+排行+组队挑战）
 │   │   └── ...
 │   ├── public/
 │   │   └── brain-game.html   # 益智乐园 H5（数学游戏+排行+组队挑战，适老化设计）
@@ -101,10 +104,10 @@ gateway-nginx (独立主网关, 端口 443)
     └── SSL 证书: *.noob-ai.test.bangbangvip.com
 
 项目 Docker 容器:
-├── 6b099ed3-...-db        (MySQL 8.0)
 ├── 6b099ed3-...-backend   (FastAPI, 8000)
 ├── 6b099ed3-...-admin     (Next.js Admin, 3000)
 └── 6b099ed3-...-h5        (Next.js H5, 3001)
+数据库: 腾讯云 MySQL (gz-cdb-nniq1lmp.sql.tencentcdb.com:27082)
 ```
 
 ## Git 仓库
