@@ -1,20 +1,16 @@
 'use client';
 /**
- * [PRD-MY-DEVICES-V1 2026-05-21] 「我的设备」V2 主页面。
+ * [PRD-HEALTH-ARCHIVE-CO-MANAGE 2026-06-05] 「我的设备」V3 主页面（场景分类版）。
  *
- * 设计要点（参考 PRD «健康档案-我的设备页面优化 v1.0»）：
- *
- * 区域一：我的设备（已绑定卡片网格）
- *   - 空状态显示引导卡片，CTA 平滑滚动到区域二
- *   - 卡片右上 ✎ 进入编辑抽屉；底部解绑触发二次确认
- *
- * 区域二：支持设备列表（5 品牌全部平铺）
- *   - 按 BRAND_ORDER 依次渲染：宾尼 / 华为 / 小米 / 苹果 / 其他
- *   - 按钮四态：未绑定/继续绑定/已绑定/敬请期待（由后端 catalog_id.bound_count + is_active / is_unique 推导）
- *
- * 全量样式遵循 AI-home 11 级天蓝色阶（#0EA5E9 系）。
+ * 设计要点：
+ * - 按四大场景分类展示：安全守护 / 健康守护 / 日夜守护 / 其他
+ * - 每个分类卡片右上角显示"已绑 X 台"
+ * - 分类下无设备时显示"暂无设备"占位
+ * - 禁用的分类不展示
+ * - 点击设备卡片跳转到 jump_url 指定的详情页
+ * - 底部保留"支持设备列表"按品牌展示（兼容旧版）
  */
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
@@ -23,12 +19,14 @@ import {
   editBinding,
   fetchCatalog,
   fetchMyDevices,
+  fetchSceneGroups,
   unbindDevice,
   type BindPayload,
   type CatalogGroup,
   type CatalogItem,
   type EditBindingPayload,
   type MyDeviceItem,
+  type SceneGroup,
 } from '@/lib/api/devices';
 import BrandSection from './components/BrandSection';
 import MyDeviceCard from './components/MyDeviceCard';
@@ -45,12 +43,20 @@ export default function DevicesPage() {
   );
 }
 
+const SCENE_ICONS: Record<string, string> = {
+  '安全守护': '🛡️',
+  '健康守护': '💚',
+  '日夜守护': '🌙',
+  '其他': '📱',
+};
+
 function DevicesPageInner() {
   const searchParams = useSearchParams();
   const memberId = searchParams?.get('member_id') || '';
   const isSelfTab = !memberId || memberId === '0';
   const [myList, setMyList] = useState<MyDeviceItem[]>([]);
   const [groups, setGroups] = useState<CatalogGroup[]>([]);
+  const [sceneGroups, setSceneGroups] = useState<SceneGroup[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [bindTarget, setBindTarget] = useState<CatalogItem | null>(null);
@@ -58,18 +64,18 @@ function DevicesPageInner() {
   const [unbindTarget, setUnbindTarget] = useState<MyDeviceItem | null>(null);
   const [unbindSubmitting, setUnbindSubmitting] = useState(false);
 
-  const catalogAnchorRef = useRef<HTMLDivElement | null>(null);
-
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
       const mid = isSelfTab ? undefined : memberId;
-      const [my, cat] = await Promise.all([
+      const [my, cat, sg] = await Promise.all([
         fetchMyDevices(mid).catch(() => ({ items: [], total: 0 })),
         fetchCatalog().catch(() => ({ groups: [], total: 0 })),
+        fetchSceneGroups().catch(() => ({ items: [], total: 0 })),
       ]);
       setMyList(my.items || []);
       setGroups(cat.groups || []);
+      setSceneGroups(sg.items || []);
     } finally {
       setLoading(false);
     }
@@ -78,14 +84,6 @@ function DevicesPageInner() {
   useEffect(() => {
     loadAll();
   }, [loadAll]);
-
-  const empty = !loading && myList.length === 0;
-
-  const scrollToCatalog = () => {
-    if (catalogAnchorRef.current) {
-      catalogAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
 
   const handleBindClick = (item: CatalogItem) => {
     setBindTarget(item);
@@ -132,6 +130,32 @@ function DevicesPageInner() {
     }
   };
 
+  // 按场景分组我的设备
+  const devicesByScene = useMemo(() => {
+    const map: Record<number, MyDeviceItem[]> = {};
+    const ungrouped: MyDeviceItem[] = [];
+    for (const d of myList) {
+      const sgid = d.scene_group_id;
+      if (sgid != null && sgid > 0) {
+        if (!map[sgid]) map[sgid] = [];
+        map[sgid].push(d);
+      } else {
+        ungrouped.push(d);
+      }
+    }
+    return { map, ungrouped };
+  }, [myList]);
+
+  const enabledSceneGroups = useMemo(
+    () => sceneGroups.filter((sg) => sg.is_enabled),
+    [sceneGroups],
+  );
+
+  // 其他分类（scene_group_id 为最后一项，通常是"其他"）
+  const otherGroup = enabledSceneGroups.length > 0
+    ? enabledSceneGroups[enabledSceneGroups.length - 1]
+    : null;
+
   const myDeviceCount = useMemo(() => myList.length, [myList]);
 
   return (
@@ -139,16 +163,12 @@ function DevicesPageInner() {
       <GreenNavBar>我的设备</GreenNavBar>
 
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 20 }}>
-        {/* 区域一：我的设备 */}
-        <section data-testid="bh-my-devices-section">
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'baseline',
-              justifyContent: 'space-between',
-              marginBottom: 10,
-            }}
-          >
+        {/* 区域一：按场景分类已绑定设备 */}
+        <section>
+          <div style={{
+            display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+            marginBottom: 10,
+          }}>
             <h2 style={{ fontSize: 16, fontWeight: 600, color: DV_COLOR.textPrimary, margin: 0 }}>
               我的设备
             </h2>
@@ -162,71 +182,45 @@ function DevicesPageInner() {
               background: '#fff', borderRadius: 16, padding: 32, textAlign: 'center',
               color: DV_COLOR.textSecondary, boxShadow: '0 2px 12px rgba(2,132,199,0.06)',
             }}>加载中…</div>
-          ) : empty ? (
-            <div
-              data-testid="bh-my-devices-empty"
-              style={{
-                background: isSelfTab ? DV_COLOR.gradient : '#fff',
-                borderRadius: 16,
-                padding: '28px 20px',
-                color: isSelfTab ? '#fff' : DV_COLOR.textSecondary,
-                boxShadow: isSelfTab ? '0 6px 24px rgba(2,132,199,0.25)' : '0 2px 12px rgba(2,132,199,0.06)',
-                textAlign: 'center',
-              }}
-            >
-              <div style={{ fontSize: 56, marginBottom: 8 }}>{isSelfTab ? '📱➕' : '📱'}</div>
-              <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>
-                {isSelfTab ? '还没有绑定任何设备' : '该成员暂无绑定设备'}
-              </div>
-              <div style={{ fontSize: 13, opacity: 0.92, marginBottom: 16 }}>
-                {isSelfTab ? '从下方选择支持的设备，开启智能健康监测' : '可以为该成员绑定设备，开启健康监测'}
-              </div>
-              <button
-                onClick={scrollToCatalog}
-                data-testid="bh-my-devices-cta"
-                style={{
-                  background: isSelfTab ? '#fff' : DV_COLOR.brand600,
-                  color: isSelfTab ? DV_COLOR.brand600 : '#fff',
-                  border: 'none',
-                  padding: '10px 26px',
-                  borderRadius: 22,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 14px rgba(0,0,0,0.08)',
-                }}
-              >{isSelfTab ? '立即绑定 ↓' : '去绑定设备 ↓'}</button>
+          ) : enabledSceneGroups.length === 0 ? (
+            <div style={{
+              background: '#fff', borderRadius: 16, padding: 28, textAlign: 'center',
+              color: DV_COLOR.textSecondary,
+            }}>
+              <div style={{ fontSize: 56, marginBottom: 8 }}>📱➕</div>
+              <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>还没有绑定任何设备</div>
+              <div style={{ fontSize: 13, opacity: 0.92 }}>从下方支持设备列表选择并绑定设备</div>
             </div>
           ) : (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                gap: 12,
-              }}
-            >
-              {myList.map((it) => (
-                <MyDeviceCard
-                  key={it.id}
-                  item={it}
-                  onEdit={(x) => setEditTarget(x)}
-                  onUnbind={(x) => setUnbindTarget(x)}
-                />
-              ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {enabledSceneGroups.map((sg) => {
+                const sgDevices = devicesByScene.map[sg.id] || [];
+                const isOther = otherGroup && sg.id === otherGroup.id;
+                const allDevices = isOther
+                  ? [...sgDevices, ...devicesByScene.ungrouped]
+                  : sgDevices;
+                return (
+                  <SceneGroupCard
+                    key={sg.id}
+                    name={sg.name}
+                    devices={allDevices}
+                    onEdit={(d) => setEditTarget(d)}
+                    onUnbind={(d) => setUnbindTarget(d)}
+                  />
+                );
+              })}
             </div>
           )}
         </section>
 
-        {/* 区域二：支持设备列表 */}
+        {/* 区域二：支持设备列表（按品牌） */}
         <section data-testid="bh-brand-catalog-section">
-          <div ref={catalogAnchorRef} style={{ scrollMarginTop: 60 }} />
           <h2 style={{
             fontSize: 16, fontWeight: 600, color: DV_COLOR.textPrimary,
             margin: '4px 0 12px 0',
           }}>
             支持设备列表
           </h2>
-
           {loading && groups.length === 0 ? (
             <div style={{
               background: '#fff', borderRadius: 16, padding: 32, textAlign: 'center',
@@ -254,14 +248,12 @@ function DevicesPageInner() {
         onClose={() => setBindTarget(null)}
         onSubmit={handleBindSubmit}
       />
-
       <EditDeviceDrawer
         visible={!!editTarget}
         item={editTarget}
         onClose={() => setEditTarget(null)}
         onSubmit={handleEditSubmit}
       />
-
       <UnbindConfirmModal
         visible={!!unbindTarget}
         item={unbindTarget}
@@ -269,6 +261,72 @@ function DevicesPageInner() {
         onCancel={() => setUnbindTarget(null)}
         onConfirm={handleUnbindConfirm}
       />
+    </div>
+  );
+}
+
+// ───────────── 场景分类卡片 ─────────────
+
+function SceneGroupCard({
+  name,
+  devices,
+  onEdit,
+  onUnbind,
+}: {
+  name: string;
+  devices: MyDeviceItem[];
+  onEdit: (d: MyDeviceItem) => void;
+  onUnbind: (d: MyDeviceItem) => void;
+}) {
+  const icon = SCENE_ICONS[name] || '📱';
+  const count = devices.length;
+
+  return (
+    <div style={{
+      background: '#fff',
+      borderRadius: 16,
+      padding: '16px 16px 12px',
+      boxShadow: '0 2px 12px rgba(2,132,199,0.06)',
+    }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: count > 0 ? 12 : 6,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 22 }}>{icon}</span>
+          <span style={{ fontSize: 15, fontWeight: 600, color: '#0F172A' }}>{name}</span>
+        </div>
+        <span style={{
+          fontSize: 12, color: DV_COLOR.brand600,
+          background: '#E0F2FE', padding: '3px 10px', borderRadius: 10,
+          fontWeight: 500,
+        }}>
+          已绑 {count} 台
+        </span>
+      </div>
+
+      {count === 0 ? (
+        <div style={{
+          textAlign: 'center', padding: '16px 0', color: '#94A3B8', fontSize: 13,
+        }}>
+          暂无设备
+        </div>
+      ) : (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+          gap: 10,
+        }}>
+          {devices.map((d) => (
+            <MyDeviceCard
+              key={d.id}
+              item={d}
+              onEdit={(x) => onEdit(x)}
+              onUnbind={(x) => onUnbind(x)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

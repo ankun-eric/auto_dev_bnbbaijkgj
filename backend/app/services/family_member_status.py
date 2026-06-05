@@ -115,15 +115,17 @@ async def derive_v3_state(
         )
 
     if main == "unbound":
+        _sub = sub if sub in (
+            "not_applied", "applying", "rejected",
+            "unbinded", "invited_expired",
+        ) else "unbinded"
+        _is_unbinded = (_sub == "unbinded")
         return V3StateInfo(
             main_status="unbound",
-            sub_status=sub if sub in (
-                "not_applied", "applying", "rejected",
-                "unbinded", "invited_expired",
-            ) else "unbinded",
-            can_reinvite=(sub != "applying"),
-            can_edit=True,
-            show_simplified_view=(sub == "unbinded"),
+            sub_status=_sub,
+            can_reinvite=(_sub != "applying"),
+            can_edit=(not _is_unbinded),
+            show_simplified_view=_is_unbinded,
         )
 
     # main == "bound"：治本后这就是真值，直接返回

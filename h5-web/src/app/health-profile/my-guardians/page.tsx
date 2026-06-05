@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Dialog } from 'antd-mobile';
+import { Dialog, Button, Input, Popup } from 'antd-mobile';
 import { QRCodeCanvas } from 'qrcode.react';
 import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
@@ -89,13 +89,68 @@ function MyGuardiansPageInner() {
       confirmText: UNBIND_GUARDIAN_CONFIRM.confirmText,
     });
     if (!confirmed) return;
+    setRemoveGuardian(g);
+    setRemoveCode('');
+    setRemoveCountdown(0);
+    setRemoveMaskedPhone(null);
+  };
+
+  // [PRD-HEALTH-ARCHIVE-CO-MANAGE 2026-06-05 F12] 入口 C：短信验证码相关状态
+  const [removeGuardian, setRemoveGuardian] = useState<Guardian | null>(null);
+  const [removeCode, setRemoveCode] = useState('');
+  const [removeCountdown, setRemoveCountdown] = useState(0);
+  const [removeSending, setRemoveSending] = useState(false);
+  const [removeConfirming, setRemoveConfirming] = useState(false);
+  const [removeMaskedPhone, setRemoveMaskedPhone] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (removeCountdown <= 0) return;
+    const t = setTimeout(() => setRemoveCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [removeCountdown]);
+
+  const handleSendRemoveCode = async () => {
+    if (!removeGuardian?.management_id) return;
+    setRemoveSending(true);
     try {
-      await api.post('/api/reverse-guardian/remove', { management_id: g.management_id });
+      const r: any = await api.post('/api/reverse-guardian/remove/send-code', {
+        management_id: removeGuardian.management_id,
+      });
+      const data = r.data || r;
+      setRemoveMaskedPhone(data.masked_phone || null);
+      if (data.debug_code) {
+        showToast(`验证码已发送（开发环境：${data.debug_code}）`);
+        setRemoveCode(data.debug_code);
+      } else {
+        showToast('验证码已发送');
+      }
+      setRemoveCountdown(60);
+    } catch (e: any) {
+      showToast(e?.response?.data?.detail || e?.message || '发送失败', 'fail');
+    } finally {
+      setRemoveSending(false);
+    }
+  };
+
+  const handleConfirmRemove = async () => {
+    if (!removeGuardian?.management_id) return;
+    if (!removeCode || removeCode.length < 4) {
+      showToast('请输入验证码', 'warning');
+      return;
+    }
+    setRemoveConfirming(true);
+    try {
+      await api.post(`/api/reverse-guardian/remove?code=${removeCode}`, {
+        management_id: removeGuardian.management_id,
+      });
       showToast('已解除守护');
+      setRemoveGuardian(null);
       fetchGuardians();
     } catch (e: any) {
       const msg = e?.response?.data?.detail || e?.message || '操作失败';
       showToast(String(msg), 'fail');
+    } finally {
+      setRemoveConfirming(false);
     }
   };
 
@@ -457,6 +512,67 @@ function MyGuardiansPageInner() {
           </div>
         </div>
       )}
+
+      {/* [PRD-HEALTH-ARCHIVE-CO-MANAGE 2026-06-05 F12] 解除守护短信验证码弹窗 */}
+      <Popup
+        visible={!!removeGuardian}
+        onMaskClick={() => setRemoveGuardian(null)}
+        bodyStyle={{
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
+          padding: 16,
+          maxHeight: '70vh',
+          overflowY: 'auto',
+        }}
+      >
+        <div>
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            marginBottom: 12,
+          }}>
+            <strong style={{ fontSize: 18 }}>解除守护关系</strong>
+            <span onClick={() => setRemoveGuardian(null)} style={{ fontSize: 22, color: '#999', cursor: 'pointer', padding: '0 8px' }}>
+              ×
+            </span>
+          </div>
+
+          <div style={{
+            background: '#FFF4ED', border: '1px solid #FFD8B8', color: '#9A4500',
+            borderRadius: 8, padding: 12, fontSize: 13, lineHeight: '20px', marginBottom: 16,
+          }}>
+            ⚠️ 解除守护后将不再接收 TA 的健康提醒，且无法查看 TA 的详细健康数据。此操作不可恢复，请谨慎操作。
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
+              短信验证码{removeMaskedPhone ? `已发送至：${removeMaskedPhone}` : '将发送至您的手机'}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Input
+                placeholder="输入验证码"
+                value={removeCode}
+                onChange={(v: string) => setRemoveCode(v.replace(/\D/g, '').slice(0, 6))}
+                style={{
+                  flex: 1, background: '#F8F9FC', borderRadius: 8,
+                  padding: '0 12px', height: 40,
+                }}
+              />
+              <Button
+                size="small"
+                disabled={removeCountdown > 0 || removeSending}
+                onClick={handleSendRemoveCode}
+                style={{ width: 140 }}
+              >
+                {removeCountdown > 0 ? `${removeCountdown}s 后重发` : removeSending ? '发送中...' : '获取验证码'}
+              </Button>
+            </div>
+          </div>
+
+          <Button block color="danger" loading={removeConfirming} onClick={handleConfirmRemove}>
+            确认解除守护关系
+          </Button>
+        </div>
+      </Popup>
     </div>
   );
 }

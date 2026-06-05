@@ -1238,18 +1238,102 @@ async def reinvite_member(
     )
 
 
+@router.post("/api/family/member/{member_id}/unbind/send-code")
+async def unbind_send_code(
+    member_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD-HEALTH-ARCHIVE-CO-MANAGE 2026-06-05 F12] 入口 B：解除守护前发送短信验证码。
+
+    校验：
+    - 该档案当前必须是 S1（active 守护关系）
+    - 操作人必须有手机号
+    - 1 分钟内同一手机号只能发送 1 次
+    """
+    from app.services.family_status_constants import DELETED_STATUSES as _DRS_UB
+    member = await db.get(FamilyMember, member_id)
+    if not member or member.status in _DRS_UB:
+        raise HTTPException(status_code=404, detail="该档案不存在或已被删除")
+    if member.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="您没有权限操作该档案")
+
+    mgmt = (await db.execute(
+        select(FamilyManagement).where(
+            FamilyManagement.manager_user_id == current_user.id,
+            FamilyManagement.managed_member_id == member_id,
+            FamilyManagement.status == "active",
+        )
+    )).scalars().first()
+    if not mgmt:
+        raise HTTPException(status_code=400, detail="该档案未处于守护中状态")
+
+    phone = current_user.phone
+    if not phone:
+        raise HTTPException(status_code=400, detail="账号未绑定手机号，无法发送验证码")
+
+    # 频率限制：同一手机号 1 分钟内只能发 1 次
+    from app.models.models import SmsLog
+    one_min_ago = datetime.utcnow() - timedelta(minutes=1)
+    recent_log = (await db.execute(
+        select(SmsLog).where(
+            SmsLog.phone == phone,
+            SmsLog.status == "success",
+            SmsLog.created_at > one_min_ago,
+        )
+    )).scalars().first()
+    if recent_log:
+        raise HTTPException(status_code=429, detail="验证码发送频率过快，请 1 分钟后再试")
+
+    import random as _random
+    code = str(_random.randint(100000, 999999))
+
+    # 保存验证码（5 分钟有效）
+    from app.models.models import VerificationCode
+    vc = VerificationCode(
+        phone=phone,
+        code=code,
+        type="unbind_guardian",
+        expires_at=datetime.utcnow() + timedelta(minutes=5),
+    )
+    db.add(vc)
+    await db.flush()
+
+    # 发送短信
+    from app.services.sms_service import send_sms
+    try:
+        await send_sms(phone, code, db=db)
+    except Exception as e:
+        logger.warning("[F12] unbind send-code SMS failed for user=%s: %s", current_user.id, e)
+        # 开发环境兜底：返回 debug_code
+        masked = phone[:3] + "****" + phone[-4:] if len(phone) > 7 else "***"
+        return {
+            "message": "验证码已发送（当前为开发环境，未能真实发送短信）",
+            "masked_phone": masked,
+            "debug_code": code,
+        }
+
+    masked = phone[:3] + "****" + phone[-4:] if len(phone) > 7 else "***"
+    return {
+        "message": "验证码已发送",
+        "masked_phone": masked,
+    }
+
+
 @router.post("/api/family/member/{member_id}/unbind")
 async def unbind_member(
     member_id: int,
     payload: Optional[UnbindRequest] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    code: Optional[str] = Query(None, description="短信验证码（6 位数字）"),
 ):
     """[PRD §3.1] 解除守护：S1 → S6。
 
     校验：
     - 该档案当前必须是 S1（active 守护关系）
     - 名下无设备
+    - [F12] 短信验证码校验（6 位数字，5 分钟有效）
     """
     now = datetime.utcnow()
     # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 兼容 deleted（V3 升级后不再兼容 removed）
@@ -1274,6 +1358,27 @@ async def unbind_member(
     # 设备校验
     if await _has_bound_device(db, member_id, member.member_user_id):
         raise HTTPException(status_code=400, detail="请先解绑该成员名下设备")
+
+    # [F12] 短信验证码校验
+    if not code or len(code) != 6 or not code.isdigit():
+        raise HTTPException(status_code=400, detail="请提供 6 位短信验证码")
+    phone = current_user.phone
+    if not phone:
+        raise HTTPException(status_code=400, detail="账号未绑定手机号")
+    from app.models.models import VerificationCode
+    vc_result = await db.execute(
+        select(VerificationCode).where(
+            VerificationCode.phone == phone,
+            VerificationCode.code == code,
+            VerificationCode.type == "unbind_guardian",
+            VerificationCode.expires_at > datetime.utcnow(),
+        ).order_by(VerificationCode.created_at.desc()).limit(1)
+    )
+    vc = vc_result.scalars().first()
+    if not vc:
+        raise HTTPException(status_code=400, detail="验证码无效或已过期")
+    # 验证成功后删除该验证码
+    await db.delete(vc)
 
     mgmt.status = "removed"
     mgmt.cancelled_at = now

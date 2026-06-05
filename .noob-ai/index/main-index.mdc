@@ -1,6 +1,6 @@
 # 宾尼健康 (Bini Health) 项目索引
 
-> **最后更新**: 2026-06-06 01:02 (unbound成员健康档案可见性修复：HIDDEN_STATUSES和DELETED_OR_REMOVED_STATUSES去掉MAIN_STATUS_UNBOUND，health_profile GET/PUT改用DELETED_STATUSES)
+> **最后更新**: 2026-06-06 (健康档案共管数据合并+设备场景分类改造+解除守护短信验证，13项功能 F1-F13 全部实现)
 > **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
 > **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
 > **Git 主仓库**: Codeup (codeup.aliyun.com)  
@@ -36,6 +36,10 @@ bnbbaijkgj/
 │   │   │   ├── family_member_v2.py
 │   │   │   ├── guardian_system_v13.py
 │   │   │   ├── health_profile.py   # 健康档案（本人档案CRUD、成员档案GET/PUT、过敏/病史/用药/就诊/体检报告CRUD、引导状态）
+│   │   │   ├── health_profile_v3.py   # 健康档案V3（_verify_profile_access + 守护关系放行 F3）
+│   │   │   ├── health_metric_card_v1.py   # 健康指标卡V1（_verify_profile_access + 守护关系放行 F3）
+│   │   │   ├── devices_v2.py       # 我的设备V2 + 场景分类CRUD + 目录管理API (F5-F11)
+│   │   │   ├── reverse_guardian.py  # 反向守护（含短信验证码解除 F12）
 │   │   │   ├── home_safety_v1.py   # 居家安全设备 v1
 │   │   │   ├── ai_home_care_v1.py    # 关怀版V1（仅保留user-preferences接口，其余已删除）
 │   │   │   ├── care_ai_home.py      # 关怀版 AI 首页新接口
@@ -46,7 +50,9 @@ bnbbaijkgj/
 │   │   ├── models/           # SQLAlchemy 数据模型
 │   │   ├── schemas/          # Pydantic Schema
 │   │   ├── services/         # 业务服务与常量
-│   │   │   └── family_status_constants.py  # 家庭成员状态常量（V3枚举、过滤口径DELETED/HIDDEN/ACTIVE等）
+│   │   │   ├── family_status_constants.py  # 家庭成员状态常量（V3枚举、过滤口径DELETED/HIDDEN/ACTIVE等）
+│   │   │   ├── family_member_status.py     # derive_v3_state (F4: show_simplified_view→can_edit=False)
+│   │   │   ├── data_merge_service.py       # 共管数据全量同步 (F1: 12张表)
 │   │   └── database.py       # 数据库连接配置
 │   ├── migrations/           # 数据迁移脚本
 │   │   ├── migration_bucket_replace_20260604.py   # Bucket 替换 Python 版
@@ -63,7 +69,7 @@ bnbbaijkgj/
 │   │   ├── health-profile/   # 健康档案
 │   │   ├── member-center/    # 会员中心
 │   │   ├── login/            # 登录页
-│   │   ├── brain-game/        # 益智乐园（老年人数学游戏+排行+组队挑战）
+│   │   ├── devices/           # 我的设备（按场景分类展示 F8-F9）
 │   │   └── ...
 │   ├── public/
 │   │   └── brain-game.html   # 益智乐园 H5（数学游戏+排行+组队挑战，适老化设计）
@@ -71,6 +77,9 @@ bnbbaijkgj/
 │   └── package.json
 ├── admin-web/                # Next.js 管理后台
 │   ├── src/app/
+│   │   ├── (admin)/
+│   │   │   ├── devices/scene-groups/  # 设备场景分类管理 (F10)
+│   │   │   └── devices/catalog/       # 设备目录管理 (F11)
 │   ├── Dockerfile
 │   └── package.json
 ├── flutter_app/              # Flutter App (Android/iOS)
@@ -128,3 +137,59 @@ gateway-nginx (独立主网关, 端口 443)
 - Python: `python:3.12-slim`
 - Node.js: `node:20-alpine`
 - MySQL: `mysql:8.0`
+
+
+---
+
+## 最新变更 (2026-06-06)
+
+### PRD：健康档案共管数据合并 + 设备场景分类改造 + 解除守护短信验证 (v3.0)
+
+实现了全部 13 个功能点 (F1-F13)：
+
+| 编号 | 功能 | 状态 |
+|------|------|------|
+| F1 | 共管后数据全量同步（12张表） | ✅ |
+| F2 | 共管后查被守护人本人档案 | ✅ |
+| F3 | _verify_profile_access 增加守护关系放行 | ✅ |
+| F4 | 解绑后只读极简视图 | ✅ |
+| F5 | 删除废弃设备表（device_bindings标记废弃） | ✅ |
+| F6 | 新增设备场景分类表 device_scene_group | ✅ |
+| F7 | 设备目录表改造（scene_group_id/jump_url/icon_url） | ✅ |
+| F8 | 前端按四大场景展示设备 | ✅ |
+| F9 | 设备绑定数量统计 | ✅ |
+| F10 | 后台设备分类管理页面 | ✅ |
+| F11 | 后台设备目录管理页面 | ✅ |
+| F12 | 解除守护统一加短信验证码（三个入口） | ✅ |
+| F13 | 删除 /family 页面 | ✅ |
+
+### 改动文件清单
+
+**后端 (backend/)**
+- `app/models/models.py` - 新增 DeviceSceneGroup 模型，标记 DeviceBinding 废弃
+- `app/models/devices_v2.py` - DeviceCatalog 新增 scene_group_id/jump_url/icon_url，icon 字段扩展
+- `app/services/data_merge_service.py` - 扩展至 12 张表全量同步
+- `app/services/family_member_status.py` - derive_v3_state: show_simplified_view→can_edit=False
+- `app/api/health_profile_v3.py` - _verify_profile_access 增加守护关系放行
+- `app/api/health_metric_card_v1.py` - _verify_profile_access 增加守护关系放行
+- `app/api/family_member_v2.py` - 新增 unbind/send-code，unbind 增加验证码校验
+- `app/api/reverse_guardian.py` - 新增 remove/send-code，remove 增加验证码校验
+- `app/api/devices_v2.py` - 新增场景分类 CRUD、admin 目录管理 API
+- `app/api/health_archive_optim_v2.py` - 删除 /family 相关 unbind 端点
+- `app/main.py` - 新增 _migrate_device_scene_groups 迁移函数
+
+**前端 H5 (h5-web/)**
+- `src/app/family/page.tsx` - 已删除
+- `src/app/devices/page.tsx` - 按场景分类展示设备
+- `src/lib/api/devices.ts` - 新增 SceneGroup 类型和 fetchSceneGroups
+- `src/app/health-profile/archive-list/page.tsx` - 解除守护增加短信验证码流程
+- `src/app/health-profile/my-guardians/page.tsx` - 移除守护人增加短信验证码流程
+
+**管理后台 (admin-web/)**
+- `src/app/(admin)/devices/scene-groups/page.tsx` - 设备场景分类管理 (F10)
+- `src/app/(admin)/devices/catalog/page.tsx` - 设备目录管理 (F11)
+
+**数据库变更**
+- 新建表：device_scene_group
+- 修改表：device_catalog (新增 scene_group_id, jump_url, icon_url; icon 字段扩展至 500)
+- 废弃表：device_bindings (保留向后兼容，不再使用)

@@ -19,10 +19,23 @@ export interface CatalogItem {
   category_code: string;
   device_name: string;
   icon: string;
+  icon_url?: string | null;
+  scene_group_id?: number | null;
+  jump_url?: string | null;
   is_active: boolean;
   is_unique: boolean;
   sort_order: number;
   bound_count: number;
+}
+
+export interface SceneGroup {
+  id: number;
+  name: string;
+  sort_order: number;
+  is_enabled: boolean;
+  device_count: number;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 export interface CatalogGroup {
@@ -39,6 +52,9 @@ export interface MyDeviceItem {
   category_code: string;
   device_name: string;
   icon: string;
+  icon_url?: string | null;
+  scene_group_id?: number | null;
+  jump_url?: string | null;
   is_unique: boolean;
   sn: string;
   sn_masked: string;
@@ -94,4 +110,9 @@ export async function editBinding(
 ): Promise<{ message: string; binding: MyDeviceItem }> {
   const res = await api.patch(`/api/devices/binding/${binding_id}`, payload);
   return unwrap<{ message: string; binding: MyDeviceItem }>(res);
+}
+
+export async function fetchSceneGroups(): Promise<{ items: SceneGroup[]; total: number }> {
+  const res = await api.get('/api/devices/scene-groups');
+  return unwrap<{ items: SceneGroup[]; total: number }>(res);
 }

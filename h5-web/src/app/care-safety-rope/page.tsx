@@ -9,7 +9,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { formatFriendlyTime } from '@/lib/datetime';
+import { formatFriendlyTime, formatSpokenTime, formatSpokenDeadline } from '@/lib/datetime';
 
 interface Contact {
   id: number;
@@ -313,8 +313,8 @@ export default function SafetyRopePage() {
         <div data-testid="sr-banner-checked"
              style={{ background: bg, color, padding: '12px 16px',
                       borderRadius: 12, marginBottom: 12, fontSize: 14, lineHeight: 1.6 }}>
-          <div style={{ fontWeight: 700 }}>✅ 上次签到：{formatDt(lastAt)}</div>
-          {nextAt && <div>⏰ 下次签到截止：{formatDt(nextAt)}</div>}
+          <div style={{ fontWeight: 700 }}>✅ {formatSpokenTime(lastAt)}</div>
+          {nextAt && <div>⏰ {formatSpokenDeadline(nextAt)}</div>}
         </div>
       );
     }

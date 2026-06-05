@@ -164,13 +164,32 @@ def _judge_status(metric_type: str, value: Dict[str, Any]) -> Dict[str, str]:
 async def _verify_profile_access(
     db: AsyncSession, profile_id: int, user: User
 ) -> HealthProfile:
+    """校验当前用户对该 profile_id 的访问权限。
+
+    [PRD-HEALTH-ARCHIVE-CO-MANAGE 2026-06-05 F3] 增加守护关系放行。
+    """
     res = await db.execute(select(HealthProfile).where(HealthProfile.id == profile_id))
     profile = res.scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="健康档案不存在")
-    if profile.user_id != user.id:
-        raise HTTPException(status_code=403, detail="无权访问该档案")
-    return profile
+    if profile.user_id == user.id:
+        return profile
+
+    try:
+        from app.models.models import FamilyManagement
+        active_mgmt = (await db.execute(
+            select(FamilyManagement).where(
+                FamilyManagement.manager_user_id == user.id,
+                FamilyManagement.managed_user_id == profile.user_id,
+                FamilyManagement.status == "active",
+            )
+        )).scalars().first()
+        if active_mgmt:
+            return profile
+    except Exception:
+        pass
+
+    raise HTTPException(status_code=403, detail="无权访问该档案")
 
 
 def _record_to_item(r: HealthMetricRecord) -> Dict[str, Any]:

@@ -1,0 +1,917 @@
+{
+  "total": 101,
+  "reachable": 101,
+  "unreachable": 0,
+  "loops": 0,
+  "results": [
+    {
+      "type": "PAGE",
+      "path": "/",
+      "code": "200",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.674418"
+    },
+    {
+      "type": "PAGE",
+      "path": "/login",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.845766"
+    },
+    {
+      "type": "PAGE",
+      "path": "/ai-home",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.859620"
+    },
+    {
+      "type": "PAGE",
+      "path": "/health-profile",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.857440"
+    },
+    {
+      "type": "PAGE",
+      "path": "/family",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "4.708765"
+    },
+    {
+      "type": "PAGE",
+      "path": "/care-ai-home",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.876823"
+    },
+    {
+      "type": "PAGE",
+      "path": "/tcm",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.855090"
+    },
+    {
+      "type": "PAGE",
+      "path": "/points",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.864266"
+    },
+    {
+      "type": "PAGE",
+      "path": "/settings",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.855500"
+    },
+    {
+      "type": "PAGE",
+      "path": "/scan",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.857284"
+    },
+    {
+      "type": "PAGE",
+      "path": "/articles",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.848346"
+    },
+    {
+      "type": "PAGE",
+      "path": "/news",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.852954"
+    },
+    {
+      "type": "PAGE",
+      "path": "/services",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "3.853063"
+    },
+    {
+      "type": "PAGE",
+      "path": "/products",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.855640"
+    },
+    {
+      "type": "PAGE",
+      "path": "/medical-records",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.851399"
+    },
+    {
+      "type": "PAGE",
+      "path": "/health-dashboard",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.858775"
+    },
+    {
+      "type": "PAGE",
+      "path": "/member-center",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.845795"
+    },
+    {
+      "type": "PAGE",
+      "path": "/merchant/login",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.891296"
+    },
+    {
+      "type": "PAGE",
+      "path": "/devices",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.850699"
+    },
+    {
+      "type": "PAGE",
+      "path": "/glucose",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.854668"
+    },
+    {
+      "type": "PAGE",
+      "path": "/invite",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.849993"
+    },
+    {
+      "type": "PAGE",
+      "path": "/landing",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.853510"
+    },
+    {
+      "type": "PAGE",
+      "path": "/my-coupons",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "3.854951"
+    },
+    {
+      "type": "PAGE",
+      "path": "/my-favorites",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.847599"
+    },
+    {
+      "type": "PAGE",
+      "path": "/my-addresses",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "4.903335"
+    },
+    {
+      "type": "PAGE",
+      "path": "/chat-history",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.846508"
+    },
+    {
+      "type": "PAGE",
+      "path": "/coupon-center",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.859942"
+    },
+    {
+      "type": "PAGE",
+      "path": "/health-plan",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.863246"
+    },
+    {
+      "type": "PAGE",
+      "path": "/health-reminders",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.848056"
+    },
+    {
+      "type": "PAGE",
+      "path": "/checkout",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.843470"
+    },
+    {
+      "type": "PAGE",
+      "path": "/report-history",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.851036"
+    },
+    {
+      "type": "PAGE",
+      "path": "/cards",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "1.182697"
+    },
+    {
+      "type": "PAGE",
+      "path": "/cards/wallet",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.851583"
+    },
+    {
+      "type": "PAGE",
+      "path": "/points/mall",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.853474"
+    },
+    {
+      "type": "PAGE",
+      "path": "/points/exchange-records",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.862345"
+    },
+    {
+      "type": "PAGE",
+      "path": "/legal/privacy-policy",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "3.851901"
+    },
+    {
+      "type": "PAGE",
+      "path": "/legal/service-agreement",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.858169"
+    },
+    {
+      "type": "PAGE",
+      "path": "/welcome-mode",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.852177"
+    },
+    {
+      "type": "PAGE",
+      "path": "/health-metric/blood_pressure",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.992474"
+    },
+    {
+      "type": "PAGE",
+      "path": "/ai-home/medication-plans",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.852322"
+    },
+    {
+      "type": "PAGE",
+      "path": "/ai-home/medication-plans/new",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.846686"
+    },
+    {
+      "type": "PAGE",
+      "path": "/health-plan/custom",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.863180"
+    },
+    {
+      "type": "PAGE",
+      "path": "/health-plan/custom/create",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.860814"
+    },
+    {
+      "type": "PAGE",
+      "path": "/admin/login",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.870407"
+    },
+    {
+      "type": "PAGE",
+      "path": "/admin/dashboard",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "4.172706"
+    },
+    {
+      "type": "PAGE",
+      "path": "/admin/users",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.848086"
+    },
+    {
+      "type": "PAGE",
+      "path": "/admin/settings",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "1.564590"
+    },
+    {
+      "type": "PAGE",
+      "path": "/admin/ai-config",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.879951"
+    },
+    {
+      "type": "PAGE",
+      "path": "/admin/knowledge",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.860158"
+    },
+    {
+      "type": "PAGE",
+      "path": "/admin/points/mall",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.870716"
+    },
+    {
+      "type": "PAGE",
+      "path": "/admin/points/levels",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.865101"
+    },
+    {
+      "type": "PAGE",
+      "path": "/admin/product-system/products",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.873951"
+    },
+    {
+      "type": "PAGE",
+      "path": "/admin/product-system/orders",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.875392"
+    },
+    {
+      "type": "PAGE",
+      "path": "/admin/product-system/coupons",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.857760"
+    },
+    {
+      "type": "PAGE",
+      "path": "/admin/merchant/accounts",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.855522"
+    },
+    {
+      "type": "PAGE",
+      "path": "/admin/content/articles",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.850791"
+    },
+    {
+      "type": "PAGE",
+      "path": "/admin/health-plan/categories",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.848709"
+    },
+    {
+      "type": "PAGE",
+      "path": "/admin/health-plan/recommended",
+      "code": "200",
+      "redirs": 1,
+      "ok": true,
+      "loop": false,
+      "time": "0.859246"
+    },
+    {
+      "type": "API",
+      "path": "/api/health",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.677707"
+    },
+    {
+      "type": "API",
+      "path": "/api/system/server-time",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.677384"
+    },
+    {
+      "type": "API",
+      "path": "/api/ai-home-config",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.673310"
+    },
+    {
+      "type": "API",
+      "path": "/api/h5/bottom-nav",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.678003"
+    },
+    {
+      "type": "API",
+      "path": "/api/app-settings/page-style",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.688825"
+    },
+    {
+      "type": "API",
+      "path": "/api/config/login_ui_version",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.688700"
+    },
+    {
+      "type": "API",
+      "path": "/api/cities/list",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.694369"
+    },
+    {
+      "type": "API",
+      "path": "/api/cities/hot",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.681337"
+    },
+    {
+      "type": "API",
+      "path": "/api/tcm/questions",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "1.100082"
+    },
+    {
+      "type": "API",
+      "path": "/api/content/articles",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.681665"
+    },
+    {
+      "type": "API",
+      "path": "/api/home-config",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.678936"
+    },
+    {
+      "type": "API",
+      "path": "/api/home-banners",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.678593"
+    },
+    {
+      "type": "API",
+      "path": "/api/home-menus",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.683423"
+    },
+    {
+      "type": "API",
+      "path": "/api/landing",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.681033"
+    },
+    {
+      "type": "API",
+      "path": "/api/h5/active-theme",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.686936"
+    },
+    {
+      "type": "API",
+      "path": "/api/products/categories",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.681363"
+    },
+    {
+      "type": "API",
+      "path": "/api/products/hot-recommendations",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.680670"
+    },
+    {
+      "type": "API",
+      "path": "/api/coupons/available",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.696754"
+    },
+    {
+      "type": "API",
+      "path": "/api/notices/active",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.673329"
+    },
+    {
+      "type": "API",
+      "path": "/api/settings/logo",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.687215"
+    },
+    {
+      "type": "API",
+      "path": "/api/search/hot",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.675133"
+    },
+    {
+      "type": "API",
+      "path": "/api/services/categories",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.678850"
+    },
+    {
+      "type": "API",
+      "path": "/api/services/items",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.690878"
+    },
+    {
+      "type": "API",
+      "path": "/api/common/time-slots",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.675429"
+    },
+    {
+      "type": "API",
+      "path": "/api/points/level",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "4.138560"
+    },
+    {
+      "type": "API",
+      "path": "/api/relation-types",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.678573"
+    },
+    {
+      "type": "API",
+      "path": "/api/merchant-categories",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.675816"
+    },
+    {
+      "type": "API",
+      "path": "/api/membership/plans",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.687954"
+    },
+    {
+      "type": "API",
+      "path": "/api/chat/function-buttons",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.680520"
+    },
+    {
+      "type": "API",
+      "path": "/api/questionnaire/templates",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "3.686381"
+    },
+    {
+      "type": "API",
+      "path": "/api/disease-presets",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.682724"
+    },
+    {
+      "type": "API",
+      "path": "/api/health-alerts",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.687401"
+    },
+    {
+      "type": "API",
+      "path": "/api/health-archive-v5/overview",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.690819"
+    },
+    {
+      "type": "API",
+      "path": "/api/notifications/unread-count",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.674118"
+    },
+    {
+      "type": "API",
+      "path": "/api/v2/regions",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.680184"
+    },
+    {
+      "type": "API",
+      "path": "/api/v5/system-config/doctor-consult",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.682377"
+    },
+    {
+      "type": "API",
+      "path": "/api/h5/checkout/init",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "1.127970"
+    },
+    {
+      "type": "API",
+      "path": "/api/maps/geo-config",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.686158"
+    },
+    {
+      "type": "API",
+      "path": "/api/maps/static-map",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.676527"
+    },
+    {
+      "type": "API",
+      "path": "/api/verify/checkin-records",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.675485"
+    },
+    {
+      "type": "API",
+      "path": "/api/v2/app/version-check",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.679104"
+    },
+    {
+      "type": "API",
+      "path": "/api/public/protocol/privacy",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.680985"
+    },
+    {
+      "type": "API",
+      "path": "/api/user/mode-preference",
+      "code": "405",
+      "redirs": 0,
+      "ok": true,
+      "loop": false,
+      "time": "0.678491"
+    }
+  ]
+}

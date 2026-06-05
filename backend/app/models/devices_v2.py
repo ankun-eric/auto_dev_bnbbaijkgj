@@ -24,6 +24,9 @@ class DeviceCatalog(Base):
 
     主键：(brand_code, device_name) 在应用层视为业务唯一键（seed 时按此匹配）。
     数据库层使用自增 id 主键，便于外键引用。
+
+    [PRD-HEALTH-ARCHIVE-CO-MANAGE 2026-06-05] 新增 scene_group_id / jump_url / icon_url 字段，
+    icon 字段扩展为 500 字符以支持图片 URL。
     """
 
     __tablename__ = "device_catalog"
@@ -33,7 +36,10 @@ class DeviceCatalog(Base):
     brand_name = mapped_column(String(64), nullable=False)
     category_code = mapped_column(String(64), nullable=False, index=True)
     device_name = mapped_column(String(128), nullable=False)
-    icon = mapped_column(String(16), nullable=True)
+    icon = mapped_column(String(500), nullable=True)
+    scene_group_id = mapped_column(Integer, ForeignKey("device_scene_group.id"), nullable=True, index=True)
+    jump_url = mapped_column(String(500), nullable=True)
+    icon_url = mapped_column(String(500), nullable=True)
     is_active = mapped_column(Boolean, default=False, nullable=False)
     is_unique = mapped_column(Boolean, default=True, nullable=False)
     sort_order = mapped_column(Integer, default=0, nullable=False)

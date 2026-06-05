@@ -160,3 +160,100 @@ export function formatRecordTime(iso?: string | number | Date | null): string {
   }
   return formatDateTime(iso, 'YYYY-MM-DD HH:mm');
 }
+
+/**
+ * [PRD-SAFETY-ROPE-SPOKEN-TIME 2026-06-06] 数字安全绳 Banner 时间口语化
+ * 将时段（小时数）转为口语化称呼
+ */
+function hourPeriod(hour: number): string {
+  if (hour >= 0 && hour < 6) return '凌晨';
+  if (hour >= 6 && hour < 12) return '上午';
+  if (hour >= 12 && hour < 14) return '中午';
+  if (hour >= 14 && hour < 18) return '下午';
+  return '晚上';
+}
+
+/**
+ * [PRD-SAFETY-ROPE-SPOKEN-TIME 2026-06-06] 口语化分钟显示
+ * 整点→点，半→半，其他→:xx
+ */
+function spokenMinutes(minute: number): string {
+  if (minute === 0) return '点';
+  if (minute === 30) return '点半';
+  return `:${pad2(minute)}`;
+}
+
+/**
+ * [PRD-SAFETY-ROPE-SPOKEN-TIME 2026-06-06] 口语化日期前缀
+ * 今天/明天/后天/绝对日期
+ */
+function spokenDatePrefix(diffDays: number, target: BjParts, now: BjParts): string {
+  if (diffDays === 0) return '今天';
+  if (diffDays === -1) return '明天';
+  if (diffDays === -2) return '后天';
+  if (target.year === now.year) return `${target.month}月${target.day}日`;
+  return `${target.year}年${target.month}月${target.day}日`;
+}
+
+/**
+ * [PRD-SAFETY-ROPE-SPOKEN-TIME 2026-06-06] 口语化日期前缀（用于"上次签到"——过去时间）
+ */
+function spokenDatePrefixPast(diffDays: number, target: BjParts, now: BjParts): string {
+  if (diffDays === 0) return '今天';
+  if (diffDays === 1) return '昨天';
+  if (diffDays >= 2 && diffDays <= 6) return `${diffDays}天前`;
+  if (target.year === now.year) return `${target.month}月${target.day}日`;
+  return `${target.year}年${target.month}月${target.day}日`;
+}
+
+/**
+ * [PRD-SAFETY-ROPE-SPOKEN-TIME 2026-06-06] 精确时间后缀（括号内）
+ */
+function preciseSuffix(target: BjParts, now: BjParts): string {
+  if (target.year === now.year) {
+    return `${pad2(target.month)}-${pad2(target.day)} ${pad2(target.hour)}:${pad2(target.minute)}`;
+  }
+  return `${target.year}-${pad2(target.month)}-${pad2(target.day)} ${pad2(target.hour)}:${pad2(target.minute)}`;
+}
+
+/**
+ * [PRD-SAFETY-ROPE-SPOKEN-TIME 2026-06-06] 口语化"上次签到"时间
+ * 格式：今天下午3:30已签到（06-06 15:30）
+ * 用于数字安全绳 Banner 区域的"上次签到"时间显示
+ */
+export function formatSpokenTime(iso?: string | number | Date | null): string {
+  const d = parseServerTime(iso);
+  if (!d) return '';
+  const target = toBjParts(d);
+  const now = nowBjParts();
+  const targetStartUtc = bjStartOfDayUtcMs(target);
+  const todayStartUtc = bjStartOfDayUtcMs(now);
+  const diffDays = Math.floor((todayStartUtc - targetStartUtc) / 86400000);
+  const period = hourPeriod(target.hour);
+  const hour = target.hour === 0 ? 12 : target.hour > 12 ? target.hour - 12 : target.hour;
+  const minStr = spokenMinutes(target.minute);
+  const prefix = spokenDatePrefixPast(diffDays, target, now);
+  const suffix = preciseSuffix(target, now);
+  return `${prefix}${period}${hour}${minStr}已签到（${suffix}）`;
+}
+
+/**
+ * [PRD-SAFETY-ROPE-SPOKEN-TIME 2026-06-06] 口语化"下次签到截止"时间
+ * 格式：最晚明天下午3点半前签到（06-07 15:30）
+ * 用于数字安全绳 Banner 区域的"下次签到截止"时间显示
+ */
+export function formatSpokenDeadline(iso?: string | number | Date | null): string {
+  const d = parseServerTime(iso);
+  if (!d) return '';
+  const target = toBjParts(d);
+  const now = nowBjParts();
+  const targetStartUtc = bjStartOfDayUtcMs(target);
+  const todayStartUtc = bjStartOfDayUtcMs(now);
+  const diffDays = Math.floor((todayStartUtc - targetStartUtc) / 86400000);
+  const period = hourPeriod(target.hour);
+  const hour = target.hour === 0 ? 12 : target.hour > 12 ? target.hour - 12 : target.hour;
+  const minStr = spokenMinutes(target.minute);
+  const prefix = spokenDatePrefix(diffDays, target, now);
+  const suffix = preciseSuffix(target, now);
+  return `最晚${prefix}${period}${hour}${minStr}前签到（${suffix}）`;
+}

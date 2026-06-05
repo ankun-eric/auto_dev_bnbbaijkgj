@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -178,6 +178,9 @@ def _binding_to_dict(b: DeviceUserBinding, catalog: DeviceCatalog, member_info: 
         "category_code": catalog.category_code,
         "device_name": catalog.device_name,
         "icon": catalog.icon,
+        "icon_url": catalog.icon_url,
+        "scene_group_id": catalog.scene_group_id,
+        "jump_url": catalog.jump_url,
         "is_unique": bool(catalog.is_unique),
         "sn": b.sn,
         "sn_masked": _mask_sn(b.sn),
@@ -232,6 +235,9 @@ async def get_catalog(
             "category_code": c.category_code,
             "device_name": c.device_name,
             "icon": c.icon,
+            "icon_url": c.icon_url,
+            "scene_group_id": c.scene_group_id,
+            "jump_url": c.jump_url,
             "is_active": bool(c.is_active),
             "is_unique": bool(c.is_unique),
             "sort_order": c.sort_order,
@@ -501,3 +507,363 @@ async def edit_binding(
         "message": "已保存",
         "binding": _binding_to_dict(b, catalog, member_info),
     }
+
+# ──────────────────────────────────────────────────────────
+# [PRD-HEALTH-ARCHIVE-CO-MANAGE 2026-06-05] 设备场景分类 API
+# ──────────────────────────────────────────────────────────
+
+
+class SceneGroupOut(BaseModel):
+    id: int
+    name: str
+    sort_order: int
+    is_enabled: bool
+    device_count: int = 0
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class SceneGroupCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=50)
+    sort_order: int = Field(0, ge=0)
+    is_enabled: bool = True
+
+
+class SceneGroupUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=50)
+    sort_order: Optional[int] = Field(None, ge=0)
+    is_enabled: Optional[bool] = None
+
+
+@router.get("/scene-groups")
+async def list_scene_groups(
+    include_disabled: bool = Query(False),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取设备场景分类列表，附带每个分类下的设备绑定数量。"""
+    from app.models.models import DeviceSceneGroup
+    query = select(DeviceSceneGroup)
+    if not include_disabled:
+        query = query.where(DeviceSceneGroup.is_enabled == True)  # noqa: E712
+    query = query.order_by(DeviceSceneGroup.sort_order, DeviceSceneGroup.id)
+    groups_res = await db.execute(query)
+    groups = list(groups_res.scalars().all())
+
+    # 统计每个分类下的设备绑定数量
+    group_ids = [g.id for g in groups]
+    device_counts: dict[int, int] = {}
+    if group_ids:
+        from app.models.devices_v2 import DeviceCatalog as DC, DeviceUserBinding as DUB
+        cat_res = await db.execute(
+            select(DC.id, DC.scene_group_id).where(DC.scene_group_id.in_(group_ids))
+        )
+        catalog_by_group: dict[int, list[int]] = {}
+        for cid, sgid in cat_res.all():
+            catalog_by_group.setdefault(sgid, []).append(cid)
+
+        if catalog_by_group:
+            for sgid, cids in catalog_by_group.items():
+                cnt_res = await db.execute(
+                    select(func.count(DUB.id)).where(
+                        DUB.catalog_id.in_(cids),
+                        DUB.is_active == True,  # noqa: E712
+                        DUB.user_id == current_user.id,
+                    )
+                )
+                device_counts[sgid] = int(cnt_res.scalar() or 0)
+
+    items = []
+    for g in groups:
+        items.append(SceneGroupOut(
+            id=g.id,
+            name=g.name,
+            sort_order=g.sort_order,
+            is_enabled=bool(g.is_enabled),
+            device_count=device_counts.get(g.id, 0),
+            created_at=g.created_at.isoformat() if g.created_at else None,
+            updated_at=g.updated_at.isoformat() if g.updated_at else None,
+        ))
+    return {"items": items, "total": len(items)}
+
+
+@router.get("/scene-groups/{group_id}")
+async def get_scene_group(
+    group_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """获取单个场景分类详情。"""
+    from app.models.models import DeviceSceneGroup
+    g = await db.get(DeviceSceneGroup, group_id)
+    if not g:
+        raise HTTPException(status_code=404, detail="场景分类不存在")
+    return SceneGroupOut(
+        id=g.id,
+        name=g.name,
+        sort_order=g.sort_order,
+        is_enabled=bool(g.is_enabled),
+        device_count=0,
+        created_at=g.created_at.isoformat() if g.created_at else None,
+        updated_at=g.updated_at.isoformat() if g.updated_at else None,
+    )
+
+
+@router.post("/scene-groups")
+async def create_scene_group(
+    body: SceneGroupCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """创建场景分类（需管理员权限）。"""
+    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in ("admin", "superuser"):
+        raise HTTPException(status_code=403, detail="仅管理员可操作")
+    from app.models.models import DeviceSceneGroup
+    g = DeviceSceneGroup(
+        name=body.name,
+        sort_order=body.sort_order,
+        is_enabled=body.is_enabled,
+    )
+    db.add(g)
+    await db.flush()
+    return SceneGroupOut(
+        id=g.id,
+        name=g.name,
+        sort_order=g.sort_order,
+        is_enabled=bool(g.is_enabled),
+        device_count=0,
+        created_at=g.created_at.isoformat() if g.created_at else None,
+        updated_at=g.updated_at.isoformat() if g.updated_at else None,
+    )
+
+
+@router.put("/scene-groups/{group_id}")
+async def update_scene_group(
+    group_id: int,
+    body: SceneGroupUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """编辑场景分类（需管理员权限）。"""
+    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in ("admin", "superuser"):
+        raise HTTPException(status_code=403, detail="仅管理员可操作")
+    from app.models.models import DeviceSceneGroup
+    g = await db.get(DeviceSceneGroup, group_id)
+    if not g:
+        raise HTTPException(status_code=404, detail="场景分类不存在")
+    data = body.model_dump(exclude_unset=True)
+    for k, v in data.items():
+        setattr(g, k, v)
+    await db.flush()
+    return SceneGroupOut(
+        id=g.id,
+        name=g.name,
+        sort_order=g.sort_order,
+        is_enabled=bool(g.is_enabled),
+        device_count=0,
+        created_at=g.created_at.isoformat() if g.created_at else None,
+        updated_at=g.updated_at.isoformat() if g.updated_at else None,
+    )
+
+
+@router.delete("/scene-groups/{group_id}")
+async def delete_scene_group(
+    group_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """删除场景分类（需管理员权限，仅当分类下无设备时可删除）。"""
+    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in ("admin", "superuser"):
+        raise HTTPException(status_code=403, detail="仅管理员可操作")
+    from app.models.models import DeviceSceneGroup
+    from app.models.devices_v2 import DeviceCatalog as DC
+    g = await db.get(DeviceSceneGroup, group_id)
+    if not g:
+        raise HTTPException(status_code=404, detail="场景分类不存在")
+    # 检查分类下是否有设备
+    cat_cnt = (await db.execute(
+        select(func.count(DC.id)).where(DC.scene_group_id == group_id)
+    )).scalar() or 0
+    if cat_cnt > 0:
+        raise HTTPException(status_code=400, detail="该分类下还有设备，请先移除设备后再删除")
+    await db.delete(g)
+    await db.flush()
+    return {"message": "已删除"}
+
+
+# ──────────────────────────────────────────────────────────
+# [PRD-HEALTH-ARCHIVE-CO-MANAGE 2026-06-05] 设备目录管理 API（admin）
+# ──────────────────────────────────────────────────────────
+
+
+class CatalogAdminOut(BaseModel):
+    id: int
+    brand_code: str
+    brand_name: str
+    category_code: str
+    device_name: str
+    icon: Optional[str] = None
+    icon_url: Optional[str] = None
+    scene_group_id: Optional[int] = None
+    jump_url: Optional[str] = None
+    is_active: bool
+    is_unique: bool
+    sort_order: int
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class CatalogAdminUpdate(BaseModel):
+    brand_code: Optional[str] = Field(None, max_length=32)
+    brand_name: Optional[str] = Field(None, max_length=64)
+    category_code: Optional[str] = Field(None, max_length=64)
+    device_name: Optional[str] = Field(None, max_length=128)
+    icon: Optional[str] = Field(None, max_length=500)
+    icon_url: Optional[str] = Field(None, max_length=500)
+    scene_group_id: Optional[int] = None
+    jump_url: Optional[str] = Field(None, max_length=500)
+    is_active: Optional[bool] = None
+    is_unique: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+
+class CatalogAdminCreate(BaseModel):
+    brand_code: str = Field(..., max_length=32)
+    brand_name: str = Field(..., max_length=64)
+    category_code: str = Field(..., max_length=64)
+    device_name: str = Field(..., max_length=128)
+    icon: Optional[str] = Field(None, max_length=500)
+    icon_url: Optional[str] = Field(None, max_length=500)
+    scene_group_id: Optional[int] = None
+    jump_url: Optional[str] = Field(None, max_length=500)
+    is_active: bool = False
+    is_unique: bool = True
+    sort_order: int = 0
+
+
+@router.get("/admin/catalog")
+async def admin_list_catalog(
+    scene_group_id: Optional[int] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[F11] 管理后台：设备目录列表。"""
+    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in ("admin", "superuser"):
+        raise HTTPException(status_code=403, detail="仅管理员可操作")
+    query = select(DeviceCatalog)
+    if scene_group_id is not None:
+        query = query.where(DeviceCatalog.scene_group_id == scene_group_id)
+    query = query.order_by(DeviceCatalog.brand_code, DeviceCatalog.sort_order, DeviceCatalog.id)
+    res = await db.execute(query)
+    items = []
+    for c in res.scalars().all():
+        items.append(CatalogAdminOut(
+            id=c.id,
+            brand_code=c.brand_code,
+            brand_name=c.brand_name,
+            category_code=c.category_code,
+            device_name=c.device_name,
+            icon=c.icon,
+            icon_url=c.icon_url,
+            scene_group_id=c.scene_group_id,
+            jump_url=c.jump_url,
+            is_active=bool(c.is_active),
+            is_unique=bool(c.is_unique),
+            sort_order=c.sort_order,
+            created_at=c.created_at.isoformat() if c.created_at else None,
+            updated_at=c.updated_at.isoformat() if c.updated_at else None,
+        ))
+    return {"items": items, "total": len(items)}
+
+
+@router.post("/admin/catalog")
+async def admin_create_catalog(
+    body: CatalogAdminCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[F11] 管理后台：新增设备目录。"""
+    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in ("admin", "superuser"):
+        raise HTTPException(status_code=403, detail="仅管理员可操作")
+    c = DeviceCatalog(
+        brand_code=body.brand_code,
+        brand_name=body.brand_name,
+        category_code=body.category_code,
+        device_name=body.device_name,
+        icon=body.icon,
+        icon_url=body.icon_url,
+        scene_group_id=body.scene_group_id,
+        jump_url=body.jump_url,
+        is_active=body.is_active,
+        is_unique=body.is_unique,
+        sort_order=body.sort_order,
+    )
+    db.add(c)
+    await db.flush()
+    return CatalogAdminOut(
+        id=c.id,
+        brand_code=c.brand_code,
+        brand_name=c.brand_name,
+        category_code=c.category_code,
+        device_name=c.device_name,
+        icon=c.icon,
+        icon_url=c.icon_url,
+        scene_group_id=c.scene_group_id,
+        jump_url=c.jump_url,
+        is_active=bool(c.is_active),
+        is_unique=bool(c.is_unique),
+        sort_order=c.sort_order,
+        created_at=c.created_at.isoformat() if c.created_at else None,
+        updated_at=c.updated_at.isoformat() if c.updated_at else None,
+    )
+
+
+@router.put("/admin/catalog/{catalog_id}")
+async def admin_update_catalog(
+    catalog_id: int,
+    body: CatalogAdminUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[F11] 管理后台：编辑设备目录。"""
+    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in ("admin", "superuser"):
+        raise HTTPException(status_code=403, detail="仅管理员可操作")
+    c = await db.get(DeviceCatalog, catalog_id)
+    if not c:
+        raise HTTPException(status_code=404, detail="设备不存在")
+    data = body.model_dump(exclude_unset=True)
+    for k, v in data.items():
+        setattr(c, k, v)
+    await db.flush()
+    return CatalogAdminOut(
+        id=c.id,
+        brand_code=c.brand_code,
+        brand_name=c.brand_name,
+        category_code=c.category_code,
+        device_name=c.device_name,
+        icon=c.icon,
+        icon_url=c.icon_url,
+        scene_group_id=c.scene_group_id,
+        jump_url=c.jump_url,
+        is_active=bool(c.is_active),
+        is_unique=bool(c.is_unique),
+        sort_order=c.sort_order,
+        created_at=c.created_at.isoformat() if c.created_at else None,
+        updated_at=c.updated_at.isoformat() if c.updated_at else None,
+    )
+
+
+@router.delete("/admin/catalog/{catalog_id}")
+async def admin_delete_catalog(
+    catalog_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[F11] 管理后台：删除设备目录。"""
+    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in ("admin", "superuser"):
+        raise HTTPException(status_code=403, detail="仅管理员可操作")
+    c = await db.get(DeviceCatalog, catalog_id)
+    if not c:
+        raise HTTPException(status_code=404, detail="设备不存在")
+    await db.delete(c)
+    await db.flush()
+    return {"message": "已删除"}

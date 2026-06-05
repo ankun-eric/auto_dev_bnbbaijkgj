@@ -85,15 +85,36 @@ DEVICE_CATALOG = [
 async def _verify_profile_access(
     db: AsyncSession, profile_id: int, user: User
 ) -> HealthProfile:
-    """校验当前用户对该 profile_id 的访问权限。"""
+    """校验当前用户对该 profile_id 的访问权限。
+
+    [PRD-HEALTH-ARCHIVE-CO-MANAGE 2026-06-05 F3] 增加守护关系放行：
+    1. 是自己的档案 → 放行
+    2. 不是自己的档案，但当前用户是该档案主人的守护人（共管关系中）→ 放行
+    3. 都不是 → 拒绝访问
+    """
     res = await db.execute(select(HealthProfile).where(HealthProfile.id == profile_id))
     profile = res.scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="健康档案不存在")
-    if profile.user_id != user.id:
-        # 简化：本期仅校验所有者；共管访问下版本扩展
-        raise HTTPException(status_code=403, detail="无权访问该档案")
-    return profile
+    if profile.user_id == user.id:
+        return profile
+
+    # 守护关系放行：检查当前用户是否是该档案主人的守护人
+    try:
+        from app.models.models import FamilyManagement
+        active_mgmt = (await db.execute(
+            select(FamilyManagement).where(
+                FamilyManagement.manager_user_id == user.id,
+                FamilyManagement.managed_user_id == profile.user_id,
+                FamilyManagement.status == "active",
+            )
+        )).scalars().first()
+        if active_mgmt:
+            return profile
+    except Exception:
+        pass
+
+    raise HTTPException(status_code=403, detail="无权访问该档案")
 
 
 def _is_abnormal(metric_type: str, value: Dict[str, Any]) -> bool:

@@ -1058,6 +1058,101 @@ async def _migrate_prd468_health_v3():
         _logger.error("[PRD-468] migration error: %s", e)
 
 
+async def _migrate_device_scene_groups():
+    """[PRD-HEALTH-ARCHIVE-CO-MANAGE 2026-06-05] 设备场景分类迁移。
+
+    1. 创建 device_scene_group 表（幂等）
+    2. 插入 4 条预置场景分类（安全守护/健康守护/日夜守护/其他）
+    3. 为 device_catalog 表增加 scene_group_id / jump_url / icon_url 列
+    4. 通过 SystemConfig.device_scene_v1_migrated 控制不重复执行
+    """
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text, select as _sel
+            from app.models.models import SystemConfig as _SC
+
+            mark = (await db.execute(
+                _sel(_SC).where(_SC.config_key == "device_scene_v1_migrated")
+            )).scalar_one_or_none()
+            if mark and mark.config_value == "1":
+                return
+
+            # 1) 建表
+            try:
+                await db.execute(text(
+                    "CREATE TABLE IF NOT EXISTS device_scene_group ("
+                    " id INT NOT NULL AUTO_INCREMENT,"
+                    " name VARCHAR(50) NOT NULL,"
+                    " sort_order INT NOT NULL DEFAULT 0,"
+                    " is_enabled TINYINT(1) NOT NULL DEFAULT 1,"
+                    " created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+                    " updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,"
+                    " PRIMARY KEY (id)"
+                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+                ))
+            except Exception as e:
+                _logger.debug("[device_scene] create table skip: %s", e)
+
+            # 2) 幂等插入预置数据
+            try:
+                existing = await db.execute(text(
+                    "SELECT id FROM device_scene_group LIMIT 1"
+                ))
+                if not existing.scalar():
+                    await db.execute(text(
+                        "INSERT INTO device_scene_group (name, sort_order, is_enabled) VALUES "
+                        "('安全守护', 1, 1),"
+                        "('健康守护', 2, 1),"
+                        "('日夜守护', 3, 1),"
+                        "('其他', 4, 1)"
+                    ))
+            except Exception as e:
+                _logger.debug("[device_scene] seed data skip: %s", e)
+
+            # 3) device_catalog 加列
+            async def _add_col(table: str, column: str, ddl: str):
+                try:
+                    chk = await db.execute(text(
+                        "SELECT COUNT(*) FROM information_schema.columns "
+                        "WHERE table_schema = DATABASE() AND table_name = :t AND column_name = :c"
+                    ), {"t": table, "c": column})
+                    if (chk.scalar() or 0) == 0:
+                        await db.execute(text(f"ALTER TABLE {table} ADD COLUMN {ddl}"))
+                        _logger.info("[device_scene] %s.%s 列已添加", table, column)
+                except Exception as e:
+                    _logger.debug("加列 %s.%s 跳过: %s", table, column, e)
+
+            await _add_col("device_catalog", "scene_group_id", "scene_group_id INT NULL")
+            await _add_col("device_catalog", "jump_url", "jump_url VARCHAR(500) NULL")
+            await _add_col("device_catalog", "icon_url", "icon_url VARCHAR(500) NULL")
+
+            # 4) 扩展 device_catalog.icon 字段长度（从16到500）
+            try:
+                await db.execute(text(
+                    "ALTER TABLE device_catalog MODIFY COLUMN icon VARCHAR(500) NULL"
+                ))
+            except Exception as e:
+                _logger.debug("[device_scene] icon modify skip: %s", e)
+
+            # 标记完成
+            if mark:
+                mark.config_value = "1"
+            else:
+                db.add(_SC(
+                    config_key="device_scene_v1_migrated",
+                    config_value="1",
+                    config_type="device",
+                    description="设备场景分类迁移完成标记",
+                ))
+            await db.commit()
+            _logger.info("[device_scene] 设备场景分类迁移完成")
+    except Exception as e:
+        _logger.error("[device_scene] 设备场景分类迁移异常（不影响启动）: %s", e)
+
+
 async def _migrate_prd439_medication_reminder():
     """[PRD-439 2026-05-10] 用药提醒（H5 健康打卡升级）— 幂等建表。
 
@@ -1863,6 +1958,8 @@ async def lifespan(app: FastAPI):
     await _migrate_prd439_medication_reminder()
     # [PRD-468 2026-05-12] health_metric_record / device_binding
     await _migrate_prd468_health_v3()
+    # [PRD-HEALTH-ARCHIVE-CO-MANAGE 2026-06-05] 设备场景分类
+    await _migrate_device_scene_groups()
     # [PRD-GLUCOSE-V1 2026-05-30] 血糖管理模块：health_glucose_record / health_glucose_alert / health_glucose_reminder
     await _migrate_glucose_v1()
     # [AI对话模式优化 PRD v1.0 2026-05-14] chat_function_buttons 8 字段 + medication_library.barcode

@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -262,13 +262,107 @@ async def get_guardian_count(
     )
 
 
+@router.post("/remove/send-code")
+async def remove_send_code(
+    body: RemoveGuardianRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """[PRD-HEALTH-ARCHIVE-CO-MANAGE 2026-06-05 F12] 入口 C：被守护人解除守护前发送短信验证码。
+
+    校验：
+    - 守护关系存在且为 active
+    - 操作人必须有手机号
+    - 1 分钟内同一手机号只能发送 1 次
+    """
+    result = await db.execute(
+        select(FamilyManagement).where(
+            FamilyManagement.id == body.management_id,
+            FamilyManagement.managed_user_id == current_user.id,
+            FamilyManagement.status == "active",
+        )
+    )
+    mgmt = result.scalar_one_or_none()
+    if not mgmt:
+        raise HTTPException(status_code=404, detail="守护关系不存在或无权操作")
+
+    phone = current_user.phone
+    if not phone:
+        raise HTTPException(status_code=400, detail="账号未绑定手机号，无法发送验证码")
+
+    # 频率限制
+    from app.models.models import SmsLog
+    one_min_ago = datetime.utcnow() - timedelta(minutes=1)
+    recent_log = (await db.execute(
+        select(SmsLog).where(
+            SmsLog.phone == phone,
+            SmsLog.status == "success",
+            SmsLog.created_at > one_min_ago,
+        )
+    )).scalars().first()
+    if recent_log:
+        raise HTTPException(status_code=429, detail="验证码发送频率过快，请 1 分钟后再试")
+
+    import random as _random
+    code = str(_random.randint(100000, 999999))
+
+    from app.models.models import VerificationCode
+    vc = VerificationCode(
+        phone=phone,
+        code=code,
+        type="remove_guardian",
+        expires_at=datetime.utcnow() + timedelta(minutes=5),
+    )
+    db.add(vc)
+    await db.flush()
+
+    from app.services.sms_service import send_sms
+    try:
+        await send_sms(phone, code, db=db)
+    except Exception as e:
+        logger.warning("[F12] remove send-code SMS failed for user=%s: %s", current_user.id, e)
+        masked = phone[:3] + "****" + phone[-4:] if len(phone) > 7 else "***"
+        return {
+            "message": "验证码已发送（开发环境兜底）",
+            "masked_phone": masked,
+            "debug_code": code,
+        }
+
+    masked = phone[:3] + "****" + phone[-4:] if len(phone) > 7 else "***"
+    return {
+        "message": "验证码已发送",
+        "masked_phone": masked,
+    }
+
+
 @router.post("/remove", response_model=RemoveGuardianResponse)
 async def remove_guardian(
     body: RemoveGuardianRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    code: Optional[str] = Query(None, description="短信验证码（6 位数字）"),
 ):
-    """被守护人单方面解除守护关系。"""
+    """[PRD-HEALTH-ARCHIVE-CO-MANAGE 2026-06-05 F12] 被守护人单方面解除守护关系（需短信验证码）。"""
+    # [F12] 短信验证码校验
+    if not code or len(code) != 6 or not code.isdigit():
+        raise HTTPException(status_code=400, detail="请提供 6 位短信验证码")
+    phone = current_user.phone
+    if not phone:
+        raise HTTPException(status_code=400, detail="账号未绑定手机号")
+    from app.models.models import VerificationCode
+    vc_result = await db.execute(
+        select(VerificationCode).where(
+            VerificationCode.phone == phone,
+            VerificationCode.code == code,
+            VerificationCode.type == "remove_guardian",
+            VerificationCode.expires_at > datetime.utcnow(),
+        ).order_by(VerificationCode.created_at.desc()).limit(1)
+    )
+    vc = vc_result.scalars().first()
+    if not vc:
+        raise HTTPException(status_code=400, detail="验证码无效或已过期")
+    await db.delete(vc)
+
     result = await db.execute(
         select(FamilyManagement).where(
             FamilyManagement.id == body.management_id,

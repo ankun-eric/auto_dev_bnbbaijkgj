@@ -1,0 +1,9203 @@
+{
+  "backend": [
+    {
+      "method": "POST",
+      "path": "/_frontend_log"
+    },
+    {
+      "method": "POST",
+      "path": "/_internal/cron/expire"
+    },
+    {
+      "method": "POST",
+      "path": "/_internal/cron/remind"
+    },
+    {
+      "method": "POST",
+      "path": "/_internal/scan"
+    },
+    {
+      "method": "GET",
+      "path": "/_lookup/merchants"
+    },
+    {
+      "method": "GET",
+      "path": "/accounts"
+    },
+    {
+      "method": "POST",
+      "path": "/accounts"
+    },
+    {
+      "method": "POST",
+      "path": "/accounts/import"
+    },
+    {
+      "method": "PUT",
+      "path": "/accounts/{user_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/accounts/{user_id}/staff"
+    },
+    {
+      "method": "GET",
+      "path": "/active-product-count"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/ai-prompts"
+    },
+    {
+      "method": "PUT",
+      "path": "/admin/ai-prompts/{prompt_key}"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/ai-prompts/{prompt_key}/test"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/catalog"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/catalog"
+    },
+    {
+      "method": "DELETE",
+      "path": "/admin/catalog/{catalog_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/admin/catalog/{catalog_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/cos/config"
+    },
+    {
+      "method": "PUT",
+      "path": "/admin/cos/config"
+    },
+    {
+      "method": "DELETE",
+      "path": "/admin/cos/files"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/cos/files"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/cos/migration/progress"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/cos/migration/retry"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/cos/migration/scan"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/cos/migration/start"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/cos/test"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/cos/test-connection"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/cos/upload-limits"
+    },
+    {
+      "method": "PUT",
+      "path": "/admin/cos/upload-limits"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/cos/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/exchange-records"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/knowledge-bases"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/knowledge-bases"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/knowledge-bases/fallback-config"
+    },
+    {
+      "method": "PUT",
+      "path": "/admin/knowledge-bases/fallback-config"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/knowledge-bases/import"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/knowledge-bases/import/{task_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/knowledge-bases/import/{task_id}/confirm"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/knowledge-bases/scene-bindings"
+    },
+    {
+      "method": "PUT",
+      "path": "/admin/knowledge-bases/scene-bindings"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/knowledge-bases/search-config"
+    },
+    {
+      "method": "PUT",
+      "path": "/admin/knowledge-bases/search-config"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/knowledge-bases/stats/distribution"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/knowledge-bases/stats/missed-questions"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/knowledge-bases/stats/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/knowledge-bases/stats/top-hits"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/knowledge-bases/stats/trend"
+    },
+    {
+      "method": "DELETE",
+      "path": "/admin/knowledge-bases/{kb_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/admin/knowledge-bases/{kb_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/knowledge-bases/{kb_id}/entries"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/knowledge-bases/{kb_id}/entries"
+    },
+    {
+      "method": "DELETE",
+      "path": "/admin/knowledge-bases/{kb_id}/entries/{eid}"
+    },
+    {
+      "method": "PUT",
+      "path": "/admin/knowledge-bases/{kb_id}/entries/{eid}"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/map-config"
+    },
+    {
+      "method": "PUT",
+      "path": "/admin/map-config"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/map-config/copy-domain"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/map-config/test"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/map-config/test-logs"
+    },
+    {
+      "method": "GET",
+      "path": "/admin/maps/poi-search"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/maps/reverse-geocoding"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/purge-all"
+    },
+    {
+      "method": "POST",
+      "path": "/admin/upload"
+    },
+    {
+      "method": "GET",
+      "path": "/ai-advice"
+    },
+    {
+      "method": "GET",
+      "path": "/ai-call/quota"
+    },
+    {
+      "method": "GET",
+      "path": "/ai-call/settings"
+    },
+    {
+      "method": "GET",
+      "path": "/ai-call/settings/{target_user_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/ai-call/settings/{target_user_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/ai-config"
+    },
+    {
+      "method": "POST",
+      "path": "/ai-config"
+    },
+    {
+      "method": "GET",
+      "path": "/ai-config/active"
+    },
+    {
+      "method": "POST",
+      "path": "/ai-config/sync"
+    },
+    {
+      "method": "GET",
+      "path": "/ai-config/sync-check"
+    },
+    {
+      "method": "POST",
+      "path": "/ai-config/test"
+    },
+    {
+      "method": "DELETE",
+      "path": "/ai-config/{config_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/ai-config/{config_id}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/ai-config/{config_id}/activate"
+    },
+    {
+      "method": "POST",
+      "path": "/ai-explain-single"
+    },
+    {
+      "method": "POST",
+      "path": "/ai-explain-trend"
+    },
+    {
+      "method": "POST",
+      "path": "/ai-generate"
+    },
+    {
+      "method": "POST",
+      "path": "/ai-generate-category/{category_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/ai-model-templates"
+    },
+    {
+      "method": "POST",
+      "path": "/ai-model-templates"
+    },
+    {
+      "method": "GET",
+      "path": "/ai-model-templates/icons"
+    },
+    {
+      "method": "DELETE",
+      "path": "/ai-model-templates/{template_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/ai-model-templates/{template_id}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/ai-model-templates/{template_id}/status"
+    },
+    {
+      "method": "GET",
+      "path": "/alerts"
+    },
+    {
+      "method": "POST",
+      "path": "/alerts/{alert_id}/confirm"
+    },
+    {
+      "method": "GET",
+      "path": "/all/flat"
+    },
+    {
+      "method": "GET",
+      "path": "/allergies"
+    },
+    {
+      "method": "POST",
+      "path": "/allergies"
+    },
+    {
+      "method": "DELETE",
+      "path": "/allergies/{allergy_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/answers"
+    },
+    {
+      "method": "GET",
+      "path": "/answers/{answer_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/answers/{answer_id}/ai-status"
+    },
+    {
+      "method": "GET",
+      "path": "/answers/{answer_id}/follow-up"
+    },
+    {
+      "method": "POST",
+      "path": "/answers/{answer_id}/retry-ai"
+    },
+    {
+      "method": "POST",
+      "path": "/api/_frontend_log"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/addresses/{address_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/addresses/{address_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/abnormal-thresholds"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/abnormal-thresholds"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/abnormal-thresholds/{tid}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/abnormal-thresholds/{tid}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-center/disclaimers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-center/disclaimers/{chat_type}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/ai-center/disclaimers/{chat_type}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-center/prompts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-center/prompts/{chat_type}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/ai-center/prompts/{chat_type}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-center/sensitive-words"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ai-center/sensitive-words"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/ai-center/sensitive-words/{word_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/ai-center/sensitive-words/{word_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-config"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ai-config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-config/active"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ai-config/sync"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-config/sync-check"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ai-config/test"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/ai-config/{config_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/ai-config/{config_id}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/ai-config/{config_id}/activate"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-home-config"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/ai-home-config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-home-config/logs"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-home-config/logs/{log_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ai-home-config/upload-image"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/ai-home-config/{module}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-model-templates"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ai-model-templates"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-model-templates/icons"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/ai-model-templates/{template_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/ai-model-templates/{template_id}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/ai-model-templates/{template_id}/status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/alert-logs"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/alert-logs/export"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/alert-templates"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/alert-templates"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/alert-templates/{tid}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/alert-templates/{tid}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/auth/merchant-status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/guardian/v12/ai-call-quota"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/guardian/v12/emergency-quota"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/api/guardian/v12/emergency/simulate-serial-call"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/guardian/v12/i-guard"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/guardian/v12/invitations/records"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/guardian/v12/managed-quota-summary"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/guardian/v12/managed/{managed_user_id}/all-guardians"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/api/guardian/v12/managed/{managed_user_id}/proxy-pay"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/api/guardian/v12/owner/direct-adjust"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/api/guardian/v12/reminders"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/guardian/v12/reminders/{managed_user_id}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/api/guardian/v12/reminders/{reminder_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/api/guardian/v12/transfer/initiate"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/guardian/v12/transfer/pending"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/api/guardian/v12/transfer/{transfer_id}/approve"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/api/guardian/v12/transfer/{transfer_id}/cancel"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/api/guardian/v12/transfer/{transfer_id}/reject"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/merchant-categories"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/api/merchant/auth/login"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/merchant/v1/dashboard/metrics"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/merchant/v1/exports"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/api/merchant/v1/exports"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/merchant/v1/exports/placeholder/{name}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/merchant/v1/invoice-profile"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/api/merchant/v1/invoice-profile"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/merchant/v1/orders"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/merchant/v1/orders/{order_item_id}/attachments"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/api/merchant/v1/orders/{order_item_id}/attachments"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/api/merchant/v1/orders/{order_item_id}/attachments/{attachment_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/merchant/v1/reports"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/merchant/v1/role-templates"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/merchant/v1/settlements"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/merchant/v1/settlements/{sid}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/api/merchant/v1/settlements/{sid}/confirm"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/api/merchant/v1/settlements/{sid}/dispute"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/merchant/v1/staff"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/api/merchant/v1/staff"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/api/merchant/v1/staff/{target_user_id}/permissions"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/api/merchant/v1/staff/{target_user_id}/status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/merchant/v1/verifications"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/orders/{order_item_id}/attachments"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/api/settings/tts-config"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/api/tts/synthesize"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/app-settings/chat-idle-timeout"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/app-settings/chat-idle-timeout"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/appointment-forms/{form_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/appointment-forms/{form_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/appointment-forms/{form_id}/fields"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/appointment-forms/{form_id}/fields"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/appointment-forms/{form_id}/fields/{field_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/appointment-forms/{form_id}/fields/{field_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/article-categories"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/article-categories"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/article-categories/{cat_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/article-categories/{cat_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/audit/phones/approve"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/audit/phones/codes/send"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/audit/phones/codes/verify"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/audit/phones/requests"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/audit/phones/requests"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/audit/phones/requests/{request_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/audit/phones/resubmit"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/audit/phones/return"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/audit/phones/{phone_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/audit/phones/{phone_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cards/_lookup/merchants"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cards/dashboard/summary"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cards/dashboard/trend"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cards/{card_def_id}/usage-logs"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/cards/{card_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cards/{card_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/cards/{card_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cards/{card_id}/share-poster"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/cards/{card_id}/status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/chat-sessions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/chat-sessions/{session_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/chat-sessions/{session_id}/export"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/checkin-config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/checkin-records"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/checkup-details"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/checkup-details/statistics"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/checkup-details/{detail_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/config/login_ui_version"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/content/articles"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/content/articles"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/content/articles/{article_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/content/articles/{article_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cos/config"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/cos/config"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/cos/files"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cos/files"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cos/migration/progress"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/cos/migration/retry"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/cos/migration/scan"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/cos/migration/start"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/cos/test"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/cos/test-connection"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cos/upload-limits"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/cos/upload-limits"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cos/usage"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/coupons"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/active-product-count"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/categories-by-ids"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/category-product-count"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/category-tree"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/coupons/codes/{code_id}/void"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/coupons/grants/recall"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/offline-reason-options"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/product-picker"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/redeem-code-batches"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/coupons/redeem-code-batches"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/redeem-code-batches/{batch_id}/codes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/redeem-code-batches/{batch_id}/codes/export"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/coupons/redeem-code-batches/{batch_id}/void"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/scope-limits"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/type-descriptions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/validity-options"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/coupons/{coupon_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/coupons/{coupon_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/coupons/{coupon_id}/distribute"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/coupons/{coupon_id}/grant/direct"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/{coupon_id}/grants"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/{coupon_id}/grants/export"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/coupons/{coupon_id}/offline"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/coupons/{coupon_id}/online"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/coupons/{partner_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/coupons/{partner_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/{partner_id}/reconciliation"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/coupons/{partner_id}/regenerate-key"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/dashboard"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/dashboard/stats"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/disease-presets"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/disease-presets"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/disease-presets/{dp_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/disease-presets/{dp_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/drug-details"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/drug-details/repair-drug-names"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/drug-details/statistics"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/drug-details/{detail_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/drug-details/{detail_id}/conversation"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/email-notify/config"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/email-notify/config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/email-notify/logs"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/email-notify/test"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/emergency-sources"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/emergency-sources"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/emergency-sources/{source_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/emergency-sources/{source_id}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/emergency-sources/{source_id}/toggle"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/experts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/experts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/experts/{expert_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/experts/{expert_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/family-management"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/family-management/{mgmt_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/family-management/{mgmt_id}/detail"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/feedback"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/feedback/{feedback_id}/status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/guardian/relations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health-plan/checkin-statistics"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health-plan/recommended-plans"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/health-plan/recommended-plans"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/health-plan/recommended-plans/tasks/{task_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/health-plan/recommended-plans/tasks/{task_id}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/health-plan/recommended-plans/{plan_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/health-plan/recommended-plans/{plan_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/health-plan/recommended-plans/{plan_id}/publish"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health-plan/recommended-plans/{plan_id}/tasks"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/health-plan/recommended-plans/{plan_id}/tasks"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health-plan/template-categories"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/health-plan/template-categories"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/health-plan/template-categories/{category_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/health-plan/template-categories/{category_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health-plan/user-checkin-details"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health-plan/user-checkin-plans"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health-plan/user-daily-summary"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health/sdk"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/health/sdk/refresh"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health/users"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health/users/{user_id}/members"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/knowledge-bases"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/fallback-config"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/knowledge-bases/fallback-config"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/knowledge-bases/import"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/import/{task_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/knowledge-bases/import/{task_id}/confirm"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/scene-bindings"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/knowledge-bases/scene-bindings"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/search-config"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/knowledge-bases/search-config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/stats/distribution"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/stats/missed-questions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/stats/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/stats/top-hits"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/stats/trend"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/knowledge-bases/{kb_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/knowledge-bases/{kb_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/{kb_id}/entries"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/knowledge-bases/{kb_id}/entries"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/knowledge-bases/{kb_id}/entries/{eid}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/knowledge-bases/{kb_id}/entries/{eid}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/login"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/logo"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/map-config"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/map-config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/map-config/copy-domain"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/map-config/test"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/map-config/test-logs"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/maps/poi-search"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/maps/reverse-geocoding"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/membership/calculate-discount"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/membership/cancel"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/membership/free-quota"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/membership/free-quota"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/membership/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/membership/plans"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/membership/plans"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/membership/plans/{plan_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/membership/plans/{plan_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/membership/plans/{plan_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/membership/plans/{plan_id}/toggle"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/membership/subscribe"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/merchant-categories"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/merchant-categories"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/merchant-categories/{cat_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/merchant-categories/{cat_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/merchant-role-templates"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/merchant/accounts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/merchant/accounts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/merchant/accounts/import"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/merchant/accounts/{user_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/merchant/accounts/{user_id}/reset-password"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/merchant/accounts/{user_id}/staff"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/merchant/stores"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/merchant/stores"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/merchant/stores/{store_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/merchant/stores/{store_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/messages"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/messages"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/messages/stats"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/messages/{message_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/news"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/news"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/news/tags/suggest"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/news/{news_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/news/{news_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/news/{news_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/news/{news_id}/publish"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/news/{news_id}/top"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/orders"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/orders/distribution"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/orders/statistics"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/orders/trends"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/orders/unified"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/orders/unified/{order_id}/refund"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/orders/unified/{order_id}/refund-detail"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/orders/unified/{order_id}/refund/approve"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/orders/unified/{order_id}/refund/reject"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/orders/unified/{order_id}/ship"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/orders/v2/enums"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/orders/v2/stats"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/orders/{order_id}/cancel"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/orders/{order_id}/complete"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/orders/{order_id}/confirm"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/orders/{order_id}/refund"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/orders/{order_id}/start-service"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/password"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/payment-channels/{channel_code}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/payment-channels/{channel_code}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/payment-channels/{channel_code}/default-notify-url"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/payment-channels/{channel_code}/test"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/payment-channels/{channel_code}/toggle"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/points/coupons/{coupon_id}/stock-info"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/points/exchange-records"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/points/levels"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/points/levels"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/points/levels/{level_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/points/levels/{level_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/points/mall"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/points/mall"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/points/mall/batch-status"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/points/mall/{item_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/points/mall/{item_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/points/mall/{item_id}/change-logs"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/points/mall/{item_id}/duplicate"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/points/mall/{item_id}/offline"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/points/mall/{item_id}/publish"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/points/rules"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/points/rules"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/points/rules"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/products"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/products"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/products/categories"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/products/categories"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/products/categories/reorder"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/products/categories/{category_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/products/categories/{category_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/products/services"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/products/{product_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/products/{product_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/products/{product_id}/detail"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/products/{product_id}/form-fields"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/products/{product_id}/form-fields"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/products/{product_id}/form-fields/{field_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/products/{product_id}/form-fields/{field_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/products/{product_id}/skus"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/products/{product_id}/stores"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/products/{product_id}/stores"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/profile"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/prompt-templates/all/flat"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/prompt-templates/by-id/{template_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/prompt-templates/{prompt_type}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/prompt-templates/{prompt_type}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/prompt-templates/{prompt_type}/preview"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/prompt-templates/{prompt_type}/rollback/{version}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/prompt-templates/{template_id}/duplicate"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/prompt-type-config/{config_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/referral/stats"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/relation-types"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/relation-types"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/relation-types/{rt_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/relation-types/{rt_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/search/asr-config"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/search/asr-config"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/search/asr-config/test"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/search/block-words"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/search/block-words"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/search/block-words/batch"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/search/block-words/{word_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/search/block-words/{word_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/search/recommend-words"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/search/recommend-words"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/search/recommend-words/{word_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/search/recommend-words/{word_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/search/statistics"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/seed-packs"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/seed-packs/{code}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/seed-packs/{code}/install"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/seed-packs/{code}/uninstall"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/services/categories"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/services/categories"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/services/categories/{cat_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/services/categories/{cat_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/services/items"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/services/items"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/services/items/batch-status"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/services/items/sort"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/services/items/{item_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/services/items/{item_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/settings/basic"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/settings/logo"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/settings/logo"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settings/protocol"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/settings/protocol"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/settings/push"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settings/register"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/settings/register"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settings/reminder-advance"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/settings/reminder-advance"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settings/timeout-policy"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/settings/timeout-policy"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settings/tts-config"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/settings/tts-config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settlements"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/settlements/generate-monthly"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settlements/merchant-options"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settlements/store-options"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settlements/{sid}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/settlements/{sid}/payment-proof"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/skus/{sku_id}/used"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/sms/config"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/sms/config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/sms/logs"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/sms/templates"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/sms/templates"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/sms/templates/{template_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/sms/templates/{template_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/sms/test"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/statistics/refund-reasons"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/statistics/sales"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/statistics/trends"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/store-bindding/batch-bind"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/store-bindding/batch-unbind"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/store-bindding/bind"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/store-bindding/products"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/store-bindding/products/{product_id}/bound-count"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/store-bindding/products/{product_id}/stores"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/store-bindding/stores"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/store-bindding/stores/{store_id}/products"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/store-bindding/unbind"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/stores/recommend"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/stores/{store_id}/business-scope"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/symptom-tags"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/system/configs"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/system/configs/{config_key}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/tags/templates/{template_id}/recommend"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/tags/templates/{template_id}/recommend"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/tags/templates/{template_id}/recommend/preview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/tags/{goods_id}/tags"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/tags/{goods_id}/tags"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/tags/{tag_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/tags/{tag_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/tags/{tag_id}/goods"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/tags/{tag_id}/merge"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/themes"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/themes/{theme_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/themes/{theme_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/themes/{theme_id}/activate"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/upload"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/users"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/users/{user_id}/referrer"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/users/{user_id}/status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/wechat-push/config"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/wechat-push/config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/{record_id}/personal-suggestion"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ai-call/quota"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ai-home-config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ai-home/refresh-config"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai-home/track"
+    },
+    {
+      "method": "POST",
+      "path": "/api/alert/click-tracking"
+    },
+    {
+      "method": "POST",
+      "path": "/api/alert/event"
+    },
+    {
+      "method": "POST",
+      "path": "/api/alert/verify"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analytics/track"
+    },
+    {
+      "method": "POST",
+      "path": "/api/analytics/track/batch"
+    },
+    {
+      "method": "GET",
+      "path": "/api/app-settings/chat-idle-timeout"
+    },
+    {
+      "method": "GET",
+      "path": "/api/app-settings/page-style"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/force-change-password"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/auth/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/merchant-profile"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/auth/merchant-profile"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/merchant-status"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/register"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/register-settings"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/session-context"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/sms-code"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/sms-login"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bottom-nav"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bottom-nav"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/bottom-nav/sort"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/bottom-nav/{nav_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/bottom-nav/{nav_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bp-v1/ai-explain-single"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bp-v1/ai-explain-trend"
+    },
+    {
+      "method": "POST",
+      "path": "/api/brain-game/challenges"
+    },
+    {
+      "method": "POST",
+      "path": "/api/brain-game/challenges/join"
+    },
+    {
+      "method": "GET",
+      "path": "/api/brain-game/challenges/mine"
+    },
+    {
+      "method": "GET",
+      "path": "/api/brain-game/challenges/{challenge_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/brain-game/challenges/{challenge_id}/submit-score"
+    },
+    {
+      "method": "GET",
+      "path": "/api/brain-game/rankings"
+    },
+    {
+      "method": "GET",
+      "path": "/api/brain-game/regions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/brain-game/regions/sync"
+    },
+    {
+      "method": "POST",
+      "path": "/api/brain-game/regions/sync-seed"
+    },
+    {
+      "method": "GET",
+      "path": "/api/brain-game/regions/tree"
+    },
+    {
+      "method": "POST",
+      "path": "/api/brain-game/scores"
+    },
+    {
+      "method": "GET",
+      "path": "/api/brain-game/user-info"
+    },
+    {
+      "method": "GET",
+      "path": "/api/brain-game/wechat-config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/captcha/image"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cards/by-product/{product_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cards/checkout"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cards/me/renewable"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cards/me/wallet"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cards/me/{user_card_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cards/me/{user_card_id}/redemption-code"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cards/me/{user_card_id}/redemption-code/current"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cards/me/{user_card_id}/renew"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cards/me/{user_card_id}/usage-logs"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cards/purchase"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cards/redeem"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cards/{card_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cards/{order_id}/pay-card"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cards/{order_id}/refund-card"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cards/{product_id}/savings-tip"
+    },
+    {
+      "method": "GET",
+      "path": "/api/care-card/contacts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/care-card/contacts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/care-card/contacts/{contact_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/care-card/contacts/{contact_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/care-card/home-address"
+    },
+    {
+      "method": "GET",
+      "path": "/api/care-card/info"
+    },
+    {
+      "method": "GET",
+      "path": "/api/care-card/public/{token}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/care-card/qr-token"
+    },
+    {
+      "method": "POST",
+      "path": "/api/care-card/share-location"
+    },
+    {
+      "method": "GET",
+      "path": "/api/care-card/share-location/{token}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/care-v1/user-preferences"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/care-v1/user-preferences/ui-mode"
+    },
+    {
+      "method": "POST",
+      "path": "/api/care/alerts/_seed-demo"
+    },
+    {
+      "method": "GET",
+      "path": "/api/care/alerts/active"
+    },
+    {
+      "method": "POST",
+      "path": "/api/care/alerts/{alert_id}/dismiss"
+    },
+    {
+      "method": "GET",
+      "path": "/api/care/daily-summary"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat-sessions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat-sessions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat-sessions/active"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat-sessions/active-check"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat-sessions/batch-delete"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/chat-sessions/clear-all"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/chat-sessions/{session_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat-sessions/{session_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/chat-sessions/{session_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat-sessions/{session_id}/archive"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/chat-sessions/{session_id}/pin"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat-sessions/{session_id}/resume"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat-sessions/{session_id}/share"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/digital-human/{digital_human_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/digital-humans"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/digital-humans"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/chat/digital-humans/{digital_human_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/chat/digital-humans/{digital_human_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/drug/init"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/drug/regenerate_opening"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/function-buttons"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/function-buttons"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/chat/function-buttons/sort"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/function-buttons/sort-action"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/chat/function-buttons/{button_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/chat/function-buttons/{button_id}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/chat/function-buttons/{button_id}/toggle-capsule"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/chat/function-buttons/{button_id}/toggle-recommended"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/image/analyze-report"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/image/recognize-medicine"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/intent-detect"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/messages/{message_id}/mark-added-to-plan"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/sessions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/sessions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/sessions/{session_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/sessions/{session_id}/first-message-stream"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/sessions/{session_id}/first-message-stream"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/sessions/{session_id}/messages"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/sessions/{session_id}/messages"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/sessions/{session_id}/messages-stream"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/sessions/{session_id}/stream"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/sessions/{session_id}/switch-member"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/share"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/share/poster"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/voice-call/start"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/voice-call/{call_id}/end"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/voice-call/{call_id}/message"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/voice-service/config"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/chat/voice-service/config"
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/voice-service/test-connection"
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/voice-service/vad-config"
+    },
+    {
+      "method": "POST",
+      "path": "/api/checkup/compare/create-session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/checkup/reports/{report_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/checkup/reports/{report_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/checkup/reports/{report_id}/ensure-session"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cities/hot"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cities/hot"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/cities/hot/{city_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cities/list"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cities/locate"
+    },
+    {
+      "method": "GET",
+      "path": "/api/common/time-slots"
+    },
+    {
+      "method": "GET",
+      "path": "/api/config"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/config/login_ui_version"
+    },
+    {
+      "method": "GET",
+      "path": "/api/constitution/archive"
+    },
+    {
+      "method": "GET",
+      "path": "/api/constitution/archive/{diagnosis_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/constitution/content-configs"
+    },
+    {
+      "method": "POST",
+      "path": "/api/constitution/content-configs"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/constitution/content-configs/{config_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/constitution/content-configs/{config_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/constitution/coupon/claim"
+    },
+    {
+      "method": "GET",
+      "path": "/api/constitution/coupon/status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/constitution/diagnosis-by-answer/{answer_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/constitution/encyclopedia/{constitution_type}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/constitution/meta"
+    },
+    {
+      "method": "GET",
+      "path": "/api/constitution/result/{diagnosis_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/article-categories"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/articles"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/articles/{article_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/comments"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/comments"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/favorites"
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/favorites"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/news"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/news/latest"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/news/{news_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cos/upload-limits"
+    },
+    {
+      "method": "GET",
+      "path": "/api/coupons/available"
+    },
+    {
+      "method": "POST",
+      "path": "/api/coupons/claim"
+    },
+    {
+      "method": "GET",
+      "path": "/api/coupons/mine"
+    },
+    {
+      "method": "POST",
+      "path": "/api/coupons/redeem"
+    },
+    {
+      "method": "GET",
+      "path": "/api/coupons/summary"
+    },
+    {
+      "method": "GET",
+      "path": "/api/coupons/usable-for-order"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cs/sessions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cs/sessions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/cs/sessions/{session_id}/messages"
+    },
+    {
+      "method": "POST",
+      "path": "/api/cs/sessions/{session_id}/messages"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/cs/sessions/{session_id}/transfer"
+    },
+    {
+      "method": "GET",
+      "path": "/api/devices/admin/catalog"
+    },
+    {
+      "method": "POST",
+      "path": "/api/devices/admin/catalog"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/devices/admin/catalog/{catalog_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/devices/admin/catalog/{catalog_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/devices/bind"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/devices/binding/{binding_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/devices/catalog"
+    },
+    {
+      "method": "GET",
+      "path": "/api/devices/my"
+    },
+    {
+      "method": "GET",
+      "path": "/api/devices/scene-groups"
+    },
+    {
+      "method": "POST",
+      "path": "/api/devices/scene-groups"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/devices/scene-groups/{group_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/devices/scene-groups/{group_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/devices/scene-groups/{group_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/devices/unbind"
+    },
+    {
+      "method": "GET",
+      "path": "/api/disease-presets"
+    },
+    {
+      "method": "GET",
+      "path": "/api/docs"
+    },
+    {
+      "method": "GET",
+      "path": "/api/drug-identify/share/{token}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/drug-identify/{record_id}/share"
+    },
+    {
+      "method": "POST",
+      "path": "/api/drugs/identify"
+    },
+    {
+      "method": "POST",
+      "path": "/api/drugs/identify-v2"
+    },
+    {
+      "method": "POST",
+      "path": "/api/drugs/interaction-check"
+    },
+    {
+      "method": "GET",
+      "path": "/api/drugs/search"
+    },
+    {
+      "method": "POST",
+      "path": "/api/experts/appointments"
+    },
+    {
+      "method": "GET",
+      "path": "/api/experts/appointments/my"
+    },
+    {
+      "method": "GET",
+      "path": "/api/experts/{expert_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/experts/{expert_id}/schedules"
+    },
+    {
+      "method": "GET",
+      "path": "/api/family-archive-v2/hero-counts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/family-archive-v2/member/{member_id}/alert-history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/family-archive-v2/member/{member_id}/alert-settings"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/family-archive-v2/member/{member_id}/alert-settings"
+    },
+    {
+      "method": "GET",
+      "path": "/api/family-archive-v2/member/{member_id}/devices"
+    },
+    {
+      "method": "GET",
+      "path": "/api/family-archive-v2/members"
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/guardians/{member_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/family/invitation"
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/invitation/{code}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/family/invitation/{code}/accept"
+    },
+    {
+      "method": "POST",
+      "path": "/api/family/invitation/{code}/reject"
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/managed-by"
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/management"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/family/management/{management_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/management/{management_id}/logs"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/family/management/{management_id}/share-toggle"
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/management/{management_id}/usage-records"
+    },
+    {
+      "method": "POST",
+      "path": "/api/family/member/admin/cleanup-orphan-invitations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/member/quota"
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/member/state/list"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/family/member/{member_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/family/member/{member_id}/invite"
+    },
+    {
+      "method": "POST",
+      "path": "/api/family/member/{member_id}/unbind"
+    },
+    {
+      "method": "POST",
+      "path": "/api/family/member/{member_id}/unbind/send-code"
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/members"
+    },
+    {
+      "method": "POST",
+      "path": "/api/family/members"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/family/members/{member_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/members/{member_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/family/members/{member_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/family/sos"
+    },
+    {
+      "method": "GET",
+      "path": "/api/favorites/status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/feedback"
+    },
+    {
+      "method": "POST",
+      "path": "/api/feedback"
+    },
+    {
+      "method": "GET",
+      "path": "/api/glucose-v1/admin/ai-prompts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/glucose-v1/admin/ai-prompts/{prompt_key}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/glucose-v1/admin/ai-prompts/{prompt_key}/test"
+    },
+    {
+      "method": "POST",
+      "path": "/api/glucose-v1/admin/purge-all"
+    },
+    {
+      "method": "GET",
+      "path": "/api/glucose-v1/ai-advice"
+    },
+    {
+      "method": "POST",
+      "path": "/api/glucose-v1/ai-explain-single"
+    },
+    {
+      "method": "POST",
+      "path": "/api/glucose-v1/ai-explain-trend"
+    },
+    {
+      "method": "GET",
+      "path": "/api/glucose-v1/alerts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/glucose-v1/alerts/{alert_id}/confirm"
+    },
+    {
+      "method": "GET",
+      "path": "/api/glucose-v1/latest"
+    },
+    {
+      "method": "GET",
+      "path": "/api/glucose-v1/records"
+    },
+    {
+      "method": "POST",
+      "path": "/api/glucose-v1/records"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/glucose-v1/records/{record_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/glucose-v1/records/{record_id}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/glucose-v1/records/{record_id}/scene"
+    },
+    {
+      "method": "GET",
+      "path": "/api/glucose-v1/reminder"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/glucose-v1/reminder"
+    },
+    {
+      "method": "GET",
+      "path": "/api/glucose-v1/report"
+    },
+    {
+      "method": "GET",
+      "path": "/api/glucose-v1/stats"
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v12/ai-call-quota"
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v12/emergency-quota"
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v12/emergency/simulate-serial-call"
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v12/i-guard"
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v12/invitations/records"
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v12/managed-quota-summary"
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v12/managed/{managed_user_id}/all-guardians"
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v12/managed/{managed_user_id}/proxy-pay"
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v12/owner/direct-adjust"
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v12/reminders"
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v12/reminders/{managed_user_id}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/guardian/v12/reminders/{reminder_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v12/transfer/initiate"
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v12/transfer/pending"
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v12/transfer/{transfer_id}/approve"
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v12/transfer/{transfer_id}/cancel"
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v12/transfer/{transfer_id}/reject"
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v13/family/invite-history"
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v13/family/invite/cancel"
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v13/family/list"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/guardian/v13/family/member/{member_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v13/family/member/{member_id}/delete-preview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v13/family/proxy-pay/detail"
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v13/family/proxy-pay/toggle"
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v13/family/relation/unguard"
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v13/family/remove"
+    },
+    {
+      "method": "GET",
+      "path": "/api/h5/active-theme"
+    },
+    {
+      "method": "GET",
+      "path": "/api/h5/bottom-nav"
+    },
+    {
+      "method": "GET",
+      "path": "/api/h5/checkout/info"
+    },
+    {
+      "method": "GET",
+      "path": "/api/h5/checkout/init"
+    },
+    {
+      "method": "GET",
+      "path": "/api/h5/slots"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-alerts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-alerts/_seed"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-alerts/check"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-alerts/resolve-all"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-alerts/{alert_id}/resolve"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-archive-v5/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-archive/ai-call/settings"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-archive/ai-call/settings/{target_user_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health-archive/ai-call/settings/{target_user_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-archive/family-members/guarded-flags"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-archive/guardian/summary"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-archive/guardian/{managed_user_id}/devices"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-archive/guardian/{managed_user_id}/devices/remind-bind"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-dashboard/{member_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-dashboard/{member_id}/trends"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-metric-v1/meta"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-metric-v1/{profile_id}/{metric_type}/ai-explain-single"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-metric-v1/{profile_id}/{metric_type}/ai-explain-trend"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-metric-v1/{profile_id}/{metric_type}/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-metric-v1/{profile_id}/{metric_type}/{record_id}/can-delete"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/ai-generate"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/ai-generate-category/{category_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/check-duplicate"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/checkin-calendar"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/checkin-items"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/checkin-items"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health-plan/checkin-items/{item_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/checkin-items/{item_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health-plan/checkin-items/{item_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/checkin-items/{item_id}/checkin"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/checkin-items/{item_id}/makeup"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/checkin-items/{item_id}/records"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/checkin-overview"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/checkin-stats-summary"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/medications"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/medications"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/medications/check-batch"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/medications/check-duplicate"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/medications/list"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/medications/summary"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health-plan/medications/{reminder_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/medications/{reminder_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health-plan/medications/{reminder_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/medications/{reminder_id}/checkin"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health-plan/medications/{reminder_id}/pause"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/recommended-plans/{plan_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/recommended-plans/{plan_id}/join"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/statistics"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/template-categories"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/template-categories/{category_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/today-todos"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/today-todos/{item_id}/check"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/user-plans"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/user-plans"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health-plan/user-plans/{plan_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/user-plans/{plan_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health-plan/user-plans/{plan_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/user-plans/{plan_id}/tasks/{task_id}/checkin"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-profile-v3/devices"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health-profile-v3/devices/{device_type}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-profile-v3/devices/{device_type}/bind"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-profile-v3/devices/{device_type}/callback"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-profile-v3/devices/{device_type}/sync"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-profile-v3/{profile_id}/events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-profile-v3/{profile_id}/medication-plan"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-profile-v3/{profile_id}/metric/{metric_type}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-profile-v3/{profile_id}/metric/{metric_type}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health-profile-v3/{profile_id}/metric/{metric_type}/{record_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health-profile-v3/{profile_id}/metric/{metric_type}/{record_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-profile-v3/{profile_id}/today-metrics"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-profile/self"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health-profile/self"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-reminders"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-reminders"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-reminders/recommendations"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health-reminders/{reminder_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health-reminders/{reminder_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-self-check/body-part-dict"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-self-check/body-part-dict"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health-self-check/body-part-dict/{part_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health-self-check/body-part-dict/{part_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-self-check/dict"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-self-check/health-check-templates"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-self-check/health-check-templates"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health-self-check/health-check-templates/{tpl_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-self-check/health-check-templates/{tpl_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health-self-check/health-check-templates/{tpl_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-self-check/start"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-self-check/start-stream"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-self-check/template/{tpl_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/allergies"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health/allergies"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health/allergies/{allergy_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/checkup-reports"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health/checkup-reports"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/checkup-reports/{report_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/guide-status"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health/guide-status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/medical-history"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health/medical-history"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health/medical-history/{record_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/medications"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health/medications"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health/medications/{record_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/profile"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health/profile"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health/profile"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/profile/member/{member_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health/profile/member/{member_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/visits"
+    },
+    {
+      "method": "POST",
+      "path": "/api/health/visits"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health/visits/{record_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/home-banners"
+    },
+    {
+      "method": "POST",
+      "path": "/api/home-banners"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/home-banners/sort"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/home-banners/{banner_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/home-banners/{banner_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/home-config"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/home-config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/home-menus"
+    },
+    {
+      "method": "POST",
+      "path": "/api/home_safety/callback/ai_call_result"
+    },
+    {
+      "method": "POST",
+      "path": "/api/home_safety/callback/alarm"
+    },
+    {
+      "method": "POST",
+      "path": "/api/internal/checkup/parsed"
+    },
+    {
+      "method": "POST",
+      "path": "/api/internal/user/registered"
+    },
+    {
+      "method": "GET",
+      "path": "/api/landing"
+    },
+    {
+      "method": "GET",
+      "path": "/api/maps/geo-config"
+    },
+    {
+      "method": "POST",
+      "path": "/api/maps/reverse-geocoding"
+    },
+    {
+      "method": "GET",
+      "path": "/api/maps/static-map"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/alert-logs"
+    },
+    {
+      "method": "POST",
+      "path": "/api/me/migrations/{mig_id}/confirm"
+    },
+    {
+      "method": "POST",
+      "path": "/api/me/migrations/{mig_id}/reject"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/pending-migrations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/medical-records"
+    },
+    {
+      "method": "POST",
+      "path": "/api/medical-records"
+    },
+    {
+      "method": "POST",
+      "path": "/api/medical-records/_purge-expired"
+    },
+    {
+      "method": "GET",
+      "path": "/api/medical-records/trash"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/medical-records/{record_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/medical-records/{record_id}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/medical-records/{record_id}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/medical-records/{record_id}/permanent"
+    },
+    {
+      "method": "POST",
+      "path": "/api/medical-records/{record_id}/restore"
+    },
+    {
+      "method": "POST",
+      "path": "/api/medication-check-in"
+    },
+    {
+      "method": "POST",
+      "path": "/api/medication-check-in/{checkin_id}/revoke"
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-library/suggest"
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-plans/hero-count"
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-plans/summary"
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-plans/today"
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-reminder/appointments"
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-reminder/badge"
+    },
+    {
+      "method": "POST",
+      "path": "/api/medication-reminder/check"
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-reminder/plans"
+    },
+    {
+      "method": "POST",
+      "path": "/api/medication-reminder/plans"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/medication-reminder/plans/{plan_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/medication-reminder/plans/{plan_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-reminder/plans/{plan_id}/ai-call"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/medication-reminder/plans/{plan_id}/ai-call"
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-reminder/today"
+    },
+    {
+      "method": "POST",
+      "path": "/api/medication-reminder/uncheck"
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-stats/monthly-compliance"
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication/plans/exists"
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication/today"
+    },
+    {
+      "method": "POST",
+      "path": "/api/member/_internal/cron/expire"
+    },
+    {
+      "method": "POST",
+      "path": "/api/member/_internal/cron/remind"
+    },
+    {
+      "method": "GET",
+      "path": "/api/member/center"
+    },
+    {
+      "method": "POST",
+      "path": "/api/member/order"
+    },
+    {
+      "method": "POST",
+      "path": "/api/member/order/{order_id}/pay"
+    },
+    {
+      "method": "GET",
+      "path": "/api/member/orders"
+    },
+    {
+      "method": "GET",
+      "path": "/api/member/plans"
+    },
+    {
+      "method": "GET",
+      "path": "/api/member/qrcode"
+    },
+    {
+      "method": "GET",
+      "path": "/api/member/quota-usage"
+    },
+    {
+      "method": "GET",
+      "path": "/api/member/{member_id}/reports"
+    },
+    {
+      "method": "GET",
+      "path": "/api/member/{user_id}/membership"
+    },
+    {
+      "method": "POST",
+      "path": "/api/member/{user_id}/membership/adjust"
+    },
+    {
+      "method": "GET",
+      "path": "/api/membership-levels"
+    },
+    {
+      "method": "POST",
+      "path": "/api/membership-levels"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/membership-levels/{level_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/membership-levels/{level_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant-categories"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/auth/login"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/merchant/bindding/wechat"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/bindding/wechat/qrcode"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/bindding/wechat/status"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/booking/{order_item_id}/notify"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/booking/{order_item_id}/reschedule"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/business-hours"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/business-hours"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/calendar/cells"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/calendar/daily"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/calendar/daily-orders"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/calendar/items"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/calendar/kpi"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/calendar/list"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/calendar/monthly"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/calendar/views"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/calendar/views"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/merchant/calendar/views/{view_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/calendar/views/{view_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/concurrency-limit"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/concurrency-limit"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/dashboard"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/dashboard/day"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/dashboard/month"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/dashboard/month-day"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/dashboard/slot/{target_date}/{slot_no}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/dashboard/time-slots"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/dashboard/week"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/internal/calendar/notify-scan"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/notifications"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/notifications/read-all"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/notifications/{notification_id}/read"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/orders"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/orders/records"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/orders/verify-code/{code}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/orders/{order_id}/appointment-time"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/orders/{order_id}/attachments"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/orders/{order_id}/attachments/upload"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/merchant/orders/{order_id}/attachments/{attachment_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/orders/{order_id}/confirm"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/orders/{order_id}/detail"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/orders/{order_id}/notes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/orders/{order_id}/notes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/orders/{order_id}/verify"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/password"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/profile"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/shop/info"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/shop/info"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/staff/create"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/staff/reset-password"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/staff/toggle-status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/stores"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/stores/{store_id}/booking-config"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/stores/{store_id}/booking-config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/dashboard/metrics"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/exports"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/v1/exports"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/exports/placeholder/{name}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/invoice-profile"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/v1/invoice-profile"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/orders"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/orders/{order_item_id}/attachments"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/v1/orders/{order_item_id}/attachments"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/merchant/v1/orders/{order_item_id}/attachments/{attachment_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/reports"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/role-templates"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/settlements"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/settlements/{sid}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/v1/settlements/{sid}/confirm"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/v1/settlements/{sid}/dispute"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/staff"
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/v1/staff"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/v1/staff/{target_user_id}/permissions"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/v1/staff/{target_user_id}/status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/verifications"
+    },
+    {
+      "method": "GET",
+      "path": "/api/messages"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/messages/read-all"
+    },
+    {
+      "method": "GET",
+      "path": "/api/messages/unread-count"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/messages/{message_id}/read"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notices"
+    },
+    {
+      "method": "POST",
+      "path": "/api/notices"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notices/active"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/notices/sort"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/notices/{notice_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/notices/{notice_id}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/notices/{notice_id}/status"
+    },
+    {
+      "method": "POST",
+      "path": "/api/notifications/mark-read-by-order"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/notifications/read-all"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications/unread-count"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/notifications/{notification_id}/read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ocr/batch-recognize"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ocr/config"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/ocr/config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ocr/providers"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/ocr/providers/{provider}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ocr/providers/{provider}/disable"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ocr/providers/{provider}/preferred"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ocr/recognize"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ocr/records"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ocr/records/batch-delete"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ocr/scenes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ocr/scenes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/ocr/scenes/{scene_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/ocr/scenes/{scene_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ocr/statistics"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ocr/test"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ocr/test-full"
+    },
+    {
+      "method": "POST",
+      "path": "/api/ocr/test-ocr"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ocr/upload-limits"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/ocr/upload-limits"
+    },
+    {
+      "method": "GET",
+      "path": "/api/openapi.json"
+    },
+    {
+      "method": "POST",
+      "path": "/api/openapi/redeem-codes/batch-fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/api/openapi/redeem-codes/disable"
+    },
+    {
+      "method": "POST",
+      "path": "/api/openapi/redeem-codes/mark-sold"
+    },
+    {
+      "method": "POST",
+      "path": "/api/openapi/redeem-codes/redeem-callback"
+    },
+    {
+      "method": "GET",
+      "path": "/api/openapi/redeem-codes/{code}/status"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/attachment-meta"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/unified/counts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/unified/sandbox-confirm"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/unified/{order_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/appointment"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/cancel"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/confirm"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/confirm-free"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/pay"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/refund"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/refund/cancel"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/refund/withdraw"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/reorder"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/review"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/verify-code/{code}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/{order_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/orders/{order_id}/cancel"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/{order_id}/review"
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/{order_id}/verify"
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/{order_item_id}/attachments"
+    },
+    {
+      "method": "GET",
+      "path": "/api/pay/available-methods"
+    },
+    {
+      "method": "POST",
+      "path": "/api/payment/alipay/notify"
+    },
+    {
+      "method": "POST",
+      "path": "/api/plans/ai-generate"
+    },
+    {
+      "method": "GET",
+      "path": "/api/plans/{plan_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/plans/{plan_id}/tasks"
+    },
+    {
+      "method": "POST",
+      "path": "/api/plans/{plan_id}/tasks"
+    },
+    {
+      "method": "POST",
+      "path": "/api/plans/{plan_id}/tasks/{task_id}/checkin"
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/admin/exchange-records"
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/balance"
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/checkin/today-progress"
+    },
+    {
+      "method": "POST",
+      "path": "/api/points/exchange"
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/exchange-records"
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/exchange-records/{record_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/level"
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/mall"
+    },
+    {
+      "method": "POST",
+      "path": "/api/points/mall/exchange"
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/mall/items/{item_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/mall/products"
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/records"
+    },
+    {
+      "method": "POST",
+      "path": "/api/points/sign-in"
+    },
+    {
+      "method": "POST",
+      "path": "/api/points/signin"
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/summary"
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/tasks"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/care-partners"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/prd469/care-partners/{management_id}/permissions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/care/medication-ai-call"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/prd469/care/medication-ai-call"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/device/list"
+    },
+    {
+      "method": "POST",
+      "path": "/api/prd469/device/subscribe"
+    },
+    {
+      "method": "POST",
+      "path": "/api/prd469/family-member/relation-custom/check"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/family-member/relation-options"
+    },
+    {
+      "method": "POST",
+      "path": "/api/prd469/health-event"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/health-event/timeline"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/health-info/{profile_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/prd469/health-info/{profile_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/health-info/{profile_id}/family-history"
+    },
+    {
+      "method": "POST",
+      "path": "/api/prd469/health-info/{profile_id}/family-history"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/prd469/health-info/{profile_id}/family-history/{item_index}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/prd469/health-info/{profile_id}/family-history/{item_index}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/health-info/{profile_id}/surgery-history"
+    },
+    {
+      "method": "POST",
+      "path": "/api/prd469/health-info/{profile_id}/surgery-history"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/prd469/health-info/{profile_id}/surgery-history/{item_index}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/prd469/health-info/{profile_id}/surgery-history/{item_index}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/prd469/medical-record"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/medical-record/list"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/prd469/medical-record/{record_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/medical-record/{record_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/medication-ai-call"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/prd469/medication-ai-call"
+    },
+    {
+      "method": "POST",
+      "path": "/api/prd469/medication-library/ocr"
+    },
+    {
+      "method": "POST",
+      "path": "/api/prd469/medication-library/recognize"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/medication-library/search"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/medication-library/stats"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/medication-library/{drug_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/prd469/profile/{profile_id}/basic-info"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/reminder-setting"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/prd469/reminder-setting"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/summary-stats/{profile_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/summary/{profile_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/products/categories"
+    },
+    {
+      "method": "GET",
+      "path": "/api/products/hot-recommendations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/products/{product_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/products/{product_id}/available-stores"
+    },
+    {
+      "method": "GET",
+      "path": "/api/products/{product_id}/related"
+    },
+    {
+      "method": "GET",
+      "path": "/api/products/{product_id}/time-slots/availability"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/protocol/{protocol_key}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/questionnaire/answers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/answers/{answer_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/answers/{answer_id}/ai-status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/answers/{answer_id}/follow-up"
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/answers/{answer_id}/raw"
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/answers/{answer_id}/report"
+    },
+    {
+      "method": "POST",
+      "path": "/api/questionnaire/answers/{answer_id}/retry-ai"
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/buttons/{button_id}/render-meta"
+    },
+    {
+      "method": "POST",
+      "path": "/api/questionnaire/classifications"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/questionnaire/classifications/{rule_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/questionnaire/classifications/{rule_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/classifications/{rule_id}/recommendations"
+    },
+    {
+      "method": "POST",
+      "path": "/api/questionnaire/followup-chip"
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/placeholder-catalog"
+    },
+    {
+      "method": "POST",
+      "path": "/api/questionnaire/questions"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/questionnaire/questions/{question_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/questionnaire/questions/{question_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/questionnaire/recommendations"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/questionnaire/recommendations/{rec_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/questionnaire/recommendations/{rec_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/questionnaire/submit"
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/templates"
+    },
+    {
+      "method": "POST",
+      "path": "/api/questionnaire/templates"
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/templates/by-code/{code}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/questionnaire/templates/{template_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/templates/{template_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/questionnaire/templates/{template_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/templates/{template_id}/classifications"
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/templates/{template_id}/questions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/redoc"
+    },
+    {
+      "method": "GET",
+      "path": "/api/relation-types"
+    },
+    {
+      "method": "POST",
+      "path": "/api/report-history/compare"
+    },
+    {
+      "method": "GET",
+      "path": "/api/report-history/comparison/{record_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/report-history/list"
+    },
+    {
+      "method": "POST",
+      "path": "/api/report-history/save-medical"
+    },
+    {
+      "method": "POST",
+      "path": "/api/report-history/share"
+    },
+    {
+      "method": "GET",
+      "path": "/api/report-history/shared/{share_token}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/report-history/sync"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/report-history/{record_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/report-history/{record_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/report-interpret/start"
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/alert/check"
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/alerts"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/report/alerts/{alert_id}/read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/analyze"
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/compare"
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/compare/start"
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/detail/{report_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/interpret/detail/{report_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/interpret/ocr-detail/click"
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/interpret/session/{session_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/interpret/session/{session_id}/chat"
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/interpret/session/{session_id}/messages"
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/interpret/session/{session_id}/ocr-detail"
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/interpret/session/{session_id}/retry"
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/interpret/session/{session_id}/stream"
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/interpret/session/{session_id}/stream"
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/interpret/session/{session_id}/task-status"
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/interpret/start"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/report/interpret/{report_id}/title"
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/list"
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/ocr"
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/share"
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/share/{token}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/trend/analysis"
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/trend/{indicator_name}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/upload"
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/{report_id}/share"
+    },
+    {
+      "method": "GET",
+      "path": "/api/reverse-guardian/guardian-count"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reverse-guardian/invite"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reverse-guardian/invite/cancel"
+    },
+    {
+      "method": "GET",
+      "path": "/api/reverse-guardian/invite/{invite_code}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reverse-guardian/invite/{invite_code}/accept"
+    },
+    {
+      "method": "GET",
+      "path": "/api/reverse-guardian/my-guardians"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reverse-guardian/remove"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reverse-guardian/remove/send-code"
+    },
+    {
+      "method": "POST",
+      "path": "/api/safety-rope/_internal/scan"
+    },
+    {
+      "method": "GET",
+      "path": "/api/safety-rope/alerts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/safety-rope/checkin"
+    },
+    {
+      "method": "GET",
+      "path": "/api/safety-rope/checkins"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/safety-rope/config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/safety-rope/contacts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/safety-rope/contacts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/safety-rope/contacts/check-phone"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/safety-rope/contacts/{contact_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/safety-rope/contacts/{contact_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/safety-rope/status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/scan"
+    },
+    {
+      "method": "POST",
+      "path": "/api/search/asr/recognize"
+    },
+    {
+      "method": "POST",
+      "path": "/api/search/asr/token"
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/drug-keywords"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/search/history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/history"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/search/history/{history_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/hot"
+    },
+    {
+      "method": "POST",
+      "path": "/api/search/log"
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/suggest"
+    },
+    {
+      "method": "GET",
+      "path": "/api/services/categories"
+    },
+    {
+      "method": "GET",
+      "path": "/api/services/items"
+    },
+    {
+      "method": "GET",
+      "path": "/api/services/items/{item_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/services/list"
+    },
+    {
+      "method": "GET",
+      "path": "/api/services/{product_id}/available-slots"
+    },
+    {
+      "method": "GET",
+      "path": "/api/settings/share-config"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/settings/share-config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/settings/tts-config"
+    },
+    {
+      "method": "GET",
+      "path": "/api/share/{share_token}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/shared/chat/{share_token}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/stores/{store_id}/contact"
+    },
+    {
+      "method": "GET",
+      "path": "/api/system/server-time"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tcm/config"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/tcm/config"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tcm/constitution-test"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tcm/diagnosis"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tcm/diagnosis"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tcm/diagnosis/{diagnosis_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tcm/questions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tts/synthesize"
+    },
+    {
+      "method": "POST",
+      "path": "/api/upload/file"
+    },
+    {
+      "method": "POST",
+      "path": "/api/upload/image"
+    },
+    {
+      "method": "POST",
+      "path": "/api/upload/video"
+    },
+    {
+      "method": "GET",
+      "path": "/api/user/font-setting"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/user/font-setting"
+    },
+    {
+      "method": "GET",
+      "path": "/api/user/health-profile"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/user/health-profile"
+    },
+    {
+      "method": "POST",
+      "path": "/api/user/health-profile/extract"
+    },
+    {
+      "method": "GET",
+      "path": "/api/user/mode-preference"
+    },
+    {
+      "method": "POST",
+      "path": "/api/user/mode-preference"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/deactivate"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/invite-stats"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/me"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/users/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/me/stats"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/share-link"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/consultant/{consultant_id}/medications"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/consultant/{consultant_id}/profile_card"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/consultant/{consultant_id}/profile_flags"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/notifications/unread-count"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/app/version-check"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/regions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/regions/reverse-geocode"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/user/addresses"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/user/addresses"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v2/user/addresses/{address_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v2/user/addresses/{address_id}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v2/user/addresses/{address_id}/default"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v5/medication-library-pending"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v5/medication-library-pending/{pid}/accept"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v5/medication-library-pending/{pid}/reject"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v5/medication-library/match"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v5/system-config/doctor-consult"
+    },
+    {
+      "method": "POST",
+      "path": "/api/verifications/verify"
+    },
+    {
+      "method": "POST",
+      "path": "/api/verify/checkin"
+    },
+    {
+      "method": "GET",
+      "path": "/api/verify/checkin-records"
+    },
+    {
+      "method": "POST",
+      "path": "/api/verify/member-qrcode"
+    },
+    {
+      "method": "POST",
+      "path": "/api/verify/redeem"
+    },
+    {
+      "method": "POST",
+      "path": "/api/webhook/wechat/bindding"
+    },
+    {
+      "method": "GET",
+      "path": "/app/version-check"
+    },
+    {
+      "method": "GET",
+      "path": "/appointments"
+    },
+    {
+      "method": "POST",
+      "path": "/appointments"
+    },
+    {
+      "method": "GET",
+      "path": "/appointments/my"
+    },
+    {
+      "method": "POST",
+      "path": "/approve"
+    },
+    {
+      "method": "GET",
+      "path": "/archive"
+    },
+    {
+      "method": "GET",
+      "path": "/archive/{diagnosis_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/article-categories"
+    },
+    {
+      "method": "POST",
+      "path": "/article-categories"
+    },
+    {
+      "method": "DELETE",
+      "path": "/article-categories/{cat_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/article-categories/{cat_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/articles"
+    },
+    {
+      "method": "GET",
+      "path": "/articles/{article_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/asr-config"
+    },
+    {
+      "method": "PUT",
+      "path": "/asr-config"
+    },
+    {
+      "method": "POST",
+      "path": "/asr-config/test"
+    },
+    {
+      "method": "POST",
+      "path": "/asr/recognize"
+    },
+    {
+      "method": "POST",
+      "path": "/asr/token"
+    },
+    {
+      "method": "GET",
+      "path": "/available"
+    },
+    {
+      "method": "GET",
+      "path": "/available-methods"
+    },
+    {
+      "method": "GET",
+      "path": "/badge"
+    },
+    {
+      "method": "GET",
+      "path": "/balance"
+    },
+    {
+      "method": "POST",
+      "path": "/batch-recognize"
+    },
+    {
+      "method": "POST",
+      "path": "/bind"
+    },
+    {
+      "method": "PATCH",
+      "path": "/binding/{binding_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/block-words"
+    },
+    {
+      "method": "POST",
+      "path": "/block-words"
+    },
+    {
+      "method": "POST",
+      "path": "/block-words/batch"
+    },
+    {
+      "method": "DELETE",
+      "path": "/block-words/{word_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/block-words/{word_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/body-part-dict"
+    },
+    {
+      "method": "POST",
+      "path": "/body-part-dict"
+    },
+    {
+      "method": "DELETE",
+      "path": "/body-part-dict/{part_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/body-part-dict/{part_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/booking/{order_item_id}/notify"
+    },
+    {
+      "method": "POST",
+      "path": "/booking/{order_item_id}/reschedule"
+    },
+    {
+      "method": "GET",
+      "path": "/bottom-nav"
+    },
+    {
+      "method": "POST",
+      "path": "/bottom-nav"
+    },
+    {
+      "method": "PUT",
+      "path": "/bottom-nav/sort"
+    },
+    {
+      "method": "DELETE",
+      "path": "/bottom-nav/{nav_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/bottom-nav/{nav_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/buttons/{button_id}/render-meta"
+    },
+    {
+      "method": "GET",
+      "path": "/by-id/{template_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/calculate-discount"
+    },
+    {
+      "method": "GET",
+      "path": "/calendar/cells"
+    },
+    {
+      "method": "GET",
+      "path": "/calendar/daily"
+    },
+    {
+      "method": "GET",
+      "path": "/calendar/daily-orders"
+    },
+    {
+      "method": "GET",
+      "path": "/calendar/items"
+    },
+    {
+      "method": "GET",
+      "path": "/calendar/kpi"
+    },
+    {
+      "method": "GET",
+      "path": "/calendar/list"
+    },
+    {
+      "method": "GET",
+      "path": "/calendar/monthly"
+    },
+    {
+      "method": "GET",
+      "path": "/calendar/views"
+    },
+    {
+      "method": "POST",
+      "path": "/calendar/views"
+    },
+    {
+      "method": "DELETE",
+      "path": "/calendar/views/{view_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/calendar/views/{view_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/callback/home_safety/ai_call_result"
+    },
+    {
+      "method": "POST",
+      "path": "/callback/home_safety/alarm"
+    },
+    {
+      "method": "POST",
+      "path": "/cancel"
+    },
+    {
+      "method": "GET",
+      "path": "/care-partners"
+    },
+    {
+      "method": "PUT",
+      "path": "/care-partners/{management_id}/permissions"
+    },
+    {
+      "method": "GET",
+      "path": "/care/medication-ai-call"
+    },
+    {
+      "method": "PUT",
+      "path": "/care/medication-ai-call"
+    },
+    {
+      "method": "GET",
+      "path": "/catalog"
+    },
+    {
+      "method": "GET",
+      "path": "/categories"
+    },
+    {
+      "method": "GET",
+      "path": "/categories-by-ids"
+    },
+    {
+      "method": "GET",
+      "path": "/category-product-count"
+    },
+    {
+      "method": "GET",
+      "path": "/category-tree"
+    },
+    {
+      "method": "GET",
+      "path": "/center"
+    },
+    {
+      "method": "POST",
+      "path": "/challenges"
+    },
+    {
+      "method": "POST",
+      "path": "/challenges/join"
+    },
+    {
+      "method": "GET",
+      "path": "/challenges/mine"
+    },
+    {
+      "method": "GET",
+      "path": "/challenges/{challenge_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/challenges/{challenge_id}/submit-score"
+    },
+    {
+      "method": "POST",
+      "path": "/chat/share"
+    },
+    {
+      "method": "POST",
+      "path": "/chat/share/poster"
+    },
+    {
+      "method": "POST",
+      "path": "/check"
+    },
+    {
+      "method": "POST",
+      "path": "/check-duplicate"
+    },
+    {
+      "method": "POST",
+      "path": "/checkin"
+    },
+    {
+      "method": "GET",
+      "path": "/checkin-calendar"
+    },
+    {
+      "method": "POST",
+      "path": "/checkin-config"
+    },
+    {
+      "method": "GET",
+      "path": "/checkin-items"
+    },
+    {
+      "method": "POST",
+      "path": "/checkin-items"
+    },
+    {
+      "method": "DELETE",
+      "path": "/checkin-items/{item_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/checkin-items/{item_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/checkin-items/{item_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/checkin-items/{item_id}/checkin"
+    },
+    {
+      "method": "POST",
+      "path": "/checkin-items/{item_id}/makeup"
+    },
+    {
+      "method": "GET",
+      "path": "/checkin-items/{item_id}/records"
+    },
+    {
+      "method": "GET",
+      "path": "/checkin-overview"
+    },
+    {
+      "method": "GET",
+      "path": "/checkin-records"
+    },
+    {
+      "method": "GET",
+      "path": "/checkin-statistics"
+    },
+    {
+      "method": "GET",
+      "path": "/checkin-stats-summary"
+    },
+    {
+      "method": "GET",
+      "path": "/checkin/today-progress"
+    },
+    {
+      "method": "GET",
+      "path": "/checkins"
+    },
+    {
+      "method": "POST",
+      "path": "/checkout"
+    },
+    {
+      "method": "GET",
+      "path": "/checkout/info"
+    },
+    {
+      "method": "GET",
+      "path": "/checkout/init"
+    },
+    {
+      "method": "GET",
+      "path": "/checkup-details"
+    },
+    {
+      "method": "GET",
+      "path": "/checkup-details/statistics"
+    },
+    {
+      "method": "GET",
+      "path": "/checkup-details/{detail_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/checkup-reports"
+    },
+    {
+      "method": "POST",
+      "path": "/checkup-reports"
+    },
+    {
+      "method": "GET",
+      "path": "/checkup-reports/{report_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/claim"
+    },
+    {
+      "method": "DELETE",
+      "path": "/classifications/{rule_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/codes/send"
+    },
+    {
+      "method": "POST",
+      "path": "/codes/verify"
+    },
+    {
+      "method": "POST",
+      "path": "/codes/{code_id}/void"
+    },
+    {
+      "method": "GET",
+      "path": "/comments"
+    },
+    {
+      "method": "POST",
+      "path": "/comments"
+    },
+    {
+      "method": "POST",
+      "path": "/compare"
+    },
+    {
+      "method": "POST",
+      "path": "/compare/create-session"
+    },
+    {
+      "method": "GET",
+      "path": "/comparison/{record_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/config"
+    },
+    {
+      "method": "PUT",
+      "path": "/config"
+    },
+    {
+      "method": "POST",
+      "path": "/constitution-test"
+    },
+    {
+      "method": "GET",
+      "path": "/contacts"
+    },
+    {
+      "method": "POST",
+      "path": "/contacts"
+    },
+    {
+      "method": "GET",
+      "path": "/contacts/check-phone"
+    },
+    {
+      "method": "DELETE",
+      "path": "/contacts/{contact_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/contacts/{contact_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/content-configs"
+    },
+    {
+      "method": "POST",
+      "path": "/content-configs"
+    },
+    {
+      "method": "DELETE",
+      "path": "/content-configs/{config_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/content-configs/{config_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/content/articles"
+    },
+    {
+      "method": "POST",
+      "path": "/content/articles"
+    },
+    {
+      "method": "DELETE",
+      "path": "/content/articles/{article_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/content/articles/{article_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/cos/upload-limits"
+    },
+    {
+      "method": "GET",
+      "path": "/counts"
+    },
+    {
+      "method": "POST",
+      "path": "/coupon/claim"
+    },
+    {
+      "method": "GET",
+      "path": "/coupon/status"
+    },
+    {
+      "method": "GET",
+      "path": "/coupons"
+    },
+    {
+      "method": "POST",
+      "path": "/coupons"
+    },
+    {
+      "method": "DELETE",
+      "path": "/coupons/{coupon_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/coupons/{coupon_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/coupons/{coupon_id}/distribute"
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard"
+    },
+    {
+      "method": "GET",
+      "path": "/dashboard/stats"
+    },
+    {
+      "method": "GET",
+      "path": "/day"
+    },
+    {
+      "method": "POST",
+      "path": "/deactivate"
+    },
+    {
+      "method": "GET",
+      "path": "/device/list"
+    },
+    {
+      "method": "POST",
+      "path": "/device/subscribe"
+    },
+    {
+      "method": "GET",
+      "path": "/devices"
+    },
+    {
+      "method": "DELETE",
+      "path": "/devices/{device_type}"
+    },
+    {
+      "method": "POST",
+      "path": "/devices/{device_type}/bind"
+    },
+    {
+      "method": "POST",
+      "path": "/devices/{device_type}/callback"
+    },
+    {
+      "method": "POST",
+      "path": "/devices/{device_type}/sync"
+    },
+    {
+      "method": "GET",
+      "path": "/diagnosis"
+    },
+    {
+      "method": "POST",
+      "path": "/diagnosis"
+    },
+    {
+      "method": "GET",
+      "path": "/diagnosis-by-answer/{answer_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/diagnosis/{diagnosis_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/dict"
+    },
+    {
+      "method": "GET",
+      "path": "/digital-human/{digital_human_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/digital-humans"
+    },
+    {
+      "method": "POST",
+      "path": "/digital-humans"
+    },
+    {
+      "method": "DELETE",
+      "path": "/digital-humans/{digital_human_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/digital-humans/{digital_human_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/disclaimers"
+    },
+    {
+      "method": "GET",
+      "path": "/disclaimers/{chat_type}"
+    },
+    {
+      "method": "PUT",
+      "path": "/disclaimers/{chat_type}"
+    },
+    {
+      "method": "GET",
+      "path": "/disease-presets"
+    },
+    {
+      "method": "POST",
+      "path": "/disease-presets"
+    },
+    {
+      "method": "DELETE",
+      "path": "/disease-presets/{dp_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/disease-presets/{dp_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/drug-details"
+    },
+    {
+      "method": "POST",
+      "path": "/drug-details/repair-drug-names"
+    },
+    {
+      "method": "GET",
+      "path": "/drug-details/statistics"
+    },
+    {
+      "method": "GET",
+      "path": "/drug-details/{detail_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/drug-details/{detail_id}/conversation"
+    },
+    {
+      "method": "GET",
+      "path": "/drug-keywords"
+    },
+    {
+      "method": "GET",
+      "path": "/emergency-sources"
+    },
+    {
+      "method": "POST",
+      "path": "/emergency-sources"
+    },
+    {
+      "method": "DELETE",
+      "path": "/emergency-sources/{source_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/emergency-sources/{source_id}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/emergency-sources/{source_id}/toggle"
+    },
+    {
+      "method": "GET",
+      "path": "/encyclopedia/{constitution_type}"
+    },
+    {
+      "method": "POST",
+      "path": "/exchange"
+    },
+    {
+      "method": "GET",
+      "path": "/exchange-records"
+    },
+    {
+      "method": "GET",
+      "path": "/exchange-records/{record_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/experts"
+    },
+    {
+      "method": "POST",
+      "path": "/experts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/experts/{expert_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/experts/{expert_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/family-management"
+    },
+    {
+      "method": "DELETE",
+      "path": "/family-management/{mgmt_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/family-management/{mgmt_id}/detail"
+    },
+    {
+      "method": "POST",
+      "path": "/family-member/relation-custom/check"
+    },
+    {
+      "method": "GET",
+      "path": "/family-member/relation-options"
+    },
+    {
+      "method": "GET",
+      "path": "/family-members/guarded-flags"
+    },
+    {
+      "method": "GET",
+      "path": "/family/invite-history"
+    },
+    {
+      "method": "POST",
+      "path": "/family/invite/cancel"
+    },
+    {
+      "method": "GET",
+      "path": "/family/list"
+    },
+    {
+      "method": "DELETE",
+      "path": "/family/member/{member_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/family/member/{member_id}/delete-preview"
+    },
+    {
+      "method": "GET",
+      "path": "/family/proxy-pay/detail"
+    },
+    {
+      "method": "POST",
+      "path": "/family/proxy-pay/toggle"
+    },
+    {
+      "method": "POST",
+      "path": "/family/relation/unguard"
+    },
+    {
+      "method": "POST",
+      "path": "/family/remove"
+    },
+    {
+      "method": "GET",
+      "path": "/favorites"
+    },
+    {
+      "method": "POST",
+      "path": "/favorites"
+    },
+    {
+      "method": "POST",
+      "path": "/file"
+    },
+    {
+      "method": "POST",
+      "path": "/followup-chip"
+    },
+    {
+      "method": "GET",
+      "path": "/font-setting"
+    },
+    {
+      "method": "PUT",
+      "path": "/font-setting"
+    },
+    {
+      "method": "GET",
+      "path": "/free-quota"
+    },
+    {
+      "method": "PUT",
+      "path": "/free-quota"
+    },
+    {
+      "method": "GET",
+      "path": "/function-buttons"
+    },
+    {
+      "method": "POST",
+      "path": "/function-buttons"
+    },
+    {
+      "method": "PUT",
+      "path": "/function-buttons/sort"
+    },
+    {
+      "method": "POST",
+      "path": "/function-buttons/sort-action"
+    },
+    {
+      "method": "DELETE",
+      "path": "/function-buttons/{button_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/function-buttons/{button_id}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/function-buttons/{button_id}/toggle-capsule"
+    },
+    {
+      "method": "PATCH",
+      "path": "/function-buttons/{button_id}/toggle-recommended"
+    },
+    {
+      "method": "POST",
+      "path": "/grants/recall"
+    },
+    {
+      "method": "GET",
+      "path": "/guardian-count"
+    },
+    {
+      "method": "GET",
+      "path": "/guardian/summary"
+    },
+    {
+      "method": "GET",
+      "path": "/guardian/{managed_user_id}/devices"
+    },
+    {
+      "method": "POST",
+      "path": "/guardian/{managed_user_id}/devices/remind-bind"
+    },
+    {
+      "method": "GET",
+      "path": "/guide-status"
+    },
+    {
+      "method": "POST",
+      "path": "/guide-status"
+    },
+    {
+      "method": "GET",
+      "path": "/h5/bottom-nav"
+    },
+    {
+      "method": "GET",
+      "path": "/health-alerts"
+    },
+    {
+      "method": "POST",
+      "path": "/health-alerts/_seed"
+    },
+    {
+      "method": "POST",
+      "path": "/health-alerts/resolve-all"
+    },
+    {
+      "method": "POST",
+      "path": "/health-alerts/{alert_id}/resolve"
+    },
+    {
+      "method": "GET",
+      "path": "/health-archive-v5/overview"
+    },
+    {
+      "method": "GET",
+      "path": "/health-check-templates"
+    },
+    {
+      "method": "POST",
+      "path": "/health-check-templates"
+    },
+    {
+      "method": "DELETE",
+      "path": "/health-check-templates/{tpl_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/health-check-templates/{tpl_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/health-check-templates/{tpl_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/health-event"
+    },
+    {
+      "method": "GET",
+      "path": "/health-event/timeline"
+    },
+    {
+      "method": "GET",
+      "path": "/health-info/{profile_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/health-info/{profile_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/health-info/{profile_id}/family-history"
+    },
+    {
+      "method": "POST",
+      "path": "/health-info/{profile_id}/family-history"
+    },
+    {
+      "method": "DELETE",
+      "path": "/health-info/{profile_id}/family-history/{item_index}"
+    },
+    {
+      "method": "PUT",
+      "path": "/health-info/{profile_id}/family-history/{item_index}"
+    },
+    {
+      "method": "GET",
+      "path": "/health-info/{profile_id}/surgery-history"
+    },
+    {
+      "method": "POST",
+      "path": "/health-info/{profile_id}/surgery-history"
+    },
+    {
+      "method": "DELETE",
+      "path": "/health-info/{profile_id}/surgery-history/{item_index}"
+    },
+    {
+      "method": "PUT",
+      "path": "/health-info/{profile_id}/surgery-history/{item_index}"
+    },
+    {
+      "method": "GET",
+      "path": "/health-profile"
+    },
+    {
+      "method": "PUT",
+      "path": "/health-profile"
+    },
+    {
+      "method": "POST",
+      "path": "/health-profile/extract"
+    },
+    {
+      "method": "GET",
+      "path": "/health/users"
+    },
+    {
+      "method": "GET",
+      "path": "/health/users/{user_id}/members"
+    },
+    {
+      "method": "GET",
+      "path": "/hero-counts"
+    },
+    {
+      "method": "DELETE",
+      "path": "/history"
+    },
+    {
+      "method": "GET",
+      "path": "/history"
+    },
+    {
+      "method": "DELETE",
+      "path": "/history/{history_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/home-banners"
+    },
+    {
+      "method": "POST",
+      "path": "/home-banners"
+    },
+    {
+      "method": "PUT",
+      "path": "/home-banners/sort"
+    },
+    {
+      "method": "DELETE",
+      "path": "/home-banners/{banner_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/home-banners/{banner_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/home-config"
+    },
+    {
+      "method": "PUT",
+      "path": "/home-config"
+    },
+    {
+      "method": "GET",
+      "path": "/home-menus"
+    },
+    {
+      "method": "GET",
+      "path": "/hot"
+    },
+    {
+      "method": "POST",
+      "path": "/hot"
+    },
+    {
+      "method": "GET",
+      "path": "/hot-recommendations"
+    },
+    {
+      "method": "DELETE",
+      "path": "/hot/{city_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/identify"
+    },
+    {
+      "method": "POST",
+      "path": "/identify-v2"
+    },
+    {
+      "method": "POST",
+      "path": "/image"
+    },
+    {
+      "method": "POST",
+      "path": "/image/analyze-report"
+    },
+    {
+      "method": "POST",
+      "path": "/image/recognize-medicine"
+    },
+    {
+      "method": "POST",
+      "path": "/init"
+    },
+    {
+      "method": "POST",
+      "path": "/intent-detect"
+    },
+    {
+      "method": "POST",
+      "path": "/interaction-check"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/calendar/notify-scan"
+    },
+    {
+      "method": "POST",
+      "path": "/invite"
+    },
+    {
+      "method": "POST",
+      "path": "/invite/cancel"
+    },
+    {
+      "method": "GET",
+      "path": "/invite/{invite_code}"
+    },
+    {
+      "method": "POST",
+      "path": "/invite/{invite_code}/accept"
+    },
+    {
+      "method": "GET",
+      "path": "/items"
+    },
+    {
+      "method": "GET",
+      "path": "/items/{item_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/latest"
+    },
+    {
+      "method": "GET",
+      "path": "/level"
+    },
+    {
+      "method": "GET",
+      "path": "/list"
+    },
+    {
+      "method": "GET",
+      "path": "/locate"
+    },
+    {
+      "method": "POST",
+      "path": "/log"
+    },
+    {
+      "method": "POST",
+      "path": "/login"
+    },
+    {
+      "method": "GET",
+      "path": "/logo"
+    },
+    {
+      "method": "GET",
+      "path": "/logs"
+    },
+    {
+      "method": "GET",
+      "path": "/mall"
+    },
+    {
+      "method": "POST",
+      "path": "/mall/exchange"
+    },
+    {
+      "method": "GET",
+      "path": "/mall/items/{item_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/mall/products"
+    },
+    {
+      "method": "GET",
+      "path": "/maps/geo-config"
+    },
+    {
+      "method": "POST",
+      "path": "/maps/reverse-geocoding"
+    },
+    {
+      "method": "GET",
+      "path": "/maps/static-map"
+    },
+    {
+      "method": "GET",
+      "path": "/me"
+    },
+    {
+      "method": "PUT",
+      "path": "/me"
+    },
+    {
+      "method": "GET",
+      "path": "/me/stats"
+    },
+    {
+      "method": "GET",
+      "path": "/me/wallet"
+    },
+    {
+      "method": "GET",
+      "path": "/me/{user_card_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/me/{user_card_id}/renew"
+    },
+    {
+      "method": "GET",
+      "path": "/medical-history"
+    },
+    {
+      "method": "POST",
+      "path": "/medical-history"
+    },
+    {
+      "method": "DELETE",
+      "path": "/medical-history/{record_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/medical-record"
+    },
+    {
+      "method": "GET",
+      "path": "/medical-record/list"
+    },
+    {
+      "method": "DELETE",
+      "path": "/medical-record/{record_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/medical-record/{record_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/medical-records"
+    },
+    {
+      "method": "POST",
+      "path": "/medical-records"
+    },
+    {
+      "method": "POST",
+      "path": "/medical-records/_purge-expired"
+    },
+    {
+      "method": "GET",
+      "path": "/medical-records/trash"
+    },
+    {
+      "method": "DELETE",
+      "path": "/medical-records/{record_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/medical-records/{record_id}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/medical-records/{record_id}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/medical-records/{record_id}/permanent"
+    },
+    {
+      "method": "POST",
+      "path": "/medical-records/{record_id}/restore"
+    },
+    {
+      "method": "GET",
+      "path": "/medication-ai-call"
+    },
+    {
+      "method": "PUT",
+      "path": "/medication-ai-call"
+    },
+    {
+      "method": "POST",
+      "path": "/medication-check-in"
+    },
+    {
+      "method": "POST",
+      "path": "/medication-check-in/{checkin_id}/revoke"
+    },
+    {
+      "method": "GET",
+      "path": "/medication-library-pending"
+    },
+    {
+      "method": "POST",
+      "path": "/medication-library-pending/{pid}/accept"
+    },
+    {
+      "method": "POST",
+      "path": "/medication-library-pending/{pid}/reject"
+    },
+    {
+      "method": "POST",
+      "path": "/medication-library/match"
+    },
+    {
+      "method": "POST",
+      "path": "/medication-library/ocr"
+    },
+    {
+      "method": "POST",
+      "path": "/medication-library/recognize"
+    },
+    {
+      "method": "GET",
+      "path": "/medication-library/search"
+    },
+    {
+      "method": "GET",
+      "path": "/medication-library/stats"
+    },
+    {
+      "method": "GET",
+      "path": "/medication-library/{drug_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/medication-plans/hero-count"
+    },
+    {
+      "method": "GET",
+      "path": "/medication-plans/summary"
+    },
+    {
+      "method": "GET",
+      "path": "/medication-plans/today"
+    },
+    {
+      "method": "GET",
+      "path": "/medication-reminder/plans/{plan_id}/ai-call"
+    },
+    {
+      "method": "PUT",
+      "path": "/medication-reminder/plans/{plan_id}/ai-call"
+    },
+    {
+      "method": "GET",
+      "path": "/medication-stats/monthly-compliance"
+    },
+    {
+      "method": "GET",
+      "path": "/medications"
+    },
+    {
+      "method": "POST",
+      "path": "/medications"
+    },
+    {
+      "method": "GET",
+      "path": "/medications/check-batch"
+    },
+    {
+      "method": "POST",
+      "path": "/medications/check-duplicate"
+    },
+    {
+      "method": "GET",
+      "path": "/medications/list"
+    },
+    {
+      "method": "GET",
+      "path": "/medications/summary"
+    },
+    {
+      "method": "DELETE",
+      "path": "/medications/{record_id}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/medications/{reminder_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/medications/{reminder_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/medications/{reminder_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/medications/{reminder_id}/checkin"
+    },
+    {
+      "method": "PUT",
+      "path": "/medications/{reminder_id}/pause"
+    },
+    {
+      "method": "GET",
+      "path": "/member/{member_id}/alert-history"
+    },
+    {
+      "method": "GET",
+      "path": "/member/{member_id}/alert-settings"
+    },
+    {
+      "method": "PUT",
+      "path": "/member/{member_id}/alert-settings"
+    },
+    {
+      "method": "GET",
+      "path": "/member/{member_id}/devices"
+    },
+    {
+      "method": "GET",
+      "path": "/member/{member_id}/reports"
+    },
+    {
+      "method": "GET",
+      "path": "/members"
+    },
+    {
+      "method": "GET",
+      "path": "/membership-levels"
+    },
+    {
+      "method": "POST",
+      "path": "/membership-levels"
+    },
+    {
+      "method": "DELETE",
+      "path": "/membership-levels/{level_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/membership-levels/{level_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/merchant-categories"
+    },
+    {
+      "method": "POST",
+      "path": "/merchant-categories"
+    },
+    {
+      "method": "DELETE",
+      "path": "/merchant-categories/{cat_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/merchant-categories/{cat_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/merchant-profile"
+    },
+    {
+      "method": "PUT",
+      "path": "/merchant-profile"
+    },
+    {
+      "method": "GET",
+      "path": "/merchant-role-templates"
+    },
+    {
+      "method": "POST",
+      "path": "/messages/{message_id}/mark-added-to-plan"
+    },
+    {
+      "method": "GET",
+      "path": "/meta"
+    },
+    {
+      "method": "GET",
+      "path": "/mine"
+    },
+    {
+      "method": "GET",
+      "path": "/mode-preference"
+    },
+    {
+      "method": "POST",
+      "path": "/mode-preference"
+    },
+    {
+      "method": "GET",
+      "path": "/month"
+    },
+    {
+      "method": "GET",
+      "path": "/month-day"
+    },
+    {
+      "method": "GET",
+      "path": "/my"
+    },
+    {
+      "method": "GET",
+      "path": "/my-guardians"
+    },
+    {
+      "method": "GET",
+      "path": "/news"
+    },
+    {
+      "method": "POST",
+      "path": "/news"
+    },
+    {
+      "method": "GET",
+      "path": "/news/latest"
+    },
+    {
+      "method": "GET",
+      "path": "/news/tags/suggest"
+    },
+    {
+      "method": "DELETE",
+      "path": "/news/{news_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/news/{news_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/news/{news_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/news/{news_id}/publish"
+    },
+    {
+      "method": "POST",
+      "path": "/news/{news_id}/top"
+    },
+    {
+      "method": "GET",
+      "path": "/notices"
+    },
+    {
+      "method": "POST",
+      "path": "/notices"
+    },
+    {
+      "method": "GET",
+      "path": "/notices/active"
+    },
+    {
+      "method": "PUT",
+      "path": "/notices/sort"
+    },
+    {
+      "method": "DELETE",
+      "path": "/notices/{notice_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/notices/{notice_id}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/notices/{notice_id}/status"
+    },
+    {
+      "method": "GET",
+      "path": "/notifications"
+    },
+    {
+      "method": "PUT",
+      "path": "/notifications/read-all"
+    },
+    {
+      "method": "PUT",
+      "path": "/notifications/{notification_id}/read"
+    },
+    {
+      "method": "POST",
+      "path": "/notify"
+    },
+    {
+      "method": "GET",
+      "path": "/ocr/config"
+    },
+    {
+      "method": "PUT",
+      "path": "/ocr/config"
+    },
+    {
+      "method": "POST",
+      "path": "/ocr/test"
+    },
+    {
+      "method": "GET",
+      "path": "/offline-reason-options"
+    },
+    {
+      "method": "POST",
+      "path": "/order"
+    },
+    {
+      "method": "POST",
+      "path": "/order/{order_id}/pay"
+    },
+    {
+      "method": "GET",
+      "path": "/orders"
+    },
+    {
+      "method": "GET",
+      "path": "/orders/records"
+    },
+    {
+      "method": "GET",
+      "path": "/orders/statistics"
+    },
+    {
+      "method": "GET",
+      "path": "/orders/unified"
+    },
+    {
+      "method": "POST",
+      "path": "/orders/unified/{order_id}/refund"
+    },
+    {
+      "method": "GET",
+      "path": "/orders/unified/{order_id}/refund-detail"
+    },
+    {
+      "method": "POST",
+      "path": "/orders/unified/{order_id}/refund/approve"
+    },
+    {
+      "method": "POST",
+      "path": "/orders/unified/{order_id}/refund/reject"
+    },
+    {
+      "method": "POST",
+      "path": "/orders/unified/{order_id}/ship"
+    },
+    {
+      "method": "GET",
+      "path": "/orders/v2/enums"
+    },
+    {
+      "method": "GET",
+      "path": "/orders/v2/stats"
+    },
+    {
+      "method": "GET",
+      "path": "/orders/verify-code/{code}"
+    },
+    {
+      "method": "PUT",
+      "path": "/orders/{order_id}/appointment-time"
+    },
+    {
+      "method": "GET",
+      "path": "/orders/{order_id}/attachments"
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{order_id}/attachments/upload"
+    },
+    {
+      "method": "DELETE",
+      "path": "/orders/{order_id}/attachments/{attachment_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{order_id}/confirm"
+    },
+    {
+      "method": "GET",
+      "path": "/orders/{order_id}/detail"
+    },
+    {
+      "method": "GET",
+      "path": "/orders/{order_id}/notes"
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{order_id}/notes"
+    },
+    {
+      "method": "POST",
+      "path": "/orders/{order_id}/verify"
+    },
+    {
+      "method": "GET",
+      "path": "/placeholder-catalog"
+    },
+    {
+      "method": "GET",
+      "path": "/plans"
+    },
+    {
+      "method": "POST",
+      "path": "/plans"
+    },
+    {
+      "method": "GET",
+      "path": "/plans/exists"
+    },
+    {
+      "method": "DELETE",
+      "path": "/plans/{plan_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/plans/{plan_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/plans/{plan_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/plans/{plan_id}/toggle"
+    },
+    {
+      "method": "GET",
+      "path": "/points/coupons/{coupon_id}/stock-info"
+    },
+    {
+      "method": "GET",
+      "path": "/points/exchange-records"
+    },
+    {
+      "method": "GET",
+      "path": "/points/levels"
+    },
+    {
+      "method": "POST",
+      "path": "/points/levels"
+    },
+    {
+      "method": "DELETE",
+      "path": "/points/levels/{level_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/points/levels/{level_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/points/mall"
+    },
+    {
+      "method": "POST",
+      "path": "/points/mall"
+    },
+    {
+      "method": "PUT",
+      "path": "/points/mall/batch-status"
+    },
+    {
+      "method": "DELETE",
+      "path": "/points/mall/{item_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/points/mall/{item_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/points/mall/{item_id}/change-logs"
+    },
+    {
+      "method": "POST",
+      "path": "/points/mall/{item_id}/duplicate"
+    },
+    {
+      "method": "POST",
+      "path": "/points/mall/{item_id}/offline"
+    },
+    {
+      "method": "POST",
+      "path": "/points/mall/{item_id}/publish"
+    },
+    {
+      "method": "GET",
+      "path": "/points/rules"
+    },
+    {
+      "method": "POST",
+      "path": "/points/rules"
+    },
+    {
+      "method": "PUT",
+      "path": "/points/rules"
+    },
+    {
+      "method": "GET",
+      "path": "/product-picker"
+    },
+    {
+      "method": "GET",
+      "path": "/products"
+    },
+    {
+      "method": "POST",
+      "path": "/products"
+    },
+    {
+      "method": "GET",
+      "path": "/products/categories"
+    },
+    {
+      "method": "POST",
+      "path": "/products/categories"
+    },
+    {
+      "method": "POST",
+      "path": "/products/categories/reorder"
+    },
+    {
+      "method": "DELETE",
+      "path": "/products/categories/{category_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/products/categories/{category_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/products/services"
+    },
+    {
+      "method": "DELETE",
+      "path": "/products/{product_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/products/{product_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/products/{product_id}/detail"
+    },
+    {
+      "method": "GET",
+      "path": "/products/{product_id}/form-fields"
+    },
+    {
+      "method": "POST",
+      "path": "/products/{product_id}/form-fields"
+    },
+    {
+      "method": "DELETE",
+      "path": "/products/{product_id}/form-fields/{field_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/products/{product_id}/form-fields/{field_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/products/{product_id}/skus"
+    },
+    {
+      "method": "GET",
+      "path": "/products/{product_id}/stores"
+    },
+    {
+      "method": "PUT",
+      "path": "/products/{product_id}/stores"
+    },
+    {
+      "method": "GET",
+      "path": "/profile"
+    },
+    {
+      "method": "POST",
+      "path": "/profile"
+    },
+    {
+      "method": "PUT",
+      "path": "/profile"
+    },
+    {
+      "method": "GET",
+      "path": "/profile/member/{member_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/profile/member/{member_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/profile/{profile_id}/basic-info"
+    },
+    {
+      "method": "GET",
+      "path": "/prompts"
+    },
+    {
+      "method": "GET",
+      "path": "/prompts/{chat_type}"
+    },
+    {
+      "method": "PUT",
+      "path": "/prompts/{chat_type}"
+    },
+    {
+      "method": "GET",
+      "path": "/providers"
+    },
+    {
+      "method": "PUT",
+      "path": "/providers/{provider}"
+    },
+    {
+      "method": "POST",
+      "path": "/providers/{provider}/disable"
+    },
+    {
+      "method": "POST",
+      "path": "/providers/{provider}/preferred"
+    },
+    {
+      "method": "POST",
+      "path": "/purchase"
+    },
+    {
+      "method": "GET",
+      "path": "/questions"
+    },
+    {
+      "method": "DELETE",
+      "path": "/questions/{question_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/quota-usage"
+    },
+    {
+      "method": "GET",
+      "path": "/rankings"
+    },
+    {
+      "method": "PUT",
+      "path": "/read-all"
+    },
+    {
+      "method": "POST",
+      "path": "/recognize"
+    },
+    {
+      "method": "GET",
+      "path": "/recommend-words"
+    },
+    {
+      "method": "POST",
+      "path": "/recommend-words"
+    },
+    {
+      "method": "DELETE",
+      "path": "/recommend-words/{word_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/recommend-words/{word_id}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/recommendations/{rec_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/recommended-plans"
+    },
+    {
+      "method": "POST",
+      "path": "/recommended-plans"
+    },
+    {
+      "method": "DELETE",
+      "path": "/recommended-plans/tasks/{task_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/recommended-plans/tasks/{task_id}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/recommended-plans/{plan_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/recommended-plans/{plan_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/recommended-plans/{plan_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/recommended-plans/{plan_id}/join"
+    },
+    {
+      "method": "PUT",
+      "path": "/recommended-plans/{plan_id}/publish"
+    },
+    {
+      "method": "GET",
+      "path": "/recommended-plans/{plan_id}/tasks"
+    },
+    {
+      "method": "POST",
+      "path": "/recommended-plans/{plan_id}/tasks"
+    },
+    {
+      "method": "GET",
+      "path": "/records"
+    },
+    {
+      "method": "POST",
+      "path": "/records"
+    },
+    {
+      "method": "POST",
+      "path": "/records/batch-delete"
+    },
+    {
+      "method": "DELETE",
+      "path": "/records/{record_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/records/{record_id}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/records/{record_id}/scene"
+    },
+    {
+      "method": "POST",
+      "path": "/redeem"
+    },
+    {
+      "method": "GET",
+      "path": "/redeem-code-batches"
+    },
+    {
+      "method": "POST",
+      "path": "/redeem-code-batches"
+    },
+    {
+      "method": "GET",
+      "path": "/redeem-code-batches/{batch_id}/codes"
+    },
+    {
+      "method": "GET",
+      "path": "/redeem-code-batches/{batch_id}/codes/export"
+    },
+    {
+      "method": "POST",
+      "path": "/redeem-code-batches/{batch_id}/void"
+    },
+    {
+      "method": "POST",
+      "path": "/redeem-codes/batch-fetch"
+    },
+    {
+      "method": "POST",
+      "path": "/redeem-codes/disable"
+    },
+    {
+      "method": "POST",
+      "path": "/redeem-codes/mark-sold"
+    },
+    {
+      "method": "POST",
+      "path": "/redeem-codes/redeem-callback"
+    },
+    {
+      "method": "GET",
+      "path": "/redeem-codes/{code}/status"
+    },
+    {
+      "method": "GET",
+      "path": "/referral/stats"
+    },
+    {
+      "method": "GET",
+      "path": "/refresh-config"
+    },
+    {
+      "method": "POST",
+      "path": "/regenerate_opening"
+    },
+    {
+      "method": "GET",
+      "path": "/regions"
+    },
+    {
+      "method": "POST",
+      "path": "/regions/reverse-geocode"
+    },
+    {
+      "method": "POST",
+      "path": "/regions/sync"
+    },
+    {
+      "method": "POST",
+      "path": "/regions/sync-seed"
+    },
+    {
+      "method": "GET",
+      "path": "/regions/tree"
+    },
+    {
+      "method": "POST",
+      "path": "/register"
+    },
+    {
+      "method": "GET",
+      "path": "/register-settings"
+    },
+    {
+      "method": "GET",
+      "path": "/relation-types"
+    },
+    {
+      "method": "POST",
+      "path": "/relation-types"
+    },
+    {
+      "method": "DELETE",
+      "path": "/relation-types/{rt_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/relation-types/{rt_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/reminder"
+    },
+    {
+      "method": "PUT",
+      "path": "/reminder"
+    },
+    {
+      "method": "GET",
+      "path": "/reminder-setting"
+    },
+    {
+      "method": "PUT",
+      "path": "/reminder-setting"
+    },
+    {
+      "method": "POST",
+      "path": "/remove"
+    },
+    {
+      "method": "POST",
+      "path": "/remove/send-code"
+    },
+    {
+      "method": "GET",
+      "path": "/report"
+    },
+    {
+      "method": "POST",
+      "path": "/report/alert/check"
+    },
+    {
+      "method": "GET",
+      "path": "/report/alerts"
+    },
+    {
+      "method": "PUT",
+      "path": "/report/alerts/{alert_id}/read"
+    },
+    {
+      "method": "POST",
+      "path": "/report/analyze"
+    },
+    {
+      "method": "POST",
+      "path": "/report/compare"
+    },
+    {
+      "method": "POST",
+      "path": "/report/compare/start"
+    },
+    {
+      "method": "GET",
+      "path": "/report/detail/{report_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/report/interpret/detail/{report_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/report/interpret/ocr-detail/click"
+    },
+    {
+      "method": "GET",
+      "path": "/report/interpret/session/{session_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/report/interpret/session/{session_id}/chat"
+    },
+    {
+      "method": "GET",
+      "path": "/report/interpret/session/{session_id}/messages"
+    },
+    {
+      "method": "GET",
+      "path": "/report/interpret/session/{session_id}/ocr-detail"
+    },
+    {
+      "method": "POST",
+      "path": "/report/interpret/session/{session_id}/retry"
+    },
+    {
+      "method": "GET",
+      "path": "/report/interpret/session/{session_id}/stream"
+    },
+    {
+      "method": "POST",
+      "path": "/report/interpret/session/{session_id}/stream"
+    },
+    {
+      "method": "GET",
+      "path": "/report/interpret/session/{session_id}/task-status"
+    },
+    {
+      "method": "POST",
+      "path": "/report/interpret/start"
+    },
+    {
+      "method": "PUT",
+      "path": "/report/interpret/{report_id}/title"
+    },
+    {
+      "method": "GET",
+      "path": "/report/list"
+    },
+    {
+      "method": "POST",
+      "path": "/report/ocr"
+    },
+    {
+      "method": "POST",
+      "path": "/report/share"
+    },
+    {
+      "method": "GET",
+      "path": "/report/share/{token}"
+    },
+    {
+      "method": "POST",
+      "path": "/report/trend/analysis"
+    },
+    {
+      "method": "GET",
+      "path": "/report/trend/{indicator_name}"
+    },
+    {
+      "method": "POST",
+      "path": "/report/upload"
+    },
+    {
+      "method": "POST",
+      "path": "/report/{report_id}/share"
+    },
+    {
+      "method": "GET",
+      "path": "/reports/{report_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/reports/{report_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/reports/{report_id}/ensure-session"
+    },
+    {
+      "method": "GET",
+      "path": "/requests"
+    },
+    {
+      "method": "POST",
+      "path": "/requests"
+    },
+    {
+      "method": "GET",
+      "path": "/requests/{request_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/resubmit"
+    },
+    {
+      "method": "GET",
+      "path": "/result/{diagnosis_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/return"
+    },
+    {
+      "method": "GET",
+      "path": "/sandbox-confirm"
+    },
+    {
+      "method": "POST",
+      "path": "/save-medical"
+    },
+    {
+      "method": "GET",
+      "path": "/scene-groups"
+    },
+    {
+      "method": "POST",
+      "path": "/scene-groups"
+    },
+    {
+      "method": "DELETE",
+      "path": "/scene-groups/{group_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/scene-groups/{group_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/scene-groups/{group_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/scenes"
+    },
+    {
+      "method": "POST",
+      "path": "/scenes"
+    },
+    {
+      "method": "DELETE",
+      "path": "/scenes/{scene_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/scenes/{scene_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/scope-limits"
+    },
+    {
+      "method": "POST",
+      "path": "/scores"
+    },
+    {
+      "method": "GET",
+      "path": "/sdk"
+    },
+    {
+      "method": "POST",
+      "path": "/sdk/refresh"
+    },
+    {
+      "method": "GET",
+      "path": "/search"
+    },
+    {
+      "method": "GET",
+      "path": "/seed-packs"
+    },
+    {
+      "method": "GET",
+      "path": "/seed-packs/{code}"
+    },
+    {
+      "method": "POST",
+      "path": "/seed-packs/{code}/install"
+    },
+    {
+      "method": "POST",
+      "path": "/seed-packs/{code}/uninstall"
+    },
+    {
+      "method": "GET",
+      "path": "/self"
+    },
+    {
+      "method": "PUT",
+      "path": "/self"
+    },
+    {
+      "method": "GET",
+      "path": "/sensitive-words"
+    },
+    {
+      "method": "POST",
+      "path": "/sensitive-words"
+    },
+    {
+      "method": "DELETE",
+      "path": "/sensitive-words/{word_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/sensitive-words/{word_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/server-time"
+    },
+    {
+      "method": "GET",
+      "path": "/services/categories"
+    },
+    {
+      "method": "POST",
+      "path": "/services/categories"
+    },
+    {
+      "method": "DELETE",
+      "path": "/services/categories/{cat_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/services/categories/{cat_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/services/items"
+    },
+    {
+      "method": "POST",
+      "path": "/services/items"
+    },
+    {
+      "method": "PUT",
+      "path": "/services/items/batch-status"
+    },
+    {
+      "method": "PUT",
+      "path": "/services/items/sort"
+    },
+    {
+      "method": "DELETE",
+      "path": "/services/items/{item_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/services/items/{item_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/session-context"
+    },
+    {
+      "method": "GET",
+      "path": "/sessions"
+    },
+    {
+      "method": "POST",
+      "path": "/sessions"
+    },
+    {
+      "method": "GET",
+      "path": "/sessions/{session_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/sessions/{session_id}/first-message-stream"
+    },
+    {
+      "method": "POST",
+      "path": "/sessions/{session_id}/first-message-stream"
+    },
+    {
+      "method": "GET",
+      "path": "/sessions/{session_id}/messages"
+    },
+    {
+      "method": "POST",
+      "path": "/sessions/{session_id}/messages"
+    },
+    {
+      "method": "POST",
+      "path": "/sessions/{session_id}/messages-stream"
+    },
+    {
+      "method": "POST",
+      "path": "/sessions/{session_id}/stream"
+    },
+    {
+      "method": "POST",
+      "path": "/sessions/{session_id}/switch-member"
+    },
+    {
+      "method": "PUT",
+      "path": "/sessions/{session_id}/transfer"
+    },
+    {
+      "method": "POST",
+      "path": "/settings/basic"
+    },
+    {
+      "method": "DELETE",
+      "path": "/settings/logo"
+    },
+    {
+      "method": "POST",
+      "path": "/settings/logo"
+    },
+    {
+      "method": "GET",
+      "path": "/settings/protocol"
+    },
+    {
+      "method": "POST",
+      "path": "/settings/protocol"
+    },
+    {
+      "method": "POST",
+      "path": "/settings/push"
+    },
+    {
+      "method": "GET",
+      "path": "/settings/register"
+    },
+    {
+      "method": "POST",
+      "path": "/settings/register"
+    },
+    {
+      "method": "GET",
+      "path": "/settings/reminder-advance"
+    },
+    {
+      "method": "PUT",
+      "path": "/settings/reminder-advance"
+    },
+    {
+      "method": "GET",
+      "path": "/settings/share-config"
+    },
+    {
+      "method": "PUT",
+      "path": "/settings/share-config"
+    },
+    {
+      "method": "GET",
+      "path": "/settings/timeout-policy"
+    },
+    {
+      "method": "PUT",
+      "path": "/settings/timeout-policy"
+    },
+    {
+      "method": "GET",
+      "path": "/settings/tts-config"
+    },
+    {
+      "method": "PUT",
+      "path": "/settings/tts-config"
+    },
+    {
+      "method": "GET",
+      "path": "/settlements"
+    },
+    {
+      "method": "POST",
+      "path": "/settlements/generate-monthly"
+    },
+    {
+      "method": "GET",
+      "path": "/settlements/merchant-options"
+    },
+    {
+      "method": "GET",
+      "path": "/settlements/store-options"
+    },
+    {
+      "method": "GET",
+      "path": "/settlements/{sid}"
+    },
+    {
+      "method": "POST",
+      "path": "/settlements/{sid}/payment-proof"
+    },
+    {
+      "method": "POST",
+      "path": "/share"
+    },
+    {
+      "method": "GET",
+      "path": "/share/{share_token}"
+    },
+    {
+      "method": "GET",
+      "path": "/share/{token}"
+    },
+    {
+      "method": "GET",
+      "path": "/shared/{share_token}"
+    },
+    {
+      "method": "POST",
+      "path": "/sign-in"
+    },
+    {
+      "method": "POST",
+      "path": "/signin"
+    },
+    {
+      "method": "GET",
+      "path": "/skus/{sku_id}/used"
+    },
+    {
+      "method": "GET",
+      "path": "/slot/{target_date}/{slot_no}"
+    },
+    {
+      "method": "GET",
+      "path": "/slots"
+    },
+    {
+      "method": "POST",
+      "path": "/sms-code"
+    },
+    {
+      "method": "POST",
+      "path": "/sms-login"
+    },
+    {
+      "method": "POST",
+      "path": "/start"
+    },
+    {
+      "method": "POST",
+      "path": "/start-stream"
+    },
+    {
+      "method": "GET",
+      "path": "/statistics"
+    },
+    {
+      "method": "GET",
+      "path": "/statistics/refund-reasons"
+    },
+    {
+      "method": "GET",
+      "path": "/statistics/sales"
+    },
+    {
+      "method": "GET",
+      "path": "/statistics/trends"
+    },
+    {
+      "method": "GET",
+      "path": "/stats"
+    },
+    {
+      "method": "GET",
+      "path": "/status"
+    },
+    {
+      "method": "POST",
+      "path": "/store-bindding/batch-bind"
+    },
+    {
+      "method": "POST",
+      "path": "/store-bindding/batch-unbind"
+    },
+    {
+      "method": "POST",
+      "path": "/store-bindding/bind"
+    },
+    {
+      "method": "GET",
+      "path": "/store-bindding/products"
+    },
+    {
+      "method": "GET",
+      "path": "/store-bindding/products/{product_id}/bound-count"
+    },
+    {
+      "method": "GET",
+      "path": "/store-bindding/products/{product_id}/stores"
+    },
+    {
+      "method": "GET",
+      "path": "/store-bindding/stores"
+    },
+    {
+      "method": "GET",
+      "path": "/store-bindding/stores/{store_id}/products"
+    },
+    {
+      "method": "POST",
+      "path": "/store-bindding/unbind"
+    },
+    {
+      "method": "GET",
+      "path": "/stores"
+    },
+    {
+      "method": "POST",
+      "path": "/stores"
+    },
+    {
+      "method": "GET",
+      "path": "/stores/recommend"
+    },
+    {
+      "method": "GET",
+      "path": "/stores/{store_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/stores/{store_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/stores/{store_id}/business-scope"
+    },
+    {
+      "method": "POST",
+      "path": "/submit"
+    },
+    {
+      "method": "POST",
+      "path": "/subscribe"
+    },
+    {
+      "method": "GET",
+      "path": "/suggest"
+    },
+    {
+      "method": "GET",
+      "path": "/summary"
+    },
+    {
+      "method": "GET",
+      "path": "/summary-stats/{profile_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/summary/{profile_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/symptom-tags"
+    },
+    {
+      "method": "POST",
+      "path": "/sync"
+    },
+    {
+      "method": "GET",
+      "path": "/system-config/doctor-consult"
+    },
+    {
+      "method": "GET",
+      "path": "/system/configs"
+    },
+    {
+      "method": "PUT",
+      "path": "/system/configs/{config_key}"
+    },
+    {
+      "method": "GET",
+      "path": "/tasks"
+    },
+    {
+      "method": "GET",
+      "path": "/template-categories"
+    },
+    {
+      "method": "POST",
+      "path": "/template-categories"
+    },
+    {
+      "method": "DELETE",
+      "path": "/template-categories/{category_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/template-categories/{category_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/template-categories/{category_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/template/{tpl_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/templates"
+    },
+    {
+      "method": "POST",
+      "path": "/templates"
+    },
+    {
+      "method": "DELETE",
+      "path": "/templates/{template_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/templates/{template_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/templates/{template_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/templates/{template_id}/recommend"
+    },
+    {
+      "method": "PUT",
+      "path": "/templates/{template_id}/recommend"
+    },
+    {
+      "method": "POST",
+      "path": "/templates/{template_id}/recommend/preview"
+    },
+    {
+      "method": "POST",
+      "path": "/test"
+    },
+    {
+      "method": "POST",
+      "path": "/test-full"
+    },
+    {
+      "method": "POST",
+      "path": "/test-ocr"
+    },
+    {
+      "method": "GET",
+      "path": "/time-slots"
+    },
+    {
+      "method": "GET",
+      "path": "/today"
+    },
+    {
+      "method": "GET",
+      "path": "/today-todos"
+    },
+    {
+      "method": "POST",
+      "path": "/today-todos/{item_id}/check"
+    },
+    {
+      "method": "POST",
+      "path": "/track"
+    },
+    {
+      "method": "POST",
+      "path": "/track/batch"
+    },
+    {
+      "method": "GET",
+      "path": "/type-descriptions"
+    },
+    {
+      "method": "POST",
+      "path": "/unbind"
+    },
+    {
+      "method": "POST",
+      "path": "/uncheck"
+    },
+    {
+      "method": "GET",
+      "path": "/unread-count"
+    },
+    {
+      "method": "GET",
+      "path": "/upload-limits"
+    },
+    {
+      "method": "PUT",
+      "path": "/upload-limits"
+    },
+    {
+      "method": "GET",
+      "path": "/usable-for-order"
+    },
+    {
+      "method": "GET",
+      "path": "/user-checkin-details"
+    },
+    {
+      "method": "GET",
+      "path": "/user-checkin-plans"
+    },
+    {
+      "method": "GET",
+      "path": "/user-daily-summary"
+    },
+    {
+      "method": "GET",
+      "path": "/user-info"
+    },
+    {
+      "method": "GET",
+      "path": "/user-plans"
+    },
+    {
+      "method": "POST",
+      "path": "/user-plans"
+    },
+    {
+      "method": "DELETE",
+      "path": "/user-plans/{plan_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/user-plans/{plan_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/user-plans/{plan_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/user-plans/{plan_id}/tasks/{task_id}/checkin"
+    },
+    {
+      "method": "GET",
+      "path": "/user/addresses"
+    },
+    {
+      "method": "POST",
+      "path": "/user/addresses"
+    },
+    {
+      "method": "DELETE",
+      "path": "/user/addresses/{address_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/user/addresses/{address_id}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/user/addresses/{address_id}/default"
+    },
+    {
+      "method": "GET",
+      "path": "/users"
+    },
+    {
+      "method": "PUT",
+      "path": "/users/{user_id}/referrer"
+    },
+    {
+      "method": "PUT",
+      "path": "/users/{user_id}/status"
+    },
+    {
+      "method": "GET",
+      "path": "/validity-options"
+    },
+    {
+      "method": "GET",
+      "path": "/verify-code/{code}"
+    },
+    {
+      "method": "POST",
+      "path": "/video"
+    },
+    {
+      "method": "GET",
+      "path": "/visits"
+    },
+    {
+      "method": "POST",
+      "path": "/visits"
+    },
+    {
+      "method": "DELETE",
+      "path": "/visits/{record_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/voice-call/start"
+    },
+    {
+      "method": "POST",
+      "path": "/voice-call/{call_id}/end"
+    },
+    {
+      "method": "POST",
+      "path": "/voice-call/{call_id}/message"
+    },
+    {
+      "method": "GET",
+      "path": "/voice-service/config"
+    },
+    {
+      "method": "PUT",
+      "path": "/voice-service/config"
+    },
+    {
+      "method": "POST",
+      "path": "/voice-service/test-connection"
+    },
+    {
+      "method": "GET",
+      "path": "/voice-service/vad-config"
+    },
+    {
+      "method": "GET",
+      "path": "/wechat-config"
+    },
+    {
+      "method": "GET",
+      "path": "/week"
+    },
+    {
+      "method": "DELETE",
+      "path": "/{address_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/{address_id}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/{card_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/{card_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/{card_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/{card_id}/share-poster"
+    },
+    {
+      "method": "PUT",
+      "path": "/{card_id}/status"
+    },
+    {
+      "method": "GET",
+      "path": "/{channel_code}"
+    },
+    {
+      "method": "PUT",
+      "path": "/{channel_code}"
+    },
+    {
+      "method": "GET",
+      "path": "/{channel_code}/default-notify-url"
+    },
+    {
+      "method": "POST",
+      "path": "/{channel_code}/test"
+    },
+    {
+      "method": "PATCH",
+      "path": "/{channel_code}/toggle"
+    },
+    {
+      "method": "GET",
+      "path": "/{config_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/{consultant_id}/medications"
+    },
+    {
+      "method": "GET",
+      "path": "/{consultant_id}/profile_card"
+    },
+    {
+      "method": "PUT",
+      "path": "/{consultant_id}/profile_flags"
+    },
+    {
+      "method": "PUT",
+      "path": "/{coupon_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/{coupon_id}/grant/direct"
+    },
+    {
+      "method": "GET",
+      "path": "/{coupon_id}/grants"
+    },
+    {
+      "method": "GET",
+      "path": "/{coupon_id}/grants/export"
+    },
+    {
+      "method": "POST",
+      "path": "/{coupon_id}/offline"
+    },
+    {
+      "method": "POST",
+      "path": "/{coupon_id}/online"
+    },
+    {
+      "method": "GET",
+      "path": "/{expert_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/{expert_id}/schedules"
+    },
+    {
+      "method": "DELETE",
+      "path": "/{form_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/{form_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/{form_id}/fields"
+    },
+    {
+      "method": "POST",
+      "path": "/{form_id}/fields"
+    },
+    {
+      "method": "DELETE",
+      "path": "/{form_id}/fields/{field_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/{form_id}/fields/{field_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/{goods_id}/tags"
+    },
+    {
+      "method": "PUT",
+      "path": "/{goods_id}/tags"
+    },
+    {
+      "method": "PUT",
+      "path": "/{notification_id}/read"
+    },
+    {
+      "method": "GET",
+      "path": "/{order_id}"
+    },
+    {
+      "method": "POST",
+      "path": "/{order_id}/appointment"
+    },
+    {
+      "method": "POST",
+      "path": "/{order_id}/cancel"
+    },
+    {
+      "method": "PUT",
+      "path": "/{order_id}/cancel"
+    },
+    {
+      "method": "POST",
+      "path": "/{order_id}/confirm"
+    },
+    {
+      "method": "POST",
+      "path": "/{order_id}/confirm-free"
+    },
+    {
+      "method": "POST",
+      "path": "/{order_id}/pay"
+    },
+    {
+      "method": "POST",
+      "path": "/{order_id}/pay-card"
+    },
+    {
+      "method": "POST",
+      "path": "/{order_id}/refund"
+    },
+    {
+      "method": "POST",
+      "path": "/{order_id}/refund-card"
+    },
+    {
+      "method": "POST",
+      "path": "/{order_id}/refund/cancel"
+    },
+    {
+      "method": "POST",
+      "path": "/{order_id}/refund/withdraw"
+    },
+    {
+      "method": "POST",
+      "path": "/{order_id}/reorder"
+    },
+    {
+      "method": "POST",
+      "path": "/{order_id}/review"
+    },
+    {
+      "method": "POST",
+      "path": "/{order_id}/verify"
+    },
+    {
+      "method": "DELETE",
+      "path": "/{partner_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/{partner_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/{partner_id}/reconciliation"
+    },
+    {
+      "method": "POST",
+      "path": "/{partner_id}/regenerate-key"
+    },
+    {
+      "method": "DELETE",
+      "path": "/{phone_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/{phone_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/{plan_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/{plan_id}/tasks"
+    },
+    {
+      "method": "POST",
+      "path": "/{plan_id}/tasks"
+    },
+    {
+      "method": "POST",
+      "path": "/{plan_id}/tasks/{task_id}/checkin"
+    },
+    {
+      "method": "GET",
+      "path": "/{product_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/{product_id}/available-stores"
+    },
+    {
+      "method": "GET",
+      "path": "/{product_id}/related"
+    },
+    {
+      "method": "GET",
+      "path": "/{product_id}/time-slots/availability"
+    },
+    {
+      "method": "GET",
+      "path": "/{profile_id}/events"
+    },
+    {
+      "method": "GET",
+      "path": "/{profile_id}/medication-plan"
+    },
+    {
+      "method": "GET",
+      "path": "/{profile_id}/metric/{metric_type}"
+    },
+    {
+      "method": "POST",
+      "path": "/{profile_id}/metric/{metric_type}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/{profile_id}/metric/{metric_type}/{record_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/{profile_id}/metric/{metric_type}/{record_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/{profile_id}/today-metrics"
+    },
+    {
+      "method": "POST",
+      "path": "/{profile_id}/{metric_type}/ai-explain-single"
+    },
+    {
+      "method": "POST",
+      "path": "/{profile_id}/{metric_type}/ai-explain-trend"
+    },
+    {
+      "method": "GET",
+      "path": "/{profile_id}/{metric_type}/history"
+    },
+    {
+      "method": "GET",
+      "path": "/{profile_id}/{metric_type}/{record_id}/can-delete"
+    },
+    {
+      "method": "GET",
+      "path": "/{prompt_type}"
+    },
+    {
+      "method": "PUT",
+      "path": "/{prompt_type}"
+    },
+    {
+      "method": "POST",
+      "path": "/{prompt_type}/preview"
+    },
+    {
+      "method": "POST",
+      "path": "/{prompt_type}/rollback/{version}"
+    },
+    {
+      "method": "DELETE",
+      "path": "/{record_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/{record_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/{record_id}/personal-suggestion"
+    },
+    {
+      "method": "POST",
+      "path": "/{record_id}/share"
+    },
+    {
+      "method": "GET",
+      "path": "/{store_id}/contact"
+    },
+    {
+      "method": "DELETE",
+      "path": "/{tag_id}"
+    },
+    {
+      "method": "PUT",
+      "path": "/{tag_id}"
+    },
+    {
+      "method": "GET",
+      "path": "/{tag_id}/goods"
+    },
+    {
+      "method": "POST",
+      "path": "/{tag_id}/merge"
+    },
+    {
+      "method": "POST",
+      "path": "/{template_id}/duplicate"
+    },
+    {
+      "method": "GET",
+      "path": "/{user_id}/membership"
+    },
+    {
+      "method": "POST",
+      "path": "/{user_id}/membership/adjust"
+    }
+  ],
+  "h5_pages": [
+    "/",
+    "/_archived_tabs/ai",
+    "/_archived_tabs/profile",
+    "/account-security",
+    "/address",
+    "/ai-home",
+    "/ai-home/medication-plans",
+    "/ai-home/medication-plans/[id]",
+    "/ai-home/medication-plans/new",
+    "/ai-home/medication-reminder",
+    "/ai-settings",
+    "/alert-redirect",
+    "/appointment",
+    "/article/[id]",
+    "/articles",
+    "/brain-game",
+    "/cards",
+    "/cards/[id]",
+    "/cards/redeem-code/[id]",
+    "/cards/renew/[id]",
+    "/cards/usage-logs/[id]",
+    "/cards/wallet",
+    "/care-ai-home",
+    "/care-ai-home/card-view/[token]",
+    "/care-ai-home/info-card",
+    "/care-ai-home/share-location/[token]",
+    "/care-ai-home/sos",
+    "/care-ai-home/today-health",
+    "/care-safety-rope",
+    "/chat-history",
+    "/chat/[sessionId]",
+    "/checkout",
+    "/checkup",
+    "/checkup/chat/[sessionId]",
+    "/checkup/compare",
+    "/checkup/compare/select",
+    "/checkup/detail/[id]",
+    "/checkup/result/[id]",
+    "/checkup/trend",
+    "/city-select",
+    "/coupon-center",
+    "/customer-service",
+    "/design-system-v2-preview",
+    "/devices",
+    "/devices/member",
+    "/digital-human-call",
+    "/drug",
+    "/drug/chat/[sessionId]",
+    "/expert/[id]",
+    "/experts",
+    "/family-alert",
+    "/family-auth",
+    "/family-bindlist",
+    "/family-guardian-list",
+    "/family-guardian-list/[targetId]",
+    "/family-invite",
+    "/feedback",
+    "/glucose",
+    "/health-alerts",
+    "/health-dashboard",
+    "/health-guide",
+    "/health-metric/[type]",
+    "/health-metric/[type]/history",
+    "/health-plan",
+    "/health-plan/checkin",
+    "/health-plan/checkin/add",
+    "/health-plan/custom",
+    "/health-plan/custom/[categoryId]",
+    "/health-plan/custom/create",
+    "/health-plan/custom/my-plan/[planId]",
+    "/health-plan/custom/plan/[planId]",
+    "/health-plan/edit",
+    "/health-plan/result",
+    "/health-plan/statistics",
+    "/health-profile",
+    "/health-profile/archive-list",
+    "/health-profile/i-guard",
+    "/health-profile/my-guardians",
+    "/health-profile/my-guardians/invite",
+    "/health-profile/v13",
+    "/health-reminders",
+    "/health-self-check/result/[id]",
+    "/home-safety",
+    "/invite",
+    "/landing",
+    "/legal/privacy-policy",
+    "/legal/service-agreement",
+    "/login",
+    "/medical-records",
+    "/medical-records/[id]",
+    "/medical-records/all",
+    "/medical-records/trash",
+    "/member-card",
+    "/member-center",
+    "/merchant",
+    "/merchant/dashboard",
+    "/merchant/downloads",
+    "/merchant/finance",
+    "/merchant/invoice",
+    "/merchant/login",
+    "/merchant/m",
+    "/merchant/m/dashboard",
+    "/merchant/m/downloads",
+    "/merchant/m/finance",
+    "/merchant/m/invoice",
+    "/merchant/m/login",
+    "/merchant/m/me",
+    "/merchant/m/messages",
+    "/merchant/m/orders",
+    "/merchant/m/orders/[id]",
+    "/merchant/m/profile",
+    "/merchant/m/profile/change-password",
+    "/merchant/m/profile/force-change-password",
+    "/merchant/m/reports",
+    "/merchant/m/select-store",
+    "/merchant/m/settlement",
+    "/merchant/m/settlement/[id]",
+    "/merchant/m/staff",
+    "/merchant/m/store-settings",
+    "/merchant/m/verify",
+    "/merchant/m/wechat-bindding",
+    "/merchant/messages",
+    "/merchant/order-dashboard",
+    "/merchant/orders",
+    "/merchant/profile",
+    "/merchant/profile/change-password",
+    "/merchant/reports",
+    "/merchant/select-store",
+    "/merchant/settlement",
+    "/merchant/settlement/[id]",
+    "/merchant/staff",
+    "/merchant/store-settings",
+    "/merchant/verifications",
+    "/merchant/wechat-bindding",
+    "/messages",
+    "/my-addresses",
+    "/my-coupons",
+    "/my-favorites",
+    "/news",
+    "/news/[id]",
+    "/order/[id]",
+    "/pay/success",
+    "/points",
+    "/points/detail",
+    "/points/exchange-records",
+    "/points/mall",
+    "/points/product-detail",
+    "/points/records",
+    "/product/[id]",
+    "/products",
+    "/profile/edit",
+    "/refund-list",
+    "/refund/[orderId]",
+    "/report-history",
+    "/report-history/[id]",
+    "/report-history/comparison/[id]",
+    "/report-history/shared/[token]",
+    "/review/[orderId]",
+    "/sandbox-pay",
+    "/scan",
+    "/search",
+    "/search/result",
+    "/services",
+    "/settings",
+    "/shared/chat/[token]",
+    "/shared/drug/[token]",
+    "/shared/report/[token]",
+    "/symptom",
+    "/tcm",
+    "/tcm/archive",
+    "/tcm/diagnosis/[id]",
+    "/tcm/loading",
+    "/tcm/result/[id]",
+    "/unified-order/[id]",
+    "/unified-orders",
+    "/welcome-mode"
+  ],
+  "admin_pages": [
+    "/",
+    "/abnormal-thresholds",
+    "/admin-settlements",
+    "/ai-call-config",
+    "/ai-center/disclaimers",
+    "/ai-center/prompts",
+    "/ai-center/sensitive-words",
+    "/ai-config",
+    "/ai-config/chat-timeout",
+    "/ai-config/video-consult",
+    "/alert-logs",
+    "/alert-templates",
+    "/audit/center",
+    "/audit/phones",
+    "/bottom-nav",
+    "/chat-records",
+    "/chat-records/[id]",
+    "/checkup-details",
+    "/city-management",
+    "/constitution-content",
+    "/content/articles",
+    "/content/categories",
+    "/content/news",
+    "/cos-config",
+    "/customer-service",
+    "/dashboard",
+    "/devices/catalog",
+    "/devices/scene-groups",
+    "/digital-humans",
+    "/disease-presets",
+    "/drug-details",
+    "/email-notify",
+    "/emergency-sources",
+    "/experts",
+    "/fallback-config",
+    "/family-management",
+    "/function-buttons",
+    "/guardian-relations",
+    "/health-plan/categories",
+    "/health-plan/recommended",
+    "/health-plan/recommended/[planId]/tasks",
+    "/health-records",
+    "/health-records/statistics",
+    "/home-banners",
+    "/home-safety",
+    "/home-settings",
+    "/home-settings/ai-home-config",
+    "/home-settings/ai-home-config/logs",
+    "/knowledge",
+    "/knowledge/[id]",
+    "/knowledge/stats",
+    "/login",
+    "/map-config",
+    "/membership/free-quota",
+    "/membership/plans",
+    "/merchant-categories",
+    "/merchant/accounts",
+    "/merchant/business-config",
+    "/merchant/stores",
+    "/merchant/stores/[id]/business-config",
+    "/notices",
+    "/ocr-config",
+    "/ocr-global-config",
+    "/payment-config",
+    "/points/levels",
+    "/points/mall",
+    "/points/rules",
+    "/product-system/appointment-forms",
+    "/product-system/cards",
+    "/product-system/cards/dashboard",
+    "/product-system/categories",
+    "/product-system/coupons",
+    "/product-system/new-user-coupons",
+    "/product-system/orders",
+    "/product-system/orders/dashboard",
+    "/product-system/partners",
+    "/product-system/products",
+    "/product-system/redemptions",
+    "/product-system/statistics",
+    "/product-system/store-bindding",
+    "/product-system/tags",
+    "/product-system/visits",
+    "/profile",
+    "/profile/change-password",
+    "/prompt-templates",
+    "/questionnaire-templates",
+    "/referral",
+    "/relation-types",
+    "/search-config",
+    "/search/asr-config",
+    "/search/block-words",
+    "/search/recommend",
+    "/search/statistics",
+    "/settings",
+    "/share-config",
+    "/sms",
+    "/system-messages",
+    "/system-messages/send",
+    "/system/sdk-health",
+    "/system/seed-import",
+    "/tcm-config",
+    "/theme-config",
+    "/tts-config",
+    "/users",
+    "/voice-service",
+    "/wechat-push"
+  ],
+  "stats": {
+    "backend_routes": 2227,
+    "h5_pages": 176,
+    "admin_pages": 106
+  }
+}

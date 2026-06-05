@@ -4305,8 +4305,25 @@ class HealthEvent(Base):
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class DeviceSceneGroup(Base):
+    """[PRD-HEALTH-ARCHIVE-CO-MANAGE 2026-06-05] 设备场景分类表。
+
+    四大场景：安全守护、健康守护、日夜守护、其他。
+    分类名称可编辑、排序可调、可启用/禁用。
+    """
+
+    __tablename__ = "device_scene_group"
+
+    id = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name = mapped_column(String(50), nullable=False)
+    sort_order = mapped_column(Integer, default=0, nullable=False)
+    is_enabled = mapped_column(Boolean, default=True, nullable=False)
+    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class DeviceBinding(Base):
-    """[PRD-469 M9] 设备绑定记录。"""
+    """已废弃(PRD-HEALTH-ARCHIVE-CO-MANAGE 2026-06-05)：该表已被 device_user_bindings 替代，保留仅为向后兼容。"""
 
     __tablename__ = "device_bindings"
 
