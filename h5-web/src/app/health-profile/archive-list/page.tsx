@@ -1,7 +1,5 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
 /**
  * [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29] 健康档案 - 家庭成员列表（v2 状态机版）
  *
@@ -1149,29 +1147,43 @@ function UnbindSmsPopup({
             短信验证码{maskedPhone ? `已发送至：${maskedPhone}` : '将发送至您的手机'}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <Input
+            <input
               placeholder="输入验证码"
               value={code}
-              onChange={(v) => onCodeChange(v)}
+              onChange={(e) => onCodeChange(e.target.value)}
               style={{
                 flex: 1, background: '#F8F9FC', borderRadius: 8,
-                padding: '0 12px', height: 40,
+                padding: '0 12px', height: 40, border: '1px solid #E5E7EB',
+                fontSize: 14, outline: 'none',
               }}
             />
-            <Button
-              size="small"
+            <button
               disabled={countdown > 0 || sending}
               onClick={onSendCode}
-              style={{ width: 140 }}
+              style={{
+                width: 140, background: countdown > 0 || sending ? '#E5E7EB' : '#10B981',
+                color: countdown > 0 || sending ? '#9CA3AF' : '#FFFFFF',
+                border: 'none', borderRadius: 8, fontSize: 13, cursor: countdown > 0 || sending ? 'not-allowed' : 'pointer',
+                padding: '0 12px', height: 40,
+              }}
             >
               {countdown > 0 ? `${countdown}s 后重发` : sending ? '发送中...' : '获取验证码'}
-            </Button>
+            </button>
           </div>
         </div>
 
-        <Button block color="danger" loading={confirming} onClick={onConfirm}>
-          确认解除守护关系
-        </Button>
+        <button
+          disabled={confirming}
+          onClick={onConfirm}
+          style={{
+            width: '100%', background: confirming ? '#FCA5A5' : '#EF4444',
+            color: '#FFFFFF', border: 'none', borderRadius: 12, fontSize: 15,
+            padding: '12px 16px', cursor: confirming ? 'not-allowed' : 'pointer',
+            fontWeight: 600,
+          }}
+        >
+          {confirming ? '处理中...' : '确认解除守护关系'}
+        </button>
       </div>
     </Popup>
   );
