@@ -420,8 +420,12 @@ export default function CareAiHomePage() {
       </div>
 
       {/* 2. 欢迎区（暖橙渐变）
-          [PRD-AIHOME-WELCOME-UNIFY-V1 2026-06-02] 两模式仅靠背景底色区分：关怀模式改为暖橙色，
-          其余结构/版式/字号/问候语/头像/切换胶囊/今日用药提醒卡一律保持现状不动。 */}
+          [REQ-20260605-002] AI首页欢迎区域布局优化：
+          - LOGO 移到问候语左侧（42px 小圆头像，水平排列）
+          - 色块移到欢迎区域右上角
+          - 关怀模式色块：浅橙底 #FFF3E0 + 深橙字 #E65100
+          - 问候语字号 16px
+          - 用药提醒保持不变 */}
       <div
         style={{
           position: 'relative',
@@ -429,160 +433,101 @@ export default function CareAiHomePage() {
           color: '#FFFFFF',
           padding: '24px 20px',
           borderRadius: '0 0 24px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
         }}
         data-testid="care-home-welcome"
       >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 6 }} data-testid="care-home-greeting">
-            {greeting.text} {greeting.icon}
-          </div>
-          <div style={{ fontSize: 16, opacity: 0.95, marginBottom: 14 }} data-testid="care-home-welcome-text">
-            我是宾尼小康，聊聊健康问题吧~
-          </div>
-          {/* 今日提醒（智能轮转 + 点击直达打卡页）
-              [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化4] 点一下整张提醒卡 → 跳对应打卡页 */}
+        {/* 右上角色块：模式切换 */}
+        <div
+          data-testid="care-home-mode-switcher"
+          style={{
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            cursor: modeSwitching ? 'default' : 'pointer',
+            opacity: modeSwitching ? 0.6 : 1,
+            zIndex: 2,
+          }}
+        >
           <button
             type="button"
-            onClick={goMedicationReminder}
-            data-testid="care-home-med-reminder"
+            onClick={handleSwitchToStandard}
+            disabled={modeSwitching}
+            data-testid="care-home-mode-capsule"
             style={{
-              background: 'rgba(255,255,255,0.18)',
-              borderRadius: 12,
-              padding: '8px 12px',
-              fontSize: 14,
-              display: 'inline-flex',
+              display: 'flex',
               alignItems: 'center',
               gap: 6,
-              maxWidth: '100%',
+              background: '#FFF3E0',
+              color: '#E65100',
               border: 'none',
-              color: '#FFFFFF',
-              cursor: 'pointer',
-              textAlign: 'left',
+              padding: '8px 12px',
+              borderRadius: 16,
+              fontSize: 13,
+              fontWeight: 500,
+              lineHeight: 1,
+              whiteSpace: 'nowrap',
+              cursor: modeSwitching ? 'default' : 'pointer',
+              boxShadow: '0 2px 8px rgba(230, 81, 0, 0.15)',
+              transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              const el = e.currentTarget;
+              el.style.transform = 'translateY(-2px)';
+              el.style.boxShadow = '0 4px 12px rgba(230, 81, 0, 0.25)';
+              const arrow = el.querySelector('[data-arrow]') as HTMLElement;
+              if (arrow) arrow.style.transform = 'translateX(3px)';
+            }}
+            onMouseLeave={(e) => {
+              const el = e.currentTarget;
+              el.style.transform = '';
+              el.style.boxShadow = '0 2px 8px rgba(230, 81, 0, 0.15)';
+              const arrow = el.querySelector('[data-arrow]') as HTMLElement;
+              if (arrow) arrow.style.transform = '';
+            }}
+            onMouseDown={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px) scale(0.97)';
+              e.currentTarget.style.boxShadow = '0 1px 4px rgba(230, 81, 0, 0.1)';
+            }}
+            onMouseUp={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(230, 81, 0, 0.25)';
             }}
           >
-            <span aria-hidden="true">🔔</span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              今日提醒：{medText || '加载中…'}
+            <span>🧑</span>
+            <span data-testid="care-home-mode-capsule-label">去标准版</span>
+            <span
+              data-arrow
+              aria-hidden="true"
+              style={{
+                display: 'inline-block',
+                transition: 'transform 0.15s ease',
+              }}
+            >
+              →
             </span>
-            <span aria-hidden="true" style={{ flexShrink: 0, opacity: 0.85 }}>›</span>
           </button>
         </div>
 
-        {/* 右侧竖排：模式切换色块 + 机器人 LOGO */}
+        {/* 左侧：LOGO（42px 小圆头像）+ 问候语水平排列 */}
         <div
           style={{
-            flexShrink: 0,
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
             gap: 10,
+            marginBottom: 8,
           }}
-          data-testid="care-home-mode-logo-column"
+          data-testid="care-home-welcome-row"
         >
-          {/* [PRD-MODE-CAPSULE-V2 2026-06-05] 模式切换：金黄色渐变醒目色块，点击直接跳转切换 */}
-          <div
-            data-testid="care-home-mode-switcher"
-            style={{
-              cursor: modeSwitching ? 'default' : 'pointer',
-              opacity: modeSwitching ? 0.6 : 1,
-            }}
-          >
-            <button
-              type="button"
-              onClick={handleSwitchToStandard}
-              disabled={modeSwitching}
-              data-testid="care-home-mode-capsule"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                background: 'linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%)',
-                color: '#FFFFFF',
-                border: 'none',
-                padding: '10px 16px',
-                borderRadius: 16,
-                fontSize: 14,
-                fontWeight: 600,
-                lineHeight: 1,
-                whiteSpace: 'nowrap',
-                cursor: modeSwitching ? 'default' : 'pointer',
-                boxShadow: '0 4px 12px rgba(245, 158, 11, 0.35)',
-                position: 'relative',
-                overflow: 'hidden',
-                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-                animation: 'modeSwitchBreath 2.5s ease-in-out infinite',
-              }}
-              onMouseEnter={(e) => {
-                const el = e.currentTarget;
-                el.style.transform = 'translateY(-2px)';
-                el.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.45)';
-                el.style.animation = 'none';
-                const arrow = el.querySelector('[data-arrow]') as HTMLElement;
-                if (arrow) arrow.style.transform = 'translateX(3px)';
-              }}
-              onMouseLeave={(e) => {
-                const el = e.currentTarget;
-                el.style.transform = '';
-                el.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.35)';
-                el.style.animation = 'modeSwitchBreath 2.5s ease-in-out infinite';
-                const arrow = el.querySelector('[data-arrow]') as HTMLElement;
-                if (arrow) arrow.style.transform = '';
-              }}
-              onMouseDown={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px) scale(0.97)';
-                e.currentTarget.style.boxShadow = '0 2px 6px rgba(245, 158, 11, 0.25)';
-              }}
-              onMouseUp={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.45)';
-              }}
-            >
-              {/* 高光渐变条 */}
-              <span
-                aria-hidden="true"
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: '50%',
-                  background: 'linear-gradient(180deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0) 100%)',
-                  borderRadius: '16px 16px 0 0',
-                  pointerEvents: 'none',
-                }}
-              />
-              <span style={{ position: 'relative', zIndex: 1 }}>🧑</span>
-              <span style={{ position: 'relative', zIndex: 1 }} data-testid="care-home-mode-capsule-label">去标准版</span>
-              <span
-                data-arrow
-                aria-hidden="true"
-                style={{
-                  position: 'relative',
-                  zIndex: 1,
-                  display: 'inline-block',
-                  transition: 'transform 0.15s ease',
-                }}
-              >
-                →
-              </span>
-            </button>
-          </div>
-
-          {/* 机器人 LOGO */}
           <div
             data-testid="care-home-robot-logo"
             style={{
               flexShrink: 0,
-              width: 84,
-              height: 84,
+              width: 42,
+              height: 42,
               borderRadius: '50%',
               background: '#FFFFFF',
               border: '2px solid rgba(255,255,255,0.9)',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -593,10 +538,47 @@ export default function CareAiHomePage() {
             <img
               src={`${basePath}/binni-xiaokang-logo.png`}
               alt="宾尼小康"
-              style={{ width: 74, height: 74, borderRadius: '50%', objectFit: 'cover' }}
+              style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }}
             />
           </div>
+          <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.3 }} data-testid="care-home-greeting">
+            {greeting.text} {greeting.icon}
+          </div>
         </div>
+
+        {/* 副标题 */}
+        <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 10, paddingLeft: 52 }} data-testid="care-home-welcome-text">
+          我是宾尼小康，聊聊健康问题吧~
+        </div>
+
+        {/* 今日提醒（智能轮转 + 点击直达打卡页）
+            [PRD-CARE-OPTIM-FINAL-V1 2026-06-01 §优化4] 点一下整张提醒卡 → 跳对应打卡页 */}
+        <button
+          type="button"
+          onClick={goMedicationReminder}
+          data-testid="care-home-med-reminder"
+          style={{
+            background: 'rgba(255,255,255,0.15)',
+            borderRadius: 10,
+            padding: '8px 12px',
+            fontSize: 13,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            maxWidth: '100%',
+            border: 'none',
+            color: 'rgba(255,255,255,0.85)',
+            cursor: 'pointer',
+            textAlign: 'left' as const,
+            marginLeft: 52,
+          }}
+        >
+          <span aria-hidden="true">💊</span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            用药提醒：{medText || '加载中…'}
+          </span>
+          <span aria-hidden="true" style={{ flexShrink: 0, opacity: 0.85 }}>›</span>
+        </button>
       </div>
 
       {/* 3. 核心入口区 —— 6 张大字整行卡片 */}

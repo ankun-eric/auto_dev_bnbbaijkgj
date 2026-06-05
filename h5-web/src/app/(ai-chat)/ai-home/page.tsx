@@ -744,6 +744,10 @@ export default function AiHomePage() {
 
   const [modeSwitching, setModeSwitching] = useState(false);
 
+  // [REQ-20260605-002] 标准模式用药提醒：状态 + 加载逻辑（与关怀模式一致）
+  const [stdMedText, setStdMedText] = useState<string>('');
+  const [stdMedReminder, setStdMedReminder] = useState<{ planId?: number; scheduledTime?: string } | null>(null);
+
   // [PRD-467 FR-02~FR-06] 字号设置：popover 开关 + 当前字号 + 锚点引用 + 300ms debounce 保存
   const [fontPopoverOpen, setFontPopoverOpen] = useState(false);
   const [fontSizeLevel, setFontSizeLevel] = useState<FontSizeLevel>('standard');
@@ -3793,6 +3797,50 @@ export default function AiHomePage() {
     router.push('/care-ai-home');
   }, [modeSwitching, router]);
 
+  // [REQ-20260605-002] 标准模式用药提醒：加载逻辑（与关怀模式一致，固定传 consultant_id=0 表示本人）
+  const loadStdMedication = useCallback(async () => {
+    try {
+      const res: any = await api.get('/api/medication-reminder/today', {
+        params: { consultant_id: 0 },
+      });
+      const items: any[] = Array.isArray(res)
+        ? res
+        : res?.data?.items || res?.items || res?.data || [];
+      if (Array.isArray(items) && items.length > 0) {
+        const isChecked = (it: any) => it.checked === true || it.done === true;
+        const sorted = [...items].sort((a, b) =>
+          String(a.scheduled_time || a.remind_time || a.schedule || '').localeCompare(
+            String(b.scheduled_time || b.remind_time || b.schedule || ''),
+          ),
+        );
+        const next = sorted.find((it) => !isChecked(it));
+        if (!next) {
+          setStdMedText('今天都打完啦 🎉');
+          setStdMedReminder(null);
+        } else {
+          const time = next.scheduled_time || next.remind_time || next.schedule || '';
+          const drug = next.drug_name || next.name || '药品';
+          setStdMedText(`${time ? time + ' ' : ''}请按时服用"${drug}"`);
+          setStdMedReminder({ planId: next.plan_id ?? next.id, scheduledTime: time });
+        }
+      } else {
+        setStdMedText('');
+        setStdMedReminder(null);
+      }
+    } catch {
+      setStdMedText('');
+      setStdMedReminder(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadStdMedication();
+  }, [loadStdMedication]);
+
+  const goStdMedicationReminder = () => {
+    router.push('/ai-home/medication-reminder');
+  };
+
   // [PRD-467 状态机 7] 组件卸载时清理 debounce 定时器
   useEffect(() => {
     return () => {
@@ -4512,8 +4560,12 @@ export default function AiHomePage() {
                 - 适老化：问候语字号 18、加粗 */}
             <SectionErrorBoundary name="welcome">
               {welcomeVisible && (
-                /* [PRD-AIHOME-WELCOME-UNIFY-V1 2026-06-02] 标准模式欢迎区统一为关怀模式风格（同结构/版式/字号/问候语/头像/切换胶囊），
-                   但做瘦身：去掉「今日用药提醒」白卡片。两模式仅靠背景底色区分——标准模式照搬现关怀模式的蓝绿渐变色值。 */
+                /* [REQ-20260605-002] AI首页欢迎区域布局优化：
+                   - LOGO 移到问候语左侧（42px 小圆头像，水平排列）
+                   - 色块移到欢迎区域右上角
+                   - 标准模式色块：浅蓝底 #E3F2FD + 深蓝字 #1565C0
+                   - 问候语字号 16px
+                   - 新增用药提醒（与关怀模式一致） */
                 <div
                   data-testid="ai-home-greeting"
                   style={{
@@ -4522,137 +4574,101 @@ export default function AiHomePage() {
                     color: '#FFFFFF',
                     padding: '24px 20px',
                     borderRadius: '0 0 24px 24px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 12,
                     margin: '-12px -16px 12px',
                   }}
                 >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    {/* [BUGFIX-AIHOME-STD-GREETING-ALIGN-V1 2026-06-02] 大字问候语：按时段写死「问候语 + 图标」，
-                        不带昵称、彻底不读后台 welcome 配置（原 renderMainTitle() 读 welcome.main_title 已弃用）；
-                        副标题固定「我是宾尼小康，聊聊健康问题吧~」（与关怀模式一字不差，原 pickedSubtitle 读后台已弃用）。
-                        时段/图标规则照搬关怀模式：5~11 早上好☀️ / 11~18 中午好🌤️ / 其它 晚上好🌙。 */}
-                    <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 6 }} data-testid="ai-home-welcome-greeting">
-                      {stdGreeting.text} {stdGreeting.icon}
-                    </div>
-                    <div style={{ fontSize: 16, opacity: 0.95 }} data-testid="ai-home-welcome-text">
-                      我是宾尼小康，聊聊健康问题吧~
-                    </div>
-                  </div>
-
-                  {/* 右侧竖排：模式切换胶囊 + 机器人 LOGO（与关怀模式同款竖中轴对齐） */}
+                  {/* 右上角色块：模式切换 */}
                   <div
+                    data-testid="ai-home-mode-switcher"
                     style={{
-                      flexShrink: 0,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 10,
+                      position: 'absolute',
+                      top: 16,
+                      right: 16,
+                      cursor: modeSwitching ? 'default' : 'pointer',
+                      opacity: modeSwitching ? 0.6 : 1,
+                      zIndex: 2,
                     }}
-                    data-testid="ai-home-mode-logo-column"
                   >
-                    {/* [PRD-MODE-CAPSULE-V2 2026-06-05] 模式切换：金黄色渐变醒目色块，点击直接跳转切换 */}
-                    <div
-                      data-testid="ai-home-mode-switcher"
+                    <button
+                      type="button"
+                      onClick={handleSwitchToCareMode}
+                      disabled={modeSwitching}
+                      data-testid="ai-home-mode-capsule"
                       style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        background: '#E3F2FD',
+                        color: '#1565C0',
+                        border: 'none',
+                        padding: '8px 12px',
+                        borderRadius: 16,
+                        fontSize: 13,
+                        fontWeight: 500,
+                        lineHeight: 1,
+                        whiteSpace: 'nowrap',
                         cursor: modeSwitching ? 'default' : 'pointer',
-                        opacity: modeSwitching ? 0.6 : 1,
+                        boxShadow: '0 2px 8px rgba(21, 101, 192, 0.15)',
+                        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        const el = e.currentTarget;
+                        el.style.transform = 'translateY(-2px)';
+                        el.style.boxShadow = '0 4px 12px rgba(21, 101, 192, 0.25)';
+                        const arrow = el.querySelector('[data-arrow]') as HTMLElement;
+                        if (arrow) arrow.style.transform = 'translateX(3px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        const el = e.currentTarget;
+                        el.style.transform = '';
+                        el.style.boxShadow = '0 2px 8px rgba(21, 101, 192, 0.15)';
+                        const arrow = el.querySelector('[data-arrow]') as HTMLElement;
+                        if (arrow) arrow.style.transform = '';
+                      }}
+                      onMouseDown={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px) scale(0.97)';
+                        e.currentTarget.style.boxShadow = '0 1px 4px rgba(21, 101, 192, 0.1)';
+                      }}
+                      onMouseUp={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(21, 101, 192, 0.25)';
                       }}
                     >
-                      <button
-                        type="button"
-                        onClick={handleSwitchToCareMode}
-                        disabled={modeSwitching}
-                        data-testid="ai-home-mode-capsule"
+                      <span>👴</span>
+                      <span data-testid="ai-home-mode-capsule-label">去长辈版</span>
+                      <span
+                        data-arrow
+                        aria-hidden="true"
                         style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          background: 'linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%)',
-                          color: '#FFFFFF',
-                          border: 'none',
-                          padding: '10px 16px',
-                          borderRadius: 16,
-                          fontSize: 14,
-                          fontWeight: 600,
-                          lineHeight: 1,
-                          whiteSpace: 'nowrap',
-                          cursor: modeSwitching ? 'default' : 'pointer',
-                          boxShadow: '0 4px 12px rgba(245, 158, 11, 0.35)',
-                          position: 'relative',
-                          overflow: 'hidden',
-                          transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-                          animation: 'modeSwitchBreath 2.5s ease-in-out infinite',
-                        }}
-                        onMouseEnter={(e) => {
-                          const el = e.currentTarget;
-                          el.style.transform = 'translateY(-2px)';
-                          el.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.45)';
-                          el.style.animation = 'none';
-                          const arrow = el.querySelector('[data-arrow]') as HTMLElement;
-                          if (arrow) arrow.style.transform = 'translateX(3px)';
-                        }}
-                        onMouseLeave={(e) => {
-                          const el = e.currentTarget;
-                          el.style.transform = '';
-                          el.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.35)';
-                          el.style.animation = 'modeSwitchBreath 2.5s ease-in-out infinite';
-                          const arrow = el.querySelector('[data-arrow]') as HTMLElement;
-                          if (arrow) arrow.style.transform = '';
-                        }}
-                        onMouseDown={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-2px) scale(0.97)';
-                          e.currentTarget.style.boxShadow = '0 2px 6px rgba(245, 158, 11, 0.25)';
-                        }}
-                        onMouseUp={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                          e.currentTarget.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.45)';
+                          display: 'inline-block',
+                          transition: 'transform 0.15s ease',
                         }}
                       >
-                        {/* 高光渐变条 */}
-                        <span
-                          aria-hidden="true"
-                          style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            height: '50%',
-                            background: 'linear-gradient(180deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0) 100%)',
-                            borderRadius: '16px 16px 0 0',
-                            pointerEvents: 'none',
-                          }}
-                        />
-                        <span style={{ position: 'relative', zIndex: 1 }}>👴</span>
-                        <span style={{ position: 'relative', zIndex: 1 }} data-testid="ai-home-mode-capsule-label">去长辈版</span>
-                        <span
-                          data-arrow
-                          aria-hidden="true"
-                          style={{
-                            position: 'relative',
-                            zIndex: 1,
-                            display: 'inline-block',
-                            transition: 'transform 0.15s ease',
-                          }}
-                        >
-                          →
-                        </span>
-                      </button>
-                    </div>
+                        →
+                      </span>
+                    </button>
+                  </div>
 
-                    {/* 右侧：机器人头像 + 窄白边白圈（照搬关怀模式 84 大头像） */}
+                  {/* 左侧：LOGO（42px 小圆头像）+ 问候语水平排列 */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      marginBottom: 8,
+                    }}
+                    data-testid="ai-home-welcome-row"
+                  >
                     <div
                       data-testid="ai-home-welcome-avatar-wrap"
                       style={{
                         flexShrink: 0,
-                        width: 84,
-                        height: 84,
+                        width: 42,
+                        height: 42,
                         borderRadius: '50%',
                         background: '#FFFFFF',
                         border: '2px solid rgba(255,255,255,0.9)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -4665,13 +4681,51 @@ export default function AiHomePage() {
                             ? aiHomeConfig.welcome?.avatar?.image_url
                             : aiHomeConfig.welcome?.avatar?.emoji
                         }
-                        size={74}
+                        size={34}
                         shape="circle"
                         alt="AI 头像"
                         testId="ai-home-welcome-avatar"
                       />
                     </div>
+                    <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.3 }} data-testid="ai-home-welcome-greeting">
+                      {stdGreeting.text} {stdGreeting.icon}
+                    </div>
                   </div>
+
+                  {/* 副标题 */}
+                  <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 10, paddingLeft: 52 }} data-testid="ai-home-welcome-text">
+                    我是宾尼小康，聊聊健康问题吧~
+                  </div>
+
+                  {/* 用药提醒（与关怀模式一致） */}
+                  {stdMedText && (
+                    <button
+                      type="button"
+                      onClick={goStdMedicationReminder}
+                      data-testid="ai-home-med-reminder"
+                      style={{
+                        background: 'rgba(255,255,255,0.15)',
+                        borderRadius: 10,
+                        padding: '8px 12px',
+                        fontSize: 13,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        maxWidth: '100%',
+                        border: 'none',
+                        color: 'rgba(255,255,255,0.85)',
+                        cursor: 'pointer',
+                        textAlign: 'left' as const,
+                        marginLeft: 52,
+                      }}
+                    >
+                      <span aria-hidden="true">💊</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        用药提醒：{stdMedText}
+                      </span>
+                      <span aria-hidden="true" style={{ flexShrink: 0, opacity: 0.85 }}>›</span>
+                    </button>
+                  )}
                 </div>
               )}
             </SectionErrorBoundary>
