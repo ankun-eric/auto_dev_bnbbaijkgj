@@ -1,6 +1,6 @@
 # 宾尼健康 (Bini Health) 项目索引
 
-> **最后更新**: 2026-06-06 (健康档案共管数据合并+设备场景分类改造+解除守护短信验证，13项功能 F1-F13 全部实现)
+> **最后更新**: 2026-06-06 (健康档案共管数据合并+设备场景分类改造+解除守护短信验证+数字安全绳Banner时间口语化改造，14项功能 F1-F14 全部实现)
 > **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
 > **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
 > **Git 主仓库**: Codeup (codeup.aliyun.com)  
@@ -193,3 +193,23 @@ gateway-nginx (独立主网关, 端口 443)
 - 新建表：device_scene_group
 - 修改表：device_catalog (新增 scene_group_id, jump_url, icon_url; icon 字段扩展至 500)
 - 废弃表：device_bindings (保留向后兼容，不再使用)
+
+### PRD：数字安全绳 Banner 时间口语化改造 (F14)
+
+| 编号 | 功能 | 状态 |
+|------|------|------|
+| F14 | Banner 区域"上次签到"和"下次签到截止"时间口语化显示 | ✅ |
+
+#### 改动文件清单
+
+**前端 H5 (h5-web/)**
+- `src/lib/datetime.ts` - 新增 formatSpokenTime / formatSpokenDeadline 两个口语化时间函数
+- `src/app/care-safety-rope/page.tsx` - Banner 区域的"上次签到"改用 formatSpokenTime，"下次签到截止"改用 formatSpokenDeadline
+
+**编译产物**
+- `_chunk_safety_rope.js` - 同步更新编译产物口语化函数补丁
+
+#### 显示规则
+- 上次签到格式：`{今天/昨天/X天前/日期}上午/下午/晚上X点/X点半已签到（MM-DD HH:mm）`
+- 下次签到截止格式：`最晚{今天/明天/后天/日期}上午/下午/晚上X点/X点半前签到（MM-DD HH:mm）`
+- 时段称呼：凌晨(00-05)、上午(06-11)、中午(12-13)、下午(14-18)、晚上(18-23)
