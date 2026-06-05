@@ -742,10 +742,7 @@ export default function AiHomePage() {
   //   - 服务：跳健康服务聚合页 /services
   const [activeTopTab, setActiveTopTab] = useState<'profile' | 'consult' | 'service'>('consult');
 
-  // [PRD-MODE-CAPSULE-V1 2026-05-31] AI 首页右上角「模式切换」下拉胶囊：展开/收起状态
-  const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
   const [modeSwitching, setModeSwitching] = useState(false);
-  const modeDropdownRef = useRef<HTMLDivElement>(null);
 
   // [PRD-467 FR-02~FR-06] 字号设置：popover 开关 + 当前字号 + 锚点引用 + 300ms debounce 保存
   const [fontPopoverOpen, setFontPopoverOpen] = useState(false);
@@ -3776,28 +3773,15 @@ export default function AiHomePage() {
     };
   }, [fontPopoverOpen]);
 
-  // [PRD-MODE-CAPSULE-V1 2026-05-31] 模式切换下拉胶囊：面板外点击自动收起
-  useEffect(() => {
-    if (!modeDropdownOpen) return;
-    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      const target = e.target as Node;
-      if (modeDropdownRef.current && !modeDropdownRef.current.contains(target)) {
-        setModeDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside as any);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside as any);
-    };
-  }, [modeDropdownOpen]);
-
-  // [PRD-MODE-CAPSULE-V1 2026-05-31] 切换到关怀模式（沿用现有逻辑：保存偏好→提示→跳转）
+  // [PRD-MODE-CAPSULE-V2 2026-06-05] 切换到关怀模式（点击色块直接跳转：Toast提示→保存偏好→跳转）
   const handleSwitchToCareMode = useCallback(async () => {
     if (modeSwitching) return;
     setModeSwitching(true);
-    setModeDropdownOpen(false);
+    try {
+      showToast('正在切换到关怀模式...', { duration: 2000 } as any);
+    } catch {
+      try { (showToast as any)('正在切换到关怀模式...'); } catch { /* ignore */ }
+    }
     try {
       const { saveModePreference } = await import('@/lib/mode-preference');
       await saveModePreference('care');
@@ -3805,11 +3789,6 @@ export default function AiHomePage() {
       // 静默：偏好保存失败不阻塞跳转
       // eslint-disable-next-line no-console
       console.warn('[mode-capsule] 保存偏好失败', e);
-    }
-    try {
-      showToast('已切换到关怀模式 ✓', { duration: 2000 } as any);
-    } catch {
-      try { (showToast as any)('已切换到关怀模式 ✓'); } catch { /* ignore */ }
     }
     router.push('/care-ai-home');
   }, [modeSwitching, router]);
@@ -4574,120 +4553,93 @@ export default function AiHomePage() {
                     }}
                     data-testid="ai-home-mode-logo-column"
                   >
-                    {/* [PRD-AIHOME-UNIFY-V1 §需求3] 「模式切换」胶囊（方案1：胶囊带文字）
-                        - 显示当前模式名「标准版 ▾」，点击弹下拉：标准版（当前打勾）/ 关怀版（可切换）
-                        - 与 ⊕菜单里的「切换模式」并存，两个入口同时存在 */}
+                    {/* [PRD-MODE-CAPSULE-V2 2026-06-05] 模式切换：金黄色渐变醒目色块，点击直接跳转切换 */}
                     <div
-                      ref={modeDropdownRef}
-                      style={{ position: 'relative', zIndex: 5 }}
                       data-testid="ai-home-mode-switcher"
+                      style={{
+                        cursor: modeSwitching ? 'default' : 'pointer',
+                        opacity: modeSwitching ? 0.6 : 1,
+                      }}
                     >
                       <button
                         type="button"
-                        onClick={() => setModeDropdownOpen((v) => !v)}
+                        onClick={handleSwitchToCareMode}
                         disabled={modeSwitching}
-                        aria-haspopup="listbox"
-                        aria-expanded={modeDropdownOpen}
-                        aria-label="模式切换"
                         data-testid="ai-home-mode-capsule"
                         style={{
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 4,
-                          background: 'rgba(255,255,255,0.22)',
+                          gap: 6,
+                          background: 'linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%)',
                           color: '#FFFFFF',
-                          border: '1px solid rgba(255,255,255,0.45)',
-                          padding: '5px 10px',
-                          borderRadius: 14,
-                          fontSize: 13,
+                          border: 'none',
+                          padding: '10px 16px',
+                          borderRadius: 16,
+                          fontSize: 14,
                           fontWeight: 600,
                           lineHeight: 1,
                           whiteSpace: 'nowrap',
                           cursor: modeSwitching ? 'default' : 'pointer',
-                          minHeight: 28,
+                          boxShadow: '0 4px 12px rgba(245, 158, 11, 0.35)',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                          animation: 'modeSwitchBreath 2.5s ease-in-out infinite',
+                        }}
+                        onMouseEnter={(e) => {
+                          const el = e.currentTarget;
+                          el.style.transform = 'translateY(-2px)';
+                          el.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.45)';
+                          el.style.animation = 'none';
+                          const arrow = el.querySelector('[data-arrow]') as HTMLElement;
+                          if (arrow) arrow.style.transform = 'translateX(3px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          const el = e.currentTarget;
+                          el.style.transform = '';
+                          el.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.35)';
+                          el.style.animation = 'modeSwitchBreath 2.5s ease-in-out infinite';
+                          const arrow = el.querySelector('[data-arrow]') as HTMLElement;
+                          if (arrow) arrow.style.transform = '';
+                        }}
+                        onMouseDown={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px) scale(0.97)';
+                          e.currentTarget.style.boxShadow = '0 2px 6px rgba(245, 158, 11, 0.25)';
+                        }}
+                        onMouseUp={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.45)';
                         }}
                       >
-                        <span data-testid="ai-home-mode-capsule-label">标准版</span>
+                        {/* 高光渐变条 */}
                         <span
                           aria-hidden="true"
                           style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            height: '50%',
+                            background: 'linear-gradient(180deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0) 100%)',
+                            borderRadius: '16px 16px 0 0',
+                            pointerEvents: 'none',
+                          }}
+                        />
+                        <span style={{ position: 'relative', zIndex: 1 }}>👴</span>
+                        <span style={{ position: 'relative', zIndex: 1 }} data-testid="ai-home-mode-capsule-label">去长辈版</span>
+                        <span
+                          data-arrow
+                          aria-hidden="true"
+                          style={{
+                            position: 'relative',
+                            zIndex: 1,
                             display: 'inline-block',
-                            fontSize: 10,
-                            lineHeight: 1,
-                            transform: modeDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
                             transition: 'transform 0.15s ease',
                           }}
                         >
-                          ▾
+                          →
                         </span>
                       </button>
-
-                      {modeDropdownOpen ? (
-                        <div
-                          role="listbox"
-                          data-testid="ai-home-mode-dropdown-panel"
-                          style={{
-                            position: 'absolute',
-                            top: 'calc(100% + 6px)',
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            minWidth: 120,
-                            background: '#FFFFFF',
-                            borderRadius: 10,
-                            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-                            border: '1px solid #E5E7EB',
-                            overflow: 'hidden',
-                            zIndex: 50,
-                          }}
-                        >
-                          {/* 标准版（当前，高亮打勾） */}
-                          <div
-                            role="option"
-                            aria-selected={true}
-                            onClick={() => setModeDropdownOpen(false)}
-                            data-testid="ai-home-mode-option-standard"
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              gap: 8,
-                              padding: '10px 14px',
-                              fontSize: 14,
-                              fontWeight: 600,
-                              color: WARM_BLUE.primary,
-                              background: '#EAF6FF',
-                              cursor: 'pointer',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            <span>标准版</span>
-                            <span aria-hidden="true">✓</span>
-                          </div>
-                          {/* 关怀版（切换） */}
-                          <div
-                            role="option"
-                            aria-selected={false}
-                            onClick={handleSwitchToCareMode}
-                            data-testid="ai-home-mode-option-care"
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              gap: 8,
-                              padding: '10px 14px',
-                              fontSize: 14,
-                              fontWeight: 500,
-                              color: '#374151',
-                              background: '#FFFFFF',
-                              cursor: 'pointer',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            <span>关怀版</span>
-                            <span aria-hidden="true" style={{ width: 14 }} />
-                          </div>
-                        </div>
-                      ) : null}
                     </div>
 
                     {/* 右侧：机器人头像 + 窄白边白圈（照搬关怀模式 84 大头像） */}
@@ -6090,6 +6042,10 @@ export default function AiHomePage() {
         @keyframes aiHomeArrowBounce {
           0%, 100% { transform: translateY(-3px); }
           50% { transform: translateY(3px); }
+        }
+        @keyframes modeSwitchBreath {
+          0%, 100% { box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35); }
+          50% { box-shadow: 0 4px 20px rgba(245, 158, 11, 0.55); }
         }
       `}</style>
 

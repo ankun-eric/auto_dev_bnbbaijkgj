@@ -140,11 +140,15 @@ export default function CareAiHomePage() {
     if (modeSwitching) return;
     setModeSwitching(true);
     try {
+      showToast('正在切换到标准模式...');
+    } catch {
+      /* 静默 */
+    }
+    try {
       await saveModePreference('standard');
     } catch {
       /* 偏好保存失败不阻断跳转 */
     }
-    showToast('已切换到标准模式 ✓');
     setTimeout(() => router.push('/ai-home'), 300);
   };
 
@@ -432,30 +436,6 @@ export default function CareAiHomePage() {
         }}
         data-testid="care-home-welcome"
       >
-        {/* 模式切换文字链：欢迎区右上角半透明白色胶囊 */}
-        <button
-          type="button"
-          onClick={handleSwitchToStandard}
-          disabled={modeSwitching}
-          data-testid="care-home-mode-switch-link"
-          style={{
-            position: 'absolute',
-            top: 12,
-            right: 12,
-            background: 'rgba(255,255,255,0.25)',
-            color: '#FFFFFF',
-            border: 'none',
-            borderRadius: 20,
-            padding: '6px 14px',
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: modeSwitching ? 'default' : 'pointer',
-            whiteSpace: 'nowrap',
-            zIndex: 5,
-          }}
-        >
-          去标准版 ?
-        </button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 6 }} data-testid="care-home-greeting">
             {greeting.text} {greeting.icon}
@@ -492,29 +472,130 @@ export default function CareAiHomePage() {
           </button>
         </div>
 
-        {/* 右侧：宾尼小康机器人 LOGO */}
+        {/* 右侧竖排：模式切换色块 + 机器人 LOGO */}
         <div
-          data-testid="care-home-robot-logo"
           style={{
             flexShrink: 0,
-            width: 84,
-            height: 84,
-            borderRadius: '50%',
-            background: '#FFFFFF',
-            border: '2px solid rgba(255,255,255,0.9)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden',
+            gap: 10,
           }}
+          data-testid="care-home-mode-logo-column"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`${basePath}/binni-xiaokang-logo.png`}
-            alt="宾尼小康"
-            style={{ width: 74, height: 74, borderRadius: '50%', objectFit: 'cover' }}
-          />
+          {/* [PRD-MODE-CAPSULE-V2 2026-06-05] 模式切换：金黄色渐变醒目色块，点击直接跳转切换 */}
+          <div
+            data-testid="care-home-mode-switcher"
+            style={{
+              cursor: modeSwitching ? 'default' : 'pointer',
+              opacity: modeSwitching ? 0.6 : 1,
+            }}
+          >
+            <button
+              type="button"
+              onClick={handleSwitchToStandard}
+              disabled={modeSwitching}
+              data-testid="care-home-mode-capsule"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                background: 'linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%)',
+                color: '#FFFFFF',
+                border: 'none',
+                padding: '10px 16px',
+                borderRadius: 16,
+                fontSize: 14,
+                fontWeight: 600,
+                lineHeight: 1,
+                whiteSpace: 'nowrap',
+                cursor: modeSwitching ? 'default' : 'pointer',
+                boxShadow: '0 4px 12px rgba(245, 158, 11, 0.35)',
+                position: 'relative',
+                overflow: 'hidden',
+                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                animation: 'modeSwitchBreath 2.5s ease-in-out infinite',
+              }}
+              onMouseEnter={(e) => {
+                const el = e.currentTarget;
+                el.style.transform = 'translateY(-2px)';
+                el.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.45)';
+                el.style.animation = 'none';
+                const arrow = el.querySelector('[data-arrow]') as HTMLElement;
+                if (arrow) arrow.style.transform = 'translateX(3px)';
+              }}
+              onMouseLeave={(e) => {
+                const el = e.currentTarget;
+                el.style.transform = '';
+                el.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.35)';
+                el.style.animation = 'modeSwitchBreath 2.5s ease-in-out infinite';
+                const arrow = el.querySelector('[data-arrow]') as HTMLElement;
+                if (arrow) arrow.style.transform = '';
+              }}
+              onMouseDown={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px) scale(0.97)';
+                e.currentTarget.style.boxShadow = '0 2px 6px rgba(245, 158, 11, 0.25)';
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.45)';
+              }}
+            >
+              {/* 高光渐变条 */}
+              <span
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '50%',
+                  background: 'linear-gradient(180deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0) 100%)',
+                  borderRadius: '16px 16px 0 0',
+                  pointerEvents: 'none',
+                }}
+              />
+              <span style={{ position: 'relative', zIndex: 1 }}>🧑</span>
+              <span style={{ position: 'relative', zIndex: 1 }} data-testid="care-home-mode-capsule-label">去标准版</span>
+              <span
+                data-arrow
+                aria-hidden="true"
+                style={{
+                  position: 'relative',
+                  zIndex: 1,
+                  display: 'inline-block',
+                  transition: 'transform 0.15s ease',
+                }}
+              >
+                →
+              </span>
+            </button>
+          </div>
+
+          {/* 机器人 LOGO */}
+          <div
+            data-testid="care-home-robot-logo"
+            style={{
+              flexShrink: 0,
+              width: 84,
+              height: 84,
+              borderRadius: '50%',
+              background: '#FFFFFF',
+              border: '2px solid rgba(255,255,255,0.9)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`${basePath}/binni-xiaokang-logo.png`}
+              alt="宾尼小康"
+              style={{ width: 74, height: 74, borderRadius: '50%', objectFit: 'cover' }}
+            />
+          </div>
         </div>
       </div>
 
@@ -788,6 +869,10 @@ export default function CareAiHomePage() {
           50% {
             transform: translateY(3px);
           }
+        }
+        @keyframes modeSwitchBreath {
+          0%, 100% { box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35); }
+          50% { box-shadow: 0 4px 20px rgba(245, 158, 11, 0.55); }
         }
       `}</style>
     </div>
