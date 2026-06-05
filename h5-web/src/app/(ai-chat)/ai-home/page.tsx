@@ -4687,13 +4687,13 @@ export default function AiHomePage() {
                         testId="ai-home-welcome-avatar"
                       />
                     </div>
-                    <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.3 }} data-testid="ai-home-welcome-greeting">
+                    <div style={{ fontSize: 21, fontWeight: 600, lineHeight: 1.3 }} data-testid="ai-home-welcome-greeting">
                       {stdGreeting.text} {stdGreeting.icon}
                     </div>
                   </div>
 
                   {/* 副标题 */}
-                  <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 10, paddingLeft: 52 }} data-testid="ai-home-welcome-text">
+                  <div style={{ fontSize: 16, opacity: 0.95, marginBottom: 10, paddingLeft: 52 }} data-testid="ai-home-welcome-text">
                     我是宾尼小康，聊聊健康问题吧~
                   </div>
 

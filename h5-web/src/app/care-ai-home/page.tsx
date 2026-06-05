@@ -541,13 +541,13 @@ export default function CareAiHomePage() {
               style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }}
             />
           </div>
-          <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.3 }} data-testid="care-home-greeting">
+          <div style={{ fontSize: 21, fontWeight: 600, lineHeight: 1.3 }} data-testid="care-home-greeting">
             {greeting.text} {greeting.icon}
           </div>
         </div>
 
         {/* 副标题 */}
-        <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 10, paddingLeft: 52 }} data-testid="care-home-welcome-text">
+        <div style={{ fontSize: 16, opacity: 0.95, marginBottom: 10, paddingLeft: 52 }} data-testid="care-home-welcome-text">
           我是宾尼小康，聊聊健康问题吧~
         </div>
 
