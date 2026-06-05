@@ -50,6 +50,7 @@ services:
       args:
         - NEXT_PUBLIC_API_URL=/api
         - NEXT_PUBLIC_BASE_PATH=/admin
+        - BUILD_COMMIT=${BUILD_COMMIT:-unknown}
     container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-admin
     restart: unless-stopped
     healthcheck:
@@ -78,6 +79,7 @@ services:
       args:
         - NEXT_PUBLIC_API_URL=/api
         - NEXT_PUBLIC_BASE_PATH=
+        - BUILD_COMMIT=${BUILD_COMMIT:-unknown}
     container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
     restart: unless-stopped
     healthcheck:

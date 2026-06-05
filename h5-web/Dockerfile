@@ -5,10 +5,12 @@ RUN npm config set registry https://registry.npmmirror.com && npm install --lega
 COPY . .
 ARG NEXT_PUBLIC_API_URL=""
 ARG NEXT_PUBLIC_BASE_PATH=""
+ARG BUILD_COMMIT
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
 RUN mkdir -p public
 RUN npm run build
+RUN echo "$BUILD_COMMIT" > /app/BUILD_INFO
 
 FROM crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_doker_base/node:20-alpine AS runner
 WORKDIR /app
@@ -16,6 +18,7 @@ ENV NODE_ENV=production
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/BUILD_INFO ./BUILD_INFO
 EXPOSE 3001
 ENV PORT=3001
 ENV HOSTNAME=0.0.0.0

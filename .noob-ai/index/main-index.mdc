@@ -1,6 +1,6 @@
 # 宾尼健康 (Bini Health) 项目索引
 
-> **最后更新**: 2026-06-05 03:21 (Bug修复：就医资料时间格式修复 - 体检报告/病例单/药物/其他四个tab及健康档案首页抽屉，时间从ISO 8601格式改为友好格式：今日显示"今日 HH:mm"，历史记录显示"YYYY-MM-DD HH:mm"，新增formatRecordTime函数)  
+> **最后更新**: 2026-06-05 16:00 (BUG修复：健康档案家庭成员"邀请记录"弹窗空白 — 前端接口路径已对齐后端 /api/guardian/v13/family/invite-history)
 > **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
 > **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
 > **Git 主仓库**: Codeup (codeup.aliyun.com)  
@@ -21,7 +21,7 @@
 | 管理后台 | Next.js 14 (App Router) + TypeScript | `admin-web/` |
 | 微信小程序 | 原生小程序 + WXSS | `miniprogram/` |
 | Android/iOS | Flutter 3.32 | `flutter_app/` |
-| 数据库 | MySQL 8.0 | Docker 容器 |
+| 数据库 | MySQL 8.0 | 测试环境 Docker 容器内建 / 生产环境腾讯云 |
 | 部署 | Docker Compose + Gateway Nginx | `docker-compose.prod.yml` |
 
 ## 核心目录结构
@@ -107,7 +107,9 @@ gateway-nginx (独立主网关, 端口 443)
 ├── 6b099ed3-...-backend   (FastAPI, 8000)
 ├── 6b099ed3-...-admin     (Next.js Admin, 3000)
 └── 6b099ed3-...-h5        (Next.js H5, 3001)
-数据库: 腾讯云 MySQL (gz-cdb-nniq1lmp.sql.tencentcdb.com:27082)
+数据库: 
+- 测试环境: Docker 容器内建 MySQL 8.0 (db:3306, 密码: bini_health_2026, 数据库: bini_health)
+- 生产环境: 腾讯云 MySQL (gz-cdb-nniq1lmp.sql.tencentcdb.com:27082)
 ```
 
 ## Git 仓库

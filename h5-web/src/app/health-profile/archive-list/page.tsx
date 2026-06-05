@@ -687,11 +687,8 @@ function InvitationHistoryDrawer({
     let aborted = false;
     (async () => {
       setLoading(true);
-      // 兼容多个可能的后端接口路径
       const endpoints = [
-        `/api/family/member/${member.member_id}/invitations`,
-        `/api/family/invitations?member_id=${member.member_id}`,
-        `/api/guardian/v13/family/invitations?member_id=${member.member_id}`,
+        `/api/guardian/v13/family/invite-history?managed_member_id=${member.member_id}`,
       ];
       for (const ep of endpoints) {
         try {
