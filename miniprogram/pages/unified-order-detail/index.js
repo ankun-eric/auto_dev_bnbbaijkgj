@@ -432,16 +432,43 @@ Page({
         return;
       }
 
-      const payRes = await post(`/api/orders/unified/${order.id}/pay`, { channel_code: channelCode });
-      const paymentParams = payRes && payRes.payment_params;
-      if (channelCode === 'wechat_miniprogram' && paymentParams) {
-        wx.requestPayment({
-          ...paymentParams,
-          success: () => this.loadOrder(),
-          fail: () => this.loadOrder(),
-        });
+      // [微信小程序支付完整接入 v1.0] JSAPI 下单流程
+      const isWxMiniProgram = (channelCode || '').startsWith('wechat_miniprogram');
+      if (isWxMiniProgram) {
+        try {
+          const openid = wx.getStorageSync('openid') || '';
+          const jsapiRes = await get('/api/pay/wechat/jsapi-order', {
+            order_id: order.id,
+            openid,
+          });
+          const payParams = (jsapiRes && jsapiRes.pay_params) || {};
+          if (payParams && payParams.paySign) {
+            wx.requestPayment({
+              timeStamp: payParams.timeStamp,
+              nonceStr: payParams.nonceStr,
+              package: payParams.package,
+              signType: payParams.signType || 'RSA',
+              paySign: payParams.paySign,
+              success: () => this.loadOrder(),
+              fail: (err) => {
+                console.log('wx.requestPayment fail', err);
+                this.loadOrder();
+              },
+            });
+          } else {
+            this.loadOrder();
+          }
+        } catch (jsapiErr) {
+          console.log('JSAPI order error', jsapiErr);
+          wx.showToast({ title: (jsapiErr && jsapiErr.detail) || '发起支付失败', icon: 'none' });
+        }
       } else {
-        this.loadOrder();
+        try {
+          await post(`/api/orders/unified/${order.id}/pay`, { channel_code: channelCode });
+          this.loadOrder();
+        } catch (payErr) {
+          console.log('pay error', payErr);
+        }
       }
     } catch (e) {
       wx.showToast({ title: (e && e.detail) || '支付失败', icon: 'none' });

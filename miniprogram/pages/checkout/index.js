@@ -580,20 +580,44 @@ Page({
         return;
       }
 
-      try {
-        const payRes = await post(`/api/orders/unified/${order.id}/pay`, { channel_code: this.data.paymentMethod });
-        const paymentParams = (payRes && payRes.payment_params) || order.payment_params;
-        if (this.data.paymentMethod === 'wechat_miniprogram' && paymentParams) {
-          wx.requestPayment({
-            ...paymentParams,
-            success: () => wx.redirectTo({ url: `/pages/unified-order-detail/index?id=${order.id}` }),
-            fail: () => wx.redirectTo({ url: `/pages/unified-order-detail/index?id=${order.id}` }),
+      const isWxMiniProgram = (this.data.paymentMethod || '').startsWith('wechat_miniprogram');
+      if (isWxMiniProgram) {
+        // [微信小程序支付完整接入 v1.0] 调用 JSAPI 下单接口获取 prepay_id 和签名参数
+        try {
+          const openid = wx.getStorageSync('openid') || '';
+          const jsapiRes = await post('/api/pay/wechat/jsapi-order', {
+            order_id: order.id,
+            openid,
           });
-        } else {
+          const payParams = (jsapiRes && jsapiRes.pay_params) || {};
+          if (payParams && payParams.paySign) {
+            wx.requestPayment({
+              timeStamp: payParams.timeStamp,
+              nonceStr: payParams.nonceStr,
+              package: payParams.package,
+              signType: payParams.signType || 'RSA',
+              paySign: payParams.paySign,
+              success: () => wx.redirectTo({ url: `/pages/unified-order-detail/index?id=${order.id}` }),
+              fail: (err) => {
+                console.log('wx.requestPayment fail', err);
+                wx.redirectTo({ url: `/pages/unified-order-detail/index?id=${order.id}` });
+              },
+            });
+          } else {
+            wx.redirectTo({ url: `/pages/unified-order-detail/index?id=${order.id}` });
+          }
+        } catch (jsapiErr) {
+          console.log('JSAPI order error', jsapiErr);
           wx.redirectTo({ url: `/pages/unified-order-detail/index?id=${order.id}` });
         }
-      } catch (e) {
-        wx.redirectTo({ url: `/pages/unified-order-detail/index?id=${order.id}` });
+      } else {
+        try {
+          await post(`/api/orders/unified/${order.id}/pay`, { channel_code: this.data.paymentMethod });
+          wx.redirectTo({ url: `/pages/unified-order-detail/index?id=${order.id}` });
+        } catch (payErr) {
+          console.log('pay error', payErr);
+          wx.redirectTo({ url: `/pages/unified-order-detail/index?id=${order.id}` });
+        }
       }
     } catch (e) {
       console.log('submitOrder error', e);

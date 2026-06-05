@@ -341,3 +341,78 @@ def interpret_test_query_response(resp: dict) -> tuple[bool, str, dict]:
 
     # 其它未知 sub_code，透传
     return False, f"支付宝返回错误：{sub_code or msg or '未知错误'} - {sub_msg}", detail
+
+
+# ─────────────── 退款 ───────────────
+
+
+def create_refund(
+    client: Any,
+    *,
+    out_trade_no: str,
+    out_request_no: str,
+    refund_amount: Optional[float] = None,
+    refund_reason: str = "",
+) -> dict:
+    """调用 alipay.trade.refund 接口发起退款。
+
+    Args:
+        client: 支付宝 SDK 客户端实例
+        out_trade_no: 原交易订单号
+        out_request_no: 退款请求号（商户侧唯一）
+        refund_amount: 退款金额（元），不传则全额退款
+        refund_reason: 退款原因
+
+    Returns:
+        dict: {"success": bool, "refund_id": str, "error_code": str, "error_message": str, "raw": dict}
+    """
+    params: dict[str, Any] = {
+        "out_trade_no": out_trade_no,
+        "out_request_no": out_request_no,
+    }
+    if refund_amount is not None:
+        params["refund_amount"] = f"{float(refund_amount):.2f}"
+    if refund_reason:
+        params["refund_reason"] = refund_reason[:256]
+
+    try:
+        resp = client.api_alipay_trade_refund(**params)
+    except Exception as e:
+        logger.error("alipay_service create_refund exception: %s", e)
+        return {
+            "success": False,
+            "error_code": "EXCEPTION",
+            "error_message": str(e),
+            "raw": {},
+        }
+
+    if not isinstance(resp, dict):
+        return {
+            "success": False,
+            "error_code": "INVALID_RESPONSE",
+            "error_message": f"支付宝返回非字典格式: {resp}",
+            "raw": {"raw": str(resp)},
+        }
+
+    code = str(resp.get("code", ""))
+    sub_code = str(resp.get("sub_code", ""))
+    sub_msg = str(resp.get("sub_msg", ""))
+    msg = str(resp.get("msg", ""))
+
+    if code == "10000":
+        fund_change = resp.get("fund_change", "")
+        refund_fee = resp.get("refund_fee", "")
+        return {
+            "success": True,
+            "refund_id": resp.get("trade_no") or resp.get("out_request_no", ""),
+            "fund_change": fund_change,
+            "refund_fee": refund_fee,
+            "raw": resp,
+        }
+    else:
+        return {
+            "success": False,
+            "error_code": sub_code or code or "UNKNOWN",
+            "error_message": sub_msg or msg or "未知错误",
+            "raw": resp,
+        }

@@ -2572,6 +2572,16 @@ async def request_refund(
     if status_val in ("completed", "refunded"):
         raise HTTPException(status_code=400, detail="该订单当前状态不允许申请退款")
 
+    # [微信小程序支付完整接入 v1.0] 可退款期限校验：支付后 15 天内
+    paid_at = getattr(order, "paid_at", None)
+    if paid_at is not None:
+        refund_deadline = paid_at + timedelta(days=15)
+        if datetime.utcnow() > refund_deadline:
+            raise HTTPException(
+                status_code=400,
+                detail="该订单已超过可退款期限（支付后15天），无法申请退款",
+            )
+
     refund_amount = data.refund_amount or float(order.paid_amount)
 
     has_redemption = any(item.used_redeem_count > 0 for item in order.items)

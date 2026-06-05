@@ -33,6 +33,7 @@ import {
   KeyOutlined,
   CreditCardOutlined,
   CrownOutlined,
+  UndoOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import type { MenuProps } from 'antd';
@@ -157,6 +158,8 @@ const menuItems: MenuItem[] = [
   },
   // [2026-05-03 支付配置 PRD v1.0] 支付通道配置（仅 admin/super_admin 可见）
   { key: '/payment-config', icon: <CreditCardOutlined />, label: '支付配置' },
+  // [微信小程序支付完整接入 v1.0] 退款管理
+  { key: '/refunds', icon: <UndoOutlined />, label: '退款管理' },
   {
     key: 'content',
     icon: <FileTextOutlined />,

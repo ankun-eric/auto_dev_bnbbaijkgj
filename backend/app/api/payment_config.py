@@ -659,7 +659,154 @@ async def test_payment_channel(
             detail={"mode": "alipay_real_query", "channel": channel_code, "raw": raw_detail},
         )
 
-    # —— 非支付宝通道：保留原轻量模式 ——
+    # —— 微信通道走真实 query 联通性测试 ——
+    if (ch.provider or "").lower() == "wechat":
+        import uuid as _wuuid
+        try:
+            from app.services.wechat_pay_service import query_order_by_out_trade_no
+        except ImportError as e:
+            ch.last_test_at = datetime.utcnow()
+            ch.last_test_ok = False
+            ch.last_test_message = f"微信支付服务模块导入失败：{e}"
+            await db.commit()
+            raise HTTPException(status_code=400, detail=ch.last_test_message)
+
+        mch_id = runtime.get("mch_id", "")
+        cert_serial_no = runtime.get("cert_serial_no", "")
+        private_key_pem = runtime.get("private_key", "")
+
+        if not mch_id or not cert_serial_no or not private_key_pem:
+            ch.last_test_at = datetime.utcnow()
+            ch.last_test_ok = False
+            ch.last_test_message = "微信支付配置缺失：mch_id / cert_serial_no / private_key 有字段为空"
+            await db.commit()
+            raise HTTPException(status_code=400, detail=ch.last_test_message)
+
+        try:
+            test_no = f"__health_test_{_wuuid.uuid4().hex[:16]}"
+            resp = await query_order_by_out_trade_no(
+                out_trade_no=test_no,
+                mch_id=mch_id,
+                cert_serial_no=cert_serial_no,
+                private_key_pem=private_key_pem,
+            )
+
+            status_code = resp.get("status_code", 0)
+            data = resp.get("data", {})
+
+            if status_code == 200:
+                # 200 表示查询到了订单，不应该发生（因为用的是随机订单号）
+                ch.last_test_at = datetime.utcnow()
+                ch.last_test_ok = True
+                ch.last_test_message = "测试通过：网络连通、签名正确"
+                await db.commit()
+                return PaymentTestResult(
+                    success=True,
+                    message=ch.last_test_message,
+                    detail={"mode": "wechat_real_query", "channel": channel_code},
+                )
+
+            error_code = data.get("code", "")
+            error_message = data.get("message", "")
+
+            # 以下错误码表示连通正常，只是订单不存在
+            CONNECTED_ERROR_CODES = {
+                "ORDER_NOT_EXIST",
+                "NO_STATEMENT_EXIST",
+                "RESOURCE_NOT_EXISTS",
+            }
+
+            if error_code in CONNECTED_ERROR_CODES or status_code == 404:
+                ch.last_test_at = datetime.utcnow()
+                ch.last_test_ok = True
+                ch.last_test_message = "测试通过：网络连通、签名正确、参数无误"
+                await db.commit()
+                return PaymentTestResult(
+                    success=True,
+                    message=ch.last_test_message,
+                    detail={
+                        "mode": "wechat_real_query",
+                        "channel": channel_code,
+                        "test_order_no": test_no,
+                        "response_code": error_code,
+                        "response_message": error_message,
+                    },
+                )
+
+            if error_code == "PARAM_ERROR":
+                ch.last_test_at = datetime.utcnow()
+                ch.last_test_ok = True
+                ch.last_test_message = (
+                    "测试通过：网络连通、签名正确（订单号格式问题导致的 PARAM_ERROR 属正常）"
+                )
+                await db.commit()
+                return PaymentTestResult(
+                    success=True,
+                    message=ch.last_test_message,
+                    detail={
+                        "mode": "wechat_real_query",
+                        "channel": channel_code,
+                        "response_code": error_code,
+                        "response_message": error_message,
+                    },
+                )
+
+            if error_code in ("INVALID_REQUEST", "SIGN_ERROR", "CERT_ERROR"):
+                ch.last_test_at = datetime.utcnow()
+                ch.last_test_ok = False
+                ch.last_test_message = (
+                    f"签名或证书错误：{error_code} - {error_message}。"
+                    "请检查商户私钥、证书序列号、商户号是否一一对应"
+                )
+                await db.commit()
+                raise HTTPException(status_code=400, detail=ch.last_test_message)
+
+            if error_code == "APPID_MCHID_NOT_MATCH":
+                ch.last_test_at = datetime.utcnow()
+                ch.last_test_ok = False
+                ch.last_test_message = f"AppID 与商户号不匹配：{error_message}"
+                await db.commit()
+                raise HTTPException(status_code=400, detail=ch.last_test_message)
+
+            # 其他错误
+            ch.last_test_at = datetime.utcnow()
+            ch.last_test_ok = False
+            ch.last_test_message = f"微信支付返回错误：{error_code} - {error_message}"
+            await db.commit()
+            raise HTTPException(status_code=400, detail=ch.last_test_message)
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            err_text = str(e)
+            lower = err_text.lower()
+            if (
+                "timed out" in lower
+                or "timeout" in lower
+                or "name or service not known" in lower
+                or "network is unreachable" in lower
+                or "connection refused" in lower
+                or "failed to establish a new connection" in lower
+            ):
+                friendly = "网络不通：无法连接微信支付网关，请检查出网/防火墙"
+            elif (
+                "rsa key format" in lower
+                or "could not deserialize" in lower
+                or "key" in lower and ("unsupported" in lower or "invalid" in lower)
+            ):
+                friendly = (
+                    "商户私钥格式无法识别。请确认您粘贴的是正确的 PEM 格式私钥内容，"
+                    "保存后再点「测试」。"
+                )
+            else:
+                friendly = f"调用微信支付异常：{err_text}"
+            ch.last_test_at = datetime.utcnow()
+            ch.last_test_ok = False
+            ch.last_test_message = friendly
+            await db.commit()
+            raise HTTPException(status_code=400, detail=friendly)
+
+    # —— 其他通道：保留原轻量模式 ——
     msg = "参数完整性 + 签名工具自检通过（轻量模式）"
     detail = {"mode": "lightweight", "channel": channel_code}
     ch.last_test_at = datetime.utcnow()

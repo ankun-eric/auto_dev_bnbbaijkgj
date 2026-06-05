@@ -3722,6 +3722,10 @@ class RefundRequest(Base):
     return_tracking_company = mapped_column(String(100), nullable=True)
     has_redemption = mapped_column(Boolean, default=False)
     refund_amount_approved = mapped_column(Numeric(10, 2), nullable=True)
+    # [微信小程序支付完整接入 v1.0] 退款补充字段
+    refund_transaction_id = mapped_column(String(64), nullable=True, comment="支付平台退款单号（微信/支付宝）")
+    refund_type = mapped_column(String(16), nullable=True, comment="退款类型：full 全额退款 / partial 部分退款")
+    refund_channel = mapped_column(String(32), nullable=True, comment="退款渠道：wechat / alipay")
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

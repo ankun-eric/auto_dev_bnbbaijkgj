@@ -1058,6 +1058,42 @@ async def _migrate_prd468_health_v3():
         _logger.error("[PRD-468] migration error: %s", e)
 
 
+async def _migrate_wechat_pay_refund_fields():
+    """[微信小程序支付完整接入 v1.0] refund_requests 表加列：
+    refund_transaction_id / refund_type / refund_channel
+    幂等执行：基于 information_schema.columns 检查存在性。
+    """
+    import logging as _l
+    _logger = _l.getLogger(__name__)
+    from app.core.database import async_session as _async_session
+    try:
+        async with _async_session() as db:
+            from sqlalchemy import text
+
+            async def _add_col(table: str, column: str, ddl: str):
+                try:
+                    chk = await db.execute(text(
+                        "SELECT COUNT(*) FROM information_schema.columns "
+                        "WHERE table_schema = DATABASE() AND table_name = :t AND column_name = :c"
+                    ), {"t": table, "c": column})
+                    if (chk.scalar() or 0) == 0:
+                        await db.execute(text(f"ALTER TABLE {table} ADD COLUMN {ddl}"))
+                        _logger.info("[wechat_pay] %s.%s 列已添加", table, column)
+                except Exception as e:
+                    _logger.debug("加列 %s.%s 跳过: %s", table, column, e)
+
+            await _add_col("refund_requests", "refund_transaction_id",
+                           "refund_transaction_id VARCHAR(64) NULL COMMENT '支付平台退款单号'")
+            await _add_col("refund_requests", "refund_type",
+                           "refund_type VARCHAR(16) NULL COMMENT 'full/partial'")
+            await _add_col("refund_requests", "refund_channel",
+                           "refund_channel VARCHAR(32) NULL COMMENT 'wechat/alipay'")
+            await db.commit()
+            _logger.info("[wechat_pay] refund_requests 字段迁移完成")
+    except Exception as e:
+        _logger.error("[wechat_pay] refund_requests 字段迁移异常（不影响启动）: %s", e)
+
+
 async def _migrate_device_scene_groups():
     """[PRD-HEALTH-ARCHIVE-CO-MANAGE 2026-06-05] 设备场景分类迁移。
 
@@ -1960,6 +1996,8 @@ async def lifespan(app: FastAPI):
     await _migrate_prd468_health_v3()
     # [PRD-HEALTH-ARCHIVE-CO-MANAGE 2026-06-05] 设备场景分类
     await _migrate_device_scene_groups()
+    # [微信小程序支付完整接入 v1.0] refund_requests 退款字段扩展
+    await _migrate_wechat_pay_refund_fields()
     # [PRD-GLUCOSE-V1 2026-05-30] 血糖管理模块：health_glucose_record / health_glucose_alert / health_glucose_reminder
     await _migrate_glucose_v1()
     # [AI对话模式优化 PRD v1.0 2026-05-14] chat_function_buttons 8 字段 + medication_library.barcode
@@ -2477,6 +2515,14 @@ app.include_router(stores_public.router)
 # [支付宝 H5 正式支付链路接入 v1.0] 异步通知接口（独立挂载，避免与 /api/orders 冲突）
 from app.api import alipay_notify  # noqa: E402
 app.include_router(alipay_notify.router)
+
+# [微信小程序支付完整接入 v1.0] 微信支付异步通知接口
+from app.api import wechat_notify  # noqa: E402
+app.include_router(wechat_notify.router)
+
+# [微信小程序支付完整接入 v1.0] 管理后台退款审核与操作接口
+from app.api import wechat_refund  # noqa: E402
+app.include_router(wechat_refund.router)
 app.include_router(merchant_v1.router)
 app.include_router(merchant_v1.admin_router)
 app.include_router(account_security.router)  # [PRD V1.0] 账号安全：图形验证码 / 个人信息 / 修改密码 / 员工 / 重置密码

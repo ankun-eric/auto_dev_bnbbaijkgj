@@ -143,6 +143,47 @@ gateway-nginx (独立主网关, 端口 443)
 
 ## 最新变更 (2026-06-06)
 
+### PRD：微信小程序支付完整接通 + 支付宝 H5 退款补上 (v1.0)
+
+实现了全部 6 个功能点：
+
+| 编号 | 功能 | 状态 |
+|------|------|------|
+| W1 | 微信支付 SDK 接入（JSAPI 下单+签名+调起支付） | ✅ |
+| W2 | 微信支付异步回调通知（验签+解密+幂等） | ✅ |
+| W3 | 微信支付真实退款（全额+部分退款，核销码作废） | ✅ |
+| W4 | 支付宝 H5 退款补上（alipay.trade.refund） | ✅ |
+| W5 | 管理后台微信支付通道测试连接真实化 | ✅ |
+| W6 | 用户端退款申请「可退款期限」校验（支付后 15 天） | ✅ |
+
+#### 改动文件清单
+
+**后端新增**
+- `app/services/wechat_pay_service.py` — 微信支付 API v3 服务层（签名、JSAPI下单、小程序调起签名、查单、退款、平台证书管理、回调验签与解密）
+- `app/api/wechat_notify.py` — 微信支付异步回调通知处理（验签+解密+幂等+状态推进）
+- `app/api/wechat_refund.py` — 管理后台退款审核/操作 API（审核通过/拒绝/重试/列表/详情）
+
+**后端修改**
+- `app/api/payment_config.py` — 微信通道「测试连接」改为真实查询订单 API 连通测试
+- `app/api/payment_methods.py` — 新增 `/api/pay/wechat/jsapi-order` JSAPI 下单端点
+- `app/api/unified_orders.py` — 退款申请增加支付后 15 天期限校验
+- `app/models/models.py` — RefundRequest 新增 refund_transaction_id / refund_type / refund_channel 字段
+- `app/main.py` — 注册 wechat_notify / wechat_refund 路由 + 数据库迁移函数
+- `app/services/alipay_service.py` — 新增 create_refund() 支付宝退款方法
+- `requirements.txt` — 已包含 httpx 依赖
+
+**管理后台 (admin-web/)**
+- `src/app/(admin)/refunds/page.tsx` — 退款管理页面（列表+审批+驳回+详情+重试）
+- `src/app/(admin)/layout.tsx` — 侧边栏新增「退款管理」菜单入口
+
+**微信小程序 (miniprogram/)**
+- `pages/checkout/index.js` — 微信支付 JSAPI 流程集成（wx.requestPayment）
+
+**测试**
+- `backend/tests/test_wechat_pay_v1.py` — 单元测试（签名/加密/退款期限/测试连接）
+
+---
+
 ### PRD：健康档案共管数据合并 + 设备场景分类改造 + 解除守护短信验证 (v3.0)
 
 实现了全部 13 个功能点 (F1-F13)：

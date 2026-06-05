@@ -1,4 +1,29 @@
 services:
+  db:
+    image: mysql:8.0
+    container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: bini_health_2026
+      MYSQL_DATABASE: bini_health
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+      TZ: UTC
+    command: --default-time-zone='+00:00'
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      app-network:
+        aliases:
+          - db
+
   backend:
     build:
       context: ./backend
@@ -14,7 +39,7 @@ services:
       retries: 10
       start_period: 60s
     environment:
-      DATABASE_URL: mysql+aiomysql://root:xiaokang989aab@gz-cdb-nniq1lmp.sql.tencentcdb.com:27082/bini_health
+      DATABASE_URL: mysql+aiomysql://root:bini_health_2026@db:3306/bini_health
       SECRET_KEY: bini-health-secret-key-2026-very-secure
       AI_BASE_URL: ${AI_BASE_URL:-}
       AI_MODEL_NAME: ${AI_MODEL_NAME:-}
@@ -25,6 +50,7 @@ services:
       TENCENT_SMS_SIGN_NAME: ${TENCENT_SMS_SIGN_NAME:-呃唉帮帮网络}
       TENCENT_SMS_TEMPLATE_ID: ${TENCENT_SMS_TEMPLATE_ID:-2201340}
       TENCENT_SMS_APP_KEY: ${TENCENT_SMS_APP_KEY:-7e3c8242bf0799cca367fa18fa47a7ea}
+      PAYMENT_CONFIG_ENCRYPTION_KEY: ${PAYMENT_CONFIG_ENCRYPTION_KEY:-jzsuHsRKWp/Xy01k+8d4R2lNBvb3KQTGJJkxQXRjW2A=}
       # BUG ②：上传 URL 拼接的全局基础地址（含 /autodev/<deploy_id> 前缀）
       STATIC_BASE_URL: ${STATIC_BASE_URL:-https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com}
       # [2026-05-04 H5 支付链路 BasePath 修复 v1.0]
@@ -38,6 +64,9 @@ services:
       - uploads_data:/app/uploads
     expose:
       - "8000"
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       app-network:
         aliases:
@@ -102,6 +131,7 @@ services:
           - 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
 
 volumes:
+  mysql_data:
   uploads_data:
 
 networks:
