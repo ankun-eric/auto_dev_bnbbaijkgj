@@ -9,6 +9,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { formatFriendlyTime } from '@/lib/datetime';
 
 interface Contact {
   id: number;
@@ -55,14 +56,8 @@ const RELATION_CHIPS = ['子女', '配偶', '父母', '邻居', '朋友', '护�
 
 function formatDt(s: string | null | undefined): string {
   if (!s) return '—';
-  try {
-    const d = new Date(s);
-    if (isNaN(d.getTime())) return s;
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  } catch {
-    return s;
-  }
+  const result = formatFriendlyTime(s);
+  return result || s;
 }
 
 const PHONE_RE = /^1[3-9]\d{9}$/;

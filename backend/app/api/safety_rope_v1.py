@@ -8,13 +8,38 @@
 - 邮箱字段保留为可选（兼容旧数据库），不再强制
 - 新增 GET /contacts/check-phone：表单失焦时校验手机号是否已注册
 - 预警通知改走 SystemMessage（matched_user_id）
+
+[BUGFIX-TIMEZONE-BJ-20260605] 全局北京时间修复：
+- 新增 _to_bj_str() / _to_bj_display() 工具函数
+- 所有对外返回的时间字符串统一转为北京时间（UTC+8）
+- 系统消息中的硬编码（UTC）后缀改为北京时间显示
 """
 from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone, tzinfo
 from typing import Any, Optional
+
+BJ_TZ: tzinfo = timezone(timedelta(hours=8))
+
+
+def _to_bj_str(dt: Optional[datetime]) -> Optional[str]:
+    """将 datetime 转为北京时间 ISO 字符串（带 +08:00 后缀）。"""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    bj = dt.astimezone(BJ_TZ)
+    return bj.isoformat()
+
+
+def _to_bj_display(dt: datetime) -> str:
+    """将 datetime 转为北京时间显示字符串，格式 YYYY-MM-DD HH:MM。"""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    bj = dt.astimezone(BJ_TZ)
+    return bj.strftime("%Y-%m-%d %H:%M")
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -282,7 +307,7 @@ def _compute_runtime_state(cfg: dict, last_checkin: Optional[dict], now: Optiona
                 "runtime_status": "paused",
                 "next_checkin_at": None,
                 "remaining_hours": None,
-                "paused_until": paused_until.isoformat() if paused_until else None,
+                "paused_until": _to_bj_str(paused_until),
             }
 
     if not last_checkin or not last_checkin.get("checkin_at"):
@@ -306,7 +331,7 @@ def _compute_runtime_state(cfg: dict, last_checkin: Optional[dict], now: Optiona
 
     return {
         "runtime_status": runtime,
-        "next_checkin_at": deadline.isoformat(),
+        "next_checkin_at": _to_bj_str(deadline),
         "remaining_hours": round(delta, 2),
         "paused_until": None,
     }
@@ -355,10 +380,10 @@ async def get_status(
         "config": {
             "threshold_hours": cfg["threshold_hours"],
             "status": cfg["status"],
-            "paused_until": cfg["paused_until"].isoformat() if cfg.get("paused_until") else None,
+            "paused_until": _to_bj_str(cfg.get("paused_until")),
         },
         "last_checkin": {
-            "checkin_at": last["checkin_at"].isoformat() if last else None,
+            "checkin_at": _to_bj_str(last["checkin_at"]) if last else None,
             "location_address": last.get("location_address") if last else None,
             "location_lat": last.get("location_lat") if last else None,
             "location_lng": last.get("location_lng") if last else None,
@@ -461,12 +486,12 @@ async def checkin(
                 await _send_system_message(
                     db, matched_uid,
                     f"【数字安全绳·已平安解除】{user_name}",
-                    f"{user_name} 已于 {now.strftime('%Y-%m-%d %H:%M')}（UTC）重新签到。最新位置：{loc_text}。之前的预警已自动解除。",
+                    f"{user_name} 已于 {_to_bj_display(now)}（北京时间）重新签到。最新位置：{loc_text}。之前的预警已自动解除。",
                     message_type="safety_rope_resolved",
                 )
 
     await db.commit()
-    return {"success": True, "checkin_at": now.isoformat(), "alert_resolved": was_alerting}
+    return {"success": True, "checkin_at": _to_bj_str(now), "alert_resolved": was_alerting}
 
 
 @router.get("/checkins")
@@ -485,7 +510,7 @@ async def list_checkins(
         "items": [
             {
                 "id": r[0],
-                "checkin_at": r[1].isoformat() if r[1] else None,
+                "checkin_at": _to_bj_str(r[1]),
                 "location_address": r[2],
             }
             for r in rows
@@ -714,11 +739,11 @@ async def list_alerts(
                 contacts = []
         items.append({
             "id": r[0],
-            "triggered_at": r[1].isoformat() if r[1] else None,
-            "last_checkin_at": r[2].isoformat() if r[2] else None,
+            "triggered_at": _to_bj_str(r[1]),
+            "last_checkin_at": _to_bj_str(r[2]),
             "last_location": r[3],
             "notified_contacts": contacts or [],
-            "resolved_at": r[5].isoformat() if r[5] else None,
+            "resolved_at": _to_bj_str(r[5]),
             "resolved_location": r[6],
         })
     return {"items": items, "total": len(items)}
@@ -790,7 +815,7 @@ async def scan_and_notify() -> dict[str, int]:
                         content = (
                             f"【数字安全绳预警】您是 {user_name} 的紧急联系人。"
                             f"TA 已经连续 {threshold_hours} 小时没有签到了。"
-                            f"📅 最后签到时间：{last_at.strftime('%Y-%m-%d %H:%M')}（UTC）"
+                            f"📅 最后签到时间：{_to_bj_display(last_at)}（北京时间）"
                             f"📍 最后签到位置：{last.get('location_address') or '（未提供）'}"
                             f"📞 TA 的手机号：{(user.phone or '未提供')}"
                             f"建议立刻拨打电话联系 TA；如联系不上，可前往最后签到位置查看；必要时联系当地社区/物业/警方。"
