@@ -35,16 +35,13 @@ SUB_STATUS_ADMIN_DELETED = "admin_deleted"
 # "已删除"统一收口到 deleted 主状态(治本后唯一软删除标记)
 DELETED_STATUSES: Tuple[str, ...] = (MAIN_STATUS_DELETED,)
 
-# "已隐藏"包含 deleted + unbound(已解绑也视为 Tab 隐藏)
-HIDDEN_STATUSES: Tuple[str, ...] = (MAIN_STATUS_DELETED, MAIN_STATUS_UNBOUND)
+# "已隐藏"仅包含 deleted（unbound 成员应在列表中可见）
+HIDDEN_STATUSES: Tuple[str, ...] = (MAIN_STATUS_DELETED,)
 
 # ============ 兼容期常量(已摘掉 removed) ============
 # V3 升级后 FamilyMember.status 已不再写入 removed，统一使用 deleted/unbound。
 # FamilyManagement 表的 removed 状态是独立状态体系，不在本常量管理范围内。
-DELETED_OR_REMOVED_STATUSES: Tuple[str, ...] = (
-    MAIN_STATUS_DELETED,
-    MAIN_STATUS_UNBOUND,  # 已解绑视为 Tab 隐藏
-)
+DELETED_OR_REMOVED_STATUSES: Tuple[str, ...] = (MAIN_STATUS_DELETED,)
 
 # ============ "守护中"的判定 ============
 # 替代原 status == 'active' 的所有过滤

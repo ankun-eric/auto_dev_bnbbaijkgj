@@ -144,14 +144,15 @@ async def get_member_health_profile(
     db: AsyncSession = Depends(get_db),
 ):
     # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03]
-    # 对齐家人 Tab 的过滤口径，排除已软删除/已解绑成员。
-    # V3 升级后统一使用 deleted/unbound，不再兼容 removed。
-    from app.services.family_status_constants import HIDDEN_STATUSES
+    # 对齐家人 Tab 的过滤口径，仅排除已软删除成员。
+    # unbound 成员（已解绑/未绑定）应在列表中可见，可重新发起邀请。
+    # V3 升级后统一使用 deleted，不再兼容 removed。
+    from app.services.family_status_constants import DELETED_STATUSES
     member_result = await db.execute(
         select(FamilyMember).where(
             FamilyMember.id == member_id,
             FamilyMember.user_id == current_user.id,
-            FamilyMember.status.notin_(HIDDEN_STATUSES),
+            FamilyMember.status.notin_(DELETED_STATUSES),
         )
     )
     member = member_result.scalar_one_or_none()
@@ -190,13 +191,13 @@ async def upsert_member_health_profile(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 同 GET /profile/member/{member_id},编辑接口同样排除软删除/解绑成员
-    from app.services.family_status_constants import HIDDEN_STATUSES
+    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 同 GET /profile/member/{member_id}，仅排除已软删除成员
+    from app.services.family_status_constants import DELETED_STATUSES
     member_result = await db.execute(
         select(FamilyMember).where(
             FamilyMember.id == member_id,
             FamilyMember.user_id == current_user.id,
-            FamilyMember.status.notin_(HIDDEN_STATUSES),
+            FamilyMember.status.notin_(DELETED_STATUSES),
         )
     )
     member = member_result.scalar_one_or_none()
