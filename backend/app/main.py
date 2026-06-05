@@ -117,6 +117,7 @@ from app.api import (
     care_ai_home,
     home_safety_v1,
     care_card_v1,
+    brain_game,
 )
 from app.core.database import Base, engine
 from app.core.price_formatter import PriceFormattedJSONResponse
@@ -2087,6 +2088,25 @@ async def lifespan(app: FastAPI):
         _tb.print_exc()
         print(f"[migrate] hsc_ai_real_v1: 迁移失败 err={_e}", flush=True)
 
+    # [2026-06-04] 益智乐园 brain_game 建表迁移（幂等）
+    try:
+        print("[migrate] brain_game_v1: 启动迁移...", flush=True)
+        async with engine.begin() as _conn_bg:
+            await _conn_bg.run_sync(Base.metadata.create_all)
+            _brain_game_tables = [
+                "brain_game_regions",
+                "brain_game_scores",
+                "brain_game_challenges",
+                "brain_game_challenge_members",
+            ]
+            for _tn in _brain_game_tables:
+                print(f"[migrate] brain_game_v1: 表 {_tn} 已通过 metadata.create_all 确保存在", flush=True)
+        print("[migrate] brain_game_v1: 迁移完成（表结构已通过 ORM Base 确保）", flush=True)
+    except Exception as _e:
+        import traceback as _tb
+        _tb.print_exc()
+        print(f"[migrate] brain_game_v1: 迁移失败 err={_e}", flush=True)
+
     # [PRD-MY-DEVICES-V1 2026-05-21] 「我的设备」V2：建表 + 幂等 seed 品牌目录
     try:
         print("[migrate] my_devices_v1: 启动迁移...", flush=True)
@@ -2374,6 +2394,8 @@ app.include_router(care_ai_home.router)
 # [PRD-HOME-SAFETY-V1 2026-05-27] 智能硬件绑定 · 居家安全设备 v1.0
 app.include_router(home_safety_v1.router)
 app.include_router(care_card_v1.router)
+# [2026-06-04] 益智乐园（Brain Game）老年人数学游戏+排行+组队挑战
+app.include_router(brain_game.router)
 # [2026-05-07 PRD-370 H5 登录页设计稿对齐] 远程开关：登录 UI 版本（v1 旧版 / v2 新版）
 app.include_router(login_ui_config.router)
 # [BUG-FIX-RESCHEDULE-V2 2026-05-07] 系统时间接口：供三端改约弹窗按服务器时间过滤过去时段
