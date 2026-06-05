@@ -1,6 +1,6 @@
 # 宾尼健康 (Bini Health) 项目索引
 
-> **最后更新**: 2026-06-06 00:07 (AI首页欢迎区域布局优化：LOGO移左、色块右上角浅色底同色系、标准模式新增用药提醒、问候语字号16px)
+> **最后更新**: 2026-06-06 01:02 (unbound成员健康档案可见性修复：HIDDEN_STATUSES和DELETED_OR_REMOVED_STATUSES去掉MAIN_STATUS_UNBOUND，health_profile GET/PUT改用DELETED_STATUSES)
 > **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
 > **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
 > **Git 主仓库**: Codeup (codeup.aliyun.com)  
@@ -35,6 +35,7 @@ bnbbaijkgj/
 │   │   │   ├── family_management.py
 │   │   │   ├── family_member_v2.py
 │   │   │   ├── guardian_system_v13.py
+│   │   │   ├── health_profile.py   # 健康档案（本人档案CRUD、成员档案GET/PUT、过敏/病史/用药/就诊/体检报告CRUD、引导状态）
 │   │   │   ├── home_safety_v1.py   # 居家安全设备 v1
 │   │   │   ├── ai_home_care_v1.py    # 关怀版V1（仅保留user-preferences接口，其余已删除）
 │   │   │   ├── care_ai_home.py      # 关怀版 AI 首页新接口
@@ -44,6 +45,8 @@ bnbbaijkgj/
 │   │   │   └── ...
 │   │   ├── models/           # SQLAlchemy 数据模型
 │   │   ├── schemas/          # Pydantic Schema
+│   │   ├── services/         # 业务服务与常量
+│   │   │   └── family_status_constants.py  # 家庭成员状态常量（V3枚举、过滤口径DELETED/HIDDEN/ACTIVE等）
 │   │   └── database.py       # 数据库连接配置
 │   ├── migrations/           # 数据迁移脚本
 │   │   ├── migration_bucket_replace_20260604.py   # Bucket 替换 Python 版
