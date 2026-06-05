@@ -1,0 +1,10 @@
+{
+  "containers": "NAMES                                          STATUS | 6b099ed3-7175-4a78-91f4-44570c84ed27-admin     Up About a minute (healthy) | 6b099ed3-7175-4a78-91f4-44570c84ed27-h5        Up About a minute (healthy) | 6b099ed3-7175-4a78-91f4-44570c84ed27-backend   Up About a minute (healthy)",
+  "backend_health": "{\"status\":\"ok\",\"service\":\"bini-health-api\"}",
+  "h5_health": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><lin",
+  "admin_health": "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charSet=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/><link rel=\"stylesheet\" href=\"/admin/_next/static/css/2c603ba42c2b9624.css\" data-precedence=\"next\"/><link rel=\"preload\" as=\"script\" fetchPriority=\"low\" href=\"/admin/_nex",
+  "gateway_api": "{\"status\":\"ok\",\"service\":\"bini-health-api\"}",
+  "gateway_h5_http_code": "200",
+  "gateway_admin_http_code": "200",
+  "h5_logs": "- Local:        http://localhost:3001\n  - Network:      http://0.0.0.0:3001\n\n ✓ Starting...\n ✓ Ready in 210ms"
+}

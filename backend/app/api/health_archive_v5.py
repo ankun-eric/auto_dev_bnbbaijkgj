@@ -239,12 +239,15 @@ async def get_overview(
         logger.exception("[overview] medication_plan_count query failed: %s", e)
 
     # 3. 家庭成员数（含本人）
+    # [BUGFIX-FAMILY-MEMBER-COUNT-OVERVIEW-V1 2026-06-05]
+    # 修复：overview 的 family_member_count 原先直接统计 FamilyMember 全表，
+    # 没有排除 status='deleted'/'removed' 的软删除记录，导致健康 Tab 上显示的数字
+    # 比「家庭成员」列表页（通过 count_managed_family_members 统计，排除软删）多。
+    # 现在改为通过 count_managed_family_members 统一口径，与列表页/入口卡完全一致。
     family_member_count = 0
     try:
-        r3 = await db.execute(
-            select(func.count(FamilyMember.id)).where(FamilyMember.user_id == current_user.id)
-        )
-        family_member_count = int(r3.scalar() or 0)
+        from app.api.family_member_v2 import count_managed_family_members
+        family_member_count = await count_managed_family_members(db, current_user.id)
         if family_member_count == 0:
             family_member_count = 1  # 至少本人
     except Exception:  # noqa: BLE001

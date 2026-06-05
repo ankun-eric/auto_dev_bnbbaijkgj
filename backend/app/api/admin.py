@@ -2076,7 +2076,6 @@ async def admin_health_users(
         member_result = await db.execute(
             select(func.count(FamilyMember.id)).where(
                 FamilyMember.user_id == user.id,
-                FamilyMember.status != "removed",
             )
         )
         member_count = member_result.scalar() or 0
@@ -2117,7 +2116,6 @@ async def admin_health_user_members(
     members_result = await db.execute(
         select(FamilyMember).where(
             FamilyMember.user_id == user_id,
-            FamilyMember.status != "removed",
         )
     )
     members = members_result.scalars().all()

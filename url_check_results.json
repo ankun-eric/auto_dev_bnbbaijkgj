@@ -1,0 +1,4166 @@
+{
+  "round1_critical": [
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-ai-home/sos",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.680462",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-ai-home",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.677498",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-ai-home/share-location/test",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.679757",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-ai-home/today-health",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.690584",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-ai-home/card-view/test",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.686990",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-home",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687834",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-safety-rope",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.686351",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/ai-home",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.674220",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-ai-home/info-card",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687410",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/home-safety",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.681073",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/",
+      "direct_status": 200,
+      "final_status": 200,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.682624",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/care-v1/home/welcome",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.684566",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/care-v1/home/proactive-cards",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.709313",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/care-v1/sos/keywords",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.690838",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/care-v1/sos/events",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.701807",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/care/alerts/active",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.686589",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/care-v1/user-preferences",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.692854",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/health",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.676890",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/care-v1/user-preferences/ui-mode",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.027238",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/care/daily-summary",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.696848",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/auth/me",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.675912",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/family/members",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.673926",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/health/profile",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687789",
+      "error": null
+    }
+  ],
+  "round2_h5": [
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/",
+      "direct_status": 200,
+      "final_status": 200,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.699454",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/ai-home",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.693462",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/ai-home/medication-plans",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.677886",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/_not-found",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687263",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/ai-home/medication-reminder",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.677956",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/address",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.682836",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/ai-home/medication-plans/new",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.693113",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/account-security",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.691261",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/alert-redirect",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.680076",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/ai-settings",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.675676",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/appointment",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.673859",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/articles",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.670111",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-ai-home/sos",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688040",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-home",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.679057",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-ai-home/today-health",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688450",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-ai-home/info-card",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.696961",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-ai-home",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.700920",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-safety-rope",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.690888",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/cards",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.684575",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/cards/wallet",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.686915",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/checkup/compare",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.676799",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/chat-history",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.686999",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/checkout",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.689780",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/checkup",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.684233",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/coupon-center",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.683149",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/checkup/compare/select",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.695710",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/digital-human-call",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.685028",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/family",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.678569",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/customer-service",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.685050",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/devices/member",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.682630",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/experts",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.690215",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/design-system-v2-preview",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688780",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/city-select",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.695672",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/devices",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.690693",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/checkup/trend",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.698455",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/drug",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.678667",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/family-alert",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.690771",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-alerts",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688549",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/family-auth",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.686385",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/family-guardian-list",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.695038",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-plan",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.672002",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/feedback",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.682836",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/glucose",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687512",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-guide",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.692139",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/family-bindlist",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687895",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-plan/checkin",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.681505",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/family-invite",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "3.697238",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-dashboard",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "3.683863",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-plan/checkin/add",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.704599",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-plan/result",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.710751",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-plan/custom",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.680666",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-profile/my-guardians",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.699457",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-plan/statistics",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.706601",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-plan/custom/create",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.698417",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-profile/my-guardians/invite",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.681324",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-profile/archive-list",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.712667",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-plan/edit",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.696376",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-profile/v13",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.673881",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-profile",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687455",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-profile/i-guard",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.735506",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/home-safety",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.680920",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/legal/privacy-policy",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.679773",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/landing",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.683988",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/login",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.679290",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-reminders",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.691561",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/member-card",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.680224",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/legal/service-agreement",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.683352",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/medical-records/trash",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.685841",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/medical-records/all",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.676819",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/member-center",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.673113",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/medical-records",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.127466",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/invite",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "3.688093",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.683571",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.694190",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/finance",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.695093",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/dashboard",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.699020",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/finance",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.689583",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/downloads",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.684233",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/dashboard",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.682865",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/login",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.032783",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/downloads",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.690659",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/invoice",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688743",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/login",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.708188",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/invoice",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "3.683113",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/me",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.690564",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/messages",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.689139",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/profile",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.698585",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/orders",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.679447",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/reports",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.686478",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/profile/change-password",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687303",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/settlement",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.677543",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/select-store",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.679656",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/store-settings",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.674597",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/staff",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.676647",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/verify",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.680881",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/profile/force-change-password",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688087",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/reports",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.690123",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/profile/change-password",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.694748",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/wechat-bindding",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.704816",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/order-dashboard",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.677715",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/select-store",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.678802",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/messages",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.716033",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/settlement",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.700183",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/profile",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.679336",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/store-settings",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688865",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/staff",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.686658",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/verifications",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.685112",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/orders",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.103519",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/news",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.689411",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/my-addresses",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.685892",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/my-coupons",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.691563",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/pay/success",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688417",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/points/detail",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.682768",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/wechat-bindding",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.675288",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/points/product-detail",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.692866",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/my-favorites",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.677596",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/messages",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.710294",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/points/exchange-records",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688496",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/points/mall",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.042327",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/points",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.052616",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/points/records",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.690199",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/report-history",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.695649",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/products",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.686498",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/sandbox-pay",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.692219",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/symptom",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.671210",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/search",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.683146",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/refund-list",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.694922",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/scan",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.682052",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/settings",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.676175",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/search/result",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.697661",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/profile/edit",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688525",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/services",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.683498",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/unified-orders",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.671136",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/tcm",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.680594",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/tcm/loading",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.682292",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/welcome-mode",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.671975",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/tcm/archive",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "3.985886",
+      "error": null
+    }
+  ],
+  "round3_admin": [
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-call-config",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.670540",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/",
+      "direct_status": 200,
+      "final_status": 200,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.692188",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/abnormal-thresholds",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.689766",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-center/disclaimers",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.699670",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-config/chat-timeout",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.670683",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/_not-found",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.696356",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-config",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.684279",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/admin-settlements",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.682870",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-config/video-consult",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.679866",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-center/prompts",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.686851",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-center/sensitive-words",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.681720",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/alert-logs",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.677214",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/checkup-details",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.677974",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/content/categories",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.684729",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/cos-config",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687812",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/bottom-nav",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687873",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/content/news",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.691864",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/chat-records",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.696708",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/constitution-content",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687540",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/alert-templates",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.695513",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/content/articles",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.132240",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/audit/center",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "3.714003",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/audit/phones",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "3.693849",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/city-management",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "3.714630",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/fallback-config",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.685711",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/customer-service",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.692373",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/experts",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.708414",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/disease-presets",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.699938",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/guardian-relations",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.679415",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/emergency-sources",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.689806",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/family-management",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687018",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/digital-humans",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.099853",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/dashboard",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.149161",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/drug-details",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.142631",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/function-buttons",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.112202",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/email-notify",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "3.717037",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/health-plan/categories",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.699991",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/health-records/statistics",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.694963",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/health-plan/recommended",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.707057",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/home-banners",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.709168",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/login",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687899",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/home-safety",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.710547",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/home-settings",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.692205",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/knowledge",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687285",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/knowledge/stats",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.689675",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/home-settings/ai-home-config",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.705503",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/health-records",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.698552",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/home-settings/ai-home-config/logs",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688786",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/map-config",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.711539",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/merchant-categories",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.703675",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/merchant/accounts",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.693238",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/notices",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.678313",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/points/levels",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.673777",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/merchant/stores",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.685602",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/payment-config",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.683827",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ocr-config",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.678013",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ocr-global-config",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.673662",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/merchant/business-config",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688710",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/membership/plans",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.103240",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/membership/free-quota",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.131199",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/cards",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.694871",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/partners",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.680950",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/categories",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.709998",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/points/mall",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.692980",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/cards/dashboard",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.700119",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/appointment-forms",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.708174",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/new-user-coupons",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.690579",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/points/rules",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.691961",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/products",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.684370",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/orders/dashboard",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.685893",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/orders",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.678417",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/coupons",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687466",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/store-bindding",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.696484",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/visits",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.693872",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/profile",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688899",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/prompt-templates",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.678332",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/redemptions",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.686045",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/tags",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687520",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/questionnaire-templates",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688380",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/relation-types",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.583970",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/profile/change-password",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.662368",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/statistics",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "3.609797",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/referral",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "3.688377",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/search-config",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.672164",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/settings",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.678837",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/search/statistics",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687503",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/search/block-words",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.676489",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/share-config",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.683589",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/search/recommend",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688031",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/search/asr-config",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.692436",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/sms",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.693229",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/system/seed-import",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.682474",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/tcm-config",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.684600",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/system-messages/send",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.675330",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/system-messages",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.672076",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/system/sdk-health",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.682928",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/tts-config",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.676737",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/theme-config",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.677145",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/voice-service",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.680386",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/wechat-push",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.682916",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/users",
+      "direct_status": 308,
+      "final_status": 308,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.695502",
+      "error": null
+    }
+  ],
+  "round4_api_sample": [
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ai-center/prompts/{chat_type}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.690579",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ai-call/config",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.704652",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ai-center/sensitive-words",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.696210",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ai-center/disclaimers",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.694599",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ai-center/prompts",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.699084",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ai-config",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.686919",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ai-config/active",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.711805",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ai-config/sync-check",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.691844",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ai-center/disclaimers/{chat_type}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.712440",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ai-home-config",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.689556",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/abnormal-thresholds",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.731036",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ai-call/membership-levels",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.715459",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/alert-logs/export",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.677930",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ai-home-config/logs",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.696305",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/app-settings/chat-idle-timeout",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.691290",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/appointment-forms/{form_id}/fields",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.685413",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/alert-logs",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.703856",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/audit/requests",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.685234",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ai-model-templates",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.691879",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/alert-templates",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.685797",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ai-model-templates/icons",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.702230",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/article-categories",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.722572",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/body-part-dict",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.696661",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/audit/requests/{request_id}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.698629",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/chat-sessions/{session_id}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.696049",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/cards/{card_id}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.708093",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/chat-sessions/{session_id}/export",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.702240",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/bottom-nav",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688752",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/checkup-details/{detail_id}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.686489",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/checkin-records",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.713091",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/cities/hot",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.696743",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/chat-sessions",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.738804",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/cities/list",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.713628",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/cards/_lookup/merchants",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.697818",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/checkup-details/statistics",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.701050",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/checkup-details",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.716973",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/constitution/content-configs",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.676236",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/constitution/meta",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.690311",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/coupons/active-product-count",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.675308",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/content/articles",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.031338",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/cos/upload-limits",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.075414",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/coupons",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.033437",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/cos/migration/progress",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.422613",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/cos/config",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.457428",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/coupons/category-product-count",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.052653",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/cos/files",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.695082",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/coupons/categories-by-ids",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.681483",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/cos/usage",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.655846",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/coupons/category-tree",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.701134",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/coupons/product-picker",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.691384",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/coupons/offline-reason-options",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.686575",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/coupons/scope-limits",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687708",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/coupons/redeem-code-batches/{batch_id}/codes/export",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.695296",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/coupons/redeem-code-batches/{batch_id}/codes",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.692062",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/coupons/{coupon_id}/grants/export",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.697336",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/coupons/type-descriptions",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.694249",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/coupons/{coupon_id}/grants",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.691044",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/dashboard",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.685551",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/coupons/redeem-code-batches",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.715310",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/coupons/validity-options",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.692690",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/drug-details/{detail_id}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.696880",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/digital-humans",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.703750",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/drug-details/statistics",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.702043",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/dashboard/stats",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.700794",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/disease-presets",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.704160",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/drug-details",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.697396",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/family-management",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.678527",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/experts",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.689885",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/email-notify/config",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.697945",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/emergency-sources",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688491",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/email-notify/logs",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.703990",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/drug-details/{detail_id}/conversation",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.091632",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/health-check-templates",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.698458",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/goods/{goods_id}/tags",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.699276",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/health-plan/user-checkin-details",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.684709",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/health-check-templates/{tpl_id}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.717457",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/family-management/{mgmt_id}/detail",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.732361",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/guardian/relations",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.747404",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/health-plan/template-categories",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.714053",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/health-plan/recommended-plans/{plan_id}/tasks",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.728180",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/feedback",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.735932",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/health-plan/recommended-plans",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.745516",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/function-buttons",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.714307",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/health-plan/checkin-statistics",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.715280",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/health-plan/user-daily-summary",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.684873",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/health/sdk",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.693767",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/health-plan/user-checkin-plans",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.701763",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/health/users/{user_id}/members",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.683378",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/knowledge-bases",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.711502",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/home-banners",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.694604",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/knowledge-bases/scene-bindings",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.673499",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/health/users",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.709102",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/knowledge-bases/import/{task_id}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.683761",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/home-config",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.706772",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/knowledge-bases/fallback-config",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.676903",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/knowledge-bases/search-config",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688587",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/knowledge-bases/stats/top-hits",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.689200",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/knowledge-bases/stats/missed-questions",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.702319",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/map-config/copy-domain",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.708247",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/knowledge-bases/stats/overview",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.706188",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/knowledge-bases/{kb_id}/entries",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.705453",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/knowledge-bases/stats/distribution",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.722574",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/map-config/test-logs",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688254",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/map-config",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.696414",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/knowledge-bases/stats/trend",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.689354",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/maps/poi-search",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.683797",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/medication-library-pending",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688037",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/membership/free-quota",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.673523",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/news",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.694474",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/merchant-role-templates",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.685374",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/merchant/accounts",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.691912",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/merchant/stores/{store_id}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.699550",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/merchant/stores",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.698685",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/membership/plans/{plan_id}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.681110",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/membership/plans",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.685458",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/messages/stats",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.684782",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/messages/{message_id}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.700481",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/merchant-categories",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.716772",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/messages",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.044781",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/merchant/accounts/{user_id}/staff",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.042623",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ocr/statistics",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.690887",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/news/tags/suggest",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687708",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ocr/scenes",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687914",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/notices",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.699649",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ocr/records",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687640",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ocr/upload-limits",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.699969",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/orders/unified",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.683945",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/orders/statistics",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.685843",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ocr/config",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.703864",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/news/{news_id}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.702660",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/ocr/providers",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.691717",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/orders/unified/{order_id}/refund-detail",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.677491",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/payment-channels/{channel_code}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.689775",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/points/exchange-records",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.689863",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/orders/v2/stats",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.694584",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/partners/{partner_id}/reconciliation",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.703342",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/points/mall/{item_id}/change-logs",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.686405",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/points/mall",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.682559",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/points/coupons/{coupon_id}/stock-info",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.707797",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/products",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688816",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/orders/v2/enums",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.709289",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/payment-channels/{channel_code}/default-notify-url",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.120583",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/points/levels",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.700961",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/points/rules",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688691",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/products/services",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.685303",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/products/{product_id}/form-fields",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.684659",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/products/{product_id}/stores",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.684827",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/questionnaire/templates",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.679379",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/profile",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.700351",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/products/{product_id}/skus",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.698295",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/products/{product_id}/detail",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.092356",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/products/categories",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.696410",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/prompt-templates/by-id/{template_id}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.698293",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/prompt-templates/{prompt_type}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.691740",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/prompt-templates/all/flat",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.116388",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/prompt-type-config/{config_id}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.542836",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/search/recommend-words",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.699666",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/seed-packs",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.690979",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/referral/stats",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.682640",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/relation-types",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.711452",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/search/asr-config",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.702658",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/seed-packs/{code}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.680472",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/questionnaire/templates/{template_id}/recommend",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.700894",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/services/categories",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.700278",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/services/items",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.688775",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/settings/protocol",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.695649",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/search/block-words",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.724304",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/search/statistics",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.677043",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/settings/timeout-policy",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.699959",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/settlements/merchant-options",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.708151",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/settings/reminder-advance",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.707958",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/settlements/store-options",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.709386",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/skus/{sku_id}/used",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.696210",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/settlements",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.701995",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/sms/config",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.694371",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/settings/tts-config",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.713724",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/settlements/{sid}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.691208",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/settings/share-config",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.724913",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/sms/logs",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.690775",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/settings/register",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.727563",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/store-bindding/products/{product_id}/bound-count",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.683531",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/store-bindding/stores",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.699086",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/statistics/trends",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.701412",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/stores/recommend",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.687954",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/symptom-tags",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.683185",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/sms/templates",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.700840",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/statistics/refund-reasons",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.712385",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/store-bindding/stores/{store_id}/products",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.140476",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/statistics/sales",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.132868",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/system/configs",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.115190",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/store-bindding/products/{product_id}/stores",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "1.130568",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/store-bindding/products",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.686951",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/tcm/config",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.683959",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/users",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.694908",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/themes/{theme_id}",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.694956",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/users/{user_id}/membership",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.697577",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/themes",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.691078",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/tags/{tag_id}/goods",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.685320",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/voice-service/config",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.696576",
+      "error": null
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/admin/wechat-push/config",
+      "direct_status": 405,
+      "final_status": 405,
+      "redirect_url": "",
+      "ssl_verify": "0",
+      "time": "0.690106",
+      "error": null
+    }
+  ],
+  "stats": {
+    "critical_total": 23,
+    "h5_total": 137,
+    "admin_total": 101,
+    "api_sample_total": 200,
+    "grand_total": 461
+  }
+}

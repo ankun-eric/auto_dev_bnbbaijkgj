@@ -1,73 +1,53 @@
-import paramiko, time
+"""Final verification: account check, API test, SSL check, git fix."""
+import paramiko, sys
 
-HOST = "newbb.test.bangbangvip.com"
-PORT = 22
-USER = "ubuntu"
-PWD = "Newbang888"
-DEPLOY_ID = "6b099ed3-7175-4a78-91f4-44570c84ed27"
+HOST, USER, PASS = "newbb.test.bangbangvip.com", "ubuntu", "Newbang888"
+DID = "6b099ed3-7175-4a78-91f4-44570c84ed27"
+PDIR = f"/home/ubuntu/{DID}"
+DOMAIN = f"{DID}.noob-ai.test.bangbangvip.com"
 
-client = paramiko.SSHClient()
-client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-client.connect(HOST, port=PORT, username=USER, password=PWD, timeout=30,
-               look_for_keys=False, allow_agent=False)
+def run(ssh, cmd, timeout=30):
+    print(f"\n>>> {cmd[:120]}", flush=True)
+    stdin, stdout, stderr = ssh.exec_command(cmd, timeout=timeout)
+    ec = stdout.channel.recv_exit_status()
+    out = stdout.read().decode('utf-8', errors='replace')
+    err = stderr.read().decode('utf-8', errors='replace')
+    print(f"EXIT={ec}", flush=True)
+    if out.strip(): print(out[:600], flush=True)
+    if err.strip() and ec != 0: print("ERR:", err[:300], flush=True)
+    return ec, out, err
 
-def run(cmd, timeout=30):
-    chan = client.get_transport().open_session()
-    chan.exec_command(cmd)
-    out = b""
-    deadline = time.time() + timeout
-    while not chan.exit_status_ready():
-        if time.time() > deadline:
-            break
-        if chan.recv_ready():
-            out += chan.recv(65536)
-        time.sleep(0.1)
-    try:
-        out += chan.recv(65536)
-    except:
-        pass
-    return out.decode(errors='replace'), chan.exit_status
+ssh = paramiko.SSHClient()
+ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+ssh.connect(HOST, 22, USER, PASS, timeout=15)
+print("Connected", flush=True)
 
-print("=" * 70)
-print("FINAL VERIFICATION REPORT")
-print("=" * 70)
+# Fix git unstaged changes on server
+print("\n=== Fix git state ===", flush=True)
+run(ssh, f"cd {PDIR} && git checkout -- deploy/docker-compose.prod.yml 2>&1")
 
-# 1. Container status
-print("\n[1] Container Status:")
-out, _ = run(f"docker ps --filter name={DEPLOY_ID} --format 'table {{{{.Names}}}}\t{{{{.Status}}}}\t{{{{.Image}}}}'")
-print(out)
+# Final container status
+print("\n=== Container Status ===", flush=True)
+run(ssh, f"docker ps --filter name={DID} --format 'table {{{{.Names}}}}\t{{{{.Status}}}}'")
 
-# 2. Nginx status
-print("[2] Nginx Status:")
-out, _ = run(f"docker exec gateway-nginx sh -c 'nginx -T 2>&1 | grep -c \"{DEPLOY_ID}\"'")
-print(f"  References to {DEPLOY_ID} in nginx config: {out.strip()}")
+# Check accounts via backend API
+print("\n=== Account check via API ===", flush=True)
+run(ssh, "docker exec " + DID + "-backend python3 -c \"import urllib.request; resp=urllib.request.urlopen('http://127.0.0.1:8000/api/health'); print('Health:', resp.read().decode())\" 2>&1", timeout=15)
 
-# 3. Migration log
-print("\n[3] Migration Log:")
-out, _ = run(f"docker exec {DEPLOY_ID}-backend python -c \"import asyncio; from app.core.database import async_session; from sqlalchemy import text; async def q(): async with async_session() as db: r = await db.execute(text('SELECT table_name, column_name, affected_rows FROM _migration_bucket_log ORDER BY affected_rows DESC LIMIT 10')); [print(f'  {row[0]}.{row[1]}: {row[2]} rows') for row in r.fetchall()]; asyncio.run(q())\" 2>&1")
-print(out[:500])
+# Check default admin account
+print("\n=== Check admin account ===", flush=True)
+run(ssh, "docker exec " + DID + "-backend python3 -c \"import sys; sys.path.insert(0,'/app'); from app.database import engine; from sqlalchemy import text; conn=engine.connect(); rows=conn.execute(text('SELECT username, role, is_active FROM users LIMIT 5')).fetchall(); [print(r) for r in rows]; conn.close()\" 2>&1", timeout=15)
 
-# 4. Default admin account check
-print("\n[4] Default Admin Account Check:")
-out, _ = run(f"docker exec {DEPLOY_ID}-backend python -c \"import asyncio; from app.core.database import async_session; from sqlalchemy import text; async def q(): async with async_session() as db: r = await db.execute(text(\\\"SELECT username FROM users WHERE username='admin' LIMIT 1\\\")); rows = r.fetchall(); print('Admin exists' if rows else 'Admin NOT found'); asyncio.run(q())\" 2>&1")
-print(f"  {out.strip()}")
+# SSL check
+print("\n=== SSL Check ===", flush=True)
+run(ssh, f"curl -skI https://{DOMAIN}/api/health 2>&1 | head -10", timeout=15)
 
-# 5. External access test
-print("\n[5] External HTTPS Access Test:")
-out, _ = run(f"curl -sk -o /dev/null -w '%{{http_code}}' https://{DEPLOY_ID}.noob-ai.test.bangbangvip.com/api/health 2>&1")
-print(f"  /api/health: HTTP {out.strip()}")
-out, _ = run(f"curl -sk -o /dev/null -w '%{{http_code}}' https://{DEPLOY_ID}.noob-ai.test.bangbangvip.com/ 2>&1")
-print(f"  / (H5): HTTP {out.strip()}")
-out, _ = run(f"curl -sk -o /dev/null -w '%{{http_code}}' https://{DEPLOY_ID}.noob-ai.test.bangbangvip.com/admin/ 2>&1")
-print(f"  /admin/: HTTP {out.strip()}")
+# Gateway routing test
+print("\n=== Gateway routing test ===", flush=True)
+run(ssh, f"curl -sk https://{DOMAIN}/ 2>&1 | head -5", timeout=15)
+run(ssh, f"curl -sk https://{DOMAIN}/admin/ 2>&1 | head -5", timeout=15)
 
-# 6. SSL Certificate
-print("\n[6] SSL Certificate:")
-out, _ = run(f"curl -vIk https://{DEPLOY_ID}.noob-ai.test.bangbangvip.com/ 2>&1 | grep -iE 'subject:|issuer:|expire|SSL connection' | head -5")
-print(f"  {out.strip()[:300]}")
-
-print("\n" + "=" * 70)
-print("VERIFICATION COMPLETE")
-print("=" * 70)
-
-client.close()
+ssh.close()
+print("\n=== VERIFICATION COMPLETE ===", flush=True)
+print(f"Project URL: https://{DOMAIN}", flush=True)
+print(f"Admin URL: https://{DOMAIN}/admin/", flush=True)

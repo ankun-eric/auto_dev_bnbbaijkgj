@@ -51,7 +51,6 @@ class V3StateInfo(TypedDict):
 # 老枚举到新枚举的兜底映射(防止迁移期残留)
 _LEGACY_STATUS_MAP = {
     "active": ("bound", "bound"),
-    "removed": ("deleted", "self_deleted"),
 }
 
 

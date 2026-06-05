@@ -1,0 +1,14 @@
+Warning: Permanently added 'newbb.test.bangbangvip.com' (ED25519) to the list of known hosts.
+[eval]:1
+const http=require('http');http.get('http://localhost:3000/admin',r= d='';r.on('data',c==c);r.on('end',()=,d.substring(0,200)))});setTimeout(()=,5000)
+                                                                       ^^
+
+SyntaxError: missing ) after argument list
+    at makeContextifyScript (node:internal/vm:185:14)
+    at node:internal/process/execution:107:22
+    at [eval]-wrapper:6:24
+    at runScript (node:internal/process/execution:101:62)
+    at evalScript (node:internal/process/execution:133:3)
+    at node:internal/main/eval_string:51:3
+
+Node.js v20.20.2

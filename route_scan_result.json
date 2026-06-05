@@ -1,0 +1,7654 @@
+{
+  "backend_routes": [
+    {
+      "method": "GET",
+      "path": "/api/admin/abnormal-thresholds",
+      "file": "/app/app/api/admin_family_guardian.py",
+      "line": 153
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-call/config",
+      "file": "/app/app/api/ai_call.py",
+      "line": 381
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-call/membership-levels",
+      "file": "/app/app/api/ai_call.py",
+      "line": 303
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-center/disclaimers",
+      "file": "/app/app/api/ai_center.py",
+      "line": 164
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-center/disclaimers/{chat_type}",
+      "file": "/app/app/api/ai_center.py",
+      "line": 174
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-center/prompts",
+      "file": "/app/app/api/ai_center.py",
+      "line": 116
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-center/prompts/{chat_type}",
+      "file": "/app/app/api/ai_center.py",
+      "line": 126
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-center/sensitive-words",
+      "file": "/app/app/api/ai_center.py",
+      "line": 28
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-config",
+      "file": "/app/app/api/admin.py",
+      "line": 223
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-config/active",
+      "file": "/app/app/api/admin.py",
+      "line": 260
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-config/sync-check",
+      "file": "/app/app/api/admin.py",
+      "line": 272
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-home-config",
+      "file": "/app/app/api/ai_home_config.py",
+      "line": 387
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-home-config/logs",
+      "file": "/app/app/api/ai_home_config.py",
+      "line": 514
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-model-templates",
+      "file": "/app/app/api/admin.py",
+      "line": 511
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai-model-templates/icons",
+      "file": "/app/app/api/admin.py",
+      "line": 506
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/alert-logs",
+      "file": "/app/app/api/admin_family_guardian.py",
+      "line": 280
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/alert-logs/export",
+      "file": "/app/app/api/admin_family_guardian.py",
+      "line": 362
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/alert-templates",
+      "file": "/app/app/api/admin_family_guardian.py",
+      "line": 49
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/app-settings/chat-idle-timeout",
+      "file": "/app/app/api/app_settings.py",
+      "line": 48
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/appointment-forms/{form_id}/fields",
+      "file": "/app/app/api/appointment_form_admin.py",
+      "line": 154
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/article-categories",
+      "file": "/app/app/api/admin_news.py",
+      "line": 41
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/audit/requests",
+      "file": "/app/app/api/audit.py",
+      "line": 232
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/audit/requests/{request_id}",
+      "file": "/app/app/api/audit.py",
+      "line": 263
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/body-part-dict",
+      "file": "/app/app/api/health_self_check.py",
+      "line": 572
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/bottom-nav",
+      "file": "/app/app/api/bottom_nav.py",
+      "line": 55
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cards/_lookup/merchants",
+      "file": "/app/app/api/cards_admin.py",
+      "line": 44
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cards/{card_id}",
+      "file": "/app/app/api/cards_admin.py",
+      "line": 263
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/chat-sessions",
+      "file": "/app/app/api/chat_history.py",
+      "line": 93
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/chat-sessions/{session_id}",
+      "file": "/app/app/api/chat_history.py",
+      "line": 183
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/chat-sessions/{session_id}/export",
+      "file": "/app/app/api/chat_history.py",
+      "line": 233
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/checkin-records",
+      "file": "/app/app/api/product_admin.py",
+      "line": 1967
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/checkup-details",
+      "file": "/app/app/api/ocr_details.py",
+      "line": 95
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/checkup-details/statistics",
+      "file": "/app/app/api/ocr_details.py",
+      "line": 56
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/checkup-details/{detail_id}",
+      "file": "/app/app/api/ocr_details.py",
+      "line": 157
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cities/hot",
+      "file": "/app/app/api/city.py",
+      "line": 151
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cities/list",
+      "file": "/app/app/api/city.py",
+      "line": 117
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/constitution/content-configs",
+      "file": "/app/app/api/constitution.py",
+      "line": 765
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/constitution/meta",
+      "file": "/app/app/api/constitution.py",
+      "line": 745
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/content/articles",
+      "file": "/app/app/api/admin.py",
+      "line": 1270
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cos/config",
+      "file": "/app/app/api/cos.py",
+      "line": 63
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cos/files",
+      "file": "/app/app/api/cos.py",
+      "line": 251
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cos/migration/progress",
+      "file": "/app/app/api/cos.py",
+      "line": 766
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cos/upload-limits",
+      "file": "/app/app/api/cos.py",
+      "line": 426
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/cos/usage",
+      "file": "/app/app/api/cos.py",
+      "line": 298
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons",
+      "file": "/app/app/api/product_admin.py",
+      "line": 1507
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/active-product-count",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 596
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/categories-by-ids",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 538
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/category-product-count",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 572
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/category-tree",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 507
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/offline-reason-options",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 685
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/product-picker",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 386
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/redeem-code-batches",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 1136
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/redeem-code-batches/{batch_id}/codes",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 1210
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/redeem-code-batches/{batch_id}/codes/export",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 1391
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/scope-limits",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 369
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/type-descriptions",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 360
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/validity-options",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 349
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/{coupon_id}/grants",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 769
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/coupons/{coupon_id}/grants/export",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 824
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/dashboard",
+      "file": "/app/app/api/admin.py",
+      "line": 1553
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/dashboard/stats",
+      "file": "/app/app/api/admin.py",
+      "line": 1554
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/digital-humans",
+      "file": "/app/app/api/function_button.py",
+      "line": 807
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/disease-presets",
+      "file": "/app/app/api/admin.py",
+      "line": 2276
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/drug-details",
+      "file": "/app/app/api/ocr_details.py",
+      "line": 214
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/drug-details/statistics",
+      "file": "/app/app/api/ocr_details.py",
+      "line": 175
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/drug-details/{detail_id}",
+      "file": "/app/app/api/ocr_details.py",
+      "line": 276
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/drug-details/{detail_id}/conversation",
+      "file": "/app/app/api/ocr_details.py",
+      "line": 291
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/email-notify/config",
+      "file": "/app/app/api/email_notify.py",
+      "line": 54
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/email-notify/logs",
+      "file": "/app/app/api/email_notify.py",
+      "line": 99
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/emergency-sources",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 1305
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/experts",
+      "file": "/app/app/api/admin.py",
+      "line": 1694
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/family-management",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 1537
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/family-management/{mgmt_id}/detail",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 1638
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/feedback",
+      "file": "/app/app/api/feedback.py",
+      "line": 60
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/function-buttons",
+      "file": "/app/app/api/function_button.py",
+      "line": 331
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/goods/{goods_id}/tags",
+      "file": "/app/app/api/tag_recommend.py",
+      "line": 290
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/guardian/relations",
+      "file": "/app/app/api/guardian_system.py",
+      "line": 43
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health-check-templates",
+      "file": "/app/app/api/health_self_check.py",
+      "line": 713
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health-check-templates/{tpl_id}",
+      "file": "/app/app/api/health_self_check.py",
+      "line": 754
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health-plan/checkin-statistics",
+      "file": "/app/app/api/admin_health_plan.py",
+      "line": 347
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health-plan/recommended-plans",
+      "file": "/app/app/api/admin_health_plan.py",
+      "line": 42
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health-plan/recommended-plans/{plan_id}/tasks",
+      "file": "/app/app/api/admin_health_plan.py",
+      "line": 175
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health-plan/template-categories",
+      "file": "/app/app/api/admin_health_plan.py",
+      "line": 264
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health-plan/user-checkin-details",
+      "file": "/app/app/api/admin_health_plan.py",
+      "line": 424
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health-plan/user-checkin-plans",
+      "file": "/app/app/api/admin_health_plan.py",
+      "line": 613
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health-plan/user-daily-summary",
+      "file": "/app/app/api/admin_health_plan.py",
+      "line": 504
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health/sdk",
+      "file": "/app/app/api/admin_sdk_health.py",
+      "line": 24
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health/users",
+      "file": "/app/app/api/admin.py",
+      "line": 2054
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/health/users/{user_id}/members",
+      "file": "/app/app/api/admin.py",
+      "line": 2106
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/home-banners",
+      "file": "/app/app/api/home_config.py",
+      "line": 165
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/home-config",
+      "file": "/app/app/api/home_config.py",
+      "line": 106
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases",
+      "file": "/app/app/api/knowledge.py",
+      "line": 53
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/fallback-config",
+      "file": "/app/app/api/knowledge.py",
+      "line": 135
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/import/{task_id}",
+      "file": "/app/app/api/knowledge.py",
+      "line": 400
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/scene-bindings",
+      "file": "/app/app/api/knowledge.py",
+      "line": 183
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/search-config",
+      "file": "/app/app/api/knowledge.py",
+      "line": 100
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/stats/distribution",
+      "file": "/app/app/api/knowledge.py",
+      "line": 356
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/stats/missed-questions",
+      "file": "/app/app/api/knowledge.py",
+      "line": 284
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/stats/overview",
+      "file": "/app/app/api/knowledge.py",
+      "line": 225
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/stats/top-hits",
+      "file": "/app/app/api/knowledge.py",
+      "line": 259
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/stats/trend",
+      "file": "/app/app/api/knowledge.py",
+      "line": 313
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/knowledge-bases/{kb_id}/entries",
+      "file": "/app/app/api/knowledge.py",
+      "line": 515
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/map-config",
+      "file": "/app/app/api/maps.py",
+      "line": 443
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/map-config/copy-domain",
+      "file": "/app/app/api/maps.py",
+      "line": 615
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/map-config/test-logs",
+      "file": "/app/app/api/maps.py",
+      "line": 602
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/maps/poi-search",
+      "file": "/app/app/api/maps.py",
+      "line": 317
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/medication-library-pending",
+      "file": "/app/app/api/medication_library_v3.py",
+      "line": 481
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/membership/free-quota",
+      "file": "/app/app/api/membership.py",
+      "line": 244
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/membership/plans",
+      "file": "/app/app/api/membership.py",
+      "line": 118
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/membership/plans/{plan_id}",
+      "file": "/app/app/api/membership.py",
+      "line": 157
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/merchant-categories",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 152
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/merchant-role-templates",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 1657
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/merchant/accounts",
+      "file": "/app/app/api/admin_merchant.py",
+      "line": 899
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/merchant/accounts/{user_id}/staff",
+      "file": "/app/app/api/admin_merchant.py",
+      "line": 931
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/merchant/stores",
+      "file": "/app/app/api/admin_merchant.py",
+      "line": 480
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/merchant/stores/{store_id}",
+      "file": "/app/app/api/admin_merchant.py",
+      "line": 788
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/messages",
+      "file": "/app/app/api/admin_messages.py",
+      "line": 22
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/messages/stats",
+      "file": "/app/app/api/admin_messages.py",
+      "line": 146
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/messages/{message_id}",
+      "file": "/app/app/api/admin_messages.py",
+      "line": 168
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/news",
+      "file": "/app/app/api/admin_news.py",
+      "line": 162
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/news/tags/suggest",
+      "file": "/app/app/api/admin_news.py",
+      "line": 198
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/news/{news_id}",
+      "file": "/app/app/api/admin_news.py",
+      "line": 214
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/notices",
+      "file": "/app/app/api/notice.py",
+      "line": 55
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ocr/config",
+      "file": "/app/app/api/report.py",
+      "line": 1002
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ocr/providers",
+      "file": "/app/app/api/ocr.py",
+      "line": 66
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ocr/records",
+      "file": "/app/app/api/ocr.py",
+      "line": 464
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ocr/scenes",
+      "file": "/app/app/api/ocr.py",
+      "line": 209
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ocr/statistics",
+      "file": "/app/app/api/ocr.py",
+      "line": 157
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ocr/upload-limits",
+      "file": "/app/app/api/ocr.py",
+      "line": 299
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/orders/statistics",
+      "file": "/app/app/api/product_admin.py",
+      "line": 1859
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/orders/unified",
+      "file": "/app/app/api/product_admin.py",
+      "line": 964
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/orders/unified/{order_id}/refund-detail",
+      "file": "/app/app/api/product_admin.py",
+      "line": 1316
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/orders/v2/enums",
+      "file": "/app/app/api/product_admin.py",
+      "line": 1379
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/orders/v2/stats",
+      "file": "/app/app/api/product_admin.py",
+      "line": 1431
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/partners/{partner_id}/reconciliation",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 1495
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/payment-channels/{channel_code}",
+      "file": "/app/app/api/payment_config.py",
+      "line": 371
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/payment-channels/{channel_code}/default-notify-url",
+      "file": "/app/app/api/payment_config.py",
+      "line": 672
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/points/coupons/{coupon_id}/stock-info",
+      "file": "/app/app/api/points_admin.py",
+      "line": 500
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/points/exchange-records",
+      "file": "/app/app/api/points_admin.py",
+      "line": 522
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/points/levels",
+      "file": "/app/app/api/admin.py",
+      "line": 1800
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/points/mall",
+      "file": "/app/app/api/points_admin.py",
+      "line": 156
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/points/mall/{item_id}/change-logs",
+      "file": "/app/app/api/points_admin.py",
+      "line": 459
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/points/rules",
+      "file": "/app/app/api/admin.py",
+      "line": 1446
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/products",
+      "file": "/app/app/api/product_admin.py",
+      "line": 500
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/products/categories",
+      "file": "/app/app/api/product_admin.py",
+      "line": 368
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/products/services",
+      "file": "/app/app/api/points_admin.py",
+      "line": 591
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/products/{product_id}/detail",
+      "file": "/app/app/api/product_admin.py",
+      "line": 537
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/products/{product_id}/form-fields",
+      "file": "/app/app/api/product_admin.py",
+      "line": 857
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/products/{product_id}/skus",
+      "file": "/app/app/api/product_admin.py",
+      "line": 776
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/products/{product_id}/stores",
+      "file": "/app/app/api/product_admin.py",
+      "line": 2146
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/profile",
+      "file": "/app/app/api/account_security.py",
+      "line": 227
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/prompt-templates/all/flat",
+      "file": "/app/app/api/prompt_templates.py",
+      "line": 317
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/prompt-templates/by-id/{template_id}",
+      "file": "/app/app/api/prompt_templates.py",
+      "line": 374
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/prompt-templates/{prompt_type}",
+      "file": "/app/app/api/prompt_templates.py",
+      "line": 180
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/prompt-type-config/{config_id}",
+      "file": "/app/app/api/prompt_type_config.py",
+      "line": 58
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/questionnaire/templates",
+      "file": "/app/app/api/questionnaire.py",
+      "line": 2205
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/questionnaire/templates/{template_id}/recommend",
+      "file": "/app/app/api/tag_recommend.py",
+      "line": 336
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/referral/stats",
+      "file": "/app/app/api/admin.py",
+      "line": 719
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/relation-types",
+      "file": "/app/app/api/admin.py",
+      "line": 2188
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/search/asr-config",
+      "file": "/app/app/api/admin_search.py",
+      "line": 315
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/search/block-words",
+      "file": "/app/app/api/admin_search.py",
+      "line": 193
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/search/recommend-words",
+      "file": "/app/app/api/admin_search.py",
+      "line": 39
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/search/statistics",
+      "file": "/app/app/api/admin_search.py",
+      "line": 125
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/seed-packs",
+      "file": "/app/app/api/seed_import.py",
+      "line": 55
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/seed-packs/{code}",
+      "file": "/app/app/api/seed_import.py",
+      "line": 72
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/services/categories",
+      "file": "/app/app/api/admin.py",
+      "line": 808
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/services/items",
+      "file": "/app/app/api/admin.py",
+      "line": 866
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settings/protocol",
+      "file": "/app/app/api/admin.py",
+      "line": 1988
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settings/register",
+      "file": "/app/app/api/admin.py",
+      "line": 2022
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settings/reminder-advance",
+      "file": "/app/app/api/product_admin.py",
+      "line": 2253
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settings/share-config",
+      "file": "/app/app/api/chat_share.py",
+      "line": 367
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settings/timeout-policy",
+      "file": "/app/app/api/product_admin.py",
+      "line": 2218
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settings/tts-config",
+      "file": "/app/app/api/tts.py",
+      "line": 94
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settlements",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 1144
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settlements/merchant-options",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 1292
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settlements/store-options",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 1305
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/settlements/{sid}",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 1337
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/skus/{sku_id}/used",
+      "file": "/app/app/api/product_admin.py",
+      "line": 813
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/sms/config",
+      "file": "/app/app/api/sms.py",
+      "line": 89
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/sms/logs",
+      "file": "/app/app/api/sms.py",
+      "line": 272
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/sms/templates",
+      "file": "/app/app/api/sms.py",
+      "line": 172
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/statistics/refund-reasons",
+      "file": "/app/app/api/product_admin.py",
+      "line": 1788
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/statistics/sales",
+      "file": "/app/app/api/product_admin.py",
+      "line": 1623
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/statistics/trends",
+      "file": "/app/app/api/product_admin.py",
+      "line": 1727
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/store-bindding/products",
+      "file": "/app/app/api/product_admin.py",
+      "line": 2293
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/store-bindding/products/{product_id}/bound-count",
+      "file": "/app/app/api/product_admin.py",
+      "line": 2654
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/store-bindding/products/{product_id}/stores",
+      "file": "/app/app/api/product_admin.py",
+      "line": 2408
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/store-bindding/stores",
+      "file": "/app/app/api/product_admin.py",
+      "line": 2353
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/store-bindding/stores/{store_id}/products",
+      "file": "/app/app/api/product_admin.py",
+      "line": 2471
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/stores/recommend",
+      "file": "/app/app/api/product_admin.py",
+      "line": 2075
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/symptom-tags",
+      "file": "/app/app/api/product_admin.py",
+      "line": 2059
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/system/configs",
+      "file": "/app/app/api/admin.py",
+      "line": 1653
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/tags/{tag_id}/goods",
+      "file": "/app/app/api/tag_recommend.py",
+      "line": 255
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/tcm/config",
+      "file": "/app/app/api/tcm_config.py",
+      "line": 38
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/themes",
+      "file": "/app/app/api/themes.py",
+      "line": 177
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/themes/{theme_id}",
+      "file": "/app/app/api/themes.py",
+      "line": 192
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/users",
+      "file": "/app/app/api/admin.py",
+      "line": 602
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/users/{user_id}/membership",
+      "file": "/app/app/api/member_center_v2.py",
+      "line": 498
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/voice-service/config",
+      "file": "/app/app/api/function_button.py",
+      "line": 878
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/wechat-push/config",
+      "file": "/app/app/api/wechat_push.py",
+      "line": 43
+    },
+    {
+      "method": "GET",
+      "path": "/api/ai-call/quota",
+      "file": "/app/app/api/ai_call.py",
+      "line": 271
+    },
+    {
+      "method": "GET",
+      "path": "/api/ai-home-config",
+      "file": "/app/app/api/ai_home_config.py",
+      "line": 372
+    },
+    {
+      "method": "GET",
+      "path": "/api/ai-home/refresh-config",
+      "file": "/app/app/api/ai_home_optim_v4.py",
+      "line": 56
+    },
+    {
+      "method": "GET",
+      "path": "/api/app-settings/chat-idle-timeout",
+      "file": "/app/app/api/app_settings.py",
+      "line": 36
+    },
+    {
+      "method": "GET",
+      "path": "/api/app-settings/page-style",
+      "file": "/app/app/api/app_settings.py",
+      "line": 28
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "file": "/app/app/api/auth.py",
+      "line": 603
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/merchant-profile",
+      "file": "/app/app/api/auth.py",
+      "line": 632
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/merchant-status",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 236
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/register-settings",
+      "file": "/app/app/api/auth.py",
+      "line": 280
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/session-context",
+      "file": "/app/app/api/auth.py",
+      "line": 624
+    },
+    {
+      "method": "GET",
+      "path": "/api/captcha/image",
+      "file": "/app/app/api/account_security.py",
+      "line": 193
+    },
+    {
+      "method": "GET",
+      "path": "/api/cards/me/wallet",
+      "file": "/app/app/api/cards.py",
+      "line": 219
+    },
+    {
+      "method": "GET",
+      "path": "/api/cards/me/{user_card_id}",
+      "file": "/app/app/api/cards.py",
+      "line": 310
+    },
+    {
+      "method": "GET",
+      "path": "/api/cards/{card_id}",
+      "file": "/app/app/api/cards.py",
+      "line": 164
+    },
+    {
+      "method": "GET",
+      "path": "/api/cards/{card_id}/share-poster",
+      "file": "/app/app/api/cards_admin_v2.py",
+      "line": 296
+    },
+    {
+      "method": "GET",
+      "path": "/api/care-card/contacts",
+      "file": "/app/app/api/care_card_v1.py",
+      "line": 242
+    },
+    {
+      "method": "GET",
+      "path": "/api/care-card/info",
+      "file": "/app/app/api/care_card_v1.py",
+      "line": 339
+    },
+    {
+      "method": "GET",
+      "path": "/api/care-card/public/{token}",
+      "file": "/app/app/api/care_card_v1.py",
+      "line": 359
+    },
+    {
+      "method": "GET",
+      "path": "/api/care-card/qr-token",
+      "file": "/app/app/api/care_card_v1.py",
+      "line": 349
+    },
+    {
+      "method": "GET",
+      "path": "/api/care-card/share-location/{token}",
+      "file": "/app/app/api/care_card_v1.py",
+      "line": 401
+    },
+    {
+      "method": "GET",
+      "path": "/api/care-v1/home/proactive-cards",
+      "file": "/app/app/api/ai_home_care_v1.py",
+      "line": 444
+    },
+    {
+      "method": "GET",
+      "path": "/api/care-v1/home/welcome",
+      "file": "/app/app/api/ai_home_care_v1.py",
+      "line": 513
+    },
+    {
+      "method": "GET",
+      "path": "/api/care-v1/sos/events",
+      "file": "/app/app/api/ai_home_care_v1.py",
+      "line": 414
+    },
+    {
+      "method": "GET",
+      "path": "/api/care-v1/sos/keywords",
+      "file": "/app/app/api/ai_home_care_v1.py",
+      "line": 237
+    },
+    {
+      "method": "GET",
+      "path": "/api/care-v1/user-preferences",
+      "file": "/app/app/api/ai_home_care_v1.py",
+      "line": 178
+    },
+    {
+      "method": "GET",
+      "path": "/api/care/alerts/active",
+      "file": "/app/app/api/care_ai_home.py",
+      "line": 211
+    },
+    {
+      "method": "GET",
+      "path": "/api/care/daily-summary",
+      "file": "/app/app/api/care_ai_home.py",
+      "line": 158
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat-sessions",
+      "file": "/app/app/api/chat_history.py",
+      "line": 304
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat-sessions/active",
+      "file": "/app/app/api/chat_history.py",
+      "line": 583
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat-sessions/active-check",
+      "file": "/app/app/api/chat_history.py",
+      "line": 699
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat-sessions/{session_id}",
+      "file": "/app/app/api/chat_history.py",
+      "line": 753
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/digital-human/{digital_human_id}",
+      "file": "/app/app/api/function_button.py",
+      "line": 155
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/function-buttons",
+      "file": "/app/app/api/function_button.py",
+      "line": 62
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/sessions",
+      "file": "/app/app/api/chat.py",
+      "line": 532
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/sessions/{session_id}",
+      "file": "/app/app/api/chat.py",
+      "line": 1705
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/sessions/{session_id}/first-message-stream",
+      "file": "/app/app/api/chat.py",
+      "line": 1843
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/sessions/{session_id}/messages",
+      "file": "/app/app/api/chat.py",
+      "line": 559
+    },
+    {
+      "method": "GET",
+      "path": "/api/chat/voice-service/vad-config",
+      "file": "/app/app/api/function_button.py",
+      "line": 317
+    },
+    {
+      "method": "GET",
+      "path": "/api/checkup/reports/{report_id}",
+      "file": "/app/app/api/checkup_api_v2.py",
+      "line": 67
+    },
+    {
+      "method": "GET",
+      "path": "/api/cities/hot",
+      "file": "/app/app/api/city.py",
+      "line": 67
+    },
+    {
+      "method": "GET",
+      "path": "/api/cities/list",
+      "file": "/app/app/api/city.py",
+      "line": 33
+    },
+    {
+      "method": "GET",
+      "path": "/api/cities/locate",
+      "file": "/app/app/api/city.py",
+      "line": 78
+    },
+    {
+      "method": "GET",
+      "path": "/api/common/time-slots",
+      "file": "/app/app/api/common.py",
+      "line": 22
+    },
+    {
+      "method": "GET",
+      "path": "/api/config/login_ui_version",
+      "file": "/app/app/api/login_ui_config.py",
+      "line": 30
+    },
+    {
+      "method": "GET",
+      "path": "/api/constitution/archive",
+      "file": "/app/app/api/constitution.py",
+      "line": 608
+    },
+    {
+      "method": "GET",
+      "path": "/api/constitution/archive/{diagnosis_id}",
+      "file": "/app/app/api/constitution.py",
+      "line": 663
+    },
+    {
+      "method": "GET",
+      "path": "/api/constitution/coupon/status",
+      "file": "/app/app/api/constitution.py",
+      "line": 536
+    },
+    {
+      "method": "GET",
+      "path": "/api/constitution/diagnosis-by-answer/{answer_id}",
+      "file": "/app/app/api/constitution.py",
+      "line": 356
+    },
+    {
+      "method": "GET",
+      "path": "/api/constitution/encyclopedia/{constitution_type}",
+      "file": "/app/app/api/constitution.py",
+      "line": 678
+    },
+    {
+      "method": "GET",
+      "path": "/api/constitution/result/{diagnosis_id}",
+      "file": "/app/app/api/constitution.py",
+      "line": 379
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/article-categories",
+      "file": "/app/app/api/content.py",
+      "line": 212
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/articles",
+      "file": "/app/app/api/content.py",
+      "line": 30
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/articles/{article_id}",
+      "file": "/app/app/api/content.py",
+      "line": 65
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/comments",
+      "file": "/app/app/api/content.py",
+      "line": 115
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/favorites",
+      "file": "/app/app/api/content.py",
+      "line": 285
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/news",
+      "file": "/app/app/api/content.py",
+      "line": 226
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/news/latest",
+      "file": "/app/app/api/content.py",
+      "line": 257
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/news/{news_id}",
+      "file": "/app/app/api/content.py",
+      "line": 274
+    },
+    {
+      "method": "GET",
+      "path": "/api/cos/upload-limits",
+      "file": "/app/app/api/cos.py",
+      "line": 460
+    },
+    {
+      "method": "GET",
+      "path": "/api/coupons/available",
+      "file": "/app/app/api/coupons.py",
+      "line": 98
+    },
+    {
+      "method": "GET",
+      "path": "/api/coupons/mine",
+      "file": "/app/app/api/coupons.py",
+      "line": 428
+    },
+    {
+      "method": "GET",
+      "path": "/api/coupons/summary",
+      "file": "/app/app/api/coupons.py",
+      "line": 231
+    },
+    {
+      "method": "GET",
+      "path": "/api/coupons/usable-for-order",
+      "file": "/app/app/api/coupons.py",
+      "line": 319
+    },
+    {
+      "method": "GET",
+      "path": "/api/cs/sessions",
+      "file": "/app/app/api/customer_service.py",
+      "line": 68
+    },
+    {
+      "method": "GET",
+      "path": "/api/cs/sessions/{session_id}/messages",
+      "file": "/app/app/api/customer_service.py",
+      "line": 101
+    },
+    {
+      "method": "GET",
+      "path": "/api/devices/catalog",
+      "file": "/app/app/api/devices_v2.py",
+      "line": 199
+    },
+    {
+      "method": "GET",
+      "path": "/api/devices/my",
+      "file": "/app/app/api/devices_v2.py",
+      "line": 259
+    },
+    {
+      "method": "GET",
+      "path": "/api/disease-presets",
+      "file": "/app/app/api/family.py",
+      "line": 400
+    },
+    {
+      "method": "GET",
+      "path": "/api/drug-identify/history",
+      "file": "/app/app/api/ocr_details.py",
+      "line": 364
+    },
+    {
+      "method": "GET",
+      "path": "/api/drug-identify/share/{token}",
+      "file": "/app/app/api/drug_identify_share.py",
+      "line": 83
+    },
+    {
+      "method": "GET",
+      "path": "/api/drug-identify/{record_id}/personal-suggestion",
+      "file": "/app/app/api/ocr_details.py",
+      "line": 434
+    },
+    {
+      "method": "GET",
+      "path": "/api/drugs/search",
+      "file": "/app/app/api/drug.py",
+      "line": 48
+    },
+    {
+      "method": "GET",
+      "path": "/api/experts/appointments/my",
+      "file": "/app/app/api/expert.py",
+      "line": 153
+    },
+    {
+      "method": "GET",
+      "path": "/api/experts/{expert_id}",
+      "file": "/app/app/api/expert.py",
+      "line": 57
+    },
+    {
+      "method": "GET",
+      "path": "/api/experts/{expert_id}/schedules",
+      "file": "/app/app/api/expert.py",
+      "line": 76
+    },
+    {
+      "method": "GET",
+      "path": "/api/family-archive-v2/hero-counts",
+      "file": "/app/app/api/health_archive_optim_v2.py",
+      "line": 110
+    },
+    {
+      "method": "GET",
+      "path": "/api/family-archive-v2/member/{member_id}/alert-history",
+      "file": "/app/app/api/health_archive_optim_v2.py",
+      "line": 374
+    },
+    {
+      "method": "GET",
+      "path": "/api/family-archive-v2/member/{member_id}/alert-settings",
+      "file": "/app/app/api/health_archive_optim_v2.py",
+      "line": 301
+    },
+    {
+      "method": "GET",
+      "path": "/api/family-archive-v2/member/{member_id}/devices",
+      "file": "/app/app/api/health_archive_optim_v2.py",
+      "line": 220
+    },
+    {
+      "method": "GET",
+      "path": "/api/family-archive-v2/members",
+      "file": "/app/app/api/health_archive_optim_v2.py",
+      "line": 65
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/guardians/{member_id}",
+      "file": "/app/app/api/family_guardian.py",
+      "line": 90
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/invitation/{code}",
+      "file": "/app/app/api/family_management.py",
+      "line": 260
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/managed-by",
+      "file": "/app/app/api/family_management.py",
+      "line": 800
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/management",
+      "file": "/app/app/api/family_management.py",
+      "line": 752
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/management/{management_id}/logs",
+      "file": "/app/app/api/family_management.py",
+      "line": 1010
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/management/{management_id}/usage-records",
+      "file": "/app/app/api/family_management.py",
+      "line": 961
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/member/quota",
+      "file": "/app/app/api/family_member_v2.py",
+      "line": 812
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/member/state/list",
+      "file": "/app/app/api/family_member_v2.py",
+      "line": 668
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/members",
+      "file": "/app/app/api/family.py",
+      "line": 82
+    },
+    {
+      "method": "GET",
+      "path": "/api/family/members/{member_id}",
+      "file": "/app/app/api/family.py",
+      "line": 281
+    },
+    {
+      "method": "GET",
+      "path": "/api/favorites/status",
+      "file": "/app/app/api/favorites.py",
+      "line": 47
+    },
+    {
+      "method": "GET",
+      "path": "/api/feedback",
+      "file": "/app/app/api/feedback.py",
+      "line": 36
+    },
+    {
+      "method": "GET",
+      "path": "/api/function-buttons",
+      "file": "/app/app/api/function_button.py",
+      "line": 111
+    },
+    {
+      "method": "GET",
+      "path": "/api/glucose-v1/admin/ai-prompts",
+      "file": "/app/app/api/glucose_v1.py",
+      "line": 1564
+    },
+    {
+      "method": "GET",
+      "path": "/api/glucose-v1/ai-advice",
+      "file": "/app/app/api/glucose_v1.py",
+      "line": 769
+    },
+    {
+      "method": "GET",
+      "path": "/api/glucose-v1/alerts",
+      "file": "/app/app/api/glucose_v1.py",
+      "line": 686
+    },
+    {
+      "method": "GET",
+      "path": "/api/glucose-v1/latest",
+      "file": "/app/app/api/glucose_v1.py",
+      "line": 906
+    },
+    {
+      "method": "GET",
+      "path": "/api/glucose-v1/records",
+      "file": "/app/app/api/glucose_v1.py",
+      "line": 543
+    },
+    {
+      "method": "GET",
+      "path": "/api/glucose-v1/reminder",
+      "file": "/app/app/api/glucose_v1.py",
+      "line": 883
+    },
+    {
+      "method": "GET",
+      "path": "/api/glucose-v1/report",
+      "file": "/app/app/api/glucose_v1.py",
+      "line": 849
+    },
+    {
+      "method": "GET",
+      "path": "/api/glucose-v1/stats",
+      "file": "/app/app/api/glucose_v1.py",
+      "line": 611
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v12/ai-call-quota",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 871
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v12/emergency-quota",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 895
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v12/i-guard",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 266
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v12/invitations/records",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 1209
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v12/managed-quota-summary",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 921
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v12/managed/{managed_user_id}/all-guardians",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 348
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v12/reminders/{managed_user_id}",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 954
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v12/transfer/pending",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 595
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v13/family/invite-history",
+      "file": "/app/app/api/guardian_system_v13.py",
+      "line": 787
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v13/family/list",
+      "file": "/app/app/api/guardian_system_v13.py",
+      "line": 427
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v13/family/member/{member_id}/delete-preview",
+      "file": "/app/app/api/guardian_bugfix_v1.py",
+      "line": 269
+    },
+    {
+      "method": "GET",
+      "path": "/api/guardian/v13/family/proxy-pay/detail",
+      "file": "/app/app/api/guardian_system_v13.py",
+      "line": 906
+    },
+    {
+      "method": "GET",
+      "path": "/api/h5/active-theme",
+      "file": "/app/app/api/themes.py",
+      "line": 241
+    },
+    {
+      "method": "GET",
+      "path": "/api/h5/bottom-nav",
+      "file": "/app/app/api/bottom_nav.py",
+      "line": 32
+    },
+    {
+      "method": "GET",
+      "path": "/api/h5/checkout/info",
+      "file": "/app/app/api/h5_checkout.py",
+      "line": 433
+    },
+    {
+      "method": "GET",
+      "path": "/api/h5/checkout/init",
+      "file": "/app/app/api/h5_checkout.py",
+      "line": 249
+    },
+    {
+      "method": "GET",
+      "path": "/api/h5/slots",
+      "file": "/app/app/api/h5_checkout.py",
+      "line": 335
+    },
+    {
+      "method": "GET",
+      "path": "/api/health",
+      "file": "/app/app/main.py",
+      "line": 2666
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-alerts",
+      "file": "/app/app/api/health_archive_v5.py",
+      "line": 326
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-archive-v5/overview",
+      "file": "/app/app/api/health_archive_v5.py",
+      "line": 192
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-archive/ai-call/settings",
+      "file": "/app/app/api/health_archive_optim_v1.py",
+      "line": 175
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-archive/ai-call/settings/{target_user_id}",
+      "file": "/app/app/api/health_archive_optim_v1.py",
+      "line": 189
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-archive/family-members/guarded-flags",
+      "file": "/app/app/api/health_archive_optim_v1.py",
+      "line": 313
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-archive/guardian/summary",
+      "file": "/app/app/api/health_archive_optim_v1.py",
+      "line": 293
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-archive/guardian/{managed_user_id}/devices",
+      "file": "/app/app/api/health_archive_optim_v1.py",
+      "line": 356
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-dashboard/{member_id}",
+      "file": "/app/app/api/health_dashboard.py",
+      "line": 72
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-dashboard/{member_id}/trends",
+      "file": "/app/app/api/health_dashboard.py",
+      "line": 130
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-metric-v1/meta",
+      "file": "/app/app/api/health_metric_card_v1.py",
+      "line": 528
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-metric-v1/{profile_id}/{metric_type}/history",
+      "file": "/app/app/api/health_metric_card_v1.py",
+      "line": 197
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-metric-v1/{profile_id}/{metric_type}/{record_id}/can-delete",
+      "file": "/app/app/api/health_metric_card_v1.py",
+      "line": 314
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/checkin-calendar",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 1104
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/checkin-items",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 834
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/checkin-items/{item_id}",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 865
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/checkin-items/{item_id}/records",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 1306
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/checkin-overview",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 1016
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/checkin-stats-summary",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 1147
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/medications",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 334
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/medications/check-batch",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 142
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/medications/list",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 430
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/medications/summary",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 603
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/medications/{reminder_id}",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 621
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/recommended-plans/{plan_id}",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 1412
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/statistics",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 2206
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/template-categories",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 1356
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/template-categories/{category_id}",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 1371
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/today-todos",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 1909
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/user-plans",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 1525
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-plan/user-plans/{plan_id}",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 1562
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-profile-v3/devices",
+      "file": "/app/app/api/health_profile_v3.py",
+      "line": 538
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-profile-v3/{profile_id}/events",
+      "file": "/app/app/api/health_profile_v3.py",
+      "line": 726
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-profile-v3/{profile_id}/medication-plan",
+      "file": "/app/app/api/health_profile_v3.py",
+      "line": 657
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-profile-v3/{profile_id}/metric/{metric_type}",
+      "file": "/app/app/api/health_profile_v3.py",
+      "line": 278
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-profile-v3/{profile_id}/today-metrics",
+      "file": "/app/app/api/health_profile_v3.py",
+      "line": 205
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-profile/self",
+      "file": "/app/app/api/health_profile_self.py",
+      "line": 237
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-reminders",
+      "file": "/app/app/api/health_dashboard.py",
+      "line": 192
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-reminders/recommendations",
+      "file": "/app/app/api/health_dashboard.py",
+      "line": 315
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-self-check/dict",
+      "file": "/app/app/api/health_self_check.py",
+      "line": 157
+    },
+    {
+      "method": "GET",
+      "path": "/api/health-self-check/template/{tpl_id}",
+      "file": "/app/app/api/health_self_check.py",
+      "line": 181
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/allergies",
+      "file": "/app/app/api/health_profile.py",
+      "line": 297
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/checkup-reports",
+      "file": "/app/app/api/health_profile.py",
+      "line": 497
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/checkup-reports/{report_id}",
+      "file": "/app/app/api/health_profile.py",
+      "line": 518
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/guide-status",
+      "file": "/app/app/api/health_profile.py",
+      "line": 238
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/medical-history",
+      "file": "/app/app/api/health_profile.py",
+      "line": 347
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/medications",
+      "file": "/app/app/api/health_profile.py",
+      "line": 397
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/profile",
+      "file": "/app/app/api/health_profile.py",
+      "line": 53
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/profile/member/{member_id}",
+      "file": "/app/app/api/health_profile.py",
+      "line": 140
+    },
+    {
+      "method": "GET",
+      "path": "/api/health/visits",
+      "file": "/app/app/api/health_profile.py",
+      "line": 447
+    },
+    {
+      "method": "GET",
+      "path": "/api/home-banners",
+      "file": "/app/app/api/home_config.py",
+      "line": 88
+    },
+    {
+      "method": "GET",
+      "path": "/api/home-config",
+      "file": "/app/app/api/home_config.py",
+      "line": 71
+    },
+    {
+      "method": "GET",
+      "path": "/api/home-menus",
+      "file": "/app/app/api/home_config.py",
+      "line": 77
+    },
+    {
+      "method": "GET",
+      "path": "/api/landing",
+      "file": "/app/app/api/referral.py",
+      "line": 26
+    },
+    {
+      "method": "GET",
+      "path": "/api/maps/geo-config",
+      "file": "/app/app/api/maps.py",
+      "line": 361
+    },
+    {
+      "method": "GET",
+      "path": "/api/maps/static-map",
+      "file": "/app/app/api/maps.py",
+      "line": 377
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/alert-logs",
+      "file": "/app/app/api/family_guardian.py",
+      "line": 138
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/pending-migrations",
+      "file": "/app/app/api/family_guardian.py",
+      "line": 149
+    },
+    {
+      "method": "GET",
+      "path": "/api/medical-records",
+      "file": "/app/app/api/health_archive_v5.py",
+      "line": 500
+    },
+    {
+      "method": "GET",
+      "path": "/api/medical-records/trash",
+      "file": "/app/app/api/health_archive_v5.py",
+      "line": 541
+    },
+    {
+      "method": "GET",
+      "path": "/api/medical-records/{record_id}",
+      "file": "/app/app/api/health_archive_v5.py",
+      "line": 566
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-library/suggest",
+      "file": "/app/app/api/medication_add_optim_v1.py",
+      "line": 26
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-plans/hero-count",
+      "file": "/app/app/api/medication_plans_v1.py",
+      "line": 130
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-plans/summary",
+      "file": "/app/app/api/medication_plans_v1.py",
+      "line": 448
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-plans/today",
+      "file": "/app/app/api/medication_plans_v1.py",
+      "line": 309
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-reminder/appointments",
+      "file": "/app/app/api/medication_reminder.py",
+      "line": 422
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-reminder/badge",
+      "file": "/app/app/api/medication_reminder.py",
+      "line": 309
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-reminder/plans",
+      "file": "/app/app/api/medication_reminder.py",
+      "line": 104
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-reminder/plans/{plan_id}/ai-call",
+      "file": "/app/app/api/ai_call.py",
+      "line": 156
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-reminder/today",
+      "file": "/app/app/api/medication_reminder.py",
+      "line": 185
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication-stats/monthly-compliance",
+      "file": "/app/app/api/medication_plans_v1.py",
+      "line": 583
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication/plans/exists",
+      "file": "/app/app/api/medication_today_v1.py",
+      "line": 127
+    },
+    {
+      "method": "GET",
+      "path": "/api/medication/today",
+      "file": "/app/app/api/medication_today_v1.py",
+      "line": 50
+    },
+    {
+      "method": "GET",
+      "path": "/api/member/center",
+      "file": "/app/app/api/member_center_v2.py",
+      "line": 141
+    },
+    {
+      "method": "GET",
+      "path": "/api/member/orders",
+      "file": "/app/app/api/member_center_v2.py",
+      "line": 458
+    },
+    {
+      "method": "GET",
+      "path": "/api/member/plans",
+      "file": "/app/app/api/member_center_v2.py",
+      "line": 293
+    },
+    {
+      "method": "GET",
+      "path": "/api/member/qrcode",
+      "file": "/app/app/api/member_qr.py",
+      "line": 42
+    },
+    {
+      "method": "GET",
+      "path": "/api/member/quota-usage",
+      "file": "/app/app/api/member_center_v2.py",
+      "line": 231
+    },
+    {
+      "method": "GET",
+      "path": "/api/member/{member_id}/reports",
+      "file": "/app/app/api/report_interpret.py",
+      "line": 1187
+    },
+    {
+      "method": "GET",
+      "path": "/api/membership/me",
+      "file": "/app/app/api/membership.py",
+      "line": 284
+    },
+    {
+      "method": "GET",
+      "path": "/api/membership/plans",
+      "file": "/app/app/api/membership.py",
+      "line": 270
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant-categories",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 223
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/bindding/wechat/status",
+      "file": "/app/app/api/wechat_bindding.py",
+      "line": 160
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/business-hours",
+      "file": "/app/app/api/order_enhancement.py",
+      "line": 120
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/calendar/cells",
+      "file": "/app/app/api/merchant.py",
+      "line": 1811
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/calendar/daily",
+      "file": "/app/app/api/merchant.py",
+      "line": 586
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/calendar/daily-orders",
+      "file": "/app/app/api/merchant.py",
+      "line": 724
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/calendar/items",
+      "file": "/app/app/api/merchant.py",
+      "line": 1916
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/calendar/kpi",
+      "file": "/app/app/api/merchant.py",
+      "line": 1742
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/calendar/list",
+      "file": "/app/app/api/merchant.py",
+      "line": 2002
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/calendar/monthly",
+      "file": "/app/app/api/merchant.py",
+      "line": 513
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/calendar/views",
+      "file": "/app/app/api/merchant.py",
+      "line": 2113
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/concurrency-limit",
+      "file": "/app/app/api/order_enhancement.py",
+      "line": 185
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/dashboard",
+      "file": "/app/app/api/merchant.py",
+      "line": 169
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/dashboard/day",
+      "file": "/app/app/api/merchant_dashboard.py",
+      "line": 168
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/dashboard/month",
+      "file": "/app/app/api/merchant_dashboard.py",
+      "line": 427
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/dashboard/month-day",
+      "file": "/app/app/api/merchant_dashboard.py",
+      "line": 526
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/dashboard/slot/{target_date}/{slot_no}",
+      "file": "/app/app/api/merchant_dashboard.py",
+      "line": 598
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/dashboard/time-slots",
+      "file": "/app/app/api/merchant_dashboard.py",
+      "line": 103
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/dashboard/week",
+      "file": "/app/app/api/merchant_dashboard.py",
+      "line": 288
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/notifications",
+      "file": "/app/app/api/merchant.py",
+      "line": 423
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/orders",
+      "file": "/app/app/api/merchant.py",
+      "line": 1156
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/orders/records",
+      "file": "/app/app/api/merchant.py",
+      "line": 365
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/orders/verify-code/{code}",
+      "file": "/app/app/api/merchant.py",
+      "line": 255
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/orders/{order_id}/attachments",
+      "file": "/app/app/api/merchant.py",
+      "line": 1473
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/orders/{order_id}/detail",
+      "file": "/app/app/api/merchant.py",
+      "line": 1290
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/orders/{order_id}/notes",
+      "file": "/app/app/api/merchant.py",
+      "line": 1125
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/profile",
+      "file": "/app/app/api/account_security.py",
+      "line": 262
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/shop/info",
+      "file": "/app/app/api/account_security.py",
+      "line": 787
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/stores",
+      "file": "/app/app/api/merchant.py",
+      "line": 135
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/dashboard/metrics",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 356
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/exports",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 1547
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/exports/placeholder/{name}",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 1564
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/invoice-profile",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 1468
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/orders",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 467
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/orders/{order_item_id}/attachments",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 572
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/reports",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 769
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/role-templates",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 1674
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/settlements",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 864
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/settlements/{sid}",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 880
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/staff",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 1580
+    },
+    {
+      "method": "GET",
+      "path": "/api/merchant/v1/verifications",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 718
+    },
+    {
+      "method": "GET",
+      "path": "/api/messages",
+      "file": "/app/app/api/messages.py",
+      "line": 19
+    },
+    {
+      "method": "GET",
+      "path": "/api/messages/unread-count",
+      "file": "/app/app/api/messages.py",
+      "line": 117
+    },
+    {
+      "method": "GET",
+      "path": "/api/notices/active",
+      "file": "/app/app/api/notice.py",
+      "line": 31
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications/unread-count",
+      "file": "/app/app/api/order_enhancement.py",
+      "line": 491
+    },
+    {
+      "method": "GET",
+      "path": "/api/openapi/redeem-codes/{code}/status",
+      "file": "/app/app/api/third_party_openapi.py",
+      "line": 164
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/unified/counts",
+      "file": "/app/app/api/unified_orders.py",
+      "line": 1413
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/unified/sandbox-confirm",
+      "file": "/app/app/api/unified_orders.py",
+      "line": 1507
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/unified/{order_id}",
+      "file": "/app/app/api/unified_orders.py",
+      "line": 1552
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/verify-code/{code}",
+      "file": "/app/app/api/order.py",
+      "line": 277
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/{order_id}",
+      "file": "/app/app/api/order.py",
+      "line": 137
+    },
+    {
+      "method": "GET",
+      "path": "/api/orders/{order_item_id}/attachments",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 690
+    },
+    {
+      "method": "GET",
+      "path": "/api/pay/available-methods",
+      "file": "/app/app/api/payment_methods.py",
+      "line": 22
+    },
+    {
+      "method": "GET",
+      "path": "/api/plans/{plan_id}",
+      "file": "/app/app/api/plan.py",
+      "line": 71
+    },
+    {
+      "method": "GET",
+      "path": "/api/plans/{plan_id}/tasks",
+      "file": "/app/app/api/plan.py",
+      "line": 84
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/admin/exchange-records",
+      "file": "/app/app/api/points_exchange.py",
+      "line": 651
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/balance",
+      "file": "/app/app/api/points.py",
+      "line": 126
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/checkin/today-progress",
+      "file": "/app/app/api/points.py",
+      "line": 445
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/exchange-records",
+      "file": "/app/app/api/points_exchange.py",
+      "line": 441
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/exchange-records/{record_id}",
+      "file": "/app/app/api/points_exchange.py",
+      "line": 585
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/level",
+      "file": "/app/app/api/points.py",
+      "line": 789
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/mall",
+      "file": "/app/app/api/points.py",
+      "line": 237
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/mall/items/{item_id}",
+      "file": "/app/app/api/points_exchange.py",
+      "line": 104
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/mall/products",
+      "file": "/app/app/api/points.py",
+      "line": 215
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/records",
+      "file": "/app/app/api/points.py",
+      "line": 141
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/summary",
+      "file": "/app/app/api/points.py",
+      "line": 476
+    },
+    {
+      "method": "GET",
+      "path": "/api/points/tasks",
+      "file": "/app/app/api/points.py",
+      "line": 528
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/care-partners",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 1003
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/care/medication-ai-call",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 759
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/device/list",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 545
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/family-member/relation-options",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 94
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/health-event/timeline",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 604
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/health-info/{profile_id}",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 472
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/health-info/{profile_id}/family-history",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 789
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/health-info/{profile_id}/surgery-history",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 861
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/medical-record/list",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 1187
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/medical-record/{record_id}",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 1216
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/medication-ai-call",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 742
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/medication-library/search",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 160
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/medication-library/stats",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 190
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/medication-library/{drug_id}",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 234
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/reminder-setting",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 684
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/summary-stats/{profile_id}",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 927
+    },
+    {
+      "method": "GET",
+      "path": "/api/prd469/summary/{profile_id}",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 1273
+    },
+    {
+      "method": "GET",
+      "path": "/api/products/categories",
+      "file": "/app/app/api/products.py",
+      "line": 80
+    },
+    {
+      "method": "GET",
+      "path": "/api/products/hot-recommendations",
+      "file": "/app/app/api/products.py",
+      "line": 283
+    },
+    {
+      "method": "GET",
+      "path": "/api/products/{product_id}",
+      "file": "/app/app/api/products.py",
+      "line": 328
+    },
+    {
+      "method": "GET",
+      "path": "/api/products/{product_id}/available-stores",
+      "file": "/app/app/api/products.py",
+      "line": 541
+    },
+    {
+      "method": "GET",
+      "path": "/api/products/{product_id}/related",
+      "file": "/app/app/api/products.py",
+      "line": 382
+    },
+    {
+      "method": "GET",
+      "path": "/api/products/{product_id}/time-slots/availability",
+      "file": "/app/app/api/products.py",
+      "line": 469
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/protocol/{protocol_key}",
+      "file": "/app/app/api/family_management.py",
+      "line": 1108
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/answers/{answer_id}",
+      "file": "/app/app/api/questionnaire.py",
+      "line": 1916
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/answers/{answer_id}/ai-status",
+      "file": "/app/app/api/questionnaire.py",
+      "line": 1421
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/answers/{answer_id}/follow-up",
+      "file": "/app/app/api/questionnaire.py",
+      "line": 2143
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/buttons/{button_id}/render-meta",
+      "file": "/app/app/api/questionnaire.py",
+      "line": 190
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/placeholder-catalog",
+      "file": "/app/app/api/questionnaire.py",
+      "line": 69
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/templates",
+      "file": "/app/app/api/questionnaire.py",
+      "line": 84
+    },
+    {
+      "method": "GET",
+      "path": "/api/questionnaire/templates/{template_id}",
+      "file": "/app/app/api/questionnaire.py",
+      "line": 98
+    },
+    {
+      "method": "GET",
+      "path": "/api/relation-types",
+      "file": "/app/app/api/family.py",
+      "line": 387
+    },
+    {
+      "method": "GET",
+      "path": "/api/report-history/comparison/{record_id}",
+      "file": "/app/app/api/report_history.py",
+      "line": 252
+    },
+    {
+      "method": "GET",
+      "path": "/api/report-history/list",
+      "file": "/app/app/api/report_history.py",
+      "line": 202
+    },
+    {
+      "method": "GET",
+      "path": "/api/report-history/shared/{share_token}",
+      "file": "/app/app/api/report_history.py",
+      "line": 510
+    },
+    {
+      "method": "GET",
+      "path": "/api/report-history/{record_id}",
+      "file": "/app/app/api/report_history.py",
+      "line": 282
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/alerts",
+      "file": "/app/app/api/report.py",
+      "line": 858
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/detail/{report_id}",
+      "file": "/app/app/api/report.py",
+      "line": 440
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/interpret/detail/{report_id}",
+      "file": "/app/app/api/report_interpret.py",
+      "line": 1123
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/interpret/session/{session_id}",
+      "file": "/app/app/api/report_interpret.py",
+      "line": 939
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/interpret/session/{session_id}/messages",
+      "file": "/app/app/api/report_interpret.py",
+      "line": 1087
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/interpret/session/{session_id}/ocr-detail",
+      "file": "/app/app/api/report_interpret.py",
+      "line": 1021
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/interpret/session/{session_id}/stream",
+      "file": "/app/app/api/report_interpret.py",
+      "line": 784
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/interpret/session/{session_id}/task-status",
+      "file": "/app/app/api/report_interpret.py",
+      "line": 973
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/list",
+      "file": "/app/app/api/report.py",
+      "line": 493
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/share/{token}",
+      "file": "/app/app/api/report.py",
+      "line": 953
+    },
+    {
+      "method": "GET",
+      "path": "/api/report/trend/{indicator_name}",
+      "file": "/app/app/api/report.py",
+      "line": 681
+    },
+    {
+      "method": "GET",
+      "path": "/api/reverse-guardian/guardian-count",
+      "file": "/app/app/api/reverse_guardian.py",
+      "line": 233
+    },
+    {
+      "method": "GET",
+      "path": "/api/reverse-guardian/invite/{invite_code}",
+      "file": "/app/app/api/reverse_guardian.py",
+      "line": 420
+    },
+    {
+      "method": "GET",
+      "path": "/api/reverse-guardian/my-guardians",
+      "file": "/app/app/api/reverse_guardian.py",
+      "line": 164
+    },
+    {
+      "method": "GET",
+      "path": "/api/safety-rope/alerts",
+      "file": "/app/app/api/safety_rope_v1.py",
+      "line": 693
+    },
+    {
+      "method": "GET",
+      "path": "/api/safety-rope/checkins",
+      "file": "/app/app/api/safety_rope_v1.py",
+      "line": 472
+    },
+    {
+      "method": "GET",
+      "path": "/api/safety-rope/contacts",
+      "file": "/app/app/api/safety_rope_v1.py",
+      "line": 528
+    },
+    {
+      "method": "GET",
+      "path": "/api/safety-rope/contacts/check-phone",
+      "file": "/app/app/api/safety_rope_v1.py",
+      "line": 500
+    },
+    {
+      "method": "GET",
+      "path": "/api/safety-rope/status",
+      "file": "/app/app/api/safety_rope_v1.py",
+      "line": 337
+    },
+    {
+      "method": "GET",
+      "path": "/api/scan",
+      "file": "/app/app/api/scan.py",
+      "line": 15
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/drug-keywords",
+      "file": "/app/app/api/search.py",
+      "line": 643
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/history",
+      "file": "/app/app/api/search.py",
+      "line": 460
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/hot",
+      "file": "/app/app/api/search.py",
+      "line": 422
+    },
+    {
+      "method": "GET",
+      "path": "/api/search/suggest",
+      "file": "/app/app/api/search.py",
+      "line": 362
+    },
+    {
+      "method": "GET",
+      "path": "/api/services/categories",
+      "file": "/app/app/api/service.py",
+      "line": 14
+    },
+    {
+      "method": "GET",
+      "path": "/api/services/items",
+      "file": "/app/app/api/service.py",
+      "line": 25
+    },
+    {
+      "method": "GET",
+      "path": "/api/services/items/{item_id}",
+      "file": "/app/app/api/service.py",
+      "line": 55
+    },
+    {
+      "method": "GET",
+      "path": "/api/services/list",
+      "file": "/app/app/api/services_filter.py",
+      "line": 130
+    },
+    {
+      "method": "GET",
+      "path": "/api/services/{product_id}/available-slots",
+      "file": "/app/app/api/order_enhancement.py",
+      "line": 377
+    },
+    {
+      "method": "GET",
+      "path": "/api/settings/logo",
+      "file": "/app/app/api/admin.py",
+      "line": 2444
+    },
+    {
+      "method": "GET",
+      "path": "/api/settings/tts-config",
+      "file": "/app/app/api/tts.py",
+      "line": 74
+    },
+    {
+      "method": "GET",
+      "path": "/api/share/{share_token}",
+      "file": "/app/app/api/chat_share.py",
+      "line": 160
+    },
+    {
+      "method": "GET",
+      "path": "/api/shared/chat/{share_token}",
+      "file": "/app/app/api/chat_history.py",
+      "line": 964
+    },
+    {
+      "method": "GET",
+      "path": "/api/stores/{store_id}/contact",
+      "file": "/app/app/api/stores_public.py",
+      "line": 42
+    },
+    {
+      "method": "GET",
+      "path": "/api/system/server-time",
+      "file": "/app/app/api/system.py",
+      "line": 22
+    },
+    {
+      "method": "GET",
+      "path": "/api/tcm/config",
+      "file": "/app/app/api/tcm_config.py",
+      "line": 29
+    },
+    {
+      "method": "GET",
+      "path": "/api/tcm/diagnosis",
+      "file": "/app/app/api/tcm.py",
+      "line": 86
+    },
+    {
+      "method": "GET",
+      "path": "/api/tcm/diagnosis/{diagnosis_id}",
+      "file": "/app/app/api/tcm.py",
+      "line": 71
+    },
+    {
+      "method": "GET",
+      "path": "/api/tcm/questions",
+      "file": "/app/app/api/tcm.py",
+      "line": 146
+    },
+    {
+      "method": "GET",
+      "path": "/api/user/font-setting",
+      "file": "/app/app/api/font_setting.py",
+      "line": 12
+    },
+    {
+      "method": "GET",
+      "path": "/api/user/health-profile",
+      "file": "/app/app/api/user_health_profile.py",
+      "line": 34
+    },
+    {
+      "method": "GET",
+      "path": "/api/user/mode-preference",
+      "file": "/app/app/api/user_mode_preference.py",
+      "line": 58
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/invite-stats",
+      "file": "/app/app/api/referral.py",
+      "line": 41
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/me",
+      "file": "/app/app/api/users.py",
+      "line": 23
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/me/stats",
+      "file": "/app/app/api/users.py",
+      "line": 28
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/share-link",
+      "file": "/app/app/api/referral.py",
+      "line": 17
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/consultant/{consultant_id}/medications",
+      "file": "/app/app/api/consultant_profile_card.py",
+      "line": 353
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/consultant/{consultant_id}/profile_card",
+      "file": "/app/app/api/consultant_profile_card.py",
+      "line": 198
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/notifications/unread-count",
+      "file": "/app/app/api/notifications_unified.py",
+      "line": 24
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/app/version-check",
+      "file": "/app/app/api/addresses_v2.py",
+      "line": 417
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/regions",
+      "file": "/app/app/api/addresses_v2.py",
+      "line": 58
+    },
+    {
+      "method": "GET",
+      "path": "/api/v2/user/addresses",
+      "file": "/app/app/api/addresses_v2.py",
+      "line": 193
+    },
+    {
+      "method": "GET",
+      "path": "/api/v5/system-config/doctor-consult",
+      "file": "/app/app/api/medication_library_v3.py",
+      "line": 452
+    },
+    {
+      "method": "GET",
+      "path": "/api/verify/checkin-records",
+      "file": "/app/app/api/member_qr.py",
+      "line": 310
+    },
+    {
+      "method": "POST",
+      "path": "/api/_frontend_log",
+      "file": "/app/app/api/frontend_log.py",
+      "line": 26
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/abnormal-thresholds",
+      "file": "/app/app/api/admin_family_guardian.py",
+      "line": 196
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ai-call/membership-levels",
+      "file": "/app/app/api/ai_call.py",
+      "line": 326
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ai-center/sensitive-words",
+      "file": "/app/app/api/ai_center.py",
+      "line": 61
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ai-config",
+      "file": "/app/app/api/admin.py",
+      "line": 234
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ai-config/sync",
+      "file": "/app/app/api/admin.py",
+      "line": 301
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ai-config/test",
+      "file": "/app/app/api/admin.py",
+      "line": 396
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ai-home-config/upload-image",
+      "file": "/app/app/api/ai_home_config.py",
+      "line": 480
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ai-model-templates",
+      "file": "/app/app/api/admin.py",
+      "line": 527
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/alert-templates",
+      "file": "/app/app/api/admin_family_guardian.py",
+      "line": 82
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/appointment-forms/{form_id}/fields",
+      "file": "/app/app/api/appointment_form_admin.py",
+      "line": 174
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/article-categories",
+      "file": "/app/app/api/admin_news.py",
+      "line": 53
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/audit/approve",
+      "file": "/app/app/api/audit.py",
+      "line": 450
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/audit/codes/send",
+      "file": "/app/app/api/audit.py",
+      "line": 278
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/audit/codes/verify",
+      "file": "/app/app/api/audit.py",
+      "line": 335
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/audit/requests",
+      "file": "/app/app/api/audit.py",
+      "line": 217
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/audit/resubmit",
+      "file": "/app/app/api/audit.py",
+      "line": 522
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/audit/return",
+      "file": "/app/app/api/audit.py",
+      "line": 499
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/body-part-dict",
+      "file": "/app/app/api/health_self_check.py",
+      "line": 594
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/bottom-nav",
+      "file": "/app/app/api/bottom_nav.py",
+      "line": 67
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/checkin-config",
+      "file": "/app/app/api/product_admin.py",
+      "line": 2017
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/cities/hot",
+      "file": "/app/app/api/city.py",
+      "line": 165
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/constitution/content-configs",
+      "file": "/app/app/api/constitution.py",
+      "line": 787
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/content/articles",
+      "file": "/app/app/api/admin.py",
+      "line": 1297
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/cos/migration/retry",
+      "file": "/app/app/api/cos.py",
+      "line": 850
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/cos/migration/scan",
+      "file": "/app/app/api/cos.py",
+      "line": 495
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/cos/migration/start",
+      "file": "/app/app/api/cos.py",
+      "line": 559
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/cos/test",
+      "file": "/app/app/api/cos.py",
+      "line": 206
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/cos/test-connection",
+      "file": "/app/app/api/cos.py",
+      "line": 146
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/coupons",
+      "file": "/app/app/api/product_admin.py",
+      "line": 1534
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/coupons/codes/{code_id}/void",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 1364
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/coupons/grants/recall",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 856
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/coupons/redeem-code-batches",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 1029
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/coupons/redeem-code-batches/{batch_id}/void",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 1309
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/coupons/{coupon_id}/distribute",
+      "file": "/app/app/api/product_admin.py",
+      "line": 1590
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/coupons/{coupon_id}/grant/direct",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 888
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/coupons/{coupon_id}/offline",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 691
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/coupons/{coupon_id}/online",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 740
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/digital-humans",
+      "file": "/app/app/api/function_button.py",
+      "line": 827
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/disease-presets",
+      "file": "/app/app/api/admin.py",
+      "line": 2303
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/drug-details/repair-drug-names",
+      "file": "/app/app/api/ocr_details.py",
+      "line": 327
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/email-notify/test",
+      "file": "/app/app/api/email_notify.py",
+      "line": 131
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/emergency-sources",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 1356
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/experts",
+      "file": "/app/app/api/admin.py",
+      "line": 1731
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/function-buttons",
+      "file": "/app/app/api/function_button.py",
+      "line": 579
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/function-buttons/sort-action",
+      "file": "/app/app/api/function_button.py",
+      "line": 740
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/health-check-templates",
+      "file": "/app/app/api/health_self_check.py",
+      "line": 731
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/health-plan/recommended-plans",
+      "file": "/app/app/api/admin_health_plan.py",
+      "line": 76
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/health-plan/recommended-plans/{plan_id}/tasks",
+      "file": "/app/app/api/admin_health_plan.py",
+      "line": 196
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/health-plan/template-categories",
+      "file": "/app/app/api/admin_health_plan.py",
+      "line": 277
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/health/sdk/refresh",
+      "file": "/app/app/api/admin_sdk_health.py",
+      "line": 37
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/home-banners",
+      "file": "/app/app/api/home_config.py",
+      "line": 177
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/knowledge-bases",
+      "file": "/app/app/api/knowledge.py",
+      "line": 84
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/knowledge-bases/import",
+      "file": "/app/app/api/knowledge.py",
+      "line": 374
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/knowledge-bases/import/{task_id}/confirm",
+      "file": "/app/app/api/knowledge.py",
+      "line": 413
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/knowledge-bases/{kb_id}/entries",
+      "file": "/app/app/api/knowledge.py",
+      "line": 556
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/login",
+      "file": "/app/app/api/admin.py",
+      "line": 121
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/map-config/test",
+      "file": "/app/app/api/maps.py",
+      "line": 555
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/maps/reverse-geocoding",
+      "file": "/app/app/api/maps.py",
+      "line": 294
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/medication-library-pending/{pid}/accept",
+      "file": "/app/app/api/medication_library_v3.py",
+      "line": 515
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/medication-library-pending/{pid}/reject",
+      "file": "/app/app/api/medication_library_v3.py",
+      "line": 543
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/membership/plans",
+      "file": "/app/app/api/membership.py",
+      "line": 131
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/merchant-categories",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 162
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/merchant/accounts",
+      "file": "/app/app/api/admin_merchant.py",
+      "line": 1062
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/merchant/accounts/import",
+      "file": "/app/app/api/admin_merchant.py",
+      "line": 1091
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/merchant/accounts/{user_id}/reset-password",
+      "file": "/app/app/api/account_security.py",
+      "line": 904
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/merchant/stores",
+      "file": "/app/app/api/admin_merchant.py",
+      "line": 738
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/messages",
+      "file": "/app/app/api/admin_messages.py",
+      "line": 117
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/news",
+      "file": "/app/app/api/admin_news.py",
+      "line": 227
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/news/{news_id}/publish",
+      "file": "/app/app/api/admin_news.py",
+      "line": 319
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/news/{news_id}/top",
+      "file": "/app/app/api/admin_news.py",
+      "line": 337
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/notices",
+      "file": "/app/app/api/notice.py",
+      "line": 75
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ocr/providers/{provider}/disable",
+      "file": "/app/app/api/ocr.py",
+      "line": 133
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ocr/providers/{provider}/preferred",
+      "file": "/app/app/api/ocr.py",
+      "line": 108
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ocr/records/batch-delete",
+      "file": "/app/app/api/ocr.py",
+      "line": 498
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ocr/scenes",
+      "file": "/app/app/api/ocr.py",
+      "line": 220
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ocr/test",
+      "file": "/app/app/api/report.py",
+      "line": 1038
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ocr/test-full",
+      "file": "/app/app/api/ocr.py",
+      "line": 385
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ocr/test-ocr",
+      "file": "/app/app/api/ocr.py",
+      "line": 339
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/orders/unified/{order_id}/refund",
+      "file": "/app/app/api/product_admin.py",
+      "line": 1230
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/orders/unified/{order_id}/refund/approve",
+      "file": "/app/app/api/product_admin.py",
+      "line": 1185
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/orders/unified/{order_id}/refund/reject",
+      "file": "/app/app/api/product_admin.py",
+      "line": 1286
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/orders/unified/{order_id}/ship",
+      "file": "/app/app/api/product_admin.py",
+      "line": 1158
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/partners/{partner_id}/regenerate-key",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 1468
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/payment-channels/{channel_code}/test",
+      "file": "/app/app/api/payment_config.py",
+      "line": 516
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/points/levels",
+      "file": "/app/app/api/admin.py",
+      "line": 1835
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/points/mall",
+      "file": "/app/app/api/points_admin.py",
+      "line": 192
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/points/mall/{item_id}/duplicate",
+      "file": "/app/app/api/points_admin.py",
+      "line": 424
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/points/mall/{item_id}/offline",
+      "file": "/app/app/api/points_admin.py",
+      "line": 406
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/points/mall/{item_id}/publish",
+      "file": "/app/app/api/points_admin.py",
+      "line": 368
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/points/rules",
+      "file": "/app/app/api/admin.py",
+      "line": 1932
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/products",
+      "file": "/app/app/api/product_admin.py",
+      "line": 551
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/products/categories",
+      "file": "/app/app/api/product_admin.py",
+      "line": 380
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/products/categories/reorder",
+      "file": "/app/app/api/product_admin.py",
+      "line": 460
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/products/{product_id}/form-fields",
+      "file": "/app/app/api/product_admin.py",
+      "line": 886
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/prompt-templates/{prompt_type}/preview",
+      "file": "/app/app/api/prompt_templates.py",
+      "line": 267
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/prompt-templates/{prompt_type}/rollback/{version}",
+      "file": "/app/app/api/prompt_templates.py",
+      "line": 386
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/prompt-templates/{template_id}/duplicate",
+      "file": "/app/app/api/prompt_templates.py",
+      "line": 335
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/questionnaire/templates",
+      "file": "/app/app/api/questionnaire.py",
+      "line": 2244
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/questionnaire/templates/{template_id}/recommend/preview",
+      "file": "/app/app/api/tag_recommend.py",
+      "line": 525
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/relation-types",
+      "file": "/app/app/api/admin.py",
+      "line": 2209
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/search/asr-config/test",
+      "file": "/app/app/api/admin_search.py",
+      "line": 373
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/search/block-words",
+      "file": "/app/app/api/admin_search.py",
+      "line": 222
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/search/block-words/batch",
+      "file": "/app/app/api/admin_search.py",
+      "line": 284
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/search/recommend-words",
+      "file": "/app/app/api/admin_search.py",
+      "line": 68
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/seed-packs/{code}/install",
+      "file": "/app/app/api/seed_import.py",
+      "line": 89
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/seed-packs/{code}/uninstall",
+      "file": "/app/app/api/seed_import.py",
+      "line": 124
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/services/categories",
+      "file": "/app/app/api/admin.py",
+      "line": 818
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/services/items",
+      "file": "/app/app/api/admin.py",
+      "line": 893
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/settings/basic",
+      "file": "/app/app/api/admin.py",
+      "line": 1960
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/settings/logo",
+      "file": "/app/app/api/admin.py",
+      "line": 2387
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/settings/protocol",
+      "file": "/app/app/api/admin.py",
+      "line": 2004
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/settings/push",
+      "file": "/app/app/api/admin.py",
+      "line": 1978
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/settings/register",
+      "file": "/app/app/api/admin.py",
+      "line": 2030
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/settlements/generate-monthly",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 940
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/settlements/{sid}/payment-proof",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 1063
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/sms/templates",
+      "file": "/app/app/api/sms.py",
+      "line": 208
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/sms/test",
+      "file": "/app/app/api/sms.py",
+      "line": 314
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/store-bindding/batch-bind",
+      "file": "/app/app/api/product_admin.py",
+      "line": 2581
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/store-bindding/batch-unbind",
+      "file": "/app/app/api/product_admin.py",
+      "line": 2617
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/store-bindding/bind",
+      "file": "/app/app/api/product_admin.py",
+      "line": 2540
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/store-bindding/unbind",
+      "file": "/app/app/api/product_admin.py",
+      "line": 2560
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/tags/{tag_id}/merge",
+      "file": "/app/app/api/tag_recommend.py",
+      "line": 214
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/themes/{theme_id}/activate",
+      "file": "/app/app/api/themes.py",
+      "line": 221
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/upload",
+      "file": "/app/app/api/cos.py",
+      "line": 310
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/users/{user_id}/membership/adjust",
+      "file": "/app/app/api/member_center_v2.py",
+      "line": 547
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/voice-service/test-connection",
+      "file": "/app/app/api/function_button.py",
+      "line": 910
+    },
+    {
+      "method": "POST",
+      "path": "/api/ai-home/track",
+      "file": "/app/app/api/ai_home_optim_v4.py",
+      "line": 128
+    },
+    {
+      "method": "POST",
+      "path": "/api/alert/click-tracking",
+      "file": "/app/app/api/family_guardian.py",
+      "line": 287
+    },
+    {
+      "method": "POST",
+      "path": "/api/alert/event",
+      "file": "/app/app/api/family_guardian.py",
+      "line": 384
+    },
+    {
+      "method": "POST",
+      "path": "/api/alert/verify",
+      "file": "/app/app/api/family_guardian.py",
+      "line": 348
+    },
+    {
+      "method": "POST",
+      "path": "/api/analytics/track",
+      "file": "/app/app/api/analytics.py",
+      "line": 49
+    },
+    {
+      "method": "POST",
+      "path": "/api/analytics/track/batch",
+      "file": "/app/app/api/analytics.py",
+      "line": 110
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/force-change-password",
+      "file": "/app/app/api/account_security.py",
+      "line": 364
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "file": "/app/app/api/auth.py",
+      "line": 391
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/register",
+      "file": "/app/app/api/auth.py",
+      "line": 285
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/sms-code",
+      "file": "/app/app/api/auth.py",
+      "line": 462
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/sms-login",
+      "file": "/app/app/api/auth.py",
+      "line": 507
+    },
+    {
+      "method": "POST",
+      "path": "/api/bp-v1/ai-explain-single",
+      "file": "/app/app/api/bp_v1.py",
+      "line": 317
+    },
+    {
+      "method": "POST",
+      "path": "/api/bp-v1/ai-explain-trend",
+      "file": "/app/app/api/bp_v1.py",
+      "line": 378
+    },
+    {
+      "method": "POST",
+      "path": "/api/cards/me/{user_card_id}/renew",
+      "file": "/app/app/api/cards_v2.py",
+      "line": 939
+    },
+    {
+      "method": "POST",
+      "path": "/api/cards/purchase",
+      "file": "/app/app/api/cards_v2.py",
+      "line": 340
+    },
+    {
+      "method": "POST",
+      "path": "/api/care-card/contacts",
+      "file": "/app/app/api/care_card_v1.py",
+      "line": 251
+    },
+    {
+      "method": "POST",
+      "path": "/api/care-card/share-location",
+      "file": "/app/app/api/care_card_v1.py",
+      "line": 378
+    },
+    {
+      "method": "POST",
+      "path": "/api/care-v1/admin/sos/keywords",
+      "file": "/app/app/api/ai_home_care_v1.py",
+      "line": 251
+    },
+    {
+      "method": "POST",
+      "path": "/api/care-v1/sos/detect",
+      "file": "/app/app/api/ai_home_care_v1.py",
+      "line": 351
+    },
+    {
+      "method": "POST",
+      "path": "/api/care-v1/sos/events",
+      "file": "/app/app/api/ai_home_care_v1.py",
+      "line": 359
+    },
+    {
+      "method": "POST",
+      "path": "/api/care/alerts/_seed-demo",
+      "file": "/app/app/api/care_ai_home.py",
+      "line": 273
+    },
+    {
+      "method": "POST",
+      "path": "/api/care/alerts/{alert_id}/dismiss",
+      "file": "/app/app/api/care_ai_home.py",
+      "line": 249
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat-sessions",
+      "file": "/app/app/api/chat_history.py",
+      "line": 418
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat-sessions/batch-delete",
+      "file": "/app/app/api/chat_history.py",
+      "line": 873
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat-sessions/{session_id}/archive",
+      "file": "/app/app/api/chat_history.py",
+      "line": 543
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat-sessions/{session_id}/resume",
+      "file": "/app/app/api/chat_history.py",
+      "line": 630
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat-sessions/{session_id}/share",
+      "file": "/app/app/api/chat_history.py",
+      "line": 934
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/drug/init",
+      "file": "/app/app/api/drug_chat.py",
+      "line": 323
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/drug/regenerate_opening",
+      "file": "/app/app/api/drug_chat.py",
+      "line": 397
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/image/analyze-report",
+      "file": "/app/app/api/function_button.py",
+      "line": 299
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/image/recognize-medicine",
+      "file": "/app/app/api/function_button.py",
+      "line": 281
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/intent-detect",
+      "file": "/app/app/api/chat_intent.py",
+      "line": 46
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/messages/{message_id}/mark-added-to-plan",
+      "file": "/app/app/api/chat.py",
+      "line": 1922
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/sessions",
+      "file": "/app/app/api/chat.py",
+      "line": 440
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/sessions/{session_id}/first-message-stream",
+      "file": "/app/app/api/chat.py",
+      "line": 1866
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/sessions/{session_id}/messages",
+      "file": "/app/app/api/chat.py",
+      "line": 588
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/sessions/{session_id}/messages-stream",
+      "file": "/app/app/api/chat.py",
+      "line": 1892
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/sessions/{session_id}/stream",
+      "file": "/app/app/api/chat.py",
+      "line": 1197
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/sessions/{session_id}/switch-member",
+      "file": "/app/app/api/chat.py",
+      "line": 1523
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/share",
+      "file": "/app/app/api/chat_share.py",
+      "line": 82
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/share/poster",
+      "file": "/app/app/api/chat_share.py",
+      "line": 218
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/voice-call/start",
+      "file": "/app/app/api/function_button.py",
+      "line": 169
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/voice-call/{call_id}/end",
+      "file": "/app/app/api/function_button.py",
+      "line": 187
+    },
+    {
+      "method": "POST",
+      "path": "/api/chat/voice-call/{call_id}/message",
+      "file": "/app/app/api/function_button.py",
+      "line": 239
+    },
+    {
+      "method": "POST",
+      "path": "/api/checkup/compare/create-session",
+      "file": "/app/app/api/checkup_api_v2.py",
+      "line": 46
+    },
+    {
+      "method": "POST",
+      "path": "/api/checkup/reports/{report_id}/ensure-session",
+      "file": "/app/app/api/checkup_api_v2.py",
+      "line": 97
+    },
+    {
+      "method": "POST",
+      "path": "/api/constitution/coupon/claim",
+      "file": "/app/app/api/constitution.py",
+      "line": 545
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/comments",
+      "file": "/app/app/api/content.py",
+      "line": 145
+    },
+    {
+      "method": "POST",
+      "path": "/api/content/favorites",
+      "file": "/app/app/api/content.py",
+      "line": 164
+    },
+    {
+      "method": "POST",
+      "path": "/api/coupons/claim",
+      "file": "/app/app/api/coupons.py",
+      "line": 154
+    },
+    {
+      "method": "POST",
+      "path": "/api/coupons/redeem",
+      "file": "/app/app/api/coupons.py",
+      "line": 487
+    },
+    {
+      "method": "POST",
+      "path": "/api/cs/sessions",
+      "file": "/app/app/api/customer_service.py",
+      "line": 22
+    },
+    {
+      "method": "POST",
+      "path": "/api/cs/sessions/{session_id}/messages",
+      "file": "/app/app/api/customer_service.py",
+      "line": 145
+    },
+    {
+      "method": "POST",
+      "path": "/api/devices/bind",
+      "file": "/app/app/api/devices_v2.py",
+      "line": 338
+    },
+    {
+      "method": "POST",
+      "path": "/api/devices/unbind",
+      "file": "/app/app/api/devices_v2.py",
+      "line": 420
+    },
+    {
+      "method": "POST",
+      "path": "/api/drug-identify/{record_id}/share",
+      "file": "/app/app/api/drug_identify_share.py",
+      "line": 34
+    },
+    {
+      "method": "POST",
+      "path": "/api/drugs/identify",
+      "file": "/app/app/api/drug.py",
+      "line": 106
+    },
+    {
+      "method": "POST",
+      "path": "/api/drugs/identify-v2",
+      "file": "/app/app/api/drug.py",
+      "line": 153
+    },
+    {
+      "method": "POST",
+      "path": "/api/drugs/interaction-check",
+      "file": "/app/app/api/drug.py",
+      "line": 68
+    },
+    {
+      "method": "POST",
+      "path": "/api/experts/appointments",
+      "file": "/app/app/api/expert.py",
+      "line": 94
+    },
+    {
+      "method": "POST",
+      "path": "/api/family-archive-v2/member/{member_id}/unbind/confirm",
+      "file": "/app/app/api/health_archive_optim_v2.py",
+      "line": 476
+    },
+    {
+      "method": "POST",
+      "path": "/api/family-archive-v2/member/{member_id}/unbind/send-code",
+      "file": "/app/app/api/health_archive_optim_v2.py",
+      "line": 430
+    },
+    {
+      "method": "POST",
+      "path": "/api/family/invitation",
+      "file": "/app/app/api/family_management.py",
+      "line": 83
+    },
+    {
+      "method": "POST",
+      "path": "/api/family/invitation/{code}/accept",
+      "file": "/app/app/api/family_management.py",
+      "line": 405
+    },
+    {
+      "method": "POST",
+      "path": "/api/family/invitation/{code}/reject",
+      "file": "/app/app/api/family_management.py",
+      "line": 674
+    },
+    {
+      "method": "POST",
+      "path": "/api/family/member/admin/cleanup-orphan-invitations",
+      "file": "/app/app/api/family_member_v2.py",
+      "line": 1314
+    },
+    {
+      "method": "POST",
+      "path": "/api/family/member/{member_id}/invite",
+      "file": "/app/app/api/family_member_v2.py",
+      "line": 1162
+    },
+    {
+      "method": "POST",
+      "path": "/api/family/member/{member_id}/unbind",
+      "file": "/app/app/api/family_member_v2.py",
+      "line": 1241
+    },
+    {
+      "method": "POST",
+      "path": "/api/family/members",
+      "file": "/app/app/api/family.py",
+      "line": 192
+    },
+    {
+      "method": "POST",
+      "path": "/api/family/sos",
+      "file": "/app/app/api/family.py",
+      "line": 414
+    },
+    {
+      "method": "POST",
+      "path": "/api/feedback",
+      "file": "/app/app/api/feedback.py",
+      "line": 17
+    },
+    {
+      "method": "POST",
+      "path": "/api/glucose-v1/admin/ai-prompts/{prompt_key}/test",
+      "file": "/app/app/api/glucose_v1.py",
+      "line": 1658
+    },
+    {
+      "method": "POST",
+      "path": "/api/glucose-v1/admin/purge-all",
+      "file": "/app/app/api/glucose_v1.py",
+      "line": 974
+    },
+    {
+      "method": "POST",
+      "path": "/api/glucose-v1/ai-explain-single",
+      "file": "/app/app/api/glucose_v1.py",
+      "line": 1301
+    },
+    {
+      "method": "POST",
+      "path": "/api/glucose-v1/ai-explain-trend",
+      "file": "/app/app/api/glucose_v1.py",
+      "line": 1375
+    },
+    {
+      "method": "POST",
+      "path": "/api/glucose-v1/alerts/{alert_id}/confirm",
+      "file": "/app/app/api/glucose_v1.py",
+      "line": 746
+    },
+    {
+      "method": "POST",
+      "path": "/api/glucose-v1/records",
+      "file": "/app/app/api/glucose_v1.py",
+      "line": 415
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v12/emergency/simulate-serial-call",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 1106
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v12/managed/{managed_user_id}/proxy-pay",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 817
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v12/owner/direct-adjust",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 736
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v12/reminders",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 1042
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v12/transfer/initiate",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 426
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v12/transfer/{transfer_id}/approve",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 520
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v12/transfer/{transfer_id}/cancel",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 696
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v12/transfer/{transfer_id}/reject",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 655
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v13/family/invite/cancel",
+      "file": "/app/app/api/guardian_system_v13.py",
+      "line": 957
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v13/family/proxy-pay/toggle",
+      "file": "/app/app/api/guardian_system_v13.py",
+      "line": 872
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v13/family/relation/unguard",
+      "file": "/app/app/api/guardian_bugfix_v1.py",
+      "line": 497
+    },
+    {
+      "method": "POST",
+      "path": "/api/guardian/v13/family/remove",
+      "file": "/app/app/api/guardian_system_v13.py",
+      "line": 983
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-alerts/_seed",
+      "file": "/app/app/api/health_archive_v5.py",
+      "line": 393
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-alerts/check",
+      "file": "/app/app/api/health_dashboard.py",
+      "line": 361
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-alerts/resolve-all",
+      "file": "/app/app/api/health_archive_v5.py",
+      "line": 372
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-alerts/{alert_id}/resolve",
+      "file": "/app/app/api/health_archive_v5.py",
+      "line": 350
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-archive/guardian/{managed_user_id}/devices/remind-bind",
+      "file": "/app/app/api/health_archive_optim_v1.py",
+      "line": 404
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-metric-v1/{profile_id}/{metric_type}/ai-explain-single",
+      "file": "/app/app/api/health_metric_card_v1.py",
+      "line": 448
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-metric-v1/{profile_id}/{metric_type}/ai-explain-trend",
+      "file": "/app/app/api/health_metric_card_v1.py",
+      "line": 484
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/ai-generate",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 1701
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/ai-generate-category/{category_id}",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 1801
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/checkin-items",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 807
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/checkin-items/{item_id}/checkin",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 1257
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/checkin-items/{item_id}/makeup",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 949
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/medications",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 276
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/medications/check-duplicate",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 212
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/medications/{reminder_id}/checkin",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 758
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/recommended-plans/{plan_id}/join",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 1433
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/today-todos/{item_id}/check",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 2070
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/user-plans",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 1482
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-plan/user-plans/{plan_id}/tasks/{task_id}/checkin",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 1648
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-profile-v3/devices/{device_type}/bind",
+      "file": "/app/app/api/health_profile_v3.py",
+      "line": 566
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-profile-v3/devices/{device_type}/callback",
+      "file": "/app/app/api/health_profile_v3.py",
+      "line": 603
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-profile-v3/devices/{device_type}/sync",
+      "file": "/app/app/api/health_profile_v3.py",
+      "line": 634
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-profile-v3/{profile_id}/metric/{metric_type}",
+      "file": "/app/app/api/health_profile_v3.py",
+      "line": 391
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-reminders",
+      "file": "/app/app/api/health_dashboard.py",
+      "line": 159
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-self-check/start",
+      "file": "/app/app/api/health_self_check.py",
+      "line": 339
+    },
+    {
+      "method": "POST",
+      "path": "/api/health-self-check/start-stream",
+      "file": "/app/app/api/health_self_check.py",
+      "line": 385
+    },
+    {
+      "method": "POST",
+      "path": "/api/health/allergies",
+      "file": "/app/app/api/health_profile.py",
+      "line": 318
+    },
+    {
+      "method": "POST",
+      "path": "/api/health/checkup-reports",
+      "file": "/app/app/api/health_profile.py",
+      "line": 531
+    },
+    {
+      "method": "POST",
+      "path": "/api/health/guide-status",
+      "file": "/app/app/api/health_profile.py",
+      "line": 270
+    },
+    {
+      "method": "POST",
+      "path": "/api/health/medical-history",
+      "file": "/app/app/api/health_profile.py",
+      "line": 368
+    },
+    {
+      "method": "POST",
+      "path": "/api/health/medications",
+      "file": "/app/app/api/health_profile.py",
+      "line": 418
+    },
+    {
+      "method": "POST",
+      "path": "/api/health/profile",
+      "file": "/app/app/api/health_profile.py",
+      "line": 70
+    },
+    {
+      "method": "POST",
+      "path": "/api/health/visits",
+      "file": "/app/app/api/health_profile.py",
+      "line": 468
+    },
+    {
+      "method": "POST",
+      "path": "/api/home_safety/callback/ai_call_result",
+      "file": "/app/app/api/home_safety_v1.py",
+      "line": 1986
+    },
+    {
+      "method": "POST",
+      "path": "/api/home_safety/callback/alarm",
+      "file": "/app/app/api/home_safety_v1.py",
+      "line": 1596
+    },
+    {
+      "method": "POST",
+      "path": "/api/internal/checkup/parsed",
+      "file": "/app/app/api/family_guardian.py",
+      "line": 48
+    },
+    {
+      "method": "POST",
+      "path": "/api/internal/user/registered",
+      "file": "/app/app/api/family_guardian.py",
+      "line": 403
+    },
+    {
+      "method": "POST",
+      "path": "/api/maps/reverse-geocoding",
+      "file": "/app/app/api/maps.py",
+      "line": 336
+    },
+    {
+      "method": "POST",
+      "path": "/api/me/migrations/{mig_id}/confirm",
+      "file": "/app/app/api/family_guardian.py",
+      "line": 182
+    },
+    {
+      "method": "POST",
+      "path": "/api/me/migrations/{mig_id}/reject",
+      "file": "/app/app/api/family_guardian.py",
+      "line": 243
+    },
+    {
+      "method": "POST",
+      "path": "/api/medical-records",
+      "file": "/app/app/api/health_archive_v5.py",
+      "line": 602
+    },
+    {
+      "method": "POST",
+      "path": "/api/medical-records/_purge-expired",
+      "file": "/app/app/api/health_archive_v5.py",
+      "line": 741
+    },
+    {
+      "method": "POST",
+      "path": "/api/medical-records/{record_id}/restore",
+      "file": "/app/app/api/health_archive_v5.py",
+      "line": 696
+    },
+    {
+      "method": "POST",
+      "path": "/api/medication-check-in",
+      "file": "/app/app/api/medication_plans_v1.py",
+      "line": 503
+    },
+    {
+      "method": "POST",
+      "path": "/api/medication-check-in/{checkin_id}/revoke",
+      "file": "/app/app/api/medication_plans_v1.py",
+      "line": 553
+    },
+    {
+      "method": "POST",
+      "path": "/api/medication-plan/check-duplicate",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 267
+    },
+    {
+      "method": "POST",
+      "path": "/api/medication-reminder/check",
+      "file": "/app/app/api/medication_reminder.py",
+      "line": 249
+    },
+    {
+      "method": "POST",
+      "path": "/api/medication-reminder/plans",
+      "file": "/app/app/api/medication_reminder.py",
+      "line": 119
+    },
+    {
+      "method": "POST",
+      "path": "/api/medication-reminder/uncheck",
+      "file": "/app/app/api/medication_reminder.py",
+      "line": 290
+    },
+    {
+      "method": "POST",
+      "path": "/api/member/_internal/cron/expire",
+      "file": "/app/app/api/member_center_v2.py",
+      "line": 623
+    },
+    {
+      "method": "POST",
+      "path": "/api/member/_internal/cron/remind",
+      "file": "/app/app/api/member_center_v2.py",
+      "line": 629
+    },
+    {
+      "method": "POST",
+      "path": "/api/member/order",
+      "file": "/app/app/api/member_center_v2.py",
+      "line": 318
+    },
+    {
+      "method": "POST",
+      "path": "/api/member/order/{order_id}/pay",
+      "file": "/app/app/api/member_center_v2.py",
+      "line": 395
+    },
+    {
+      "method": "POST",
+      "path": "/api/membership/calculate-discount",
+      "file": "/app/app/api/membership.py",
+      "line": 394
+    },
+    {
+      "method": "POST",
+      "path": "/api/membership/cancel",
+      "file": "/app/app/api/membership.py",
+      "line": 374
+    },
+    {
+      "method": "POST",
+      "path": "/api/membership/subscribe",
+      "file": "/app/app/api/membership.py",
+      "line": 320
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/auth/login",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 263
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/bindding/wechat/qrcode",
+      "file": "/app/app/api/wechat_bindding.py",
+      "line": 63
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/booking/{order_item_id}/notify",
+      "file": "/app/app/api/merchant.py",
+      "line": 2258
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/booking/{order_item_id}/reschedule",
+      "file": "/app/app/api/merchant.py",
+      "line": 2233
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/business-hours",
+      "file": "/app/app/api/order_enhancement.py",
+      "line": 82
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/calendar/views",
+      "file": "/app/app/api/merchant.py",
+      "line": 2132
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/concurrency-limit",
+      "file": "/app/app/api/order_enhancement.py",
+      "line": 149
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/internal/calendar/notify-scan",
+      "file": "/app/app/api/merchant.py",
+      "line": 2345
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/orders/{order_id}/attachments/upload",
+      "file": "/app/app/api/merchant.py",
+      "line": 1506
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/orders/{order_id}/confirm",
+      "file": "/app/app/api/merchant.py",
+      "line": 883
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/orders/{order_id}/notes",
+      "file": "/app/app/api/merchant.py",
+      "line": 1093
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/orders/{order_id}/verify",
+      "file": "/app/app/api/merchant.py",
+      "line": 291
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/staff/create",
+      "file": "/app/app/api/account_security.py",
+      "line": 442
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/staff/reset-password",
+      "file": "/app/app/api/account_security.py",
+      "line": 535
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/staff/toggle-status",
+      "file": "/app/app/api/account_security.py",
+      "line": 598
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/v1/exports",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 1506
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/v1/orders/{order_item_id}/attachments",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 599
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/v1/settlements/{sid}/confirm",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 896
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/v1/settlements/{sid}/dispute",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 920
+    },
+    {
+      "method": "POST",
+      "path": "/api/merchant/v1/staff",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 1706
+    },
+    {
+      "method": "POST",
+      "path": "/api/notifications/mark-read-by-order",
+      "file": "/app/app/api/order_enhancement.py",
+      "line": 521
+    },
+    {
+      "method": "POST",
+      "path": "/api/ocr/batch-recognize",
+      "file": "/app/app/api/ocr.py",
+      "line": 625
+    },
+    {
+      "method": "POST",
+      "path": "/api/ocr/recognize",
+      "file": "/app/app/api/ocr.py",
+      "line": 514
+    },
+    {
+      "method": "POST",
+      "path": "/api/openapi/redeem-codes/batch-fetch",
+      "file": "/app/app/api/third_party_openapi.py",
+      "line": 88
+    },
+    {
+      "method": "POST",
+      "path": "/api/openapi/redeem-codes/disable",
+      "file": "/app/app/api/third_party_openapi.py",
+      "line": 189
+    },
+    {
+      "method": "POST",
+      "path": "/api/openapi/redeem-codes/mark-sold",
+      "file": "/app/app/api/third_party_openapi.py",
+      "line": 123
+    },
+    {
+      "method": "POST",
+      "path": "/api/openapi/redeem-codes/redeem-callback",
+      "file": "/app/app/api/third_party_openapi.py",
+      "line": 225
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/attachment-meta",
+      "file": "/app/app/api/order_enhancement.py",
+      "line": 544
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/checkout",
+      "file": "/app/app/api/cards_v2.py",
+      "line": 830
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/appointment",
+      "file": "/app/app/api/unified_orders.py",
+      "line": 2007
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/cancel",
+      "file": "/app/app/api/unified_orders.py",
+      "line": 2378
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/confirm",
+      "file": "/app/app/api/unified_orders.py",
+      "line": 1927
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/confirm-free",
+      "file": "/app/app/api/unified_orders.py",
+      "line": 1854
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/pay",
+      "file": "/app/app/api/unified_orders.py",
+      "line": 1732
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/pay-card",
+      "file": "/app/app/api/cards_v2.py",
+      "line": 436
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/refund",
+      "file": "/app/app/api/unified_orders.py",
+      "line": 2546
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/refund-card",
+      "file": "/app/app/api/cards_v2.py",
+      "line": 776
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/refund/cancel",
+      "file": "/app/app/api/unified_orders.py",
+      "line": 2662
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/refund/withdraw",
+      "file": "/app/app/api/unified_orders.py",
+      "line": 2644
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/reorder",
+      "file": "/app/app/api/unified_orders.py",
+      "line": 2690
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/unified/{order_id}/review",
+      "file": "/app/app/api/unified_orders.py",
+      "line": 2487
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/{order_id}/review",
+      "file": "/app/app/api/order.py",
+      "line": 190
+    },
+    {
+      "method": "POST",
+      "path": "/api/orders/{order_id}/verify",
+      "file": "/app/app/api/order.py",
+      "line": 236
+    },
+    {
+      "method": "POST",
+      "path": "/api/payment/alipay/notify",
+      "file": "/app/app/api/alipay_notify.py",
+      "line": 63
+    },
+    {
+      "method": "POST",
+      "path": "/api/plans/ai-generate",
+      "file": "/app/app/api/plan.py",
+      "line": 171
+    },
+    {
+      "method": "POST",
+      "path": "/api/plans/{plan_id}/tasks",
+      "file": "/app/app/api/plan.py",
+      "line": 101
+    },
+    {
+      "method": "POST",
+      "path": "/api/plans/{plan_id}/tasks/{task_id}/checkin",
+      "file": "/app/app/api/plan.py",
+      "line": 127
+    },
+    {
+      "method": "POST",
+      "path": "/api/points/exchange",
+      "file": "/app/app/api/points.py",
+      "line": 403
+    },
+    {
+      "method": "POST",
+      "path": "/api/points/mall/exchange",
+      "file": "/app/app/api/points_exchange.py",
+      "line": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/points/sign-in",
+      "file": "/app/app/api/points.py",
+      "line": 456
+    },
+    {
+      "method": "POST",
+      "path": "/api/points/signin",
+      "file": "/app/app/api/points.py",
+      "line": 168
+    },
+    {
+      "method": "POST",
+      "path": "/api/prd469/device/subscribe",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 581
+    },
+    {
+      "method": "POST",
+      "path": "/api/prd469/family-member/relation-custom/check",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 115
+    },
+    {
+      "method": "POST",
+      "path": "/api/prd469/health-event",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 636
+    },
+    {
+      "method": "POST",
+      "path": "/api/prd469/health-info/{profile_id}/family-history",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 800
+    },
+    {
+      "method": "POST",
+      "path": "/api/prd469/health-info/{profile_id}/surgery-history",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 872
+    },
+    {
+      "method": "POST",
+      "path": "/api/prd469/medical-record",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 1119
+    },
+    {
+      "method": "POST",
+      "path": "/api/prd469/medication-library/ocr",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 268
+    },
+    {
+      "method": "POST",
+      "path": "/api/prd469/medication-library/recognize",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 327
+    },
+    {
+      "method": "POST",
+      "path": "/api/questionnaire/answers",
+      "file": "/app/app/api/questionnaire.py",
+      "line": 1725
+    },
+    {
+      "method": "POST",
+      "path": "/api/questionnaire/answers/{answer_id}/retry-ai",
+      "file": "/app/app/api/questionnaire.py",
+      "line": 1438
+    },
+    {
+      "method": "POST",
+      "path": "/api/questionnaire/followup-chip",
+      "file": "/app/app/api/questionnaire.py",
+      "line": 1546
+    },
+    {
+      "method": "POST",
+      "path": "/api/questionnaire/submit",
+      "file": "/app/app/api/questionnaire.py",
+      "line": 813
+    },
+    {
+      "method": "POST",
+      "path": "/api/report-history/compare",
+      "file": "/app/app/api/report_history.py",
+      "line": 339
+    },
+    {
+      "method": "POST",
+      "path": "/api/report-history/save-medical",
+      "file": "/app/app/api/report_history.py",
+      "line": 559
+    },
+    {
+      "method": "POST",
+      "path": "/api/report-history/share",
+      "file": "/app/app/api/report_history.py",
+      "line": 483
+    },
+    {
+      "method": "POST",
+      "path": "/api/report-history/sync",
+      "file": "/app/app/api/report_history.py",
+      "line": 616
+    },
+    {
+      "method": "POST",
+      "path": "/api/report-interpret/start",
+      "file": "/app/app/api/report_interpret_button.py",
+      "line": 76
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/alert/check",
+      "file": "/app/app/api/report.py",
+      "line": 792
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/analyze",
+      "file": "/app/app/api/report.py",
+      "line": 221
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/compare",
+      "file": "/app/app/api/report.py",
+      "line": 547
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/compare/start",
+      "file": "/app/app/api/report_interpret.py",
+      "line": 593
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/interpret/ocr-detail/click",
+      "file": "/app/app/api/report_interpret.py",
+      "line": 1069
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/interpret/session/{session_id}/chat",
+      "file": "/app/app/api/report_interpret.py",
+      "line": 818
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/interpret/session/{session_id}/retry",
+      "file": "/app/app/api/report_interpret.py",
+      "line": 896
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/interpret/session/{session_id}/stream",
+      "file": "/app/app/api/report_interpret.py",
+      "line": 804
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/interpret/start",
+      "file": "/app/app/api/report_interpret.py",
+      "line": 491
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/ocr",
+      "file": "/app/app/api/report.py",
+      "line": 167
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/share",
+      "file": "/app/app/api/report.py",
+      "line": 898
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/trend/analysis",
+      "file": "/app/app/api/report.py",
+      "line": 738
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/upload",
+      "file": "/app/app/api/report.py",
+      "line": 85
+    },
+    {
+      "method": "POST",
+      "path": "/api/report/{report_id}/share",
+      "file": "/app/app/api/report.py",
+      "line": 922
+    },
+    {
+      "method": "POST",
+      "path": "/api/reverse-guardian/invite",
+      "file": "/app/app/api/reverse_guardian.py",
+      "line": 344
+    },
+    {
+      "method": "POST",
+      "path": "/api/reverse-guardian/invite/cancel",
+      "file": "/app/app/api/reverse_guardian.py",
+      "line": 632
+    },
+    {
+      "method": "POST",
+      "path": "/api/reverse-guardian/invite/{invite_code}/accept",
+      "file": "/app/app/api/reverse_guardian.py",
+      "line": 492
+    },
+    {
+      "method": "POST",
+      "path": "/api/reverse-guardian/remove",
+      "file": "/app/app/api/reverse_guardian.py",
+      "line": 265
+    },
+    {
+      "method": "POST",
+      "path": "/api/safety-rope/_internal/scan",
+      "file": "/app/app/api/safety_rope_v1.py",
+      "line": 844
+    },
+    {
+      "method": "POST",
+      "path": "/api/safety-rope/checkin",
+      "file": "/app/app/api/safety_rope_v1.py",
+      "line": 417
+    },
+    {
+      "method": "POST",
+      "path": "/api/safety-rope/contacts",
+      "file": "/app/app/api/safety_rope_v1.py",
+      "line": 555
+    },
+    {
+      "method": "POST",
+      "path": "/api/search/asr/recognize",
+      "file": "/app/app/api/search.py",
+      "line": 568
+    },
+    {
+      "method": "POST",
+      "path": "/api/search/asr/token",
+      "file": "/app/app/api/search.py",
+      "line": 540
+    },
+    {
+      "method": "POST",
+      "path": "/api/search/log",
+      "file": "/app/app/api/search.py",
+      "line": 519
+    },
+    {
+      "method": "POST",
+      "path": "/api/staff/cards/redeem",
+      "file": "/app/app/api/cards_v2.py",
+      "line": 604
+    },
+    {
+      "method": "POST",
+      "path": "/api/tcm/constitution-test",
+      "file": "/app/app/api/tcm.py",
+      "line": 163
+    },
+    {
+      "method": "POST",
+      "path": "/api/tcm/diagnosis",
+      "file": "/app/app/api/tcm.py",
+      "line": 37
+    },
+    {
+      "method": "POST",
+      "path": "/api/tts/synthesize",
+      "file": "/app/app/api/tts.py",
+      "line": 116
+    },
+    {
+      "method": "POST",
+      "path": "/api/upload/file",
+      "file": "/app/app/api/upload.py",
+      "line": 117
+    },
+    {
+      "method": "POST",
+      "path": "/api/upload/image",
+      "file": "/app/app/api/upload.py",
+      "line": 83
+    },
+    {
+      "method": "POST",
+      "path": "/api/upload/video",
+      "file": "/app/app/api/upload.py",
+      "line": 100
+    },
+    {
+      "method": "POST",
+      "path": "/api/user/health-profile/extract",
+      "file": "/app/app/api/user_health_profile.py",
+      "line": 113
+    },
+    {
+      "method": "POST",
+      "path": "/api/user/mode-preference",
+      "file": "/app/app/api/user_mode_preference.py",
+      "line": 74
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/regions/reverse-geocode",
+      "file": "/app/app/api/addresses_v2.py",
+      "line": 379
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/user/addresses",
+      "file": "/app/app/api/addresses_v2.py",
+      "line": 210
+    },
+    {
+      "method": "POST",
+      "path": "/api/v5/medication-library/match",
+      "file": "/app/app/api/medication_library_v3.py",
+      "line": 376
+    },
+    {
+      "method": "POST",
+      "path": "/api/verifications/verify",
+      "file": "/app/app/api/member_qr.py",
+      "line": 288
+    },
+    {
+      "method": "POST",
+      "path": "/api/verify/checkin",
+      "file": "/app/app/api/member_qr.py",
+      "line": 94
+    },
+    {
+      "method": "POST",
+      "path": "/api/verify/member-qrcode",
+      "file": "/app/app/api/member_qr.py",
+      "line": 61
+    },
+    {
+      "method": "POST",
+      "path": "/api/verify/redeem",
+      "file": "/app/app/api/member_qr.py",
+      "line": 207
+    },
+    {
+      "method": "POST",
+      "path": "/api/webhook/wechat/bindding",
+      "file": "/app/app/api/wechat_bindding.py",
+      "line": 93
+    },
+    {
+      "method": "POST",
+      "path": "/callback/home_safety/ai_call_result",
+      "file": "/app/app/api/home_safety_v1.py",
+      "line": 1987
+    },
+    {
+      "method": "POST",
+      "path": "/callback/home_safety/alarm",
+      "file": "/app/app/api/home_safety_v1.py",
+      "line": 1597
+    },
+    {
+      "method": "PUT",
+      "path": "/api/addresses/{address_id}",
+      "file": "/app/app/api/addresses.py",
+      "line": 70
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/abnormal-thresholds/{tid}",
+      "file": "/app/app/api/admin_family_guardian.py",
+      "line": 209
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/ai-call/config",
+      "file": "/app/app/api/ai_call.py",
+      "line": 400
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/ai-call/membership-levels/{level_id}",
+      "file": "/app/app/api/ai_call.py",
+      "line": 345
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/ai-center/disclaimers/{chat_type}",
+      "file": "/app/app/api/ai_center.py",
+      "line": 189
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/ai-center/prompts/{chat_type}",
+      "file": "/app/app/api/ai_center.py",
+      "line": 141
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/ai-center/sensitive-words/{word_id}",
+      "file": "/app/app/api/ai_center.py",
+      "line": 77
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/ai-config/{config_id}",
+      "file": "/app/app/api/admin.py",
+      "line": 346
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/ai-home-config",
+      "file": "/app/app/api/ai_home_config.py",
+      "line": 405
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/ai-model-templates/{template_id}",
+      "file": "/app/app/api/admin.py",
+      "line": 540
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/alert-templates/{tid}",
+      "file": "/app/app/api/admin_family_guardian.py",
+      "line": 100
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/app-settings/chat-idle-timeout",
+      "file": "/app/app/api/app_settings.py",
+      "line": 61
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/appointment-forms/{form_id}",
+      "file": "/app/app/api/appointment_form_admin.py",
+      "line": 100
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/appointment-forms/{form_id}/fields/{field_id}",
+      "file": "/app/app/api/appointment_form_admin.py",
+      "line": 201
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/article-categories/{cat_id}",
+      "file": "/app/app/api/admin_news.py",
+      "line": 74
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/audit/phones/{phone_id}",
+      "file": "/app/app/api/audit.py",
+      "line": 74
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/body-part-dict/{part_id}",
+      "file": "/app/app/api/health_self_check.py",
+      "line": 628
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/bottom-nav/sort",
+      "file": "/app/app/api/bottom_nav.py",
+      "line": 111
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/bottom-nav/{nav_id}",
+      "file": "/app/app/api/bottom_nav.py",
+      "line": 128
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/cards/{card_id}",
+      "file": "/app/app/api/cards_admin.py",
+      "line": 280
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/cards/{card_id}/status",
+      "file": "/app/app/api/cards_admin.py",
+      "line": 351
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/config/login_ui_version",
+      "file": "/app/app/api/login_ui_config.py",
+      "line": 39
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/constitution/content-configs/{config_id}",
+      "file": "/app/app/api/constitution.py",
+      "line": 816
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/content/articles/{article_id}",
+      "file": "/app/app/api/admin.py",
+      "line": 1323
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/cos/config",
+      "file": "/app/app/api/cos.py",
+      "line": 104
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/cos/upload-limits",
+      "file": "/app/app/api/cos.py",
+      "line": 436
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/coupons/{coupon_id}",
+      "file": "/app/app/api/product_admin.py",
+      "line": 1559
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/digital-humans/{digital_human_id}",
+      "file": "/app/app/api/function_button.py",
+      "line": 840
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/disease-presets/{dp_id}",
+      "file": "/app/app/api/admin.py",
+      "line": 2318
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/email-notify/config",
+      "file": "/app/app/api/email_notify.py",
+      "line": 70
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/emergency-sources/{source_id}",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 1384
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/experts/{expert_id}",
+      "file": "/app/app/api/admin.py",
+      "line": 1760
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/feedback/{feedback_id}/status",
+      "file": "/app/app/api/feedback.py",
+      "line": 91
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/function-buttons/sort",
+      "file": "/app/app/api/function_button.py",
+      "line": 722
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/function-buttons/{button_id}",
+      "file": "/app/app/api/function_button.py",
+      "line": 612
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/goods/{goods_id}/tags",
+      "file": "/app/app/api/tag_recommend.py",
+      "line": 308
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/health-check-templates/{tpl_id}",
+      "file": "/app/app/api/health_self_check.py",
+      "line": 785
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/health-plan/recommended-plans/tasks/{task_id}",
+      "file": "/app/app/api/admin_health_plan.py",
+      "line": 222
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/health-plan/recommended-plans/{plan_id}",
+      "file": "/app/app/api/admin_health_plan.py",
+      "line": 110
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/health-plan/recommended-plans/{plan_id}/publish",
+      "file": "/app/app/api/admin_health_plan.py",
+      "line": 157
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/health-plan/template-categories/{category_id}",
+      "file": "/app/app/api/admin_health_plan.py",
+      "line": 296
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/home-banners/sort",
+      "file": "/app/app/api/home_config.py",
+      "line": 190
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/home-banners/{banner_id}",
+      "file": "/app/app/api/home_config.py",
+      "line": 207
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/home-config",
+      "file": "/app/app/api/home_config.py",
+      "line": 128
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/knowledge-bases/fallback-config",
+      "file": "/app/app/api/knowledge.py",
+      "line": 160
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/knowledge-bases/scene-bindings",
+      "file": "/app/app/api/knowledge.py",
+      "line": 205
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/knowledge-bases/search-config",
+      "file": "/app/app/api/knowledge.py",
+      "line": 114
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/knowledge-bases/{kb_id}",
+      "file": "/app/app/api/knowledge.py",
+      "line": 455
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/knowledge-bases/{kb_id}/entries/{eid}",
+      "file": "/app/app/api/knowledge.py",
+      "line": 576
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/map-config",
+      "file": "/app/app/api/maps.py",
+      "line": 452
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/membership/free-quota",
+      "file": "/app/app/api/membership.py",
+      "line": 253
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/membership/plans/{plan_id}",
+      "file": "/app/app/api/membership.py",
+      "line": 169
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/membership/plans/{plan_id}/toggle",
+      "file": "/app/app/api/membership.py",
+      "line": 212
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/merchant-categories/{cat_id}",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 187
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/merchant/accounts/{user_id}",
+      "file": "/app/app/api/admin_merchant.py",
+      "line": 1072
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/merchant/stores/{store_id}",
+      "file": "/app/app/api/admin_merchant.py",
+      "line": 831
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/news/{news_id}",
+      "file": "/app/app/api/admin_news.py",
+      "line": 268
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/notices/sort",
+      "file": "/app/app/api/notice.py",
+      "line": 88
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/notices/{notice_id}",
+      "file": "/app/app/api/notice.py",
+      "line": 103
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/ocr/config",
+      "file": "/app/app/api/report.py",
+      "line": 1013
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/ocr/providers/{provider}",
+      "file": "/app/app/api/ocr.py",
+      "line": 83
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/ocr/scenes/{scene_id}",
+      "file": "/app/app/api/ocr.py",
+      "line": 244
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/ocr/upload-limits",
+      "file": "/app/app/api/ocr.py",
+      "line": 314
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/partners/{partner_id}",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 1451
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/password",
+      "file": "/app/app/api/account_security.py",
+      "line": 243
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/payment-channels/{channel_code}",
+      "file": "/app/app/api/payment_config.py",
+      "line": 384
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/points/levels/{level_id}",
+      "file": "/app/app/api/admin.py",
+      "line": 1882
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/points/mall/batch-status",
+      "file": "/app/app/api/points_admin.py",
+      "line": 237
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/points/mall/{item_id}",
+      "file": "/app/app/api/points_admin.py",
+      "line": 259
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/points/rules",
+      "file": "/app/app/api/admin.py",
+      "line": 1484
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/products/categories/{category_id}",
+      "file": "/app/app/api/product_admin.py",
+      "line": 412
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/products/{product_id}",
+      "file": "/app/app/api/product_admin.py",
+      "line": 676
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/products/{product_id}/form-fields/{field_id}",
+      "file": "/app/app/api/product_admin.py",
+      "line": 919
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/products/{product_id}/stores",
+      "file": "/app/app/api/product_admin.py",
+      "line": 2122
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/prompt-templates/{prompt_type}",
+      "file": "/app/app/api/prompt_templates.py",
+      "line": 219
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/questionnaire/templates/{template_id}/recommend",
+      "file": "/app/app/api/tag_recommend.py",
+      "line": 379
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/relation-types/{rt_id}",
+      "file": "/app/app/api/admin.py",
+      "line": 2222
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/search/asr-config",
+      "file": "/app/app/api/admin_search.py",
+      "line": 334
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/search/block-words/{word_id}",
+      "file": "/app/app/api/admin_search.py",
+      "line": 244
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/search/recommend-words/{word_id}",
+      "file": "/app/app/api/admin_search.py",
+      "line": 84
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/services/categories/{cat_id}",
+      "file": "/app/app/api/admin.py",
+      "line": 831
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/services/items/batch-status",
+      "file": "/app/app/api/admin.py",
+      "line": 906
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/services/items/sort",
+      "file": "/app/app/api/admin.py",
+      "line": 921
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/services/items/{item_id}",
+      "file": "/app/app/api/admin.py",
+      "line": 936
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/settings/reminder-advance",
+      "file": "/app/app/api/product_admin.py",
+      "line": 2266
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/settings/share-config",
+      "file": "/app/app/api/chat_share.py",
+      "line": 376
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/settings/timeout-policy",
+      "file": "/app/app/api/product_admin.py",
+      "line": 2226
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/settings/tts-config",
+      "file": "/app/app/api/tts.py",
+      "line": 103
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/sms/config",
+      "file": "/app/app/api/sms.py",
+      "line": 110
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/sms/templates/{template_id}",
+      "file": "/app/app/api/sms.py",
+      "line": 231
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/stores/{store_id}/business-scope",
+      "file": "/app/app/api/product_admin.py",
+      "line": 2168
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/system/configs/{config_key}",
+      "file": "/app/app/api/admin.py",
+      "line": 1674
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/tags/{tag_id}",
+      "file": "/app/app/api/tag_recommend.py",
+      "line": 146
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/tcm/config",
+      "file": "/app/app/api/tcm_config.py",
+      "line": 47
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/themes/{theme_id}",
+      "file": "/app/app/api/themes.py",
+      "line": 200
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/users/{user_id}/referrer",
+      "file": "/app/app/api/admin.py",
+      "line": 687
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/users/{user_id}/status",
+      "file": "/app/app/api/admin.py",
+      "line": 666
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/voice-service/config",
+      "file": "/app/app/api/function_button.py",
+      "line": 890
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/wechat-push/config",
+      "file": "/app/app/api/wechat_push.py",
+      "line": 58
+    },
+    {
+      "method": "PUT",
+      "path": "/api/auth/me",
+      "file": "/app/app/api/auth.py",
+      "line": 608
+    },
+    {
+      "method": "PUT",
+      "path": "/api/auth/merchant-profile",
+      "file": "/app/app/api/auth.py",
+      "line": 644
+    },
+    {
+      "method": "PUT",
+      "path": "/api/care-card/contacts/{contact_id}",
+      "file": "/app/app/api/care_card_v1.py",
+      "line": 276
+    },
+    {
+      "method": "PUT",
+      "path": "/api/care-card/home-address",
+      "file": "/app/app/api/care_card_v1.py",
+      "line": 325
+    },
+    {
+      "method": "PUT",
+      "path": "/api/care-v1/sos/events/{event_id}/resolve",
+      "file": "/app/app/api/ai_home_care_v1.py",
+      "line": 386
+    },
+    {
+      "method": "PUT",
+      "path": "/api/care-v1/user-preferences/ui-mode",
+      "file": "/app/app/api/ai_home_care_v1.py",
+      "line": 203
+    },
+    {
+      "method": "PUT",
+      "path": "/api/chat-sessions/{session_id}",
+      "file": "/app/app/api/chat_history.py",
+      "line": 825
+    },
+    {
+      "method": "PUT",
+      "path": "/api/chat-sessions/{session_id}/pin",
+      "file": "/app/app/api/chat_history.py",
+      "line": 849
+    },
+    {
+      "method": "PUT",
+      "path": "/api/checkup/reports/{report_id}",
+      "file": "/app/app/api/checkup_api_v2.py",
+      "line": 81
+    },
+    {
+      "method": "PUT",
+      "path": "/api/cs/sessions/{session_id}/transfer",
+      "file": "/app/app/api/customer_service.py",
+      "line": 217
+    },
+    {
+      "method": "PUT",
+      "path": "/api/family-archive-v2/member/{member_id}/alert-settings",
+      "file": "/app/app/api/health_archive_optim_v2.py",
+      "line": 341
+    },
+    {
+      "method": "PUT",
+      "path": "/api/family/management/{management_id}/share-toggle",
+      "file": "/app/app/api/family_management.py",
+      "line": 924
+    },
+    {
+      "method": "PUT",
+      "path": "/api/family/members/{member_id}",
+      "file": "/app/app/api/family.py",
+      "line": 299
+    },
+    {
+      "method": "PUT",
+      "path": "/api/glucose-v1/admin/ai-prompts/{prompt_key}",
+      "file": "/app/app/api/glucose_v1.py",
+      "line": 1593
+    },
+    {
+      "method": "PUT",
+      "path": "/api/glucose-v1/records/{record_id}",
+      "file": "/app/app/api/glucose_v1.py",
+      "line": 1079
+    },
+    {
+      "method": "PUT",
+      "path": "/api/glucose-v1/reminder",
+      "file": "/app/app/api/glucose_v1.py",
+      "line": 1027
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health-archive/ai-call/settings/{target_user_id}",
+      "file": "/app/app/api/health_archive_optim_v1.py",
+      "line": 222
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health-plan/checkin-items/{item_id}",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 894
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health-plan/medications/{reminder_id}",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 651
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health-plan/medications/{reminder_id}/pause",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 738
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health-plan/user-plans/{plan_id}",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 1602
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health-profile-v3/{profile_id}/metric/{metric_type}/{record_id}",
+      "file": "/app/app/api/health_profile_v3.py",
+      "line": 444
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health-profile/self",
+      "file": "/app/app/api/health_profile_self.py",
+      "line": 254
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health-reminders/{reminder_id}",
+      "file": "/app/app/api/health_dashboard.py",
+      "line": 256
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health/profile",
+      "file": "/app/app/api/health_profile.py",
+      "line": 104
+    },
+    {
+      "method": "PUT",
+      "path": "/api/health/profile/member/{member_id}",
+      "file": "/app/app/api/health_profile.py",
+      "line": 187
+    },
+    {
+      "method": "PUT",
+      "path": "/api/medication-reminder/plans/{plan_id}",
+      "file": "/app/app/api/medication_reminder.py",
+      "line": 141
+    },
+    {
+      "method": "PUT",
+      "path": "/api/medication-reminder/plans/{plan_id}/ai-call",
+      "file": "/app/app/api/ai_call.py",
+      "line": 198
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/calendar/views/{view_id}",
+      "file": "/app/app/api/merchant.py",
+      "line": 2175
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/notifications/read-all",
+      "file": "/app/app/api/merchant.py",
+      "line": 486
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/notifications/{notification_id}/read",
+      "file": "/app/app/api/merchant.py",
+      "line": 460
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/orders/{order_id}/appointment-time",
+      "file": "/app/app/api/merchant.py",
+      "line": 921
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/password",
+      "file": "/app/app/api/account_security.py",
+      "line": 353
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/shop/info",
+      "file": "/app/app/api/account_security.py",
+      "line": 800
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/stores/{store_id}/booking-config",
+      "file": "/app/app/api/order_enhancement.py",
+      "line": 252
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/v1/invoice-profile",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 1483
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/v1/staff/{target_user_id}/permissions",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 1717
+    },
+    {
+      "method": "PUT",
+      "path": "/api/merchant/v1/staff/{target_user_id}/status",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 1767
+    },
+    {
+      "method": "PUT",
+      "path": "/api/messages/read-all",
+      "file": "/app/app/api/messages.py",
+      "line": 100
+    },
+    {
+      "method": "PUT",
+      "path": "/api/messages/{message_id}/read",
+      "file": "/app/app/api/messages.py",
+      "line": 76
+    },
+    {
+      "method": "PUT",
+      "path": "/api/notifications/read-all",
+      "file": "/app/app/api/notification.py",
+      "line": 62
+    },
+    {
+      "method": "PUT",
+      "path": "/api/notifications/{notification_id}/read",
+      "file": "/app/app/api/notification.py",
+      "line": 45
+    },
+    {
+      "method": "PUT",
+      "path": "/api/orders/{order_id}/cancel",
+      "file": "/app/app/api/order.py",
+      "line": 150
+    },
+    {
+      "method": "PUT",
+      "path": "/api/prd469/care-partners/{management_id}/permissions",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 1036
+    },
+    {
+      "method": "PUT",
+      "path": "/api/prd469/care/medication-ai-call",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 768
+    },
+    {
+      "method": "PUT",
+      "path": "/api/prd469/health-info/{profile_id}",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 503
+    },
+    {
+      "method": "PUT",
+      "path": "/api/prd469/health-info/{profile_id}/family-history/{item_index}",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 815
+    },
+    {
+      "method": "PUT",
+      "path": "/api/prd469/health-info/{profile_id}/surgery-history/{item_index}",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 887
+    },
+    {
+      "method": "PUT",
+      "path": "/api/prd469/medication-ai-call",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 750
+    },
+    {
+      "method": "PUT",
+      "path": "/api/prd469/profile/{profile_id}/basic-info",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 968
+    },
+    {
+      "method": "PUT",
+      "path": "/api/prd469/reminder-setting",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 702
+    },
+    {
+      "method": "PUT",
+      "path": "/api/report/alerts/{alert_id}/read",
+      "file": "/app/app/api/report.py",
+      "line": 881
+    },
+    {
+      "method": "PUT",
+      "path": "/api/report/interpret/{report_id}/title",
+      "file": "/app/app/api/report_interpret.py",
+      "line": 1171
+    },
+    {
+      "method": "PUT",
+      "path": "/api/safety-rope/config",
+      "file": "/app/app/api/safety_rope_v1.py",
+      "line": 377
+    },
+    {
+      "method": "PUT",
+      "path": "/api/safety-rope/contacts/{contact_id}",
+      "file": "/app/app/api/safety_rope_v1.py",
+      "line": 627
+    },
+    {
+      "method": "PUT",
+      "path": "/api/user/font-setting",
+      "file": "/app/app/api/font_setting.py",
+      "line": 17
+    },
+    {
+      "method": "PUT",
+      "path": "/api/user/health-profile",
+      "file": "/app/app/api/user_health_profile.py",
+      "line": 70
+    },
+    {
+      "method": "PUT",
+      "path": "/api/users/me",
+      "file": "/app/app/api/users.py",
+      "line": 61
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/consultant/{consultant_id}/profile_flags",
+      "file": "/app/app/api/consultant_profile_card.py",
+      "line": 397
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v2/user/addresses/{address_id}",
+      "file": "/app/app/api/addresses_v2.py",
+      "line": 272
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/addresses/{address_id}",
+      "file": "/app/app/api/addresses.py",
+      "line": 106
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/abnormal-thresholds/{tid}",
+      "file": "/app/app/api/admin_family_guardian.py",
+      "line": 229
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/ai-call/membership-levels/{level_id}",
+      "file": "/app/app/api/ai_call.py",
+      "line": 363
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/ai-center/sensitive-words/{word_id}",
+      "file": "/app/app/api/ai_center.py",
+      "line": 100
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/ai-config/{config_id}",
+      "file": "/app/app/api/admin.py",
+      "line": 382
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/ai-model-templates/{template_id}",
+      "file": "/app/app/api/admin.py",
+      "line": 579
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/alert-templates/{tid}",
+      "file": "/app/app/api/admin_family_guardian.py",
+      "line": 120
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/appointment-forms/{form_id}",
+      "file": "/app/app/api/appointment_form_admin.py",
+      "line": 122
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/appointment-forms/{form_id}/fields/{field_id}",
+      "file": "/app/app/api/appointment_form_admin.py",
+      "line": 225
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/article-categories/{cat_id}",
+      "file": "/app/app/api/admin_news.py",
+      "line": 101
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/audit/phones/{phone_id}",
+      "file": "/app/app/api/audit.py",
+      "line": 91
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/body-part-dict/{part_id}",
+      "file": "/app/app/api/health_self_check.py",
+      "line": 668
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/bottom-nav/{nav_id}",
+      "file": "/app/app/api/bottom_nav.py",
+      "line": 165
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/cards/{card_id}",
+      "file": "/app/app/api/cards_admin.py",
+      "line": 376
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/cities/hot/{city_id}",
+      "file": "/app/app/api/city.py",
+      "line": 192
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/constitution/content-configs/{config_id}",
+      "file": "/app/app/api/constitution.py",
+      "line": 849
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/content/articles/{article_id}",
+      "file": "/app/app/api/admin.py",
+      "line": 1351
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/cos/files",
+      "file": "/app/app/api/cos.py",
+      "line": 278
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/coupons/{coupon_id}",
+      "file": "/app/app/api/product_admin.py",
+      "line": 1582
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/digital-humans/{digital_human_id}",
+      "file": "/app/app/api/function_button.py",
+      "line": 861
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/disease-presets/{dp_id}",
+      "file": "/app/app/api/admin.py",
+      "line": 2344
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/emergency-sources/{source_id}",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 1421
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/experts/{expert_id}",
+      "file": "/app/app/api/admin.py",
+      "line": 1778
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/family-management/{mgmt_id}",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 1618
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/function-buttons/{button_id}",
+      "file": "/app/app/api/function_button.py",
+      "line": 663
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/health-check-templates/{tpl_id}",
+      "file": "/app/app/api/health_self_check.py",
+      "line": 817
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/health-plan/recommended-plans/tasks/{task_id}",
+      "file": "/app/app/api/admin_health_plan.py",
+      "line": 243
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/health-plan/recommended-plans/{plan_id}",
+      "file": "/app/app/api/admin_health_plan.py",
+      "line": 139
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/health-plan/template-categories/{category_id}",
+      "file": "/app/app/api/admin_health_plan.py",
+      "line": 317
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/home-banners/{banner_id}",
+      "file": "/app/app/api/home_config.py",
+      "line": 229
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/knowledge-bases/{kb_id}",
+      "file": "/app/app/api/knowledge.py",
+      "line": 476
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/knowledge-bases/{kb_id}/entries/{eid}",
+      "file": "/app/app/api/knowledge.py",
+      "line": 602
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/membership/plans/{plan_id}",
+      "file": "/app/app/api/membership.py",
+      "line": 190
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/merchant-categories/{cat_id}",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 205
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/news/{news_id}",
+      "file": "/app/app/api/admin_news.py",
+      "line": 303
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/notices/{notice_id}",
+      "file": "/app/app/api/notice.py",
+      "line": 122
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/ocr/scenes/{scene_id}",
+      "file": "/app/app/api/ocr.py",
+      "line": 276
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/partners/{partner_id}",
+      "file": "/app/app/api/coupons_admin.py",
+      "line": 1482
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/points/levels/{level_id}",
+      "file": "/app/app/api/admin.py",
+      "line": 1913
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/points/mall/{item_id}",
+      "file": "/app/app/api/points_admin.py",
+      "line": 352
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/products/categories/{category_id}",
+      "file": "/app/app/api/product_admin.py",
+      "line": 433
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/products/{product_id}",
+      "file": "/app/app/api/product_admin.py",
+      "line": 827
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/products/{product_id}/form-fields/{field_id}",
+      "file": "/app/app/api/product_admin.py",
+      "line": 943
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/questionnaire/classifications/{rule_id}",
+      "file": "/app/app/api/questionnaire.py",
+      "line": 2455
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/questionnaire/questions/{question_id}",
+      "file": "/app/app/api/questionnaire.py",
+      "line": 2377
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/questionnaire/recommendations/{rec_id}",
+      "file": "/app/app/api/questionnaire.py",
+      "line": 2530
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/questionnaire/templates/{template_id}",
+      "file": "/app/app/api/questionnaire.py",
+      "line": 2304
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/relation-types/{rt_id}",
+      "file": "/app/app/api/admin.py",
+      "line": 2244
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/search/block-words/{word_id}",
+      "file": "/app/app/api/admin_search.py",
+      "line": 267
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/search/recommend-words/{word_id}",
+      "file": "/app/app/api/admin_search.py",
+      "line": 108
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/services/categories/{cat_id}",
+      "file": "/app/app/api/admin.py",
+      "line": 850
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/services/items/{item_id}",
+      "file": "/app/app/api/admin.py",
+      "line": 956
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/settings/logo",
+      "file": "/app/app/api/admin.py",
+      "line": 2427
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/sms/templates/{template_id}",
+      "file": "/app/app/api/sms.py",
+      "line": 256
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/tags/{tag_id}",
+      "file": "/app/app/api/tag_recommend.py",
+      "line": 187
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/care-card/contacts/{contact_id}",
+      "file": "/app/app/api/care_card_v1.py",
+      "line": 304
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/care-v1/admin/sos/keywords/{kw_id}",
+      "file": "/app/app/api/ai_home_care_v1.py",
+      "line": 282
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/chat-sessions/clear-all",
+      "file": "/app/app/api/chat_history.py",
+      "line": 895
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/chat-sessions/{session_id}",
+      "file": "/app/app/api/chat_history.py",
+      "line": 912
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/family/management/{management_id}",
+      "file": "/app/app/api/family_management.py",
+      "line": 845
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/family/member/{member_id}",
+      "file": "/app/app/api/family_member_v2.py",
+      "line": 864
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/family/members/{member_id}",
+      "file": "/app/app/api/family.py",
+      "line": 344
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/glucose-v1/records/{record_id}",
+      "file": "/app/app/api/glucose_v1.py",
+      "line": 585
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/guardian/v12/reminders/{reminder_id}",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 1077
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/guardian/v13/family/member/{member_id}",
+      "file": "/app/app/api/guardian_bugfix_v1.py",
+      "line": 337
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health-plan/checkin-items/{item_id}",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 918
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health-plan/medications/{reminder_id}",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 718
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health-plan/user-plans/{plan_id}",
+      "file": "/app/app/api/health_plan_v2.py",
+      "line": 1631
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health-profile-v3/devices/{device_type}",
+      "file": "/app/app/api/health_profile_v3.py",
+      "line": 614
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health-profile-v3/{profile_id}/metric/{metric_type}/{record_id}",
+      "file": "/app/app/api/health_profile_v3.py",
+      "line": 508
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health-reminders/{reminder_id}",
+      "file": "/app/app/api/health_dashboard.py",
+      "line": 290
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health/allergies/{allergy_id}",
+      "file": "/app/app/api/health_profile.py",
+      "line": 331
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health/medical-history/{record_id}",
+      "file": "/app/app/api/health_profile.py",
+      "line": 381
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health/medications/{record_id}",
+      "file": "/app/app/api/health_profile.py",
+      "line": 431
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/health/visits/{record_id}",
+      "file": "/app/app/api/health_profile.py",
+      "line": 481
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/medical-records/{record_id}",
+      "file": "/app/app/api/health_archive_v5.py",
+      "line": 673
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/medical-records/{record_id}/permanent",
+      "file": "/app/app/api/health_archive_v5.py",
+      "line": 717
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/medication-reminder/plans/{plan_id}",
+      "file": "/app/app/api/medication_reminder.py",
+      "line": 166
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/merchant/bindding/wechat",
+      "file": "/app/app/api/wechat_bindding.py",
+      "line": 138
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/merchant/calendar/views/{view_id}",
+      "file": "/app/app/api/merchant.py",
+      "line": 2211
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/merchant/orders/{order_id}/attachments/{attachment_id}",
+      "file": "/app/app/api/merchant.py",
+      "line": 1596
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/merchant/v1/orders/{order_item_id}/attachments/{attachment_id}",
+      "file": "/app/app/api/merchant_v1.py",
+      "line": 667
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/prd469/health-info/{profile_id}/family-history/{item_index}",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 833
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/prd469/health-info/{profile_id}/surgery-history/{item_index}",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 905
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/prd469/medical-record/{record_id}",
+      "file": "/app/app/api/prd469_health_v5.py",
+      "line": 1248
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/report-history/{record_id}",
+      "file": "/app/app/api/report_history.py",
+      "line": 445
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/safety-rope/contacts/{contact_id}",
+      "file": "/app/app/api/safety_rope_v1.py",
+      "line": 676
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/search/history",
+      "file": "/app/app/api/search.py",
+      "line": 503
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/search/history/{history_id}",
+      "file": "/app/app/api/search.py",
+      "line": 481
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v2/user/addresses/{address_id}",
+      "file": "/app/app/api/addresses_v2.py",
+      "line": 322
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/ai-config/{config_id}/activate",
+      "file": "/app/app/api/admin.py",
+      "line": 328
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/ai-model-templates/{template_id}/status",
+      "file": "/app/app/api/admin.py",
+      "line": 560
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/emergency-sources/{source_id}/toggle",
+      "file": "/app/app/api/guardian_system_v12.py",
+      "line": 1441
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/function-buttons/{button_id}/toggle-capsule",
+      "file": "/app/app/api/function_button.py",
+      "line": 706
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/function-buttons/{button_id}/toggle-recommended",
+      "file": "/app/app/api/function_button.py",
+      "line": 690
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/notices/{notice_id}/status",
+      "file": "/app/app/api/notice.py",
+      "line": 136
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/payment-channels/{channel_code}/toggle",
+      "file": "/app/app/api/payment_config.py",
+      "line": 496
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/devices/binding/{binding_id}",
+      "file": "/app/app/api/devices_v2.py",
+      "line": 458
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/glucose-v1/records/{record_id}/scene",
+      "file": "/app/app/api/glucose_v1.py",
+      "line": 929
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/medical-records/{record_id}",
+      "file": "/app/app/api/health_archive_v5.py",
+      "line": 647
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v2/user/addresses/{address_id}/default",
+      "file": "/app/app/api/addresses_v2.py",
+      "line": 347
+    }
+  ],
+  "h5_routes": [
+    "/(ai-chat)",
+    "/_not-found",
+    "/_not-found.html",
+    "/_not-found.meta",
+    "/_not-found.rsc",
+    "/account-security.html",
+    "/account-security.meta",
+    "/account-security.rsc",
+    "/address",
+    "/address.html",
+    "/address.meta",
+    "/address.rsc",
+    "/ai-home",
+    "/ai-home.html",
+    "/ai-home.meta",
+    "/ai-home.rsc",
+    "/ai-settings.html",
+    "/ai-settings.meta",
+    "/ai-settings.rsc",
+    "/alert-redirect",
+    "/alert-redirect.html",
+    "/alert-redirect.meta",
+    "/alert-redirect.rsc",
+    "/appointment",
+    "/appointment.html",
+    "/appointment.meta",
+    "/appointment.rsc",
+    "/article",
+    "/articles",
+    "/articles.html",
+    "/articles.meta",
+    "/articles.rsc",
+    "/cards",
+    "/cards.html",
+    "/cards.meta",
+    "/cards.rsc",
+    "/care-ai-home",
+    "/care-ai-home.html",
+    "/care-ai-home.meta",
+    "/care-ai-home.rsc",
+    "/care-home",
+    "/care-home.html",
+    "/care-home.meta",
+    "/care-home.rsc",
+    "/care-safety-rope",
+    "/care-safety-rope.html",
+    "/care-safety-rope.meta",
+    "/care-safety-rope.rsc",
+    "/chat",
+    "/chat-history.html",
+    "/chat-history.meta",
+    "/chat-history.rsc",
+    "/checkout",
+    "/checkout.html",
+    "/checkout.meta",
+    "/checkout.rsc",
+    "/checkup",
+    "/checkup.html",
+    "/checkup.meta",
+    "/checkup.rsc",
+    "/city-select",
+    "/city-select.html",
+    "/city-select.meta",
+    "/city-select.rsc",
+    "/coupon-center",
+    "/coupon-center.html",
+    "/coupon-center.meta",
+    "/coupon-center.rsc",
+    "/customer-service",
+    "/customer-service.html",
+    "/customer-service.meta",
+    "/customer-service.rsc",
+    "/design-system-v2-preview",
+    "/design-system-v2-preview.html",
+    "/design-system-v2-preview.meta",
+    "/design-system-v2-preview.rsc",
+    "/devices",
+    "/devices.html",
+    "/devices.meta",
+    "/devices.rsc",
+    "/digital-human-call",
+    "/digital-human-call.html",
+    "/digital-human-call.meta",
+    "/digital-human-call.rsc",
+    "/drug",
+    "/drug.html",
+    "/drug.meta",
+    "/drug.rsc",
+    "/expert",
+    "/experts",
+    "/experts.html",
+    "/experts.meta",
+    "/experts.rsc",
+    "/family",
+    "/family-alert",
+    "/family-alert.html",
+    "/family-alert.meta",
+    "/family-alert.rsc",
+    "/family-auth",
+    "/family-auth.html",
+    "/family-auth.meta",
+    "/family-auth.rsc",
+    "/family-bindlist",
+    "/family-bindlist.html",
+    "/family-bindlist.meta",
+    "/family-bindlist.rsc",
+    "/family-guardian-list",
+    "/family-guardian-list.html",
+    "/family-guardian-list.meta",
+    "/family-guardian-list.rsc",
+    "/family-invite",
+    "/family-invite.html",
+    "/family-invite.meta",
+    "/family-invite.rsc",
+    "/family.html",
+    "/family.meta",
+    "/family.rsc",
+    "/feedback.html",
+    "/feedback.meta",
+    "/feedback.rsc",
+    "/glucose",
+    "/glucose.html",
+    "/glucose.meta",
+    "/glucose.rsc",
+    "/health-alerts",
+    "/health-alerts.html",
+    "/health-alerts.meta",
+    "/health-alerts.rsc",
+    "/health-dashboard",
+    "/health-dashboard.html",
+    "/health-dashboard.meta",
+    "/health-dashboard.rsc",
+    "/health-guide",
+    "/health-guide.html",
+    "/health-guide.meta",
+    "/health-guide.rsc",
+    "/health-metric",
+    "/health-plan",
+    "/health-plan.html",
+    "/health-plan.meta",
+    "/health-plan.rsc",
+    "/health-profile",
+    "/health-profile.html",
+    "/health-profile.meta",
+    "/health-profile.rsc",
+    "/health-reminders",
+    "/health-reminders.html",
+    "/health-reminders.meta",
+    "/health-reminders.rsc",
+    "/health-self-check",
+    "/home-safety",
+    "/home-safety.html",
+    "/home-safety.meta",
+    "/home-safety.rsc",
+    "/index.html",
+    "/index.meta",
+    "/index.rsc",
+    "/invite",
+    "/invite.html",
+    "/invite.meta",
+    "/invite.rsc",
+    "/landing",
+    "/landing.html",
+    "/landing.meta",
+    "/landing.rsc",
+    "/legal",
+    "/login",
+    "/login.html",
+    "/login.meta",
+    "/login.rsc",
+    "/medical-records",
+    "/medical-records.html",
+    "/medical-records.meta",
+    "/medical-records.rsc",
+    "/member-card",
+    "/member-card.html",
+    "/member-card.meta",
+    "/member-card.rsc",
+    "/member-center",
+    "/member-center.html",
+    "/member-center.meta",
+    "/member-center.rsc",
+    "/merchant",
+    "/merchant.html",
+    "/merchant.meta",
+    "/merchant.rsc",
+    "/messages",
+    "/messages.html",
+    "/messages.meta",
+    "/messages.rsc",
+    "/my-addresses",
+    "/my-addresses.html",
+    "/my-addresses.meta",
+    "/my-addresses.rsc",
+    "/my-coupons",
+    "/my-coupons.html",
+    "/my-coupons.meta",
+    "/my-coupons.rsc",
+    "/my-favorites",
+    "/my-favorites.html",
+    "/my-favorites.meta",
+    "/my-favorites.rsc",
+    "/news",
+    "/news.html",
+    "/news.meta",
+    "/news.rsc",
+    "/order",
+    "/page.js.nft.json",
+    "/pay",
+    "/points",
+    "/points.html",
+    "/points.meta",
+    "/points.rsc",
+    "/product",
+    "/products",
+    "/products.html",
+    "/products.meta",
+    "/products.rsc",
+    "/profile",
+    "/refund",
+    "/refund-list",
+    "/refund-list.html",
+    "/refund-list.meta",
+    "/refund-list.rsc",
+    "/report-history",
+    "/report-history.html",
+    "/report-history.meta",
+    "/report-history.rsc",
+    "/review",
+    "/sandbox-pay",
+    "/sandbox-pay.html",
+    "/sandbox-pay.meta",
+    "/sandbox-pay.rsc",
+    "/scan",
+    "/scan.html",
+    "/scan.meta",
+    "/scan.rsc",
+    "/search",
+    "/search.html",
+    "/search.meta",
+    "/search.rsc",
+    "/services",
+    "/services.html",
+    "/services.meta",
+    "/services.rsc",
+    "/settings",
+    "/settings.html",
+    "/settings.meta",
+    "/settings.rsc",
+    "/shared",
+    "/symptom",
+    "/symptom.html",
+    "/symptom.meta",
+    "/symptom.rsc",
+    "/tcm",
+    "/tcm.html",
+    "/tcm.meta",
+    "/tcm.rsc",
+    "/unified-order",
+    "/unified-orders",
+    "/unified-orders.html",
+    "/unified-orders.meta",
+    "/unified-orders.rsc",
+    "/welcome-mode",
+    "/welcome-mode.html",
+    "/welcome-mode.meta",
+    "/welcome-mode.rsc"
+  ],
+  "admin_routes": [
+    "/(admin)",
+    "/_not-found",
+    "/_not-found.html",
+    "/_not-found.meta",
+    "/_not-found.rsc",
+    "/abnormal-thresholds.html",
+    "/abnormal-thresholds.meta",
+    "/abnormal-thresholds.rsc",
+    "/admin-settlements.html",
+    "/admin-settlements.meta",
+    "/admin-settlements.rsc",
+    "/ai-call-config.html",
+    "/ai-call-config.meta",
+    "/ai-call-config.rsc",
+    "/ai-center",
+    "/ai-config",
+    "/ai-config.html",
+    "/ai-config.meta",
+    "/ai-config.rsc",
+    "/alert-logs.html",
+    "/alert-logs.meta",
+    "/alert-logs.rsc",
+    "/alert-templates.html",
+    "/alert-templates.meta",
+    "/alert-templates.rsc",
+    "/audit",
+    "/bottom-nav.html",
+    "/bottom-nav.meta",
+    "/bottom-nav.rsc",
+    "/chat-records.html",
+    "/chat-records.meta",
+    "/chat-records.rsc",
+    "/checkup-details.html",
+    "/checkup-details.meta",
+    "/checkup-details.rsc",
+    "/city-management.html",
+    "/city-management.meta",
+    "/city-management.rsc",
+    "/constitution-content.html",
+    "/constitution-content.meta",
+    "/constitution-content.rsc",
+    "/content",
+    "/cos-config.html",
+    "/cos-config.meta",
+    "/cos-config.rsc",
+    "/customer-service.html",
+    "/customer-service.meta",
+    "/customer-service.rsc",
+    "/dashboard.html",
+    "/dashboard.meta",
+    "/dashboard.rsc",
+    "/digital-humans.html",
+    "/digital-humans.meta",
+    "/digital-humans.rsc",
+    "/disease-presets.html",
+    "/disease-presets.meta",
+    "/disease-presets.rsc",
+    "/drug-details.html",
+    "/drug-details.meta",
+    "/drug-details.rsc",
+    "/email-notify.html",
+    "/email-notify.meta",
+    "/email-notify.rsc",
+    "/emergency-sources.html",
+    "/emergency-sources.meta",
+    "/emergency-sources.rsc",
+    "/experts.html",
+    "/experts.meta",
+    "/experts.rsc",
+    "/fallback-config.html",
+    "/fallback-config.meta",
+    "/fallback-config.rsc",
+    "/family-management.html",
+    "/family-management.meta",
+    "/family-management.rsc",
+    "/function-buttons.html",
+    "/function-buttons.meta",
+    "/function-buttons.rsc",
+    "/guardian-relations.html",
+    "/guardian-relations.meta",
+    "/guardian-relations.rsc",
+    "/health-plan",
+    "/health-records",
+    "/health-records.html",
+    "/health-records.meta",
+    "/health-records.rsc",
+    "/home-banners.html",
+    "/home-banners.meta",
+    "/home-banners.rsc",
+    "/home-safety.html",
+    "/home-safety.meta",
+    "/home-safety.rsc",
+    "/home-settings",
+    "/home-settings.html",
+    "/home-settings.meta",
+    "/home-settings.rsc",
+    "/index.html",
+    "/index.meta",
+    "/index.rsc",
+    "/knowledge",
+    "/knowledge.html",
+    "/knowledge.meta",
+    "/knowledge.rsc",
+    "/login",
+    "/login.html",
+    "/login.meta",
+    "/login.rsc",
+    "/map-config.html",
+    "/map-config.meta",
+    "/map-config.rsc",
+    "/membership",
+    "/merchant",
+    "/merchant-categories.html",
+    "/merchant-categories.meta",
+    "/merchant-categories.rsc",
+    "/notices.html",
+    "/notices.meta",
+    "/notices.rsc",
+    "/ocr-config.html",
+    "/ocr-config.meta",
+    "/ocr-config.rsc",
+    "/ocr-global-config.html",
+    "/ocr-global-config.meta",
+    "/ocr-global-config.rsc",
+    "/page.js.nft.json",
+    "/payment-config.html",
+    "/payment-config.meta",
+    "/payment-config.rsc",
+    "/points",
+    "/product-system",
+    "/profile",
+    "/profile.html",
+    "/profile.meta",
+    "/profile.rsc",
+    "/prompt-templates.html",
+    "/prompt-templates.meta",
+    "/prompt-templates.rsc",
+    "/questionnaire-templates.html",
+    "/questionnaire-templates.meta",
+    "/questionnaire-templates.rsc",
+    "/referral.html",
+    "/referral.meta",
+    "/referral.rsc",
+    "/relation-types.html",
+    "/relation-types.meta",
+    "/relation-types.rsc",
+    "/search",
+    "/search-config.html",
+    "/search-config.meta",
+    "/search-config.rsc",
+    "/settings.html",
+    "/settings.meta",
+    "/settings.rsc",
+    "/share-config.html",
+    "/share-config.meta",
+    "/share-config.rsc",
+    "/sms.html",
+    "/sms.meta",
+    "/sms.rsc",
+    "/system",
+    "/system-messages",
+    "/system-messages.html",
+    "/system-messages.meta",
+    "/system-messages.rsc",
+    "/tcm-config.html",
+    "/tcm-config.meta",
+    "/tcm-config.rsc",
+    "/theme-config.html",
+    "/theme-config.meta",
+    "/theme-config.rsc",
+    "/tts-config.html",
+    "/tts-config.meta",
+    "/tts-config.rsc",
+    "/users.html",
+    "/users.meta",
+    "/users.rsc",
+    "/voice-service.html",
+    "/voice-service.meta",
+    "/voice-service.rsc",
+    "/wechat-push.html",
+    "/wechat-push.meta",
+    "/wechat-push.rsc"
+  ],
+  "total_backend": 1199,
+  "total_h5": 267,
+  "total_admin": 182
+}

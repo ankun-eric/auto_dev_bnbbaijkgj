@@ -447,12 +447,12 @@ async def list_family_v13(
     now = datetime.utcnow()
 
     # 1) 拉取已建立关系（active + 历史 inactive/cancelled）
-    # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 过滤掉 removed/deleted 状态，
+    # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 过滤掉 deleted 状态，
     # 避免软删数据继续出现在列表中
     mgmt_res = await db.execute(
         select(FamilyManagement).where(
             FamilyManagement.manager_user_id == current_user.id,
-            FamilyManagement.status.notin_(["removed", "deleted"]),
+            FamilyManagement.status.notin_(["deleted"]),
         ).order_by(FamilyManagement.created_at.asc())
     )
     mgmts = mgmt_res.scalars().all()
@@ -598,12 +598,12 @@ async def list_family_v13(
             if mgmt.managed_member_id:
                 seen_member_ids.add(int(mgmt.managed_member_id))
 
-        # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 把已过滤的 removed/deleted 的
+        # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 把已过滤的 deleted 的
         # mgmt.managed_member_id 也排除，避免它们的 family_member 重新被当作"孤儿"返回
         removed_mgmt_res = await db.execute(
             select(FamilyManagement.managed_member_id).where(
                 FamilyManagement.manager_user_id == current_user.id,
-                FamilyManagement.status.in_(["removed", "deleted"]),
+                FamilyManagement.status == "deleted",
                 FamilyManagement.managed_member_id.is_not(None),
             )
         )

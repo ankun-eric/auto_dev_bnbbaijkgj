@@ -234,12 +234,12 @@ async def count_managed_family_members(db: AsyncSession, user_id: int) -> int:
     - 仅统计当前用户名下的记录：user_id = :uid
     """
     # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 与家人 Tab/健康档案过滤口径统一,
-    # 同时排除 'removed'(旧 DELETE 接口写入)和 'deleted'(状态机软删),不再两边漂移
-    from app.services.family_status_constants import DELETED_OR_REMOVED_STATUSES
+    # 排除 'deleted'(状态机软删)，V3 升级后不再兼容 removed。
+    from app.services.family_status_constants import DELETED_STATUSES
     r = await db.execute(
         select(func.count(FamilyMember.id)).where(
             FamilyMember.user_id == user_id,
-            FamilyMember.status.notin_(DELETED_OR_REMOVED_STATUSES),
+            FamilyMember.status.notin_(DELETED_STATUSES),
         )
     )
     return int(r.scalar() or 0)
@@ -683,9 +683,9 @@ async def list_member_states(
     """
     now = datetime.utcnow()
 
-    # 1) 全部 family_member（含本人，排除 deleted/removed）
-    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 同时排除 'removed' 与 'deleted',与 family.py / health_profile.py 统一
-    from app.services.family_status_constants import DELETED_OR_REMOVED_STATUSES as _DRS
+    # 1) 全部 family_member（含本人，排除 deleted）
+    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 排除 'deleted'，与 family.py / health_profile.py 统一
+    from app.services.family_status_constants import DELETED_STATUSES as _DRS
     mb_res = await db.execute(
         select(FamilyMember).where(
             FamilyMember.user_id == current_user.id,
@@ -837,8 +837,8 @@ async def get_member_quota(
     )
     guarded_count = int(r2.scalar() or 0)
 
-    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 本人卡片排除已软删除/解绑
-    from app.services.family_status_constants import DELETED_OR_REMOVED_STATUSES as _DRS_SELF
+    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 本人卡片排除已软删除，V3 升级后不再兼容 removed
+    from app.services.family_status_constants import DELETED_STATUSES as _DRS_SELF
     self_member = (await db.execute(
         select(FamilyMember).where(
             FamilyMember.user_id == current_user.id,
@@ -899,8 +899,8 @@ async def delete_member_unified(
             },
         )
 
-    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 同时识别 deleted/removed 两种软删除标记
-    from app.services.family_status_constants import DELETED_OR_REMOVED_STATUSES as _DRS_DEL
+    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 识别 deleted 软删除标记（V3 升级后不再兼容 removed）
+    from app.services.family_status_constants import DELETED_STATUSES as _DRS_DEL
     member = await db.get(FamilyMember, member_id)
     if not member or member.status in _DRS_DEL:
         raise HTTPException(
@@ -1175,8 +1175,8 @@ async def reinvite_member(
     4) 生成新邀请码 + 二维码 URL
     """
     now = datetime.utcnow()
-    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 兼容 deleted/removed
-    from app.services.family_status_constants import DELETED_OR_REMOVED_STATUSES as _DRS_INV
+    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 兼容 deleted（V3 升级后不再兼容 removed）
+    from app.services.family_status_constants import DELETED_STATUSES as _DRS_INV
     member = await db.get(FamilyMember, member_id)
     if not member or member.status in _DRS_INV:
         raise HTTPException(status_code=404, detail="该档案不存在或已被删除")
@@ -1252,8 +1252,8 @@ async def unbind_member(
     - 名下无设备
     """
     now = datetime.utcnow()
-    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 兼容 deleted/removed
-    from app.services.family_status_constants import DELETED_OR_REMOVED_STATUSES as _DRS_UB
+    # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 兼容 deleted（V3 升级后不再兼容 removed）
+    from app.services.family_status_constants import DELETED_STATUSES as _DRS_UB
     member = await db.get(FamilyMember, member_id)
     if not member or member.status in _DRS_UB:
         raise HTTPException(status_code=404, detail="该档案不存在或已被删除")

@@ -340,6 +340,9 @@ class User(Base):
     chat_font_size = mapped_column(String(20), default="standard")
     # [2026-04-25] 商家个人信息回填：记录最近一次登录时间，用于"个人信息"页展示
     last_login_at = mapped_column(DateTime, nullable=True)
+    # [2026-06-05] 账号注销支持：is_active 标记账号是否活跃，deleted_at 记录注销时间
+    is_active = mapped_column(Boolean, default=True, nullable=False, server_default="1")
+    deleted_at = mapped_column(DateTime, nullable=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

@@ -1,112 +1,36 @@
-=== 1. Gateway Nginx Configs ===
-total 92
-drwxrwxr-x    3 1000     1001         12288 Jun  3 11:38 .
-drwxr-xr-x    1 root     root          4096 Jun  3 11:36 ..
--rw-r--r--    1 1000     1001          1637 May 28 12:14 0451a430-e3c8-49e2-b627-329938d2313d.conf
--rw-rw-r--    1 1000     1001          2441 May 28 11:03 20d0760a-5230-4867-a343-a91a95e05d50.conf
--rw-rw-r--    1 1000     1001          2441 May 28 11:03 309c268a-80c8-431f-9747-e2c53ada724f.conf
--rw-rw-r--    1 1000     1001          2026 Jun  2 05:22 3c3ddda4-aa5d-4d34-a40e-c2f886ed6186.conf.disabled
--rw-rw-r--    1 1000     1001          1143 May 28 11:03 5fa64f53-c6e8-443c-9a5c-611e554ddde1.conf
--rw-rw-r--    1 1000     1001          2274 May 28 11:04 617ba922-acf8-4859-9737-1854bad08497.conf
--rw-rw-r--    1 1000     1001          2441 May 28 11:03 6333c7ee-e664-4874-acb1-75365bd58709.conf
--rw-rw-r--    1 1000     1001          3555 May 31 15:06 6b099ed3-7175-4a78-91f4-44570c84ed27.conf.disabled.1780486562
--rw-rw-r--    1 1000     1001          2958 Jun  3 11:38 6b099ed3-7175-4a78-91f4-44570c84ed27.server
--rw-rw-r--    1 1000     1001          2441 May 28 11:03 76078d4e-cf0a-40d0-92bc-ad40ea4436b2.conf
--rw-rw-r--    1 1000     1001          2441 May 28 11:03 85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf
--rw-rw-r--    1 1000     1001          1346 Jun  1 17:38 9782217d-bbe9-45df-b57b-6f1db576316c.conf
--rw-r--r--    1 root     root          2843 Jun  1 16:49 9f0604d2-45b2-41c9-ac88-7a317a80702f.conf.bak
--rw-rw-r--    1 1000     1001           784 May 28 09:44 deploy_test.conf
-drwxr-xr-x    2 root     root          4096 Apr 16 16:30 gateway-routes
--rw-rw-r--    1 1000     1001            18 Jun  1 10:01 test_gateway.txt
--rw-rw-r--    1 1000     1001          1632 May 28 08:44 test_line_prj.conf
--rw-rw-r--    1 1000     1001          1230 Jun  1 13:32 yumingtest.conf.bak
--rw-rw-r--    1 1000     1001          1230 May 31 20:50 yumingtest.conf.disabled
-
-
-=== 2. Project Route Config ===
-ls: cannot access '/home/ubuntu/gateway/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf': No such file or directory
-
-
-=== 3. Docker Networks ===
-NETWORK ID     NAME                                                                                DRIVER    SCOPE
-b37cf10b2a92   0faabede-ad8a-439d-a946-b887ffcd8dee-network                                        bridge    local
-a37e7e2d883a   1f2b22da-528e-4e13-acee-6511a7b5b172-network                                        bridge    local
-cc38313c222f   2c2b48f8-c6fa-4411-b719-8d910baf4f9a-network                                        bridge    local
-eab71b7f9f2e   3c3ddda4-aa5d-4d34-a40e-c2f886ed6186-network                                        bridge    local
-22394377d932   4ad2bc0a-9c36-4b60-9c81-69e945e53cc4-network                                        bridge    local
-49281cd771ff   5fa64f53-c6e8-443c-9a5c-611e554ddde1-network                                        bridge    local
-8c261b7d5252   6b099ed3-7175-4a78-91f4-44570c84ed27-network                                        bridge    local
-0eee32921c9e   6b099ed3-7175-4a78-91f4-44570c84ed27_6b099ed3-7175-4a78-91f4-44570c84ed27-network   bridge    local
-264d340a6b9b   6cfef81e-8bc8-482f-b248-3b58fed571cb-network                                        bridge    local
-dfb489d2b563   7eabb913-3d3e-4361-9dbd-dcdf42fa061e-network                                        bridge    local
-597c5903f639   9b51e155-b3d1-4515-8137-03bfd66446a1-network                                        bridge    local
-7920bf78492a   9f0604d2-45b2-41c9-ac88-7a317a80702f-network                                        bridge    local
-865d7e7e8ae6   09fca155-2b91-45be-a4aa-87b3dfdd0d3e-network                                        bridge    local
-8963923b44a7   20d0760a-5230-4867-a343-a91a95e05d50_20d0760a-5230-4867-a343-a91a95e05d50-network   bridge    local
-6245f702116b   309c268a-80c8-431f-9747-e2c53ada724f-network                                        bridge    local
-f4c8a1359fde   0451a430-e3c8-49e2-b627-329938d2313d-network                                        bridge    local
-67b1768256e8   617ba922-acf8-4859-9737-1854bad08497-network                                        bridge    local
-d3b5e2e20b8e   745ea1f0-7b9d-449c-bd36-a2e4a2599d06-network                                        bridge    local
-9c22b1571e05   753c9809-44ae-49bc-92b3-fa7bce455378-network                                        bridge    local
-5d3d32023e8a   793d88c4-949b-478a-a551-147cc100d2b1-network                                        bridge    local
-fdda566da591   911e7350-7584-4898-bb92-ac568a699575-network                                        bridge    local
-18903fb18b41   6333c7ee-e664-4874-acb1-75365bd58709-network                                        bridge    local
-630442a497c3   76078d4e-cf0a-40d0-92bc-ad40ea4436b2-network                                        bridge    local
-40b64b4325ae   8946923e-5887-4d14-a54f-2cb39819c8f2-network                                        bridge    local
-c9c3ec61b41d   9782217d-bbe9-45df-b57b-6f1db576316c-network                                        bridge    local
-ea1409610796   85048269-7f40-4ae8-88e2-0f3ce1ce19d1-network                                        bridge    local
-c7f5e79c1e05   a46094c5-4cff-434b-a815-3e73fc6d39a6-network                                        bridge    local
-14091a26be7f   b04670f8-ef50-4fcc-92b5-e25f73121b54-network                                        bridge    local
-8c232c5c7b4e   bridge                                                                              bridge    local
-2cb51fbb6545   c57cd78e-baf2-4648-be33-611be54734d9-network                                        bridge    local
-1347c845715f   c935e952-5c8f-44c5-8d09-7d77698407fa-network                                        bridge    local
-0925e741c1ac   dbc8a82b-07f9-4b5f-b1b7-9cd7118f018f-network                                        bridge    local
-2e7acefbe9c9   dce395b9-f2ce-4853-8c63-a7ccdfe5793a-network                                        bridge    local
-514cf45db9b9   deploy_test-network                                                                 bridge    local
-e4f86c6a0aea   ed7f67c4-b4f4-4e66-9d43-010316c4069e-network                                        bridge    local
-147e224e746c   ffaac1e1-9e0f-426b-b852-5ad04a963b72-network                                        bridge    local
-bcf30b0343f0   gateway-network                                                                     bridge    local
-f6f6551ddc04   host                                                                                host      local
-e938ae98479f   none                                                                                null      local
-ac6d719f959e   test_line_prj-network                                                               bridge    local
-8f160c598d82   yumingtest-network                                                                  bridge    local
-
-=== 4. Disk Space ===
-Filesystem      Size  Used Avail Use% Mounted on
-/dev/vda2       217G  143G   66G  69% /
-
-=== 5. Docker Version ===
-Docker version 29.4.0, build 9d7ad9f
-
-=== 6. ACR Login ===
-Login Succeeded
-
-
-=== 7. App Network ===
-[
-    {
-        "Name": "6b099ed3-7175-4a78-91f4-44570c84ed27-network",
-        "Id": "8c261b7d5252113fe53c075cb1a39698dca601556918a6dda0c3e6e596e00dc8",
-        "Created": "2026-05-28T18:40:31.149548194+08:00",
-        "Scope": "local",
-        "Driver": "bridge",
-        "EnableIPv4": true,
-        "EnableIPv6": false,
-        "IPAM": {
-
-
-=== 8. Existing Containers ===
-NAMES                                          STATUS
-6b099ed3-7175-4a78-91f4-44570c84ed27-h5        Up 30 minutes
-6b099ed3-7175-4a78-91f4-44570c84ed27-admin     Up 30 minutes
-6b099ed3-7175-4a78-91f4-44570c84ed27-backend   Up 30 minutes
-6b099ed3-7175-4a78-91f4-44570c84ed27-db        Up 30 minutes (healthy)
-
-=== 9. Memory ===
-total        used        free      shared  buff/cache   available
-Mem:           15609       10927        1028          60        4051        4681
-
-=== 10. Docker Compose ===
-Docker Compose version v5.1.2
-
-
+{
+  "check1_gateway": {
+    "gateway_dir": "total 420\ndrwxrwxr-x 14 ubuntu ubuntu  4096 Jun  4 18:46 .\ndrwxr-x--x 74 ubuntu ubuntu  4096 Jun  5 11:42 ..\ndrwxr-xr-x  3 root   root    4096 May 31 00:06 certbot-www\ndrwxrwxr-x  3 ubuntu ubuntu 12288 Jun  5 14:27 conf.d\ndrwxrwxr-x  2 ubuntu ubuntu 12288 Jun  5 13:34 conf.d.bak\ndrwxrwxr-x  2 ubuntu ubuntu  4096 Jun  1 16:14 conf.d.disabled\ndrwxrwxr-x  2 ubuntu ubuntu  4096 May 28 01:17 conf.d.disabled_zombie_20260528_011737\r\r\ndrwxrwxr-x  2 ubuntu ubuntu  4096 May 28 01:18 conf.d.disabled_zombie_20260528_011805\ndrwxrwxr-x  3 ubuntu ubuntu  4096 May 28 00:43 conf.d.snapshot_pre_restore_20260528_010950\n-rw-rw-r--  1 ubuntu ubuntu   460 Jun  4 13:54 docker-compose.yml\n-rw-rw-r--  1 ubuntu ubuntu   453 Apr 29 13:09 docker-compose.yml.bak\n-rw-rw-r--  1 ubuntu ubuntu   539 May 28 01:45 docker-compose.yml.bak.20260528\n-rw-rw-r--  1 ubuntu ubuntu   490 May 28 17:40 docker-compose.yml.bak.pre_fix\ndrwxrwxr-x  2 ubuntu ubuntu  4096 Jun  2 02:00 logs\n-rw-rw-r--  1 ubuntu ubuntu  6692 Jun  4 18:46 nginx.conf\n-rw-rw-r--  1 ubuntu ubuntu   965 Apr 17 14:37 nginx.conf.bak\n-rw-rw-r--  1 ubuntu ubuntu   965 Apr 30 11:17 nginx.conf.bak.\n-rw-rw-r--  1 ubuntu ubuntu   965 Apr 20 02:16 nginx.conf.bak.1777628835\n-rw-rw-r--  1 ubuntu ubuntu   965 Apr 20 02:16 nginx.conf.bak.1777628864\n-rw-rw-r--  1 ubuntu ubuntu   965 Apr 20 02:16 nginx.conf.bak.1777628972\n-rw-rw-r--  1 ubuntu ubuntu 13566 Jun  3 19:38 nginx.conf.bak.1780486720\n-rw-rw-r--  1 ubuntu ubuntu  4646 Jun  4 16:57 nginx.conf.bak.1780563462\n-rw-r--r--  1 root   root    1011 May 18 20:20 nginx.conf.bak2\n-rw-rw-r--  1 ubuntu ubuntu   916 Apr 15 01:20 nginx.conf.bak.20260415\n-rw-rw-r--  1 ubuntu ubuntu   830 Apr 15 00:37 nginx.conf.bak.20260415003748\n-rw-rw-r--  1 ubuntu ubuntu   916 Apr 15 01:09 nginx.conf.bak.20260415010916\n-rw-rw-r--  1 ubuntu ubuntu   916 Apr 15 01:13 nginx.conf.bak.20260415011314\n-rw-rw-r--  1 ubuntu ubuntu   964 Apr 15 01:18 nginx.conf.bak.20260415011826\n-rw-rw-r--  1 ubuntu ubuntu   916 Apr 15 01:21 nginx.conf.bak.20260415012128\n-rw-rw-r--  1 ubuntu ubuntu   916 Apr 15 01:57 nginx.conf.bak.20260415015706\n-rw-rw-r--  1 ubuntu ubuntu   916 Apr 15 03:02 nginx.conf.bak.20260415030216\n-rw-rw-r--  1 ubuntu ubuntu   916 Apr 15 03:13 nginx.conf.bak.20260415031345\n-rw-rw-r--  1 ubuntu ubuntu   916 Apr 15 03:50 nginx.conf.bak.20260415035014\n-rw-rw-r--  1 ubuntu ubuntu   965 Apr 17 11:19 nginx.conf.bak.20260417111923\n-rw-r--r--  1 root   root     965 Apr 17 11:44 nginx.conf.bak.20260417114442\n-rw-rw-r--  1 ubuntu ubuntu   965 Apr 20 02:03 nginx.conf.bak.20260420020347\n-rw-rw-r--  1 ubuntu ubuntu   965 Apr 20 02:16 nginx.conf.bak.20260420021614\n-rw-r--r--  1 root   root     965 Apr 20 02:17 nginx.conf.bak.20260420021748\n-rw-r--r--  1 root   root     965 Apr 20 02:18 nginx.conf.bak.20260420021856\n-rw-rw-r--  1 ubuntu ubuntu   965 Apr 20 02:25 nginx.conf.bak.20260420022553\n-rw-r--r--  1 root   root     965 Apr 20 02:40 nginx.conf.bak.20260420024038\n-rw-r--r--  1 root   root     965 Apr 20 02:43 nginx.conf.bak.20260420024340\n-rw-rw-r--  1 ubuntu ubuntu   965 Apr 20 11:49 nginx.conf.bak.20260420114921\n-rw-rw-r--  1 ubuntu ubuntu   965 Apr 20 11:56 nginx.conf.bak.20260420115601\n-rw-rw-r--  1 ubuntu ubuntu   965 Apr 23 14:57 nginx.conf.bak.20260423145739\n-rw-rw-r--  1 ubuntu ubuntu   965 May  7 22:05 nginx.conf.bak.20260507220518\n-rw-rw-r--  1 ubuntu ubuntu   965 May 18 13:17 nginx.conf.bak.20260518051752\n-rw-rw-r--  1 ubuntu ubuntu   965 May 18 13:26 nginx.conf.bak.202605180526475\n-rw-r--r--  1 root   root    1011 May 18 20:20 nginx.conf.bak.20260518202051\n-rw-r--r--  1 root   root     965 May 24 17:41 nginx.conf.bak.20260524174122\n-rw-rw-r--  1 ubuntu ubuntu   913 May 25 18:27 nginx.conf.bak.20260525_fix_location\n-rw-rw-r--  1 ubuntu ubuntu  1011 May 28 19:57 nginx.conf.bak.20260528195750\n-rw-rw-r--  1 ubuntu ubuntu  5411 Jun  2 13:22 nginx.conf.bak.20260602132219\n-rw-rw-r--  1 ubuntu ubuntu  7618 Jun  2 16:42 nginx.conf.bak.20260603112233\n-rw-rw-r--  1 ubuntu ubuntu 13606 Jun  4 12:59 nginx.conf.bak.20260604125903\n-rw-rw-r--  1 ubuntu ubuntu 14384 Jun  4 12:59 nginx.conf.bak.20260604125948\n-rw-rw-r--  1 ubuntu ubuntu  6267 Jun  4 18:41 nginx.conf.bak.20260604_184124\n-rw-rw-r--  1 ubuntu ubuntu  6053 Jun  4 17:11 nginx.conf.bak.baredomain\n-rw-rw-r--  1 ubuntu ubuntu  1011 May 28 19:56 nginx.conf.bak.deploy_20260528195626\n-rw-rw-r--  1 ubuntu ubuntu  4551 Jun  4 16:27 nginx.conf.bak.deploy_noob_ai_1780561659\n-rw-r--r--  1 root   root    1011 May 31 00:02 nginx.conf.bak.deploy_yumingtest_20260531_000231\n-rw-rw-r--  1 ubuntu ubuntu  7144 Jun  2 16:42 nginx.conf.bak.healthfix\n-rw-rw-r--  1 ubuntu ubuntu  6169 Jun  4 17:26 nginx.conf.bak.routing_fix.20260604172648\n-rw-rw-r--  1 ubuntu ubuntu  2225 Jun  1 14:57 nginx.conf.bak.wildcard_20260601_145733\n-rw-rw-r--  1 ubuntu ubuntu  3139 Jun  1 16:15 nginx.conf.bak.wildcard_20260601161539\n-rw-rw-r--  1 ubuntu ubuntu  4646 Jun  4 16:52 nginx.conf.bak.wildcard.20260604165219\n-rw-rw-r--  1 ubuntu ubuntu  4646 Jun  4 16:54 nginx.conf.bak.wildcard.20260604165422\n-rw-rw-r--  1 ubuntu ubuntu  4721 Jun  4 17:06 nginx.conf.bak.wildcard_fix.20260604170644\n-rw-rw-r--  1 ubuntu ubuntu  5387 Jun  4 17:07 nginx.conf.bak.wildcard_fix.20260604170753\n-rw-r--r--  1 root   root   17436 Jun  4 15:51 nginx.conf.broken.20260604155157\n-rwxr-xr-x  1 ubuntu ubuntu  1871 Jun  1 15:05 renew_wildcard_cert.sh\ndrwxrwxr-x  2 ubuntu ubuntu  4096 Jun  4 16:58 ssl\ndrwxr-xr-x  3 root   root    4096 Apr 30 13:29 static\ndrwxrwxr-x  2 ubuntu ubuntu  4096 May 28 01:17 sweep_20260528_011737\r\r\r\ndrwxrwxr-x  2 ubuntu ubuntu  4096 May 28 01:18 sweep_20260528_011805",
+    "conf_d": "total 136\ndrwxrwxr-x  3 ubuntu ubuntu 12288 Jun  5 14:27 .\ndrwxrwxr-x 14 ubuntu ubuntu  4096 Jun  4 18:46 ..\n-rw-rw-r--  1 ubuntu ubuntu  1254 Jun  4 15:38 0451a430-e3c8-49e2-b627-329938d2313d.conf\n-rw-rw-r--  1 ubuntu ubuntu  1258 Jun  4 16:15 1f2b22da-528e-4e13-acee-6511a7b5b172.location\n-rw-rw-r--  1 ubuntu ubuntu  2441 May 28 19:03 20d0760a-5230-4867-a343-a91a95e05d50.conf\n-rw-rw-r--  1 ubuntu ubuntu  1771 Jun  4 12:36 2c2b48f8-c6fa-4411-b719-8d910baf4f9a.server\n-rw-rw-r--  1 ubuntu ubuntu  2441 May 28 19:03 309c268a-80c8-431f-9747-e2c53ada724f.conf\n-rw-rw-r--  1 ubuntu ubuntu  2026 Jun  2 13:22 3c3ddda4-aa5d-4d34-a40e-c2f886ed6186.conf.disabled\n-rw-rw-r--  1 ubuntu ubuntu  3480 Jun  5 14:31 4ad2bc0a-9c36-4b60-9c81-69e945e53cc4.conf.route\n-rw-rw-r--  1 ubuntu ubuntu  2379 Jun  4 18:35 538865dd-add6-44d3-ad7f-d1ff839f1e04.location\n-rw-rw-r--  1 ubuntu ubuntu  1143 May 28 19:03 5fa64f53-c6e8-443c-9a5c-611e554ddde1.conf\n-rw-rw-r--  1 ubuntu ubuntu  2274 May 28 19:04 617ba922-acf8-4859-9737-1854bad08497.conf\n-rw-rw-r--  1 ubuntu ubuntu  1909 Jun  5 13:34 622c312c-ea3e-4c32-af33-9836db929371.server\n-rw-rw-r--  1 ubuntu ubuntu  2441 May 28 19:03 6333c7ee-e664-4874-acb1-75365bd58709.conf\n-rw-rw-r--  1 ubuntu ubuntu  3555 May 31 23:06 6b099ed3-7175-4a78-91f4-44570c84ed27.conf.disabled.1780486562\n-rw-rw-r--  1 ubuntu ubuntu  3033 Jun  4 18:09 6b099ed3-7175-4a78-91f4-44570c84ed27.server\n-rw-rw-r--  1 ubuntu ubuntu  2155 Jun  4 12:59 745ea1f0-7b9d-449c-bd36-a2e4a2599d06.server\n-rw-rw-r--  1 ubuntu ubuntu  2441 May 28 19:03 76078d4e-cf0a-40d0-92bc-ad40ea4436b2.conf\n-rw-rw-r--  1 ubuntu ubuntu  2441 May 28 19:03 85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf\n-rw-r--r--  1 ubuntu ubuntu  1516 Jun  4 13:15 911e7350-7584-4898-bb92-ac568a699575.server\n-rw-rw-r--  1 ubuntu ubuntu  1346 Jun  2 01:38 9782217d-bbe9-45df-b57b-6f1db576316c.conf.disabled\n-rw-r--r--  1 root   root    2843 Jun  2 00:49 9f0604d2-45b2-41c9-ac88-7a317a80702f.conf.bak\n-rw-rw-r--  1 ubuntu ubuntu  2610 Jun  4 13:11 b04670f8-ef50-4fcc-92b5-e25f73121b54.server\n-rw-rw-r--  1 ubuntu ubuntu  1516 Jun  5 07:52 dce395b9-f2ce-4853-8c63-a7ccdfe5793a.server\n-rw-rw-r--  1 ubuntu ubuntu   784 May 28 17:44 deploy_test.conf\n-rw-rw-r--  1 ubuntu ubuntu  1638 Jun  4 14:55 e15e5f7c-bd14-422e-a830-440bf08a200d.server\ndrwxr-xr-x  2 root   root    4096 Apr 17 00:30 gateway-routes\n-rw-r--r--  1 ubuntu ubuntu  3939 Jun  4 16:27 noob_ai.server\n-rw-rw-r--  1 ubuntu ubuntu    18 Jun  1 18:01 test_gateway.txt\n-rw-rw-r--  1 ubuntu ubuntu  1632 May 28 16:44 test_line_prj.conf\n-rw-rw-r--  1 ubuntu ubuntu  1230 Jun  1 21:32 yumingtest.conf.bak\n-rw-rw-r--  1 ubuntu ubuntu  1230 Jun  1 04:50 yumingtest.conf.disabled",
+    "gateway_container": "gateway-nginx Up 29 hours",
+    "existing_conf": "ls: cannot access '/home/ubuntu/gateway/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf': No such file or directory",
+    "ssl_certs": "total 88\ndrwxrwxr-x  2 ubuntu ubuntu 4096 Jun  4 16:58 .\ndrwxrwxr-x 14 ubuntu ubuntu 4096 Jun  4 18:46 ..\n-rw-r--r--  1 ubuntu ubuntu 2880 Apr 14 23:59 fullchain.pem\n-rw-r--r--  1 ubuntu ubuntu 8866 Jun  4 16:54 noob-ai.test.bangbangvip.com_bundle.pem\n-rw-------  1 ubuntu ubuntu 1678 Jun  4 16:54 noob-ai.test.bangbangvip.com.key\n-rw-r--r--  1 ubuntu ubuntu  241 Apr 14 23:59 privkey.pem\n-rw-r--r--  1 ubuntu ubuntu 8866 Jun  4 16:58 wildcard.noob-ai.test.bangbangvip.com.crt\n-rw-r--r--  1 ubuntu ubuntu 8866 Jun  4 16:58 wildcard.noob-ai.test.bangbangvip.com.crt.bak.202606041658\n-rw-------  1 ubuntu ubuntu 1678 Jun  4 16:58 wildcard.noob-ai.test.bangbangvip.com.key\n-rw-------  1 ubuntu ubuntu 1704 Jun  4 16:58 wildcard.noob-ai.test.bangbangvip.com.key.bak.202606041658\n-rw-r--r--  1 ubuntu ubuntu 7114 May 31 00:02 yumingtest.noob-ai.test.bangbangvip.com.crt\n-rw-------  1 ubuntu ubuntu 1704 May 31 00:02 yumingtest.noob-ai.test.bangbangvip.com.key\n-rw-r--r--  1 root   root   4877 May 31 00:16 yumingtest.noob-ai.test.bangbangvip.com.le.fullchain.pem\n-rw-------  1 root   root    241 May 31 00:16 yumingtest.noob-ai.test.bangbangvip.com.le.privkey.pem"
+  },
+  "check2_routes": {
+    "existing_routes": "/home/ubuntu/gateway/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf.disabled.1780486562:# ===== Project: 6b099ed3-7175-4a78-91f4-44570c84ed27 =====\n/home/ubuntu/gateway/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf.disabled.1780486562:location /autodev/6b099ed3-7175-4a78-91f4-44570c84ed27/api/ ",
+    "docker_ports": "6b099ed3-7175-4a78-91f4-44570c84ed27-h5 3001/tcp\n6b099ed3-7175-4a78-91f4-44570c84ed27-admin 3000/tcp\n6b099ed3-7175-4a78-91f4-44570c84ed27-backend 8000/tcp\ne15e5f7c-bd14-422e-a830-440bf08a200d-backend 8000/tcp\ne15e5f7c-bd14-422e-a830-440bf08a200d-frontend 80/tcp, 3000/tcp\n622c312c-ea3e-4c32-af33-9836db929371-frontend 3000/tcp\n622c312c-ea3e-4c32-af33-9836db929371-backend 8000/tcp\n622c312c-ea3e-4c32-af33-9836db929371-mysql 33060/tcp, 0.0.0.0:32770->3306/tcp, [::]:32770->3306/tcp\n538865dd-add6-44d3-",
+    "port_3001": "",
+    "port_8000": "",
+    "port_3000": ""
+  },
+  "check3_acr": {
+    "acr_images_local": "crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_ai_apps/622c312c-ea3e-4c32-af33-9836db929371-frontend:bc25391669f63799dbd80d6dba01f252f06d4cd8\ncrpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_ai_apps/622c312c-ea3e-4c32-af33-9836db929371-backend:bc25391669f63799dbd80d6dba01f252f06d4cd8\ncrpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_ai_apps/622c312c-ea3e-4c32-af33-9836db929371-backend:latest\ncrpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.",
+    "base_images": "crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_doker_base/nginx:alpine 8b1e78743a03\ncrpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_doker_base/python:3.12-slim 866411c135b5\ncrpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_doker_base/maven:3-eclipse-temurin-17-alpine 53b8312ad91e\ncrpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_doker_base/postgres:16-alpine 79950da386bd\ncrpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/n",
+    "docker_config": "{\n\t\"auths\": {\n\t\t\"crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com\": {\n\t\t\t\"auth\": \"YW5rdW44ODg6eGlhb2JhaTg4OA==\"\n\t\t}\n\t}\n}"
+  },
+  "check4_network": {
+    "networks": "NETWORK ID     NAME                                                                                DRIVER    SCOPE\nb37cf10b2a92   0faabede-ad8a-439d-a946-b887ffcd8dee-network                                        bridge    local\na37e7e2d883a   1f2b22da-528e-4e13-acee-6511a7b5b172-network                                        bridge    local\nd6684886b39a   2c2b48f8-c6fa-4411-b719-8d910baf4f9a-network                                        bridge    local\neab71b7f9f2e   3c3ddda4-aa5d-4d34-a40e-c",
+    "project_network": "[\n    {\n        \"Name\": \"6b099ed3-7175-4a78-91f4-44570c84ed27-network\",\n        \"Id\": \"168e6fde5a2f991e2bd73e264cd1687253c9d5b841436d231fede1b98e2974f0\",\n        \"Created\": \"2026-06-04T15:30:46.132651433+08:00\",\n        \"Scope\": \"local\",\n        \"Driver\": \"bridge\",\n        \"EnableIPv4\": true,\n        \"EnableIPv6\": false,\n        \"IPAM\": {\n            \"Driver\": \"default\",\n            \"Options\": null,\n            \"Config\": [\n                {\n                    \"Subnet\": \"172.28.0.0/16\",\n        ",
+    "gateway_network": "map[0451a430-e3c8-49e2-b627-329938d2313d-network:0x39e378b4a6c0 1f2b22da-528e-4e13-acee-6511a7b5b172-network:0x39e378b4a7e0 2c2b48f8-c6fa-4411-b719-8d910baf4f9a-network:0x39e378b4a900 4ad2bc0a-9c36-4b60-9c81-69e945e53cc4-network:0x39e378b4aa20 538865dd-add6-44d3-ad7f-d1ff839f1e04-network:0x39e378b4ab40 622c312c-ea3e-4c32-af33-9836db929371-network:0x39e378b4ac60 6b099ed3-7175-4a78-91f4-44570c84ed27-network:0x39e378b4ad80 dce395b9-f2ce-4853-8c63-a7ccdfe5793a-network:0x39e378b4aea0 e15e5f7c-bd14-42"
+  },
+  "check5_tools": {
+    "python_image": "Python 3.12.13",
+    "node_image": "v20.20.2"
+  },
+  "check6_disk": {
+    "disk_root": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/vda2       217G  122G   87G  59% /",
+    "disk_home": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/vda2       217G  122G   87G  59% /",
+    "home_usage": "du: cannot read directory '/home/ubuntu/.local/share/containers/storage/volumes/pgdata/_data': Permission denied\ndu: cannot read directory '/home/ubuntu/.local/share/containers/storage/volumes/test_li",
+    "docker_disk": "TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE\nImages          158       87        82.66GB   11.62GB (14%)\nContainers      107       48        665.7MB   30.15MB (4%)\nLocal Volumes   116       51        7.288GB   3.542GB (48%)\nBuild Cache     843       0         52.79GB   4.64GB"
+  }
+}

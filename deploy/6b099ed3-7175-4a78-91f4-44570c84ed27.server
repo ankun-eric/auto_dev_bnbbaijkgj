@@ -1,0 +1,67 @@
+# ===== Project: 6b099ed3-7175-4a78-91f4-44570c84ed27 =====
+# 文件位置：/home/ubuntu/gateway/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.server
+# 由 noob-deploy-skill 自动生成
+
+server {
+    listen 443 ssl http2;
+    server_name 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com;
+
+    ssl_certificate     /etc/nginx/ssl/wildcard.noob-ai.test.bangbangvip.com.crt;
+    ssl_certificate_key /etc/nginx/ssl/wildcard.noob-ai.test.bangbangvip.com.key;
+
+    # /api/ → 后端
+    location /api/ {
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        set $backend 6b099ed3-7175-4a78-91f4-44570c84ed27-backend;
+        proxy_pass http://$backend:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+    }
+
+    # /uploads/ → 后端静态文件
+    location /uploads/ {
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        set $backend 6b099ed3-7175-4a78-91f4-44570c84ed27-backend;
+        proxy_pass http://$backend:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # /admin/ → 管理后台
+    location /admin/ {
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        set $admin 6b099ed3-7175-4a78-91f4-44570c84ed27-admin;
+        proxy_pass http://$admin:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # / → H5 用户端
+    location / {
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        set $h5 6b099ed3-7175-4a78-91f4-44570c84ed27-h5;
+        proxy_pass http://$h5:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

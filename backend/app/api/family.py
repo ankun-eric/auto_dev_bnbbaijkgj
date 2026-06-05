@@ -89,14 +89,13 @@ async def list_family_members(
     # - 入口卡 count_managed_family_members 使用 status != 'deleted'
     # - 官方权威状态机 /api/family/member/state/list 使用 status != 'deleted'
     # - 旧口径 status == 'active' 会漏掉 cancelled_by_target / pending 等中间态
-    # 现统一为「排除已软删除」语义。本项目历史上 DELETE 接口写入的是 'removed'，
-    # 状态机接口约定的是 'deleted'，因此两个软删除标记都需排除。
+    # 现统一为「排除已软删除」语义（V3 升级后统一使用 deleted，不再兼容 removed）。
     #
     # [BUGFIX-SELF-TAB-ALWAYS-VISIBLE-V1 2026-06-03] 本人记录(is_self=True)无视 status 过滤：
     # 早期注册流程历史脏数据可能把本人 status 写成 'pending' 等非 active 值（实测 6399 账号），
     # 本人作为账号持有者天然不应被任何业务状态过滤，必须永远出现在顶部 Tab 的第一位。
     # 因此过滤条件改为：本人记录直接放行；其余成员仍按"排除已软删除"口径。
-    DELETED_STATUSES = ("deleted", "removed")
+    DELETED_STATUSES = ("deleted",)
     result = await db.execute(
         select(FamilyMember)
         .options(selectinload(FamilyMember.relation_type))
@@ -218,11 +217,11 @@ async def add_family_member(
     # 当前用户已入档成员数（含本人） % 5
     # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V4 2026-06-03 兼容修复]
     # V3 状态机后新建成员 status 为 unbound（而非老的 bound），
-    # 此处的颜色索引计数只应排除已软删除记录（deleted/removed），不限定 bound。
+    # 此处的颜色索引计数只应排除已软删除记录（deleted），不限定 bound。
     count_res = await db.execute(
         select(func.count(FamilyMember.id)).where(
             FamilyMember.user_id == current_user.id,
-            FamilyMember.status.notin_(["deleted", "removed"]),
+            FamilyMember.status.notin_(["deleted"]),
         )
     )
     existing_count = int(count_res.scalar() or 0)

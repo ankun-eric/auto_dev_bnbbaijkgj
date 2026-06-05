@@ -2107,6 +2107,80 @@ async def lifespan(app: FastAPI):
         _tb.print_exc()
         print(f"[migrate] brain_game_v1: 迁移失败 err={_e}", flush=True)
 
+    # [2026-06-05] 益智乐园 brain_game_regions 种子数据自动初始化
+    # 每次启动检查表是否为空，为空则自动写入广东省 10 城市四级行政区划种子数据
+    try:
+        print("[migrate] brain_game_regions_seed: 启动检查...", flush=True)
+        async with async_session() as _db_seed:
+            from sqlalchemy import text as _text_seed, func as _func_seed
+            from app.models.brain_game_models import BrainGameRegion as _BGR
+            cnt_result = await _db_seed.execute(
+                _text_seed("SELECT COUNT(*) FROM brain_game_regions")
+            )
+            _cnt = cnt_result.scalar() or 0
+            if _cnt == 0:
+                print("[migrate] brain_game_regions_seed: 表为空，开始写入种子数据...", flush=True)
+                import json as _json_seed
+                from app.api.brain_game import REGION_DATA_JSON as _REGION_DATA_JSON
+                _region_data = _json_seed.loads(_REGION_DATA_JSON)
+                _inserted = 0
+
+                def _process(node: dict, parent_adcode=None):
+                    nonlocal _inserted
+                    adcode = node.get("adcode", "")
+                    name = node.get("name", "")
+                    level = node.get("level", "")
+                    if not adcode or not name:
+                        for child in node.get("children", []):
+                            _process(child, parent_adcode)
+                        return
+                    _inserted += 1
+                    _db_seed.add(_BGR(
+                        adcode=adcode,
+                        name=name,
+                        level=level,
+                        parent_adcode=parent_adcode,
+                        center=node.get("center", ""),
+                    ))
+                    for child in node.get("children", []):
+                        _process(child, adcode)
+
+                for root in _region_data:
+                    _process(root)
+
+                await _db_seed.commit()
+                print(f"[migrate] brain_game_regions_seed: 完成，写入 {_inserted} 条记录", flush=True)
+            else:
+                print(f"[migrate] brain_game_regions_seed: 已有 {_cnt} 条记录，跳过", flush=True)
+    except Exception as _e:
+        import traceback as _tb
+        _tb.print_exc()
+        print(f"[migrate] brain_game_regions_seed: 异常（不影响启动） err={_e}", flush=True)
+
+    # [2026-06-05] 账号注销支持：users 表增加 is_active / deleted_at 列（幂等）
+    try:
+        print("[migrate] user_deactivate_v1: 启动迁移...", flush=True)
+        from app.core.database import async_session as _async_session_ud
+        async with _async_session_ud() as _db_ud:
+            from sqlalchemy import text as _text_ud
+            async def _add_user_col(col: str, ddl: str):
+                try:
+                    chk = await _db_ud.execute(_text_ud(
+                        "SELECT COUNT(*) FROM information_schema.columns "
+                        "WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = :c"
+                    ), {"c": col})
+                    if (chk.scalar() or 0) == 0:
+                        await _db_ud.execute(_text_ud(f"ALTER TABLE users ADD COLUMN {ddl}"))
+                        print(f"[migrate] user_deactivate_v1: users.{col} 列已添加", flush=True)
+                except Exception as _e_col:
+                    print(f"[migrate] user_deactivate_v1: users.{col} 添加跳过: {_e_col}", flush=True)
+            await _add_user_col("is_active", "is_active TINYINT(1) NOT NULL DEFAULT 1")
+            await _add_user_col("deleted_at", "deleted_at DATETIME NULL")
+            await _db_ud.commit()
+        print("[migrate] user_deactivate_v1: 迁移完成", flush=True)
+    except Exception as _e_ud:
+        print(f"[migrate] user_deactivate_v1: 异常（不影响启动） err={_e_ud}", flush=True)
+
     # [PRD-MY-DEVICES-V1 2026-05-21] 「我的设备」V2：建表 + 幂等 seed 品牌目录
     try:
         print("[migrate] my_devices_v1: 启动迁移...", flush=True)
@@ -2386,6 +2460,7 @@ app.include_router(product_admin.router)
 app.include_router(wechat_bindding.router)
 app.include_router(appointment_form_admin.router)
 app.include_router(users.router)
+app.include_router(users.user_router)  # [2026-06-05] 账号注销接口 /api/user/deactivate
 app.include_router(video_consult_config.router)
 app.include_router(feedback.router)
 app.include_router(app_settings.router)

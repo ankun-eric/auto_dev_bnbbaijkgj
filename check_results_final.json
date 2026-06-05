@@ -1,0 +1,1838 @@
+{
+  "reachable": [
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/ai-home/medication-plans/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/feedback",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/ai-settings",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/account-security",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/chat-history",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/ai-home",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/ai-home/medication-reminder",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/alert-redirect",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/ai-home/medication-plans",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/ai-home/medication-plans/new",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/address",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/appointment",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/article/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/articles",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/cards/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/cards/renew/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/cards/usage-logs/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/cards",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/cards/wallet",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-ai-home/info-card",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-ai-home",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-ai-home/card-view/abc",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-ai-home/share-location/abc",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-ai-home/sos",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-ai-home/today-health",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/chat/abc",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-safety-rope",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/checkout",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/checkup",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/checkup/compare",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/checkup/compare/select",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/checkup/detail/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/checkup/trend",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/checkup/chat/abc",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '308', '308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/cards/redeem-code/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/coupon-center",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/customer-service",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/city-select",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/design-system-v2-preview",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/devices/member",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/devices",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/digital-human-call",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/drug/chat/abc",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/drug",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/checkup/result/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/expert/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/family",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/experts",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/family-alert",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/family-auth",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/family-bindlist",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/family-guardian-list",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/family-guardian-list/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/family-invite",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/glucose",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-alerts",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-dashboard",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-metric/bp/history",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-metric/bp",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-guide",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-plan",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-plan/checkin",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-plan/checkin/add",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-plan/custom/create",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-plan/custom/plan/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-plan/custom/my-plan/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-plan/custom",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-plan/edit",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-plan/custom/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-plan/result",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-profile",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-plan/statistics",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-profile/archive-list",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-profile/my-guardians",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-profile/my-guardians/invite",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-profile/v13",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-reminders",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/home-safety",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-self-check/result/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/landing",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/legal/service-agreement",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/login",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-profile/i-guard",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/medical-records",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/medical-records/all",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/invite",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/medical-records/trash",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/medical-records/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/member-center",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/member-card",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/dashboard",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/finance",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/invoice",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/login",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/downloads",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/dashboard",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/finance",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/downloads",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/login",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/me",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/orders",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/profile",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/profile/change-password",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/messages",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/invoice",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/profile/force-change-password",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/select-store",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/reports",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/settlement/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/staff",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/store-settings",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/verify",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/wechat-bindding",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/settlement",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/messages",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/order-dashboard",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/orders",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/profile",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/profile/change-password",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/reports",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/select-store",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/settlement",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/staff",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/verifications",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/wechat-bindding",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/settlement/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/store-settings",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/my-addresses",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/my-coupons",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/news",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/news/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/order/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/pay/success",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/my-favorites",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/points",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/points/detail",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/points/mall",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/points/exchange-records",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/points/product-detail",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/product/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/points/records",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/products",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/refund/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/profile/edit",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/report-history/comparison/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/refund-list",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/scan",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/search",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/messages",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/search/result",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/services",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/sandbox-pay",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/report-history/shared/abc",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/shared/chat/abc",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/settings",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/shared/drug/abc",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/shared/report/abc",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/symptom",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/tcm",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/tcm/archive",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/tcm/diagnosis/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/tcm/loading",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/tcm/result/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/unified-order/1",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/unified-orders",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['301', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/admin-settlements",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/abnormal-thresholds",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-call-config",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/welcome-mode",
+      "label": "H5_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-center/disclaimers",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-center/prompts",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-config",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-center/sensitive-words",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-config/chat-timeout",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-config/video-consult",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/alert-logs",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/alert-templates",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/audit/center",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/audit/phones",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/bottom-nav",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/chat-records",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/chat-records/1",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/city-management",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/constitution-content",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/content/articles",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/content/news",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/cos-config",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/dashboard",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/customer-service",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/digital-humans",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/checkup-details",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/content/categories",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/disease-presets",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/fallback-config",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/experts",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/family-management",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/function-buttons",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/drug-details",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/health-plan/categories",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/health-plan/recommended",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/health-plan/recommended/1/tasks",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/emergency-sources",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/health-records/statistics",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/home-banners",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/home-settings",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/home-settings/ai-home-config",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/home-settings/ai-home-config/logs",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/knowledge",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/home-safety",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/knowledge/1",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/knowledge/stats",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/membership/free-quota",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/map-config",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/membership/plans",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/health-records",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/merchant/stores/1/business-config",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/merchant-categories",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/notices",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/merchant/stores",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/merchant/business-config",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/merchant/accounts",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ocr-global-config",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/points/levels",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/points/mall",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/points/rules",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/cards",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/payment-config",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/categories",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/coupons",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/cards/dashboard",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/new-user-coupons",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/orders",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/partners",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/redemptions",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/statistics",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/tags",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/store-bindding",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/orders/dashboard",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/products",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/visits",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/profile",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/profile/change-password",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/prompt-templates",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/relation-types",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/questionnaire-templates",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/referral",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/search/asr-config",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/search/recommend",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/search/statistics",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/search-config",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/search/block-words",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/share-config",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/system-messages",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/system/sdk-health",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/tcm-config",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/tts-config",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/voice-service",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/system-messages/send",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/wechat-push",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/family/invitation/ABC123",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/theme-config",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/system/seed-import",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/login",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/users",
+      "label": "ADMIN_PAGE",
+      "status": "REACHABLE(200)",
+      "detail": "codes=['308', '200']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/family/invitation/ABC123/accept",
+      "label": "API_POST",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/family/members",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/family/managed-by",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/family/invitation/ABC123/reject",
+      "label": "API_POST",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/auth/me",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/family/management",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/family/members/1",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/health",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/family/invitation",
+      "label": "API_POST",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/system/server-time",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/chat/sessions",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/home-config",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/auth/register-settings",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/home-banners",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/messages/unread-count",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/points/summary",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/points/balance",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/home-menus",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/search/hot",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/notices/active",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/merchant/stores",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/services/categories",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/coupons/mine",
+      "label": "API_GET",
+      "status": "REACHABLE(405)",
+      "detail": "codes=['405']"
+    }
+  ],
+  "unreachable": [],
+  "redirect_loops": [],
+  "errors": [
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/",
+      "label": "H5_PAGE",
+      "status": "TIMEOUT/CONNECTION_FAILED",
+      "detail": ""
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/care-home",
+      "label": "H5_PAGE",
+      "status": "TIMEOUT/CONNECTION_FAILED",
+      "detail": ""
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/legal/privacy-policy",
+      "label": "H5_PAGE",
+      "status": "TIMEOUT/CONNECTION_FAILED",
+      "detail": ""
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/merchant/m/orders/1",
+      "label": "H5_PAGE",
+      "status": "TIMEOUT/CONNECTION_FAILED",
+      "detail": ""
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/report-history/1",
+      "label": "H5_PAGE",
+      "status": "TIMEOUT/CONNECTION_FAILED",
+      "detail": ""
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/report-history",
+      "label": "H5_PAGE",
+      "status": "TIMEOUT/CONNECTION_FAILED",
+      "detail": ""
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/review/1",
+      "label": "H5_PAGE",
+      "status": "TIMEOUT/CONNECTION_FAILED",
+      "detail": ""
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/email-notify",
+      "label": "ADMIN_PAGE",
+      "status": "TIMEOUT/CONNECTION_FAILED",
+      "detail": ""
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/guardian-relations",
+      "label": "ADMIN_PAGE",
+      "status": "TIMEOUT/CONNECTION_FAILED",
+      "detail": ""
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ocr-config",
+      "label": "ADMIN_PAGE",
+      "status": "TIMEOUT/CONNECTION_FAILED",
+      "detail": ""
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/orders",
+      "label": "ADMIN_PAGE",
+      "status": "TIMEOUT/CONNECTION_FAILED",
+      "detail": ""
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/appointment-forms",
+      "label": "ADMIN_PAGE",
+      "status": "TIMEOUT/CONNECTION_FAILED",
+      "detail": ""
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/settings",
+      "label": "ADMIN_PAGE",
+      "status": "TIMEOUT/CONNECTION_FAILED",
+      "detail": ""
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/sms",
+      "label": "ADMIN_PAGE",
+      "status": "TIMEOUT/CONNECTION_FAILED",
+      "detail": ""
+    },
+    {
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/family/guardians/1",
+      "label": "API_GET",
+      "status": "TIMEOUT/CONNECTION_FAILED",
+      "detail": ""
+    }
+  ]
+}

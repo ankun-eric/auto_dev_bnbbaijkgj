@@ -1,0 +1,14 @@
+--- WAIT 1/24 ---
+2/3 healthy
+--- WAIT 2/24 ---
+2/3 healthy
+--- WAIT 3/24 ---
+2/3 healthy
+--- WAIT 4/24 ---
+3/3 healthy
+ALL_HEALTHY
+NAME                                           IMAGE                                            COMMAND                  SERVICE     CREATED          STATUS                    PORTS
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin     6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web   "docker-entrypoint.s…"   admin-web   26 seconds ago   Up 25 seconds (healthy)   3000/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend   6b099ed3-7175-4a78-91f4-44570c84ed27-backend     "uvicorn app.main:ap…"   backend     26 seconds ago   Up 25 seconds (healthy)   8000/tcp
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5        6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web      "docker-entrypoint.s…"   h5-web      26 seconds ago   Up 25 seconds (healthy)   3001/tcp
+

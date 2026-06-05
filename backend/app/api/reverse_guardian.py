@@ -292,8 +292,8 @@ async def remove_guardian(
         )
     )
     for fm in fm_result.scalars().all():
-        fm.status = "deleted"
-        fm.sub_status = "self_deleted"
+        fm.status = "unbound"
+        fm.sub_status = "unbinded"
         fm.status_changed_at = datetime.utcnow()
         fm.status_changed_by = current_user.id
         fm.status_reason = "reverse_guardian_unbind"

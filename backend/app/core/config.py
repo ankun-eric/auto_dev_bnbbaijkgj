@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "mysql+aiomysql://root:password@db:3306/bini_health"
+    DATABASE_URL: str = "mysql+aiomysql://root:bini_health_2026@localhost:3306/bini_health"
     SECRET_KEY: str = "bini-health-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440

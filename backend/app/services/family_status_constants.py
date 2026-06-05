@@ -38,12 +38,11 @@ DELETED_STATUSES: Tuple[str, ...] = (MAIN_STATUS_DELETED,)
 # "已隐藏"包含 deleted + unbound(已解绑也视为 Tab 隐藏)
 HIDDEN_STATUSES: Tuple[str, ...] = (MAIN_STATUS_DELETED, MAIN_STATUS_UNBOUND)
 
-# ============ 兼容期常量(30 天) ============
-# 兼容老数据/灰度回滚:同时排除 deleted + removed(老软删) + unbound(已解绑)
-# 治本上线 30 天后,确认无老数据残留,可以摘掉 'removed'
+# ============ 兼容期常量(已摘掉 removed) ============
+# V3 升级后 FamilyMember.status 已不再写入 removed，统一使用 deleted/unbound。
+# FamilyManagement 表的 removed 状态是独立状态体系，不在本常量管理范围内。
 DELETED_OR_REMOVED_STATUSES: Tuple[str, ...] = (
     MAIN_STATUS_DELETED,
-    "removed",            # 老枚举兼容
     MAIN_STATUS_UNBOUND,  # 已解绑视为 Tab 隐藏
 )
 
