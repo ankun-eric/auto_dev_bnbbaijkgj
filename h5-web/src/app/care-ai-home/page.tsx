@@ -541,7 +541,7 @@ export default function CareAiHomePage() {
               style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }}
             />
           </div>
-          <div style={{ fontSize: 21, fontWeight: 600, lineHeight: 1.3 }} data-testid="care-home-greeting">
+          <div style={{ fontSize: 21, fontWeight: 700, lineHeight: 1.3 }} data-testid="care-home-greeting">
             {greeting.text} {greeting.icon}
           </div>
         </div>

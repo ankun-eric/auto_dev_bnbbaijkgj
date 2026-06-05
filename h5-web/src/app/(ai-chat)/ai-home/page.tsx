@@ -4687,7 +4687,7 @@ export default function AiHomePage() {
                         testId="ai-home-welcome-avatar"
                       />
                     </div>
-                    <div style={{ fontSize: 21, fontWeight: 600, lineHeight: 1.3 }} data-testid="ai-home-welcome-greeting">
+                    <div style={{ fontSize: 21, fontWeight: 700, lineHeight: 1.3 }} data-testid="ai-home-welcome-greeting">
                       {stdGreeting.text} {stdGreeting.icon}
                     </div>
                   </div>
