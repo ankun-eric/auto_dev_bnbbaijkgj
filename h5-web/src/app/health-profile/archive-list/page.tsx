@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * [PRD-FAMILY-MEMBER-STATE-MACHINE-V1 2026-05-29] 健康档案 - 家庭成员列表（v2 状态机版）
  *
@@ -354,7 +356,21 @@ export default function ArchiveListPage() {
   };
 
   // 解除守护
-  // [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 补上二次确认弹框（与「守护我的人」解除共用同一套文案）
+  // [PRD-HEALTH-ARCHIVE-CO-MANAGE 2026-06-05 F12] 增加短信验证码两步流程
+  const [unbindSmsMember, setUnbindSmsMember] = useState<MemberStateItem | null>(null);
+  const [unbindCode, setUnbindCode] = useState('');
+  const [unbindCountdown, setUnbindCountdown] = useState(0);
+  const [unbindSending, setUnbindSending] = useState(false);
+  const [unbindConfirming, setUnbindConfirming] = useState(false);
+  const [unbindMaskedPhone, setUnbindMaskedPhone] = useState<string | null>(null);
+  const [unbindDebugCode, setUnbindDebugCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (unbindCountdown <= 0) return;
+    const t = setTimeout(() => setUnbindCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [unbindCountdown]);
+
   const handleUnbind = async (m: MemberStateItem) => {
     const confirmed = await Dialog.confirm({
       title: UNBIND_GUARDIAN_CONFIRM.title,
@@ -363,9 +379,46 @@ export default function ArchiveListPage() {
       confirmText: UNBIND_GUARDIAN_CONFIRM.confirmText,
     });
     if (!confirmed) return;
+    setUnbindSmsMember(m);
+    setUnbindCode('');
+    setUnbindCountdown(0);
+    setUnbindMaskedPhone(null);
+    setUnbindDebugCode(null);
+  };
+
+  const handleSendUnbindCode = async () => {
+    if (!unbindSmsMember) return;
+    setUnbindSending(true);
     try {
-      await api.post(`/api/family/member/${m.member_id}/unbind`, {});
+      const r: any = await api.post(`/api/family/member/${unbindSmsMember.member_id}/unbind/send-code`, {});
+      const data = r.data || r;
+      setUnbindMaskedPhone(data.masked_phone || null);
+      if (data.debug_code) {
+        setUnbindDebugCode(data.debug_code);
+        showToast(`验证码已发送（开发环境：${data.debug_code}）`);
+        setUnbindCode(data.debug_code);
+      } else {
+        showToast('验证码已发送');
+      }
+      setUnbindCountdown(60);
+    } catch (e: any) {
+      showToast(e?.response?.data?.detail || e?.message || '发送失败', 'fail');
+    } finally {
+      setUnbindSending(false);
+    }
+  };
+
+  const handleConfirmUnbind = async () => {
+    if (!unbindSmsMember) return;
+    if (!unbindCode || unbindCode.length < 4) {
+      showToast('请输入验证码', 'warning');
+      return;
+    }
+    setUnbindConfirming(true);
+    try {
+      await api.post(`/api/family/member/${unbindSmsMember.member_id}/unbind?code=${unbindCode}`, {});
       showToast('已解除守护', 'success');
+      setUnbindSmsMember(null);
       await fetchList();
     } catch (e: any) {
       const detail = e?.response?.data?.detail;
@@ -373,6 +426,8 @@ export default function ArchiveListPage() {
       if (typeof detail === 'string') msg = detail;
       else if (detail?.message) msg = detail.message;
       showToast(msg, 'fail');
+    } finally {
+      setUnbindConfirming(false);
     }
   };
 
@@ -514,6 +569,21 @@ export default function ArchiveListPage() {
       <InvitationHistoryDrawer
         member={invitationHistoryMember}
         onClose={() => setInvitationHistoryMember(null)}
+      />
+
+      {/* [PRD-HEALTH-ARCHIVE-CO-MANAGE 2026-06-05 F12] 解除守护短信验证码弹窗 */}
+      <UnbindSmsPopup
+        visible={!!unbindSmsMember}
+        memberName={unbindSmsMember?.nickname || ''}
+        maskedPhone={unbindMaskedPhone}
+        code={unbindCode}
+        countdown={unbindCountdown}
+        sending={unbindSending}
+        confirming={unbindConfirming}
+        onCodeChange={(v) => setUnbindCode(v.replace(/\D/g, '').slice(0, 6))}
+        onSendCode={handleSendUnbindCode}
+        onConfirm={handleConfirmUnbind}
+        onClose={() => setUnbindSmsMember(null)}
       />
     </div>
   );
@@ -1015,4 +1085,94 @@ function secondaryBtnStyle(): React.CSSProperties {
     fontSize: 13,
     cursor: 'pointer',
   };
+}
+
+// ───────────── 解除守护短信验证码弹窗 ─────────────
+
+function UnbindSmsPopup({
+  visible,
+  memberName,
+  maskedPhone,
+  code,
+  countdown,
+  sending,
+  confirming,
+  onCodeChange,
+  onSendCode,
+  onConfirm,
+  onClose,
+}: {
+  visible: boolean;
+  memberName: string;
+  maskedPhone: string | null;
+  code: string;
+  countdown: number;
+  sending: boolean;
+  confirming: boolean;
+  onCodeChange: (v: string) => void;
+  onSendCode: () => void;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <Popup
+      visible={visible}
+      onMaskClick={onClose}
+      bodyStyle={{
+        borderTopLeftRadius: 16,
+        borderTopRightRadius: 16,
+        padding: 16,
+        maxHeight: '70vh',
+        overflowY: 'auto',
+      }}
+    >
+      <div>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          marginBottom: 12,
+        }}>
+          <strong style={{ fontSize: 18 }}>解除守护关系</strong>
+          <span onClick={onClose} style={{ fontSize: 22, color: '#999', cursor: 'pointer', padding: '0 8px' }}>
+            ×
+          </span>
+        </div>
+
+        <div style={{
+          background: '#FFF4ED', border: '1px solid #FFD8B8', color: '#9A4500',
+          borderRadius: 8, padding: 12, fontSize: 13, lineHeight: '20px', marginBottom: 16,
+        }}>
+          ⚠️ 解绑后将停止所有健康守护与提醒，且 TA 的健康数据您将无法继续查看。此操作不可恢复，请谨慎操作。
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>
+            短信验证码{maskedPhone ? `已发送至：${maskedPhone}` : '将发送至您的手机'}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Input
+              placeholder="输入验证码"
+              value={code}
+              onChange={(v) => onCodeChange(v)}
+              style={{
+                flex: 1, background: '#F8F9FC', borderRadius: 8,
+                padding: '0 12px', height: 40,
+              }}
+            />
+            <Button
+              size="small"
+              disabled={countdown > 0 || sending}
+              onClick={onSendCode}
+              style={{ width: 140 }}
+            >
+              {countdown > 0 ? `${countdown}s 后重发` : sending ? '发送中...' : '获取验证码'}
+            </Button>
+          </div>
+        </div>
+
+        <Button block color="danger" loading={confirming} onClick={onConfirm}>
+          确认解除守护关系
+        </Button>
+      </div>
+    </Popup>
+  );
 }
