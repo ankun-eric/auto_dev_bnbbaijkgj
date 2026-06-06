@@ -1,6 +1,6 @@
 # 宾尼健康 (Bini Health) 项目索引
 
-> **最后更新**: 2026-06-06 11:37:00 (益智乐园 brain_game 模块重新部署 + 省市区街道种子数据初始化修复 + 补充 brain_game_models.py)
+> **最后更新**: 2026-06-06 14:11:04 (v3.0 Bug修复：10项修复含管理后台设备菜单、守护流程修复、系统消息角色修正、文案统一)
 > **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
 > **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
 > **Git 主仓库**: Codeup (codeup.aliyun.com)  
@@ -69,7 +69,9 @@ bnbbaijkgj/
 │   │   ├── (ai-chat)/ai-home/  # AI 首页
 │   │   ├── care-ai-home/       # 关怀版AI首页V4（卡片第1位数字安全绳、悬浮球竖排绿上红下、模式切换文字链）
 │   │   ├── care-safety-rope/   # 数字安全绳功能页（签到/阈值/联系人）
-│   │   ├── health-profile/   # 健康档案
+│   │   ├── health-profile/   # 健康档案（含成员列表archive-list、我的守护人my-guardians）
+│   │   ├── family-auth/      # 守护邀请接受页（区分错误类型：已绑定/已过期/已取消）
+│   │   ├── messages/         # 系统消息列表（完整展示内容不截断）
 │   │   ├── member-center/    # 会员中心
 │   │   ├── login/            # 登录页
 │   │   ├── devices/           # 我的设备（按场景分类展示 F8-F9）
@@ -81,6 +83,7 @@ bnbbaijkgj/
 ├── admin-web/                # Next.js 管理后台
 │   ├── src/app/
 │   │   ├── (admin)/
+│   │   │   ├── layout.tsx              # 侧边栏布局（含设备管理/退款管理等菜单组）
 │   │   │   ├── devices/scene-groups/  # 设备场景分类管理 (F10)
 │   │   │   └── devices/catalog/       # 设备目录管理 (F11)
 │   ├── Dockerfile
@@ -145,6 +148,26 @@ gateway-nginx (独立主网关, 端口 443)
 ---
 
 ## 最新变更 (2026-06-06)
+
+### Bug修复：宾尼健康 v3.0 Bug 修复 (10项)
+
+| Bug ID | 严重程度 | 修复内容 | 涉及文件 |
+|--------|---------|---------|---------|
+| Bug-1&2 | P0 | 管理后台侧边栏新增「设备管理」菜单组 | `admin-web/src/app/(admin)/layout.tsx` |
+| Bug-3 | P0 | 解绑后无法重新发起邀请——三个解绑入口status统一为"inactive" | `family_management.py`、`family_member_v2.py`、`reverse_guardian.py`、`family_bind_dedup_service.py` |
+| Bug-6 | P0 | 接受邀请后双方SystemMessage角色错乱修正 | `family_management.py`、`reverse_guardian.py` |
+| Bug-7 | P0 | 解绑后双方补双向SystemMessage通知 | `family_management.py`、`family_member_v2.py`、`reverse_guardian.py` |
+| Bug-5 | P1 | family-auth错误页根据后端detail区分标题 | `h5-web/src/app/family-auth/page.tsx` |
+| Bug-8 | P1 | 解绑验证码提示区分角色(入口B/C) | `h5-web/src/app/health-profile/archive-list/`、`my-guardians/` |
+| Bug-9 | P1 | 系统消息列表完整展示不去截断 | `h5-web/src/app/messages/page.tsx` |
+| Bug-10 | P1 | 文案统一"健康提醒"→"健康档案" | 4个后端文件 + `family-relation.ts` |
+
+**改动文件清单**：
+- 后端 4 个：`family_management.py`、`family_member_v2.py`、`reverse_guardian.py`、`family_bind_dedup_service.py`
+- 管理后台 1 个：`admin-web/src/app/(admin)/layout.tsx`
+- H5前端 5 个：`family-auth/page.tsx`、`archive-list/page.tsx`、`my-guardians/page.tsx`、`messages/page.tsx`、`lib/family-relation.ts`
+
+---
 
 ### PRD：微信小程序支付完整接通 + 支付宝 H5 退款补上 (v1.0)
 
