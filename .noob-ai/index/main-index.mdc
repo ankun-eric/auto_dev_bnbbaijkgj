@@ -1,6 +1,6 @@
 # 宾尼健康 (Bini Health) 项目索引
 
-> **最后更新**: 2026-06-06 (益智乐园 brain_game 模块重新部署 + 省市区街道种子数据初始化修复 + 数据去重)
+> **最后更新**: 2026-06-06 11:37:00 (益智乐园 brain_game 模块重新部署 + 省市区街道种子数据初始化修复 + 补充 brain_game_models.py)
 > **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
 > **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
 > **Git 主仓库**: Codeup (codeup.aliyun.com)  
@@ -48,6 +48,9 @@ bnbbaijkgj/
 │   │   │   ├── brain_game.py        # 益智乐园（数学游戏+排行+组队挑战）
 │   │   │   └── ...
 │   │   ├── models/           # SQLAlchemy 数据模型
+│   │   │   ├── models.py              # 主业务模型（User/Organization/Device等）
+│   │   │   ├── devices_v2.py          # 设备V2模型（DeviceCatalog/DeviceSceneGroup）
+│   │   │   └── brain_game_models.py   # 益智乐园模型（BrainGameRegion/BrainGameScore/BrainGameChallenge/BrainGameChallengeMember）
 │   │   ├── schemas/          # Pydantic Schema
 │   │   ├── services/         # 业务服务与常量
 │   │   │   ├── family_status_constants.py  # 家庭成员状态常量（V3枚举、过滤口径DELETED/HIDDEN/ACTIVE等）
