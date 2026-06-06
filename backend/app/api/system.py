@@ -24,18 +24,16 @@ async def get_server_time() -> Dict[str, Any]:
     """获取服务器当前时间。
 
     返回字段：
-    - now_iso: ISO8601 UTC 字符串（含 Z 后缀，便于前端 new Date 直接解析）
+    - now_iso: 北京时间字符串 "YYYY-MM-DD HH:mm:ss"
     - now_unix_ms: 毫秒级时间戳
-    - timezone: 服务器时区标识（默认 UTC；如部署在 +08 时区且系统时区已配置，可返回 Asia/Shanghai）
+    - timezone: 服务器时区标识
 
     用途：
-    - H5 / 微信小程序 / Flutter 三端在改约弹窗打开时调用，记录与本地的偏移
-    - 之后所有"是否为今天 / 时段是否已过"判断均使用 (本地时间 - offset) 推算
-    - 即便客户端时间被调快 1 天，前端仍按服务器时间过滤
+    - 前端各端调用获取服务器时间，用于时间校准和显示
     """
-    utc_now = datetime.now()
+    now = datetime.now()
     return {
-        "now_iso": utc_now.strftime("%Y-%m-%dT%H:%M:%S.") + f"{utc_now.microsecond // 1000:03d}Z",
+        "now_iso": now.strftime("%Y-%m-%d %H:%M:%S"),
         "now_unix_ms": int(time.time() * 1000),
-        "timezone": "UTC",
+        "timezone": "Asia/Shanghai",
     }
