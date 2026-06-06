@@ -97,7 +97,7 @@ async def test_t04_notification_unread(client: AsyncClient, auth_headers):
         await session.execute(
             sa_update(SystemMessage)
             .where(SystemMessage.recipient_user_id == user_id, SystemMessage.is_read == False)
-            .values(is_read=True, read_at=datetime.utcnow())
+            .values(is_read=True, read_at=datetime.now())
         )
         for i in range(2):
             session.add(
@@ -158,12 +158,12 @@ async def test_t06_read_not_counted(client: AsyncClient, auth_headers):
         await session.execute(
             sa_update(SystemMessage)
             .where(SystemMessage.recipient_user_id == user_id, SystemMessage.is_read == False)
-            .values(is_read=True, read_at=datetime.utcnow())
+            .values(is_read=True, read_at=datetime.now())
         )
         await session.execute(
             sa_update(Notification)
             .where(Notification.user_id == user_id, Notification.is_read == False)
-            .values(is_read=True, read_at=datetime.utcnow())
+            .values(is_read=True, read_at=datetime.now())
         )
         await session.commit()
 

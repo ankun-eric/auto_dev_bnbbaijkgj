@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 async def scan_expiring_cards(db: AsyncSession) -> List[UserCard]:
     """查询 valid_to 落在 today+1 / today+3 / today+7 范围内的 active 卡。"""
-    now = datetime.utcnow()
+    now = datetime.now()
     today = now.replace(hour=0, minute=0, second=0, microsecond=0)
     targets: List[datetime] = []
     for days in (1, 3, 7):
@@ -63,7 +63,7 @@ async def send_expiry_notify(db: AsyncSession, user_card: UserCard) -> bool:
     if not cd:
         return False
 
-    days = (user_card.valid_to - datetime.utcnow()).days
+    days = (user_card.valid_to - datetime.now()).days
     title = f"您的卡「{cd.name}」即将到期"
     content = (
         f"您持有的「{cd.name}」将于 {user_card.valid_to.strftime('%Y-%m-%d')} 到期，"

@@ -140,7 +140,7 @@ async def create_invitation(
         select(func.count(FamilyInvitation.id)).where(
             FamilyInvitation.inviter_user_id == current_user.id,
             FamilyInvitation.status == "pending",
-            FamilyInvitation.expires_at > datetime.utcnow(),
+            FamilyInvitation.expires_at > datetime.now(),
         )
     )
     pending_invite_count = int(pending_invite_count_result.scalar() or 0)
@@ -193,7 +193,7 @@ async def create_invitation(
     # [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 情况 2：允许并存多条 pending，不去重
 
     invite_code = uuid.uuid4().hex
-    expires_at = datetime.utcnow() + timedelta(hours=INVITATION_EXPIRE_HOURS)
+    expires_at = datetime.now() + timedelta(hours=INVITATION_EXPIRE_HOURS)
 
     invitation = FamilyInvitation(
         invite_code=invite_code,
@@ -296,7 +296,7 @@ async def get_invitation_detail(
     member = member_result.scalar_one_or_none()
 
     status = invitation.status
-    if status == "pending" and invitation.expires_at < datetime.utcnow():
+    if status == "pending" and invitation.expires_at < datetime.now():
         status = "expired"
         invitation.status = "expired"
         # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V2 2026-06-03] 治本：邀请过期同步回滚 FamilyMember
@@ -419,7 +419,7 @@ async def accept_invitation(
     if invitation.status != "pending":
         raise HTTPException(status_code=400, detail="该邀请已失效")
 
-    if invitation.expires_at < datetime.utcnow():
+    if invitation.expires_at < datetime.now():
         invitation.status = "expired"
         # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V2 2026-06-03] 治本：邀请过期同步回滚 FamilyMember
         from app.services.family_member_status_rollback import (
@@ -546,7 +546,7 @@ async def accept_invitation(
                 inviter_val = getattr(inviter_hp, field, None)
                 if inviter_val is not None:
                     setattr(acceptor_hp, field, inviter_val)
-        acceptor_hp.updated_at = datetime.utcnow()
+        acceptor_hp.updated_at = datetime.now()
     elif not acceptor_hp and inviter_hp:
         # 仅当用户没有现成档案时，从邀请人档案派生
         def _maybe(field_name: str):
@@ -620,7 +620,7 @@ async def accept_invitation(
 
     invitation.status = "accepted"
     invitation.accepted_by = current_user.id
-    invitation.accepted_at = datetime.utcnow()
+    invitation.accepted_at = datetime.now()
 
     notification = Notification(
         user_id=invitation.inviter_user_id,
@@ -687,7 +687,7 @@ async def reject_invitation(
     if invitation.status != "pending":
         raise HTTPException(status_code=400, detail="该邀请已失效")
 
-    if invitation.expires_at < datetime.utcnow():
+    if invitation.expires_at < datetime.now():
         invitation.status = "expired"
         # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V2 2026-06-03] 治本：邀请过期同步回滚 FamilyMember
         from app.services.family_member_status_rollback import (
@@ -862,7 +862,7 @@ async def cancel_management(
         raise HTTPException(status_code=400, detail="该管理关系已失效")
 
     mgmt.status = "inactive"
-    mgmt.cancelled_at = datetime.utcnow()
+    mgmt.cancelled_at = datetime.now()
     mgmt.cancelled_by = current_user.id
 
     # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V2 2026-06-03] 治本：守护关系取消同步回滚 FamilyMember
@@ -1028,7 +1028,7 @@ async def list_usage_records(
         })
     # 额度概览
     total = 5  # 默认 5 次/月（后续可由 system_config 配置）
-    used = sum(1 for r in rows if r.created_at and r.created_at.month == datetime.utcnow().month)
+    used = sum(1 for r in rows if r.created_at and r.created_at.month == datetime.now().month)
     return {
         "management_id": management_id,
         "share_enabled": bool(mgmt.member_benefit_shared),

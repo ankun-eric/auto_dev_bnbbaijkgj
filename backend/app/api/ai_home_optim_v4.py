@@ -156,7 +156,7 @@ async def track_event(
 
     return TrackEventResponse(
         ok=True,
-        received_at=datetime.utcnow().isoformat(),
+        received_at=datetime.now().isoformat(),
         event=event_name,
         platform=body.platform,
     )

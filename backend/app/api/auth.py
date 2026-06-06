@@ -148,7 +148,7 @@ async def ensure_identity(db: AsyncSession, user_id: int, identity_type: Identit
     identity = result.scalar_one_or_none()
     if identity:
         identity.status = "active"
-        identity.updated_at = datetime.utcnow()
+        identity.updated_at = datetime.now()
         return
     db.add(AccountIdentity(user_id=user_id, identity_type=identity_type))
 
@@ -366,7 +366,7 @@ async def _grant_new_user_coupons(db: AsyncSession, user: User) -> None:
 
     rs = await db.execute(select(_Coupon).where(_Coupon.id.in_(ids)))
     coupons = rs.scalars().all()
-    now = datetime.utcnow()
+    now = datetime.now()
     for c in coupons:
         try:
             status_val = c.status.value if hasattr(c.status, "value") else c.status
@@ -437,7 +437,7 @@ async def login(data: UserLogin, request: Request, db: AsyncSession = Depends(ge
     await ensure_member_card_no(db, user, register_settings)
     # [2026-04-25] 商家个人信息回填：登录成功记录最近登录时间，供"个人信息"页展示
     try:
-        user.last_login_at = datetime.utcnow()
+        user.last_login_at = datetime.now()
         await db.commit()
         await db.refresh(user)
     except Exception:
@@ -475,7 +475,7 @@ async def send_sms_code(data: SMSCodeRequest, db: AsyncSession = Depends(get_db)
             select(VerificationCode)
             .where(
                 VerificationCode.phone == data.phone,
-                VerificationCode.created_at > datetime.utcnow() - timedelta(seconds=60),
+                VerificationCode.created_at > datetime.now() - timedelta(seconds=60),
             )
             .order_by(VerificationCode.created_at.desc())
             .limit(1)
@@ -484,7 +484,7 @@ async def send_sms_code(data: SMSCodeRequest, db: AsyncSession = Depends(get_db)
             raise HTTPException(status_code=429, detail="发送过于频繁，请60秒后重试")
 
     code = "123456" if is_test else "".join(random.choices(string.digits, k=6))
-    expires_at = datetime.utcnow() + timedelta(minutes=5)
+    expires_at = datetime.now() + timedelta(minutes=5)
 
     if not is_test:
         try:
@@ -512,7 +512,7 @@ async def sms_login(data: SMSLoginRequest, db: AsyncSession = Depends(get_db)):
         .where(
             VerificationCode.phone == data.phone,
             VerificationCode.code == data.code,
-            VerificationCode.expires_at > datetime.utcnow(),
+            VerificationCode.expires_at > datetime.now(),
         )
         .order_by(VerificationCode.created_at.desc())
         .limit(1)
@@ -521,7 +521,7 @@ async def sms_login(data: SMSLoginRequest, db: AsyncSession = Depends(get_db)):
     if not vc:
         logger.warning(
             "SMS login failed: phone=%s, now=%s (submitted code not logged)",
-            data.phone, datetime.utcnow(),
+            data.phone, datetime.now(),
         )
         debug_result = await db.execute(
             select(VerificationCode)
@@ -577,7 +577,7 @@ async def sms_login(data: SMSLoginRequest, db: AsyncSession = Depends(get_db)):
     await ensure_default_identity_for_legacy_user(db, user)
     await ensure_member_card_no(db, user, register_settings)
     try:
-        user.last_login_at = datetime.utcnow()
+        user.last_login_at = datetime.now()
         await db.commit()
         await db.refresh(user)
     except Exception:
@@ -615,7 +615,7 @@ async def update_me(
         current_user.nickname = data.nickname
     if data.avatar is not None:
         current_user.avatar = data.avatar
-    current_user.updated_at = datetime.utcnow()
+    current_user.updated_at = datetime.now()
     await db.flush()
     await db.refresh(current_user)
     return UserResponse.model_validate(current_user)
@@ -661,7 +661,7 @@ async def update_merchant_profile(
         profile.nickname = data.nickname
     if data.avatar is not None:
         profile.avatar = data.avatar
-    profile.updated_at = datetime.utcnow()
+    profile.updated_at = datetime.now()
     await db.flush()
     await db.refresh(profile)
     return MerchantProfileResponse.model_validate(profile)

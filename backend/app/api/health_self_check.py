@@ -115,7 +115,7 @@ async def _build_archive_context(
             gender = fm.gender
             if fm.birthday:
                 try:
-                    today = datetime.utcnow().date()
+                    today = datetime.now().date()
                     age = today.year - fm.birthday.year - (
                         (today.month, today.day) < (fm.birthday.month, fm.birthday.day)
                     )

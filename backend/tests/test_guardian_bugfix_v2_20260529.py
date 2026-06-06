@@ -168,7 +168,7 @@ async def test_tc_g2_04_expired_pending_does_not_occupy(client: AsyncClient):
             inviter_user_id=uid,
             member_id=None,
             status="pending",
-            expires_at=datetime.utcnow() - timedelta(hours=1),  # 已过期
+            expires_at=datetime.now() - timedelta(hours=1),  # 已过期
             relation_type="父亲",
             nickname="过期邀请",
         ))

@@ -1,0 +1,868 @@
+{
+  "timestamp": "2026-06-06T13:35:43.393653",
+  "domain": "6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com",
+  "summary": {
+    "total": 69,
+    "pass": 56,
+    "fail": 13,
+    "pass_rate": "81.2%"
+  },
+  "deploy_issues": [],
+  "dev_issues": [
+    {
+      "type": "开发问题 - 404",
+      "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/bottom-nav",
+      "desc": "底部导航",
+      "error": "HTTP 404",
+      "diagnosis": "路径不存在或路由未配置（SPA fallback可能返回200）"
+    }
+  ],
+  "all_results": {
+    "pass": [
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/",
+        "desc": "管理后台首页",
+        "status": 200,
+        "elapsed_ms": 532,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/",
+        "content_check": false,
+        "content_expected": "设备管理",
+        "content_length": 5389,
+        "status_match": true
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/devices/scene-groups",
+        "desc": "设备场景分类页",
+        "status": 200,
+        "elapsed_ms": 718,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/devices/scene-groups"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/devices/scene-groups/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 47242,
+        "status_match": true
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/devices/catalog",
+        "desc": "设备目录管理页",
+        "status": 200,
+        "elapsed_ms": 719,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/devices/catalog"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/devices/catalog/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 48844,
+        "status_match": true
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/login",
+        "desc": "管理后台登录页",
+        "status": 200,
+        "elapsed_ms": 709,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/login"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/login/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 13527,
+        "status_match": true
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/family-auth",
+        "desc": "邀请接受页 (Bug-5)",
+        "status": 200,
+        "elapsed_ms": 719,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/family-auth"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/family-auth/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 5945,
+        "status_match": true
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/messages",
+        "desc": "系统消息页 (Bug-9)",
+        "status": 200,
+        "elapsed_ms": 702,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/messages"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/messages/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 8748,
+        "status_match": true
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-profile/archive-list",
+        "desc": "健康档案列表 (Bug-8)",
+        "status": 200,
+        "elapsed_ms": 1041,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-profile/archive-list"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-profile/archive-list/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 8472,
+        "status_match": true
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-profile/my-guardians",
+        "desc": "我的守护人 (Bug-8)",
+        "status": 200,
+        "elapsed_ms": 1134,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-profile/my-guardians"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/health-profile/my-guardians/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 8530,
+        "status_match": true
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/health",
+        "desc": "API 健康检查",
+        "status": 200,
+        "elapsed_ms": 513,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/health",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 43,
+        "status_match": true
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/",
+        "desc": "H5 首页",
+        "status": 200,
+        "elapsed_ms": 522,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 4532,
+        "status_match": true
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/ai-home",
+        "desc": "AI 首页",
+        "status": 200,
+        "elapsed_ms": 705,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/ai-home"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/ai-home/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 24633,
+        "status_match": true
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/login",
+        "desc": "H5 登录页",
+        "status": 200,
+        "elapsed_ms": 691,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/login"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/login/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 6404,
+        "status_match": true
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/auth/register-settings",
+        "desc": "注册设置",
+        "status": 200,
+        "elapsed_ms": 515,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/auth/register-settings",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 183
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/config/login_ui_version",
+        "desc": "登录 UI 版本配置",
+        "status": 200,
+        "elapsed_ms": 516,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/config/login_ui_version",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 42
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/system/server-time",
+        "desc": "服务器时间",
+        "status": 200,
+        "elapsed_ms": 531,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/system/server-time",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 83
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/home-menus",
+        "desc": "首页菜单",
+        "status": 200,
+        "elapsed_ms": 516,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/home-menus",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 1887
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/home-config",
+        "desc": "首页配置",
+        "status": 200,
+        "elapsed_ms": 515,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/home-config",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 200
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/home-banners",
+        "desc": "首页横幅",
+        "status": 200,
+        "elapsed_ms": 516,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/home-banners",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 12
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/h5/bottom-nav",
+        "desc": "H5 底部导航",
+        "status": 200,
+        "elapsed_ms": 518,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/h5/bottom-nav",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 734
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/cities/list",
+        "desc": "城市列表",
+        "status": 200,
+        "elapsed_ms": 701,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/cities/list",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 22057
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/cities/hot",
+        "desc": "热门城市",
+        "status": 200,
+        "elapsed_ms": 969,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/cities/hot",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 733
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/relation-types",
+        "desc": "关系类型",
+        "status": 200,
+        "elapsed_ms": 500,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/relation-types",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 600
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/content/articles",
+        "desc": "文章列表",
+        "status": 200,
+        "elapsed_ms": 531,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/content/articles",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 3095
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/content/news/latest",
+        "desc": "最新资讯",
+        "status": 200,
+        "elapsed_ms": 1047,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/content/news/latest",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 12
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/search/hot",
+        "desc": "热门搜索",
+        "status": 200,
+        "elapsed_ms": 531,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/search/hot",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 486
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/ai-home-config",
+        "desc": "AI首页配置",
+        "status": 200,
+        "elapsed_ms": 516,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/ai-home-config",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 2939
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/app-settings/page-style",
+        "desc": "页面样式设置",
+        "status": 200,
+        "elapsed_ms": 531,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/app-settings/page-style",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 38
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/chat/function-buttons",
+        "desc": "聊天功能按钮",
+        "status": 200,
+        "elapsed_ms": 1219,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/chat/function-buttons",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 14246
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/products/categories",
+        "desc": "产品分类",
+        "status": 200,
+        "elapsed_ms": 531,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/products/categories",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 4560
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/products/hot-recommendations",
+        "desc": "热门推荐",
+        "status": 200,
+        "elapsed_ms": 531,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/products/hot-recommendations",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 8655
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/dashboard",
+        "desc": "管理后台仪表盘",
+        "status": 200,
+        "elapsed_ms": 719,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/dashboard"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/dashboard/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 61950
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/users",
+        "desc": "用户管理",
+        "status": 200,
+        "elapsed_ms": 719,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/users"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/users/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 51928
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/settings",
+        "desc": "设置页面",
+        "status": 200,
+        "elapsed_ms": 719,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/settings"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/settings/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 66503
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/family-management",
+        "desc": "家庭管理",
+        "status": 200,
+        "elapsed_ms": 703,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/family-management"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/family-management/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 57448
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/function-buttons",
+        "desc": "功能按钮管理",
+        "status": 200,
+        "elapsed_ms": 1219,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/function-buttons"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/function-buttons/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 50333
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/health-records",
+        "desc": "健康记录",
+        "status": 200,
+        "elapsed_ms": 719,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/health-records"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/health-records/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 51497
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/health-records/statistics",
+        "desc": "健康记录统计",
+        "status": 200,
+        "elapsed_ms": 703,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/health-records/statistics"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/health-records/statistics/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 57887
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/products",
+        "desc": "产品管理",
+        "status": 200,
+        "elapsed_ms": 703,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/products"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/products/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 56741
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/orders",
+        "desc": "订单管理",
+        "status": 200,
+        "elapsed_ms": 719,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/orders"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/orders/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 77747
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/coupons",
+        "desc": "优惠券管理",
+        "status": 200,
+        "elapsed_ms": 1390,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/coupons"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/product-system/coupons/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 56952
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/knowledge",
+        "desc": "知识库",
+        "status": 200,
+        "elapsed_ms": 704,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/knowledge"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/knowledge/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 52156
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/knowledge/stats",
+        "desc": "知识库统计",
+        "status": 200,
+        "elapsed_ms": 703,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/knowledge/stats"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/knowledge/stats/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 54777
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/experts",
+        "desc": "专家管理",
+        "status": 200,
+        "elapsed_ms": 1172,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/experts"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/experts/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 47422
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/chat-records",
+        "desc": "聊天记录",
+        "status": 200,
+        "elapsed_ms": 688,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/chat-records"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/chat-records/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 60527
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/notices",
+        "desc": "公告管理",
+        "status": 200,
+        "elapsed_ms": 687,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/notices"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/notices/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 48652
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-config",
+        "desc": "AI配置",
+        "status": 200,
+        "elapsed_ms": 703,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-config"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-config/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 49967
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-config/chat-timeout",
+        "desc": "AI聊天超时配置",
+        "status": 200,
+        "elapsed_ms": 687,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-config/chat-timeout"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-config/chat-timeout/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 49164
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-center/prompts",
+        "desc": "AI中心提示词",
+        "status": 200,
+        "elapsed_ms": 703,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-center/prompts"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-center/prompts/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 47656
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-center/sensitive-words",
+        "desc": "敏感词管理",
+        "status": 200,
+        "elapsed_ms": 1125,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-center/sensitive-words"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-center/sensitive-words/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 50023
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-center/disclaimers",
+        "desc": "免责声明",
+        "status": 200,
+        "elapsed_ms": 704,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-center/disclaimers"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/ai-center/disclaimers/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 48237
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/membership/plans",
+        "desc": "会员计划",
+        "status": 200,
+        "elapsed_ms": 687,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/membership/plans"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/membership/plans/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 52260
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/merchant/accounts",
+        "desc": "商家账户",
+        "status": 200,
+        "elapsed_ms": 719,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/merchant/accounts"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/merchant/accounts/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 50941
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/merchant/stores",
+        "desc": "商家店铺",
+        "status": 200,
+        "elapsed_ms": 703,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/merchant/stores"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/merchant/stores/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 50871
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/system/sdk-health",
+        "desc": "SDK健康检查",
+        "status": 200,
+        "elapsed_ms": 687,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/system/sdk-health"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/system/sdk-health/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 62206
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/system/seed-import",
+        "desc": "种子数据导入",
+        "status": 200,
+        "elapsed_ms": 703,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/system/seed-import"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/system/seed-import/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 50324
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/system-messages",
+        "desc": "系统消息管理",
+        "status": 200,
+        "elapsed_ms": 687,
+        "redirects": [
+          "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/system-messages"
+        ],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/system-messages/",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 53743
+      }
+    ],
+    "fail": [
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/messages",
+        "desc": "API 消息列表",
+        "status": 401,
+        "elapsed_ms": 522,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/messages",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 16,
+        "status_match": false
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/auth/login",
+        "desc": "用户登录 API (POST 需body)",
+        "status": 405,
+        "elapsed_ms": 1411,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/auth/login",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 31
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/auth/me",
+        "desc": "当前用户信息",
+        "status": 401,
+        "elapsed_ms": 516,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/auth/me",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 16
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/bottom-nav",
+        "desc": "底部导航",
+        "status": 404,
+        "elapsed_ms": 531,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/bottom-nav",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 22
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/family/members",
+        "desc": "家庭成员列表",
+        "status": 401,
+        "elapsed_ms": 516,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/family/members",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 16
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/family/member/state/list",
+        "desc": "成员状态列表",
+        "status": 401,
+        "elapsed_ms": 516,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/family/member/state/list",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 16
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/reverse-guardian/guardian-count",
+        "desc": "守护人数统计",
+        "status": 401,
+        "elapsed_ms": 515,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/reverse-guardian/guardian-count",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 16
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/reverse-guardian/my-guardians",
+        "desc": "我的守护人API",
+        "status": 401,
+        "elapsed_ms": 1031,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/reverse-guardian/my-guardians",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 16
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/devices/catalog",
+        "desc": "设备目录",
+        "status": 401,
+        "elapsed_ms": 531,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/devices/catalog",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 16
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/devices/my",
+        "desc": "我的设备",
+        "status": 401,
+        "elapsed_ms": 516,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/devices/my",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 16
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/devices/scene-groups",
+        "desc": "设备场景分组",
+        "status": 401,
+        "elapsed_ms": 516,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/devices/scene-groups",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 16
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/user/font-setting",
+        "desc": "字体设置",
+        "status": 401,
+        "elapsed_ms": 953,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/user/font-setting",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 16
+      },
+      {
+        "url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/chat-sessions/active-check",
+        "desc": "聊天活跃检查",
+        "status": 401,
+        "elapsed_ms": 516,
+        "redirects": [],
+        "final_url": "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/chat-sessions/active-check",
+        "content_check": null,
+        "content_expected": null,
+        "content_length": 16
+      }
+    ]
+  }
+}

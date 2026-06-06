@@ -411,8 +411,8 @@ async def _seed_archived_session(db_session, user_id: int, title="历史对话")
         title=title,
         message_count=1,
         status="archived",
-        archived_at=datetime.utcnow(),
-        last_active_at=datetime.utcnow(),
+        archived_at=datetime.now(),
+        last_active_at=datetime.now(),
     )
     db_session.add(session)
     await db_session.flush()

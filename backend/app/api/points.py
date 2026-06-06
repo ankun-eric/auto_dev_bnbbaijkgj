@@ -308,7 +308,7 @@ async def list_mall_items(
 
     def _redeem_block(i: PointsMallItem) -> tuple[bool, str | None, str | None]:
         """返回 (can_redeem, reason_code, shortage_text)。reason_code=None 表示可兑换。"""
-        now = datetime.utcnow()
+        now = datetime.now()
         gs = getattr(i, "goods_status", None)
         if gs == "off_sale":
             return False, "OFF_SHELF", None
@@ -540,7 +540,7 @@ async def list_daily_tasks(
     """
     try:
         today = date.today()
-        now_dt = datetime.utcnow()
+        now_dt = datetime.now()
 
         def _iso(dt):
             try:

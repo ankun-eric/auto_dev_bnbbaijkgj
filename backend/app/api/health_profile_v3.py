@@ -251,7 +251,7 @@ async def get_today_metrics(
     total_slots = sum(len(_schedule_of(r)) for r in reminders)
     checked_count = 0
     has_overdue = False
-    now = datetime.utcnow()
+    now = datetime.now()
     if reminders:
         reminder_ids = [r.id for r in reminders]
         checkin_stmt = select(MedicationCheckIn).where(
@@ -421,7 +421,7 @@ async def create_metric(
         raise HTTPException(status_code=400, detail=f"未知 metric_type: {metric_type}")
     await _verify_profile_access(db, profile_id, current_user)
 
-    measured_at = body.measured_at or datetime.utcnow()
+    measured_at = body.measured_at or datetime.now()
     record = HealthMetricRecord(
         profile_id=profile_id,
         metric_type=metric_type,
@@ -608,14 +608,14 @@ async def bind_device(
     if existing:
         existing.status = "active"
         existing.device_id = device_id
-        existing.bound_at = datetime.utcnow()
+        existing.bound_at = datetime.now()
     else:
         db.add(DeviceBinding(
             user_id=current_user.id,
             device_type=device_type,
             device_id=device_id,
             status="active",
-            bound_at=datetime.utcnow(),
+            bound_at=datetime.now(),
         ))
     await db.commit()
     return DeviceBindResponse(bound=True, message="设备已绑定（占位通道，等待平台 Key 切真接）")
@@ -668,7 +668,7 @@ async def sync_device(
     binding = res.scalar_one_or_none()
     if not binding:
         raise HTTPException(status_code=404, detail="设备未绑定")
-    binding.last_sync_at = datetime.utcnow()
+    binding.last_sync_at = datetime.now()
     await db.commit()
     return {"ok": True, "last_sync_at": binding.last_sync_at.isoformat()}
 

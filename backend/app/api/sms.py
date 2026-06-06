@@ -158,7 +158,7 @@ async def update_sms_config(
             if other_config:
                 other_config.is_active = False
 
-    config.updated_at = datetime.utcnow()
+    config.updated_at = datetime.now()
     await db.flush()
     await db.refresh(config)
 
@@ -247,7 +247,7 @@ async def update_sms_template(
     if data.variables is not None:
         tpl.variables = json.dumps(data.variables, ensure_ascii=False)
 
-    tpl.updated_at = datetime.utcnow()
+    tpl.updated_at = datetime.now()
     await db.flush()
     await db.refresh(tpl)
     return SmsTemplateResponse.model_validate(tpl)

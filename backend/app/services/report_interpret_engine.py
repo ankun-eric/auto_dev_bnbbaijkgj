@@ -90,7 +90,7 @@ def _calc_age(birthday) -> Optional[int]:
     if not birthday:
         return None
     try:
-        today = datetime.utcnow().date()
+        today = datetime.now().date()
         return today.year - birthday.year - (
             (today.month, today.day) < (birthday.month, birthday.day)
         )
@@ -329,7 +329,7 @@ async def run_report_interpret_stream(
 
     # 2) 装载报告解读专属 prompt 模板，按字段渲染
     prompt_tpl = await _load_report_prompt(db)
-    today_str = datetime.utcnow().date().strftime("%Y-%m-%d")
+    today_str = datetime.now().date().strftime("%Y-%m-%d")
     final_title = (report_title or "").strip() or f"{today_str} 体检报告"
     final_date = (report_date or "").strip() or today_str
     try:

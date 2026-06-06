@@ -72,7 +72,7 @@ async def _create_user_profile_and_bp(
         s.add(prof)
         await s.flush()
         pid = int(prof.id)
-        now = datetime.utcnow()
+        now = datetime.now()
         # 用 raw SQL 插入 health_metric_record（自定义 INTEGER PK + AUTOINCREMENT）
         await s.execute(text(
             "INSERT INTO health_metric_record "
@@ -140,8 +140,8 @@ class TestFallback:
         # 模拟 health_metric_record 行 (value_json, measured_at)
         import json as _json
         rows = [
-            (_json.dumps({"systolic": 150, "diastolic": 95}), datetime.utcnow()),
-            (_json.dumps({"systolic": 120, "diastolic": 78}), datetime.utcnow()),
+            (_json.dumps({"systolic": 150, "diastolic": 95}), datetime.now()),
+            (_json.dumps({"systolic": 120, "diastolic": 78}), datetime.now()),
         ]
         d = _fallback_trend_explain(7, rows)
         assert "summary" in d and "2 次" in d["summary"]
@@ -226,7 +226,7 @@ async def test_ai_trend_success_with_fallback(client: AsyncClient, auth_headers,
     import json as _json
     async with test_session() as s:
         for sbp, dbp, hours_ago in [(125, 80, 1), (110, 70, 24), (155, 98, 48)]:
-            now = datetime.utcnow() - timedelta(hours=hours_ago)
+            now = datetime.now() - timedelta(hours=hours_ago)
             await s.execute(text(
                 "INSERT INTO health_metric_record "
                 "(profile_id, metric_type, value_json, source, measured_at, created_at, created_by) "

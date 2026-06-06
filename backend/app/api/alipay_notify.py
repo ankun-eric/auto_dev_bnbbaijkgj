@@ -173,7 +173,7 @@ async def alipay_async_notify(
             )
             order.payment_method = UnifiedPaymentMethod.alipay
             order.payment_channel_code = "alipay_h5"
-            order.updated_at = datetime.utcnow()
+            order.updated_at = datetime.now()
             try:
                 await db.commit()
             except Exception as e:  # noqa: BLE001
@@ -189,8 +189,8 @@ async def alipay_async_notify(
 
     order.payment_method = UnifiedPaymentMethod.alipay
     order.payment_channel_code = "alipay_h5"
-    order.paid_at = order.paid_at or datetime.utcnow()
-    order.updated_at = datetime.utcnow()
+    order.paid_at = order.paid_at or datetime.now()
+    order.updated_at = datetime.now()
     await _advance_status_after_payment(order, db)
 
     try:

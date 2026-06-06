@@ -112,7 +112,7 @@ async def admin_update_template(
         raise HTTPException(status_code=404, detail="模板不存在")
     for k, v in payload.model_dump().items():
         setattr(t, k, v)
-    t.updated_at = datetime.utcnow()
+    t.updated_at = datetime.now()
     await db.flush()
     return {"message": "ok"}
 
@@ -221,7 +221,7 @@ async def admin_update_threshold(
         raise HTTPException(status_code=404, detail="阈值不存在")
     for k, v in payload.model_dump().items():
         setattr(t, k, v)
-    t.updated_at = datetime.utcnow()
+    t.updated_at = datetime.now()
     await db.flush()
     return {"message": "ok"}
 
@@ -306,7 +306,7 @@ async def admin_list_logs(
         except Exception:
             end_dt = None
     if start_dt is None and end_dt is None:
-        end_dt = datetime.utcnow()
+        end_dt = datetime.now()
         start_dt = end_dt - timedelta(days=7)
 
     q, cq = _build_logs_query(start_dt, end_dt, channel, status, clicked, guardian_keyword, member_keyword)
@@ -384,7 +384,7 @@ async def admin_export_logs(
         except Exception:
             end_dt = None
     if start_dt is None and end_dt is None:
-        end_dt = datetime.utcnow()
+        end_dt = datetime.now()
         start_dt = end_dt - timedelta(days=7)
 
     q, _ = _build_logs_query(start_dt, end_dt, channel, status, clicked, None, None)

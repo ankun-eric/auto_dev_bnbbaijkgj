@@ -91,7 +91,7 @@ async def mark_message_read(
 
     if not msg.is_read:
         msg.is_read = True
-        msg.read_at = datetime.utcnow()
+        msg.read_at = datetime.now()
         await db.flush()
 
     return {"message": "已标记为已读"}
@@ -108,7 +108,7 @@ async def mark_all_messages_read(
             SystemMessage.recipient_user_id == current_user.id,
             SystemMessage.is_read == False,
         )
-        .values(is_read=True, read_at=datetime.utcnow())
+        .values(is_read=True, read_at=datetime.now())
     )
     await db.flush()
     return {"message": "已全部标记为已读"}

@@ -83,14 +83,14 @@ async def _do_r2(session: AsyncSession) -> int:
     触发条件：status=pending_use 且 任一 OrderItem.appointment_time < 今天 00:00 且 未核销。
     多商品订单：取所有关联商品 allow_reschedule 的「与」（任一禁止改期则按禁止处理）。
     """
-    today_start = datetime.combine(datetime.utcnow().date(), dtime(0, 0, 0))
+    today_start = datetime.combine(datetime.now().date(), dtime(0, 0, 0))
     rows = await session.execute(
         select(UnifiedOrder)
         .options(selectinload(UnifiedOrder.items).selectinload(OrderItem.product))
         .where(UnifiedOrder.status == UnifiedOrderStatus.pending_use)
     )
     affected = 0
-    now = datetime.utcnow()
+    now = datetime.now()
     for order in rows.scalars().all():
         appt = _earliest_appt(order)
         if appt is None:
@@ -229,10 +229,10 @@ async def run_appointment_reminders_v2(session: Optional[AsyncSession] = None) -
                 key="appt_before_30min",
                 title="临近赴约提醒",
                 statuses=[UnifiedOrderStatus.pending_use],
-                appt_lower=datetime.utcnow() + timedelta(minutes=25),
-                appt_upper=datetime.utcnow() + timedelta(minutes=35),
-                send_window_lower=datetime.utcnow() - timedelta(minutes=5),
-                send_window_upper=datetime.utcnow() + timedelta(minutes=5),
+                appt_lower=datetime.now() + timedelta(minutes=25),
+                appt_upper=datetime.now() + timedelta(minutes=35),
+                send_window_lower=datetime.now() - timedelta(minutes=5),
+                send_window_upper=datetime.now() + timedelta(minutes=5),
                 content_tpl="您 30 分钟后有预约（{appt}），建议提前出门。",
             )
 
@@ -241,10 +241,10 @@ async def run_appointment_reminders_v2(session: Optional[AsyncSession] = None) -
                 key="appt_after_30min",
                 title="商家在等您",
                 statuses=[UnifiedOrderStatus.pending_use],
-                appt_lower=datetime.utcnow() - timedelta(minutes=35),
-                appt_upper=datetime.utcnow() - timedelta(minutes=25),
-                send_window_lower=datetime.utcnow() - timedelta(minutes=5),
-                send_window_upper=datetime.utcnow() + timedelta(minutes=5),
+                appt_lower=datetime.now() - timedelta(minutes=35),
+                appt_upper=datetime.now() - timedelta(minutes=25),
+                send_window_lower=datetime.now() - timedelta(minutes=5),
+                send_window_upper=datetime.now() + timedelta(minutes=5),
                 content_tpl="您的预约时间 {appt} 已过去 30 分钟，商家在等您，请尽快到店。",
             )
 
@@ -253,10 +253,10 @@ async def run_appointment_reminders_v2(session: Optional[AsyncSession] = None) -
                 key="appt_after_2h",
                 title="是否需要改约",
                 statuses=[UnifiedOrderStatus.pending_use],
-                appt_lower=datetime.utcnow() - timedelta(hours=2, minutes=5),
-                appt_upper=datetime.utcnow() - timedelta(hours=1, minutes=55),
-                send_window_lower=datetime.utcnow() - timedelta(minutes=5),
-                send_window_upper=datetime.utcnow() + timedelta(minutes=5),
+                appt_lower=datetime.now() - timedelta(hours=2, minutes=5),
+                appt_upper=datetime.now() - timedelta(hours=1, minutes=55),
+                send_window_lower=datetime.now() - timedelta(minutes=5),
+                send_window_upper=datetime.now() + timedelta(minutes=5),
                 content_tpl="您的预约时间 {appt} 已过去 2 小时仍未到店，是否需要改约？可在订单详情中重新选择时间。",
             )
 
@@ -322,7 +322,7 @@ async def _send_window(
       - 订单的预约日期仍在 [appt_lower, appt_upper) 区间内
     （订单从快照查询到推送之间客户可能改预约日 / 取消 / 已核销 → 实时校验拦截）
     """
-    now = datetime.utcnow()
+    now = datetime.now()
     if not (send_window_lower <= now <= send_window_upper):
         return 0
 
@@ -368,7 +368,7 @@ async def _send_window(
                 continue
 
         # 去重：同一订单同一 key 当日只发一次
-        today = datetime.utcnow().date()
+        today = datetime.now().date()
         dup_q = await session.execute(
             select(NotificationLog).where(
                 NotificationLog.user_id == order.user_id,
@@ -420,7 +420,7 @@ async def lazy_progress_order(order: UnifiedOrder, session: AsyncSession) -> boo
         True 表示状态有变化（调用方需 commit）。
     """
     appt = _earliest_appt(order)
-    now = datetime.utcnow()
+    now = datetime.now()
     today_start = datetime.combine(now.date(), dtime(0, 0, 0))
 
     if appt is not None and order.status == UnifiedOrderStatus.pending_use and appt < today_start:
@@ -466,7 +466,7 @@ async def migrate_appointed_to_pending_use(session: AsyncSession) -> int:
         select(UnifiedOrder).where(UnifiedOrder.status == UnifiedOrderStatus.appointed)
     )
     affected = 0
-    now = datetime.utcnow()
+    now = datetime.now()
     for order in rows.scalars().all():
         order.status = UnifiedOrderStatus.pending_use
         order.updated_at = now
@@ -486,7 +486,7 @@ def _earliest_appt(order: UnifiedOrder) -> Optional[datetime]:
 
 
 def _today_at(hour: int, minute: int) -> datetime:
-    today = datetime.utcnow().date()
+    today = datetime.now().date()
     return datetime.combine(today, dtime(hour, minute))
 
 

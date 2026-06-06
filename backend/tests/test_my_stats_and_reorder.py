@@ -29,7 +29,7 @@ async def _get_user_id_by_phone(phone: str) -> int:
 
 async def _seed_coupon(name="测试券", days_valid=30):
     async with test_session() as db:
-        now = datetime.utcnow()
+        now = datetime.now()
         c = Coupon(
             name=name,
             type="full_reduction",

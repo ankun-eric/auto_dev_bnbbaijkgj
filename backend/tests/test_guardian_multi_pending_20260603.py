@@ -128,7 +128,7 @@ async def test_create_invite_marks_expired_pending(client: AsyncClient):
                 status="pending",
                 max_uses=3,
                 used_count=0,
-                expires_at=datetime.utcnow() - timedelta(hours=1),
+                expires_at=datetime.now() - timedelta(hours=1),
             ))
         await session.commit()
 

@@ -398,7 +398,7 @@ async def bind_device(
         sn=sn,
         alias=(body.alias or None),
         member_id=member_id,
-        bound_at=datetime.utcnow(),
+        bound_at=datetime.now(),
         is_active=True,
     )
     db.add(binding)
@@ -445,7 +445,7 @@ async def unbind_device(
     if not b.is_active:
         return {"message": "已经是解绑状态", "id": b.id}
     b.is_active = False
-    b.unbound_at = datetime.utcnow()
+    b.unbound_at = datetime.now()
     await db.flush()
     logger.info("[devices/unbind] user=%s binding=%s catalog=%s", current_user.id, b.id, b.catalog_id)
     return {"message": "已解绑", "id": b.id}

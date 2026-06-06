@@ -234,7 +234,7 @@ async def get_history_with_filters(
     await _verify_profile_access(db, profile_id, current_user)
 
     # 1) 时间范围
-    now = datetime.utcnow()
+    now = datetime.now()
     range_start: Optional[datetime] = None
     range_end: Optional[datetime] = None
     if date_range == "7d":
@@ -495,7 +495,7 @@ async def ai_explain_single(
             "model": "rules-v1",
             "prompt_version": "card-unify-v1",
             "content": content,
-            "generated_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         },
     }
 
@@ -515,7 +515,7 @@ async def ai_explain_trend(
 
     range_map = {"7d": 7, "30d": 30, "90d": 90}
     days = range_map.get(body.range, 7)
-    start = datetime.utcnow() - timedelta(days=days)
+    start = datetime.now() - timedelta(days=days)
 
     rows = list((await db.execute(
         select(HealthMetricRecord).where(
@@ -537,7 +537,7 @@ async def ai_explain_trend(
             "summary": data["summary"],
             "trend": data["trend"],
             "advice": data["advice"],
-            "generated_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         },
     }
 

@@ -56,7 +56,7 @@ async def authenticate_partner(
         ts = int(x_timestamp)
     except ValueError:
         raise HTTPException(status_code=401, detail="X-Timestamp 格式错误")
-    now = int(datetime.utcnow().timestamp())
+    now = int(datetime.now().timestamp())
     if abs(now - ts) > 300:
         raise HTTPException(status_code=401, detail="X-Timestamp 已过期（超过 5 分钟）")
 
@@ -152,7 +152,7 @@ async def mark_sold(
             skipped += 1
             continue
         rec.status = "sold"
-        rec.sold_at = datetime.utcnow()
+        rec.sold_at = datetime.now()
         rec.sold_to_user_phone = it.get("buyer_phone")
         updated += 1
     return {"updated": updated, "skipped": skipped}
@@ -250,15 +250,15 @@ async def redeem_callback(
     rec.status = "used"
     used_at = payload.get("used_at")
     try:
-        rec.used_at = datetime.fromisoformat(used_at.replace("Z", "+00:00")) if used_at else datetime.utcnow()
+        rec.used_at = datetime.fromisoformat(used_at.replace("Z", "+00:00")) if used_at else datetime.now()
     except Exception:
-        rec.used_at = datetime.utcnow()
+        rec.used_at = datetime.now()
     rec.sold_to_user_phone = payload.get("user_phone") or rec.sold_to_user_phone
 
     # 同步登记一条 grant 记录
     db.add(CouponGrant(
         coupon_id=rec.coupon_id, user_id=None, user_phone=rec.sold_to_user_phone,
-        method="redeem_code", status="used", granted_at=datetime.utcnow(),
+        method="redeem_code", status="used", granted_at=datetime.now(),
         used_at=rec.used_at, batch_id=rec.batch_id, redeem_code=rec.code,
     ))
     return {"message": "核销成功", "code": code, "used_at": rec.used_at.isoformat()}

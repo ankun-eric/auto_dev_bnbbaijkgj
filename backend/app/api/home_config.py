@@ -143,7 +143,7 @@ async def admin_update_home_config(
         config = result.scalar_one_or_none()
         if config:
             config.config_value = str_value
-            config.updated_at = datetime.utcnow()
+            config.updated_at = datetime.now()
         else:
             db.add(SystemConfig(
                 config_key=config_key,
@@ -220,7 +220,7 @@ async def admin_update_banner(
 
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(banner, key, value)
-    banner.updated_at = datetime.utcnow()
+    banner.updated_at = datetime.now()
     await db.flush()
     await db.refresh(banner)
     return HomeBannerResponse.model_validate(banner)

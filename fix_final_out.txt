@@ -1,0 +1,72 @@
+SSH connected
+
+=== 1. DB Migration Check ===
+CMD: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python3 -c "import urllib.request; r=urllib.request.urlopen('http://localhost:8000/api/health
+OUT: 200 {"status":"ok","service":"bini-health-api"}
+
+=== 1b. Check main.py for auto init ===
+CMD: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend grep -n "create_all\|Base.metadata\|init_db\|_migrate" /app/app/main.py
+OUT: 131:async def _migrate_points_enums_and_config():
+195:async def _migrate_coupons_v2():
+258:async def _migrate_coupons_v2_1():
+267:    - 新建 coupon_op_logs 表（由 metadata.create_all 自动建）
+268:    - SystemConfig.coupons_v2_1_migrated 控制不重复执行
+279:            mark = (await db.execute(_sel(_SC).where(_SC.config_key == "coupons_v2_1_migrated"))).scalar_one_or_none()
+347:                db.add(_SC(config_key="coupons_v2_1_migrated", config_value="1", config_type="coupon"))
+354:async def _migrate_coupons_scope_v2_2():
+360:    - SystemConfig.coupons_v2_2_migrated 标记完成，避免重复执行
+371:                _sel(_SC).w
+CMD: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python3 -c "
+import asyncio
+from app.core.database import engine, Base
+
+async def check():
+  
+OUT: Tables: 258 - ['_migration_bucket_log', 'abnormal_thresholds', 'account_identities', 'ai_call_global_config', 'ai_call_logs', 'ai_call_membership_levels', 'ai_call_reminders', 'ai_disclaimer_configs', 'ai_home_config_logs', 'ai_model_configs', 'ai_model_templates', 'ai_prompt_config', 'ai_prompt_config_history', 'ai_prompt_configs', 'ai_sensitive_words']
+ERR: Exception ignored in: <function Connection.__del__ at 0x7506e23977e0>
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/aiomysql/connection.py", line 1131, in __del__
+  File "/usr/local/lib/python3.12/site-packages/aiomysql/connection.py", line 339, in close
+  File "/usr/local/lib/python3.12/asyncio/selector_events.py", line 1213, in close
+  File "/usr/local/lib/python3.12/asyncio/selector_events.py", line 875, in close
+  File "/usr/local/lib/python3.12/asyncio/base_events.py", line 799, in call_soon
+  File "/usr/local/lib/python3.12/asyncio/base_events.py", li
+  Tables exist, running create_all for any new tables...
+CMD: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python3 -c "
+import asyncio
+from app.core.database import engine, Base
+
+async def migrate():
+
+OUT: create_all done
+ERR: Exception ignored in: <function Connection.__del__ at 0x7c4c0b7ff7e0>
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/aiomysql/connection.py", line 1131, in __del__
+  File "/usr/local/lib/python3.12/site-packages/aiomysql/connection.py", line 339, in close
+  File "/usr/local/lib/python3.12/asyncio/selector_events.py", line 1213, in close
+  File "/usr/local/lib/python3.12/asyncio/selector_events.py", line 875, in close
+  File "/usr/local/lib/python3.12/asyncio/base_events.py", line 799, in call_soon
+  File "/usr/local/lib/python3.12/asyncio/base_events.py", li
+
+=== 2. Admin Account Check ===
+CMD: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python3 -c "
+import urllib.request, json
+data = json.dumps({'username':'admin','password':'ad
+OUT: Login error: HTTP Error 422: Unprocessable Entity
+
+=== 3. Gateway Verification ===
+CMD: curl -s -o /dev/null -w '%{http_code}' https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/
+OUT: 200
+CMD: curl -s -o /dev/null -w '%{http_code}' https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/api/health
+OUT: 200
+CMD: curl -s -o /dev/null -w '%{http_code}' https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/admin/
+OUT: 200
+
+=== 4. Container Status ===
+CMD: docker ps --filter name=6b099ed3-7175-4a78-91f4-44570c84ed27 --format '{{.Names}} {{.Status}}'
+OUT: 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Up 3 minutes (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin Up 3 minutes (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend Up 3 minutes (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-db Up 3 minutes (healthy)
+
+=== Fix Complete ===

@@ -927,7 +927,7 @@ async def submit_questionnaire(
         dimension_scores=dimension_scores or None,
         classification_id=classification_id,
         status="completed",
-        completed_at=datetime.utcnow(),
+        completed_at=datetime.now(),
         subject_kind=_sub_kind,
         subject_member_id=_sub_member_id,
         subject_name=_sub_name,
@@ -1392,7 +1392,7 @@ async def _run_hsc_ai_interpretation(answer_id: int) -> None:
             ans.archive_insufficient = arch_insuff
             try:
                 ans.ai_profile_snapshot = snapshot
-                ans.ai_generated_at = datetime.utcnow()
+                ans.ai_generated_at = datetime.now()
             except Exception:  # noqa: BLE001
                 pass
             await db2.commit()
@@ -1802,7 +1802,7 @@ async def submit_answer(
         dimension_scores=dimension_scores or None,
         classification_id=classification_id,
         status="completed",
-        completed_at=datetime.utcnow(),
+        completed_at=datetime.now(),
     )
     db.add(ans)
     await db.flush()

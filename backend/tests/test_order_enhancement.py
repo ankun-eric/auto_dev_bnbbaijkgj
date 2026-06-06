@@ -657,7 +657,7 @@ async def test_cancel_order_appointed_before_service(client, auth_headers, merch
             product_price=Decimal("100"),
             subtotal=Decimal("100"),
             fulfillment_type=FulfillmentType.in_store,
-            appointment_time=datetime.utcnow() + timedelta(days=1),
+            appointment_time=datetime.now() + timedelta(days=1),
         ))
         await session.commit()
         oid = order.id
@@ -691,7 +691,7 @@ async def test_cancel_order_after_service_time_rejected(client, auth_headers, me
             product_price=Decimal("100"),
             subtotal=Decimal("100"),
             fulfillment_type=FulfillmentType.in_store,
-            appointment_time=datetime.utcnow() - timedelta(hours=1),
+            appointment_time=datetime.now() - timedelta(hours=1),
         ))
         await session.commit()
         oid = order.id

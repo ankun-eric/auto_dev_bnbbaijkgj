@@ -1,0 +1,53 @@
+gateway-nginx Up 34 hours
+---
+6b099ed3-7175-4a78-91f4-44570c84ed27-network
+---
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Up 14 minutes (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin Up About an hour (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend Up About an hour (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-db Up About an hour (healthy)
+538865dd-add6-44d3-ad7f-d1ff839f1e04-frontend Up 4 hours (healthy)
+538865dd-add6-44d3-ad7f-d1ff839f1e04-backend Up 4 hours (healthy)
+e15e5f7c-bd14-422e-a830-440bf08a200d-backend Up 15 hours (healthy)
+e15e5f7c-bd14-422e-a830-440bf08a200d-frontend Up 16 hours (healthy)
+622c312c-ea3e-4c32-af33-9836db929371-frontend Up 16 hours (healthy)
+622c312c-ea3e-4c32-af33-9836db929371-backend Up 16 hours (healthy)
+622c312c-ea3e-4c32-af33-9836db929371-mysql Up 16 hours (healthy)
+538865dd-add6-44d3-ad7f-d1ff839f1e04-redis Up 16 hours (healthy)
+538865dd-add6-44d3-ad7f-d1ff839f1e04-rabbitmq Up 16 hours (healthy)
+538865dd-add6-44d3-ad7f-d1ff839f1e04-mysql Up 16 hours (healthy)
+538865dd-add6-44d3-ad7f-d1ff839f1e04-minio Up 16 hours (healthy)
+538865dd-add6-44d3-ad7f-d1ff839f1e04-nacos Up 16 hours (healthy)
+dce395b9-f2ce-4853-8c63-a7ccdfe5793a-gateway-connector Up 21 hours
+dce395b9-f2ce-4853-8c63-a7ccdfe5793a-frontend Up 21 hours (healthy)
+dce395b9-f2ce-4853-8c63-a7ccdfe5793a-backend Up 21 hours (healthy)
+noob_ai-frontend Up 36 hours (healthy)
+noob_ai-backend Up 36 hours (healthy)
+noob_ai-db Up 36 hours (healthy)
+gateway-nginx Up 34 hours
+2c2b48f8-c6fa-4411-b719-8d910baf4f9a-frontend Up 40 hours (healthy)
+0451a430-e3c8-49e2-b627-329938d2313d-frontend Up 40 hours (healthy)
+0451a430-e3c8-49e2-b627-329938d2313d-backend Up 40 hours (healthy)
+0451a430-e3c8-49e2-b627-329938d2313d-db Up 40 hours (healthy)
+911e7350-7584-4898-bb92-ac568a699575-frontend Up 40 hours
+911e7350-7584-4898-bb92-ac568a699575-backend Up 40 hours
+911e7350-7584-4898-bb92-ac568a699575-mysql Up 40 hours (healthy)
+b04670f8-ef50-4fcc-92b5-e25f73121b54-frontend Up 40 hours
+b04670f8-ef50-4fcc-92b5-e25f73121b54-backend Up 40 hours
+745ea1f0-7b9d-449c-bd36-a2e4a2599d06-backend Up 40 hours
+745ea1f0-7b9d-449c-bd36-a2e4a2599d06-redis Up 40 hours
+745ea1f0-7b9d-449c-bd36-a2e4a2599d06-mysql Up 40 hours (healthy)
+745ea1f0-7b9d-449c-bd36-a2e4a2599d06-frontend Up 40 hours
+745ea1f0-7b9d-449c-bd36-a2e4a2599d06-portal Up 40 hours
+745ea1f0-7b9d-449c-bd36-a2e4a2599d06-minio Up 40 hours
+2c2b48f8-c6fa-4411-b719-8d910baf4f9a-backend Up 40 hours (healthy)
+2c2b48f8-c6fa-4411-b719-8d910baf4f9a-mysql Up 40 hours (healthy)
+1f2b22da-528e-4e13-acee-6511a7b5b172-frontend Up 2 days (healthy)
+1f2b22da-528e-4e13-acee-6511a7b5b172-backend Up 2 days (healthy)
+1f2b22da-528e-4e13-acee-6511a7b5b172-db Up 2 days (healthy)
+ed7f67c4-b4f4-4e66-9d43-010316c4069e-frontend Up 3 days
+ed7f67c4-b4f4-4e66-9d43-010316c4069e-backend Up 3 days
+ed7f67c4-b4f4-4e66-9d43-010316c4069e-mysql Up 3 days
+85048269-7f40-4ae8-88e2-0f3ce1ce19d1-frontend Up 3 days (unhealthy)
+85048269-7f40-4ae8-88e2-0f3ce1ce19d1-agent-server Up 3 days (healthy)
+85048269-7f40-4ae8-88e2-0f3ce1ce19d1-backend Up 21 seconds (health: starting)

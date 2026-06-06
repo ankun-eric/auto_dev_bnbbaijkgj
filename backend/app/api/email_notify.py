@@ -46,7 +46,7 @@ async def _set_config(db: AsyncSession, key: str, value: str, config_type: str =
     config = result.scalar_one_or_none()
     if config:
         config.config_value = value
-        config.updated_at = datetime.utcnow()
+        config.updated_at = datetime.now()
     else:
         db.add(SystemConfig(config_key=key, config_value=value, config_type=config_type, description=key))
 
@@ -146,7 +146,7 @@ async def test_email(
     smtp_port = int(smtp_port_str)
     smtp_password = decrypt_secret_key(smtp_password_enc)
 
-    body = data.content or f"这是一封来自系统的测试邮件，发送时间: {datetime.utcnow().isoformat()}"
+    body = data.content or f"这是一封来自系统的测试邮件，发送时间: {datetime.now().isoformat()}"
 
     email_log = EmailLog(
         to_email=data.to_email,

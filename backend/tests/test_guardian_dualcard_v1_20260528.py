@@ -128,7 +128,7 @@ async def test_dualcard_003_my_guardians_pending_items(client: AsyncClient, auth
             status="pending",
             max_uses=3,
             used_count=0,
-            expires_at=datetime.utcnow() + timedelta(hours=24),
+            expires_at=datetime.now() + timedelta(hours=24),
             relation_type="儿子",
         ))
         await s.commit()
@@ -160,7 +160,7 @@ async def test_dualcard_004_cancel_invite_success(client: AsyncClient, auth_head
             invitee_user_id=user_id,
             status="pending",
             max_uses=3, used_count=0,
-            expires_at=datetime.utcnow() + timedelta(hours=24),
+            expires_at=datetime.now() + timedelta(hours=24),
         )
         s.add(inv)
         await s.commit()
@@ -191,7 +191,7 @@ async def test_dualcard_005_cancel_invite_by_code(client: AsyncClient, auth_head
             invitee_user_id=user_id,
             status="pending",
             max_uses=3, used_count=0,
-            expires_at=datetime.utcnow() + timedelta(hours=24),
+            expires_at=datetime.now() + timedelta(hours=24),
         ))
         await s.commit()
 
@@ -227,7 +227,7 @@ async def test_dualcard_007_cancel_invite_not_owner(client: AsyncClient, auth_he
             invitee_user_id=uid_b,  # B 的邀请
             status="pending",
             max_uses=3, used_count=0,
-            expires_at=datetime.utcnow() + timedelta(hours=24),
+            expires_at=datetime.now() + timedelta(hours=24),
         )
         s.add(inv)
         await s.commit()
@@ -254,7 +254,7 @@ async def test_dualcard_008_cancel_invite_already_cancelled(client: AsyncClient,
             invitee_user_id=user_id,
             status="cancelled",
             max_uses=3, used_count=0,
-            expires_at=datetime.utcnow() + timedelta(hours=24),
+            expires_at=datetime.now() + timedelta(hours=24),
         )
         s.add(inv)
         await s.commit()
@@ -375,8 +375,8 @@ async def test_dualcard_012_top_level_member(client: AsyncClient, auth_headers):
         s.add(UserMembershipSub(
             user_id=user_id, plan_id=plan_top.id,
             billing_cycle="monthly",
-            start_at=datetime.utcnow(),
-            expire_at=datetime.utcnow() + timedelta(days=30),
+            start_at=datetime.now(),
+            expire_at=datetime.now() + timedelta(days=30),
             status="active",
         ))
         await s.commit()
@@ -414,8 +414,8 @@ async def test_dualcard_013_non_top_paid_member(client: AsyncClient, auth_header
         s.add(UserMembershipSub(
             user_id=user_id, plan_id=plan_basic.id,
             billing_cycle="monthly",
-            start_at=datetime.utcnow(),
-            expire_at=datetime.utcnow() + timedelta(days=30),
+            start_at=datetime.now(),
+            expire_at=datetime.now() + timedelta(days=30),
             status="active",
         ))
         await s.commit()

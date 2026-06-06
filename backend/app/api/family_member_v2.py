@@ -544,7 +544,7 @@ def _peek_delete_rate_limit(user_id: int) -> bool:
     返回 True 表示当日额度未满（可继续删除）；False 表示已达上限。
     每日 0 点按自然日自动清零（清理早于今日 0 点的记录）。
     """
-    now = datetime.utcnow()
+    now = datetime.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     key = str(user_id)
     bucket = [t for t in _DELETE_RATE_BUCKET.get(key, []) if t >= today_start]
@@ -556,7 +556,7 @@ def _record_delete_success(user_id: int) -> None:
     """[BUGFIX-DELETE-RATELIMIT-V1 2026-06-01] 删除成功后才记一次账。
     仅在真正完成删除时调用，确保「点了取消 / 被其他规则拦住没删成」都不计入额度。
     """
-    now = datetime.utcnow()
+    now = datetime.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     key = str(user_id)
     bucket = [t for t in _DELETE_RATE_BUCKET.get(key, []) if t >= today_start]
@@ -682,7 +682,7 @@ async def list_member_states(
     - guarded_count: S1 已绑定数（实际守护中）
     - state_counts: 各 state 的统计
     """
-    now = datetime.utcnow()
+    now = datetime.now()
 
     # 1) 全部 family_member（含本人，排除 deleted）
     # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 排除 'deleted'，与 family.py / health_profile.py 统一
@@ -885,7 +885,7 @@ async def delete_member_unified(
     7) NOT_FOUND / PERMISSION_DENIED 标准
     """
     payload = payload or DeleteRequest()
-    now = datetime.utcnow()
+    now = datetime.now()
 
     # [BUGFIX-DELETE-RATELIMIT-V1 2026-06-01] 频次校验：此处只「查不记账」，
     # 真正记一次额度推迟到删除成功后（见函数末尾 _record_delete_success），
@@ -1175,7 +1175,7 @@ async def reinvite_member(
     3) INSERT 一条 status=pending 的新邀请记录
     4) 生成新邀请码 + 二维码 URL
     """
-    now = datetime.utcnow()
+    now = datetime.now()
     # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 兼容 deleted（V3 升级后不再兼容 removed）
     from app.services.family_status_constants import DELETED_STATUSES as _DRS_INV
     member = await db.get(FamilyMember, member_id)
@@ -1275,7 +1275,7 @@ async def unbind_send_code(
 
     # 频率限制：同一手机号 1 分钟内只能发 1 次
     from app.models.models import SmsLog
-    one_min_ago = datetime.utcnow() - timedelta(minutes=1)
+    one_min_ago = datetime.now() - timedelta(minutes=1)
     recent_log = (await db.execute(
         select(SmsLog).where(
             SmsLog.phone == phone,
@@ -1295,7 +1295,7 @@ async def unbind_send_code(
         phone=phone,
         code=code,
         type="unbind_guardian",
-        expires_at=datetime.utcnow() + timedelta(minutes=5),
+        expires_at=datetime.now() + timedelta(minutes=5),
     )
     db.add(vc)
     await db.flush()
@@ -1336,7 +1336,7 @@ async def unbind_member(
     - 名下无设备
     - [F12] 短信验证码校验（6 位数字，5 分钟有效）
     """
-    now = datetime.utcnow()
+    now = datetime.now()
     # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 兼容 deleted（V3 升级后不再兼容 removed）
     from app.services.family_status_constants import DELETED_STATUSES as _DRS_UB
     member = await db.get(FamilyMember, member_id)
@@ -1372,7 +1372,7 @@ async def unbind_member(
             VerificationCode.phone == phone,
             VerificationCode.code == code,
             VerificationCode.type == "unbind_guardian",
-            VerificationCode.expires_at > datetime.utcnow(),
+            VerificationCode.expires_at > datetime.now(),
         ).order_by(VerificationCode.created_at.desc()).limit(1)
     )
     vc = vc_result.scalars().first()

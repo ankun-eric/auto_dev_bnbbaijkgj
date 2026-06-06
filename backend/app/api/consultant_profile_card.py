@@ -111,7 +111,7 @@ async def _get_long_term_meds(
         days = 0
         if r.created_at:
             try:
-                days = (datetime.utcnow() - r.created_at).days
+                days = (datetime.now() - r.created_at).days
             except Exception:
                 days = 0
         freq_text = r.time_period or ""
@@ -290,7 +290,7 @@ async def get_profile_card(
     updated_within_30d = False
     if last_updated_at:
         try:
-            updated_within_30d = (datetime.utcnow() - last_updated_at).days <= 30
+            updated_within_30d = (datetime.now() - last_updated_at).days <= 30
         except Exception:
             updated_within_30d = False
 

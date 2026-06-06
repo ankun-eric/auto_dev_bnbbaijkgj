@@ -56,7 +56,7 @@ new_user_router = APIRouter(prefix="/api/admin/new-user-coupons", tags=["管理�
 
 
 def _calc_expire_at(coupon: Coupon, base: Optional[datetime] = None) -> datetime:
-    base = base or datetime.utcnow()
+    base = base or datetime.now()
     days = coupon.validity_days or 30
     return base + timedelta(days=days)
 
@@ -730,7 +730,7 @@ async def offline_coupon(
 
     c.is_offline = True
     c.offline_reason = full_reason
-    c.offline_at = datetime.utcnow()
+    c.offline_at = datetime.now()
     c.offline_by = current_user.id
 
     await _add_op_log(db, "offline", "coupon", c.id, current_user, reason=full_reason)
@@ -914,7 +914,7 @@ async def grant_direct(
             conds.append(User.member_level == int(lvl))
         reg_days = data.filter_tags.get("registered_within_days")
         if reg_days:
-            since = datetime.utcnow() - timedelta(days=int(reg_days))
+            since = datetime.now() - timedelta(days=int(reg_days))
             conds.append(User.created_at >= since)
         if conds:
             tag_query = tag_query.where(and_(*conds))
@@ -935,7 +935,7 @@ async def grant_direct(
 
     granted = 0
     skipped = 0
-    now = datetime.utcnow()
+    now = datetime.now()
     for u in uniq_users:
         # 限领规则：每人每券 1 张
         existing = await db.execute(
@@ -1022,7 +1022,7 @@ def _gen_unique_code(length: int = 16) -> str:
 
 
 def _gen_batch_no(batch_id: int, when: Optional[datetime] = None) -> str:
-    when = when or datetime.utcnow()
+    when = when or datetime.now()
     return f"BATCH-{when.strftime('%Y%m%d')}-{batch_id:04d}"
 
 
@@ -1109,7 +1109,7 @@ def _batch_to_dict(b: CouponCodeBatch, coupon_name: Optional[str] = None,
                    used: int = 0, available: int = 0, voided: int = 0) -> dict:
     return {
         "id": b.id,
-        "batch_no": b.batch_no or _gen_batch_no(b.id, b.created_at or datetime.utcnow()),
+        "batch_no": b.batch_no or _gen_batch_no(b.id, b.created_at or datetime.now()),
         "coupon_id": b.coupon_id,
         "coupon_name": coupon_name,
         "code_type": b.code_type,
@@ -1322,7 +1322,7 @@ async def void_redeem_batch(
     if not batch:
         raise HTTPException(status_code=404, detail="批次不存在")
 
-    bn = batch.batch_no or _gen_batch_no(batch.id, batch.created_at or datetime.utcnow())
+    bn = batch.batch_no or _gen_batch_no(batch.id, batch.created_at or datetime.now())
     if data.batch_no_confirm.strip() != bn:
         raise HTTPException(status_code=400, detail=f"批次编号不匹配（应为 {bn}）")
 
@@ -1332,7 +1332,7 @@ async def void_redeem_batch(
     if batch.voided_at:
         return {"ok": True, "voided_count": 0, "message": "该批次已作废"}
 
-    now = datetime.utcnow()
+    now = datetime.now()
     batch.voided_at = now
     batch.voided_by = current_user.id
     batch.void_reason = data.reason
@@ -1379,7 +1379,7 @@ async def void_single_code(
     if rc.status == "used":
         raise HTTPException(status_code=400, detail="已使用的码不能作废")
 
-    rc.voided_at = datetime.utcnow()
+    rc.voided_at = datetime.now()
     rc.voided_by = current_user.id
     rc.void_reason = data.reason
     rc.status = "disabled"

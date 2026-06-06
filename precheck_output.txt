@@ -1,0 +1,135 @@
+=== SSH 连接成功 ===
+
+=== 预检 1: Gateway nginx 配置结构 ===
+worker_processes auto;
+events {
+    worker_connections 1024;
+}
+http {
+    server_names_hash_bucket_size 128;
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        ''      close;
+    }
+
+    client_max_body_size 100m;
+
+    # ===== Default server (newbb.test.bangbangvip.com) =====
+    server {
+        listen 80;
+        server_name newbb.test.bangbangvip.com;
+        resolver 127.0.0.11 valid=10s ipv6=off;
+
+        location /.well-known/acme-challenge/ {
+            root /var/www/certbot;
+        }
+        location / {
+            return 301 https://$host$request_uri;
+        }
+    }
+
+    server {
+        listen 443 ssl;
+        server_name newbb.test.bangbangvip.com;
+        resolver 127.0.0.11 valid=10s ipv6=off;
+
+        ssl_certificate     /etc/nginx/ssl/fullchain.pem;
+        ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+        ssl_protocols       TLSv1.2 TLSv1.3;
+        ssl_ciphers         HIGH:!aNULL:!MD5;
+
+        location /.well-known/acme-challenge/ {
+            root /var/www/certbot;
+        }
+        include /etc/nginx/conf.d/*.conf;
+    }
+
+    # ===== yumingtest project =====
+    server {
+        listen 80;
+        server_name yumingtest.noob-ai.test.bangbangvip.com;
+        resolver 127.0.0.11 valid=10s ipv6=off;
+
+        location /.well-known/acme-challenge/ {
+            root /var/www/certbot;
+        }
+        location / {
+            return 301 https://$host$request_uri;
+        }
+    }
+
+    server {
+        listen 443 ssl;
+        server_name yumingtest.noob-ai.test.bangbangvip.com;
+        resolver 127.0.0.11 valid=10s ipv6=off;
+
+        ssl_certificate     /etc/nginx/ssl/yumingtest.noob-ai.test.bangbangvip.com.le.fullchain.pem;
+        ssl_certificate_key /etc/nginx/ssl/yumingtest.noob-ai.test.bangbangvip.com.le.privkey.pem;
+        ssl_protocols       TLSv1.2 TLSv1.3;
+        ssl_ciphers         HIGH:!aNULL:!MD5;
+    }
+
+    # ===== Proj
+→ Gateway 模式: 标准模式
+
+=== 预检 2: 路由占用检查 ===
+/home/ubuntu/gateway/conf.d/85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf:4:location = /autodev/85048269-7f40-4ae8-88e2-0f3ce1ce19d1 {
+/home/ubuntu/gateway/conf.d/85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf:8:location /autodev/85048269-7f40-4ae8-88e2-0f3ce1ce19d1/api/ {
+/home/ubuntu/gateway/conf.d/85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf:23:location /autodev/85048269-7f40-4ae8-88e2-0f3ce1ce19d1/docs {
+/home/ubuntu/gateway/conf.d/85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf:31:location /autodev/85048269-7f40-4ae8-88e2-0f3ce1ce19d1/openapi.json {
+/home/ubuntu/gateway/conf.d/85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf:39:location /autodev/85048269-7f40-4ae8-88e2-0f3ce1ce19d1/_next/ {
+/home/ubuntu/gateway/conf.d/85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf:48:location /autodev/85048269-7f40-4ae8-88e2-0f3ce1ce19d1/ {
+/home/ubuntu/gateway/conf.d/test_line_prj.conf:4:location = /autodev/test_line_prj {
+/home/ubuntu/gateway/conf.d/test_line_prj.conf:9:location /autodev/test_line_prj/api/ {
+/home/ubuntu/gateway/conf.d/test_line_prj.conf:25:location /autodev/test_line_prj/_next/ {
+/home/ubuntu/gateway/conf.d/test_line_prj.conf:35:location /autodev/test_line_prj/ {
+/home/ubuntu/gateway/conf.d/dce395b9-f2ce-4853-8c63-a7ccdfe5793a.server:4:    server_name dce395b9-f2ce-4853-8c63-a7ccdfe5793a.noob-ai.test.bangbangvip.com;
+/home/ubuntu/gateway/conf.d/dce395b9-f2ce-4853-8c63-a7ccdfe5793a.server:9:    location /api/ {
+/home/ubuntu/gateway/conf.d/dce395b9-f2ce-4853-8c63-a7ccdfe5793a.server:25:    location / {
+/home/ubuntu/gateway/conf.d/b04670f8-ef50-4fcc-92b5-e25f73121b54.server:6:    server_name b04670f8-ef50-4fcc-92b5-e25f73121b54.noob-ai.test.bangbangvip.com;
+/home/ubuntu/gateway/conf.d/b04670f8-ef50-4fcc-92b5-e25f73121b54.server:12:    location /api/ {
+/home/ubuntu/gateway/conf.d/b04670f8-ef50-4fcc-92b5-e25f73121b54.server:29:    location = /api {
+/home/ubuntu/gateway/conf.d/b04670f8-ef50-4fcc-92b5-e25f73121b54.server:40:    location /_next/ {
+/home/ubuntu/gateway/conf.d/b04670f8-ef50-4fcc-9
+6:    server_names_hash_bucket_size 128;
+19:        server_name newbb.test.bangbangvip.com;
+22:        location /.well-known/acme-challenge/ {
+25:        location / {
+32:        server_name newbb.test.bangbangvip.com;
+40:        location /.well-known/acme-challenge/ {
+49:        server_name yumingtest.noob-ai.test.bangbangvip.com;
+52:        location /.well-known/acme-challenge/ {
+55:        location / {
+62:        server_name yumingtest.noob-ai.test.bangbangvip.com;
+74:        server_name 538865dd-add6-44d3-ad7f-d1ff839f1e04.noob-ai.test.bangbangvip.com;
+80:        server_name 538865dd-add6-44d3-ad7f-d1ff839f1e04.noob-ai.test.bangbangvip.com;
+88:        location /api/ {
+102:        location /actuator/ {
+112:        location / {
+129:        server_name 1f2b22da-528e-4e13-acee-6511a7b5b172.noob-ai.test.bangbangvip.com;
+135:        server_name 1f2b22da-528e-4e13-acee-6511a7b5b172.noob-ai.test.bangbangvip.com;
+143:        include /etc/nginx/conf.d/1f2b22da-528e-4e13-acee-6511a7b5b172.loca
+
+=== 预检 3: ACR 基础镜像版本 ===
+FOUND: crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_doker_base/python:3.12-slim
+FOUND: crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_doker_base/node:20-alpine
+FOUND: crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_doker_base/nginx:alpine
+FOUND: crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_doker_base/alpine:3.19
+FOUND: crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_doker_base/mysql:8.0
+
+=== 预检 4: Docker 网络拓扑 ===
+gateway-nginx: gateway-nginx Up 42 hours
+项目网络: {.Name}
+
+=== 预检 5: 基础镜像工具检测 ===
+Python slim tools: /usr/local/bin/python3
+Node alpine tools: /usr/bin/wget
+/usr/local/bin/node
+
+=== 预检 6: 磁盘空间 ===
+/dev/vda2       217G   78G  131G  38% /
+
+=== 预检完成 ===
+汇总: gateway_mode=standard

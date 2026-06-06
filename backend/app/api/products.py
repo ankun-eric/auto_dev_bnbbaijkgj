@@ -291,7 +291,7 @@ async def hot_recommendations(
     若库存空可放宽到 active 全集按 sales_count desc。
     """
     from datetime import datetime, timedelta
-    cutoff = datetime.utcnow() - timedelta(days=30)
+    cutoff = datetime.now() - timedelta(days=30)
 
     base_q = (
         select(Product)

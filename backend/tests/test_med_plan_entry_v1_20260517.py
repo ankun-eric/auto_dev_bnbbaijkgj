@@ -226,8 +226,8 @@ async def test_revoke_after_5min_returns_400(client: AsyncClient, auth_headers, 
     # 手动把 created_at 拨回 10 分钟前
     res = await db_session.execute(select(MedicationCheckIn).where(MedicationCheckIn.id == cid))
     ci = res.scalar_one()
-    ci.created_at = datetime.utcnow() - timedelta(minutes=10)
-    ci.check_in_time = datetime.utcnow() - timedelta(minutes=10)
+    ci.created_at = datetime.now() - timedelta(minutes=10)
+    ci.check_in_time = datetime.now() - timedelta(minutes=10)
     await db_session.commit()
 
     rev = await client.post(f"/api/medication-check-in/{cid}/revoke", headers=auth_headers)
@@ -266,8 +266,8 @@ async def test_summary_order_by_created_at_desc(client: AsyncClient, auth_header
     # 手动错开 created_at
     ra = (await db_session.execute(select(MedicationReminder).where(MedicationReminder.id == a.json()["id"]))).scalar_one()
     rb = (await db_session.execute(select(MedicationReminder).where(MedicationReminder.id == b.json()["id"]))).scalar_one()
-    ra.created_at = datetime.utcnow() - timedelta(hours=2)
-    rb.created_at = datetime.utcnow()
+    ra.created_at = datetime.now() - timedelta(hours=2)
+    rb.created_at = datetime.now()
     await db_session.commit()
 
     res = await client.get("/api/medication-plans/summary", headers=auth_headers)

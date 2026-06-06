@@ -156,7 +156,7 @@ async def admin_update_bottom_nav(
 
     for key, value in update_data.items():
         setattr(nav, key, value)
-    nav.updated_at = datetime.utcnow()
+    nav.updated_at = datetime.now()
     await db.flush()
     await db.refresh(nav)
     return BottomNavResponse.model_validate(nav)

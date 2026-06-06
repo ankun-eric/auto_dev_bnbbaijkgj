@@ -90,7 +90,7 @@ async def update_sensitive_word(
         word.sensitive_word = data.sensitive_word
     if data.replacement_word is not None:
         word.replacement_word = data.replacement_word
-    word.updated_at = datetime.utcnow()
+    word.updated_at = datetime.now()
 
     await db.flush()
     await db.refresh(word)
@@ -153,7 +153,7 @@ async def update_prompt_config(
         raise HTTPException(status_code=404, detail="提示词配置不存在")
 
     config.system_prompt = data.system_prompt
-    config.updated_at = datetime.utcnow()
+    config.updated_at = datetime.now()
     await db.flush()
     await db.refresh(config)
     return PromptConfigResponse.model_validate(config)
@@ -204,7 +204,7 @@ async def update_disclaimer_config(
         config.disclaimer_text = data.disclaimer_text
     if data.is_enabled is not None:
         config.is_enabled = data.is_enabled
-    config.updated_at = datetime.utcnow()
+    config.updated_at = datetime.now()
 
     await db.flush()
     await db.refresh(config)

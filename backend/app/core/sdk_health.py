@@ -104,7 +104,7 @@ SDK_HEALTH_CHECKED_AT: str | None = None
 
 
 def _now_iso() -> str:
-    return _dt.datetime.now(_dt.timezone(_dt.timedelta(hours=8))).isoformat(timespec="seconds")
+    return _dt.datetime.now().isoformat(timespec="seconds")
 
 
 def _do_check(item: dict[str, Any]) -> dict[str, Any]:

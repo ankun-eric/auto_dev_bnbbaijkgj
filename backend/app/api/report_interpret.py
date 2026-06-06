@@ -61,7 +61,7 @@ def _calc_age(birthday) -> Optional[int]:
     if not birthday:
         return None
     try:
-        today = datetime.utcnow().date()
+        today = datetime.now().date()
         return today.year - birthday.year - (
             (today.month, today.day) < (birthday.month, birthday.day)
         )
@@ -132,7 +132,7 @@ async def _load_prompt(db: AsyncSession, prompt_type: str, default_content: str)
 def _report_title(report: CheckupReport) -> str:
     if getattr(report, "title", None):
         return report.title  # type: ignore[return-value]
-    d = report.report_date or (report.created_at.date() if report.created_at else datetime.utcnow().date())
+    d = report.report_date or (report.created_at.date() if report.created_at else datetime.now().date())
     return f"{d.strftime('%Y-%m-%d')} 体检报告"
 
 
@@ -238,9 +238,9 @@ async def _set_session_status(
             if error is not None:
                 s.interpret_error = error[:4000]  # type: ignore[attr-defined]
             if started:
-                s.interpret_started_at = datetime.utcnow()  # type: ignore[attr-defined]
+                s.interpret_started_at = datetime.now()  # type: ignore[attr-defined]
             if finished:
-                s.interpret_finished_at = datetime.utcnow()  # type: ignore[attr-defined]
+                s.interpret_finished_at = datetime.now()  # type: ignore[attr-defined]
         except Exception:
             pass
         await db.commit()
@@ -369,7 +369,7 @@ async def _auto_sync_report_history(session_id: int, ai_text: str) -> None:
                     member_id=member_id,
                     category="checkup_report",
                     title=report.title or _report_title(report),
-                    record_date=report.report_date or (report.created_at.date() if report.created_at else datetime.utcnow().date()),
+                    record_date=report.report_date or (report.created_at.date() if report.created_at else datetime.now().date()),
                     source="ai_interpret",
                     ai_interpretation={"summary": ai_text[:500]} if ai_text else None,
                 )
@@ -551,7 +551,7 @@ async def interpret_start(
     # [2026-04-25] 预写首条"隐式"用户 Prompt（is_hidden=1，前端默认不拉取）
     member_info_text, _ = await _build_member_info_text(db, current_user, member_id)
     prompt_tpl = await _load_prompt(db, "checkup_report_interpret", DEFAULT_REPORT_INTERPRET_PROMPT)
-    rep_date_str = (rep.report_date or (rep.created_at.date() if rep.created_at else datetime.utcnow().date())).strftime("%Y-%m-%d")
+    rep_date_str = (rep.report_date or (rep.created_at.date() if rep.created_at else datetime.now().date())).strftime("%Y-%m-%d")
     try:
         first_user_content = prompt_tpl.format(
             member_info=member_info_text,
@@ -616,7 +616,7 @@ async def compare_start(
         reports.append(r)
 
     def _rkey(r: CheckupReport):
-        return r.report_date or (r.created_at.date() if r.created_at else datetime.utcnow().date())
+        return r.report_date or (r.created_at.date() if r.created_at else datetime.now().date())
     reports.sort(key=_rkey)
     rep_a, rep_b = reports[0], reports[1]
 
@@ -1077,7 +1077,7 @@ async def interpret_ocr_detail_click(
     try:
         logger.info(
             "OCR_DETAIL_CLICK user=%s session=%s action=%s ts=%s",
-            current_user.id, body.session_id, body.action, datetime.utcnow().isoformat(),
+            current_user.id, body.session_id, body.action, datetime.now().isoformat(),
         )
     except Exception:
         pass
@@ -1239,7 +1239,7 @@ async def recover_pending_sessions() -> None:
                 if status in ("pending", "running"):
                     started = getattr(s, "interpret_started_at", None)
                     # 超 10 分钟未完成则视为孤儿任务
-                    if status == "pending" or (started and datetime.utcnow() - started > timedelta(minutes=10)):
+                    if status == "pending" or (started and datetime.now() - started > timedelta(minutes=10)):
                         logger.info("recover pending interpret session %s", s.id)
                         _schedule_interpret(s.id)
     except Exception as e:  # noqa: BLE001

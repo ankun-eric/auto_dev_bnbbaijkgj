@@ -103,7 +103,7 @@ async def _make_pending_invite(
             inviter_user_id=inviter.id,
             member_id=None,
             status=status,
-            expires_at=datetime.utcnow() + timedelta(hours=hours),
+            expires_at=datetime.now() + timedelta(hours=hours),
             relation_type="father",
         )
         s.add(inv)

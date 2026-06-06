@@ -35,7 +35,7 @@ from app.services.ai_service import (
     symptom_analysis,
 )
 from app.services.knowledge_search import search_knowledge
-from app.utils.datetime_utils import iso_utc
+from app.core.time_format import format_bj
 # [2026-04-23 v1.2] 用药对话 drug_query 注入 {member_info} + {drug_list}
 from app.api.drug_chat import inject_drug_context_to_prompt
 # [BUG_FIX_拍照识药三联_20260516] 聊天内嵌识药引擎（方案 E）
@@ -484,7 +484,7 @@ async def create_session(
     try:
         # [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 创建新会话前，先归档当前用户所有 active 会话，
         # 保证全局每个用户同时只能有 1 个 active；并将新会话置为 active + 写入 last_active_at。
-        now = datetime.utcnow()
+        now = datetime.now()
         try:
             existing_active = await db.execute(
                 select(ChatSession).where(
@@ -730,7 +730,7 @@ async def send_message(
 
     session.message_count = (session.message_count or 0) + 1
     # [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 每次消息落库都刷新最后活动时间
-    session.last_active_at = datetime.utcnow()
+    session.last_active_at = datetime.now()
 
     if session.title == "新对话" and len(history_msgs) <= 2:
         session.title = data.content[:50]
@@ -808,7 +808,7 @@ async def _stream_drug_identify(
                     )
                     db.add(ai_msg)
                     captured_session.message_count = (captured_session.message_count or 0) + 1
-                    captured_session.last_active_at = datetime.utcnow()
+                    captured_session.last_active_at = datetime.now()
                     if captured_session.title == "新对话":
                         captured_session.title = "拍照识药"
                     try:
@@ -901,7 +901,7 @@ async def _auto_sync_drug_record(
                 or ""
             ).strip()
 
-        today_str = datetime.utcnow().date().strftime("%Y-%m-%d")
+        today_str = datetime.now().date().strftime("%Y-%m-%d")
         title = primary_name or f"{today_str} 识药记录"
 
         # summary：药品名 + 简短用法用量摘要（取首品种）
@@ -957,7 +957,7 @@ async def _auto_sync_drug_record(
                 member_id=member_id_final,
                 category="medication_record",
                 title=title[:255],
-                record_date=datetime.utcnow().date(),
+                record_date=datetime.now().date(),
                 source="ai_drug_identify",
                 ai_interpretation={
                     "session_id": session_id,
@@ -1036,7 +1036,7 @@ async def _auto_create_report_and_sync(
             report = CheckupReport(
                 user_id=user_id,
                 family_member_id=family_member_id,
-                title=meta_report_title or f"{datetime.utcnow().date().strftime('%Y-%m-%d')} 体检报告",
+                title=meta_report_title or f"{datetime.now().date().strftime('%Y-%m-%d')} 体检报告",
                 report_date=report_date_parsed,
                 report_type="体检报告",
                 file_url=meta_image_urls[0] if meta_image_urls else None,
@@ -1135,7 +1135,7 @@ async def _stream_report_interpret(
                     )
                     db.add(ai_msg)
                     captured_session.message_count = (captured_session.message_count or 0) + 1
-                    captured_session.last_active_at = datetime.utcnow()
+                    captured_session.last_active_at = datetime.now()
                     if captured_session.title == "新对话":
                         captured_session.title = "报告解读"
                     try:
@@ -1488,7 +1488,7 @@ async def stream_message(
                 )
                 captured_db.add(ai_msg)
                 captured_session.message_count = (captured_session.message_count or 0) + 1
-                captured_session.last_active_at = datetime.utcnow()
+                captured_session.last_active_at = datetime.now()
                 if captured_session.title == "新对话" and len(captured_history_msgs) <= 2:
                     captured_session.title = captured_data.content[:50]
                 await captured_db.flush()
@@ -1822,14 +1822,13 @@ async def get_session_detail(
         "type": stype,
         "family_member_id": sess.family_member_id,
         "message_count": sess.message_count or 0,
-        # [BUG_FIX_AI_HOME_DRUG_IDENTIFY_OPTIM_20260517] 时区规范：输出 UTC 带 +00:00 标识
-        # 旧 isoformat() 不带时区会被前端按本地时区误解析（导致"刚发生显示 8 小时前"）
-        "created_at": iso_utc(sess.created_at),
-        "updated_at": iso_utc(sess.updated_at),
+        # [日期时区简化 2026-06-06] 直接输出北京时间字符串
+        "created_at": format_bj(sess.created_at),
+        "updated_at": format_bj(sess.updated_at),
         # [PRD-AI-HOME-IDLE-ARCHIVE-V1 2026-05-19] 返回会话状态相关字段
         "status": sess.status or "archived",
-        "archived_at": iso_utc(sess.archived_at),
-        "last_active_at": iso_utc(sess.last_active_at),
+        "archived_at": format_bj(sess.archived_at),
+        "last_active_at": format_bj(sess.last_active_at),
         "report_id": report_id_val,
         "report_ids": report_ids_val,
         "compare_report_ids": report_ids_val,

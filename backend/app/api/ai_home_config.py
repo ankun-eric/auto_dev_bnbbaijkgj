@@ -523,7 +523,7 @@ async def admin_list_logs(
     db: AsyncSession = Depends(get_db),
 ):
     # 90 天保留：自动清理超过 90 天数据
-    cutoff = datetime.utcnow() - timedelta(days=90)
+    cutoff = datetime.now() - timedelta(days=90)
     try:
         old_q = select(AIHomeConfigLog).where(AIHomeConfigLog.created_at < cutoff)
         old_logs = (await db.execute(old_q)).scalars().all()

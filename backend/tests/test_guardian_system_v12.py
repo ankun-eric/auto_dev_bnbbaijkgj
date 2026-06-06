@@ -113,7 +113,7 @@ async def _make_management(
             status="active",
             is_primary_guardian=is_primary,
             priority_order=priority,
-            created_at=datetime.utcnow() + timedelta(seconds=delta_seconds),
+            created_at=datetime.now() + timedelta(seconds=delta_seconds),
         )
         s.add(mgmt)
         await s.flush()
@@ -833,7 +833,7 @@ async def _make_management_with_status(
             status=status,
             is_primary_guardian=is_primary,
             priority_order=100,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(),
         )
         s.add(mgmt)
         await s.flush()

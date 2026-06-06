@@ -81,7 +81,7 @@ async def run(apply_changes: bool) -> int:
         for o in orders:
             old_status = _status_str(o.status)
             o.status = UnifiedOrderStatus.pending_payment
-            o.updated_at = datetime.utcnow()
+            o.updated_at = datetime.now()
             print(
                 f"  [UPDATE] order_no={o.order_no} status: "
                 f"{old_status} -> {_status_str(o.status)}"

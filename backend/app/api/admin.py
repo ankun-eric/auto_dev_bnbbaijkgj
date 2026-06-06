@@ -249,7 +249,7 @@ async def create_ai_config(
         max_tokens=data.max_tokens,
         temperature=data.temperature,
         template_id=data.template_id,
-        template_synced_at=datetime.utcnow() if data.template_id else None,
+        template_synced_at=datetime.now() if data.template_id else None,
     )
     db.add(config)
     await db.flush()
@@ -319,8 +319,8 @@ async def ai_config_sync(
             cfg.base_url = tpl.base_url
             cfg.model_name = tpl.model_name
             cfg.provider_name = tpl.name
-            cfg.template_synced_at = datetime.utcnow()
-            cfg.updated_at = datetime.utcnow()
+            cfg.template_synced_at = datetime.now()
+            cfg.updated_at = datetime.now()
             synced += 1
     return {"message": f"已同步 {synced} 个配置", "synced": synced}
 
@@ -337,7 +337,7 @@ async def activate_ai_config(
         raise HTTPException(status_code=404, detail="配置不存在")
     await db.execute(update(AIModelConfig).values(is_active=False))
     config.is_active = True
-    config.updated_at = datetime.utcnow()
+    config.updated_at = datetime.now()
     await db.flush()
     await db.refresh(config)
     return _ai_config_to_dict(config)
@@ -373,7 +373,7 @@ async def update_ai_config(
     if data.temperature is not None:
         config.temperature = data.temperature
 
-    config.updated_at = datetime.utcnow()
+    config.updated_at = datetime.now()
     await db.flush()
     await db.refresh(config)
     return _ai_config_to_dict(config)
@@ -440,7 +440,7 @@ async def test_ai_config(
 
                 if config_obj:
                     config_obj.last_test_status = "success"
-                    config_obj.last_test_time = datetime.utcnow()
+                    config_obj.last_test_time = datetime.now()
                     config_obj.last_test_message = (model_reply[:500] if model_reply else "")
                     await db.flush()
 
@@ -457,7 +457,7 @@ async def test_ai_config(
 
                 if config_obj:
                     config_obj.last_test_status = "failed"
-                    config_obj.last_test_time = datetime.utcnow()
+                    config_obj.last_test_time = datetime.now()
                     config_obj.last_test_message = error_detail[:500]
                     await db.flush()
 
@@ -474,7 +474,7 @@ async def test_ai_config(
 
         if config_obj:
             config_obj.last_test_status = "failed"
-            config_obj.last_test_time = datetime.utcnow()
+            config_obj.last_test_time = datetime.now()
             config_obj.last_test_message = error_detail[:500]
             await db.flush()
 
@@ -551,7 +551,7 @@ async def update_ai_model_template(
 
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(template, key, value)
-    template.updated_at = datetime.utcnow()
+    template.updated_at = datetime.now()
     await db.flush()
     await db.refresh(template)
     return AIModelTemplateResponse.model_validate(template)
@@ -570,7 +570,7 @@ async def toggle_template_status(
         raise HTTPException(status_code=404, detail="模板不存在")
 
     template.status = status
-    template.updated_at = datetime.utcnow()
+    template.updated_at = datetime.now()
     await db.flush()
     await db.refresh(template)
     return AIModelTemplateResponse.model_validate(template)
@@ -678,7 +678,7 @@ async def update_user_status(
         raise HTTPException(status_code=400, detail="无效的状态值")
 
     user.status = status
-    user.updated_at = datetime.utcnow()
+    user.updated_at = datetime.now()
     return {"message": f"用户状态已更新为 {status}"}
 
 
@@ -712,7 +712,7 @@ async def update_user_referrer(
         raise HTTPException(status_code=400, detail="推荐人用户编号不存在")
 
     user.referrer_no = referrer_no
-    user.updated_at = datetime.utcnow()
+    user.updated_at = datetime.now()
     return {"message": "推荐人已更新"}
 
 
@@ -728,7 +728,7 @@ async def referral_stats(
     )
     total_referrals = total_referrals_result.scalar() or 0
 
-    now = datetime.utcnow()
+    now = datetime.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     today_referrals_result = await db.execute(
         select(func.count(User.id)).where(
@@ -947,7 +947,7 @@ async def admin_update_item(
 
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(item, key, value)
-    item.updated_at = datetime.utcnow()
+    item.updated_at = datetime.now()
     await db.flush()
     await db.refresh(item)
     return ServiceItemResponse.model_validate(item)
@@ -1027,7 +1027,7 @@ async def admin_order_statistics(
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
-    now = datetime.utcnow()
+    now = datetime.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
@@ -1080,7 +1080,7 @@ async def admin_order_trends(
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
-    now = datetime.utcnow()
+    now = datetime.now()
     results = []
     for i in range(days - 1, -1, -1):
         day_start = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -1238,7 +1238,7 @@ async def admin_refund_order(
 
     order.payment_status = PaymentStatus.refunded
     order.order_status = OrderStatus.cancelled
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now()
 
     if order.points_deduction > 0:
         user_result = await db.execute(select(User).where(User.id == order.user_id))
@@ -1313,7 +1313,7 @@ async def admin_create_article(
         status=article_status,
     )
     if article_status == "published" and not article.published_at:
-        article.published_at = datetime.utcnow()
+        article.published_at = datetime.now()
     db.add(article)
     await db.flush()
     await db.refresh(article)
@@ -1341,8 +1341,8 @@ async def admin_update_article(
         import re as _re
         article.content = _re.sub(r"<[^>]+>", "", article.content_html)[:5000]
     if new_status == "published" and not article.published_at:
-        article.published_at = datetime.utcnow()
-    article.updated_at = datetime.utcnow()
+        article.published_at = datetime.now()
+    article.updated_at = datetime.now()
     await db.flush()
     await db.refresh(article)
     return ArticleResponse.model_validate(article)
@@ -1492,7 +1492,7 @@ async def update_points_rules(
         config = result.scalar_one_or_none()
         if config:
             config.config_value = str(value)
-            config.updated_at = datetime.utcnow()
+            config.updated_at = datetime.now()
         else:
             config = SystemConfig(config_key=key, config_value=str(value), config_type="points")
             db.add(config)
@@ -1501,7 +1501,7 @@ async def update_points_rules(
         old_cfg = result.scalar_one_or_none()
         if old_cfg:
             old_cfg.config_value = str(rules["storeCheckIn"])
-            old_cfg.updated_at = datetime.utcnow()
+            old_cfg.updated_at = datetime.now()
     await db.commit()
     return {"message": "积分规则更新成功"}
 
@@ -1565,7 +1565,7 @@ async def get_dashboard_stats(
     revenue_result = await db.execute(select(func.sum(Order.paid_amount)).where(Order.payment_status == PaymentStatus.paid))
     total_revenue = float(revenue_result.scalar() or 0)
 
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
     today_users_result = await db.execute(select(func.count(User.id)).where(User.created_at >= today_start))
     today_new_users = today_users_result.scalar() or 0
@@ -1587,7 +1587,7 @@ async def get_dashboard_stats(
     ai_calls_result = await db.execute(select(func.count(ChatMessage.id)).where(ChatMessage.role == MessageRole.assistant))
     ai_calls = ai_calls_result.scalar() or 0
 
-    end_day = datetime.utcnow().date()
+    end_day = datetime.now().date()
     start_day = end_day - timedelta(days=6)
     trend_window_start = datetime.combine(start_day, datetime.min.time())
     trend_labels = [_day_label(start_day + timedelta(days=i)) for i in range(7)]
@@ -1620,7 +1620,7 @@ async def get_dashboard_stats(
     )
     for order, u, svc in ro_result.all():
         nickname = (u.nickname or "").strip() or (u.phone or f"用户{u.id}")
-        created = order.created_at or datetime.utcnow()
+        created = order.created_at or datetime.now()
         recent_orders.append(
             DashboardRecentOrder(
                 id=order.order_no,
@@ -1685,7 +1685,7 @@ async def update_system_config(
         db.add(config)
     else:
         config.config_value = data.config_value
-        config.updated_at = datetime.utcnow()
+        config.updated_at = datetime.now()
     return {"message": "配置更新成功"}
 
 
@@ -1940,7 +1940,7 @@ async def update_points_rules_post(
         config = result.scalar_one_or_none()
         if config:
             config.config_value = str(value)
-            config.updated_at = datetime.utcnow()
+            config.updated_at = datetime.now()
         else:
             config = SystemConfig(config_key=key, config_value=str(value), config_type="points")
             db.add(config)
@@ -1950,7 +1950,7 @@ async def update_points_rules_post(
         old_cfg = result.scalar_one_or_none()
         if old_cfg:
             old_cfg.config_value = str(rules["storeCheckIn"])
-            old_cfg.updated_at = datetime.utcnow()
+            old_cfg.updated_at = datetime.now()
     await db.commit()
     return {"message": "积分规则更新成功"}
 
@@ -1969,7 +1969,7 @@ async def update_basic_settings(
         config = result.scalar_one_or_none()
         if config:
             config.config_value = str(value)
-            config.updated_at = datetime.utcnow()
+            config.updated_at = datetime.now()
         else:
             db.add(SystemConfig(config_key=config_key, config_value=str(value), config_type="basic", description=key))
     return {"message": "基本设置更新成功"}
@@ -2013,7 +2013,7 @@ async def update_protocol_settings(
         config = result.scalar_one_or_none()
         if config:
             config.config_value = str(value)
-            config.updated_at = datetime.utcnow()
+            config.updated_at = datetime.now()
         else:
             db.add(SystemConfig(config_key=config_key, config_value=str(value), config_type="protocol", description=key))
     return {"message": "协议设置更新成功"}
@@ -2234,7 +2234,7 @@ async def admin_update_relation_type(
         rt.sort_order = data.sort_order
     if data.is_active is not None:
         rt.is_active = data.is_active
-    rt.updated_at = datetime.utcnow()
+    rt.updated_at = datetime.now()
     await db.flush()
     return {"id": rt.id, "name": rt.name, "sort_order": rt.sort_order, "is_active": rt.is_active}
 
@@ -2334,7 +2334,7 @@ async def admin_update_disease_preset(
         dp.sort_order = data.sort_order
     if data.is_active is not None:
         dp.is_active = data.is_active
-    dp.updated_at = datetime.utcnow()
+    dp.updated_at = datetime.now()
     await db.flush()
     return {"id": dp.id, "name": dp.name, "category": dp.category, "sort_order": dp.sort_order, "is_active": dp.is_active}
 
@@ -2415,7 +2415,7 @@ async def upload_logo(
     if config:
         # 仅持久化 storage_path（相对路径），便于环境迁移；返回时再拼 STATIC_BASE_URL
         config.config_value = storage_path
-        config.updated_at = datetime.utcnow()
+        config.updated_at = datetime.now()
     else:
         db.add(SystemConfig(config_key="brand_logo_url", config_value=storage_path, config_type="brand"))
 

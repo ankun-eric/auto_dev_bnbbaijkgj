@@ -100,7 +100,7 @@ def _build_authorization(
 
     返回签名后的 Authorization 头字符串。
     """
-    timestamp = str(int(datetime.utcnow().timestamp()))
+    timestamp = str(int(datetime.now().timestamp()))
     nonce_str = _uuid.uuid4().hex[:32]
 
     sign_str = f"{method}\n{url_path}\n{timestamp}\n{nonce_str}\n{body}\n"
@@ -292,7 +292,7 @@ async def ensure_platform_certificates(
     api_v3_key: str,
 ) -> None:
     """确保平台证书缓存可用（首次获取 / 过期自动更新）。"""
-    now = datetime.utcnow()
+    now = datetime.now()
     need_refresh = True
 
     if _PLATFORM_CERT_CACHE:
@@ -431,7 +431,7 @@ def generate_pay_sign(
     Returns:
         dict: {"appId", "timeStamp", "nonceStr", "package", "signType", "paySign"}
     """
-    timestamp = str(int(datetime.utcnow().timestamp()))
+    timestamp = str(int(datetime.now().timestamp()))
     nonce_str = _uuid.uuid4().hex[:32]
     package = f"prepay_id={prepay_id}"
 
@@ -466,7 +466,7 @@ async def query_order_by_out_trade_no(
     url_path_with_query = url_path + query
 
     body = ""  # GET 请求体为空
-    timestamp = str(int(datetime.utcnow().timestamp()))
+    timestamp = str(int(datetime.now().timestamp()))
     nonce_str = _uuid.uuid4().hex[:32]
 
     sign_str = f"GET\n{url_path_with_query}\n{timestamp}\n{nonce_str}\n{body}\n"

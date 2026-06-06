@@ -206,7 +206,7 @@ async def test_tc_del_04_pending_invitation_blocks_delete(client: AsyncClient):
             inviter_user_id=u.id,
             member_id=mid,
             status="pending",
-            expires_at=datetime.utcnow() + timedelta(hours=24),
+            expires_at=datetime.now() + timedelta(hours=24),
             relation_type="父亲",
             nickname="孤儿家人",
         ))

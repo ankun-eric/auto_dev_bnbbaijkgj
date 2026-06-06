@@ -141,10 +141,10 @@ async def _check_lockout(db: AsyncSession, phone: str) -> Optional[datetime]:
     lo = rs.scalar_one_or_none()
     if not lo:
         return None
-    if lo.locked_until and lo.locked_until > datetime.utcnow():
+    if lo.locked_until and lo.locked_until > datetime.now():
         return lo.locked_until
     # 自动解锁
-    if lo.locked_until and lo.locked_until <= datetime.utcnow():
+    if lo.locked_until and lo.locked_until <= datetime.now():
         lo.fail_count = 0
         lo.locked_until = None
     return None
@@ -153,7 +153,7 @@ async def _check_lockout(db: AsyncSession, phone: str) -> Optional[datetime]:
 async def _record_fail(db: AsyncSession, phone: str) -> int:
     rs = await db.execute(select(AuditLockout).where(AuditLockout.phone == phone))
     lo = rs.scalar_one_or_none()
-    now = datetime.utcnow()
+    now = datetime.now()
     if not lo:
         lo = AuditLockout(phone=phone, fail_count=1, last_fail_at=now)
         db.add(lo)
@@ -203,7 +203,7 @@ async def create_audit_request(
         requester_id=requester.id,
         requester_name=requester.nickname or requester.phone,
         history=[{
-            "ts": datetime.utcnow().isoformat(),
+            "ts": datetime.now().isoformat(),
             "action": "submit",
             "by": requester.nickname or requester.phone,
         }],
@@ -290,7 +290,7 @@ async def send_audit_code(
         raise HTTPException(status_code=429, detail=f"验证码错误次数过多，已锁定至 {locked_until.strftime('%Y-%m-%d %H:%M:%S')}")
 
     code = "".join(random.choices("0123456789", k=6))
-    expires = datetime.utcnow() + timedelta(minutes=5)
+    expires = datetime.now() + timedelta(minutes=5)
     db.add(AuditCode(phone=data.phone, code=code, request_id=data.request_id, expires_at=expires))
 
     # 调用腾讯云短信
@@ -317,7 +317,7 @@ async def _verify_code(db: AsyncSession, phone: str, code: str, request_id: Opti
     query = select(AuditCode).where(
         AuditCode.phone == phone,
         AuditCode.used == False,  # noqa: E712
-        AuditCode.expires_at > datetime.utcnow(),
+        AuditCode.expires_at > datetime.now(),
     )
     if request_id:
         query = query.where(AuditCode.request_id == request_id)
@@ -372,7 +372,7 @@ async def _execute_audit_payload(db: AsyncSession, req: AuditRequest, approver: 
         seen = set()
         granted = 0
         skipped = 0
-        now = datetime.utcnow()
+        now = datetime.now()
         for u in users:
             if u.id in seen:
                 continue
@@ -467,10 +467,10 @@ async def approve_request(
 
     approvals = list(req.approvals or [])
     name = current_user.nickname or current_user.phone
-    approvals.append({"by": name, "at": datetime.utcnow().isoformat(), "phone": data.phone})
+    approvals.append({"by": name, "at": datetime.now().isoformat(), "phone": data.phone})
     req.approvals = approvals
     history = list(req.history or [])
-    history.append({"ts": datetime.utcnow().isoformat(), "action": "approve", "by": name})
+    history.append({"ts": datetime.now().isoformat(), "action": "approve", "by": name})
 
     if req.approval_mode == "joint":
         # 联合模式需要 2 个不同手机号通过
@@ -483,15 +483,15 @@ async def approve_request(
     try:
         result = await _execute_audit_payload(db, req, current_user)
     except Exception as e:
-        history.append({"ts": datetime.utcnow().isoformat(), "action": "execute_failed", "error": str(e)})
+        history.append({"ts": datetime.now().isoformat(), "action": "execute_failed", "error": str(e)})
         req.history = history
         raise
 
     req.status = "approved"
     req.approver_id = current_user.id
     req.approver_name = name
-    req.approved_at = datetime.utcnow()
-    history.append({"ts": datetime.utcnow().isoformat(), "action": "executed", "result": result})
+    req.approved_at = datetime.now()
+    history.append({"ts": datetime.now().isoformat(), "action": "executed", "result": result})
     req.history = history
     return {"message": "审批通过并已执行", "result": result}
 
@@ -514,7 +514,7 @@ async def return_request(
     req.return_reason = data.return_reason
     name = current_user.nickname or current_user.phone
     history = list(req.history or [])
-    history.append({"ts": datetime.utcnow().isoformat(), "action": "return", "by": name, "reason": data.return_reason})
+    history.append({"ts": datetime.now().isoformat(), "action": "return", "by": name, "reason": data.return_reason})
     req.history = history
     return {"message": "已退回"}
 
@@ -539,6 +539,6 @@ async def resubmit_request(
         req.payload = data.payload
     name = current_user.nickname or current_user.phone
     history = list(req.history or [])
-    history.append({"ts": datetime.utcnow().isoformat(), "action": "resubmit", "by": name, "note": data.modify_note})
+    history.append({"ts": datetime.now().isoformat(), "action": "resubmit", "by": name, "note": data.modify_note})
     req.history = history
     return AuditRequestResponse.model_validate(req).model_dump()

@@ -364,7 +364,7 @@ async def merchant_dashboard_metrics(
         return MerchantWorkbenchMetrics()
     effective_ids = [store_id] if store_id and store_id in store_ids else store_ids
 
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     tomorrow = today_start + timedelta(days=1)
     month_start = today_start.replace(day=1)
 
@@ -781,7 +781,7 @@ async def merchant_reports(
         return ReportAnalysisResponse(period=period, dim=dim, series=[], total_orders=0, total_gmv=0, total_verifications=0)
     effective_ids = [store_id] if (dim == "store" and store_id and store_id in store_ids) else store_ids
 
-    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     end = datetime.fromisoformat(f"{end_date}T23:59:59") if end_date else today + timedelta(days=1)
     if start_date:
         start = datetime.fromisoformat(f"{start_date}T00:00:00")
@@ -910,7 +910,7 @@ async def merchant_settlement_confirm(
     if stmt.status != "pending":
         raise HTTPException(status_code=400, detail="当前状态不可确认")
     stmt.status = "confirmed"
-    stmt.confirmed_at = datetime.utcnow()
+    stmt.confirmed_at = datetime.now()
     if data.remark:
         stmt.remark = data.remark
     await db.commit()
@@ -932,7 +932,7 @@ async def merchant_settlement_dispute(
     if not stmt or stmt.merchant_profile_id != profile.id:
         raise HTTPException(status_code=404, detail="对账单不存在")
     stmt.status = "dispute"
-    stmt.remark = (stmt.remark or "") + f"\n[异议 {datetime.utcnow().isoformat()}]: {data.reason}"
+    stmt.remark = (stmt.remark or "") + f"\n[异议 {datetime.now().isoformat()}]: {data.reason}"
     await db.commit()
     return {"message": "已发起异议，平台客服将跟进"}
 
@@ -944,7 +944,7 @@ async def admin_generate_monthly_settlements(
     db: AsyncSession = Depends(get_db),
 ):
     """平台：按月批量生成对账单（机构维度 + 门店维度各一份）"""
-    today = datetime.utcnow().date()
+    today = datetime.now().date()
     if data.period_end and data.period_start:
         p_start, p_end = data.period_start, data.period_end
     else:
@@ -1097,8 +1097,8 @@ async def admin_upload_payment_proof(
     if remark and len(remark) > 500:
         raise HTTPException(status_code=400, detail="打款备注不能超过 500 字")
 
-    paid_at = data.paid_at or datetime.utcnow()
-    if paid_at > datetime.utcnow() + timedelta(minutes=1):
+    paid_at = data.paid_at or datetime.now()
+    if paid_at > datetime.now() + timedelta(minutes=1):
         raise HTTPException(status_code=400, detail="打款时间不能晚于当前时间")
 
     pp_res = await db.execute(select(SettlementPaymentProof).where(SettlementPaymentProof.statement_id == sid))
@@ -1113,7 +1113,7 @@ async def admin_upload_payment_proof(
         pp.amount = Decimal(str(data.amount or 0))
         pp.paid_at = paid_at
         pp.uploaded_by = current_user.id
-        pp.updated_at = datetime.utcnow()
+        pp.updated_at = datetime.now()
     else:
         db.add(SettlementPaymentProof(
             statement_id=sid,
@@ -1127,7 +1127,7 @@ async def admin_upload_payment_proof(
             uploaded_by=current_user.id,
         ))
     stmt.status = "settled"
-    stmt.settled_at = datetime.utcnow()
+    stmt.settled_at = datetime.now()
     await db.commit()
     return {"message": "打款凭证已上传", "settlement_id": sid, "voucher_type": vtype, "voucher_count": len(vfiles)}
 
@@ -1524,7 +1524,7 @@ async def create_export_task(
         .limit(1)
     )
     last_task = last.scalar_one_or_none()
-    if last_task and (datetime.utcnow() - last_task.created_at).total_seconds() < 60:
+    if last_task and (datetime.now() - last_task.created_at).total_seconds() < 60:
         raise HTTPException(status_code=429, detail="导出过于频繁，请稍后再试")
     task = MerchantExportTask(
         merchant_profile_id=profile.id,
@@ -1536,7 +1536,7 @@ async def create_export_task(
                 "store_id": data.store_id},
         status="completed",  # 简化：同步完成（本期不接 Celery）
         file_url=f"/api/merchant/v1/exports/placeholder/{secrets.token_hex(6)}.xlsx",
-        finished_at=datetime.utcnow(),
+        finished_at=datetime.now(),
     )
     db.add(task)
     await db.commit()
@@ -1796,6 +1796,6 @@ async def merchant_staff_update_status(
 
     for mem in memberships:
         mem.status = data.status
-        mem.updated_at = datetime.utcnow()
+        mem.updated_at = datetime.now()
     await db.commit()
     return {"message": "状态已更新", "status": data.status}

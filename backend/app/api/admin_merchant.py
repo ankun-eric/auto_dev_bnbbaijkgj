@@ -128,7 +128,7 @@ async def _ensure_identity(db: AsyncSession, user_id: int, identity_type: Identi
     identity = result.scalar_one_or_none()
     if identity:
         identity.status = "active"
-        identity.updated_at = datetime.utcnow()
+        identity.updated_at = datetime.now()
         return
     db.add(AccountIdentity(user_id=user_id, identity_type=identity_type))
 
@@ -197,7 +197,7 @@ async def _sync_memberships(
             membership.member_role = member_role
             membership.role_code = role_code or membership.role_code
             membership.status = "active"
-            membership.updated_at = datetime.utcnow()
+            membership.updated_at = datetime.now()
 
         perm_result = await db.execute(
             select(MerchantStorePermission).where(
@@ -410,7 +410,7 @@ async def _upsert_merchant_account(
             user.password_hash = get_password_hash(data.password)
         user.status = data.status
         user.role = UserRole.user if data.enable_user_identity else UserRole.merchant
-        user.updated_at = datetime.utcnow()
+        user.updated_at = datetime.now()
 
     if data.enable_user_identity:
         await _ensure_identity(db, user.id, IdentityType.user)
@@ -454,7 +454,7 @@ async def _upsert_merchant_account(
         await db.flush()
     profile.nickname = data.merchant_nickname or user.nickname
     profile.avatar = data.merchant_avatar
-    profile.updated_at = datetime.utcnow()
+    profile.updated_at = datetime.now()
 
     await _sync_memberships(
         db,
@@ -874,7 +874,7 @@ async def update_store(
 
     for key, value in payload.items():
         setattr(store, key, value)
-    store.updated_at = datetime.utcnow()
+    store.updated_at = datetime.now()
     await db.flush()
 
     # 扫描受影响的存量预约（仅在营业时间被改动时计算）

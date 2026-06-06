@@ -149,8 +149,8 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    started = datetime.utcnow()
+    started = datetime.now()
     code = asyncio.run(main(apply_changes=args.apply))
-    elapsed = (datetime.utcnow() - started).total_seconds()
+    elapsed = (datetime.now() - started).total_seconds()
     logger.info("清理脚本结束（apply=%s, elapsed=%.1fs）", args.apply, elapsed)
     sys.exit(code)

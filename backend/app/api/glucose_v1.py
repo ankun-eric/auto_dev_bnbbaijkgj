@@ -286,7 +286,7 @@ class AiAdviceResponse(BaseModel):
 
 def _parse_measure_time(s: Optional[str]) -> datetime:
     if not s:
-        return datetime.utcnow()
+        return datetime.now()
     try:
         # 支持 'YYYY-MM-DDTHH:MM:SS' / 'YYYY-MM-DD HH:MM:SS'
         s2 = s.replace("T", " ").replace("Z", "").split("+")[0].strip()
@@ -297,7 +297,7 @@ def _parse_measure_time(s: Optional[str]) -> datetime:
         try:
             return datetime.strptime(s[:10], "%Y-%m-%d")
         except Exception:
-            return datetime.utcnow()
+            return datetime.now()
 
 
 def _fmt_dt(v: Any) -> str:
@@ -386,7 +386,7 @@ async def _push_alert(
                 "atype": int(alert_type),
                 "msg": message[:512],
                 "gids": ",".join(str(g) for g in guardians) if guardians else "",
-                "ct": datetime.utcnow(),
+                "ct": datetime.now(),
             },
         )
         await db.commit()
@@ -430,7 +430,7 @@ async def create_record(
     level = judge_level(value, scene)
     is_crisis = judge_crisis(value)
 
-    now = datetime.utcnow()
+    now = datetime.now()
     insert_sql = text(
         "INSERT INTO health_glucose_record "
         "(user_id, value, scene, level, is_crisis, measure_time, note, create_time) "
@@ -550,7 +550,7 @@ async def list_records(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    start = datetime.utcnow() - timedelta(days=days)
+    start = datetime.now() - timedelta(days=days)
     where = ["user_id=:uid", "measure_time>=:start"]
     params: Dict[str, Any] = {"uid": current_user.id, "start": start}
     if scene is not None:
@@ -615,7 +615,7 @@ async def get_stats(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    start = datetime.utcnow() - timedelta(days=days)
+    start = datetime.now() - timedelta(days=days)
     where = ["user_id=:uid", "measure_time>=:start"]
     params: Dict[str, Any] = {"uid": current_user.id, "start": start}
     if scene is not None:
@@ -691,7 +691,7 @@ async def list_alerts(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    start = datetime.utcnow() - timedelta(days=days)
+    start = datetime.now() - timedelta(days=days)
     total_row = (await db.execute(
         text(
             "SELECT COUNT(*) FROM health_glucose_alert "
@@ -777,7 +777,7 @@ async def get_ai_advice(
     本期不调用 LLM，避免外部依赖；前端可在此接口基础上自行扩展为流式 AI。
     返回结构稳定，包含必要的"仅供参考"免责声明。
     """
-    start = datetime.utcnow() - timedelta(days=days)
+    start = datetime.now() - timedelta(days=days)
     rows = (await db.execute(
         text(
             "SELECT value, scene, level, measure_time FROM health_glucose_record "
@@ -863,7 +863,7 @@ async def get_report_meta(
     return {
         "user_id": current_user.id,
         "period_days": days,
-        "generated_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "stats": stats.model_dump(),
         "ai_advice": advice.model_dump(),
         "share_url": f"/glucose/report?days={days}&token=preview",
@@ -1021,7 +1021,7 @@ async def admin_purge_all_glucose_data(
     logger.warning(
         "[GLUCOSE-V1] ⚠️ admin_purge_all_glucose_data executed: %s", deleted
     )
-    return {"purged": True, "counts": deleted, "executed_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}
+    return {"purged": True, "counts": deleted, "executed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
 
 @router.put("/reminder", response_model=GlucoseReminderConfig)
@@ -1038,7 +1038,7 @@ async def set_reminder(
         "uid": current_user.id,
         "b": body.breakfast, "l": body.lunch, "d": body.dinner,
         "e": 1 if body.enabled else 0,
-        "ut": datetime.utcnow(),
+        "ut": datetime.now(),
     }
     if exists:
         await db.execute(
@@ -1284,14 +1284,14 @@ def _cache_get(key: str, ttl_s: int) -> Optional[Dict[str, Any]]:
     item = _ai_cache.get(key)
     if not item:
         return None
-    if ttl_s > 0 and (datetime.utcnow().timestamp() - item.get("_ts", 0)) > ttl_s:
+    if ttl_s > 0 and (datetime.now().timestamp() - item.get("_ts", 0)) > ttl_s:
         _ai_cache.pop(key, None)
         return None
     return item
 
 
 def _cache_set(key: str, data: Dict[str, Any]) -> None:
-    data["_ts"] = datetime.utcnow().timestamp()
+    data["_ts"] = datetime.now().timestamp()
     _ai_cache[key] = data
 
 
@@ -1360,7 +1360,7 @@ async def ai_explain_single(
         ai_text = _fallback_single_explain(rec.value, rec.scene, rec.level)
         used_model = "rules-fallback"
 
-    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     payload = {
         "from_cache": False,
         "model": used_model,
@@ -1380,7 +1380,7 @@ async def ai_explain_trend(
 ):
     """[PRD §5.1.4] AI 解读血糖趋势。"""
     days = _range_to_days(body.range)
-    start = datetime.utcnow() - timedelta(days=days)
+    start = datetime.now() - timedelta(days=days)
 
     rows = (await db.execute(
         text(
@@ -1452,7 +1452,7 @@ async def ai_explain_trend(
         summary, trend, advice = rule["summary"], rule["trend"], rule["advice"]
         used_model = "rules-fallback"
 
-    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     _cache_set(cache_key, {
         "summary": summary, "trend": trend, "advice": advice,
         "model": used_model, "generated_at": now_str,
@@ -1549,7 +1549,7 @@ async def _ensure_glucose_prompts(db: AsyncSession) -> None:
                 ),
                 {
                     "k": key, "n": GLUCOSE_PROMPT_NAMES[key],
-                    "c": content, "ct": datetime.utcnow(),
+                    "c": content, "ct": datetime.now(),
                 },
             )
         await db.commit()
@@ -1623,7 +1623,7 @@ async def admin_update_prompt(
                 "k": prompt_key, "v": int(cur[1] or 1),
                 "c": old_content,
                 "u": body.updated_by or "admin",
-                "t": datetime.utcnow(),
+                "t": datetime.now(),
             },
         )
     except Exception as exc:
@@ -1636,7 +1636,7 @@ async def admin_update_prompt(
         ),
         {
             "c": body.content, "n": body.name, "v": new_ver,
-            "u": body.updated_by or "admin", "t": datetime.utcnow(),
+            "u": body.updated_by or "admin", "t": datetime.now(),
             "k": prompt_key,
         },
     )
@@ -1676,7 +1676,7 @@ async def admin_test_prompt(
             .replace("{has_diabetes}", "是")
             .replace("{value}", str(value))
             .replace("{period_label}", SCENE_NAME.get(scene, "随机"))
-            .replace("{measured_at}", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
+            .replace("{measured_at}", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             .replace("{level_label}", LEVEL_LABEL.get(level, "正常"))
         )
         ai_text = await _call_ai_with_timeout(prompt_text, timeout_s=6.0)

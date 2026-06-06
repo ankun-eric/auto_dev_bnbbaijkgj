@@ -38,7 +38,7 @@ class HealthMetricRecord(Base):
         comment="manual/huawei_watch/xiaomi_band/glucometer/bp_meter/scale",
     )
     measured_at = mapped_column(DateTime, nullable=False, comment="测量时间")
-    created_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = mapped_column(DateTime, default=datetime.now, nullable=False)
     created_by = mapped_column(BigInteger, nullable=False, comment="录入用户ID")
 
     __table_args__ = (
@@ -63,7 +63,7 @@ class DeviceBinding(Base):
     refresh_token = mapped_column(Text, nullable=True)
     token_expires_at = mapped_column(DateTime, nullable=True)
     status = mapped_column(String(16), nullable=False, default="active", comment="active/expired/unbound")
-    bound_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    bound_at = mapped_column(DateTime, default=datetime.now, nullable=False)
     last_sync_at = mapped_column(DateTime, nullable=True)
 
     __table_args__ = (

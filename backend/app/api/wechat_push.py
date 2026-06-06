@@ -35,7 +35,7 @@ async def _set_config(db: AsyncSession, key: str, value: str, config_type: str =
     config = result.scalar_one_or_none()
     if config:
         config.config_value = value
-        config.updated_at = datetime.utcnow()
+        config.updated_at = datetime.now()
     else:
         db.add(SystemConfig(config_key=key, config_value=value, config_type=config_type, description=key))
 

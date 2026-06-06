@@ -36,7 +36,7 @@ async def product_with_stores():
         db.add(product)
         await db.flush()
 
-        ts = datetime.utcnow().timestamp()
+        ts = datetime.now().timestamp()
         # Store A: 上海人民广场 ~ (31.231706, 121.472644)
         store_a = MerchantStore(
             store_name="A 人民广场店",

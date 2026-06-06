@@ -209,7 +209,7 @@ async def test_tc_fmv2_05_delete_s3_blocked(client: AsyncClient):
             inviter_user_id=uid,
             member_id=mid,
             status="pending",
-            expires_at=datetime.utcnow() + timedelta(hours=12),
+            expires_at=datetime.now() + timedelta(hours=12),
             relation_type="父亲",
             nickname="邀请中",
         ))
@@ -238,7 +238,7 @@ async def test_tc_fmv2_06_reinvite_cancels_old(client: AsyncClient):
             inviter_user_id=uid,
             member_id=mid,
             status="rejected",
-            expires_at=datetime.utcnow() + timedelta(hours=12),
+            expires_at=datetime.now() + timedelta(hours=12),
             relation_type="父亲",
             nickname="已拒绝",
         ))
@@ -476,7 +476,7 @@ async def test_tc_fmv2_13_s5_expired_deletable(client: AsyncClient):
             inviter_user_id=uid,
             member_id=mid,
             status="pending",
-            expires_at=datetime.utcnow() - timedelta(hours=1),
+            expires_at=datetime.now() - timedelta(hours=1),
             relation_type="父亲",
             nickname="过期",
         ))

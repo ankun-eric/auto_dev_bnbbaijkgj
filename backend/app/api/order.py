@@ -29,7 +29,7 @@ router = APIRouter(prefix="/api/orders", tags=["订单"])
 
 
 def _generate_order_no() -> str:
-    ts = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    ts = datetime.now().strftime("%Y%m%d%H%M%S")
     rand = "".join(random.choices(string.digits, k=6))
     return f"ORD{ts}{rand}"
 
@@ -165,7 +165,7 @@ async def cancel_order(
         raise HTTPException(status_code=400, detail="该订单无法取消")
 
     order.order_status = OrderStatus.cancelled
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now()
 
     if order.points_deduction > 0:
         current_user.points += order.points_deduction
@@ -253,9 +253,9 @@ async def verify_order(
 
     order.order_status = OrderStatus.completed
     order.payment_status = PaymentStatus.paid
-    order.verified_at = datetime.utcnow()
+    order.verified_at = datetime.now()
     order.verified_by = current_user.id
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now()
 
     pr = PointsRecord(
         user_id=order.user_id,

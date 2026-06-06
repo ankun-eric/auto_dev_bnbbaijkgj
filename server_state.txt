@@ -1,0 +1,2049 @@
+=== nginx_conf ===
+worker_processes auto;
+events {
+    worker_connections 1024;
+}
+http {
+    server_names_hash_bucket_size 128;
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        ''      close;
+    }
+
+    client_max_body_size 100m;
+
+    # ===== Default server (newbb.test.bangbangvip.com) =====
+    server {
+        listen 80;
+        server_name newbb.test.bangbangvip.com;
+        resolver 127.0.0.11 valid=10s ipv6=off;
+
+        location /.well-known/acme-challenge/ {
+            root /var/www/certbot;
+        }
+        location / {
+            return 301 https://$host$request_uri;
+        }
+    }
+
+    server {
+        listen 443 ssl;
+        server_name newbb.test.bangbangvip.com;
+        resolver 127.0.0.11 valid=10s ipv6=off;
+
+        ssl_certificate     /etc/nginx/ssl/fullchain.pem;
+        ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+        ssl_protocols       TLSv1.2 TLSv1.3;
+        ssl_ciphers         HIGH:!aNULL:!MD5;
+
+        location /.well-known/acme-challenge/ {
+            root /var/www/certbot;
+        }
+        include /etc/nginx/conf.d/*.conf;
+    }
+
+    # ===== yumingtest project =====
+    server {
+        listen 80;
+        server_name yumingtest.noob-ai.test.bangbangvip.com;
+        resolver 127.0.0.11 valid=10s ipv6=off;
+
+        location /.well-known/acme-challenge/ {
+            root /var/www/certbot;
+        }
+        location / {
+            return 301 https://$host$request_uri;
+        }
+    }
+
+    server {
+        listen 443 ssl;
+        server_name yumingtest.noob-ai.test.bangbangvip.com;
+        resolver 127.0.0.11 valid=10s ipv6=off;
+
+        ssl_certificate     /etc/nginx/ssl/yumingtest.noob-ai.test.bangbangvip.com.le.fullchain.pem;
+        ssl_certificate_key /etc/nginx/ssl/yumingtest.noob-ai.test.bangbangvip.com.le.privkey.pem;
+        ssl_protocols       TLSv1.2 TLSv1.3;
+        ssl_ciphers         HIGH:!aNULL:!MD5;
+    }
+
+    # ===== Project: 538865dd-add6-44d3-ad7f-d1ff839f1e04 =====
+    server {
+        listen 80;
+        server_name 538865dd-add6-44d3-ad7f-d1ff839f1e04.noob-ai.test.bangbangvip.com;
+        return 301 https://$host$request_uri;
+    }
+
+    server {
+        listen 443 ssl;
+        server_name 538865dd-add6-44d3-ad7f-d1ff839f1e04.noob-ai.test.bangbangvip.com;
+        resolver 127.0.0.11 valid=10s ipv6=off;
+
+        ssl_certificate     /etc/nginx/ssl/wildcard.noob-ai.test.bangbangvip.com.crt;
+        ssl_certificate_key /etc/nginx/ssl/wildcard.noob-ai.test.bangbangvip.com.key;
+        ssl_protocols       TLSv1.2 TLSv1.3;
+        ssl_ciphers         HIGH:!aNULL:!MD5;
+
+        location /api/ {
+            set $backend 538865dd-add6-44d3-ad7f-d1ff839f1e04-backend;
+            proxy_pass http://$backend:8000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 86400s;
+            client_max_body_size 100m;
+        }
+
+        location /actuator/ {
+            set $backend 538865dd-add6-44d3-ad7f-d1ff839f1e04-backend;
+            proxy_pass http://$backend:8000;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location / {
+            set $frontend 538865dd-add6-44d3-ad7f-d1ff839f1e04-frontend;
+            proxy_pass http://$frontend:3000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+
+
+    # ===== Project: 1f2b22da-528e-4e13-acee-6511a7b5b172 =====
+    server {
+        listen 80;
+        server_name 1f2b22da-528e-4e13-acee-6511a7b5b172.noob-ai.test.bangbangvip.com;
+        return 301 https://$host$request_uri;
+    }
+
+    server {
+        listen 443 ssl;
+        server_name 1f2b22da-528e-4e13-acee-6511a7b5b172.noob-ai.test.bangbangvip.com;
+        resolver 127.0.0.11 valid=10s ipv6=off;
+
+        ssl_certificate     /etc/nginx/ssl/wildcard.noob-ai.test.bangbangvip.com.crt;
+        ssl_certificate_key /etc/nginx/ssl/wildcard.noob-ai.test.bangbangvip.com.key;
+        ssl_protocols       TLSv1.2 TLSv1.3;
+        ssl_ciphers         HIGH:!aNULL:!MD5;
+
+        include /etc/nginx/conf.d/1f2b22da-528e-4e13-acee-6511a7b5b172.location;
+    }
+
+
+    # ===== noob_ai project (auto-deploy) =====
+    include /etc/nginx/conf.d/*.server;
+    include /etc/nginx/conf.d/noob_ai.server;
+    include /etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.server;
+
+    # ===== wildcard fallback: *.noob-ai.test.bangbangvip.com (WoTrus) =====
+    server {
+        listen 80;
+        server_name *.noob-ai.test.bangbangvip.com noob-ai.test.bangbangvip.com;
+        return 301 https://$host$request_uri;
+    }
+
+    server {
+        listen 443 ssl;
+        server_name *.noob-ai.test.bangbangvip.com noob-ai.test.bangbangvip.com;
+        resolver 127.0.0.11 valid=10s ipv6=off;
+
+        ssl_certificate     /etc/nginx/ssl/wildcard.noob-ai.test.bangbangvip.com.crt;
+        ssl_certificate_key /etc/nginx/ssl/wildcard.noob-ai.test.bangbangvip.com.key;
+        ssl_protocols       TLSv1.2 TLSv1.3;
+        ssl_ciphers         HIGH:!aNULL:!MD5;
+
+                include /etc/nginx/conf.d/*.conf;  # (enabled for new projects)
+    }
+
+
+    # ===== wildcard fallback: *.noob-ai.test.bangbangvip.com (WoTrus) =====
+    server {
+        listen 80;
+        server_name *.noob-ai.test.bangbangvip.com noob-ai.test.bangbangvip.com;
+        return 301 https://$host$request_uri;
+    }
+
+    server {
+        listen 443 ssl;
+        server_name *.noob-ai.test.bangbangvip.com noob-ai.test.bangbangvip.com;
+        resolver 127.0.0.11 valid=10s ipv6=off;
+
+        ssl_certificate     /etc/nginx/ssl/wildcard.noob-ai.test.bangbangvip.com.crt;
+        ssl_certificate_key /etc/nginx/ssl/wildcard.noob-ai.test.bangbangvip.com.key;
+        ssl_protocols       TLSv1.2 TLSv1.3;
+        ssl_ciphers         HIGH:!aNULL:!MD5;
+
+        # include /etc/nginx/conf.d/*.conf; (disabled by wildcard fix)
+    }
+
+
+    # ===== Project: e15e5f7c-bd14-422e-a830-440bf08a200d (auto-generated) =====
+    server {
+        listen 80;
+        server_name e15e5f7c-bd14-422e-a830-440bf08a200d.noob-ai.test.bangbangvip.com;
+        return 301 https://$host$request_uri;
+    }
+
+    server {
+        listen 443 ssl http2;
+        server_name e15e5f7c-bd14-422e-a830-440bf08a200d.noob-ai.test.bangbangvip.com;
+        resolver 127.0.0.11 valid=10s ipv6=off;
+
+        ssl_certificate     /etc/nginx/ssl/wildcard.noob-ai.test.bangbangvip.com.crt;
+        ssl_certificate_key /etc/nginx/ssl/wildcard.noob-ai.test.bangbangvip.com.key;
+        ssl_protocols       TLSv1.2 TLSv1.3;
+        ssl_ciphers         HIGH:!aNULL:!MD5;
+
+        location /api/ {
+            set $backend e15e5f7c-bd14-422e-a830-440bf08a200d-backend;
+            proxy_pass http://$backend:8000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location / {
+            set $frontend e15e5f7c-bd14-422e-a830-440bf08a200d-frontend;
+            proxy_pass http://$frontend:3000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+
+}
+
+=== confd ===
+total 140
+drwxrwxr-x  3 ubuntu ubuntu 12288 Jun  6 12:36 .
+drwxrwxr-x 14 ubuntu ubuntu  4096 Jun  6 10:03 ..
+-rw-rw-r--  1 ubuntu ubuntu  1254 Jun  4 15:38 0451a430-e3c8-49e2-b627-329938d2313d.conf
+-rw-rw-r--  1 ubuntu ubuntu  1258 Jun  4 16:15 1f2b22da-528e-4e13-acee-6511a7b5b172.location
+-rw-rw-r--  1 ubuntu ubuntu  2441 May 28 19:03 20d0760a-5230-4867-a343-a91a95e05d50.conf
+-rw-rw-r--  1 ubuntu ubuntu  1771 Jun  4 12:36 2c2b48f8-c6fa-4411-b719-8d910baf4f9a.server
+-rw-rw-r--  1 ubuntu ubuntu  2441 May 28 19:03 309c268a-80c8-431f-9747-e2c53ada724f.conf
+-rw-rw-r--  1 ubuntu ubuntu  2026 Jun  2 13:22 3c3ddda4-aa5d-4d34-a40e-c2f886ed6186.conf.disabled
+-rw-rw-r--  1 ubuntu ubuntu  3480 Jun  5 14:31 4ad2bc0a-9c36-4b60-9c81-69e945e53cc4.conf.route
+-rw-rw-r--  1 ubuntu ubuntu  2379 Jun  4 18:35 538865dd-add6-44d3-ad7f-d1ff839f1e04.location
+-rw-rw-r--  1 ubuntu ubuntu  1143 May 28 19:03 5fa64f53-c6e8-443c-9a5c-611e554ddde1.conf
+-rw-rw-r--  1 ubuntu ubuntu  2274 May 28 19:04 617ba922-acf8-4859-9737-1854bad08497.conf
+-rw-rw-r--  1 ubuntu ubuntu  1909 Jun  5 13:34 622c312c-ea3e-4c32-af33-9836db929371.server
+-rw-rw-r--  1 ubuntu ubuntu  2441 May 28 19:03 6333c7ee-e664-4874-acb1-75365bd58709.conf
+-rw-rw-r--  1 ubuntu ubuntu  3555 May 31 23:06 6b099ed3-7175-4a78-91f4-44570c84ed27.conf.disabled.1780486562
+-rw-rw-r--  1 ubuntu ubuntu  2472 Jun  6 01:46 6b099ed3-7175-4a78-91f4-44570c84ed27.conf.disabled.1780681956
+-rw-rw-r--  1 ubuntu ubuntu  2471 Jun  6 03:55 6b099ed3-7175-4a78-91f4-44570c84ed27.server
+-rw-rw-r--  1 ubuntu ubuntu  2155 Jun  4 12:59 745ea1f0-7b9d-449c-bd36-a2e4a2599d06.server
+-rw-rw-r--  1 ubuntu ubuntu  2441 May 28 19:03 76078d4e-cf0a-40d0-92bc-ad40ea4436b2.conf
+-rw-rw-r--  1 ubuntu ubuntu  2441 May 28 19:03 85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf
+-rw-r--r--  1 ubuntu ubuntu  1516 Jun  4 13:15 911e7350-7584-4898-bb92-ac568a699575.server
+-rw-rw-r--  1 ubuntu ubuntu  1346 Jun  2 01:38 9782217d-bbe9-45df-b57b-6f1db576316c.conf.disabled
+-rw-r--r--  1 root   root    2843 Jun  2 00:49 9f0604d2-45b2-41c9-ac88-7a317a80702f.conf.bak
+-rw-rw-r--  1 ubuntu ubuntu  1713 Jun  6 12:36 a76689d0-e683-4127-a837-c4db7cd0687d.server
+-rw-rw-r--  1 ubuntu ubuntu  2610 Jun  4 13:11 b04670f8-ef50-4fcc-92b5-e25f73121b54.server
+-rw-rw-r--  1 ubuntu ubuntu  1516 Jun  5 07:52 dce395b9-f2ce-4853-8c63-a7ccdfe5793a.server
+-rw-rw-r--  1 ubuntu ubuntu   784 May 28 17:44 deploy_test.conf
+drwxr-xr-x  2 root   root    4096 Apr 17 00:30 gateway-routes
+-rw-r--r--  1 ubuntu ubuntu  3939 Jun  4 16:27 noob_ai.server
+-rw-rw-r--  1 ubuntu ubuntu    18 Jun  1 18:01 test_gateway.txt
+-rw-rw-r--  1 ubuntu ubuntu  1632 May 28 16:44 test_line_prj.conf
+-rw-rw-r--  1 ubuntu ubuntu  1230 Jun  1 21:32 yumingtest.conf.bak
+-rw-rw-r--  1 ubuntu ubuntu  1230 Jun  1 04:50 yumingtest.conf.disabled
+
+
+=== proj_dir ===
+$null
+0
+add_apk_route.py
+_add_downloads_route.sh
+admin_pages_raw.txt
+_admin_rebuild2.py
+admin-web
+admin_web_src.tar.gz
+admin_web_table_layout_fix.tar.gz
+ai_home_check.html
+_ai_home_config_414.json
+all_routes_extracted.json
+all_routes.json
+analyze_results.py
+_android_build_363.log
+_android_build_363.py
+_android_tag.txt
+apk_build_log2.txt
+apk_build_log.txt
+apk_build_remote.txt
+_apk_build_tag.txt
+apk_check2.txt
+apk_check3.txt
+apk_check4.txt
+apk_check5.txt
+apk_check.txt
+apk_download
+_apk_download_url.txt
+apk_err2.txt
+apk_err.txt
+_apk_invite_bugfix_url.txt
+_apk_name.txt
+apk_status.txt
+_apk_tag.txt
+_apk_upload.py
+_apk_upload_v2.py
+_apk_version.txt
+app_20260602_110933_3b0a.apk
+app_aihome_20260602-095121_387c.apk
+_append_index.py
+app_health_plan_20260603_022916_9e0d.apk
+app_paymentconfig_20260503_231130_e313.apk
+app_pointsskin_20260514_180959_434b.apk
+_archive_list_ui_optim_h5.tar.gz
+askpass.bat
+assets_binni_xiaokang_logo.png
+att1.txt
+att2.txt
+attachment1.docx
+attachment2.docx
+backend
+backend_app_routes_raw.txt
+_backend_app.tar.gz
+backend.bak_20260530_103502
+backend.bak_20260530_215913
+backend.bak_20260603_173859
+backend_routes_raw2.txt
+backend_routes_raw.txt
+backend_routes.txt
+backend_update.tar.gz
+_baseline_ai_home_optim.txt
+_baseline_bp_ai_jump.txt
+_baseline_care_ai_home.txt
+_baseline_commit.txt
+_baseline_commit_v12.txt
+_baseline_guardian_bugfix.txt
+_baseline_health_plan_v1.txt
+_baseline_health_profile_self_complete.txt
+_baseline_invite_bugfix.txt
+_batch_check_results.json
+_batch_url_check.py
+_be_build.log
+_bell_commit_msg.txt
+_bell_deploy.py
+_bell_ssh.py
+_be_pip2.log
+_be_pip_install.log
+be_routes.txt
+bini_health_android-prd429-v20260508-232412-dkhf.apk
+bini_health_android-v20260428-204908-23d0.apk
+bini_health_android-v20260428-212613-Gm72.apk
+bini_health_android-v20260504-023553-87ac.apk
+bini_health_coupon_20260504_114911_54f0.apk
+_bug401_query_sample.log
+_bug401_query_sample.py
+_bug407_deploy.py
+_bug407_smoke.py
+_bug407_ssh.py
+_bug432_step0_smoke.py
+bug461_tests_run.log
+_bugfix_backend_archive.tar.gz
+_bugfix_backend.tar.gz
+_bugfix_h5_archive.tar.gz
+_bugfix_h5web.tar.gz
+bugfix_member_compare_1779777815.tar.gz
+_bugfix_pytest2.log
+_bugfix_pytest3.log
+_bugfix_pytest4.log
+_bugfix_pytest5.log
+_bugfix_pytest6.log
+_bugfix_pytest.log
+_build_apk_bug410.log
+_build_apk_bug410.py
+_build_apk_bug410_resume.py
+_build_apk_bug432_fix.py
+_build_apk_drawer_v12.log
+_build_apk_drawer_v12.py
+build_apk_prd03.log
+build_apk_prd03_v2.log
+_build_apk_prd420.log
+_build_apk_prd420.py
+_build_apk_prd433.log
+_build_apk_prd433.py
+_build_apk_prd433.stdout.log
+build_apk_promptcfg_20260514_run.log
+_build_apk_timezone_global_v3.py
+_build_apk_tizhi_optim_v1.log
+_build_apk_tizhi_optim_v1.py
+_build_apk_v3_log.txt
+_build_apk_v3_summary.json
+_build_app_367.log
+_build_app_367.py
+build_h5.sh
+build_ios_prd_aichat_home_grid_v1.log
+build_ios_promptcfg_20260514.log
+_build_ipa_bug410.log
+_build_ipa_bug410.py
+_build_ipa_bug410_resume.py
+_build_ipa_bug432_fix.py
+_build_ipa_prd420.log
+_build_ipa_prd420.py
+_build_ipa_prd433.log
+_build_ipa_prd433.py
+_build_ipa_prd433.stderr.log
+_build_ipa_prd433.stdout.log
+_build_ipa_timezone_global_v3.py
+_build_ipa_v3_log.txt
+_carecard_block.txt
+_carefix_backend.tar.gz
+_carefix_h5.tar.gz
+_carefix_remote_apply.sh
+_carehome_curr.html
+_cat_test.log
+check2_result.txt
+_check_405_fail.py
+_check_admin_basepath2.py
+_check_admin_basepath.py
+_check_admin_build_365.log
+_check_admin_build_365.py
+_check_admin_build.py
+_check_admin_env.py
+_check_admin_mount.py
+_check_admin_name.py
+_check_admin_seed_import.py
+_check_api_init.py
+check_api.py
+_check_apk_route.py
+_check_apk_url.py
+_check_artifacts.py
+_check_backend_log.py
+_check_backend_logs.py
+_check_be_logs.log
+_check_be_logs.py
+check_care_home.html
+_check_compose.py
+check_conf.py
+check_container.py
+check_critical.py
+_check_db_after_migrate.py
+check_db.py
+_check_deploy_dir.log
+_check_deploy_dir.py
+check_details.js
+check_dirs.py
+_check_dirty_data.py
+check_docs.html
+_check_failed_tests.py
+_check_family.js
+_check_gateway.py
+_check_h5_build.py
+_check_h5_layout.py
+_check_health2.py
+_check_health.py
+check_health.py
+_check_health_v12.py
+_check_internal2.py
+_check_internal3.py
+_check_internal.py
+_check_links_355.py
+_check_links_aihome.py
+_check_links_hr.py
+check_menu_schema.py
+check_meta2.py
+check_meta3.py
+check_meta.py
+_check_mount.py
+_check_nginx2.py
+_check_nginx_conf_full.py
+_check_nginx_final.py
+_check_nginx.py
+_check_nginx_routes2.py
+_check_nginx_routes.py
+check_old_404.py
+_check_proj.py
+_check_ready.py
+_check_remote_commit.py
+_check_remote_container2.py
+_check_remote_container.py
+_check_remote_layout_apk.py
+_check_remote_layout.py
+check_results_1.txt
+check_results_2.txt
+check_results_3.txt
+check_results_4.txt
+check_results_final.json
+_check_routes.py
+check_safety_rope.html
+_check_schema_changes.py
+check_session403.py
+check_session404.py
+check_srv2.py
+check_srv.py
+check_ssl.py
+_check_t02.py
+_check_test_failures.log
+_check_test_failures.py
+_check_test_failures_v2.log
+_check_tests.py
+_check_uploads_route.py
+check_urls_batch.py
+check_urls.js
+_check_v12_endpoints.py
+_check_v12_frontends.py
+_check_v13_502.log
+_check_v13_502.py
+_chk_apk_route.sh
+_chk_be_mount.py
+_chk_be_state.py
+_chk_db_cmd.txt
+_chk_dock.py
+_chk_failed2.py
+_chk_failed3.py
+_chk_failed.py
+_chk_fk2.py
+_chk_glucose.py
+_chk_gw2.py
+_chk_gw_downloads.sh
+_chk_gw.py
+_chk_hs_cols.py
+_chk_liming_del.py
+_chk_liming_http.py
+_chk_logs.py
+_chk_remote_purple.py
+_chk_schema.py
+_chk_status.py
+_chk_uploads.py
+_chk_url.py
+_chunk_safety_rope.js
+_clean_remote_disk.py
+_cleanup_legacy_constitution.py
+_cleanup.log
+_cleanup_truncated_apk.py
+_clear_pycache.py
+_commit_aihome_img_restore_docs.txt
+_commit_aihome_img_restore.txt
+_commit_care_med_self.txt
+_commit_msg_aihome_unify2.txt
+_commit_msg_aihome_unify_mp.txt
+_commit_msg_aihome_unify.txt
+_commit_msg_archive_404_fix.txt
+_commit_msg_archive_list_fix.txt
+_commit_msg_archive_mgr.txt
+_commit_msg_bg_align_docs.txt
+_commit_msg_bg_align_v1.txt
+_commit_msg_bp_detail_optim.txt
+_commit_msg_bp_tab.txt
+_commit_msg_bugfix2.txt
+_commit_msg_bugfix_v1.txt
+_commit_msg_care_optim.txt
+_commit_msg_care_v4_docs.txt
+_commit_msg_care_v4.txt
+_commit_msg_delete_member_healthdata.txt
+_commit_msg_empty_shell_ignore.txt
+_commit_msg_fmv1_docs.txt
+_commit_msg_fmv1.txt
+_commit_msg_glucose_v1.txt
+_commit_msg_glucose_v2.txt
+_commit_msg_h5_global_crash.txt
+_commit_msg_health_info_shared.txt
+_commit_msg_hr_align.txt
+_commit_msg_hr_rule.txt
+_commit_msg_hs_add_member_fix.txt
+_commit_msg_hsc_fix.txt
+_commit_msg_hs_device_stats2.txt
+_commit_msg_hs_device_stats.txt
+_commit_msg_hs_inline_polish.txt
+_commit_msg_hs_v2_alter.txt
+_commit_msg_invite_qrcode_docs.txt
+_commit_msg_invite_qrcode_unify.txt
+_commit_msg_invite_v11.txt
+_commit_msg_med_cross_profile2.txt
+_commit_msg_med_cross_profile.txt
+_commit_msg_mode_capsule.txt
+_commit_msg_my_guardian_card.txt
+_commit_msg_nickname_notnull.txt
+_commit_msg_prd444.txt
+_commit_msg_prd445_doc.txt
+_commit_msg_prd445.txt
+_commit_msg_safety_rope_deploy_fix.txt
+_commit_msg_safety_rope.txt
+_commit_msg_safety_rope_v2.txt
+_commit_msg_sleep_align.txt
+_commit_msg_slot_badge.txt
+_commit_msg_tizhi_optim_v1.txt
+_commit_msg.txt
+_commit_msg_v12.txt
+_commit_msg_v131.txt
+{console.log('TIMEOUT')
+_copy_to_vol.py
+_cp.log
+cursor_prompt_288_20260503200954.txt
+cursor_prompt_331_20260505100844.txt
+cursor_prompt_349_20260505191754.txt
+db_check_result.txt
+_dbg_bp_test.py
+_dbg.py
+_dbgrun2.py
+_dbg_run.py
+_dbgrun.py
+_db_migrate2.js
+_db_migrate.js
+_debug_push.py
+_debug_self_route.py
+_debug_t09.log
+_debug_t09.py
+_debug_test.py
+dedup_regions.py
+deep_diagnosis.py
+deploy
+_deploy_4items.log
+_deploy_address_nav_button.py
+deploy_addr_nav.log
+_deploy_admin_v2.log
+_deploy_admin_v2_run2.log
+deploy_admin_web.py
+deploy_admin_web_v2.py
+deploy_admin_web_v3.py
+_deploy_aihome_5bugs.py
+deploy_aihome_drug_identify_v1.log
+_deploy_aihome_img_restore.sh
+_deploy_ai_home_optim_final_v2.log
+_deploy_aihome_optim_v4.py
+_deploy_aihome_unify.py
+_deploy_ai_page_optim_v1_b.log
+_deploy_ai_page_optim_v1.log
+_deploy_ai_page_optim_v1.py
+_deploy_alipay_narrow.log
+_deploy_alipay_narrow.py
+_deploy_alipay_real_payment.py
+deploy_alipay_rsa_fix.log
+deploy_alipay_rsa_fix.py
+deploy_alipay_rsa_fix_v2.log
+deploy_alipay_rsa_fix_v2.py
+deploy_alipay_rsa_fix_v3.log
+deploy_alipay_rsa_fix_v3.py
+deploy_all.py
+_deploy_archive_404_fix.py
+_deploy_archive_list_fix.py
+_deploy_archive_list_ui_optim.log
+_deploy_archive_list_ui_optim.py
+_deploy_asset_url_bugfix.py
+deploy_asset_url.log
+deploy_bell_unified_v1.log
+_deploy_be_only.py
+_deploy_bg_align_v1.py
+_deploy_bp_ai_v1.py
+_deploy_bp_card_optim_v1.py
+_deploy_bp_tab_v1.log
+_deploy_bp_tab_v1.py
+_deploy_btnintent_v1.log
+_deploy_btnintent_v1.py
+_deploy_bug367.log
+_deploy_bug367.py
+_deploy_bug_369.log
+_deploy_bug_369.py
+_deploy_bug401_admin.py
+_deploy_bug401_h5.log
+_deploy_bug401_h5.py
+_deploy_bug401.log
+_deploy_bug401.py
+_deploy_bug401_v2.py
+_deploy_bug401_v3.log
+_deploy_bug401_v3.py
+_deploy_bug403.log
+_deploy_bug403.py
+_deploy_bug404.log
+_deploy_bug404.py
+_deploy_bug404_v2.log
+_deploy_bug404_v3.log
+_deploy_bug410.log
+_deploy_bug410.py
+_deploy_bug417_v2.py
+_deploy_bug419.log
+_deploy_bug419.py
+_deploy_bug428.log
+_deploy_bug428.py
+_deploy_bug431.py
+_deploy_bug432_fix.py
+_deploy_bug461.py
+deploy_bug461_run.log
+deploy_bug466_run.log
+deploy_bug470_redeploy.log
+deploy_bug470_run1.log
+deploy_bug470_test.log
+_deploy_bug_ai_home_archive_v1.log
+_deploy_bug_ai_home_archive_v1.py
+deploy_bugfix_336.log
+_deploy_bugfix_invite_null_member.log
+_deploy_bugfix_invite_null_member.py
+_deploy_bugfix_member_compare.log
+_deploy_bugfix_member_compare.py
+_deploy_bugfix_v1_20260603.log
+_deploy_bugfix_v12.log
+_deploy_bugfix_v12.py
+_deploy_bugmedv1.sh
+deploy_build.py
+_deploy_calendar_daily_orders.py
+_deploy_calendar_dashboard.py
+_deploy_callback_datatype_fix.py
+_deploy_care_card_be.py
+_deploy_care_v1.py
+_deploy_care_v4.sh
+_deploy_checkout_slot_grid.py
+_deploy_coupon_mall_bugfix.py
+_deploy_coupon_mall_p1bugfix.py
+_deploy_coupon_usable_bugfix.py
+_deploy_dashboard_grid9_364.py
+deploy_dashboard_v1.log
+_deploy_date_no_slot_bugfix.py
+_deploy_delete_member_healthdata.py
+_deploy_dm_out.log
+deploy_do.py
+_deploy_drawer_v12.log
+_deploy_drawer_v12.py
+_deploy_dualcard_v1.py
+_deploy_dual_identity_400.py
+_deploy_emergency_source_v1.log
+_deploy_emergency_source_v1.py
+deploy_exec.py
+_deploy_family_auth_mp.py
+_deploy_family_member_v2.py
+deploy_family_v2_r2.log
+deploy_family_v2_run.log
+deploy_fix.py
+_deploy_fmv1.py
+_deploy_funccard_v2_design_d_20260520.log
+deploy_git.sh
+_deploy_glucose_v2.py
+_deploy_glu_spo2_v1.py
+_deploy_guardian_bugfix_v1.log
+_deploy_guardian_bugfix_v1.py
+_deploy_guardian_bugfix_v2.log
+_deploy_guardian_bugfix_v2.py
+_deploy_guardian_mp_20260603.log
+_deploy_guardian_v131.log
+_deploy_guardian_v131.py
+_deploy_guardian_v13.py
+_deploy_guardian_v1.py
+_deploy_gwid_ephone_v1.log
+_deploy_gwid_ephone_v1.py
+_deploy_h5_admin_v2.py
+deploy_h5_admin_v2.sh
+_deploy_h5_appt_store_contact_20260505.py
+_deploy_h5_appt_store_contact_check.py
+_deploy_h5_basepath_bugfix.py
+_deploy_h5_bugfix.py
+_deploy_h5_bugmedv1.sh
+_deploy_h5_full.py
+_deploy_h5_pay_link_bugfix.py
+_deploy_h5_rebuild.py
+_deploy_h5_v2.log
+_deploy_h5_v2_run2.log
+_deploy_h5_v2_run3.log
+_deploy_h5_v2_run4.log
+_deploy_health_archive_mgr_v1.log
+_deploy_health_archive_mgr_v1.py
+_deploy_health_archive_optim_v1.py
+_deploy_health_archive_v1.log
+deploy_health_archive_v2_run.log
+_deploy_health_archive_v5.log
+_deploy_health_archive_v5.py
+deploy_health_guide.py
+_deploy_health_plan_v1.py
+deploy_health_v2.py
+_deploy_helper.py
+_deploy_home_safety_bugfix_v1.log
+_deploy_home_safety_bugfix_v1.py
+_deploy_home_safety_remark_v1.log
+_deploy_home_safety_remark_v1.py
+_deploy_home_safety_v1.log
+_deploy_home_safety_v1.py
+_deploy_home_safety_v2.py
+_deploy_hp_self_complete_bugfix_20260529.log
+_deploy_hp_tdz_fix.log
+_deploy_hp_tdz_fix.py
+_deploy_hs_add_member_fix.log
+_deploy_hs_add_member_fix.py
+_deploy_hs_alarm_v2_20260529.py
+_deploy_hs_alter_fix.py
+_deploy_hsc_ai_real_v1.py
+_deploy_hsc_fix_v1.log
+_deploy_hsc_fix_v1.py
+_deploy_hsc_fix_v2.log
+_deploy_hsc_fix_v2.py
+_deploy_hsc_optim_v3.py
+_deploy_hsc_optim_v3_run1.log
+_deploy_hsc_v31.py
+_deploy_hs_member_v21.py
+_deploy_hs_v2.log
+_deploy_hs_v2_revision.py
+deploy_idle_archive_v1.log
+_deploy_iguard_v13_restore.log
+_deploy_iguard_v13_restore.py
+_deploy_invite_bugfix_20260531.py
+_deploy_invite_card_v1.log
+_deploy_invite_card_v1.py
+_deploy_invite_qrcode_unify.py
+deploy_login_layout_363.log
+deploy_log.txt
+deploy_med_plan_entry_run2.log
+deploy_med_plan_entry_run3.log
+deploy_med_plan_entry_run4.log
+deploy_med_plan_entry_run5.log
+deploy_med_plan_entry_run6.log
+deploy_med_plan_entry_run.log
+_deploy_member_center_v2.log
+_deploy_member_center_v2.py
+_deploy_member_count_consistency_v1.py
+_deploy_member_family_v11_20260530.py
+_deploy_member_prd_v1_aligned.log
+_deploy_member_prd_v1_aligned.py
+_deploy_member_purple_theme_v1.log
+_deploy_member_purple_theme_v1.py
+deploy_membership_v1.log
+deploy_member_tab_v2_run.log
+_deploy_metric_card_unify_v1.py
+_deploy_mode_capsule.py
+_deploy_modify_appt.py
+_deploy_my_devices_v1.log
+_deploy_my_devices_v1.py
+deploy_new_features.py
+_deploy_nickname_notnull.py
+deploy_notice_feature.py
+deploy_now.py
+deploy_ocr_details.py
+deploy_optim_run1.log
+deploy_order_address.log
+_deploy_order_address_unify.py
+_deploy_order_cancel_redemption_sync.py
+deploy_order_enh.log
+_deploy_orders_pinned_columns_v1.py
+deploy_package.tar
+deploy_package.tar.gz
+_deploy_page_navigate_url_fix_v1.log
+_deploy_page_navigate_url_fix_v1.py
+_deploy_payment_method_normalize.py
+_deploy_pay_success_page.py
+deploy_points_skin_run.log
+deploy_port_check.py
+deploy_prd03_ios_build.log
+deploy_prd03_reschedule.log
+deploy_prd04_run.log
+deploy_prd05_run2.log
+deploy_prd05_run3.log
+deploy_prd05_run.log
+_deploy_prd365_order_dashboard.py
+_deploy_prd365_run2.log
+_deploy_prd365_run3.log
+_deploy_prd365_run.log
+_deploy_prd370.log
+_deploy_prd370.py
+_deploy_prd405.log
+_deploy_prd405.py
+_deploy_prd406.log
+_deploy_prd406.py
+_deploy_prd411.log
+_deploy_prd411.py
+_deploy_prd411_run.log
+_deploy_prd414.log
+_deploy_prd414.py
+_deploy_prd420.log
+_deploy_prd420.py
+_deploy_prd423.py
+_deploy_prd423_v2.py
+_deploy_prd423_v3.py
+_deploy_prd425.log
+_deploy_prd425.py
+_deploy_prd426.log
+_deploy_prd426.py
+_deploy_prd429.log
+_deploy_prd429.py
+_deploy_prd432.log
+_deploy_prd432.py
+_deploy_prd433.log
+_deploy_prd433.py
+_deploy_prd439.py
+_deploy_prd440.py
+_deploy_prd441.log
+_deploy_prd441.py
+_deploy_prd441_v2.log
+_deploy_prd441_v2.py
+_deploy_prd442.log
+_deploy_prd442.py
+_deploy_prd442_v2.py
+_deploy_prd443_full_migration.py
+_deploy_prd444_h5.log
+_deploy_prd444_h5.py
+_deploy_prd444_h5_v2_restore_ds.py
+_deploy_prd447.py
+_deploy_prd448.log
+_deploy_prd448.py
+_deploy_prd449.py
+deploy_prd455_run.log
+_deploy_prd_aihome_v1.log
+_deploy_prd_aihome_v1.py
+_deploy_prd_v12_fix.py
+_deploy_prd_v12.py
+deploy_prompt_config_v1_run.log
+deploy_prompt_config_v1_test2.log
+deploy_prompt_config_v1_test3.log
+deploy_prompt_config_v1_test4.log
+deploy_prompt_config_v1_test5.log
+deploy_prompt_config_v1_test.log
+_deploy_qn_autonext_v1.log
+_deploy_qn_autonext_v1.py
+_deploy_qn_content_v1.log
+_deploy_qn_content_v1.py
+_deploy_qn_drawer_v1.log
+_deploy_qn_drawer_v1.py
+_deploy_rebuy_399.log
+_deploy_rebuy_399.py
+_deploy_remote.py
+deploy_report_interpret_bugfix.py
+_deploy_reschedule_overdue.py
+deploy_result.txt
+deploy_run1.txt
+deploy_run_grid.log
+deploy_run_p1bugfix.txt
+_deploy_run.py
+deploy_run.py
+_deploy_scrollhint.py
+_deploy_self_complete_v1.log
+_deploy_self_complete_v1.py
+_deploy_self_route_fix_20260529.py
+_deploy_sftp.py
+deploy_skeleton_v1.log
+deploy_skeleton_v1.py
+_deploy_slot_badge.py
+deploy_slot_badge_run.log
+deploy_ssh.py
+_deploy_stage15.py
+_deploy_step2_400.py
+_deploy_step2.py
+_deploy_stores_fixed_cols_361.py
+_deploy_stores_fixed_cols_361_v2.py
+deploy_sync.py
+_deploy_table_layout_fix.log
+_deploy_table_layout_fix.py
+_deploy_tag_recommend_v1.log
+_deploy_tag_refactor_v1.log
+_deploy_tag_refactor_v1.py
+_deploy_tcm36_bugfix_20260520.log
+_deploy_tcm_card_msg_protocol_v1.log
+_deploy_tcm_card_msg_protocol_v1.py
+_deploy_test_aihome_unify_mp_20260601.py
+_deploy_test_bp_detail_v1.py
+_deploy_timezone_global.py
+_deploy_timezone_global_v3.py
+_deploy_tizhi_optim_v1.py
+_deploy_tmp
+_deploy_tz_bj_unified.py
+_deploy_tz_log.txt
+deploy_update.b64
+deploy_update.tar.gz
+deploy_upload_file.py
+_deploy_up.py
+deploy_v11_legacy.log
+_deploy_v11.log
+_deploy_v11_tail.txt
+_deploy_v12_fix_log.txt
+_deploy_v12_log.txt
+_deploy_v2_out2.txt
+_deploy_v2_out.txt
+_deploy_v2.py
+_deploy_v3_log.txt
+_deploy_verify_alipay_rsa_349.py
+_deploy_verify_alipay_rsa_349_v2.py
+_deploy_verify.py
+_deploy_wait.py
+_deploy_zero_order_pm_v22.py
+design-system
+_develop_all_base_commit_bugfix_v1.txt
+_develop_all_base_commit.txt
+_develop_base_commit_guardian_optim.txt
+_develop_start_commit_family_status_v4.txt
+_diag2.py
+_diag3.py
+_diag_404.log
+_diag_404_v12.py
+_diag_admin_502.py
+_diag_apk_route.py
+_diag_apk_route.sh
+_diag_archive_404.py
+_diag_be_v2.py
+_diag_nginx2.py
+_diag_nginx_apk.py
+_diag_nginx_route.py
+_diag_prd442.py
+_diag_prd442_v2.py
+_diag_prd442_v3.py
+_diag_pytest.py
+_diag_remote2.py
+_diag_remote3.py
+_diag_remote.py
+_diag_safety_rope.log
+_diag_safety_rope.py
+_diag_ssh.py
+_diff_prd420.txt
+_discover_gw.py
+_disk_check.log
+_disk_clean.log
+dist
+doc1.txt
+doc2.txt
+docker-compose.prod.yml
+docker-compose.yml
+_docker_cp_apk.py
+_docker_cp_backend.py
+_dockercp_into_gateway.py
+docs
+do_deploy.py
+do_pack.ps1
+downloads
+_dualcard_v1_patch.tar.gz
+_e2e_care_v1.py
+_e2e_health_plan.py
+_e2e_hp_login.py
+_e2e_hp_tdz.py
+_e2e_share_location.py
+error_screenshot.png
+_export_init_and_old_main.py
+extract_all_routes.py
+_extract_image_files.py
+extract_routes.js
+extract_routes.py
+FAIL
+fast_extract.py
+final_check.py
+final_report.md
+final_result.txt
+_final_smoke.log
+_final_smoke.py
+_final_smoke_safety_rope.py
+final_summary.txt
+final_test_report.md
+_final_verify.py
+final_verify.py
+_final_verify_result.json
+_final_verify.sh
+_find_admin.py
+_find_data_static_host.py
+_find_dl_mount.sh
+_find_downloads.py
+_find_gw2.py
+_find_gw3.py
+_find_gw_mount.sh
+_find_gw.py
+_find_mount_and_upload.py
+_find_mp_zip.sh
+_find_nginx_host.py
+_find_nginx_proc.py
+find_nginx.py
+_find_server_dirs.py
+_find_static_path.py
+_find_static.sh
+fix2_deploy.py
+_fix_502_final.py
+_fix_502.py
+_fix_502_sed.py
+_fix_502_v2.py
+_fix_502_v3.py
+_fix_admin_net.py
+_fix_apk_in_container.py
+_fix_apk_path_drawer_v12.py
+_fix_apk_path.py
+_fix_apk_upload_v3.py
+_fix_backend.js
+_fix_be_deploy.py
+_fix_brace.py
+fix_db_migration.py
+_fix_deploy.js
+_fix_deploy.py
+fix_deploy.py
+_fix_gw_net2.py
+_fix_gw_net.py
+_fix_gw_nginx_v1.py
+_fix_gw.py
+_fix_h5.js
+fix_health.py
+fix_health_result.txt
+_fix_hs_alter_20260528.py
+_fix_mp_dl.sh
+_fix_nginx_final.py
+_fix_nginx.py
+_fix_ports.py
+_fix_pytest_tc10.py
+_fix_restart_next.log
+_fix_restart_next.py
+_fix_tests_add_remark.py
+_fixture_self_complete_v2.py
+flutter_app
+flutter_self_complete_20260529_003510.zip
+_force_restart.py
+_force_upload.py
+frontend_upload.tar.gz
+_full_regress.py
+_full_repair_v2.log
+_full_repair_v2.py
+full_scan.py
+_gateway_mount.py
+gateway-routes.conf
+gen_01_splash_login.py
+gen_02_home.py
+gen_03_ai_chat.py
+gen_04_report.py
+gen_05_tcm.py
+gen_06_health_profile.py
+gen_07_services.py
+gen_08_health_plan.py
+gen_09_points_knowledge.py
+gen_10_profile_messages.py
+gen_11_admin.py
+gen_12_verify_cs.py
+gen_13_expert_sign.py
+_gen_ios_tag.py
+_gen_version.py
+_get_compose.py
+_get_err.py
+_git_commit.log
+_git_log_v3.log
+_git_push3.log
+_git_push4.log
+_git_push_bug419.log
+_git_push.log
+_git_push_prd411.log
+_git_status_pre_commit.txt
+_git_status_pre_deploy.txt
+_git_status.txt
+_glucose_changes_20260530.tar.gz
+_glucose_deploy_helper.py
+_glucose_v1_deploy.tar.gz
+_glucose_v2_remote.py
+_grep_upd.log
+_grep_v11_chunks.py
+_gw_inspect.py
+_gw_route.conf
+_gw_setup.py
+_h5_ai_home_check.py
+_h5_build1.log
+_h5_build_care.log
+_h5_check2.py
+_h5_check.py
+_h5_chk2.py
+h5_pages_raw.txt
+_h5_rebuild_v1.log
+_h5_rebuild_v1.py
+_h5_standalone.tar.gz
+h5-web
+h5-web.bak_20260530_103656
+h5-web.bak_20260530_162939
+h5-web.bak_20260530_215913
+h5-web.bak_20260603_173859
+h5-web-deploy.tar
+_health_check.py
+health_check_result.txt
+_host_main.py
+hotfix_deploy.py
+hotfix_rebuild.py
+_hp_after.html
+_hp_chunk_new.js
+_hp_page.html
+_hp_page.js
+_hr_deploy.py
+_hr_fetch2.py
+_hr_fetch.py
+_hr_probe.py
+_hr_rebuild.py
+_hr_test.py
+_hs_stats_compose.py
+_hs_stats_deploy.py
+_hs_stats_e2e.py
+_hs_stats_inspect.py
+_hs_stats_verify.py
+iguard_v2_patch.tar.gz
+_img_api_init.py
+_img_main.py
+_inject_carecard.py
+_inline_verify.log
+_inline_verify_order_address.py
+_inspect_gw2.py
+_inspect_gw.py
+_inspect_h5_container.py
+_inspect_h5.py
+_inspect_mp_route.py
+_ios_build_363.log
+_ios_build_363.py
+_ios_build_363_result.txt
+_ios_build_result_v3.json
+_ios_build_tag_current.txt
+_ios_build_tag.txt
+_ios_remote_file2.b64
+_ios_remote_file.b64
+_ios_tag_build.txt
+_ios_tag_new.txt
+_ios_tag.txt
+ios_tag.txt
+_ios_tag_v3.txt
+_ios_version_tag.txt
+ipa_download
+legacy_backup
+_liming_del_step2.py
+_liming_full_e2e.py
+_mcc_be.tar.gz
+_mcc_h5.tar.gz
+mem
+_member_purple_be.tar.gz
+_member_purple_h5.tar.gz
+miniprogram
+miniprogram_20260327_163902_ee97.zip
+miniprogram_20260329_122617_9985.zip
+miniprogram_20260404_212930_ZvPY.zip
+miniprogram_20260404_235920_73a5.zip
+miniprogram_20260407_133412_aidq.zip
+miniprogram_20260408_114910_809c.zip
+miniprogram_20260408_123603_937b.zip
+miniprogram_20260408_123718_f468.zip
+miniprogram_20260408_174325_f856.zip
+miniprogram_20260409_125527_df56.zip
+miniprogram_20260409_230548_2d04.zip
+miniprogram_20260409_231132_78t0.zip
+miniprogram_20260410_012921_b620.zip
+miniprogram_20260410_021818_9bb8.zip
+miniprogram_20260410_111600_fc1d.zip
+miniprogram_20260410_123240_a5a5.zip
+miniprogram_20260410_141847_d192.zip
+miniprogram_20260410_142407_af2c.zip
+miniprogram_20260410_144018_0b00.zip
+miniprogram_20260411_012037_801f.zip
+miniprogram_20260411_015837_21c0.zip
+miniprogram_20260411_015847_0191.zip
+miniprogram_20260411_020559_a730.zip
+miniprogram_20260411_160525_gpNS.zip
+miniprogram_20260411_182931_a9b6.zip
+miniprogram_20260411_220800_9026.zip
+miniprogram_20260412_014230_ce34.zip
+miniprogram_20260414_041944_0f14.zip
+miniprogram_20260415_225929_26df.zip
+miniprogram_20260430_132720_9AC8.zip
+miniprogram_20260501_021722_9267.zip
+miniprogram_20260504_023553_87ac.zip
+miniprogram_20260504_110335_417c.zip
+miniprogram_20260504_113934_be3d.zip
+miniprogram_20260505_101443_9124.zip
+miniprogram_20260505_102713_4233.zip
+miniprogram_20260510_131939_75c2.zip
+miniprogram_20260517_023326_bug_report_interpret.zip
+miniprogram_20260517_110717_f4fc_timezone_global.zip
+miniprogram_20260517_111014_844a_timezone_global.zip
+miniprogram_20260517_123547_1156.zip
+miniprogram_20260517_144324_c76c.zip
+miniprogram_20260517_144414_5aff.zip
+miniprogram_20260520_011552_0244.zip
+miniprogram_20260520_011731_87e1.zip
+miniprogram_20260520_011858_1a48.zip
+miniprogram_20260523_123833_10a2.zip
+miniprogram_20260523_230121_4564.zip
+miniprogram_20260525_011224_e0b8.zip
+miniprogram_20260525_011507_651f.zip
+miniprogram_20260525_114327_948f.zip
+miniprogram_20260526_144955_7480.zip
+miniprogram_20260531_233938_f348.zip
+miniprogram_20260601_225607_3f7e.zip
+miniprogram_20260601_232958_35ff.zip
+miniprogram_20260601_234926_7f1c.zip
+miniprogram_20260602_004123_b1e4.zip
+miniprogram_20260602_011558_a1f4.zip
+miniprogram_20260602_110853_4600.zip
+miniprogram_addressv2_20260505_023951.zip
+miniprogram_aihome_input_20260602_163245_5d6b.zip
+miniprogram_aihome_input_hint_20260602_131319_789a.zip
+miniprogram_aihome_scrollhint_20260602_192630_00a3.zip
+miniprogram_aihome_share_20260602_095051_7f4f.zip
+miniprogram_aihome_unify_20260601_131144_176d.zip
+miniprogram_archive_mgr_20260529_155859_16e2.zip
+miniprogram_archive_mgr_20260529_160056_f596.zip
+miniprogram_archive_path_fix_20260521_023145_upri.zip
+miniprogram_archive_path_fix_20260521_023817_jijl.zip
+miniprogram_asseturl_20260505_013947_ea96.zip
+miniprogram_book_after_pay_20260503_203459_5d02.zip
+miniprogram_bug367_20260507_112011.zip
+miniprogram_bug403_20260507_171712_76b1.zip
+miniprogram_bug403_20260507_171804_c6c0.zip
+miniprogram_bug410_20260508_115714_82be.zip
+miniprogram_bug432fix_20260509_184817_1311.zip
+miniprogram_bugfix_v1_20260603_152053_34d9.zip
+miniprogram_bugmedv1_20260521_224213_ca02.zip
+miniprogram_bug_report_interpret_20260517_022444_1f8c.zip
+miniprogram_cards_v2_20260503_190523.zip
+miniprogram_care_ai_home_20260527_171631_9cf8.zip
+miniprogram_care_optim_v1_20260531_183026_a270.zip
+miniprogram_care_optim_v4_20260531_230353_beff.zip
+miniprogram_care_optim_v4_20260531_230520_3390.zip
+miniprogram_carev1_20260527_133942_b1b1.zip
+miniprogram_coupon_mall_20260504_130850_82ab.zip
+miniprogram_coupon_mall_p1bugfix_20260504_144953_8c4f.zip
+miniprogram_coupon_mall_p1bugfix_20260504_145930_428d.zip
+miniprogram_family_auth_20260518_104142_19bf.zip
+miniprogram_family_auth_20260518_104321_70f6.zip
+miniprogram_family_member_optim_20260601_133914.zip
+miniprogram_family_status_v4_20260603_172108_70d6.zip
+miniprogram_glu_spo2_20260602_104446_679e.zip
+miniprogram_h5pay_20260504_122503_d91d.zip
+miniprogram_h5pay_20260504_141453_c586.zip
+miniprogram_health_plan_v1_20260603_021815_e7a1.zip
+miniprogram_login_layout_20260506_003000_ef21.zip
+miniprogram_med_plan_interact_20260518_145235_3628.zip
+miniprogram_member_count_consistency_20260531_184756_d2ec.zip
+miniprogram_member_free_20260527_012314_ff60.zip
+miniprogram_mode_capsule_20260531_160617_3cbf.zip
+miniprogram_paymentconfig_20260503_225242_36e2.zip
+miniprogram_pointsskin_20260514_180016_3846.zip
+miniprogram_prd370_20260507_120144_9ac4.zip
+miniprogram_prd420_20260508_173532_91c8.zip
+miniprogram_prd429_20260508_231515_01eb.zip
+miniprogram_prd432_20260509_005427_4303.zip
+miniprogram_prd432_20260509_005614_89ad.zip
+miniprogram_prd433_20260509_153717_863f.zip
+miniprogram_prd440_20260510_013308_ccbb.zip
+miniprogram_prd442_20260510110715_72eb.zip
+miniprogram_prd442_20260510110836_b715.zip
+miniprogram_prd442_20260510112332_0623.zip
+miniprogram_prd442_20260510112440_544e.zip
+miniprogram_prd443_20260510114745_be9e.zip
+miniprogram_promptcfg_20260514_221544_f82a.zip
+miniprogram_promptcfg_20260514_221830_4fc2.zip
+miniprogram_rebuy_20260507_154249_5fbd.zip
+miniprogram_releases
+miniprogram_reschedule_20260504_223605_6fdd.zip
+miniprogram_safety_rope_20260603_020052_e2bb.zip
+miniprogram_self_complete_20260529_003441.zip
+miniprogram_sleep_align_20260602_115253_f590.zip
+miniprogram_slot_badge_20260504_162259_c188.zip
+miniprogram_slot_badge_20260504_162603_bea2.zip
+miniprogram_slot_grid_20260504_152919_cf2b.zip
+miniprogram_tz_bj_20260530_110512_d458.zip
+miniprogram_v2.tar.gz
+_mp_aihome_zip_name.txt
+_mp_archive_mgr_url.txt
+_mp_bp_ai_url.txt
+_mp_bugfix_v1_url.txt
+_mp_bugfix_v1_zipname.txt
+_mp_care_optim_url.txt
+_mp_carev1_url.txt
+_mp_care_v4_url.txt
+_mp_family_auth_v1_url.txt
+_mp_fmv1_zip_name.txt
+_mp_health_plan_checkin_v1_20260602-224445.zip
+_mp_health_plan_v1_url.txt
+_mp_health_plan_v1_zipname.txt
+_mp_health_plan_zipname.txt
+_mp_invite_bugfix_url.txt
+_mp_med_plan_interact_v1_url.txt
+_mp_member_v2_zip.txt
+_mp_optim_v1_url.txt
+_mp_pack_deploy.py
+_mp_pack_zipname.txt
+_mp_pkg_inspect2.py
+_mp_pkg_inspect.py
+_mp_safety_rope_url.txt
+_mp_scrollhint_zipname.txt
+_mp_sleep_align_url.txt
+_mp_status_v4_zipname.txt
+_mp_unify_zip_name.txt
+_mp_zip_final_name.txt
+_mp_zip_name_aihome.txt
+_mp_zip_name.txt
+_mp_zip_url.txt
+nginx.conf
+noob_brain_test.py
+noob_fast_test.py
+noob_test_final_report_20260606.md
+noob_test_report_20260605.md
+noob_test_report_REQ-20260605-002.md
+noob_test_report_v2_20260606.md
+openapi.json
+_orig_schema.py
+package.json
+package-lock.json
+packages
+_pack_and_upload_miniprogram.py
+_pack_and_upload_miniprogram_v2.py
+_pack_apk_appt_store_contact.log
+_pack_apk_appt_store_contact.py
+_pack_apk_appt_store_contact_retry.log
+_pack_apk_h5pay.py
+_pack_apk_p1bugfix.py
+pack_apk_p1_run.log
+_pack_apk_pm_normalize.py
+pack_apk_pmnorm_run.log
+_pack_apk_slot_badge.py
+pack_apk_slot_badge_run.log
+_pack_apk_slot_grid.py
+pack_apk_slot_grid_run.log
+_pack_coupon_mall_mp.py
+_pack_coupon_mall_p1_mp.py
+_pack_glucose_changes.py
+_pack_h5pay_mp.py
+_pack_ios_h5pay.py
+_pack_ios_p1bugfix.py
+pack_ios_p1_run.log
+_pack_ios_pm_normalize.py
+_pack_ios_slot_badge.py
+pack_ios_slot_badge_run.log
+_pack_ios_slot_grid.py
+pack_ios_slot_grid_run.log
+_pack_ios_store_contact.log
+_pack_ios_store_contact.py
+_pack_mp_archive_mgr_v1.py
+_pack_mp_archive_mgr_v2.py
+_pack_mp_asset_url.py
+_pack_mp_bp_ai_v1.py
+_pack_mp_bugfix_v1.log
+_pack_mp_bug_report_interpret.py
+_pack_mp_care_optim_v1.py
+_pack_mp_care_v1.py
+_pack_mp_care_v4.py
+_pack_mp_family_auth_v1.py
+_pack_mp_glu_spo2.py
+_pack_mp_health_plan_v1.py
+_pack_mp_invite_bugfix.py
+_pack_mp_med_plan_interact_optim_v1.py
+_pack_mp_member_v2_bugfix.py
+_pack_mp_member_v2_bugfix_step2.py
+_pack_mp_member_v2_bugfix_step3.py
+_pack_mp_optim_v1.py
+pack_mp_p1_run.log
+_pack_mp_scrollhint.py
+_pack_mp_slot_badge.py
+pack_mp_slot_badge_run.log
+_pack_mp_slot_grid.py
+pack_mp_slot_grid_run.log
+_pack_mp_status_v4.py
+_pack_mp_tcm_result_v1.py
+_pack_mp_timezone_global.py
+_pack_mp_timezone_global_v2.py
+_pack_mp_timezone_global_v3.py
+_pack_prd442_android_finalize.py
+_pack_prd442_android.log
+_pack_prd442_android.py
+_pack_prd442_ios.log
+_pack_prd442_ios.py
+_pack_prd442_miniprogram.log
+_pack_prd442_miniprogram.py
+_pack_prd443_android.log
+_pack_prd443_android.py
+_pack_prd443_ios.log
+_pack_prd443_ios.py
+_pack_prd443_miniprogram.log
+_pack_prd443_miniprogram.py
+_pack_upload_archive_fix.py
+_pack_upload_archive_path_fix.py
+_pack_upload_miniprogram_bug403.log
+_pack_upload_miniprogram_bug403.py
+_pack_upload_miniprogram_bug403_v2.log
+_pack_upload_miniprogram_bug410.log
+_pack_upload_miniprogram_bug410.py
+_pack_upload_miniprogram_bug432_fix.py
+_pack_upload_miniprogram_login_363.py
+_pack_upload_miniprogram_prd370.py
+_pack_upload_miniprogram_prd420.py
+_pack_upload_miniprogram_prd429.log
+_pack_upload_miniprogram_prd429.py
+_pack_upload_miniprogram_prd433.log
+_pack_upload_miniprogram_prd433.py
+_pack_upload_miniprogram.py
+_pack_upload_miniprogram_rebuy_399.py
+_pack_upload_miniprogram_reschedule.py
+_pack_upload_miniprogram_storerow.py
+_patched_main.py
+_patch_image_main_with_self.py
+_paths.txt
+plink.exe
+_poll_apk_build.py
+_poll_build.py
+_poll_run.ps1
+_prd429_android_runid.txt
+_prd429_android_tag.txt
+_prd429_ios_runid.txt
+_prd429_ios_tag.txt
+_prd439_pytest.log
+_prd442_android_dl
+_prd443_android_dl
+_prd444_h5_color_migrate.py
+_prd444_h5_color_migrate_v2.py
+_prd444_h5_color_migrate_v3.py
+_prd444_h5_inspect.py
+_prd445_brand_rollback.py
+prd_v12_1779702737.tar.gz
+precheck_result.txt
+_probe2.py
+_probe_backend.py
+_probe_backend_v1.py
+_probe_care_home.html
+_probe_dl2.py
+_probe_dl3.py
+_probe_dl4.py
+_probe_dl5.py
+_probe_dl6.py
+_probe_dl.py
+_probe_downloads_path.py
+_probe_h5_nginx2.py
+_probe_h5_nginx.py
+_probe_h5.py
+_probe_modepref.py
+_probe_modepref.sh
+_probe_mp_path2.py
+_probe_mp_path.py
+_probe_mp_url2.py
+_probe_mp_url.py
+_probe_page_chunk.js
+_probe_remote_path.py
+_probe_routes.py
+_probe_server_fmv1.py
+_probe_server_h5.py
+_probe_server.py
+process.exit(1)
+process_routes.py
+project-context.mdc
+pytest_family_v2.log
+pytest_family_v2_r2.log
+pytest_family_v2_r3.log
+pytest_family_v2_r4.log
+pytest_family_v2_r5.log
+pytest.ini
+_pytest_log.txt
+_pytest_output2.txt
+_pytest_output.txt
+_pytest_regress.txt
+_quick_redeploy_test.log
+_quick_redeploy_test.py
+_rebuild_admin_image.py
+_rebuild_admin.py
+_rebuild_admin_v2.py
+_rebuild_admin_web2.py
+_rebuild_admin_web.py
+_rebuild_and_test2.py
+_rebuild_backend2.log
+_rebuild_backend2.py
+_rebuild_backend.py
+_rebuild_backend.sh
+_rebuild_backend_v1.log
+_rebuild_backend_v1.py
+_rebuild_be_full.py
+_rebuild_be.py
+_rebuild_be.sh
+_rebuild_compose.log
+_rebuild_compose.py
+_rebuild_h5_bg.py
+_rebuild_h5_for_card_unify.py
+_rebuild_h5.log
+_rebuild_h5_only.py
+_rebuild_out.txt
+recheck_urls.py
+_recopy_and_test_v2.log
+_recopy_and_test_v2.py
+_recover_and_redeploy_main.py
+_recover_be.py
+_recreate.sh
+_redeploy_405.py
+_redeploy_405_v2.py
+_redeploy_admin_only.py
+_redeploy_and_retest.py
+_redeploy_and_test.py
+_redeploy_backend2.py
+_redeploy_backend_files.py
+_redeploy_backend_hs.py
+_redeploy_be_tests.log
+_redeploy_be_tests.py
+_redeploy_dashboard_grid9_364.log
+_redeploy_dashboard_grid9_364.py
+redeploy_final.py
+_redeploy_h5_only.py
+_redeploy_one_file.py
+_redeploy_optim_v1.py
+redeploy.py
+_redeploy_step2.py
+_redeploy_test_env.log
+_redeploy_test_env.py
+_redeploy_tests.py
+refine_report.py
+_relocate_apk.py
+_remote_backup_glucose.sh
+_remote_check_db.py
+_remote_copy.sh
+_remote_hp.b64
+_remote_hp_clean.b64
+_remote_hp.dart
+_remote_probe.sh
+_remote_pytest_bug367.log
+_remote_pytest_bug367.py
+_remote_pytest_bug417_v2.py
+_remote_pytest_bug431.py
+_remote_pytest_bug432_fix.py
+_remote_pytest_prd426.py
+_remote_pytest_prd432_regression.log
+_remote_pytest_prd432_regression.py
+_remote_pytest_qn_drawer.log
+_remote_pytest_qn_drawer.py
+_remote_pytest_tcm36_bugfix.log
+_remote_pytest_tcm36_bugfix.py
+_remote_rebuild_h5_admin.sh
+_remote_rebuild_h5_care.sh
+_remote_rebuild_h5_v2.sh
+_remote_redeploy.sh
+remote_scan.py
+_remote_smoke_bug367.py
+_remote_smoke.sh
+_remote_test_ai_page_optim_v1_b.log
+_remote_test_ai_page_optim_v1_b.py
+_remote_test_ai_page_optim_v1.log
+_remote_test_ai_page_optim_v1.py
+_remote_test_grid9_364.py
+_remote_test_grid9_364_v2.py
+remote_test_run1.txt
+remote_test_run2.txt
+_remote_tests.log
+_remote_verify_aihome_v2.log
+_remote_verify_aihome_v2.py
+_remote_verify_prd432.log
+_remote_verify_prd432.py
+_repair_backend_v2.log
+_repair_backend_v2.py
+_rerun_archive_mgr_tests.py
+_rerun_bug419_tests.log
+_rerun_bug419_tests.py
+_rerun_test2.py
+_rerun_test.py
+_restart_backend_full.py
+_restore_proj_src.sh
+_retest_btnintent.log
+_retest_btnintent.py
+retest_v11.log
+_retest_v1_round2.log
+_retest_v1_round2.py
+rollback_h5_admin_v2.sh
+route_list.txt
+router_prefixes.txt
+route_scan_result.json
+rsa_ssh.log
+_run_bp_card_tests.py
+_run_bug461_tests.py
+_run_bugfix_tests_20260529.log
+_run_bugfix_tests_20260529.py
+_run_bugfix_tests2_20260529.log
+_run_bugfix_tests2_20260529.py
+_run_callback_datatype_tests.py
+_run_card_unify_tests_remote.py
+run_deploy.py
+_run_dualcard_tests_remote.py
+_run_failed_tests.py
+run_full_test.py
+_run_glucose_tests.py
+_run_hs_regression.py
+_run_invite_tests.log
+_run_invite_tests.py
+_run_member_v21_tests.py
+_run_member_v2_tests.py
+_run_mode_capsule_tests.py
+_run_one_test.py
+_run_optim_tests.py
+run_prd03_pytest.log
+_run_pytest_400_v2.py
+_run_pytest_in_container.log
+_run_pytest_in_container.py
+_run_pytest_inside.py
+_run_pytest_pnurl.py
+_run_pytest_pnurl_redeploy.py
+_run_pytest.py
+_run_regression_archive_404.py
+_run_regression_tests.py
+_run_remote_pytest_resolve.py
+_run_remote_tests2.py
+_run_remote_tests_gwid_ephone.log
+_run_remote_tests_gwid_ephone.py
+_run_remote_tests.py
+run_remote_tests.py
+_run_remote_tests_v2.py
+_run_src_asserts.py
+run_ssh.js
+_run_tests_fmv1_remote2.py
+_run_tests_fmv1_remote.py
+_run_tests_orders_pinned_columns2.py
+_run_tests_orders_pinned_columns.py
+_run_tests.py
+_run_tests_v1.log
+_run_tests_v1.py
+_run_tests_v2_20260529.log
+_run_tests_v2_20260529.py
+_run_tests_v2_revision.py
+_run_tests_v2_v2.py
+_run_v11_tests.py
+_run_v13_pytest.log
+_run_v13_pytest.py
+_run_v2_test2.py
+_run_v2_test.py
+run_verify_in_container.log
+run_verify_in_container.py
+_safety_rope_page.html
+scan_all_routes.py
+scan_frontend.py
+scanned_routes.json
+scan_routes.py
+_scp_bp_card_optim_v1.py
+_scp_deploy_dashboard_grid9_364.log
+_scp_deploy_dashboard_grid9_364.py
+scp_log.txt
+screenshot.png
+scripts
+_sed_schema.log
+_seed_emergency_sources.py
+_server_test_care_v4.sh
+setup_apk_nginx.py
+_setup_routes.py
+_sftp_upload_care_v4.py
+_sftp_upload.py
+_sftp_upload_test.py
+_show_dl_conf2.py
+_show_dl_conf3.py
+_show_dl_conf.py
+_show_pytest_failures.py
+simple_route_build.py
+simple_test.py
+_size.txt
+_sleep_all_history_commit_msg.txt
+_sleep_android_tag.txt
+_sleep_apk_pipeline.py
+_sleep_app_urls.txt
+_sleep_crud_detail.py
+_sleep_deploy.py
+_sleep_deploy_state.py
+_sleep_fetch_fix.py
+_sleep_ios_tag.txt
+_sleep_pack_mp.py
+_sleep_probe_downloads.py
+_sleep_probe_testenv.py
+_sleep_redeploy.py
+_sleep_retest.py
+_sleep_run_tests_ctr.py
+_sleep_run_tests_host.py
+_sleep_run_tests.py
+_sleep_url_check.py
+_sleep_verify_live.py
+_smoke3.py
+_smoke_400.py
+_smoke_405.py
+_smoke4.py
+_smoke5.py
+_smoke_ai_home_archive_v1.py
+_smoke_aihome_unify.py
+_smoke_api.sh
+_smoke_archive_list_v1.py
+_smoke_bp_tab_v1.log
+_smoke_bp_tab_v1.py
+_smoke_bug401.log
+_smoke_bug401.py
+_smoke_bug419.log
+_smoke_bug419.py
+_smoke_bug428.py
+_smoke_card_unify_v1.py
+_smoke_care_v4.sh
+_smoke_drawer_v12.py
+_smoke_family_optim.py
+smoke_family_v2.log
+_smoke_glucose_e2e.py
+_smoke_glucose_v2_remote.py
+_smoke_guardian_v131.log
+_smoke_guardian_v131.py
+_smoke_guardian_v13.py
+_smoke_h5b.sh
+_smoke_h5_care_v4.sh
+_smoke_h5_global_crash_fix.py
+_smoke_h5.sh
+_smoke_health_archive_v5.py
+_smoke_home_safety_bugfix_v1.log
+_smoke_home_safety_bugfix_v1.py
+_smoke_home_safety_bugfix_v2.log
+_smoke_home_safety_bugfix_v2.py
+_smoke_home_safety_bugfix_v3.log
+_smoke_home_safety_bugfix_v3.py
+_smoke_home_safety_e2e_v1.py
+_smoke_home_safety_v1.log
+_smoke_home_safety_v1.py
+_smoke_hp_tdz_fix.py
+_smoke_hr_rule.py
+_smoke_hs_add_member_fix.py
+_smoke_hs_after_alter_20260528.py
+_smoke_hsc_ai_real_v1.py
+_smoke_hs_callback.py
+_smoke_hsc_fix_v1.py
+_smoke_hsc_fix_v2.log
+_smoke_hsc_fix_v2.py
+_smoke_hsc_optim_v3.py
+_smoke_hsc_optim_v3_run1.log
+_smoke_hsc_optim_v3_run2.log
+_smoke_invite_card_v11.py
+_smoke_med_plan_add_optim.py
+smoke_med_plan_entry.py
+_smoke_member_purple.py
+smoke_membership_v1.log
+_smoke_my_devices_v1.log
+_smoke_my_devices_v1.py
+_smoke_my_guardian_bugfix2.py
+_smoke_optim_v1.py
+_smoke_prd420.py
+_smoke_prd423.py
+_smoke_prd425.log
+_smoke_prd425.py
+_smoke_prd426.py
+_smoke_qn_autonext2.py
+_smoke_qn_autonext.py
+_smoke_self_complete_v2_20260529.log
+_smoke_self_complete_v2_20260529.py
+smoke_skeleton_v1.py
+_smoke_tag_apis.py
+_smoke_tcm36_bugfix_20260520.log
+_smoke_tcm36_bugfix_20260520.py
+_smoke_test_orders.py
+_smoke_tz_bj_unified.py
+_smoke_v12_e2e.py
+_smoke_v13_iguard.py
+_smoke_v2.py
+_smoke_v2_revision.py
+src_update.tar.gz
+ssh_check2.py
+ssh_check3.py
+_ssh_check.py
+_ssh_check_remote_src_v12.py
+ssh_exec.js
+_ssh_exec.py
+ssh_exec.py
+_ssh.exp
+_ssh_front.py
+_ssh_helper.py
+ssh_out.txt
+_ssh_precheck.py
+ssh_precheck.py
+_ssh_probe2.py
+_ssh_probe.py
+_ssh_remote_src.log
+_ssh_run.py
+_ssh_survey2.log
+_ssh_survey2_v12.py
+_ssh_survey3.log
+_ssh_survey3_v12.py
+_ssh_survey_v12.py
+ssh_test2.log
+ssh_test.js
+start_containers.py
+static
+_sync_backend_and_restart.py
+_sync_family_optim.py
+sync_fix_to_server.py
+_sync_full_backend.sh
+_t2.txt
+temp_h5.b64
+_test_4items.log
+_test_access.py
+test_ai_config.py
+test_api.py
+test_appt_store_contact_unify.py
+test_bug466_run.log
+_test_conn.py
+test_deploy_regression.py
+test_deploy_verify.py
+_test_detail_debug.py
+test_emoji_expansion.py
+test_guide_feature.py
+test_guide_flow.py
+test_health_plan_v2.py
+test_health_v2_server.py
+test_home_menus_emoji.py
+_test_hsc_v31.py
+test_log.txt
+_test_medoptim_v2.py
+test_member_levels.py
+test_message_apis.py
+test_message_management.py
+test_message_modules.py
+_test_mp_dl.sh
+test_node.txt
+test_notice_feature.py
+test_order_address_unify.py
+test_prd455_run.log
+_test_rebuy_399.log
+_test_rebuy_399.py
+_test_rebuy_399_v2.log
+test_results_detailed.json
+test_results_final.txt
+_test_routes2.py
+_test_routes.py
+tests
+test_server_ai_config_test.py
+test_server_bugfix.py
+test_server_bugfix_v2.py
+test_server_chat_history.py
+test_server_deploy.py
+test_server_drug.py
+test_server_family_bugfix.py
+test_server_font_setting.py
+test_server_knowledge.py
+test_server_ocr_details.py
+test_server_ocr_global.py
+test_server_ocr_multi.py
+test_server_ocr_optimize.py
+test_server_prd448.py
+test_server_report_enhance.py
+test_server_report_fix.py
+test_server_report_interpret_intent.py
+test_server_report.py
+test_server_search.py
+test_server_services.py
+test_server_sms_params.py
+test_server_sms_verification.py
+test_server_voice_chat.py
+test_server_voice_mic.py
+test_server_voice_search.py
+test_ssh.py
+_test.txt
+test_urls.py
+test_urls.sh
+test_urls.txt
+_test_v12.log
+_test_v2_only.log
+_test_v2_only.py
+test_voice_deploy.py
+_t.py
+_trigger_workflow.ps1
+ui_design_outputs
+ui_generator_common.py
+update_gateway_and_verify.py
+update_gateway.py
+_upload_and_rebuild.js
+_upload_apk_coupon_mall.py
+_upload_apk_final.py
+_upload_apk_invite_bugfix.py
+_upload_apk_member_v1.py
+_upload_apk_pointsskin.py
+_upload_apk_prd429.py
+_upload_apk.py
+_upload_apk_static.py
+_upload_apk_tz_bj.py
+_upload_h5_patch.py
+_upload_helper.py
+_upload_hr_rule.py
+_upload_invite_files.py
+upload_miniprogram.py
+_upload_mp_367.py
+_upload_mp_fmv1.py
+_upload_mp_unify_zip_20260601.py
+_upload_mp_zip_final.py
+_upload_new.py
+upload.py
+uploads
+_upload_zip2.py
+_upload_zip.py
+url_check_report.json
+url_check_results.json
+user_docs
+USER_MANUAL_bug433_ai_first_msg_fix.md
+USER_MANUAL_business_config_unify_v1.md
+USER_MANUAL.md
+_v31_diag2.py
+_v31_diag3.py
+_v31_diag4.py
+_v31_diag.py
+_v3_fail.log
+_v3_pytest.log
+_verify2_glu_spo2.py
+_verify3_runtests.py
+_verify_admin.py
+_verify_aihome_5bugs.py
+verify_alipay_save_validation.log
+verify_alipay_save_validation.py
+verify_and_test.py
+verify_apk_link.py
+_verify_archive_js.py
+_verify_backend_orphan.py
+_verify_backend_schema.py
+_verify_bug401.log
+_verify_bug401.py
+_verify_bug431.py
+_verify_bug432_fix.py
+_verify_bugfix_v12.log
+_verify_bugfix_v12.py
+_verify_carecard.sh
+_verify_deployed_js.py
+verify_deploy.py
+_verify_e2e_v1.py
+_verify_emergency_source_v1.log
+_verify_emergency_source_v1.py
+_verify_final.py
+_verify_frontend_datetime.js
+_verify_glu_spo2_v1.py
+_verify_gw_fix_v1.py
+_verify_h5_appt_store_contact.py
+_verify_h5_chunk.py
+_verify_h5_chunks2_v12.py
+_verify_h5_chunks_v12.py
+_verify_h5_keywords2_v12.py
+_verify_h5_keywords_v12.py
+_verify_h5_pages.py
+_verify_h5_postdeploy_v12.py
+_verify_health_plan.py
+_verify_inline_polish.py
+_verify_layout_fix_remote.py
+_verify_login_363.py
+_verify_mapping.py
+_verify_member_v21.py
+_verify_member_v2.py
+verify_migration.py
+verify-miniprogram
+verify_miniprogram_20260414_041946_72f6.zip
+verify_miniprogram_cards_v2_20260503_190523.zip
+_verify_prd370_chunks.py
+_verify_prd_aihome_content_v1.py
+_verify_prd_aihome_content_v2.py
+_verify_prd_aihome_v1.py
+_verify_prd_v1.log
+_verify_prd_v1.py
+_verify_prd_v1_run2.log
+_verify_remote_code.py
+_verify_rsa_in_container.py
+_verify_schema.py
+_verify_seed_remote.py
+_verify_timezone_global.py
+_verify_timezone_global_v3.py
+_verify_v12_imports.py
+_verify_v3_log.txt
+_view_nginx.py
+wait_build.py
+_warmup_admin.py
+_zip_and_upload_mp.py
+_zip_name.txt
+临时任务
+
+
+=== containers ===
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Up 2 hours (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend Up 2 hours (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin Up 2 hours (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-db Up 2 hours (healthy)
+
+

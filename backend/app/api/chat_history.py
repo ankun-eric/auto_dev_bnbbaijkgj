@@ -402,8 +402,8 @@ async def user_list_sessions(
                     status=(s.status or "archived"),
                     archived_at=s.archived_at,
                     last_active_at=s.last_active_at or s.updated_at or s.created_at,
-                    created_at=s.created_at or datetime.utcnow(),
-                    updated_at=s.updated_at or s.created_at or datetime.utcnow(),
+                    created_at=s.created_at or datetime.now(),
+                    updated_at=s.updated_at or s.created_at or datetime.now(),
                 )
             )
         except Exception:
@@ -459,7 +459,7 @@ async def user_create_session(
     # 推到当前时间，确保抽屉历史列表立刻把"刚刚发生的活跃对话"提到顶部。
     # 仅校验：会话存在 + 属于当前用户 + 未删除；非法 / 越权 ID 静默忽略，
     # 不阻塞主流程（新会话仍然能创建出来）。
-    now = datetime.utcnow()
+    now = datetime.now()
     archived_old_ids: List[int] = []
     if data.archive_previous_session_id is not None:
         try:
@@ -564,7 +564,7 @@ async def user_archive_session(
     if not session:
         raise HTTPException(status_code=404, detail="对话不存在")
 
-    now = datetime.utcnow()
+    now = datetime.now()
     session.status = "archived"
     if session.archived_at is None:
         session.archived_at = now
@@ -650,7 +650,7 @@ async def user_resume_session(
     if not target:
         raise HTTPException(status_code=404, detail="对话不存在")
 
-    now = datetime.utcnow()
+    now = datetime.now()
     archived_old_ids: List[int] = []
     try:
         existing_active = await db.execute(
@@ -737,7 +737,7 @@ async def user_check_active_session(
             "threshold_hours": threshold,
         }
 
-    now = datetime.utcnow()
+    now = datetime.now()
     last_ts = last.updated_at or last.created_at or now
     delta = now - last_ts
     inactive_hours = max(0.0, delta.total_seconds() / 3600.0)
@@ -865,7 +865,7 @@ async def user_pin_session(
         raise HTTPException(status_code=404, detail="对话不存在")
 
     session.is_pinned = data.is_pinned
-    session.pinned_at = datetime.utcnow() if data.is_pinned else None
+    session.pinned_at = datetime.now() if data.is_pinned else None
     await db.flush()
     return {"message": "操作成功", "is_pinned": session.is_pinned}
 

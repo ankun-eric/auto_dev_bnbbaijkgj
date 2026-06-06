@@ -82,7 +82,7 @@ async def _create_member_and_invite(manager_uid: int, member_nickname: str) -> s
             member_id=m.id,
             relation_type="other",
             status="pending",
-            expires_at=datetime.utcnow() + timedelta(hours=24),
+            expires_at=datetime.now() + timedelta(hours=24),
         )
         s.add(inv)
         await s.commit()

@@ -45,7 +45,7 @@ async def get_member_qrcode(
     db: AsyncSession = Depends(get_db),
 ):
     token = uuid.uuid4().hex
-    expires_at = datetime.utcnow() + timedelta(minutes=5)
+    expires_at = datetime.now() + timedelta(minutes=5)
     qr_token = MemberQRToken(
         user_id=current_user.id,
         token=token,
@@ -73,7 +73,7 @@ async def verify_member_qrcode(
     qr_token = result.scalar_one_or_none()
     if not qr_token:
         raise HTTPException(status_code=404, detail="无效的会员码")
-    if qr_token.expires_at < datetime.utcnow():
+    if qr_token.expires_at < datetime.now():
         raise HTTPException(status_code=400, detail="会员码已过期")
 
     user_result = await db.execute(select(User).where(User.id == qr_token.user_id))
@@ -106,7 +106,7 @@ async def checkin_at_store(
     qr_token = result.scalar_one_or_none()
     if not qr_token:
         raise HTTPException(status_code=404, detail="无效的会员码")
-    if qr_token.expires_at < datetime.utcnow():
+    if qr_token.expires_at < datetime.now():
         raise HTTPException(status_code=400, detail="会员码已过期")
 
     store_result = await db.execute(
@@ -249,7 +249,7 @@ async def redeem_service(
     db.add(redemption)
 
     order_item.used_redeem_count += 1
-    order_item.updated_at = datetime.utcnow()
+    order_item.updated_at = datetime.now()
 
     all_items_result = await db.execute(
         select(OrderItem).where(OrderItem.order_id == order_item.order_id)
@@ -267,8 +267,8 @@ async def redeem_service(
                 status_val = status_val.value
             if status_val == "pending_use":
                 order.status = UnifiedOrderStatus.completed
-                order.completed_at = datetime.utcnow()
-                order.updated_at = datetime.utcnow()
+                order.completed_at = datetime.now()
+                order.updated_at = datetime.now()
 
     await db.flush()
     await db.refresh(redemption)

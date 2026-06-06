@@ -490,7 +490,7 @@ def _build_order_response(order) -> UnifiedOrderResponse:
         deadline = completed_at + timedelta(days=REVIEW_VALID_DAYS)
         resp.review_deadline_at = deadline
         resp.review_expired = (
-            datetime.utcnow() > deadline and not bool(getattr(order, "has_reviewed", False))
+            datetime.now() > deadline and not bool(getattr(order, "has_reviewed", False))
         )
         # 重新计算 action_buttons：超期未评价时去掉 review、添加 review_expired
         if not bool(getattr(order, "has_reviewed", False)):
@@ -533,7 +533,7 @@ def _build_order_response(order) -> UnifiedOrderResponse:
 
 
 def _generate_order_no() -> str:
-    ts = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    ts = datetime.now().strftime("%Y%m%d%H%M%S")
     rand = "".join(random.choices(string.digits, k=6))
     return f"UO{ts}{rand}"
 
@@ -630,7 +630,7 @@ async def create_unified_order(
             "district": service_address_obj.district,
             "street": service_address_obj.street,
             "detail": service_address_obj.street,
-            "snapshot_at": datetime.utcnow().isoformat(),
+            "snapshot_at": datetime.now().isoformat(),
         }
 
     # 预加载所有涉及的 SKU
@@ -731,7 +731,7 @@ async def create_unified_order(
         # ── [优惠券下单页 Bug 修复 v2 · 兜底校验] ──
         # 防止前端绕过 /api/coupons/usable-for-order 直接传不适用的 coupon_id。
         # 这里再做一次：过期 / 已下架 / 适用范围（scope=product/category）/ 排除商品 全部校验。
-        now_dt = datetime.utcnow()
+        now_dt = datetime.now()
         if user_coupon.expire_at is not None and user_coupon.expire_at <= now_dt:
             raise HTTPException(status_code=422, detail="优惠券已过期，不适用本单")
 
@@ -1013,7 +1013,7 @@ async def create_unified_order(
                                         pass
                                 break
 
-                    fifteen_min_ago = datetime.utcnow() - timedelta(minutes=15)
+                    fifteen_min_ago = datetime.now() - timedelta(minutes=15)
                     occupy_filter = (
                         (UnifiedOrder.status.in_(QUOTA_OCCUPY_STATUSES[1:]))  # 排除 pending_payment 在外的所有占用态
                         | (
@@ -1082,7 +1082,7 @@ async def create_unified_order(
                         except (TypeError, ValueError):
                             pass
 
-                    fifteen_min_ago2 = datetime.utcnow() - timedelta(minutes=15)
+                    fifteen_min_ago2 = datetime.now() - timedelta(minutes=15)
                     occupy_filter2 = (
                         (UnifiedOrder.status.in_(QUOTA_OCCUPY_STATUSES[1:]))
                         | (
@@ -1175,7 +1175,7 @@ async def create_unified_order(
         uc = uc_result2.scalars().first()
         if uc:
             uc.status = UserCouponStatus.used
-            uc.used_at = datetime.utcnow()
+            uc.used_at = datetime.now()
             uc.order_id = order.id
 
     # [2026-05-02 H5 下单流程优化 PRD v1.0]
@@ -1537,9 +1537,9 @@ async def sandbox_confirm(
     if status_val != "pending_payment":
         raise HTTPException(status_code=400, detail="该订单无法确认支付")
 
-    order.paid_at = datetime.utcnow()
+    order.paid_at = datetime.now()
     await _advance_status_after_payment(order, db)
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now()
 
     return {
         "message": "沙盒支付确认成功",
@@ -1773,7 +1773,7 @@ async def pay_unified_order(
     # 注意：paid_at 仅在「真正完成支付」时才写。对于 alipay_h5 真实链路，
     # 等待支付宝异步通知 TRADE_SUCCESS 后再写；其余通道（沙盒桩/微信等）
     # 沿用原本立即标记的行为，下方分支会按通道类型决定是否回填。
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now()
 
     # [支付配置 PRD v1.0] 可选 channel_code：若传入则校验并落库；
     # 未启用通道下单时返回 4001 业务码（HTTP 400）。
@@ -1829,15 +1829,15 @@ async def pay_unified_order(
             )
             pay_url = _build_sandbox_pay_url(order.order_no, "alipay_h5")
             # 兜底场景下：保持原沙盒桩"立即标记已支付"的行为（开发自测）
-            order.paid_at = datetime.utcnow()
+            order.paid_at = datetime.now()
             await _advance_status_after_payment(order, db)
         else:
             # 真实支付宝链路：仅记录通道与时间，不立即标记 paid_at；
             # 由 /api/payment/alipay/notify 收到 TRADE_SUCCESS 后再幂等回填。
-            order.updated_at = datetime.utcnow()
+            order.updated_at = datetime.now()
     else:
         # 非 alipay_h5 通道沿用原"立即推进 + 立即标记 paid_at"逻辑
-        order.paid_at = datetime.utcnow()
+        order.paid_at = datetime.now()
         await _advance_status_after_payment(order, db)
 
     await db.commit()
@@ -1900,7 +1900,7 @@ async def confirm_free_unified_order(
             "code": "not_free_order", "message": "非 0 元订单不能走免支付通道"
         })
 
-    order.paid_at = datetime.utcnow()
+    order.paid_at = datetime.now()
     # [零元单 v2.2] 0 元单统一标记为"优惠券全额抵扣"，对账与报表口径友好
     order.payment_method = UnifiedPaymentMethod.coupon_deduction
 
@@ -1917,7 +1917,7 @@ async def confirm_free_unified_order(
             order.payment_display_name = ch.display_name
 
     await _advance_status_after_payment(order, db)
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now()
 
     return _build_order_response(order)
 
@@ -1946,9 +1946,9 @@ async def confirm_receipt(
         raise HTTPException(status_code=400, detail="该订单无法确认收货")
 
     order.status = UnifiedOrderStatus.completed
-    order.received_at = datetime.utcnow()
-    order.completed_at = datetime.utcnow()
-    order.updated_at = datetime.utcnow()
+    order.received_at = datetime.now()
+    order.completed_at = datetime.now()
+    order.updated_at = datetime.now()
 
     pr = PointsRecord(
         user_id=current_user.id,
@@ -2287,7 +2287,7 @@ async def _set_order_appointment_impl(
         it.appointment_time = data.appointment_time
         if data.appointment_data is not None:
             it.appointment_data = data.appointment_data
-        it.updated_at = datetime.utcnow()
+        it.updated_at = datetime.now()
 
     # [核销订单过期+改期规则优化 v1.0] 改约（已有过预约时间） → reschedule_count + 1
     prev_appt_time = None
@@ -2304,7 +2304,7 @@ async def _set_order_appointment_impl(
 
     # 关键变化：直接进入 pending_use（立即出码），跳过 appointed
     order.status = UnifiedOrderStatus.pending_use
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now()
 
     # [BUG-FIX-RESCHEDULE-V3 2026-05-08] 把"返回字段"在 commit 前先抓成 local 变量，
     # 避免 commit / notify 后 session expire/poison 时再 lazy-load 触发 MissingGreenlet。
@@ -2510,7 +2510,7 @@ async def review_unified_order(
     completed_at = getattr(order, "completed_at", None)
     if completed_at is not None:
         deadline = completed_at + timedelta(days=REVIEW_VALID_DAYS)
-        if datetime.utcnow() > deadline:
+        if datetime.now() > deadline:
             raise HTTPException(status_code=400, detail="评价已过期")
 
     existing = await db.execute(select(OrderReview).where(OrderReview.order_id == order_id))
@@ -2527,7 +2527,7 @@ async def review_unified_order(
     db.add(review)
 
     order.has_reviewed = True
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now()
 
     pr = PointsRecord(
         user_id=current_user.id,
@@ -2576,7 +2576,7 @@ async def request_refund(
     paid_at = getattr(order, "paid_at", None)
     if paid_at is not None:
         refund_deadline = paid_at + timedelta(days=15)
-        if datetime.utcnow() > refund_deadline:
+        if datetime.now() > refund_deadline:
             raise HTTPException(
                 status_code=400,
                 detail="该订单已超过可退款期限（支付后15天），无法申请退款",
@@ -2601,7 +2601,7 @@ async def request_refund(
     cur = _normalize_status(order.status)
     if cur != "cancelled":
         order.status = UnifiedOrderStatus.refunding
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now()
 
     await db.flush()
     await db.refresh(refund_req)
@@ -2639,13 +2639,13 @@ async def _do_withdraw_refund(order, db: AsyncSession) -> dict:
     refund_req = refund_result.scalar_one_or_none()
     if refund_req:
         refund_req.status = RefundRequestStatus.withdrawn
-        refund_req.updated_at = datetime.utcnow()
+        refund_req.updated_at = datetime.now()
 
     order.refund_status = RefundStatusEnum.none
     # PRD V2：退款撤回回到 pending_use（实物订单可由商家手动改为 pending_receipt）
     if _normalize_status(order.status) == "refunding":
         order.status = UnifiedOrderStatus.pending_use
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now()
 
     await db.flush()
     return {"message": "退款申请已撤回"}

@@ -116,7 +116,7 @@ async def migrate(dry_run: bool = False, report_path: Optional[str] = None) -> d
             "failed_legacy": failed_legacy,
             "repair_rate_pct": round(repair_rate, 2),
             "dry_run": dry_run,
-            "executed_at": datetime.utcnow().isoformat(),
+            "executed_at": datetime.now().isoformat(),
             "report_path": report_path,
         }
 

@@ -68,7 +68,7 @@ async def _seed_order_with_appt(
             total_amount=99.0,
             paid_amount=99.0,
             status=status,
-            paid_at=datetime.utcnow(),
+            paid_at=datetime.now(),
         )
         db.add(order)
         await db.flush()
@@ -103,7 +103,7 @@ async def test_first_set_appointment_jumps_to_pending_use():
     模拟接口逻辑：直接更新 status + appointment_time。
     """
     uid = await _seed_user("13900200001")
-    appt = datetime.utcnow() + timedelta(days=3)
+    appt = datetime.now() + timedelta(days=3)
     oid = await _seed_order_with_appt(
         uid, status=UnifiedOrderStatus.pending_appointment, appt=None,
         order_no="SIMP_FIRST_001",
@@ -133,8 +133,8 @@ async def test_first_set_appointment_jumps_to_pending_use():
 async def test_modify_appointment_keeps_pending_use():
     """[PRD 5.2] 修改预约日时 pending_use 阶段保持不变，仅更新 appointment_time。"""
     uid = await _seed_user("13900200002")
-    appt_old = datetime.utcnow() + timedelta(days=3)
-    appt_new = datetime.utcnow() + timedelta(days=7)
+    appt_old = datetime.now() + timedelta(days=3)
+    appt_new = datetime.now() + timedelta(days=7)
     oid = await _seed_order_with_appt(
         uid, status=UnifiedOrderStatus.pending_use, appt=appt_old,
         order_no="SIMP_MODIFY_001",
@@ -167,7 +167,7 @@ async def test_partial_used_cannot_modify_appointment():
     from app.api.unified_orders import set_order_appointment  # noqa: F401
 
     uid = await _seed_user("13900200003")
-    appt_old = datetime.utcnow() + timedelta(days=3)
+    appt_old = datetime.now() + timedelta(days=3)
     oid = await _seed_order_with_appt(
         uid, status=UnifiedOrderStatus.pending_use, appt=appt_old,
         used_count=1, order_no="SIMP_PARTIAL_001",
@@ -190,7 +190,7 @@ async def test_partial_used_cannot_modify_appointment():
 async def test_lazy_progress_legacy_appointed_flips_to_pending_use():
     """[PRD 5.4 + 兼容性] 历史 appointed 订单（任何预约日）→ lazy_progress 即翻为 pending_use。"""
     uid = await _seed_user("13900200004")
-    appt_future = datetime.utcnow() + timedelta(days=10)
+    appt_future = datetime.now() + timedelta(days=10)
     oid = await _seed_order_with_appt(
         uid, status=UnifiedOrderStatus.appointed, appt=appt_future,
         order_no="SIMP_LAZY_LEGACY_001",
@@ -220,7 +220,7 @@ async def test_legacy_run_r1_only_cleans_residual_appointed():
     生产 async_session（连不到测试库）造成失败。
     """
     uid = await _seed_user("13900200005")
-    appt_future = datetime.utcnow() + timedelta(days=20)
+    appt_future = datetime.now() + timedelta(days=20)
     oid = await _seed_order_with_appt(
         uid, status=UnifiedOrderStatus.appointed, appt=appt_future,
         order_no="SIMP_R1_LEGACY_001",
@@ -242,7 +242,7 @@ async def test_legacy_run_r1_only_cleans_residual_appointed():
 async def test_r2_still_flips_back_overdue_unused_pending_use():
     """[PRD 5.3] R2 保留：pending_use + 预约日 < 今天 + 未核销 → pending_appointment。"""
     uid = await _seed_user("13900200006")
-    appt_yesterday = datetime.utcnow() - timedelta(days=1, hours=2)
+    appt_yesterday = datetime.now() - timedelta(days=1, hours=2)
     oid = await _seed_order_with_appt(
         uid, status=UnifiedOrderStatus.pending_use, appt=appt_yesterday,
         used_count=0, order_no="SIMP_R2_001",
@@ -266,7 +266,7 @@ async def test_r2_still_flips_back_overdue_unused_pending_use():
 async def test_migrate_appointed_to_pending_use_idempotent():
     """[PRD 5.4] 迁移函数幂等：连续两次调用第二次返回 0。"""
     uid = await _seed_user("13900200007")
-    appt = datetime.utcnow() + timedelta(days=5)
+    appt = datetime.now() + timedelta(days=5)
     oid = await _seed_order_with_appt(
         uid, status=UnifiedOrderStatus.appointed, appt=appt,
         order_no="SIMP_MIGRATE_001",
@@ -315,7 +315,7 @@ async def test_display_status_pending_use_with_date():
 async def test_action_buttons_pending_use_full():
     """[PRD 6.1] pending_use 阶段返回完整按钮：show_qrcode + modify_appointment + apply_refund。"""
     uid = await _seed_user("13900200009")
-    appt = datetime.utcnow() + timedelta(days=3)
+    appt = datetime.now() + timedelta(days=3)
     oid = await _seed_order_with_appt(
         uid, status=UnifiedOrderStatus.pending_use, appt=appt,
         order_no="SIMP_BTN_001",
@@ -335,7 +335,7 @@ async def test_action_buttons_pending_use_full():
 async def test_action_buttons_appointed_legacy_compatibility():
     """[PRD 兼容] appointed（老订单残留）返回与 pending_use 一致的按钮组。"""
     uid = await _seed_user("13900200010")
-    appt = datetime.utcnow() + timedelta(days=3)
+    appt = datetime.now() + timedelta(days=3)
     oid = await _seed_order_with_appt(
         uid, status=UnifiedOrderStatus.appointed, appt=appt,
         order_no="SIMP_BTN_LEGACY_001",
@@ -361,14 +361,14 @@ async def test_t1_18pm_reminder_dispatched_when_window_opens(monkeypatch):
     """
     uid = await _seed_user("13900200011")
     # 预约时间 = 明天 10:00
-    today = datetime.utcnow().date()
+    today = datetime.now().date()
     appt_tomorrow = datetime.combine(today + timedelta(days=1), datetime.min.time()) + timedelta(hours=10)
     oid = await _seed_order_with_appt(
         uid, status=UnifiedOrderStatus.pending_use, appt=appt_tomorrow,
         order_no="SIMP_T1_001",
     )
 
-    # patch datetime.utcnow → 今日 18:00
+    # patch datetime.now → 今日 18:00
     fake_now = datetime.combine(today, datetime.min.time()) + timedelta(hours=18)
     import app.tasks.order_status_auto_progress as mod
 
@@ -406,7 +406,7 @@ async def test_t1_18pm_reminder_dispatched_when_window_opens(monkeypatch):
 async def test_t1_18pm_reminder_idempotent(monkeypatch):
     """[PRD 8.2] T-1 18:00 提醒幂等：连续两次调用，同一订单当日只发一次。"""
     uid = await _seed_user("13900200012")
-    today = datetime.utcnow().date()
+    today = datetime.now().date()
     appt_tomorrow = datetime.combine(today + timedelta(days=1), datetime.min.time()) + timedelta(hours=14)
     oid = await _seed_order_with_appt(
         uid, status=UnifiedOrderStatus.pending_use, appt=appt_tomorrow,
@@ -439,7 +439,7 @@ async def test_t1_18pm_reminder_realtime_check_skips_cancelled(monkeypatch):
     场景：订单种子时是 pending_use + 明天预约，但在调用前手动改为 cancelled，应不发。
     """
     uid = await _seed_user("13900200013")
-    today = datetime.utcnow().date()
+    today = datetime.now().date()
     appt_tomorrow = datetime.combine(today + timedelta(days=1), datetime.min.time()) + timedelta(hours=11)
     oid = await _seed_order_with_appt(
         uid, status=UnifiedOrderStatus.pending_use, appt=appt_tomorrow,

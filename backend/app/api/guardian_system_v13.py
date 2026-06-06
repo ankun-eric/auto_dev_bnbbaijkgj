@@ -148,7 +148,7 @@ class RemoveFamilyRequest(BaseModel):
 
 
 async def _is_paid_member(db: AsyncSession, user_id: int) -> bool:
-    now = datetime.utcnow()
+    now = datetime.now()
     res = await db.execute(
         select(UserMembershipSub).where(
             UserMembershipSub.user_id == user_id,
@@ -172,7 +172,7 @@ async def _get_max_guardians(db: AsyncSession, user_id: int) -> int:
     - 普通用户（无会员）：从 free_member_quota.max_managed 取
     - 都没有：fallback 到 DEFAULT_MAX_GUARDIANS
     """
-    now = datetime.utcnow()
+    now = datetime.now()
     sub = (await db.execute(
         select(UserMembershipSub).where(
             UserMembershipSub.user_id == user_id,
@@ -209,7 +209,7 @@ async def _is_unlimited_guardians(db: AsyncSession, user_id: int) -> bool:
     判定口径：当前生效会员套餐的 `max_managed` 大于等于 9999（按业务约定），
     或套餐 code/name 含 'super_vip' 等关键字 → 视为无上限。
     """
-    now = datetime.utcnow()
+    now = datetime.now()
     sub = (await db.execute(
         select(UserMembershipSub).where(
             UserMembershipSub.user_id == user_id,
@@ -249,7 +249,7 @@ async def _calc_used_quota(db: AsyncSession, *, manager_user_id: int) -> int:
     - 新实现直接 SQL COUNT，更鲁棒；同时把 pending（未过期）的悬空邀请明确算 +1，
       防"反复邀请-取消"刷接口绕过配额。
     """
-    now = datetime.utcnow()
+    now = datetime.now()
 
     # 1) family_member 中所有 status != 'deleted' 的记录（包含本人 is_self=true）
     fm_q = select(func.count(FamilyMember.id)).where(
@@ -444,7 +444,7 @@ async def list_family_v13(
     - bound_count / unbound_count / quota_used: v1.3.1 新增
     - max_guardians / used / can_invite_count: 配额信息
     """
-    now = datetime.utcnow()
+    now = datetime.now()
 
     # 1) 拉取已建立关系（active + 历史 inactive/cancelled）
     # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 过滤掉 deleted 状态，
@@ -796,7 +796,7 @@ async def invite_history_for_managed(
 
     仅展示"我对该被守护人发起过的全部邀请"，时间倒序。
     """
-    now = datetime.utcnow()
+    now = datetime.now()
 
     # 自动过期
     pending_res = await db.execute(
@@ -915,7 +915,7 @@ async def proxy_pay_detail(
     """
     await assert_can_write_managed(db, current_user.id, managed_user_id)
 
-    now = datetime.utcnow()
+    now = datetime.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
@@ -998,7 +998,7 @@ async def remove_family_card(
     - 第 3、4 点：纯 managed_member（孤儿）/ 已过期 invitation 均可受理移除，
       不再向用户暴露 404；改为幂等返 200，前端按 deleted/should_refresh 字段刷新。
     """
-    now = datetime.utcnow()
+    now = datetime.now()
     deleted_any = False
     delete_types: list[str] = []
 
@@ -1197,7 +1197,7 @@ async def deduct_quota_with_proxy_pay(
     """
     from app.api.guardian_system_v12 import _get_user_quotas, _get_used_count
 
-    now = datetime.utcnow()
+    now = datetime.now()
 
     # 1) 判定孤儿档案
     managed_user = await db.get(User, managed_user_id) if managed_user_id else None

@@ -43,7 +43,7 @@ USERS_TABLE = "users"
 
 async def backup_users_table(dry_run: bool) -> str:
     """整表备份：CREATE TABLE users_backup_YYYYMMDD AS SELECT * FROM users"""
-    today = datetime.utcnow().strftime("%Y%m%d")
+    today = datetime.now().strftime("%Y%m%d")
     backup_name = f"{USERS_TABLE}_backup_{today}"
     sql = f"CREATE TABLE {backup_name} AS SELECT * FROM {USERS_TABLE}"
     if dry_run:

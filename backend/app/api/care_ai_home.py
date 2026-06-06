@@ -39,7 +39,7 @@ class CareV2DailySummary(Base):
     summary_date = Column(Date, nullable=False, index=True)
     summary_text = Column(Text, nullable=False)
     metrics_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
 
 
 class CareV2Alert(Base):
@@ -56,7 +56,7 @@ class CareV2Alert(Base):
     severity = Column(String(16), nullable=False, default="warning")  # info / warning / danger
     status = Column(String(16), nullable=False, default="active", index=True)  # active / dismissed / expired
     dismissed_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.now, index=True)
 
 
 # ==================== Schemas ====================
@@ -67,7 +67,7 @@ class DismissAlertResponse(BaseModel):
 
 # ==================== 工具函数 ====================
 def _today() -> date_cls:
-    return datetime.utcnow().date()
+    return datetime.now().date()
 
 
 def _status_for_bp(systolic: int, diastolic: int) -> str:
@@ -108,7 +108,7 @@ def _build_demo_metrics(seed: int) -> List[Dict[str, Any]]:
     sleep_hours = round(rng.uniform(5.5, 8.5), 1)
     sleep_status = _status_for_sleep(sleep_hours)
 
-    now_iso = datetime.utcnow().isoformat()
+    now_iso = datetime.now().isoformat()
     return [
         {
             "type": "blood_pressure",
@@ -214,7 +214,7 @@ async def list_active_alerts(
     db: AsyncSession = Depends(get_db),
 ):
     """关怀模式·活跃 SOS 关怀卡。仅返回当前用户未忽略且未过期的告警。"""
-    cutoff = datetime.utcnow() - timedelta(hours=24)
+    cutoff = datetime.now() - timedelta(hours=24)
     result = await db.execute(
         select(CareV2Alert)
         .where(
@@ -264,7 +264,7 @@ async def dismiss_alert(
     if alert.status == "dismissed":
         return DismissAlertResponse(success=True, id=alert.id)
     alert.status = "dismissed"
-    alert.dismissed_at = datetime.utcnow()
+    alert.dismissed_at = datetime.now()
     await db.commit()
     return DismissAlertResponse(success=True, id=alert.id)
 
@@ -278,7 +278,7 @@ async def seed_demo_alert(
     """开发/演示辅助接口：为当前用户生成一条示例告警，便于前端联调。
     同一告警类型 24 小时内只允许一次。"""
     alert_type = "bp_high_demo"
-    cutoff = datetime.utcnow() - timedelta(hours=24)
+    cutoff = datetime.now() - timedelta(hours=24)
     existed = await db.execute(
         select(CareV2Alert).where(
             CareV2Alert.user_id == current_user.id,
@@ -309,7 +309,7 @@ async def scan_active_users_and_create_alerts(db: AsyncSession) -> int:
     简化实现：根据用户最近 daily-summary 中的指标 status 字段判断是否生成告警。
     实际生产环境应改为对接真实健康指标表 + 阈值规则引擎。
     返回本轮新写入的告警条数。"""
-    cutoff = datetime.utcnow() - timedelta(hours=24)
+    cutoff = datetime.now() - timedelta(hours=24)
     recent = await db.execute(
         select(CareV2DailySummary).where(CareV2DailySummary.created_at >= cutoff)
     )

@@ -417,7 +417,7 @@ async def get_available_slots(
 
     windows = await _get_business_windows(db, store_id, target_date)
 
-    now = datetime.utcnow() + timedelta(hours=8)  # 转 Asia/Shanghai 简化
+    now = datetime.now()
 
     # [2026-05-05 营业管理入口收敛 PRD v1.0 · N-06] 双层「当日截止」兜底：
     # 商品级 booking_cutoff_minutes 优先 → 门店级 booking_cutoff_minutes 兜底 → 系统默认 30 分钟。
@@ -525,7 +525,7 @@ async def mark_read_by_order(
     db: AsyncSession = Depends(get_db),
 ):
     """按订单粒度清除红点：将该订单下当前用户的所有未读站内信标记为已读。"""
-    now = datetime.utcnow()
+    now = datetime.now()
     res = await db.execute(
         update(Notification)
         .where(

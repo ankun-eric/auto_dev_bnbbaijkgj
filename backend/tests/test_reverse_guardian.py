@@ -212,7 +212,7 @@ async def test_tc011_accept_expired_invite(client: AsyncClient):
             status="pending",
             max_uses=3,
             used_count=0,
-            expires_at=datetime.utcnow() - timedelta(hours=1),
+            expires_at=datetime.now() - timedelta(hours=1),
         )
         session.add(inv)
         await session.commit()
@@ -356,7 +356,7 @@ async def test_tc019_guardian_count_with_pending_invite(client: AsyncClient):
             status="pending",
             max_uses=3,
             used_count=0,
-            expires_at=datetime.utcnow() + timedelta(hours=24),
+            expires_at=datetime.now() + timedelta(hours=24),
         )
         session.add(inv)
         await session.commit()
@@ -383,7 +383,7 @@ async def test_tc020_guardian_count_expired_invite_not_counted(client: AsyncClie
             status="pending",
             max_uses=3,
             used_count=0,
-            expires_at=datetime.utcnow() - timedelta(hours=1),
+            expires_at=datetime.now() - timedelta(hours=1),
         )
         session.add(inv)
         await session.commit()
@@ -408,7 +408,7 @@ async def test_tc021_guardian_count_used_up_invite_not_counted(client: AsyncClie
             status="pending",
             max_uses=3,
             used_count=3,
-            expires_at=datetime.utcnow() + timedelta(hours=24),
+            expires_at=datetime.now() + timedelta(hours=24),
         )
         session.add(inv)
         await session.commit()
@@ -437,7 +437,7 @@ async def test_tc022_guardian_count_active_plus_pending(client: AsyncClient):
             status="pending",
             max_uses=3,
             used_count=0,
-            expires_at=datetime.utcnow() + timedelta(hours=24),
+            expires_at=datetime.now() + timedelta(hours=24),
         )
         session.add(inv)
         await session.commit()

@@ -82,7 +82,7 @@ def _quota_to_dict(q: FreeMemberQuota) -> dict:
 
 async def _get_active_membership(db: AsyncSession, user_id: int) -> Optional[UserMembershipSub]:
     """获取用户当前有效（active 且未过期）的订阅。"""
-    now = datetime.utcnow()
+    now = datetime.now()
     result = await db.execute(
         select(UserMembershipSub)
         .where(UserMembershipSub.user_id == user_id)
@@ -334,7 +334,7 @@ async def subscribe_plan(
     else:
         price = plan.price_year or plan.price_month or 0
 
-    now = datetime.utcnow()
+    now = datetime.now()
     existing = await _get_active_membership(db, current_user.id)
     start_at = existing.expire_at if existing else now
     if existing:

@@ -234,7 +234,7 @@ async def test_h5_slots_filter_by_business_hours(
         business_end="22:00",
         cat_id=cat_id,
     )
-    today = datetime.utcnow().date().isoformat()
+    today = datetime.now().date().isoformat()
     res = await client.get(f"/api/h5/slots?storeId={store_ids[0]}&date={today}&productId={pid}")
     assert res.status_code == 200, res.text
     data = res.json()["data"]
@@ -263,7 +263,7 @@ async def test_h5_slots_hide_full(
         slot_capacity=2,  # 故意设小，方便填满
         cat_id=cat_id,
     )
-    target_date = datetime.utcnow().date()
+    target_date = datetime.now().date()
     target_date_str = target_date.isoformat()
     sid = store_ids[0]
 
@@ -279,7 +279,7 @@ async def test_h5_slots_hide_full(
             session.add(user)
             await session.flush()
             order = UnifiedOrder(
-                order_no=f"UO{datetime.utcnow().strftime('%Y%m%d%H%M%S')}{i:03d}",
+                order_no=f"UO{datetime.now().strftime('%Y%m%d%H%M%S')}{i:03d}",
                 user_id=user.id,
                 total_amount=100,
                 paid_amount=100,

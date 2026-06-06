@@ -62,8 +62,8 @@ class CareEmergencyContact(Base):
     relation = Column(String(32), nullable=False, default="")  # 儿子/女儿/家庭医生...
     phone = Column(String(32), nullable=False, default="")
     sort_order = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class CareCardExtra(Base):
@@ -76,8 +76,8 @@ class CareCardExtra(Base):
     user_id = Column(Integer, index=True, unique=True, nullable=False)
     home_address = Column(Text, default="")
     qr_token = Column(String(64), index=True, default="")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class CareLocationShare(Base):
@@ -95,7 +95,7 @@ class CareLocationShare(Base):
     latitude = Column(String(32), default="")
     longitude = Column(String(32), default="")
     address = Column(Text, default="")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
 
 
 # ───────────────────────── Pydantic ─────────────────────────
@@ -295,7 +295,7 @@ async def update_contact(
         contact.relation = data.relation.strip()
     if data.phone is not None:
         contact.phone = data.phone.strip()
-    contact.updated_at = datetime.utcnow()
+    contact.updated_at = datetime.now()
     await db.flush()
     await db.refresh(contact)
     return {"code": 0, "data": _contact_dict(contact)}
@@ -330,7 +330,7 @@ async def update_home_address(
 ):
     extra = await _get_or_create_extra(db, current_user.id)
     extra.home_address = (data.home_address or "").strip()
-    extra.updated_at = datetime.utcnow()
+    extra.updated_at = datetime.now()
     await db.flush()
     return {"code": 0, "data": {"home_address": extra.home_address}}
 

@@ -94,7 +94,7 @@ async def test_review_within_15_days_returns_review_button(client: AsyncClient, 
     async with test_session() as db:
         order = (await db.execute(select(UnifiedOrder).where(UnifiedOrder.id == oid))).scalar_one()
         order.status = UnifiedOrderStatus.completed
-        order.completed_at = datetime.utcnow() - timedelta(days=10)
+        order.completed_at = datetime.now() - timedelta(days=10)
         order.has_reviewed = False
         await db.commit()
 
@@ -115,7 +115,7 @@ async def test_review_after_15_days_shows_expired_button(client: AsyncClient, au
     async with test_session() as db:
         order = (await db.execute(select(UnifiedOrder).where(UnifiedOrder.id == oid))).scalar_one()
         order.status = UnifiedOrderStatus.completed
-        order.completed_at = datetime.utcnow() - timedelta(days=20)
+        order.completed_at = datetime.now() - timedelta(days=20)
         order.has_reviewed = False
         await db.commit()
 
@@ -135,7 +135,7 @@ async def test_review_api_rejects_after_15_days(client: AsyncClient, auth_header
     async with test_session() as db:
         order = (await db.execute(select(UnifiedOrder).where(UnifiedOrder.id == oid))).scalar_one()
         order.status = UnifiedOrderStatus.completed
-        order.completed_at = datetime.utcnow() - timedelta(days=20)
+        order.completed_at = datetime.now() - timedelta(days=20)
         order.has_reviewed = False
         await db.commit()
 
@@ -156,7 +156,7 @@ async def test_reviewed_order_shows_view_review_button(client: AsyncClient, auth
     async with test_session() as db:
         order = (await db.execute(select(UnifiedOrder).where(UnifiedOrder.id == oid))).scalar_one()
         order.status = UnifiedOrderStatus.completed
-        order.completed_at = datetime.utcnow() - timedelta(days=3)
+        order.completed_at = datetime.now() - timedelta(days=3)
         order.has_reviewed = True
         await db.commit()
 
@@ -387,7 +387,7 @@ async def test_completed_tab_excludes_refunded_orders(client: AsyncClient, auth_
     async with test_session() as db:
         c = (await db.execute(select(UnifiedOrder).where(UnifiedOrder.id == o_completed))).scalar_one()
         c.status = UnifiedOrderStatus.completed
-        c.completed_at = datetime.utcnow()
+        c.completed_at = datetime.now()
         r = (await db.execute(select(UnifiedOrder).where(UnifiedOrder.id == o_refunded))).scalar_one()
         r.status = UnifiedOrderStatus.refunded
         await db.commit()

@@ -100,13 +100,13 @@ async def _add_paid_order_for_slot(
     async with test_session() as session:
         from sqlalchemy import func
         order = UnifiedOrder(
-            order_no=f"TEST_{target_date.isoformat()}_{slot_label}_{datetime.utcnow().timestamp()}",
+            order_no=f"TEST_{target_date.isoformat()}_{slot_label}_{datetime.now().timestamp()}",
             user_id=user_id,
             total_amount=Decimal("100.00"),
             paid_amount=Decimal("100.00"),
             status=status,
             store_id=store_id,
-            created_at=datetime.utcnow() + timedelta(minutes=created_offset_minutes),
+            created_at=datetime.now() + timedelta(minutes=created_offset_minutes),
         )
         session.add(order)
         await session.flush()

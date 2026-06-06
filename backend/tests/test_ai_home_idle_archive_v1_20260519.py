@@ -63,7 +63,7 @@ async def _seed_session(
         is_pinned=False,
         is_deleted=False,
         status=status,
-        last_active_at=last_active_at or datetime.utcnow(),
+        last_active_at=last_active_at or datetime.now(),
         archived_at=archived_at,
     )
     db_session.add(s)
@@ -121,8 +121,8 @@ async def test_idle_archive_v1_list_status_all(client: AsyncClient, db_session):
 async def test_idle_archive_v1_list_returns_status_fields(client: AsyncClient, db_session):
     """列表项返回 status / archived_at / last_active_at 三个新字段。"""
     user_id, headers = await _register_and_login(client, "13900050004")
-    arch_at = datetime.utcnow() - timedelta(hours=2)
-    last_at = datetime.utcnow() - timedelta(hours=3)
+    arch_at = datetime.now() - timedelta(hours=2)
+    last_at = datetime.now() - timedelta(hours=3)
     s = await _seed_session(
         db_session, user_id, status="archived",
         title="带状态字段", last_active_at=last_at, archived_at=arch_at,

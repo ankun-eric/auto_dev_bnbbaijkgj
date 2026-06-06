@@ -61,7 +61,7 @@ async def checkup_statistics(
     total_result = await db.execute(select(func.count(CheckupReportDetail.id)))
     total = total_result.scalar() or 0
 
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     today_result = await db.execute(
         select(func.count(CheckupReportDetail.id)).where(
             CheckupReportDetail.created_at >= today_start
@@ -180,7 +180,7 @@ async def drug_statistics(
     total_result = await db.execute(select(func.count(DrugIdentifyDetail.id)))
     total = total_result.scalar() or 0
 
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     today_result = await db.execute(
         select(func.count(DrugIdentifyDetail.id)).where(
             DrugIdentifyDetail.created_at >= today_start

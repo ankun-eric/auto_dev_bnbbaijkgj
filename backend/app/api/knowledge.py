@@ -123,7 +123,7 @@ async def update_global_search_config(
     cfg = result.scalar_one_or_none()
     if cfg:
         cfg.config_json = data.config_json
-        cfg.updated_at = datetime.utcnow()
+        cfg.updated_at = datetime.now()
     else:
         db.add(KnowledgeSearchConfig(scope="global", config_json=data.config_json))
     return {"message": "全局检索策略更新成功"}
@@ -171,7 +171,7 @@ async def update_fallback_config(
         cfg.strategy = data.strategy
         cfg.custom_text = data.custom_text
         cfg.recommend_count = data.recommend_count
-        cfg.updated_at = datetime.utcnow()
+        cfg.updated_at = datetime.now()
     else:
         db.add(KnowledgeFallbackConfig(**data.model_dump()))
     return {"message": "兜底策略更新成功"}
@@ -316,7 +316,7 @@ async def stats_trend(
     current_user=Depends(admin_dep),
     db: AsyncSession = Depends(get_db),
 ):
-    end = datetime.utcnow().date()
+    end = datetime.now().date()
     start = end - timedelta(days=days - 1)
     start_dt = datetime.combine(start, datetime.min.time())
 
@@ -442,7 +442,7 @@ async def confirm_import(
 
     task.status = "completed"
     task.result_json = {**(task.result_json or {}), "created": created}
-    task.updated_at = datetime.utcnow()
+    task.updated_at = datetime.now()
 
     await db.flush()
     await _refresh_kb_counts(task.kb_id, db)
@@ -467,7 +467,7 @@ async def update_knowledge_base(
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(kb, key, value)
     kb.updated_by = current_user.id
-    kb.updated_at = datetime.utcnow()
+    kb.updated_at = datetime.now()
     await db.flush()
     await db.refresh(kb)
     return KnowledgeBaseResponse.model_validate(kb)
@@ -591,7 +591,7 @@ async def update_entry(
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(entry, key, value)
     entry.updated_by = current_user.id
-    entry.updated_at = datetime.utcnow()
+    entry.updated_at = datetime.now()
     await db.flush()
     await db.refresh(entry)
 
@@ -637,5 +637,5 @@ async def _refresh_kb_counts(kb_id: int, db: AsyncSession) -> None:
     await db.execute(
         update(KnowledgeBase)
         .where(KnowledgeBase.id == kb_id)
-        .values(entry_count=total, active_entry_count=active, updated_at=datetime.utcnow())
+        .values(entry_count=total, active_entry_count=active, updated_at=datetime.now())
     )

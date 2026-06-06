@@ -314,7 +314,7 @@ async def update_self_profile(
         if f in payload:
             setattr(profile, f, payload[f])
 
-    profile.updated_at = datetime.utcnow()
+    profile.updated_at = datetime.now()
     await db.flush()
     await db.refresh(profile)
 

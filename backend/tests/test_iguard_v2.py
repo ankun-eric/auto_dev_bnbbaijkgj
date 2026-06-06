@@ -181,7 +181,7 @@ async def test_remove_invitation_with_invitation_id(client: AsyncClient):
             invite_code=uuid.uuid4().hex,
             inviter_user_id=u.id,
             status="expired",
-            expires_at=datetime.utcnow() - timedelta(hours=1),
+            expires_at=datetime.now() - timedelta(hours=1),
             relation_type="父亲",
         )
         s.add(inv)
@@ -213,7 +213,7 @@ async def test_remove_pending_active_invitation_returns_400(client: AsyncClient)
             invite_code=uuid.uuid4().hex,
             inviter_user_id=u.id,
             status="pending",
-            expires_at=datetime.utcnow() + timedelta(hours=2),
+            expires_at=datetime.now() + timedelta(hours=2),
             relation_type="母亲",
         )
         s.add(inv)

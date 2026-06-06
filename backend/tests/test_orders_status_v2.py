@@ -163,7 +163,7 @@ async def test_set_appointment_advances_to_pending_use(client: AsyncClient, auth
     create_resp = await _create_order(client, auth_headers, pid)
     oid = create_resp.json()["id"]
     await _pay_order(client, auth_headers, oid)
-    appt_time = (datetime.utcnow() + timedelta(days=2)).isoformat()
+    appt_time = (datetime.now() + timedelta(days=2)).isoformat()
     appt_resp = await client.post(
         f"/api/orders/unified/{oid}/appointment",
         json={"appointment_time": appt_time},

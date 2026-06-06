@@ -191,7 +191,7 @@ async def test_ocr_test_connection_success(client: AsyncClient, admin_headers, d
     await _create_ocr_config(db_session)
 
     with patch("app.api.report.ensure_access_token", new_callable=AsyncMock) as mock_fn:
-        mock_fn.return_value = ("fake_token", datetime.utcnow() + timedelta(days=1))
+        mock_fn.return_value = ("fake_token", datetime.now() + timedelta(days=1))
         resp = await client.post("/api/admin/ocr/test", headers=admin_headers)
 
     assert resp.status_code == 200
@@ -574,7 +574,7 @@ async def test_view_share_expired(client: AsyncClient, auth_headers, db_session)
     user_id = await _get_user_id(client, auth_headers)
     report = await _create_report(db_session, user_id)
     report.share_token = "expired_token_abc"
-    report.share_expires_at = datetime.utcnow() - timedelta(days=1)
+    report.share_expires_at = datetime.now() - timedelta(days=1)
     await db_session.commit()
 
     resp = await client.get("/api/report/share/expired_token_abc")
@@ -669,7 +669,7 @@ async def test_upload_pre_executes_ocr(client: AsyncClient, auth_headers, db_ses
     with patch("app.api.report.try_cos_upload", new_callable=AsyncMock, return_value=None), \
          patch("app.api.report.ensure_access_token", new_callable=AsyncMock) as mock_token, \
          patch("app.api.report.ocr_recognize", new_callable=AsyncMock) as mock_ocr:
-        mock_token.return_value = ("fake_token", datetime.utcnow() + timedelta(days=1))
+        mock_token.return_value = ("fake_token", datetime.now() + timedelta(days=1))
         mock_ocr.return_value = "血红蛋白 150 g/L"
 
         resp = await client.post(
@@ -779,7 +779,7 @@ async def test_analyze_cos_url_fallback(client: AsyncClient, auth_headers, db_se
          patch("app.api.report.ocr_recognize", new_callable=AsyncMock) as mock_ocr, \
          patch("app.api.report.analyze_report_structured", new_callable=AsyncMock) as mock_ai:
         mock_read.return_value = _make_test_image()
-        mock_token.return_value = ("fake_token", datetime.utcnow() + timedelta(days=1))
+        mock_token.return_value = ("fake_token", datetime.now() + timedelta(days=1))
         mock_ocr.return_value = "血红蛋白 150 g/L"
         mock_ai.return_value = mock_analysis
 
@@ -839,7 +839,7 @@ async def test_report_ocr_cos_url(client: AsyncClient, auth_headers, db_session)
          patch("app.api.report.ensure_access_token", new_callable=AsyncMock) as mock_token, \
          patch("app.api.report.ocr_recognize", new_callable=AsyncMock) as mock_ocr:
         mock_read.return_value = _make_test_image()
-        mock_token.return_value = ("fake_token", datetime.utcnow() + timedelta(days=1))
+        mock_token.return_value = ("fake_token", datetime.now() + timedelta(days=1))
         mock_ocr.return_value = "OCR识别文字结果"
 
         resp = await client.post(

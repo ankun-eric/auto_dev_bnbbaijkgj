@@ -163,7 +163,7 @@ async def list_services_with_coupon_filter(
         uc_status = uc.status.value if hasattr(uc.status, "value") else str(uc.status)
         if uc_status != "unused":
             raise HTTPException(status_code=404, detail="该优惠券已使用或已过期")
-        if uc.expire_at is not None and uc.expire_at < datetime.utcnow():
+        if uc.expire_at is not None and uc.expire_at < datetime.now():
             raise HTTPException(status_code=404, detail="该优惠券已过期")
 
         coupon_rs = await db.execute(select(Coupon).where(Coupon.id == uc.coupon_id))

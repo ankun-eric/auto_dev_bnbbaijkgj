@@ -159,14 +159,14 @@ def _cache_get(key: str, ttl_s: int) -> Optional[Dict[str, Any]]:
     item = _ai_cache.get(key)
     if not item:
         return None
-    if ttl_s > 0 and (datetime.utcnow().timestamp() - item.get("_ts", 0)) > ttl_s:
+    if ttl_s > 0 and (datetime.now().timestamp() - item.get("_ts", 0)) > ttl_s:
         _ai_cache.pop(key, None)
         return None
     return item
 
 
 def _cache_set(key: str, data: Dict[str, Any]) -> None:
-    data["_ts"] = datetime.utcnow().timestamp()
+    data["_ts"] = datetime.now().timestamp()
     _ai_cache[key] = data
 
 
@@ -364,7 +364,7 @@ async def ai_explain_single(
         ai_text = _fallback_single_explain(sbp, dbp)
         used_model = "rules-fallback"
 
-    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     _cache_set(cache_key, {"content": ai_text, "model": used_model, "generated_at": now_str})
     return {"code": 0, "data": {
         "from_cache": False,
@@ -413,7 +413,7 @@ async def ai_explain_trend(
             "generated_at": cached.get("generated_at"),
         }}
 
-    start = datetime.utcnow() - timedelta(days=days)
+    start = datetime.now() - timedelta(days=days)
     rows = (await db.execute(
         text(
             "SELECT value_json, measured_at FROM health_metric_record "
@@ -479,7 +479,7 @@ async def ai_explain_trend(
         summary, trend, advice = rule["summary"], rule["trend"], rule["advice"]
         used_model = "rules-fallback"
 
-    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     _cache_set(cache_key, {
         "summary": summary, "trend": trend, "advice": advice,
         "model": used_model, "generated_at": now_str,

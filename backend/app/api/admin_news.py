@@ -142,7 +142,7 @@ def _serialize_tags(tags: Optional[List[str]]) -> Optional[str]:
 async def _upsert_tag_history(db: AsyncSession, tags: Optional[List[str]]):
     if not tags:
         return
-    now = datetime.utcnow()
+    now = datetime.now()
     for t in tags:
         t = str(t).strip()
         if not t:
@@ -245,7 +245,7 @@ async def admin_create_news(
     published_at = data.published_at
     status = data.status or "draft"
     if status == "published" and not published_at:
-        published_at = datetime.utcnow()
+        published_at = datetime.now()
 
     news_obj = News(
         title=data.title.strip(),
@@ -293,8 +293,8 @@ async def admin_update_news(
 
     # 如果切换为 published 且 published_at 为空，自动补上
     if item.status == ContentStatus.published and not item.published_at:
-        item.published_at = datetime.utcnow()
-    item.updated_at = datetime.utcnow()
+        item.published_at = datetime.now()
+    item.updated_at = datetime.now()
     await db.flush()
     await db.refresh(item)
     return NewsResponse.from_model(item)
@@ -329,7 +329,7 @@ async def admin_publish_news(
         raise HTTPException(status_code=404, detail="资讯不存在")
     item.status = target_status
     if target_status == "published" and not item.published_at:
-        item.published_at = datetime.utcnow()
+        item.published_at = datetime.now()
     await db.flush()
     return {"message": "操作成功", "status": target_status}
 

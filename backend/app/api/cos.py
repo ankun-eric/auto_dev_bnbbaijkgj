@@ -132,7 +132,7 @@ async def update_cos_config(
         cfg.cdn_domain = data.cdn_domain
     if data.cdn_protocol is not None:
         cfg.cdn_protocol = data.cdn_protocol
-    cfg.updated_at = datetime.utcnow()
+    cfg.updated_at = datetime.now()
 
     try:
         await db.flush()
@@ -176,7 +176,7 @@ async def test_cos_connection_upload(
 
     if cos_url:
         cfg.test_passed = True
-        cfg.updated_at = datetime.utcnow()
+        cfg.updated_at = datetime.now()
         try:
             await db.flush()
         except Exception:
@@ -221,7 +221,7 @@ async def test_cos_connection(
             resp = await client.head(url)
             if resp.status_code in (200, 403):
                 cfg.test_passed = True
-                cfg.updated_at = datetime.utcnow()
+                cfg.updated_at = datetime.now()
                 try:
                     await db.flush()
                 except Exception as db_err:
@@ -641,7 +641,7 @@ async def _run_migration(task_id: int, modules: list):
 
             state["total_files"] = len(files_to_migrate)
             state["status"] = "migrating"
-            state["started_at"] = datetime.utcnow().isoformat()
+            state["started_at"] = datetime.now().isoformat()
 
             await db.execute(
                 update(CosMigrationTask)
@@ -649,7 +649,7 @@ async def _run_migration(task_id: int, modules: list):
                 .values(
                     total_files=len(files_to_migrate),
                     status="migrating",
-                    started_at=datetime.utcnow(),
+                    started_at=datetime.now(),
                 )
             )
             await db.commit()
@@ -709,7 +709,7 @@ async def _run_migration(task_id: int, modules: list):
                         cos_url=cos_url,
                         file_size=len(file_content),
                         status="success",
-                        migrated_at=datetime.utcnow(),
+                        migrated_at=datetime.now(),
                     )
                     db.add(detail)
                     await db.commit()
@@ -743,7 +743,7 @@ async def _run_migration(task_id: int, modules: list):
                     migrated_count=state.get("migrated_count", 0),
                     failed_count=state.get("failed_count", 0),
                     skipped_count=state.get("skipped_count", 0),
-                    completed_at=datetime.utcnow(),
+                    completed_at=datetime.now(),
                 )
             )
             await db.commit()
@@ -756,7 +756,7 @@ async def _run_migration(task_id: int, modules: list):
                 await db.execute(
                     update(CosMigrationTask)
                     .where(CosMigrationTask.id == task_id)
-                    .values(status="failed", completed_at=datetime.utcnow())
+                    .values(status="failed", completed_at=datetime.now())
                 )
                 await db.commit()
         except Exception:
@@ -888,7 +888,7 @@ async def migration_retry(
             if cos_url:
                 detail.cos_url = cos_url
                 detail.status = "success"
-                detail.migrated_at = datetime.utcnow()
+                detail.migrated_at = datetime.now()
                 detail.error_message = None
 
                 if detail.module in MODULE_TABLE_FIELDS:

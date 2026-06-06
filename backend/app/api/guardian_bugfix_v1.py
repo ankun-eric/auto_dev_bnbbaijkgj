@@ -83,7 +83,7 @@ def check_rate_limit_only(action: str, uid: int) -> None:
     """
     if action not in RATE_LIMIT_ACTIONS:
         return
-    today = datetime.utcnow().date()
+    today = datetime.now().date()
     key = _rate_limit_key(action, uid, today)
     with _rate_lock:
         _cleanup_old_counters_unsafe(today)
@@ -98,7 +98,7 @@ def incr_rate_limit(action: str, uid: int) -> None:
     """
     if action not in RATE_LIMIT_ACTIONS:
         return
-    today = datetime.utcnow().date()
+    today = datetime.now().date()
     key = _rate_limit_key(action, uid, today)
     with _rate_lock:
         _cleanup_old_counters_unsafe(today)
@@ -119,7 +119,7 @@ def check_and_incr_rate_limit(action: str, uid: int) -> None:
 
 def peek_rate_limit_used(action: str, uid: int) -> int:
     """查看当前已使用次数（不递增），主要用于调试 / 测试"""
-    today = datetime.utcnow().date()
+    today = datetime.now().date()
     key = _rate_limit_key(action, uid, today)
     with _rate_lock:
         return _rate_counter.get(key, 0)
@@ -162,7 +162,7 @@ async def _check_has_pending_invitation(
     db: AsyncSession, *, inviter_user_id: int, member_id: int
 ) -> bool:
     """R3：检查是否有未取消的 pending 邀请"""
-    now = datetime.utcnow()
+    now = datetime.now()
     res = await db.execute(
         select(func.count(FamilyInvitation.id)).where(
             FamilyInvitation.inviter_user_id == inviter_user_id,
@@ -520,7 +520,7 @@ async def unguard_relation(
         mgmt.status = "cancelled_by_target"
     else:
         mgmt.status = "cancelled"
-    mgmt.cancelled_at = datetime.utcnow()
+    mgmt.cancelled_at = datetime.now()
     mgmt.cancelled_by = current_user.id
 
     # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V2 2026-06-03] 治本：守护关系取消同步回滚 FamilyMember

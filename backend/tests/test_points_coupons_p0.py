@@ -66,7 +66,7 @@ async def test_coupons_summary_excludes_used_and_expired(
 ):
     """合计 = 未使用且未过期。已用 / 已过期不计入。"""
     user_id = await _get_user_id("13900000001")
-    now = datetime.utcnow()
+    now = datetime.now()
 
     async with test_session() as session:
         # 1 张：可用（未使用 + 未来过期）
@@ -121,7 +121,7 @@ async def test_mine_coupons_available_count_matches_tab(
     """GET /api/coupons/mine 响应里的 available_count 必须等于 /summary.available，
     保证前端"合计(N)"与"可用(N)" Tab 数据一致。"""
     user_id = await _get_user_id("13900000001")
-    now = datetime.utcnow()
+    now = datetime.now()
 
     async with test_session() as session:
         session.add(UserCoupon(

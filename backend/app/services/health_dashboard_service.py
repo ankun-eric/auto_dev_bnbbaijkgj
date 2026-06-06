@@ -218,7 +218,7 @@ async def calculate_health_score(
 async def _get_recent_metrics(
     db: AsyncSession, profile_id: int, metric_type: str, days: int
 ) -> list:
-    since = datetime.utcnow() - timedelta(days=days)
+    since = datetime.now() - timedelta(days=days)
     res = await db.execute(
         select(HealthMetricRecord).where(
             HealthMetricRecord.profile_id == profile_id,
@@ -596,7 +596,7 @@ async def get_checkup_summary(db: AsyncSession, member: FamilyMember) -> dict:
 async def get_trends(
     db: AsyncSession, profile_id: int, days: int = 7, metric: Optional[str] = None
 ) -> dict:
-    since = datetime.utcnow() - timedelta(days=days)
+    since = datetime.now() - timedelta(days=days)
     result: Dict[str, list] = {}
 
     metric_map = {
@@ -677,7 +677,7 @@ async def check_and_alert(
     details = []
     abnormal_found = False
     today = date.today()
-    now = datetime.utcnow()
+    now = datetime.now()
 
     for mt in check_types:
         res = await db.execute(

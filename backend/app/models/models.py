@@ -343,8 +343,8 @@ class User(Base):
     # [2026-06-05] 账号注销支持：is_active 标记账号是否活跃，deleted_at 记录注销时间
     is_active = mapped_column(Boolean, default=True, nullable=False, server_default="1")
     deleted_at = mapped_column(DateTime, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     health_profile = relationship("HealthProfile", back_populates="user", uselist=True)
     family_members = relationship("FamilyMember", back_populates="user", foreign_keys="FamilyMember.user_id")
@@ -363,8 +363,8 @@ class RelationType(Base):
     name = mapped_column(String(50), nullable=False)
     sort_order = mapped_column(Integer, default=0)
     is_active = mapped_column(Boolean, default=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class FamilyMember(Base):
@@ -407,7 +407,7 @@ class FamilyMember(Base):
     ai_call_timing = mapped_column(String(16), default="on_time", nullable=False)
     # [PRD-HEALTH-ARCHIVE-OPTIM-V2 2026-05-18] 超时通知守护者触发时长（分钟）：5/10/15
     guardian_alert_minutes = mapped_column(Integer, default=5, nullable=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User", back_populates="family_members", foreign_keys=[user_id])
     member_user = relationship("User", foreign_keys=[member_user_id])
@@ -422,7 +422,7 @@ class VerificationCode(Base):
     code = mapped_column(String(10), nullable=False)
     type = mapped_column(String(20), nullable=False)
     expires_at = mapped_column(DateTime, nullable=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
 
 class AccountIdentity(Base):
@@ -432,8 +432,8 @@ class AccountIdentity(Base):
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     identity_type = mapped_column(Enum(IdentityType), nullable=False)
     status = mapped_column(String(20), default="active")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     __table_args__ = (UniqueConstraint("user_id", "identity_type", name="uq_account_identity_user_type"),)
 
@@ -446,8 +446,8 @@ class MerchantProfile(Base):
     nickname = mapped_column(String(100), nullable=True)
     avatar = mapped_column(String(500), nullable=True)
     category_id = mapped_column(Integer, ForeignKey("merchant_categories.id"), nullable=True, index=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class MerchantStore(Base):
@@ -487,8 +487,8 @@ class MerchantStore(Base):
     # [2026-05-05 营业管理入口收敛 PRD v1.0] 门店级「当日最晚提前 N 分钟截止」（NULL=不设置 → 系统默认 30 分钟）
     booking_cutoff_minutes = mapped_column(Integer, nullable=True,
                                            comment="门店级当日最晚提前 N 分钟截止；NULL=系统默认 30 分钟")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class MerchantStoreMembership(Base):
@@ -501,8 +501,8 @@ class MerchantStoreMembership(Base):
     # [2026-04-24] 角色模板 code（boss/manager/finance/clerk）
     role_code = mapped_column(String(32), nullable=True, index=True)
     status = mapped_column(String(20), default="active")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     __table_args__ = (UniqueConstraint("user_id", "store_id", name="uq_merchant_store_member"),)
 
@@ -515,7 +515,7 @@ class MerchantStorePermission(Base):
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     membership_id = mapped_column(Integer, ForeignKey("merchant_store_memberships.id"), nullable=False, index=True)
     module_code = mapped_column(String(50), nullable=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     __table_args__ = (UniqueConstraint("membership_id", "module_code", name="uq_merchant_store_permission"),)
 
@@ -532,7 +532,7 @@ class MerchantNotification(Base):
     content = mapped_column(Text, nullable=True)
     notification_type = mapped_column(String(50), default='system')
     is_read = mapped_column(Boolean, default=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     store = relationship("MerchantStore")
 
@@ -544,7 +544,7 @@ class MerchantOrderVerification(Base):
     order_id = mapped_column(Integer, ForeignKey("orders.id"), nullable=False, unique=True, index=True)
     store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=False, index=True)
     verified_by_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    verified_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    verified_at = mapped_column(DateTime, default=datetime.now, nullable=False)
 
     store = relationship("MerchantStore")
     order = relationship("Order")
@@ -566,8 +566,8 @@ class MerchantCategory(Base):
     attachment_label = mapped_column(String(64), nullable=True)
     sort = mapped_column(Integer, default=0)
     status = mapped_column(String(16), default="active")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class MerchantRoleTemplate(Base):
@@ -580,8 +580,8 @@ class MerchantRoleTemplate(Base):
     default_modules = mapped_column(JSON, nullable=False)
     is_system = mapped_column(Boolean, default=True)
     sort_order = mapped_column(Integer, default=0)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class OrderAttachment(Base):
@@ -601,7 +601,7 @@ class OrderAttachment(Base):
     mime_type = mapped_column(String(64), nullable=True)
     # [订单系统增强 PRD v1.0] 缩略图 URL（图片附件用）
     thumbnail_url = mapped_column(String(500), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
     deleted_at = mapped_column(DateTime, nullable=True)
 
     store = relationship("MerchantStore")
@@ -622,8 +622,8 @@ class MerchantBusinessHours(Base):
     start_time = mapped_column(String(5), nullable=False, comment="HH:MM")
     end_time = mapped_column(String(5), nullable=False, comment="HH:MM")
     is_closed = mapped_column(Boolean, default=False, comment="该日是否休息（仅对 date_exception 有效）")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class MerchantInvoiceProfile(Base):
@@ -640,8 +640,8 @@ class MerchantInvoiceProfile(Base):
     register_phone = mapped_column(String(32), nullable=True)
     receive_address = mapped_column(String(255), nullable=True)
     receive_email = mapped_column(String(128), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class SettlementStatement(Base):
@@ -662,8 +662,8 @@ class SettlementStatement(Base):
     confirmed_at = mapped_column(DateTime, nullable=True)
     settled_at = mapped_column(DateTime, nullable=True)
     remark = mapped_column(Text, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class SettlementPaymentProof(Base):
@@ -687,8 +687,8 @@ class SettlementPaymentProof(Base):
     amount = mapped_column(Numeric(12, 2), default=0)
     paid_at = mapped_column(DateTime, nullable=True)
     uploaded_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class MerchantExportTask(Base):
@@ -704,7 +704,7 @@ class MerchantExportTask(Base):
     status = mapped_column(String(20), default="queued")
     file_url = mapped_column(String(500), nullable=True)
     error_message = mapped_column(String(500), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
     finished_at = mapped_column(DateTime, nullable=True)
 
 
@@ -739,8 +739,8 @@ class HealthProfile(Base):
     other_allergies = mapped_column(Text, nullable=True)
     genetic_diseases = mapped_column(JSON, nullable=True)
     guide_count = Column(Integer, default=0, nullable=False, server_default="0")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     user = relationship("User", back_populates="health_profile")
     family_member = relationship("FamilyMember")
@@ -754,8 +754,8 @@ class DiseasePreset(Base):
     category = mapped_column(String(20), nullable=False)
     sort_order = mapped_column(Integer, default=0)
     is_active = mapped_column(Boolean, default=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class AllergyRecord(Base):
@@ -766,7 +766,7 @@ class AllergyRecord(Base):
     allergy_type = mapped_column(String(50), nullable=False)
     allergy_name = mapped_column(String(100), nullable=False)
     severity = mapped_column(String(20), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User")
 
@@ -780,7 +780,7 @@ class MedicalHistory(Base):
     diagnosis_date = mapped_column(Date, nullable=True)
     status = mapped_column(String(20), nullable=True)
     notes = mapped_column(Text, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User")
 
@@ -793,7 +793,7 @@ class FamilyMedicalHistory(Base):
     relationship_type = mapped_column(String(50), nullable=False)
     disease_name = mapped_column(String(200), nullable=False)
     notes = mapped_column(Text, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User")
 
@@ -809,7 +809,7 @@ class MedicationRecord(Base):
     start_date = mapped_column(Date, nullable=True)
     end_date = mapped_column(Date, nullable=True)
     status = mapped_column(String(20), default="active")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User")
 
@@ -824,7 +824,7 @@ class VisitRecord(Base):
     diagnosis = mapped_column(Text, nullable=True)
     visit_date = mapped_column(Date, nullable=True)
     notes = mapped_column(Text, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User")
 
@@ -857,7 +857,7 @@ class CheckupReport(Base):
     # [2026-04-23] 报告解读对话化 - 新增字段
     title = mapped_column(String(100), nullable=True)
     interpret_session_id = mapped_column(Integer, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User")
     family_member = relationship("FamilyMember")
@@ -877,7 +877,7 @@ class CheckupIndicator(Base):
     status = mapped_column(Enum(IndicatorStatus), default=IndicatorStatus.normal)
     category = mapped_column(String(100), nullable=True)
     advice = mapped_column(String(500), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     report = relationship("CheckupReport", back_populates="checkup_indicators")
 
@@ -918,8 +918,8 @@ class ChatSession(Base):
     archived_at = mapped_column(DateTime, nullable=True)
     # 最后活动时间（最后一条消息的时间），用于分组判定与列表排序
     last_active_at = mapped_column(DateTime, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     user = relationship("User", back_populates="chat_sessions")
     messages = relationship("ChatMessage", back_populates="session", order_by="ChatMessage.created_at")
@@ -949,7 +949,7 @@ class ChatMessage(Base):
     # [Bug-433 2026-05-09] AI 回复关联到对应的用户消息 id，便于历史查询成对返回 +
     # 一次性数据回补脚本扫描孤立 AI 消息使用。user 消息此字段始终为 NULL。
     parent_id = mapped_column(Integer, nullable=True, index=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     session = relationship("ChatSession", back_populates="messages")
 
@@ -964,8 +964,8 @@ class TCMConfig(Base):
     tongue_diagnosis_enabled = mapped_column(Boolean, default=False)
     face_diagnosis_enabled = mapped_column(Boolean, default=False)
     constitution_test_enabled = mapped_column(Boolean, default=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class TCMDiagnosis(Base):
@@ -985,7 +985,7 @@ class TCMDiagnosis(Base):
     advice_summary = mapped_column(String(1000), nullable=True)
     # ───── [PRD-TCM-CONSTITUTION-36Q-V1 2026-05-20] 王琦本地公式判定结果 ─────
     constitution_scores = mapped_column(JSON, nullable=True, comment="9 项转换分 + 主体质 + 兼夹体质 + 置信度")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User")
     family_member = relationship("FamilyMember")
@@ -1011,7 +1011,7 @@ class ConstitutionAnswer(Base):
     diagnosis_id = mapped_column(Integer, ForeignKey("tcm_diagnoses.id"), nullable=False, index=True)
     question_id = mapped_column(Integer, ForeignKey("constitution_questions.id"), nullable=False)
     answer_value = mapped_column(String(200), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     diagnosis = relationship("TCMDiagnosis", back_populates="answers")
     question = relationship("ConstitutionQuestion")
@@ -1045,8 +1045,8 @@ class ConstitutionContentConfig(Base):
     button_text = mapped_column(String(40), nullable=True, comment="按钮文案")
     sort_order = mapped_column(Integer, default=0)
     enabled = mapped_column(Boolean, default=True, index=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 # ──────────────── 服务与订单 ────────────────
@@ -1061,7 +1061,7 @@ class ServiceCategory(Base):
     description = mapped_column(Text, nullable=True)
     sort_order = mapped_column(Integer, default=0)
     status = mapped_column(String(20), default="active")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     items = relationship("ServiceItem", back_populates="category")
 
@@ -1080,8 +1080,8 @@ class ServiceItem(Base):
     stock = mapped_column(Integer, default=0)
     sales_count = mapped_column(Integer, default=0)
     status = mapped_column(String(20), default="active")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     category = relationship("ServiceCategory", back_populates="items")
 
@@ -1109,8 +1109,8 @@ class Order(Base):
     # [支付配置 PRD v1.0] 实际支付通道（wechat_miniprogram / wechat_app / alipay_h5 / alipay_app）
     payment_channel_code = mapped_column(String(32), nullable=True, index=True)
     payment_display_name = mapped_column(String(100), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     user = relationship("User", back_populates="orders")
     service_item = relationship("ServiceItem")
@@ -1126,7 +1126,7 @@ class OrderReview(Base):
     rating = mapped_column(Integer, nullable=False)
     content = mapped_column(Text, nullable=True)
     images = mapped_column(JSON, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     order = relationship("Order", back_populates="review")
     user = relationship("User")
@@ -1151,7 +1151,7 @@ class Expert(Base):
     rating = mapped_column(Float, default=5.0)
     review_count = mapped_column(Integer, default=0)
     status = mapped_column(String(20), default="active")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     product_id = mapped_column(Integer, ForeignKey("products.id"), nullable=True)
 
@@ -1170,7 +1170,7 @@ class ExpertSchedule(Base):
     max_appointments = mapped_column(Integer, default=10)
     current_appointments = mapped_column(Integer, default=0)
     status = mapped_column(String(20), default="active")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     expert = relationship("Expert", back_populates="schedules")
 
@@ -1186,7 +1186,7 @@ class Appointment(Base):
     time_slot = mapped_column(String(50), nullable=False)
     status = mapped_column(Enum(AppointmentStatus), default=AppointmentStatus.pending)
     notes = mapped_column(Text, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User")
     expert = relationship("Expert")
@@ -1205,7 +1205,7 @@ class PointsRecord(Base):
     type = mapped_column(Enum(PointsType), nullable=False)
     description = mapped_column(String(200), nullable=True)
     order_id = mapped_column(Integer, ForeignKey("orders.id"), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User", back_populates="points_records")
 
@@ -1221,7 +1221,7 @@ class MemberLevel(Base):
     discount_rate = mapped_column(Float, default=1.0)
     benefits = mapped_column(JSON, nullable=True)
     color = mapped_column(String(20), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
 
 class SignInRecord(Base):
@@ -1232,7 +1232,7 @@ class SignInRecord(Base):
     sign_date = mapped_column(Date, nullable=False)
     consecutive_days = mapped_column(Integer, default=1)
     points_earned = mapped_column(Integer, default=0)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     __table_args__ = (UniqueConstraint("user_id", "sign_date", name="uq_user_sign_date"),)
 
@@ -1264,7 +1264,7 @@ class PointsMallItem(Base):
     replaced_by_goods_id = mapped_column(Integer, nullable=True, comment="被哪个商品替代（复制新建）")
     copied_from_goods_id = mapped_column(Integer, nullable=True, comment="从哪个商品复制而来")
     sort_weight = mapped_column(Integer, default=0, nullable=False, comment="排序权重，越大越靠前")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
 
 class PointsMallGoodsChangeLog(Base):
@@ -1282,7 +1282,7 @@ class PointsMallGoodsChangeLog(Base):
     new_value = mapped_column(Text, nullable=True)
     operator_id = mapped_column(Integer, nullable=True)
     operator_name = mapped_column(String(64), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = mapped_column(DateTime, default=datetime.now, nullable=False, index=True)
 
 
 class PointsExchange(Base):
@@ -1295,7 +1295,7 @@ class PointsExchange(Base):
     quantity = mapped_column(Integer, default=1)
     status = mapped_column(String(20), default="pending")
     shipping_info = mapped_column(JSON, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User")
     item = relationship("PointsMallItem")
@@ -1320,7 +1320,7 @@ class PointExchangeRecord(Base):
 
     status = mapped_column(String(20), default="success", nullable=False, index=True,
                             comment="pending/success/failed/used/expired/cancelled")
-    exchange_time = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    exchange_time = mapped_column(DateTime, default=datetime.now, nullable=False)
     expire_at = mapped_column(DateTime, nullable=True)
     used_at = mapped_column(DateTime, nullable=True)
 
@@ -1337,9 +1337,9 @@ class PointExchangeRecord(Base):
     ref_order_no = mapped_column(String(32), nullable=True)
 
     remark = mapped_column(String(500), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow,
-                                onupdate=datetime.utcnow, nullable=False)
+    created_at = mapped_column(DateTime, default=datetime.now, nullable=False)
+    updated_at = mapped_column(DateTime, default=datetime.now,
+                                onupdate=datetime.now, nullable=False)
 
     user = relationship("User")
 
@@ -1359,7 +1359,7 @@ class HealthPlan(Base):
     start_date = mapped_column(Date, nullable=True)
     end_date = mapped_column(Date, nullable=True)
     status = mapped_column(String(20), default="active")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User", back_populates="health_plans")
     tasks = relationship("HealthTask", back_populates="plan")
@@ -1377,7 +1377,7 @@ class HealthTask(Base):
     reminder_time = mapped_column(String(50), nullable=True)
     status = mapped_column(String(20), default="pending")
     points_reward = mapped_column(Integer, default=0)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     plan = relationship("HealthPlan", back_populates="tasks")
     user = relationship("User")
@@ -1392,7 +1392,7 @@ class TaskCheckIn(Base):
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     check_in_date = mapped_column(Date, nullable=False)
     notes = mapped_column(Text, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     task = relationship("HealthTask", back_populates="check_ins")
     user = relationship("User")
@@ -1420,8 +1420,8 @@ class Article(Base):
     is_top = mapped_column(Boolean, default=False)  # v8
     published_at = mapped_column(DateTime, nullable=True)  # v8: 发布时间
     status = mapped_column(Enum(ContentStatus), default=ContentStatus.draft)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     author = relationship("User", back_populates="articles", foreign_keys=[author_id])
 
@@ -1434,7 +1434,7 @@ class ArticleCategory(Base):
     name = mapped_column(String(50), unique=True, nullable=False)
     sort_order = mapped_column(Integer, default=0)
     is_enabled = mapped_column(Boolean, default=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
 
 class News(Base):
@@ -1454,8 +1454,8 @@ class News(Base):
     like_count = mapped_column(Integer, default=0)
     comment_count = mapped_column(Integer, default=0)
     published_at = mapped_column(DateTime, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class NewsTagHistory(Base):
@@ -1465,7 +1465,7 @@ class NewsTagHistory(Base):
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     tag = mapped_column(String(50), unique=True, nullable=False)
     use_count = mapped_column(Integer, default=1)
-    last_used_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_used_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class Comment(Base):
@@ -1477,7 +1477,7 @@ class Comment(Base):
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     parent_id = mapped_column(Integer, ForeignKey("comments.id"), nullable=True)
     content = mapped_column(Text, nullable=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User")
     replies = relationship("Comment")
@@ -1490,7 +1490,7 @@ class Favorite(Base):
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     content_type = mapped_column(String(20), nullable=False)
     content_id = mapped_column(Integer, nullable=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     __table_args__ = (UniqueConstraint("user_id", "content_type", "content_id", name="uq_user_favorite"),)
 
@@ -1515,7 +1515,7 @@ class Notification(Base):
     type = mapped_column(Enum(NotificationType), default=NotificationType.system)
     is_read = mapped_column(Boolean, default=False)
     extra_data = mapped_column(JSON, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    created_at = mapped_column(DateTime, default=datetime.now, index=True)
     read_at = mapped_column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="notifications")
@@ -1532,8 +1532,8 @@ class SystemConfig(Base):
     config_value = mapped_column(Text, nullable=True)
     config_type = mapped_column(String(20), nullable=True)
     description = mapped_column(String(200), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 # ──────────────── 支付配置 PRD v1.0 ────────────────
@@ -1573,8 +1573,8 @@ class PaymentChannel(Base):
     last_test_at = mapped_column(DateTime, nullable=True, comment="最近一次测试连接时间")
     last_test_ok = mapped_column(Boolean, nullable=True, comment="最近一次测试连接结果")
     last_test_message = mapped_column(String(500), nullable=True, comment="最近一次测试连接消息")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class AIModelTemplate(Base):
@@ -1587,8 +1587,8 @@ class AIModelTemplate(Base):
     icon = mapped_column(String(50), nullable=False)
     description = mapped_column(String(500), nullable=False)
     status = mapped_column(Integer, default=1)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class AIModelConfig(Base):
@@ -1607,8 +1607,8 @@ class AIModelConfig(Base):
     last_test_status = mapped_column(String(20), nullable=True)
     last_test_time = mapped_column(DateTime, nullable=True)
     last_test_message = mapped_column(String(500), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     template = relationship("AIModelTemplate")
 
@@ -1627,8 +1627,8 @@ class SmsConfig(Base):
     access_key_id = mapped_column(String(255), nullable=True)
     access_key_secret_encrypted = mapped_column(String(500), nullable=True)
     is_active = mapped_column(Boolean, default=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class SmsLog(Base):
@@ -1644,7 +1644,7 @@ class SmsLog(Base):
     is_test = mapped_column(Boolean, default=False)
     operator_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     template_params = mapped_column(String(1000), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
 
 class SmsTemplate(Base):
@@ -1659,8 +1659,8 @@ class SmsTemplate(Base):
     scene = mapped_column(String(20), nullable=True)
     variables = mapped_column(Text, nullable=True)
     status = mapped_column(Boolean, default=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class EmailLog(Base):
@@ -1674,7 +1674,7 @@ class EmailLog(Base):
     error_message = mapped_column(String(500), nullable=True)
     is_test = mapped_column(Boolean, default=False)
     operator_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
 
 # ──────────────── 客服 ────────────────
@@ -1688,8 +1688,8 @@ class CustomerServiceSession(Base):
     agent_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     status = mapped_column(Enum(CSSessionStatus), default=CSSessionStatus.waiting)
     type = mapped_column(Enum(CSSessionType), default=CSSessionType.ai)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     user = relationship("User", foreign_keys=[user_id])
     agent = relationship("User", foreign_keys=[agent_id])
@@ -1705,7 +1705,7 @@ class CustomerServiceMessage(Base):
     sender_id = mapped_column(Integer, nullable=True)
     content = mapped_column(Text, nullable=False)
     message_type = mapped_column(String(20), default="text")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     session = relationship("CustomerServiceSession", back_populates="messages")
 
@@ -1755,8 +1755,8 @@ class KnowledgeBase(Base):
     is_global = mapped_column(Boolean, default=False)
     entry_count = mapped_column(Integer, default=0)
     active_entry_count = mapped_column(Integer, default=0)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
     updated_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
 
 
@@ -1774,8 +1774,8 @@ class KnowledgeEntry(Base):
     hit_count = mapped_column(Integer, default=0)
     last_hit_at = mapped_column(DateTime, nullable=True)
     embedding_vector = mapped_column(Text, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
     updated_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     knowledge_base = relationship("KnowledgeBase")
 
@@ -1786,7 +1786,7 @@ class KnowledgeEntryProduct(Base):
     entry_id = mapped_column(Integer, ForeignKey("knowledge_entries.id"), nullable=False, index=True)
     product_id = mapped_column(Integer, nullable=False)
     product_type = mapped_column(String(20), nullable=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
 
 class KnowledgeSearchConfig(Base):
@@ -1794,8 +1794,8 @@ class KnowledgeSearchConfig(Base):
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     scope = mapped_column(String(50), nullable=False, unique=True)
     config_json = mapped_column(JSON, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class KnowledgeFallbackConfig(Base):
@@ -1805,8 +1805,8 @@ class KnowledgeFallbackConfig(Base):
     strategy = mapped_column(Enum(FallbackStrategy), default=FallbackStrategy.ai_fallback)
     custom_text = mapped_column(Text, nullable=True)
     recommend_count = mapped_column(Integer, default=3)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class KnowledgeSceneBinding(Base):
@@ -1815,7 +1815,7 @@ class KnowledgeSceneBinding(Base):
     scene = mapped_column(String(50), nullable=False, index=True)
     kb_id = mapped_column(Integer, ForeignKey("knowledge_bases.id"), nullable=False, index=True)
     is_primary = mapped_column(Boolean, default=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
 
 class KnowledgeHitLog(Base):
@@ -1830,7 +1830,7 @@ class KnowledgeHitLog(Base):
     user_feedback = mapped_column(String(20), nullable=True)
     session_id = mapped_column(Integer, nullable=True)
     message_id = mapped_column(Integer, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
 
 class KnowledgeMissedQuestion(Base):
@@ -1839,8 +1839,8 @@ class KnowledgeMissedQuestion(Base):
     question = mapped_column(Text, nullable=False)
     scene = mapped_column(String(50), nullable=True)
     count = mapped_column(Integer, default=1)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class KnowledgeImportTask(Base):
@@ -1853,8 +1853,8 @@ class KnowledgeImportTask(Base):
     status = mapped_column(String(20), default="processing")
     result_json = mapped_column(JSON, nullable=True)
     created_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 # ──────────────── AI中心配置 ────────────────
@@ -1866,8 +1866,8 @@ class AiSensitiveWord(Base):
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     sensitive_word = mapped_column(String(200), nullable=False)
     replacement_word = mapped_column(String(200), nullable=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class AiPromptConfig(Base):
@@ -1877,7 +1877,7 @@ class AiPromptConfig(Base):
     chat_type = mapped_column(String(50), unique=True, nullable=False)
     display_name = mapped_column(String(100), nullable=False)
     system_prompt = mapped_column(Text, nullable=True)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class AiDisclaimerConfig(Base):
@@ -1888,7 +1888,7 @@ class AiDisclaimerConfig(Base):
     display_name = mapped_column(String(100), nullable=False)
     disclaimer_text = mapped_column(Text, nullable=True)
     is_enabled = mapped_column(Boolean, default=True)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class CosConfig(Base):
@@ -1905,8 +1905,8 @@ class CosConfig(Base):
     cdn_domain = Column(String(300), nullable=True, comment='CDN加速域名')
     cdn_protocol = Column(String(10), default='https', comment='CDN协议')
     test_passed = Column(Boolean, default=False, comment='连接测试是否通过')
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class CosFile(Base):
@@ -1919,7 +1919,7 @@ class CosFile(Base):
     original_name = mapped_column(String(300), nullable=True)
     module = mapped_column(String(50), nullable=True)
     ref_id = mapped_column(Integer, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
 
 class CosUploadLimit(Base):
@@ -1974,8 +1974,8 @@ class OcrConfig(Base):
     ocr_type = mapped_column(String(50), default="general_basic")
     access_token = mapped_column(Text, nullable=True)
     token_expires_at = mapped_column(DateTime, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class ReportAlert(Base):
@@ -1988,7 +1988,7 @@ class ReportAlert(Base):
     alert_type = mapped_column(String(50), nullable=False)
     alert_message = mapped_column(Text, nullable=True)
     is_read = mapped_column(Boolean, default=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User")
     report = relationship("CheckupReport", back_populates="alerts")
@@ -2006,8 +2006,8 @@ class OcrProviderConfig(Base):
     config_json = mapped_column(JSON, nullable=True)
     is_enabled = mapped_column(Boolean, default=False)
     is_preferred = mapped_column(Boolean, default=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class OcrSceneTemplate(Base):
@@ -2017,8 +2017,8 @@ class OcrSceneTemplate(Base):
     scene_name = mapped_column(String(100), unique=True, nullable=False)
     prompt_content = mapped_column(Text, nullable=True)
     is_preset = mapped_column(Boolean, default=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class OcrCallRecord(Base):
@@ -2034,7 +2034,7 @@ class OcrCallRecord(Base):
     error_message = mapped_column(Text, nullable=True)
     image_count = mapped_column(Integer, default=1, nullable=False)
     image_urls = mapped_column(JSON, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
 
 class OcrCallStatistics(Base):
@@ -2057,7 +2057,7 @@ class OcrUploadConfig(Base):
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     max_batch_count = mapped_column(Integer, default=5)
     max_file_size_mb = mapped_column(Integer, default=5)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class CheckupReportDetail(Base):
@@ -2079,7 +2079,7 @@ class CheckupReportDetail(Base):
     ai_structured_result = mapped_column(JSON, nullable=True)
     abnormal_indicators = mapped_column(JSON, nullable=True)
     ocr_call_record_id = mapped_column(Integer, ForeignKey("ocr_call_records.id"), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
 
 class DrugIdentifyDetail(Base):
@@ -2101,7 +2101,7 @@ class DrugIdentifyDetail(Base):
     session_id = mapped_column(Integer, ForeignKey("chat_sessions.id"), nullable=True)
     family_member_id = mapped_column(Integer, ForeignKey("family_members.id"), nullable=True)
     status = mapped_column(String(20), default="success")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     session = relationship("ChatSession")
     family_member = relationship("FamilyMember")
@@ -2120,7 +2120,7 @@ class ChatShareRecord(Base):
     ai_message_id = mapped_column(Integer, ForeignKey("chat_messages.id"), nullable=False)
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     view_count = mapped_column(Integer, default=0)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     session = relationship("ChatSession")
     user_message = relationship("ChatMessage", foreign_keys=[user_message_id])
@@ -2148,8 +2148,8 @@ class PromptTemplate(Base):
     # is_builtin: 系统内置模板（不可删除，可"复制"为副本）
     code = mapped_column(String(64), nullable=True, unique=False, comment="模板编码，仅内置模板有值")
     is_builtin = mapped_column(Boolean, default=False, nullable=False, comment="是否系统内置模板（不可删除，可复制）")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 # [PRD-PROMPT-CONFIG-V1 2026-05-14] Prompt 类型配置表（替代硬编码 VALID_PROMPT_TYPES）
@@ -2168,8 +2168,8 @@ class PromptTypeConfig(Base):
     is_online = mapped_column(Boolean, nullable=False, default=True, comment="是否上线（0=已下线，前端隐藏）")
     sort_order = mapped_column(Integer, nullable=False, default=0)
     created_by = mapped_column(String(32), nullable=False, default="system")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 # ──────────────── 分享链接 ────────────────
@@ -2184,7 +2184,7 @@ class ShareLink(Base):
     record_id = mapped_column(Integer, nullable=False)
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     view_count = mapped_column(Integer, default=0)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
 
 # ──────────────── 首页配置 ────────────────
@@ -2202,8 +2202,8 @@ class HomeMenuItem(Base):
     miniprogram_appid = mapped_column(String(100), nullable=True)
     sort_order = mapped_column(Integer, nullable=False, default=0)
     is_visible = mapped_column(Boolean, nullable=False, default=True)
-    created_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, nullable=False, default=datetime.now)
+    updated_at = mapped_column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
 
 class HomeBanner(Base):
@@ -2216,8 +2216,8 @@ class HomeBanner(Base):
     miniprogram_appid = mapped_column(String(100), nullable=True)
     sort_order = mapped_column(Integer, nullable=False, default=0)
     is_visible = mapped_column(Boolean, nullable=False, default=True)
-    created_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, nullable=False, default=datetime.now)
+    updated_at = mapped_column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
 
 # ──────────────── 统一搜索 ────────────────
@@ -2230,8 +2230,8 @@ class SearchHistory(Base):
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     keyword = mapped_column(String(200), nullable=False)
     search_count = mapped_column(Integer, default=1)
-    created_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = mapped_column(DateTime, default=datetime.now, nullable=False)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
 
     __table_args__ = (UniqueConstraint("user_id", "keyword", name="uq_search_history_user_keyword"),)
 
@@ -2246,8 +2246,8 @@ class SearchHotWord(Base):
     search_count = mapped_column(Integer, default=0)
     result_count = mapped_column(Integer, default=0)
     category_hint = mapped_column(String(50), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class SearchRecommendWord(Base):
@@ -2258,8 +2258,8 @@ class SearchRecommendWord(Base):
     sort_order = mapped_column(Integer, default=0)
     category_hint = mapped_column(String(50), nullable=True)
     is_active = mapped_column(Boolean, default=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class SearchBlockWord(Base):
@@ -2270,7 +2270,7 @@ class SearchBlockWord(Base):
     block_mode = mapped_column(String(20), default="full")
     tip_content = mapped_column(String(500), nullable=True)
     is_active = mapped_column(Boolean, default=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
 
 class SearchLog(Base):
@@ -2285,7 +2285,7 @@ class SearchLog(Base):
     clicked_item_id = mapped_column(Integer, nullable=True)
     source = mapped_column(String(20), default="text")
     ip_address = mapped_column(String(50), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    created_at = mapped_column(DateTime, default=datetime.now, index=True)
 
 
 class AsrConfig(Base):
@@ -2298,7 +2298,7 @@ class AsrConfig(Base):
     secret_key_encrypted = mapped_column(String(500), nullable=True)
     is_enabled = mapped_column(Boolean, default=False)
     supported_dialects = mapped_column(String(200), default="普通话,粤语")
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class DrugSearchKeyword(Base):
@@ -2322,8 +2322,8 @@ class HomeNotice(Base):
     end_time = mapped_column(DateTime, nullable=False)
     is_enabled = mapped_column(Boolean, nullable=False, default=True)
     sort_order = mapped_column(Integer, nullable=False, default=0)
-    created_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, nullable=False, default=datetime.now)
+    updated_at = mapped_column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
 
 # ──────────────── 底部导航配置 ────────────────
@@ -2339,8 +2339,8 @@ class BottomNavConfig(Base):
     sort_order = mapped_column(Integer, nullable=False, default=0)
     is_visible = mapped_column(Boolean, nullable=False, default=True)
     is_fixed = mapped_column(Boolean, nullable=False, default=False)
-    created_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, nullable=False, default=datetime.now)
+    updated_at = mapped_column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
 
 # ──────────────── 健康计划V2 ────────────────
@@ -2358,7 +2358,7 @@ class MedicationReminder(Base):
     notes = mapped_column(Text, nullable=True)
     is_paused = mapped_column(Boolean, default=False)
     status = mapped_column(String(20), default="active")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
     # [PRD-469 v2 P0] 新增字段：每日次数 / 自定义时间点 / 开始结束日期 / 长期服用 / 提醒开关 / 关联疾病
     frequency_per_day = mapped_column(Integer, nullable=True)
     custom_times = mapped_column(JSON, nullable=True)  # ["08:00", "12:30", ...]
@@ -2389,7 +2389,7 @@ class MedicationCheckIn(Base):
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     check_in_date = mapped_column(Date, nullable=False)
     check_in_time = mapped_column(DateTime, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     reminder = relationship("MedicationReminder", back_populates="check_ins")
     user = relationship("User")
@@ -2407,7 +2407,7 @@ class HealthCheckInItem(Base):
     repeat_frequency = mapped_column(String(50), default="daily")
     custom_days = mapped_column(JSON, nullable=True)
     status = mapped_column(String(20), default="active")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
     # [PRD-HEALTH-PLAN-CHECKIN-V1 2026-06-02] 计划起止时间 + 每周X次目标
     start_date = mapped_column(Date, nullable=True)
     end_date = mapped_column(Date, nullable=True)
@@ -2427,7 +2427,7 @@ class HealthCheckInRecord(Base):
     actual_value = mapped_column(Float, nullable=True)
     is_completed = mapped_column(Boolean, default=False)
     check_in_time = mapped_column(DateTime, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     item = relationship("HealthCheckInItem", back_populates="records")
     user = relationship("User")
@@ -2443,7 +2443,7 @@ class PlanTemplateCategory(Base):
     sort_order = mapped_column(Integer, default=0)
     preset_tasks = mapped_column(JSON, nullable=True)
     status = mapped_column(String(20), default="active")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     recommended_plans = relationship("RecommendedPlan", back_populates="category")
 
@@ -2460,7 +2460,7 @@ class RecommendedPlan(Base):
     cover_image = mapped_column(String(500), nullable=True)
     is_published = mapped_column(Boolean, default=True)
     sort_order = mapped_column(Integer, default=0)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     category = relationship("PlanTemplateCategory", back_populates="recommended_plans")
     tasks = relationship("RecommendedPlanTask", back_populates="plan")
@@ -2475,7 +2475,7 @@ class RecommendedPlanTask(Base):
     target_value = mapped_column(Float, nullable=True)
     target_unit = mapped_column(String(50), nullable=True)
     sort_order = mapped_column(Integer, default=0)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     plan = relationship("RecommendedPlan", back_populates="tasks")
 
@@ -2494,7 +2494,7 @@ class UserPlan(Base):
     current_day = mapped_column(Integer, default=1)
     status = mapped_column(String(20), default="active")
     start_date = mapped_column(Date, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User")
     category = relationship("PlanTemplateCategory")
@@ -2512,7 +2512,7 @@ class UserPlanTask(Base):
     target_value = mapped_column(Float, nullable=True)
     target_unit = mapped_column(String(50), nullable=True)
     sort_order = mapped_column(Integer, default=0)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     plan = relationship("UserPlan", back_populates="tasks")
     user = relationship("User")
@@ -2529,7 +2529,7 @@ class UserPlanTaskRecord(Base):
     actual_value = mapped_column(Float, nullable=True)
     is_completed = mapped_column(Boolean, default=False)
     check_in_time = mapped_column(DateTime, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     task = relationship("UserPlanTask", back_populates="records")
     user = relationship("User")
@@ -2546,7 +2546,7 @@ class NotificationLog(Base):
     content = mapped_column(Text, nullable=True)
     status = mapped_column(String(20), default="pending")
     scheduled_time = mapped_column(DateTime, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User")
 
@@ -2568,8 +2568,8 @@ class City(Base):
     is_hot = Column(Boolean, default=False, comment="是否热门城市")
     hot_sort = Column(Integer, default=0, comment="热门排序(越小越靠前)")
     is_active = Column(Boolean, default=True, comment="是否启用")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 # ──────────────── 功能按钮与数字人 ────────────────
@@ -2667,8 +2667,8 @@ class ChatFunctionButton(Base):
         comment="跳转类型：H5_PATH / EXTERNAL_URL / MINIPROGRAM_PATH / DOCTOR_ID / DEPARTMENT_ID"
     )
     result_cta_target_value = mapped_column(String(255), nullable=True, comment="跳转值（路径 / URL / ID）")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 # ════════════════════════════════════════════════════════════
@@ -2724,8 +2724,8 @@ class QuestionnaireTemplate(Base):
     # AI 追问注入摘要时保留的关键字段 code 列表，如 ['part','symptom','severity','duration']
     # 用于裁剪长问卷答案，避免 prompt 爆 token；为空时退化为全部字段
     key_field_codes = mapped_column(JSON, nullable=True, comment="AI 追问注入摘要时保留的关键字段 code 列表")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class QuestionnaireQuestion(Base):
@@ -2751,8 +2751,8 @@ class QuestionnaireQuestion(Base):
     option_filter_json = mapped_column(JSON, nullable=True, comment="选项过滤规则（按依赖题答案过滤选项）")
     # 题目"视觉布局"（仅前端渲染用）：tag_grid 默认；icon_grid 图标网格；tag_list 标签列表
     layout_hint = mapped_column(String(32), nullable=True, default="tag_grid", comment="题目视觉布局：tag_grid / icon_grid / tag_list / text")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class QuestionnaireClassificationRule(Base):
@@ -2768,8 +2768,8 @@ class QuestionnaireClassificationRule(Base):
     rule_type = mapped_column(String(32), nullable=False, comment="score_range / dimension_max / tag_match")
     rule_config = mapped_column(JSON, nullable=False, comment="规则配置")
     sort_order = mapped_column(Integer, nullable=True, default=0)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class QuestionnaireRecommendation(Base):
@@ -2786,8 +2786,8 @@ class QuestionnaireRecommendation(Base):
     sku_ids = mapped_column(JSON, nullable=True, comment="当 match_mode=sku_list 时使用")
     tag_filters = mapped_column(JSON, nullable=True, comment="当 match_mode=tag_match 时使用")
     max_items = mapped_column(Integer, nullable=True, default=6)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class QuestionnaireAnswer(Base):
@@ -2824,7 +2824,7 @@ class QuestionnaireAnswer(Base):
     # 不一致时，才提示「档案已更新，刷新 AI 解读」；改头像 / 改昵称不打扰、不重算。
     ai_profile_snapshot = mapped_column(JSON, nullable=True, comment="AI 解读时档案关键字段快照")
     ai_generated_at = mapped_column(DateTime, nullable=True, comment="最近一次 AI 生成时间")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
     completed_at = mapped_column(DateTime, nullable=True)
 
 
@@ -2857,8 +2857,8 @@ class Tag(Base):
     # 锁定标志：1=系统预置不可物理删除/不可改分类（用于 9 种体质）
     is_locked = mapped_column(Integer, nullable=False, default=0, server_default="0", comment="1=系统锁定 0=运营自维护")
     sort_order = mapped_column(Integer, nullable=False, default=0, server_default="0", comment="排序值，越小越靠前")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class GoodsTag(Base):
@@ -2868,7 +2868,7 @@ class GoodsTag(Base):
 
     goods_id = mapped_column(Integer, primary_key=True)
     tag_id = mapped_column(Integer, primary_key=True, index=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
 
 class QuestionnaireRecommendConfig(Base):
@@ -2882,8 +2882,8 @@ class QuestionnaireRecommendConfig(Base):
     mode = mapped_column(Integer, nullable=False, comment="1=标签智能匹配 2=按标签固定推荐 3=手动挑商品")
     filter_json = mapped_column(JSON, nullable=True, comment="模式1/2 的筛选条件 {category_ids, fulfillment_types, tag_ids}")
     manual_goods_ids = mapped_column(JSON, nullable=True, comment="模式3 手动选的商品ID列表")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 # ════════════════════════════════════════════════════════════
@@ -2902,8 +2902,8 @@ class BodyPartDict(Base):
     symptoms = mapped_column(JSON, nullable=False, default=list, comment="症状字符串数组，如 ['头痛','头晕']")
     sort_order = mapped_column(Integer, default=100, comment="排序值，越小越靠前")
     enabled = mapped_column(Boolean, default=True, comment="1=启用 / 0=停用")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class HealthCheckTemplate(Base):
@@ -2918,8 +2918,8 @@ class HealthCheckTemplate(Base):
     duration_options = mapped_column(JSON, nullable=False, default=list, comment="持续时间档位数组")
     default_prompt = mapped_column(Text, nullable=False, comment="默认 Prompt 模板（含占位符）")
     enabled = mapped_column(Boolean, default=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class DigitalHuman(Base):
@@ -2933,8 +2933,8 @@ class DigitalHuman(Base):
     description = mapped_column(Text, nullable=True)
     thumbnail_url = mapped_column(String(500), nullable=True)
     is_enabled = mapped_column(Boolean, default=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class VoiceCallRecord(Base):
@@ -2948,7 +2948,7 @@ class VoiceCallRecord(Base):
     end_time = mapped_column(DateTime, nullable=True)
     duration_seconds = mapped_column(Integer, nullable=True)
     dialog_content = mapped_column(JSON, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User")
 
@@ -2962,8 +2962,8 @@ class VoiceServiceConfig(Base):
     config_type = mapped_column(String(50), nullable=False)
     description = mapped_column(String(200), nullable=True)
     updated_by = mapped_column(Integer, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 # ──────────────── 家庭健康档案共管 ────────────────
@@ -2998,7 +2998,7 @@ class FamilyManagement(Base):
     # [守护人体系 IGUARD-V2 2026-05-28] 会员权益共享开关：默认开启，主守护人可关闭
     member_benefit_shared = mapped_column(Boolean, default=True, nullable=False, server_default="1",
                                           comment="是否向被守护人共享会员权益 IGUARD-V2")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
     cancelled_at = mapped_column(DateTime, nullable=True)
     cancelled_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
 
@@ -3020,7 +3020,7 @@ class FamilyInvitation(Base):
     relation_type = mapped_column(String(50), nullable=True)
     # [BUGFIX-GUARDIAN-LIST-CONSISTENCY-V1 2026-05-29] 邀请阶段填写的姓名（必填，accept 后用于建档）
     nickname = mapped_column(String(50), nullable=False, default="", server_default="")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     inviter = relationship("User", foreign_keys=[inviter_user_id])
     member = relationship("FamilyMember")
@@ -3034,7 +3034,7 @@ class ManagementOperationLog(Base):
     operator_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     operation_type = mapped_column(String(50), nullable=False)
     operation_detail = mapped_column(JSON, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     operator = relationship("User", foreign_keys=[operator_user_id])
 
@@ -3077,8 +3077,8 @@ class ProductCategory(Base):
     sort_order = mapped_column(Integer, default=0)
     status = mapped_column(Enum(CategoryStatus), default=CategoryStatus.active)
     level = mapped_column(Integer, default=1)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     parent = relationship("ProductCategory", remote_side="ProductCategory.id", backref="children")
 
@@ -3091,8 +3091,8 @@ class AppointmentForm(Base):
     description = mapped_column(Text, nullable=True)
     # 状态：active/inactive，默认 active；用于表单库启用/停用（BUG-PRODUCT-APPT-001）
     status = mapped_column(String(20), default="active", nullable=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     fields = relationship("AppointmentFormField", back_populates="form", order_by="AppointmentFormField.sort_order")
 
@@ -3108,8 +3108,8 @@ class AppointmentFormField(Base):
     required = mapped_column(Boolean, default=False)
     options = mapped_column(JSON, nullable=True)
     sort_order = mapped_column(Integer, default=0)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     form = relationship("AppointmentForm", back_populates="fields")
 
@@ -3191,8 +3191,8 @@ class Product(Base):
         Boolean, nullable=False, default=True, server_default="1",
         comment="是否允许错过预约后改期（PRD v1.0 默认 true）",
     )
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     category = relationship("ProductCategory")
     custom_form = relationship("AppointmentForm")
@@ -3213,8 +3213,8 @@ class ProductSku(Base):
     is_default = mapped_column(Boolean, default=False)  # 是否默认规格（每商品仅 1 条）
     status = mapped_column(Integer, default=1)  # 1=启用 2=停用
     sort_order = mapped_column(Integer, default=0)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     __table_args__ = (UniqueConstraint("product_id", "spec_name", name="uq_product_sku_name"),)
 
@@ -3227,7 +3227,7 @@ class ProductStore(Base):
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     product_id = mapped_column(Integer, ForeignKey("products.id"), nullable=False, index=True)
     store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=False, index=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     __table_args__ = (UniqueConstraint("product_id", "store_id", name="uq_product_store"),)
 
@@ -3262,8 +3262,8 @@ class UserAddress(Base):
     tag = mapped_column(String(12), nullable=True)
     is_default = mapped_column(Boolean, default=False)
     is_deleted = mapped_column(Boolean, default=False, nullable=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     user = relationship("User")
 
@@ -3300,8 +3300,8 @@ class Coupon(Base):
     offline_by = mapped_column(Integer, nullable=True)
     # ─── V2.1 预留：积分兑换次数上限（None=无限） ───
     points_exchange_limit = mapped_column(Integer, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class UserCoupon(Base):
@@ -3318,7 +3318,7 @@ class UserCoupon(Base):
     # 来源：self / direct / new_user / redeem_code
     source = mapped_column(String(30), default="self")
     grant_id = mapped_column(Integer, nullable=True, index=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User")
     coupon = relationship("Coupon")
@@ -3339,7 +3339,7 @@ class CouponGrant(Base):
     method = mapped_column(String(30), nullable=False, index=True)
     # granted / used / recalled / expired
     status = mapped_column(String(30), default="granted", index=True)
-    granted_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    granted_at = mapped_column(DateTime, default=datetime.now, index=True)
     used_at = mapped_column(DateTime, nullable=True)
     order_no = mapped_column(String(50), nullable=True)
     operator_id = mapped_column(Integer, nullable=True)
@@ -3382,7 +3382,7 @@ class CouponCodeBatch(Base):
     voided_at = mapped_column(DateTime, nullable=True, index=True)
     voided_by = mapped_column(Integer, nullable=True)
     void_reason = mapped_column(String(255), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
 
 class CouponRedeemCode(Base):
@@ -3405,7 +3405,7 @@ class CouponRedeemCode(Base):
     voided_at = mapped_column(DateTime, nullable=True, index=True)
     voided_by = mapped_column(Integer, nullable=True)
     void_reason = mapped_column(String(255), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
 
 class CouponOpLog(Base):
@@ -3420,7 +3420,7 @@ class CouponOpLog(Base):
     operator_name = mapped_column(String(100), nullable=True)
     reason = mapped_column(String(500), nullable=True)
     extra = mapped_column(JSON, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    created_at = mapped_column(DateTime, default=datetime.now, index=True)
 
 
 class Partner(Base):
@@ -3439,8 +3439,8 @@ class Partner(Base):
     # active / disabled
     status = mapped_column(String(20), default="active")
     notes = mapped_column(Text, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 # ──────────────── 资金安全审核 ────────────────
@@ -3454,8 +3454,8 @@ class AuditPhone(Base):
     phone = mapped_column(String(20), nullable=False, index=True)
     note = mapped_column(String(200), nullable=True)
     enabled = mapped_column(Boolean, default=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class AuditRequest(Base):
@@ -3489,8 +3489,8 @@ class AuditRequest(Base):
     approvals = mapped_column(JSON, nullable=True)
     # 操作留痕
     history = mapped_column(JSON, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now, index=True)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class AuditCode(Base):
@@ -3503,7 +3503,7 @@ class AuditCode(Base):
     request_id = mapped_column(Integer, nullable=True, index=True)
     expires_at = mapped_column(DateTime, nullable=False)
     used = mapped_column(Boolean, default=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    created_at = mapped_column(DateTime, default=datetime.now, index=True)
 
 
 class AuditLockout(Base):
@@ -3514,7 +3514,7 @@ class AuditLockout(Base):
     phone = mapped_column(String(20), nullable=False, index=True)
     fail_count = mapped_column(Integer, default=0)
     locked_until = mapped_column(DateTime, nullable=True)
-    last_fail_at = mapped_column(DateTime, default=datetime.utcnow)
+    last_fail_at = mapped_column(DateTime, default=datetime.now)
 
 
 # ──────────────── 统一订单 ────────────────
@@ -3592,8 +3592,8 @@ class UnifiedOrder(Base):
         Integer, nullable=True, index=True,
         comment="固定 9 段时段段号（1-9），凌晨/无预约时间订单为 NULL",
     )
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     user = relationship("User")
     coupon = relationship("Coupon")
@@ -3633,8 +3633,8 @@ class OrderItem(Base):
                                        comment="[v2.0] 会员套餐ID，仅会员费订单填充")
     membership_period = mapped_column(String(10), nullable=True,
                                       comment="[v2.0] month/year，仅会员费订单填充")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     order = relationship("UnifiedOrder", back_populates="items")
     product = relationship("Product")
@@ -3647,9 +3647,9 @@ class OrderRedemption(Base):
     order_item_id = mapped_column(Integer, ForeignKey("order_items.id"), nullable=False, index=True)
     redeemed_by_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=True)
-    redeemed_at = mapped_column(DateTime, default=datetime.utcnow)
+    redeemed_at = mapped_column(DateTime, default=datetime.now)
     notes = mapped_column(Text, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     order_item = relationship("OrderItem")
     redeemed_by = relationship("User")
@@ -3666,7 +3666,7 @@ class MemberQRToken(Base):
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     token = mapped_column(String(100), unique=True, nullable=False)
     expires_at = mapped_column(DateTime, nullable=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User")
 
@@ -3679,8 +3679,8 @@ class CheckinRecord(Base):
     store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=False, index=True)
     staff_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     points_earned = mapped_column(Integer, default=0)
-    checked_in_at = mapped_column(DateTime, default=datetime.utcnow)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    checked_in_at = mapped_column(DateTime, default=datetime.now)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User", foreign_keys=[user_id])
     store = relationship("MerchantStore")
@@ -3694,9 +3694,9 @@ class StoreVisitRecord(Base):
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=False, index=True)
     staff_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
-    visited_at = mapped_column(DateTime, default=datetime.utcnow)
+    visited_at = mapped_column(DateTime, default=datetime.now)
     consumption_amount = mapped_column(Numeric(10, 2), default=0)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user = relationship("User", foreign_keys=[user_id])
     store = relationship("MerchantStore")
@@ -3726,8 +3726,8 @@ class RefundRequest(Base):
     refund_transaction_id = mapped_column(String(64), nullable=True, comment="支付平台退款单号（微信/支付宝）")
     refund_type = mapped_column(String(16), nullable=True, comment="退款类型：full 全额退款 / partial 部分退款")
     refund_channel = mapped_column(String(32), nullable=True, comment="退款渠道：wechat / alipay")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     order = relationship("UnifiedOrder")
     order_item = relationship("OrderItem")
@@ -3752,7 +3752,7 @@ class VideoConsultConfig(Base):
     timeout_seconds = mapped_column(Integer, default=300)
     offline_message = mapped_column(Text, nullable=True)
     created_at = mapped_column(DateTime, server_default=func.now())
-    updated_at = mapped_column(DateTime, server_default=func.now(), onupdate=datetime.utcnow)
+    updated_at = mapped_column(DateTime, server_default=func.now(), onupdate=datetime.now)
 
 
 # ──────────────── 用户反馈 ────────────────
@@ -3769,7 +3769,7 @@ class UserFeedback(Base):
     contact = mapped_column(String(200), nullable=True)
     status = mapped_column(String(20), default="pending")
     created_at = mapped_column(DateTime, server_default=func.now())
-    updated_at = mapped_column(DateTime, server_default=func.now(), onupdate=datetime.utcnow)
+    updated_at = mapped_column(DateTime, server_default=func.now(), onupdate=datetime.now)
 
     user = relationship("User", backref="feedbacks")
 
@@ -3784,7 +3784,7 @@ class AppSetting(Base):
     key = mapped_column(String(100), unique=True, nullable=False)
     value = mapped_column(Text, nullable=True)
     description = mapped_column(String(500), nullable=True)
-    updated_at = mapped_column(DateTime, server_default=func.now(), onupdate=datetime.utcnow)
+    updated_at = mapped_column(DateTime, server_default=func.now(), onupdate=datetime.now)
 
 
 # ──────────────── 用户健康画像 ────────────────
@@ -3802,7 +3802,7 @@ class UserHealthProfile(Base):
     family_history = mapped_column(JSON, nullable=True)
     focus_areas = mapped_column(JSON, nullable=True)
     created_at = mapped_column(DateTime, server_default=func.now())
-    updated_at = mapped_column(DateTime, server_default=func.now(), onupdate=datetime.utcnow)
+    updated_at = mapped_column(DateTime, server_default=func.now(), onupdate=datetime.now)
 
     user = relationship("User", backref="user_health_profile")
 
@@ -3817,9 +3817,9 @@ class StaffWechatBinding(Base):
     staff_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=False, index=True)
     openid = mapped_column(String(128), nullable=False)
-    bound_at = mapped_column(DateTime, default=datetime.utcnow)
+    bound_at = mapped_column(DateTime, default=datetime.now)
     is_active = mapped_column(Boolean, default=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     staff = relationship("User")
     store = relationship("MerchantStore")
@@ -3833,7 +3833,7 @@ class OrderNote(Base):
     store_id = mapped_column(Integer, ForeignKey("merchant_stores.id"), nullable=False, index=True)
     staff_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     content = mapped_column(Text, nullable=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     order = relationship("UnifiedOrder")
     store = relationship("MerchantStore")
@@ -3849,7 +3849,7 @@ class OrderAppointmentLog(Base):
     new_appointment_time = mapped_column(String(200), nullable=False)
     changed_by_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     reason = mapped_column(String(500), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     order_item = relationship("OrderItem")
     changed_by = relationship("User")
@@ -3875,8 +3875,8 @@ class MapConfig(Base):
     default_center_lat = mapped_column(DECIMAL(10, 6), nullable=True, default=39.90923)
     default_zoom = mapped_column(Integer, nullable=True, default=12)
     updated_by = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class MapTestLog(Base):
@@ -3893,7 +3893,7 @@ class MapTestLog(Base):
     h5_status = mapped_column(String(10), nullable=False, default="unknown")
     h5_detail = mapped_column(String(500), nullable=True)
     overall_pass = mapped_column(Boolean, default=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    created_at = mapped_column(DateTime, default=datetime.now, index=True)
 
     operator = relationship("User")
 
@@ -3988,8 +3988,8 @@ class CardDefinition(Base):
     sort_order = mapped_column(Integer, default=0)
 
     created_by_admin_id = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     items = relationship("CardItem", back_populates="card_definition", cascade="all, delete-orphan")
     owner_merchant_profile = relationship("MerchantProfile")
@@ -4008,7 +4008,7 @@ class CardItem(Base):
         index=True,
     )
     product_id = mapped_column(Integer, ForeignKey("products.id"), nullable=False, index=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     __table_args__ = (
         UniqueConstraint("card_definition_id", "product_id", name="uq_card_item_card_product"),
@@ -4033,7 +4033,7 @@ class UserCard(Base):
 
     remaining_times = mapped_column(Integer, nullable=True)  # 次卡剩余次数；时卡 NULL
 
-    valid_from = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    valid_from = mapped_column(DateTime, nullable=False, default=datetime.now)
     valid_to = mapped_column(DateTime, nullable=False)
 
     status = mapped_column(Enum(UserCardStatus), nullable=False, default=UserCardStatus.active, index=True)
@@ -4042,8 +4042,8 @@ class UserCard(Base):
     renewed_from_id = mapped_column(Integer, ForeignKey("user_cards.id"), nullable=True, index=True)
     renew_count = mapped_column(Integer, nullable=False, default=0)
 
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     card_definition = relationship("CardDefinition")
     user = relationship("User")
@@ -4062,9 +4062,9 @@ class CardUsageLog(Base):
     verify_order_id = mapped_column(Integer, ForeignKey("unified_orders.id"), nullable=True)
     # [PRD v2.0 第 3 期] 核销门店所属商家（用于第 5 期看板）
     merchant_id = mapped_column(Integer, ForeignKey("merchant_profiles.id"), nullable=True, index=True)
-    used_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    used_at = mapped_column(DateTime, default=datetime.now, index=True)
     notes = mapped_column(Text, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user_card = relationship("UserCard")
     product = relationship("Product")
@@ -4093,7 +4093,7 @@ class CardRedemptionCode(Base):
     )
     code_token = mapped_column(String(64), unique=True, nullable=False, index=True)
     code_digits = mapped_column(String(6), nullable=False, index=True)
-    issued_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    issued_at = mapped_column(DateTime, default=datetime.now, nullable=False)
     expires_at = mapped_column(DateTime, nullable=False, index=True)
     status = mapped_column(
         Enum(CardRedemptionCodeStatus),
@@ -4105,7 +4105,7 @@ class CardRedemptionCode(Base):
     used_by_log_id = mapped_column(
         Integer, ForeignKey("card_usage_logs.id"), nullable=True
     )
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     user_card = relationship("UserCard")
 
@@ -4128,8 +4128,8 @@ class MerchantCalendarView(Base):
     view_type = Column(String(20), nullable=False, default="month")  # month/week/day/resource/list
     filter_payload = Column(JSON, nullable=True)  # ????????
     is_default = Column(Boolean, nullable=False, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
 
 
 class BookingNotificationLog(Base):
@@ -4147,7 +4147,7 @@ class BookingNotificationLog(Base):
     template_id = Column(String(64), nullable=True)
     result = Column(String(16), nullable=False)  # success / fail / no_subscribe
     error_msg = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.now, nullable=False, index=True)
 
 
 # ──────────────── PRD-405 AI 对话模式首页配置 操作日志 ────────────────
@@ -4167,7 +4167,7 @@ class AIHomeConfigLog(Base):
     before_json = Column(JSON, nullable=True)
     after_json = Column(JSON, nullable=True)
     operator_ip = Column(String(64), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.now, nullable=False, index=True)
 
 
 # ──────────────── PRD-439 用药提醒（H5 健康打卡升级为提醒） ────────────────
@@ -4189,8 +4189,8 @@ class MedicationPlan(Base):
     schedule = mapped_column(JSON, nullable=False)
     note = mapped_column(String(256), nullable=True)
     enabled = mapped_column(Boolean, nullable=False, default=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class MedicationLog(Base):
@@ -4203,7 +4203,7 @@ class MedicationLog(Base):
     user_id = mapped_column(Integer, nullable=False, index=True)
     log_date = mapped_column(Date, nullable=False, index=True)
     scheduled_time = mapped_column(String(8), nullable=False)
-    checked_at = mapped_column(DateTime, default=datetime.utcnow)
+    checked_at = mapped_column(DateTime, default=datetime.now)
     revoked = mapped_column(Boolean, nullable=False, default=False)
 
 
@@ -4237,8 +4237,8 @@ class MedicationLibrary(Base):
     # [AI对话模式优化 PRD v1.0 §9.1] 条码字段预留：本期不用，结构先到位
     barcode = mapped_column(String(13), nullable=True, unique=False, index=True, comment="药品条码 EAN-13；本期预留，未来用于扫码识药")
     is_active = mapped_column(Boolean, default=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class MedicationLibraryPending(Base):
@@ -4259,12 +4259,12 @@ class MedicationLibraryPending(Base):
     ocr_text = mapped_column(Text, nullable=True)
     sample_image_url = mapped_column(String(500), nullable=True, comment="一张样本图片")
     hit_count = mapped_column(Integer, default=1, comment="被识别次数")
-    last_hit_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    last_hit_at = mapped_column(DateTime, default=datetime.now, nullable=False, index=True)
     status = mapped_column(Integer, default=0, comment="0=待审 1=已采纳 2=驳回")
     operator_id = mapped_column(Integer, nullable=True)
     operated_at = mapped_column(DateTime, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class HealthInfoExtra(Base):
@@ -4287,8 +4287,8 @@ class HealthInfoExtra(Base):
     habit_drinking = mapped_column(String(16), nullable=True)
     habit_exercise = mapped_column(String(16), nullable=True)
     habit_diet = mapped_column(String(16), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class HealthEvent(Base):
@@ -4305,8 +4305,8 @@ class HealthEvent(Base):
     event_date = mapped_column(Date, nullable=False, index=True)
     tags = mapped_column(JSON, nullable=True)
     extra_data = mapped_column(JSON, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class DeviceSceneGroup(Base):
@@ -4322,8 +4322,8 @@ class DeviceSceneGroup(Base):
     name = mapped_column(String(50), nullable=False)
     sort_order = mapped_column(Integer, default=0, nullable=False)
     is_enabled = mapped_column(Boolean, default=True, nullable=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class DeviceBinding(Base):
@@ -4336,12 +4336,12 @@ class DeviceBinding(Base):
     device_type = mapped_column(String(32), nullable=False)
     device_name = mapped_column(String(64), nullable=False)
     device_sn = mapped_column(String(128), nullable=True)
-    bound_at = mapped_column(DateTime, default=datetime.utcnow)
+    bound_at = mapped_column(DateTime, default=datetime.now)
     last_sync_at = mapped_column(DateTime, nullable=True)
     status = mapped_column(String(16), default="active")
     extra_data = mapped_column(JSON, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class ReminderSetting(Base):
@@ -4360,8 +4360,8 @@ class ReminderSetting(Base):
     # [PRD-MED-PLAN-V1 2026-05-16] 用药 AI 外呼提醒全局开关
     # 在「健康提醒」与「共管」两个模块共用，任一处更新即实时同步
     medication_ai_call_enabled = mapped_column(Boolean, default=False, nullable=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class GuardianAiCallSetting(Base):
@@ -4388,8 +4388,8 @@ class GuardianAiCallSetting(Base):
     dnd_start = mapped_column(String(8), nullable=True, default="22:00")
     dnd_end = mapped_column(String(8), nullable=True, default="07:00")
     call_target = mapped_column(String(16), default="self", nullable=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     __table_args__ = (
         UniqueConstraint("owner_user_id", "target_user_id", name="uk_guardian_aicall_owner_target"),
@@ -4419,8 +4419,8 @@ class MedicalRecordCard(Base):
     note = mapped_column(Text, nullable=True)
     parse_status = mapped_column(String(16), default="pending")  # pending / parsed / failed
     related_event_id = mapped_column(Integer, ForeignKey("health_events.id"), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 # ──────────────── [PRD-HEALTH-OPT-V1 2026-05-14] 健康档案优化：AI 外呼用药提醒 ────────────────
@@ -4440,8 +4440,8 @@ class AiCallMembershipLevel(Base):
     monthly_quota = mapped_column(Integer, default=30, nullable=False)
     sort_order = mapped_column(Integer, default=100)
     is_active = mapped_column(Boolean, default=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class AiCallGlobalConfig(Base):
@@ -4466,8 +4466,8 @@ class AiCallGlobalConfig(Base):
     rule_a_per_plan_once = mapped_column(Boolean, default=True, nullable=False)
     # 规则 B：接通才扣（默认 OFF，即发起即扣）
     rule_b_charge_on_answer = mapped_column(Boolean, default=False, nullable=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class UserMembership(Base):
@@ -4480,8 +4480,8 @@ class UserMembership(Base):
     level_code = mapped_column(String(32), default="normal", nullable=False, index=True)
     ai_call_quota_used_month = mapped_column(Integer, default=0, nullable=False)
     quota_reset_month = mapped_column(String(7), nullable=True)  # YYYY-MM 用于判断是否需重置
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class AiCallLog(Base):
@@ -4493,12 +4493,12 @@ class AiCallLog(Base):
     plan_id = mapped_column(Integer, ForeignKey("medication_plans.id"), nullable=False, index=True)
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     phone_masked = mapped_column(String(32), nullable=True)  # 脱敏入库
-    call_at = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    call_at = mapped_column(DateTime, default=datetime.now, index=True)
     retry_index = mapped_column(Integer, default=0)  # 0 / 1 / 2
     status = mapped_column(String(16), default="dialing")  # dialing / answered / no_answer / busy / failed
     duration = mapped_column(Integer, default=0)
     quota_consumed = mapped_column(Boolean, default=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
 
 # ──────────────── [PRD-FAMILY-GUARDIAN-V1] 家庭体检异常·守护推送 ────────────────
@@ -4519,8 +4519,8 @@ class AbnormalThreshold(Base):
     age_min = mapped_column(Integer, nullable=True)
     age_max = mapped_column(Integer, nullable=True)
     is_active = mapped_column(Boolean, nullable=False, default=True)
-    created_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, nullable=False, default=datetime.now)
+    updated_at = mapped_column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
 
 class AlertMessageTemplate(Base):
@@ -4534,8 +4534,8 @@ class AlertMessageTemplate(Base):
     title = mapped_column(String(255), nullable=False)
     content = mapped_column(Text, nullable=False)
     is_active = mapped_column(Boolean, nullable=False, default=True)
-    created_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, nullable=False, default=datetime.now)
+    updated_at = mapped_column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
 
 class FamilyAlertLog(Base):
@@ -4552,7 +4552,7 @@ class FamilyAlertLog(Base):
     channel = mapped_column(String(16), nullable=False, default="mini_subscribe")
     delivery_status = mapped_column(String(16), nullable=False, default="sent")
     error_msg = mapped_column(String(255), nullable=True)
-    pushed_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    pushed_at = mapped_column(DateTime, nullable=False, default=datetime.now, index=True)
     clicked_at = mapped_column(DateTime, nullable=True)
     is_archived = mapped_column(Boolean, nullable=False, default=False)
 
@@ -4567,7 +4567,7 @@ class VirtualMemberMigration(Base):
     creator_user_id = mapped_column(Integer, nullable=False)
     virtual_phone = mapped_column(String(20), nullable=False)
     status = mapped_column(String(16), nullable=False, default="pending")
-    created_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, nullable=False, default=datetime.now)
     confirmed_at = mapped_column(DateTime, nullable=True)
 
 
@@ -4593,8 +4593,8 @@ class HealthReminder(Base):
     related_metric = mapped_column(String(50), nullable=True)  # blood_pressure/blood_sugar etc.
     created_by = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     completed_at = mapped_column(DateTime, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = mapped_column(DateTime, default=datetime.now, nullable=False)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
 
     user = relationship("User", foreign_keys=[user_id])
     member = relationship("FamilyMember", foreign_keys=[member_id])
@@ -4614,7 +4614,7 @@ class HealthAlertNotification(Base):
     notification_channel = mapped_column(String(20), nullable=False, default="app")  # app/wechat/sms
     delivery_status = mapped_column(String(20), default="pending", nullable=False)  # pending/sent/failed
     sent_at = mapped_column(DateTime, nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = mapped_column(DateTime, default=datetime.now, nullable=False)
 
     member = relationship("FamilyMember", foreign_keys=[member_id])
     guardian = relationship("User", foreign_keys=[guardian_user_id])
@@ -4650,8 +4650,8 @@ class ReportHistory(Base):
     share_token = mapped_column(String(100), nullable=True, unique=True)
 
     is_deleted = mapped_column(Boolean, default=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     user = relationship("User")
     family_member = relationship("FamilyMember")
@@ -4672,7 +4672,7 @@ class GuardianTransferRequest(Base):
     from_management_id = mapped_column(Integer, ForeignKey("family_management.id"), nullable=False)
     to_management_id = mapped_column(Integer, ForeignKey("family_management.id"), nullable=False)
     status = mapped_column(String(20), default="pending", nullable=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
     expires_at = mapped_column(DateTime, nullable=True)
     approved_at = mapped_column(DateTime, nullable=True)
     cancelled_at = mapped_column(DateTime, nullable=True)
@@ -4693,7 +4693,7 @@ class GuardianAlertQuotaUsage(Base):
                             comment="消耗额度的守护人 user_id")
     managed_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True,
                                     comment="触发告警的被守护人 user_id")
-    used_at = mapped_column(DateTime, default=datetime.utcnow)
+    used_at = mapped_column(DateTime, default=datetime.now)
     call_type = mapped_column(String(20), default="alert", nullable=False)
 
 
@@ -4715,8 +4715,8 @@ class GuardianProxyPay(Base):
     managed_user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True,
                                     comment="被守护人 user_id")
     enabled = mapped_column(Boolean, default=False, nullable=False, comment="是否代付")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class EmergencyCallSource(Base):
@@ -4740,8 +4740,8 @@ class EmergencyCallSource(Base):
     trigger_condition = mapped_column(Text, nullable=True, comment="触发条件配置 JSON")
     applicable_device_type = mapped_column(String(100), nullable=True, comment="适用设备类型")
     sort_order = mapped_column(Integer, default=0, nullable=False, comment="排序")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class AiCallReminder(Base):
@@ -4767,8 +4767,8 @@ class AiCallReminder(Base):
     is_enabled = mapped_column(Boolean, default=True, nullable=False)
     is_paused_by_quota = mapped_column(Boolean, default=False, nullable=False,
                                        comment="是否因额度耗尽自动暂停")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 # ──────────────── 反向守护邀请 ────────────────
@@ -4788,6 +4788,6 @@ class ReverseGuardianInvitation(Base):
     relation_type = mapped_column(String(50), nullable=True)
     # [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 发邀请时填写的「名字」（必填，去首尾空格后非空）
     guardian_name = mapped_column(String(50), nullable=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
 
     invitee = relationship("User", foreign_keys=[invitee_user_id])

@@ -42,7 +42,7 @@ async def _query_active_managers(db: AsyncSession, managed_user_id: int):
 
 async def miss_check_medication_reminders() -> None:
     """[PRD-468] 漏打卡扫描入口。"""
-    now = datetime.utcnow()
+    now = datetime.now()
     today = date.today()
     grace = timedelta(minutes=GRACE_MINUTES)
 

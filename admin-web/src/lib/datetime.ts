@@ -1,33 +1,19 @@
 /**
- * [PRD-HOME-SAFETY-V1 BUGFIX 2026-05-27]
- * [BUG_FIX_TIMEZONE_BJ_UNIFIED_20260530] 全局固定北京时间口径，新增 formatFriendlyTime / formatFullTime
+ * [日期时区简化 2026-06-06] 简化版时间格式化工具（Admin 端）
  *
- * 后端 datetime 应统一以 UTC 返回；老接口若无时区后缀，前端按 UTC 解析后转为北京时间显示。
+ * 后端统一返回北京时间，dayjs 直接解析即可，无需时区转换。
  */
 import dayjs from 'dayjs';
-import utc from 'dayjs/plugin/utc';
-import tz from 'dayjs/plugin/timezone';
-
-dayjs.extend(utc);
-dayjs.extend(tz);
-
-const CN_TZ = 'Asia/Shanghai';
 
 function normalize(input: string | number | Date | null | undefined): dayjs.Dayjs | null {
   if (input === null || input === undefined || input === '') return null;
-  if (input instanceof Date || typeof input === 'number') {
-    const m = dayjs(input).tz(CN_TZ);
-    return m.isValid() ? m : null;
-  }
-  let s = String(input).trim();
-  if (!s) return null;
-  const hasTz = /Z$|[+-]\d{2}:?\d{2}$/.test(s);
-  if (!hasTz) {
-    if (s.includes(' ') && !s.includes('T')) s = s.replace(' ', 'T');
-    s = s + 'Z';
-  }
-  const m = dayjs.utc(s).tz(CN_TZ);
-  return m.isValid() ? m : null;
+  const d = dayjs(input);
+  return d.isValid() ? d : null;
+}
+
+export function parseServerTime(iso?: string | number | Date | null): string {
+  const d = normalize(iso);
+  return d ? d.format('YYYY-MM-DD HH:mm:ss') : '';
 }
 
 export function formatDateTime(iso?: string | number | Date | null): string {
@@ -55,13 +41,13 @@ export function formatTime(iso?: string | number | Date | null): string {
 export function formatFriendlyTime(iso?: string | number | Date | null): string {
   const m = normalize(iso);
   if (!m) return '';
-  const now = dayjs().tz(CN_TZ);
+  const now = dayjs();
   const startToday = now.startOf('day');
   const startTarget = m.startOf('day');
   const diffDays = startToday.diff(startTarget, 'day');
-  if (diffDays === 0) return `今日 ${m.format('HH:mm')}`;
-  if (diffDays === 1) return `昨日 ${m.format('HH:mm')}`;
-  if (diffDays >= 2 && diffDays <= 6) return `${diffDays} 天前`;
+  if (diffDays === 0) return '今日 ' + m.format('HH:mm');
+  if (diffDays === 1) return '昨日 ' + m.format('HH:mm');
+  if (diffDays >= 2 && diffDays <= 6) return diffDays + ' 天前';
   if (m.year() === now.year()) return m.format('MM-DD');
   return m.format('YYYY-MM-DD');
 }

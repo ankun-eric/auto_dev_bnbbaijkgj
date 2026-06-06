@@ -65,7 +65,7 @@ async def _user_active_card_for_definition(
     db: AsyncSession, user_id: int, card_def_id: int
 ) -> Optional[UserCard]:
     """返回该用户当前持有的、该卡定义下"最近到期、仍处于 active 状态、未过期"的一张实卡。"""
-    now = datetime.utcnow()
+    now = datetime.now()
     res = await db.execute(
         select(UserCard)
         .where(
@@ -90,7 +90,7 @@ async def _build_public_response(
 
     days_to_expire: Optional[int] = None
     if user_active is not None:
-        delta = (user_active.valid_to - datetime.utcnow()).days
+        delta = (user_active.valid_to - datetime.now()).days
         days_to_expire = max(0, int(delta))
 
     return CardPublicResponse(
@@ -187,7 +187,7 @@ def _build_user_card_response(
 ) -> UserCardResponse:
     days_to_expire = None
     if user_card.valid_to:
-        days_to_expire = max(0, (user_card.valid_to - datetime.utcnow()).days)
+        days_to_expire = max(0, (user_card.valid_to - datetime.now()).days)
 
     return UserCardResponse(
         id=user_card.id,
@@ -224,7 +224,7 @@ async def my_card_wallet(
     user: User = Depends(get_current_user),
 ):
     """先把过期但状态仍 active 的实卡刷为 expired（懒迁移）"""
-    now = datetime.utcnow()
+    now = datetime.now()
     expired_res = await db.execute(
         select(UserCard).where(
             UserCard.user_id == user.id,

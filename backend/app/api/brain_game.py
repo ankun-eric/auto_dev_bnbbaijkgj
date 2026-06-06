@@ -63,7 +63,7 @@ class BrainGameRegion(Base):
     level = Column(String(16), nullable=False, comment="级别：province/city/district/street")
     parent_adcode = Column(String(12), nullable=True, index=True, comment="父级 adcode")
     center = Column(String(64), nullable=True, comment="中心经纬度")
-    synced_at = Column(DateTime, default=datetime.utcnow, comment="同步时间")
+    synced_at = Column(DateTime, default=datetime.now, comment="同步时间")
 
 
 class BrainGameScore(Base):
@@ -82,7 +82,7 @@ class BrainGameScore(Base):
     city = Column(String(64), nullable=True)
     district = Column(String(64), nullable=True)
     street = Column(String(128), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
 
 
 class BrainGameChallenge(Base):
@@ -97,7 +97,7 @@ class BrainGameChallenge(Base):
     team_size = Column(Integer, nullable=False, comment="队伍人数上限")
     status = Column(String(16), nullable=False, default="active", comment="active/done/expired")
     total_score = Column(Integer, nullable=True, default=0, comment="队伍总分")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
     expires_at = Column(DateTime, nullable=True, comment="超时时间(2小时)")
 
 
@@ -113,7 +113,7 @@ class BrainGameChallengeMember(Base):
     right_count = Column(Integer, nullable=False, default=0)
     time_seconds = Column(Integer, nullable=False, default=0)
     done = Column(Boolean, nullable=False, default=False)
-    joined_at = Column(DateTime, default=datetime.utcnow)
+    joined_at = Column(DateTime, default=datetime.now)
     finished_at = Column(DateTime, nullable=True)
 
 
@@ -682,7 +682,7 @@ async def create_challenge(
 ):
     """发起组队挑战"""
     code = generate_challenge_code()
-    expires_at = datetime.utcnow() + timedelta(hours=2)
+    expires_at = datetime.now() + timedelta(hours=2)
 
     challenge = BrainGameChallenge(
         code=code,
@@ -733,7 +733,7 @@ async def join_challenge(
     if not challenge:
         raise HTTPException(status_code=404, detail="未找到该挑战，请确认编号是否正确")
 
-    if challenge.expires_at and datetime.utcnow() > challenge.expires_at:
+    if challenge.expires_at and datetime.now() > challenge.expires_at:
         challenge.status = "expired"
         await db.commit()
         raise HTTPException(status_code=400, detail="该挑战已超时")
@@ -926,7 +926,7 @@ async def submit_challenge_score(
     member.right_count = body.right_count
     member.time_seconds = body.time_seconds
     member.done = True
-    member.finished_at = datetime.utcnow()
+    member.finished_at = datetime.now()
     await db.flush()
 
     # 检查是否所有人都完成
@@ -948,7 +948,7 @@ async def submit_challenge_score(
         challenge.status = "done"
 
     # 也检查超时
-    elif challenge.expires_at and datetime.utcnow() > challenge.expires_at:
+    elif challenge.expires_at and datetime.now() > challenge.expires_at:
         total_score_result = await db.execute(
             select(func.sum(BrainGameChallengeMember.score))
             .where(BrainGameChallengeMember.challenge_id == challenge_id)

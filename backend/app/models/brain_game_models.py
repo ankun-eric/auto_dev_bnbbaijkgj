@@ -39,7 +39,7 @@ class BrainGameRegion(Base):
     level = Column(String(16), nullable=False, comment="级别：province/city/district/street")
     parent_adcode = Column(String(12), nullable=True, index=True, comment="父级 adcode")
     center = Column(String(64), nullable=True, comment="中心经纬度")
-    synced_at = Column(DateTime, default=datetime.utcnow, comment="同步时间")
+    synced_at = Column(DateTime, default=datetime.now, comment="同步时间")
 
 
 class BrainGameScore(Base):
@@ -59,7 +59,7 @@ class BrainGameScore(Base):
     city = Column(String(64), nullable=True)
     district = Column(String(64), nullable=True)
     street = Column(String(128), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
 
 
 class BrainGameChallenge(Base):
@@ -75,7 +75,7 @@ class BrainGameChallenge(Base):
     team_size = Column(Integer, nullable=False, comment="队伍人数上限")
     status = Column(String(16), nullable=False, default="active", comment="active/done/expired")
     total_score = Column(Integer, nullable=True, default=0, comment="队伍总分")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
     expires_at = Column(DateTime, nullable=True, comment="超时时间(2小时)")
 
 
@@ -92,5 +92,5 @@ class BrainGameChallengeMember(Base):
     right_count = Column(Integer, nullable=False, default=0)
     time_seconds = Column(Integer, nullable=False, default=0)
     done = Column(Boolean, nullable=False, default=False)
-    joined_at = Column(DateTime, default=datetime.utcnow)
+    joined_at = Column(DateTime, default=datetime.now)
     finished_at = Column(DateTime, nullable=True)

@@ -148,7 +148,7 @@ RELATION_FALLBACKS = {
 
 async def _is_paid_member(db: AsyncSession, user_id: int) -> bool:
     """判断用户是否为付费会员（v1.2 同 v1.1）"""
-    now = datetime.utcnow()
+    now = datetime.now()
     res = await db.execute(
         select(UserMembershipSub).where(
             UserMembershipSub.user_id == user_id,
@@ -160,7 +160,7 @@ async def _is_paid_member(db: AsyncSession, user_id: int) -> bool:
 
 
 async def _get_user_plan(db: AsyncSession, user_id: int) -> Optional[MembershipPlan]:
-    now = datetime.utcnow()
+    now = datetime.now()
     res = await db.execute(
         select(UserMembershipSub).where(
             UserMembershipSub.user_id == user_id,
@@ -215,7 +215,7 @@ async def _get_user_quotas(db: AsyncSession, user_id: int) -> dict:
 
 async def _get_used_count(db: AsyncSession, user_id: int, call_type: str) -> int:
     """统计某用户本月某类额度已使用次数"""
-    month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     cnt = (await db.execute(
         select(func.count(GuardianAlertQuotaUsage.id)).where(
             GuardianAlertQuotaUsage.user_id == user_id,
@@ -452,7 +452,7 @@ async def transfer_initiate_v12(
         raise HTTPException(status_code=403, detail="您不是该被守护人的主守护人")
 
     # 24h 内同一对 from/to 不可重复发起
-    one_day_ago = datetime.utcnow() - timedelta(hours=24)
+    one_day_ago = datetime.now() - timedelta(hours=24)
     existing = (await db.execute(
         select(GuardianTransferRequest).where(
             GuardianTransferRequest.from_management_id == my_mgmt.id,
@@ -469,8 +469,8 @@ async def transfer_initiate_v12(
         from_management_id=my_mgmt.id,
         to_management_id=target_mgmt.id,
         status="pending",
-        created_at=datetime.utcnow(),
-        expires_at=datetime.utcnow() + timedelta(hours=24),
+        created_at=datetime.now(),
+        expires_at=datetime.now() + timedelta(hours=24),
     )
     db.add(transfer)
     await db.flush()
@@ -537,7 +537,7 @@ async def transfer_approve_v12(
         raise HTTPException(status_code=403, detail="只有接收者本人可以确认")
     if transfer.status != "pending":
         raise HTTPException(status_code=400, detail=f"该请求已 {transfer.status}")
-    if transfer.expires_at and transfer.expires_at < datetime.utcnow():
+    if transfer.expires_at and transfer.expires_at < datetime.now():
         transfer.status = "expired"
         await db.flush()
         raise HTTPException(status_code=400, detail="转让请求已过期")
@@ -562,7 +562,7 @@ async def transfer_approve_v12(
     ))
 
     transfer.status = "approved"
-    transfer.approved_at = datetime.utcnow()
+    transfer.approved_at = datetime.now()
 
     # 通知三方
     managed_user = await db.get(User, transfer.managed_user_id)
@@ -603,7 +603,7 @@ async def transfer_pending_list_v12(
     - sent: 我发起的、尚未被对方确认的转让（用于发起方页面顶部显示"您发起的转让待确认，可取消"）
     - received: 别人发起、指向我的转让（用于接收方页面顶部显示"XXX 申请将主守护人转让给您"）
     """
-    now = datetime.utcnow()
+    now = datetime.now()
 
     # 查所有 pending 的转让请求，按时间倒序
     pending = (await db.execute(
@@ -671,7 +671,7 @@ async def transfer_reject_v12(
         raise HTTPException(status_code=400, detail=f"该请求已 {transfer.status}")
 
     transfer.status = "rejected"
-    transfer.cancelled_at = datetime.utcnow()
+    transfer.cancelled_at = datetime.now()
 
     # 通知发起者
     from_mgmt = await db.get(FamilyManagement, transfer.from_management_id)
@@ -712,7 +712,7 @@ async def transfer_cancel_v12(
         raise HTTPException(status_code=400, detail=f"该请求已 {transfer.status}")
 
     transfer.status = "cancelled"
-    transfer.cancelled_at = datetime.utcnow()
+    transfer.cancelled_at = datetime.now()
 
     # 通知接收者
     to_mgmt = await db.get(FamilyManagement, transfer.to_management_id)
@@ -1186,7 +1186,7 @@ async def simulate_emergency_serial_call(
             db.add(GuardianAlertQuotaUsage(
                 user_id=primary.manager_user_id,
                 managed_user_id=managed_user_id,
-                used_at=datetime.utcnow(),
+                used_at=datetime.now(),
                 call_type="emergency_call",
             ))
         await db.flush()
@@ -1243,7 +1243,7 @@ async def list_invitation_records_v12(
         "expired": ("已过期", "warning"),
         "cancelled": ("已作废", "gray"),
     }
-    now = datetime.utcnow()
+    now = datetime.now()
 
     sent_items = []
     for inv in my_sent:
@@ -1413,7 +1413,7 @@ async def admin_update_emergency_source(
             if k in {"is_builtin"}:
                 continue
             setattr(s, k, v)
-    s.updated_at = datetime.utcnow()
+    s.updated_at = datetime.now()
     await db.flush()
     return utf8_json({"id": s.id, "message": "已更新"})
 
@@ -1455,7 +1455,7 @@ async def admin_toggle_emergency_source(
     if s.is_builtin:
         raise HTTPException(status_code=403, detail="内置触发源始终启用，不允许禁用")
     s.is_enabled = not bool(s.is_enabled)
-    s.updated_at = datetime.utcnow()
+    s.updated_at = datetime.now()
     await db.flush()
     return utf8_json({"id": s.id, "is_enabled": bool(s.is_enabled), "message": "已更新"})
 
@@ -1628,7 +1628,7 @@ async def admin_cancel_family_management(
     if m.status == "cancelled":
         return utf8_json({"id": m.id, "message": "已是取消状态"})
     m.status = "cancelled"
-    m.cancelled_at = datetime.utcnow()
+    m.cancelled_at = datetime.now()
     if getattr(m, "is_primary_guardian", False):
         m.is_primary_guardian = False
     await db.flush()
@@ -1694,7 +1694,7 @@ async def admin_family_management_detail(
     # 套餐到期时间
     plan_expire_at = None
     if quotas["is_paid_member"]:
-        now = datetime.utcnow()
+        now = datetime.now()
         sub = (await db.execute(
             select(UserMembershipSub).where(
                 UserMembershipSub.user_id == mgmt.manager_user_id,

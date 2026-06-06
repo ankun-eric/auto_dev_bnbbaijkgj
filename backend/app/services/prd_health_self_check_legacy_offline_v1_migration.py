@@ -192,7 +192,7 @@ async def _do_migrate(db: AsyncSession) -> dict:
                         "[hsc_legacy_offline_v1] drop %s failed: %s", tn, e
                     )
             await _set_phase_status(
-                db, "done", f"dropped={stats['dropped']} at {datetime.utcnow().isoformat()}"
+                db, "done", f"dropped={stats['dropped']} at {datetime.now().isoformat()}"
             )
         else:
             stats["skipped"].append("dry_run_mode_no_drop")

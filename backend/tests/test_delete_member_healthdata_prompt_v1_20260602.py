@@ -311,7 +311,7 @@ async def test_tc06_health_metric_records_counted(client: AsyncClient):
                 profile_id=pid, metric_type="blood_pressure",
                 value_json={"systolic": 128, "diastolic": 82},
                 source="manual",
-                measured_at=_dt.datetime.utcnow(),
+                measured_at=_dt.datetime.now(),
                 created_by=uid,
             ))
         await s.commit()

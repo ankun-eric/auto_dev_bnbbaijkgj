@@ -278,7 +278,7 @@ async def check_in(
         user_id=current_user.id,
         log_date=log_date,
         scheduled_time=body.scheduled_time,
-        checked_at=datetime.utcnow(),
+        checked_at=datetime.now(),
         revoked=False,
     )
     db.add(log)

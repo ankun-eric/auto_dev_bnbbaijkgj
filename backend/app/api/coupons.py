@@ -36,7 +36,7 @@ router = APIRouter(prefix="/api/coupons", tags=["优惠券"])
 
 
 def _calc_expire_at(coupon: Coupon, base: Optional[datetime] = None) -> datetime:
-    base = base or datetime.utcnow()
+    base = base or datetime.now()
     days = coupon.validity_days or 30
     return base + timedelta(days=days)
 
@@ -187,7 +187,7 @@ async def claim_coupon(
         # V2.1：重复领取返回 409 Conflict
         raise HTTPException(status_code=409, detail="您已领取过该优惠券")
 
-    now = datetime.utcnow()
+    now = datetime.now()
     uc = UserCoupon(
         user_id=current_user.id,
         coupon_id=data.coupon_id,
@@ -218,7 +218,7 @@ async def _count_user_coupons_available(db: AsyncSession, user_id: int, now: Opt
     当前 UserCoupon 模型没有 start_time 字段，领券即刻生效，因此无"未生效"状态；
     如未来新增生效时间字段，只需在此函数加一条 and 条件。
     """
-    now = now or datetime.utcnow()
+    now = now or datetime.now()
     stmt = select(func.count(UserCoupon.id)).where(
         UserCoupon.user_id == user_id,
         UserCoupon.status == UserCouponStatus.unused,
@@ -242,7 +242,7 @@ async def get_coupons_summary(
     - total：该用户持有的全部券数
     前端"合计(N)"与"可用(N)"共用 available 字段，保证一致。
     """
-    now = datetime.utcnow()
+    now = datetime.now()
     user_id = current_user.id
 
     available = await _count_user_coupons_available(db, user_id, now)
@@ -337,7 +337,7 @@ async def list_usable_coupons_for_order(
     - subtotal >= condition_amount（若 type=free_trial，强制忽略此条件）
     - 排除商品：若该商品在 coupon.exclude_ids 中，则不可用
     """
-    now = datetime.utcnow()
+    now = datetime.now()
 
     # 取该用户全部 unused 且未过期的 user_coupon + 关联 coupon
     rs = await db.execute(
@@ -439,7 +439,7 @@ async def list_my_coupons(
     Bug #3 修复：响应顶层附加 available_count 字段，与顶部"合计(N)"显示口径一致
     （status=unused AND (expire_at IS NULL OR expire_at > now)）。
     """
-    now = datetime.utcnow()
+    now = datetime.now()
     query = select(UserCoupon).where(UserCoupon.user_id == current_user.id)
     count_query = select(func.count(UserCoupon.id)).where(UserCoupon.user_id == current_user.id)
 
@@ -495,7 +495,7 @@ async def redeem_code(
         raise HTTPException(status_code=400, detail="请输入兑换码")
 
     # 简易频率限制（防爆破）：同一用户每分钟最多 10 次
-    one_min_ago = datetime.utcnow() - timedelta(minutes=1)
+    one_min_ago = datetime.now() - timedelta(minutes=1)
     recent = await db.execute(
         select(func.count(CouponGrant.id)).where(
             CouponGrant.user_id == current_user.id,
@@ -581,7 +581,7 @@ async def redeem_code(
             if (total_used.scalar() or 0) >= cl:
                 raise HTTPException(status_code=422, detail="兑换码领取人数已达上限")
 
-    now = datetime.utcnow()
+    now = datetime.now()
     uc = UserCoupon(
         user_id=current_user.id,
         coupon_id=coupon.id,

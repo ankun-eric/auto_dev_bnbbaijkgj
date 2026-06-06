@@ -31,7 +31,7 @@ async def get_my_stats(
     db: AsyncSession = Depends(get_db),
 ):
     """聚合接口：积分 / 未过期未使用券数 / 收藏总数（不分 content_type）"""
-    now = datetime.utcnow()
+    now = datetime.now()
 
     coupon_count_query = (
         select(func.count(UserCoupon.id))
@@ -68,7 +68,7 @@ async def update_user_me(
         current_user.nickname = data.nickname
     if data.avatar is not None:
         current_user.avatar = data.avatar
-    current_user.updated_at = datetime.utcnow()
+    current_user.updated_at = datetime.now()
     await db.flush()
     await db.refresh(current_user)
     return UserResponse.model_validate(current_user)
@@ -122,8 +122,8 @@ async def deactivate_account(
         )
 
     current_user.is_active = False
-    current_user.deleted_at = datetime.utcnow()
-    current_user.updated_at = datetime.utcnow()
+    current_user.deleted_at = datetime.now()
+    current_user.updated_at = datetime.now()
     await db.flush()
 
     revoke_all_tokens_for_user(current_user.id)

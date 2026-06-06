@@ -275,7 +275,7 @@ async def update_health_reminder(
 
     update_data = body.model_dump(exclude_unset=True)
     if "status" in update_data and update_data["status"] == "completed":
-        update_data["completed_at"] = datetime.utcnow()
+        update_data["completed_at"] = datetime.now()
 
     for k, v in update_data.items():
         setattr(reminder, k, v)

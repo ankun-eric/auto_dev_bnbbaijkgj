@@ -330,7 +330,7 @@ async def test_bug461_rule2_active_check_recent_session(
     """[业务规则②] 距上次活动 < 阈值 → should_new_session=False。"""
     user_id, headers = await _register_and_login(client, "13900046122")
     # 1 小时前活动
-    recent = datetime.utcnow() - timedelta(hours=1)
+    recent = datetime.now() - timedelta(hours=1)
     s = await _seed_chat_session(db_session, user_id, updated_at=recent)
 
     resp = await client.get("/api/chat-sessions/active-check", headers=headers)
@@ -347,7 +347,7 @@ async def test_bug461_rule2_active_check_old_session(
 ):
     """[业务规则②] 距上次活动 ≥ 阈值（默认 6h，这里 25h）→ should_new_session=True。"""
     user_id, headers = await _register_and_login(client, "13900046123")
-    old = datetime.utcnow() - timedelta(hours=25)
+    old = datetime.now() - timedelta(hours=25)
     s = await _seed_chat_session(db_session, user_id, updated_at=old)
 
     resp = await client.get("/api/chat-sessions/active-check", headers=headers)

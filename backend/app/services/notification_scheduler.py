@@ -28,7 +28,7 @@ scheduler = AsyncIOScheduler()
 
 async def check_medication_reminders():
     """Scan active medication reminders and create pending notifications for due items."""
-    now = datetime.utcnow()
+    now = datetime.now()
     current_time = now.strftime("%H:%M")
     today = date.today()
 
@@ -86,7 +86,7 @@ async def check_medication_reminders():
 
 async def check_checkin_reminders():
     """Scan active health check-in items and create pending notifications for due items."""
-    now = datetime.utcnow()
+    now = datetime.now()
     current_time = now.strftime("%H:%M")
     today = date.today()
 
@@ -167,7 +167,7 @@ async def check_unpaid_order_timeout():
     from app.core.config import settings
     from app.services.order_cancel import cancel_order_with_items
 
-    now = datetime.utcnow()
+    now = datetime.now()
     timeout_minutes = int(getattr(settings, "PAYMENT_TIMEOUT_MINUTES", 15) or 15)
     timeout_threshold = now - timedelta(minutes=timeout_minutes)
 
@@ -210,7 +210,7 @@ async def check_unpaid_order_timeout():
 
 async def check_appointment_reminders():
     """Send reminders for upcoming appointments based on configured advance hours."""
-    now = datetime.utcnow()
+    now = datetime.now()
 
     async with async_session() as session:
         try:
@@ -272,7 +272,7 @@ async def check_order_upcoming_one_hour():
     扫描规则：在 [now+55min, now+65min] 区间内开始的预约订单。
     通过 Notification.event_type='order_upcoming' + order_id 唯一性去重。
     """
-    now = datetime.utcnow()
+    now = datetime.now()
     window_start = now + timedelta(minutes=55)
     window_end = now + timedelta(minutes=65)
 

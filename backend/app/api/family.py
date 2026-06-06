@@ -376,7 +376,7 @@ async def remove_family_member(
 
     member.status = "deleted"
     member.sub_status = "self_deleted"
-    member.status_changed_at = datetime.utcnow()
+    member.status_changed_at = datetime.now()
     member.status_changed_by = current_user.id
     member.status_reason = "user_delete_family_member"
     await db.flush()

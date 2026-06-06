@@ -88,7 +88,7 @@ async def _seed_pending_use_order(
     rs = await db_session.execute(select(User).where(User.phone == user_phone))
     user = rs.scalar_one()
     order = UnifiedOrder(
-        order_no=f"UOTST{datetime.utcnow().strftime('%H%M%S%f')}{reschedule_count}",
+        order_no=f"UOTST{datetime.now().strftime('%H%M%S%f')}{reschedule_count}",
         user_id=user.id,
         total_amount=100,
         paid_amount=100,
@@ -170,7 +170,7 @@ async def test_overdue_pending_use_with_reschedule_allowed(
     start_count, expected_count, expected_status,
 ):
     p = await _create_product(client, admin_headers, name=f"P-overdue-{start_count}")
-    yesterday = datetime.utcnow() - timedelta(days=1)
+    yesterday = datetime.now() - timedelta(days=1)
     order = await _seed_pending_use_order(
         db_session,
         user_phone="13900000001",
@@ -212,7 +212,7 @@ async def test_overdue_when_not_allow_reschedule(
         client, admin_headers, name=f"P-no-reschedule-{count}",
         allow_reschedule=False,
     )
-    yesterday = datetime.utcnow() - timedelta(days=1)
+    yesterday = datetime.now() - timedelta(days=1)
     order = await _seed_pending_use_order(
         db_session,
         user_phone="13900000001",
@@ -238,7 +238,7 @@ async def test_modify_appointment_increments_count(
     client, admin_headers, db_session, auth_headers,
 ):
     p = await _create_product(client, admin_headers, name="P-modify")
-    appt_today = datetime.utcnow() + timedelta(days=2)
+    appt_today = datetime.now() + timedelta(days=2)
     order = await _seed_pending_use_order(
         db_session,
         user_phone="13900000001",
@@ -246,7 +246,7 @@ async def test_modify_appointment_increments_count(
         appt_time=appt_today,
         reschedule_count=0,
     )
-    new_appt = datetime.utcnow() + timedelta(days=3)
+    new_appt = datetime.now() + timedelta(days=3)
     r = await client.post(
         f"/api/orders/unified/{order.id}/appointment",
         json={"appointment_time": new_appt.isoformat()},
@@ -262,7 +262,7 @@ async def test_modify_appointment_blocked_at_limit(
     client, admin_headers, db_session, auth_headers,
 ):
     p = await _create_product(client, admin_headers, name="P-modify-limit")
-    appt_today = datetime.utcnow() + timedelta(days=2)
+    appt_today = datetime.now() + timedelta(days=2)
     order = await _seed_pending_use_order(
         db_session,
         user_phone="13900000001",
@@ -270,7 +270,7 @@ async def test_modify_appointment_blocked_at_limit(
         appt_time=appt_today,
         reschedule_count=3,
     )
-    new_appt = datetime.utcnow() + timedelta(days=3)
+    new_appt = datetime.now() + timedelta(days=3)
     r = await client.post(
         f"/api/orders/unified/{order.id}/appointment",
         json={"appointment_time": new_appt.isoformat()},
@@ -288,7 +288,7 @@ async def test_pending_use_at_limit_can_apply_refund(
     client, admin_headers, db_session, auth_headers,
 ):
     p = await _create_product(client, admin_headers, name="P-refund-pu")
-    appt_future = datetime.utcnow() + timedelta(days=2)
+    appt_future = datetime.now() + timedelta(days=2)
     order = await _seed_pending_use_order(
         db_session,
         user_phone="13900000001",
@@ -311,7 +311,7 @@ async def test_expired_order_cannot_apply_refund(
     p = await _create_product(
         client, admin_headers, name="P-refund-expired", allow_reschedule=False,
     )
-    yesterday = datetime.utcnow() - timedelta(days=1)
+    yesterday = datetime.now() - timedelta(days=1)
     order = await _seed_pending_use_order(
         db_session,
         user_phone="13900000001",
@@ -405,7 +405,7 @@ async def test_order_response_includes_reschedule_fields(
     client, admin_headers, db_session, auth_headers,
 ):
     p = await _create_product(client, admin_headers, name="P-resp-fields")
-    appt = datetime.utcnow() + timedelta(days=2)
+    appt = datetime.now() + timedelta(days=2)
     order = await _seed_pending_use_order(
         db_session,
         user_phone="13900000001",

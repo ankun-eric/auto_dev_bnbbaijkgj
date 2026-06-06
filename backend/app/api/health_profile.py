@@ -122,7 +122,7 @@ async def update_health_profile(
     update_data.pop("family_member_id", None)
     for key, value in update_data.items():
         setattr(profile, key, value)
-    profile.updated_at = datetime.utcnow()
+    profile.updated_at = datetime.now()
     await db.flush()
     await db.refresh(profile)
 
@@ -218,7 +218,7 @@ async def upsert_member_health_profile(
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(profile, key, value)
-    profile.updated_at = datetime.utcnow()
+    profile.updated_at = datetime.now()
 
     if any(k in update_data for k in ("name", "gender", "birthday")):
         if "name" in update_data:
@@ -286,7 +286,7 @@ async def update_guide_status(
         await db.flush()
 
     profile.guide_count = (profile.guide_count or 0) + 1
-    profile.updated_at = datetime.utcnow()
+    profile.updated_at = datetime.now()
     await db.flush()
     await db.refresh(profile)
     return HealthGuideUpdateResponse(guide_count=profile.guide_count)
@@ -570,7 +570,7 @@ async def upload_checkup_report(
 
     report = CheckupReport(
         user_id=current_user.id,
-        report_date=datetime.utcnow().date(),
+        report_date=datetime.now().date(),
         report_type="general",
         file_url=file_url,
         ocr_result={"text": ocr_text},

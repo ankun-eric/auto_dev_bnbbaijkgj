@@ -277,7 +277,7 @@ async def test_auto_sync_drug_record_writes_medical_record(
     assert len(mrs) == 1
     mr = mrs[0]
     assert mr.title == "布洛芬缓释胶囊"
-    assert mr.record_date == datetime.utcnow().date()
+    assert mr.record_date == datetime.now().date()
 
     # 验证 MedicalRecordFile
     mrf_q = await db_session.execute(

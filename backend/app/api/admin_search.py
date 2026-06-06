@@ -96,7 +96,7 @@ async def update_recommend_word(
     update_data = data.model_dump(exclude_unset=True)
     for key, val in update_data.items():
         setattr(word, key, val)
-    word.updated_at = datetime.utcnow()
+    word.updated_at = datetime.now()
     await db.flush()
     await db.refresh(word)
     return SearchRecommendWordResponse.model_validate(word)
@@ -357,7 +357,7 @@ async def update_asr_config(
     if data.supported_dialects is not None:
         config.supported_dialects = data.supported_dialects
 
-    config.updated_at = datetime.utcnow()
+    config.updated_at = datetime.now()
     await db.flush()
     await db.refresh(config)
 

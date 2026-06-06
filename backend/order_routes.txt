@@ -1,0 +1,5 @@
+GET /api/orders/verify-code/{code} ← app/api/order.py:277
+GET /api/orders/{order_id} ← app/api/order.py:137
+POST /api/orders/{order_id}/review ← app/api/order.py:190
+POST /api/orders/{order_id}/verify ← app/api/order.py:236
+PUT /api/orders/{order_id}/cancel ← app/api/order.py:150

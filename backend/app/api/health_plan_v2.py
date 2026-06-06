@@ -787,7 +787,7 @@ async def checkin_medication(
         reminder_id=reminder_id,
         user_id=current_user.id,
         check_in_date=today,
-        check_in_time=datetime.utcnow(),
+        check_in_time=datetime.now(),
     )
     db.add(checkin)
     points_result = {"points_earned": 0, "points_limit_reached": False}
@@ -1003,7 +1003,7 @@ async def makeup_checkin(
         check_in_date=target_date,
         actual_value=None,
         is_completed=True,
-        check_in_time=datetime.utcnow(),
+        check_in_time=datetime.now(),
     )
     db.add(record)
     await db.flush()
@@ -1289,7 +1289,7 @@ async def checkin_health_item(
         check_in_date=today,
         actual_value=data.actual_value,
         is_completed=True,
-        check_in_time=datetime.utcnow(),
+        check_in_time=datetime.now(),
     )
     db.add(record)
     points_result = {"points_earned": 0, "points_limit_reached": False}
@@ -1681,7 +1681,7 @@ async def checkin_plan_task(
         check_in_date=today,
         actual_value=data.actual_value,
         is_completed=True,
-        check_in_time=datetime.utcnow(),
+        check_in_time=datetime.now(),
     )
     db.add(record)
     points_result = {"points_earned": 0, "points_limit_reached": False}
@@ -2102,7 +2102,7 @@ async def quick_check_in(
             reminder_id=item_id,
             user_id=current_user.id,
             check_in_date=today,
-            check_in_time=datetime.utcnow(),
+            check_in_time=datetime.now(),
         )
         db.add(checkin)
         points_result = {"points_earned": 0, "points_limit_reached": False}
@@ -2143,7 +2143,7 @@ async def quick_check_in(
             check_in_date=today,
             actual_value=data.value,
             is_completed=True,
-            check_in_time=datetime.utcnow(),
+            check_in_time=datetime.now(),
         )
         db.add(record)
         points_result = {"points_earned": 0, "points_limit_reached": False}
@@ -2183,7 +2183,7 @@ async def quick_check_in(
             check_in_date=today,
             actual_value=data.value,
             is_completed=True,
-            check_in_time=datetime.utcnow(),
+            check_in_time=datetime.now(),
         )
         db.add(record)
         points_result = {"points_earned": 0, "points_limit_reached": False}

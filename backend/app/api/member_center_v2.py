@@ -62,7 +62,7 @@ def _days_for_period(period: str) -> int:
 
 
 async def _get_active_sub(db: AsyncSession, user_id: int) -> Optional[UserMembershipSub]:
-    now = datetime.utcnow()
+    now = datetime.now()
     result = await db.execute(
         select(UserMembershipSub)
         .where(UserMembershipSub.user_id == user_id)
@@ -84,7 +84,7 @@ async def _grant_membership(
     返回新生效的 UserMembershipSub 记录。
     """
     days = _days_for_period(period)
-    now = datetime.utcnow()
+    now = datetime.now()
     existing = await _get_active_sub(db, user_id)
 
     if existing is None:
@@ -163,7 +163,7 @@ async def get_member_center(
             "max_managed_by": int(plan.max_managed_by or 0),
         }
         # 到期提醒（提前 7/3/1 天）
-        days_left = (sub.expire_at - datetime.utcnow()).days if sub.expire_at else None
+        days_left = (sub.expire_at - datetime.now()).days if sub.expire_at else None
         current["days_left"] = days_left
         current["expiring_soon"] = days_left is not None and 0 <= days_left <= 7
     else:
@@ -257,7 +257,7 @@ async def get_member_quota_usage(
 
     # 安全读 user_quota_usage：表/列可能不存在
     try:
-        ym = datetime.utcnow().strftime("%Y-%m")
+        ym = datetime.now().strftime("%Y-%m")
         row = (
             await db.execute(
                 text(
@@ -285,7 +285,7 @@ async def get_member_quota_usage(
         "ai_outbound_call_used": used_outbound,
         "emergency_ai_call_used": used_emergency,
         "max_managed_used": used_managed,
-        "period_month": datetime.utcnow().strftime("%Y-%m"),
+        "period_month": datetime.now().strftime("%Y-%m"),
     }
 
 
@@ -312,7 +312,7 @@ class MemberOrderCreateRequest(BaseModel):
 
 
 def _generate_order_no() -> str:
-    return "MEM" + datetime.utcnow().strftime("%Y%m%d%H%M%S") + secrets.token_hex(3).upper()
+    return "MEM" + datetime.now().strftime("%Y%m%d%H%M%S") + secrets.token_hex(3).upper()
 
 
 @router.post("/order")
@@ -427,7 +427,7 @@ async def pay_member_order(
         # 模拟支付成功：直接 grant
         sub = await _grant_membership(db, current_user.id, plan, item.membership_period)
         order.status = UnifiedOrderStatus.completed
-        order.paid_at = datetime.utcnow()
+        order.paid_at = datetime.now()
         order.paid_amount = order.total_amount
         await db.flush()
         return {
@@ -580,7 +580,7 @@ async def membership_expire_job(db: AsyncSession) -> dict:
 
     将所有 expire_at <= now 且 status='active' 的订阅置为 expired。
     """
-    now = datetime.utcnow()
+    now = datetime.now()
     result = await db.execute(
         select(UserMembershipSub)
         .where(UserMembershipSub.status == "active")
@@ -598,7 +598,7 @@ async def membership_remind_job(db: AsyncSession) -> dict:
 
     实际推送通道（站内/微信/横幅）由通知服务负责，本任务仅返回需要提醒的用户列表。
     """
-    now = datetime.utcnow()
+    now = datetime.now()
     reminders = []
     for days_before in (7, 3, 1):
         target_lo = now + timedelta(days=days_before)

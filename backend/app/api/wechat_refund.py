@@ -234,23 +234,23 @@ async def _process_refund_approval(
     refund_req.admin_user_id = admin_user_id
     if admin_notes:
         refund_req.admin_notes = admin_notes
-    refund_req.updated_at = datetime.utcnow()
+    refund_req.updated_at = datetime.now()
 
     if result.get("success"):
         refund_req.status = RefundRequestStatus.completed
         refund_req.refund_transaction_id = result.get("refund_id") or result.get("out_refund_no", "")
-        refund_req.updated_at = datetime.utcnow()
+        refund_req.updated_at = datetime.now()
 
         # 7. 更新订单状态
         order.refund_status = RefundStatusEnum.refund_success
         order.status = UnifiedOrderStatus.refunded
-        order.updated_at = datetime.utcnow()
+        order.updated_at = datetime.now()
 
         # 8. 所有核销码作废
         for item in order.items:
             if hasattr(item, "redemption_code_status"):
                 item.redemption_code_status = "refunded"
-                item.updated_at = datetime.utcnow()
+                item.updated_at = datetime.now()
 
         await db.commit()
         return {
@@ -264,7 +264,7 @@ async def _process_refund_approval(
         }
     else:
         refund_req.status = RefundRequestStatus.approved
-        refund_req.updated_at = datetime.utcnow()
+        refund_req.updated_at = datetime.now()
         await db.commit()
         error_msg = result.get("error_message", "未知错误")
         error_code = result.get("error_code", "UNKNOWN")
@@ -515,7 +515,7 @@ async def reject_refund(
     refund_req.status = RefundRequestStatus.rejected
     refund_req.admin_user_id = current_user.id
     refund_req.admin_notes = data.admin_notes
-    refund_req.updated_at = datetime.utcnow()
+    refund_req.updated_at = datetime.now()
 
     # 恢复订单的退款状态
     order_res = await db.execute(
@@ -524,7 +524,7 @@ async def reject_refund(
     order = order_res.scalar_one_or_none()
     if order:
         order.refund_status = RefundStatusEnum.rejected
-        order.updated_at = datetime.utcnow()
+        order.updated_at = datetime.now()
 
     await db.commit()
     return {"message": "退款申请已拒绝", "refund_id": refund_id}

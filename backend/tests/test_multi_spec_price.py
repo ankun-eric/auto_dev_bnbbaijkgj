@@ -40,7 +40,7 @@ def _make_product_response(
     spec_mode: int = 1,
     skus: list[ProductSkuResponse] | None = None,
 ) -> ProductResponse:
-    now = datetime.utcnow()
+    now = datetime.now()
     return ProductResponse(
         id=1,
         name="测试商品",

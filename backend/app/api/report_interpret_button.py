@@ -116,7 +116,7 @@ async def report_interpret_start_via_button(
         file_urls.append(body.file_url)
     primary_url = file_urls[0] if file_urls else None
 
-    today = datetime.utcnow().date()
+    today = datetime.now().date()
     report = CheckupReport(
         user_id=current_user.id,
         family_member_id=member_id,

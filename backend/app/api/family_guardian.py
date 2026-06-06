@@ -235,7 +235,7 @@ async def confirm_migration(
         db.add(mgmt)
 
     m.status = "confirmed"
-    m.confirmed_at = datetime.utcnow()
+    m.confirmed_at = datetime.now()
     await db.flush()
     return {"message": "已确认", "member_id": member.id}
 
@@ -255,7 +255,7 @@ async def reject_migration(
     if m.status != "pending":
         raise HTTPException(status_code=400, detail="迁移已处理")
     m.status = "rejected"
-    m.confirmed_at = datetime.utcnow()
+    m.confirmed_at = datetime.now()
     await db.flush()
     return {"message": "已拒绝"}
 
@@ -318,7 +318,7 @@ async def alert_click_tracking(
 
     if log.delivery_status in ("sent", "delivered"):
         log.delivery_status = "clicked"
-        log.clicked_at = datetime.utcnow()
+        log.clicked_at = datetime.now()
         await db.flush()
         return {
             "ok": True,

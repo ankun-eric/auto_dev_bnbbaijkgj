@@ -342,7 +342,7 @@ async def update_card(
         for pid in new_ids:
             db.add(CardItem(card_definition_id=card.id, product_id=pid))
 
-    card.updated_at = datetime.utcnow()
+    card.updated_at = datetime.now()
     await db.commit()
     await db.refresh(card, ["items"])
     return await _build_card_response(db, card)
@@ -367,7 +367,7 @@ async def update_card_status(
         if not card.items:
             raise HTTPException(status_code=400, detail="上架前必须先绑定至少一个项目")
     card.status = CardStatus(payload.status)
-    card.updated_at = datetime.utcnow()
+    card.updated_at = datetime.now()
     await db.commit()
     await db.refresh(card, ["items"])
     return await _build_card_response(db, card)

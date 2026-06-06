@@ -18,28 +18,20 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, timedelta, timezone, tzinfo
+from datetime import datetime, timedelta
 from typing import Any, Optional
-
-BJ_TZ: tzinfo = timezone(timedelta(hours=8))
 
 
 def _to_bj_str(dt: Optional[datetime]) -> Optional[str]:
-    """将 datetime 转为北京时间 ISO 字符串（带 +08:00 后缀）。"""
+    """将 datetime 转为北京时间字符串 "YYYY-MM-DD HH:MM:SS"。"""
     if dt is None:
         return None
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    bj = dt.astimezone(BJ_TZ)
-    return bj.isoformat()
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _to_bj_display(dt: datetime) -> str:
     """将 datetime 转为北京时间显示字符串，格式 YYYY-MM-DD HH:MM。"""
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    bj = dt.astimezone(BJ_TZ)
-    return bj.strftime("%Y-%m-%d %H:%M")
+    return dt.strftime("%Y-%m-%d %H:%M")
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -296,7 +288,7 @@ async def _get_last_checkin(db: AsyncSession, user_id: int) -> Optional[dict]:
 
 def _compute_runtime_state(cfg: dict, last_checkin: Optional[dict], now: Optional[datetime] = None) -> dict:
     if now is None:
-        now = datetime.utcnow()
+        now = datetime.now()
     threshold_hours = int(cfg.get("threshold_hours") or 48)
     paused_until = cfg.get("paused_until")
     status = cfg.get("status") or "normal"
@@ -374,7 +366,7 @@ async def get_status(
 
     today_checked = False
     if last and last.get("checkin_at"):
-        today_checked = last["checkin_at"].date() == datetime.utcnow().date()
+        today_checked = last["checkin_at"].date() == datetime.now().date()
 
     return {
         "config": {
@@ -420,7 +412,7 @@ async def update_config(
     if body.paused is True:
         new_status = "paused"
         if body.paused_days and body.paused_days > 0:
-            new_paused_until = datetime.utcnow() + timedelta(days=body.paused_days)
+            new_paused_until = datetime.now() + timedelta(days=body.paused_days)
         else:
             new_paused_until = None
     elif body.paused is False:
@@ -448,7 +440,7 @@ async def checkin(
     await _ensure_tables(db)
     cfg = await _get_or_create_config(db, current_user.id)
 
-    now = datetime.utcnow()
+    now = datetime.now()
     await db.execute(text(
         "INSERT INTO safety_rope_checkin (user_id, checkin_at, location_lat, location_lng, location_address) "
         "VALUES (:uid, :t, :lat, :lng, :addr)"
@@ -766,7 +758,7 @@ async def scan_and_notify() -> dict[str, int]:
                 "SELECT user_id, threshold_hours, status, paused_until, last_warning_pre_at "
                 "FROM safety_rope_config"
             ))).fetchall()
-            now = datetime.utcnow()
+            now = datetime.now()
             for cfg_row in cfg_rows:
                 stats["scanned"] += 1
                 uid, threshold_hours, status, paused_until, last_warn_pre = cfg_row

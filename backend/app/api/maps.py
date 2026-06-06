@@ -595,7 +595,7 @@ async def test_map_config(
         web=web_t,
         h5=h5_t,
         overall_pass=overall,
-        tested_at=datetime.utcnow(),
+        tested_at=datetime.now(),
     )
 
 

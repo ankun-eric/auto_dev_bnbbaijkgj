@@ -277,7 +277,7 @@ async def update_ai_call_setting(
         else:
             setting.call_target = data.call_target
 
-    setting.updated_at = datetime.utcnow()
+    setting.updated_at = datetime.now()
     await db.flush()
 
     target_nickname: Optional[str] = None

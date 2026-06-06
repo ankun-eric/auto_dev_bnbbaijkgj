@@ -100,7 +100,7 @@ async def _insert_metric(s, *, rid, profile_id, metric_type, value_json, measure
 async def seed_vitals(user_and_member):
     """Insert recent HealthMetricRecord entries for trend / dashboard tests."""
     _, member, profile = user_and_member
-    now = datetime.utcnow()
+    now = datetime.now()
 
     async with test_session() as s:
         rid = 1000
@@ -340,7 +340,7 @@ async def test_tc013_alert_check(client: AsyncClient, auth_headers, user_and_mem
     async with test_session() as s:
         await _insert_metric(s, rid=9000, profile_id=profile.id, metric_type="blood_pressure",
                              value_json={"systolic": 160, "diastolic": 100, "period": "morning"},
-                             measured_at=datetime.utcnow(), created_by=member.user_id)
+                             measured_at=datetime.now(), created_by=member.user_id)
         await s.commit()
 
     res = await client.post("/api/health-alerts/check", json={

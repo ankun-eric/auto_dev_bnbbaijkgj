@@ -322,7 +322,7 @@ async def _upsert_search_history(db: AsyncSession, user_id: int, keyword: str) -
     existing = result.scalar_one_or_none()
     if existing:
         existing.search_count += 1
-        existing.updated_at = datetime.utcnow()
+        existing.updated_at = datetime.now()
     else:
         db.add(SearchHistory(user_id=user_id, keyword=keyword))
 
@@ -335,7 +335,7 @@ async def _update_hot_word(db: AsyncSession, keyword: str, result_count: int) ->
     if existing:
         existing.search_count += 1
         existing.result_count = result_count
-        existing.updated_at = datetime.utcnow()
+        existing.updated_at = datetime.now()
     else:
         db.add(SearchHotWord(keyword=keyword, search_count=1, result_count=result_count))
 

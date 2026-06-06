@@ -274,7 +274,7 @@ async def test_b3_usable_endpoint_filters_expired_coupon(
     # 直接修改 user_coupon.expire_at 到过去
     rs = await db_session.execute(select(UserCoupon).where(UserCoupon.id == ucid))
     uc = rs.scalar_one()
-    uc.expire_at = datetime.utcnow() - timedelta(days=1)
+    uc.expire_at = datetime.now() - timedelta(days=1)
     await db_session.commit()
 
     resp = await client.get(

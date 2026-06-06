@@ -150,7 +150,7 @@ async def _make_order(
 ) -> tuple[int, int]:
     async with test_session() as db:
         uo = UnifiedOrder(
-            order_no=order_no or f"UO_{datetime.utcnow().timestamp() * 1000:.0f}",
+            order_no=order_no or f"UO_{datetime.now().timestamp() * 1000:.0f}",
             user_id=user_id,
             total_amount=paid_amount,
             paid_amount=paid_amount,
@@ -158,7 +158,7 @@ async def _make_order(
             store_id=store_id,
         )
         if status == "cancelled":
-            uo.cancelled_at = datetime.utcnow()
+            uo.cancelled_at = datetime.now()
         db.add(uo)
         await db.flush()
         oid = uo.id
@@ -190,7 +190,7 @@ async def setup_basic(client: AsyncClient):
     cust = await _make_customer()
 
     # 锚定时间：今天的中午（避免凌晨边界），同时落在本周/本月内
-    now = datetime.utcnow()
+    now = datetime.now()
     today_noon = now.replace(hour=12, minute=0, second=0, microsecond=0)
 
     # 4 单覆盖 4 类状态（appointed / completed / cancelled / refunded），全部今日

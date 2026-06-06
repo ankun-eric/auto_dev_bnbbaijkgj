@@ -118,7 +118,7 @@ async def _check_and_set_dedup(member_id: int, report_date) -> bool:
     except Exception:
         rd_str = str(report_date)
     key = (int(member_id), rd_str)
-    now = datetime.utcnow()
+    now = datetime.now()
     async with _DEDUP_LOCK:
         # 清理过期
         expired = [k for k, exp in _DEDUP_CACHE.items() if exp <= now]
@@ -182,7 +182,7 @@ async def push_aggregated_alert(
     )
 
     sent = 0
-    now = datetime.utcnow()
+    now = datetime.now()
     for uid in guardians:
         # 写系统消息（小程序站内信通道）
         sys_msg = SystemMessage(

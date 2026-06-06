@@ -38,15 +38,15 @@ class HealthAlert(Base):
     ref_plan_id = Column(Integer, nullable=True)
     ref_device_id = Column(Integer, nullable=True)
     merged_count = Column(Integer, nullable=False, default=1)
-    last_occurred_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    last_occurred_at = Column(DateTime, nullable=False, default=datetime.now)
     status = Column(String(8), nullable=False, default="open")
     resolved_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
     updated_at = Column(
         DateTime,
         nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=datetime.now,
+        onupdate=datetime.now,
     )
 
     __table_args__ = (
@@ -68,12 +68,12 @@ class MedicalRecord(Base):
     remark = Column(Text, nullable=True)
     is_deleted = Column(SmallInteger, nullable=False, default=0)
     deleted_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
     updated_at = Column(
         DateTime,
         nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=datetime.now,
+        onupdate=datetime.now,
     )
 
     files = relationship(
@@ -94,4 +94,4 @@ class MedicalRecordFile(Base):
     file_type = Column(String(16), nullable=False, default="image")
     file_size = Column(Integer, nullable=True)
     sort_order = Column(Integer, nullable=False, default=0)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)

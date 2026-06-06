@@ -57,7 +57,7 @@ async def alert_log():
             template_code="checkup_abnormal_wechat_mp",
             channel="wechat_mp",
             delivery_status="sent",
-            pushed_at=datetime.utcnow(),
+            pushed_at=datetime.now(),
         )
         session.add(log)
         await session.commit()

@@ -85,7 +85,7 @@ async def _make_management(
             status=status,
             is_primary_guardian=is_primary,
             priority_order=0 if is_primary else 100,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(),
         )
         s.add(mgmt)
         await s.flush()
@@ -104,7 +104,7 @@ async def _make_pending_invite(inviter_phone: str, hours: int = 24) -> tuple[int
             inviter_user_id=inviter.id,
             member_id=None,
             status="pending",
-            expires_at=datetime.utcnow() + timedelta(hours=hours),
+            expires_at=datetime.now() + timedelta(hours=hours),
             relation_type="father",
         )
         s.add(inv)

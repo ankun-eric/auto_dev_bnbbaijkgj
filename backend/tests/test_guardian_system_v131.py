@@ -85,7 +85,7 @@ async def _make_management(
             status=status,
             is_primary_guardian=is_primary,
             priority_order=0 if is_primary else 100,
-            created_at=created_at or datetime.utcnow(),
+            created_at=created_at or datetime.now(),
         )
         s.add(mgmt)
         await s.flush()
@@ -109,9 +109,9 @@ async def _make_pending_invite(
             inviter_user_id=inviter.id,
             member_id=None,
             status=status,
-            expires_at=datetime.utcnow() + timedelta(hours=hours),
+            expires_at=datetime.now() + timedelta(hours=hours),
             relation_type="father",
-            created_at=created_at or datetime.utcnow(),
+            created_at=created_at or datetime.now(),
         )
         s.add(inv)
         await s.flush()
@@ -203,12 +203,12 @@ async def test_v131_list_sort_by_created_at_asc(client: AsyncClient):
     # 妈妈早：30 天前
     await _make_management(
         "13911003001", "13911003002",
-        is_primary=True, created_at=datetime.utcnow() - timedelta(days=30),
+        is_primary=True, created_at=datetime.now() - timedelta(days=30),
     )
     # 爸爸晚：1 天前
     await _make_management(
         "13911003001", "13911003003",
-        is_primary=False, created_at=datetime.utcnow() - timedelta(days=1),
+        is_primary=False, created_at=datetime.now() - timedelta(days=1),
     )
 
     headers = await _headers(client, "13911003001")

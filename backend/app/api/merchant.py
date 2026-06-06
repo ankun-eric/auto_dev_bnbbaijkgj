@@ -173,7 +173,7 @@ async def get_dashboard(
     db: AsyncSession = Depends(get_db),
 ):
     _, store, _ = await _ensure_store_access(db, current_user.id, store_id, "dashboard")
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     tomorrow = today_start + timedelta(days=1)
 
     count_result = await db.execute(
@@ -316,16 +316,16 @@ async def verify_order(
 
     order.order_status = OrderStatus.completed
     order.payment_status = PaymentStatus.paid
-    order.verified_at = datetime.utcnow()
+    order.verified_at = datetime.now()
     order.verified_by = current_user.id
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now()
 
     db.add(
         MerchantOrderVerification(
             order_id=order.id,
             store_id=store.id,
             verified_by_user_id=current_user.id,
-            verified_at=datetime.utcnow(),
+            verified_at=datetime.now(),
         )
     )
 
@@ -902,10 +902,10 @@ async def merchant_confirm_order(
         return OrderConfirmResponse(success=False, message="该订单已被确认")
 
     order.store_confirmed = True
-    order.store_confirmed_at = datetime.utcnow()
+    order.store_confirmed_at = datetime.now()
     if not order.store_id:
         order.store_id = store_id
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now()
 
     db.add(Notification(
         user_id=order.user_id,
@@ -1048,7 +1048,7 @@ async def merchant_adjust_appointment_time(
                 # date 模式：清掉历史脏数据 time_slot（如"上午"等写死值）
                 new_appt_data.pop("time_slot", None)
             oi.appointment_data = new_appt_data
-        oi.updated_at = datetime.utcnow()
+        oi.updated_at = datetime.now()
 
     if order:
         db.add(Notification(
@@ -1748,7 +1748,7 @@ async def get_calendar_kpi(
     """顶部 KPI：今日 / 本周 / 本月预约数（不含已取消/已退款）。"""
     await _ensure_store_access(db, current_user.id, store_id)
 
-    now = datetime.utcnow()
+    now = datetime.now()
     today_start = datetime(now.year, now.month, now.day)
     tomorrow = today_start + timedelta(days=1)
     # 本自然周：周一为起点（weekday() Mon=0）
@@ -2202,7 +2202,7 @@ async def update_my_view(
         obj.filter_payload = payload.filter_payload
     if payload.is_default is not None:
         obj.is_default = bool(payload.is_default)
-    obj.updated_at = datetime.utcnow()
+    obj.updated_at = datetime.now()
     await db.flush()
     await db.refresh(obj)
     return MyViewResponse.model_validate(obj)
@@ -2296,7 +2296,7 @@ async def scan_and_send_pre_appointment_notifications(
 
     返回 (scanned, sent)。同 (order_item_id, template_id) 去重。
     """
-    now = datetime.utcnow()
+    now = datetime.now()
     target = now + timedelta(hours=hours_before)
     win_start = target - timedelta(minutes=5)
     win_end = target + timedelta(minutes=5)

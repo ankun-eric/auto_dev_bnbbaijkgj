@@ -146,14 +146,14 @@ async def test_card_optim_005_max_managed_by_limit_reached(client: AsyncClient):
             managed_user_id=me_id,
             managed_member_id=None,
             status="active",
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(),
         ))
         session.add(FamilyManagement(
             manager_user_id=999992,
             managed_user_id=me_id,
             managed_member_id=None,
             status="active",
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(),
         ))
         await session.commit()
 

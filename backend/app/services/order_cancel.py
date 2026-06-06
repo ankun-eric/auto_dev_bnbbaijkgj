@@ -50,7 +50,7 @@ async def cancel_order_with_items(
         已就地修改的同一个 UnifiedOrder 对象（不会自动 commit）
     """
     if cancelled_at is None:
-        cancelled_at = datetime.utcnow()
+        cancelled_at = datetime.now()
 
     # 1) 主表
     order.status = UnifiedOrderStatus.cancelled
@@ -99,7 +99,7 @@ async def cleanup_cancelled_orders_redemption_codes(db: AsyncSession) -> int:
         )
     )
     rows = list(result.scalars().all())
-    now = datetime.utcnow()
+    now = datetime.now()
     for it in rows:
         it.redemption_code_status = "expired"
         it.updated_at = now

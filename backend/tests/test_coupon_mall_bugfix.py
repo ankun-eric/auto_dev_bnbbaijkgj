@@ -147,7 +147,7 @@ async def _create_coupon_and_grant(
             user_id=user_id,
             coupon_id=c.id,
             status=user_coupon_status,
-            expire_at=expire_at or (datetime.utcnow() + timedelta(days=30)),
+            expire_at=expire_at or (datetime.now() + timedelta(days=30)),
             source="test",
         )
         s.add(uc)
@@ -352,7 +352,7 @@ async def test_services_list_with_invalid_coupon_id(
         user_id=user_id,
         name="已过期券",
         scope=CouponScope.all,
-        expire_at=datetime.utcnow() - timedelta(days=1),
+        expire_at=datetime.now() - timedelta(days=1),
     )
     r = await client.get(
         f"/api/services/list?coupon_id={ucid_expired}", headers=auth_headers
@@ -408,7 +408,7 @@ async def test_points_records_coupon_status_field(
         scope=CouponScope.category,
         scope_ids=[10],
         discount_rate=0.8,
-        expire_at=datetime.utcnow() - timedelta(days=1),
+        expire_at=datetime.now() - timedelta(days=1),
     )
 
     # 写 3 条兑换记录（goods_type=coupon），分别关联上述 3 张 user_coupon
@@ -435,7 +435,7 @@ async def test_points_records_coupon_status_field(
         ):
             s.add(
                 PointExchangeRecord(
-                    order_no=f"EX{datetime.utcnow().strftime('%Y%m%d')}00000{idx}",
+                    order_no=f"EX{datetime.now().strftime('%Y%m%d')}00000{idx}",
                     user_id=user_id,
                     goods_id=goods_id,
                     goods_type="coupon",
@@ -443,8 +443,8 @@ async def test_points_records_coupon_status_field(
                     points_cost=100,
                     quantity=1,
                     status="success",
-                    exchange_time=datetime.utcnow(),
-                    expire_at=datetime.utcnow() + timedelta(days=30),
+                    exchange_time=datetime.now(),
+                    expire_at=datetime.now() + timedelta(days=30),
                     ref_coupon_id=coupon_id_,
                     ref_user_coupon_id=uc_id,
                 )

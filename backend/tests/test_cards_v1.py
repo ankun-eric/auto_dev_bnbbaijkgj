@@ -367,7 +367,7 @@ async def seeded_user_card(active_card_with_two_items, user_token):
     async with test_session() as session:
         # 找到 conftest 里 user_token 创建的用户
         u = (await session.execute(select(User).where(User.phone == "13900000001"))).scalar_one()
-        now = datetime.utcnow()
+        now = datetime.now()
         active = UserCard(
             card_definition_id=cid,
             user_id=u.id,

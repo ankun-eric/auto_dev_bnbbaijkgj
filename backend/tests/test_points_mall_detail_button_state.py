@@ -186,8 +186,8 @@ async def test_detail_limit_reached(client: AsyncClient, auth_headers):
                 points_cost=100,
                 quantity=1,
                 status="success",
-                order_no=f"EX{datetime.utcnow().strftime('%Y%m%d')}999999",
-                exchange_time=datetime.utcnow(),
+                order_no=f"EX{datetime.now().strftime('%Y%m%d')}999999",
+                exchange_time=datetime.now(),
             )
         )
         await s.commit()

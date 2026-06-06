@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict
 
 from fastapi import APIRouter
@@ -33,7 +33,7 @@ async def get_server_time() -> Dict[str, Any]:
     - 之后所有"是否为今天 / 时段是否已过"判断均使用 (本地时间 - offset) 推算
     - 即便客户端时间被调快 1 天，前端仍按服务器时间过滤
     """
-    utc_now = datetime.now(timezone.utc)
+    utc_now = datetime.now()
     return {
         "now_iso": utc_now.strftime("%Y-%m-%dT%H:%M:%S.") + f"{utc_now.microsecond // 1000:03d}Z",
         "now_unix_ms": int(time.time() * 1000),

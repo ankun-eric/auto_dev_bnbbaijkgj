@@ -168,7 +168,7 @@ async def wechat_jsapi_order(
     order.payment_channel_code = "wechat_miniprogram"
     order.payment_method = "wechat"
     order.payment_display_name = "微信支付"
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now()
     await db.commit()
 
     return {

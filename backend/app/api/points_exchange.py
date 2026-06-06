@@ -44,7 +44,7 @@ router = APIRouter(prefix="/api/points", tags=["积分兑换记录v3.1"])
 
 def _gen_exchange_order_no() -> str:
     """EX+yyyyMMdd+6位流水."""
-    return "EX" + datetime.utcnow().strftime("%Y%m%d") + "".join(
+    return "EX" + datetime.now().strftime("%Y%m%d") + "".join(
         random.choices(string.digits, k=6)
     )
 
@@ -300,7 +300,7 @@ async def mall_exchange(
             raise HTTPException(status_code=400, detail="已兑完")
 
     # ───── 执行扣减与记录写入（单事务）─────
-    now = datetime.utcnow()
+    now = datetime.now()
     user_coupon_id = None
     ref_service_type = None
     ref_service_id_out = None
@@ -506,7 +506,7 @@ async def list_exchange_records(
             return {"coupon_id": uc_id, "coupon_status": "expired", "coupon_scope": None}
         # 推导状态
         uc_status = uc.status.value if hasattr(uc.status, "value") else str(uc.status)
-        now = datetime.utcnow()
+        now = datetime.now()
         if uc_status == "used":
             status_val = "used"
         elif uc_status == "refunded":

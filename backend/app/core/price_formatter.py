@@ -8,7 +8,7 @@ from starlette.responses import JSONResponse
 def _normalize_datetime_to_utc_iso(obj: Any) -> Any:
     """[BUG_FIX_TIMEZONE_GLOBAL_20260517] 把所有 datetime 统一为 "带 UTC 后缀" 的 ISO 字符串。
 
-    - naive datetime（由 ``datetime.utcnow()`` 产生）→ 强制标记为 UTC，再 isoformat
+    - naive datetime（由 ``datetime.now()`` 产生）→ 强制标记为 UTC，再 isoformat
     - aware datetime → 先 astimezone(UTC)，再 isoformat
     - date（无时间部分）→ 直接 isoformat（仍保持 "YYYY-MM-DD"）
     """

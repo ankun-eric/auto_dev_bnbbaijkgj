@@ -56,7 +56,7 @@ async def _seed_order(
     if redemption_status_list is None:
         redemption_status_list = ["active"]
     async with test_session() as db:
-        now = datetime.utcnow()
+        now = datetime.now()
         order = UnifiedOrder(
             order_no=order_no,
             user_id=user_id,
@@ -108,7 +108,7 @@ async def test_unified_cancel_sets_redemption_codes_to_expired():
     oid = await _seed_order(
         uid,
         status=UnifiedOrderStatus.pending_use,
-        paid_at=datetime.utcnow(),
+        paid_at=datetime.now(),
         order_no="UNIFIED_CANCEL_001",
         redemption_status_list=["active", "active", "active"],
     )
@@ -141,7 +141,7 @@ async def test_unified_cancel_keeps_terminal_redemption_codes():
     oid = await _seed_order(
         uid,
         status=UnifiedOrderStatus.pending_use,
-        paid_at=datetime.utcnow(),
+        paid_at=datetime.now(),
         order_no="UNIFIED_CANCEL_002",
         redemption_status_list=["active", "used", "refunded", "expired"],
     )
@@ -208,8 +208,8 @@ async def test_unpaid_timeout_cancels_pending_payment_orders():
 
     uid = await _seed_user("13900100003")
     timeout_min = int(settings.PAYMENT_TIMEOUT_MINUTES or 15)
-    expired_created = datetime.utcnow() - timedelta(minutes=timeout_min + 1)
-    fresh_created = datetime.utcnow() - timedelta(minutes=max(0, timeout_min - 5))
+    expired_created = datetime.now() - timedelta(minutes=timeout_min + 1)
+    fresh_created = datetime.now() - timedelta(minutes=max(0, timeout_min - 5))
 
     # 已超时的 pending_payment 订单：应被取消
     oid_expired = await _seed_order(
@@ -233,7 +233,7 @@ async def test_unpaid_timeout_cancels_pending_payment_orders():
     oid_paid = await _seed_order(
         uid,
         status=UnifiedOrderStatus.pending_use,
-        paid_at=datetime.utcnow() - timedelta(hours=2),
+        paid_at=datetime.now() - timedelta(hours=2),
         created_at=expired_created,
         order_no="UNPAID_TIMEOUT_003",
         redemption_status_list=["active"],
@@ -277,7 +277,7 @@ async def test_cleanup_cancelled_orders_redemption_codes():
     oid_dirty = await _seed_order(
         uid,
         status=UnifiedOrderStatus.cancelled,
-        paid_at=datetime.utcnow() - timedelta(days=1),
+        paid_at=datetime.now() - timedelta(days=1),
         order_no="DIRTY_001",
         redemption_status_list=["active", "active"],
     )
@@ -285,7 +285,7 @@ async def test_cleanup_cancelled_orders_redemption_codes():
     oid_clean = await _seed_order(
         uid,
         status=UnifiedOrderStatus.cancelled,
-        paid_at=datetime.utcnow() - timedelta(days=1),
+        paid_at=datetime.now() - timedelta(days=1),
         order_no="CLEAN_001",
         redemption_status_list=["expired"],
     )
@@ -293,7 +293,7 @@ async def test_cleanup_cancelled_orders_redemption_codes():
     oid_active = await _seed_order(
         uid,
         status=UnifiedOrderStatus.pending_use,
-        paid_at=datetime.utcnow(),
+        paid_at=datetime.now(),
         order_no="ACTIVE_001",
         redemption_status_list=["active"],
     )

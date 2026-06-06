@@ -438,7 +438,7 @@ async def regenerate_opening(
 
     if existing_msg:
         existing_msg.content = content
-        existing_msg.created_at = datetime.utcnow()
+        existing_msg.created_at = datetime.now()
         existing_msg.message_metadata = {
             "source": "drug_chat_opening",
             "drug_count": len(drugs),

@@ -149,7 +149,7 @@ async def _create_full_reduction_coupon_and_grant(
         user_id=user_id,
         coupon_id=coupon.id,
         status=UserCouponStatus.unused,
-        expire_at=datetime.utcnow() + timedelta(days=30),
+        expire_at=datetime.now() + timedelta(days=30),
     )
     db_session.add(uc)
     await db_session.commit()
@@ -220,7 +220,7 @@ async def test_paid_order_detail_exposes_required_fields_for_pay_success_page(
         sale_price=66.0, fulfillment_type="in_store", appointment_mode="time_slot",
     )
     # 预约类商品创单必须携带 appointment_time/appointment_data（明天 09:00）
-    appt_date = (datetime.utcnow() + timedelta(days=1)).strftime("%Y-%m-%d")
+    appt_date = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
     create_resp = await client.post(
         "/api/orders/unified",
         json={

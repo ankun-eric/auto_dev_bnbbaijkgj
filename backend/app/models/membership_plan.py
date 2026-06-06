@@ -46,8 +46,8 @@ class MembershipPlan(Base):
     is_recommended = mapped_column(Boolean, nullable=False, default=False,
                                    comment="是否推荐套餐（开启后用户端展示金色描边+推荐角标）")
     sort_order = mapped_column(Integer, nullable=False, default=0, comment="排序，越小越靠前")
-    created_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = mapped_column(DateTime, default=datetime.now, nullable=False)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
 
 
 class UserMembershipSub(Base):
@@ -59,14 +59,14 @@ class UserMembershipSub(Base):
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     plan_id = mapped_column(Integer, ForeignKey("membership_plans.id"), nullable=False, index=True)
     billing_cycle = mapped_column(String(20), nullable=False, default="monthly", comment="monthly/yearly")
-    start_at = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    start_at = mapped_column(DateTime, nullable=False, default=datetime.now)
     expire_at = mapped_column(DateTime, nullable=False, comment="到期时间；过期后自动降级为免费会员")
     status = mapped_column(String(20), nullable=False, default="active",
                            comment="active/expired/cancelled")
     paid_amount = mapped_column(Numeric(10, 2), nullable=True, comment="本次订阅实付金额")
     auto_renew = mapped_column(Boolean, nullable=False, default=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = mapped_column(DateTime, default=datetime.now, nullable=False)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
 
     plan = relationship("MembershipPlan", lazy="joined")
 
@@ -88,4 +88,4 @@ class FreeMemberQuota(Base):
                                             comment="紧急 AI 呼叫（次/月）")
     max_managed_by = mapped_column(Integer, nullable=False, default=3,
                                    comment="被管理人数上限")
-    updated_at = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)

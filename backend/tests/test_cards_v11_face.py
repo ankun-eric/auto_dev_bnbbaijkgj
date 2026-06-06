@@ -232,7 +232,7 @@ async def test_my_wallet_returns_face_fields(client: AsyncClient, auth_headers, 
 
     async with test_session() as session:
         u = (await session.execute(select(User).where(User.phone == "13900000001"))).scalar_one()
-        now = datetime.utcnow()
+        now = datetime.now()
         uc = UserCard(
             card_definition_id=cid,
             user_id=u.id,

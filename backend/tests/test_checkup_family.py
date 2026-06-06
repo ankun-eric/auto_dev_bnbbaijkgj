@@ -58,7 +58,7 @@ async def test_upload_report_without_family_member_id_backward_compatible(
     with patch("app.api.report.try_cos_upload", new_callable=AsyncMock, return_value=None), \
          patch("app.api.report.ensure_access_token", new_callable=AsyncMock) as mock_token, \
          patch("app.api.report.ocr_recognize", new_callable=AsyncMock) as mock_ocr:
-        mock_token.return_value = ("fake_token", datetime.utcnow() + timedelta(days=1))
+        mock_token.return_value = ("fake_token", datetime.now() + timedelta(days=1))
         mock_ocr.return_value = "血红蛋白 150 g/L"
 
         resp = await client.post(
@@ -97,7 +97,7 @@ async def test_upload_report_with_family_member_id(
     with patch("app.api.report.try_cos_upload", new_callable=AsyncMock, return_value=None), \
          patch("app.api.report.ensure_access_token", new_callable=AsyncMock) as mock_token, \
          patch("app.api.report.ocr_recognize", new_callable=AsyncMock) as mock_ocr:
-        mock_token.return_value = ("fake_token", datetime.utcnow() + timedelta(days=1))
+        mock_token.return_value = ("fake_token", datetime.now() + timedelta(days=1))
         mock_ocr.return_value = "血红蛋白 150 g/L"
 
         resp = await client.post(

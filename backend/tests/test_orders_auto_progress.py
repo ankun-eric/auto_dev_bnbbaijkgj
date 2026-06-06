@@ -51,7 +51,7 @@ async def _seed_order_with_appt(
             total_amount=99.0,
             paid_amount=99.0,
             status=status,
-            paid_at=datetime.utcnow(),
+            paid_at=datetime.now(),
         )
         db.add(order)
         await db.flush()
@@ -85,7 +85,7 @@ async def _seed_order_with_appt(
 async def test_r2_flips_back_to_pending_appointment_when_overdue_unused():
     """R2：pending_use + 预约日 < 今天 + 未核销 → pending_appointment（清空 appointment_time）。"""
     uid = await _seed_user("13900100003")
-    appt_yesterday = datetime.utcnow() - timedelta(days=1, hours=1)
+    appt_yesterday = datetime.now() - timedelta(days=1, hours=1)
     oid = await _seed_order_with_appt(
         uid, status=UnifiedOrderStatus.pending_use, appt=appt_yesterday,
         used_count=0, order_no="R2_OVERDUE_001",
@@ -107,7 +107,7 @@ async def test_r2_flips_back_to_pending_appointment_when_overdue_unused():
 async def test_r2_skips_partially_used_orders():
     """R2：pending_use + 预约日 < 今天 + 已部分核销 → 保持 pending_use。"""
     uid = await _seed_user("13900100004")
-    appt_yesterday = datetime.utcnow() - timedelta(days=1, hours=1)
+    appt_yesterday = datetime.now() - timedelta(days=1, hours=1)
     oid = await _seed_order_with_appt(
         uid, status=UnifiedOrderStatus.pending_use, appt=appt_yesterday,
         used_count=1, order_no="R2_USED_001",
@@ -129,7 +129,7 @@ async def test_r2_skips_partially_used_orders():
 async def test_lazy_progress_r1_when_opening_order_detail():
     """[PRD v2.0 兼容] 懒兜底：历史 appointed 订单（任何预约时间）→ 即翻 pending_use。"""
     uid = await _seed_user("13900100005")
-    appt_today = datetime.utcnow() - timedelta(minutes=30)
+    appt_today = datetime.now() - timedelta(minutes=30)
     oid = await _seed_order_with_appt(
         uid, status=UnifiedOrderStatus.appointed, appt=appt_today, order_no="LAZY_R1_001"
     )
@@ -151,7 +151,7 @@ async def test_lazy_progress_r1_when_opening_order_detail():
 async def test_lazy_progress_r2_when_opening_overdue_order():
     """懒兜底：pending_use 且预约日 < 今天 + 未核销，调用一次即退回 pending_appointment。"""
     uid = await _seed_user("13900100006")
-    appt_yesterday = datetime.utcnow() - timedelta(days=2)
+    appt_yesterday = datetime.now() - timedelta(days=2)
     oid = await _seed_order_with_appt(
         uid, status=UnifiedOrderStatus.pending_use, appt=appt_yesterday,
         used_count=0, order_no="LAZY_R2_001",
@@ -174,7 +174,7 @@ async def test_lazy_progress_r2_when_opening_overdue_order():
 async def test_lazy_progress_no_change_for_future_pending_use():
     """[PRD v2.0] 懒兜底：pending_use + 预约日为未来 → 不动。"""
     uid = await _seed_user("13900100007")
-    appt_future = datetime.utcnow() + timedelta(days=3)
+    appt_future = datetime.now() + timedelta(days=3)
     oid = await _seed_order_with_appt(
         uid, status=UnifiedOrderStatus.pending_use, appt=appt_future, order_no="LAZY_NOOP_001"
     )

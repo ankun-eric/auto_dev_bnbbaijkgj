@@ -294,7 +294,7 @@ async def _send_via_aliyun_http(
         "SignatureVersion": "1.0",
         "TemplateCode": cfg["template_id"],
         "TemplateParam": json.dumps(param_dict),
-        "Timestamp": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "Timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
         "Version": "2017-05-25",
     }
 

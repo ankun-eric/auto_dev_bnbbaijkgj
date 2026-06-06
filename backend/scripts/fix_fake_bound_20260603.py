@@ -181,7 +181,7 @@ async def run(dry_run: bool) -> int:
             return 0
 
         # 真跑前自动备份
-        ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_path = Path.cwd() / f"_bak_family_members_{ts}.sql"
         try:
             backup_table("family_members", backup_path)

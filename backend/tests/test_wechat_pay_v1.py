@@ -109,16 +109,16 @@ class TestRefund15DayLimit:
     @pytest.mark.asyncio
     async def test_within_15_days_allowed(self):
         """支付后 10 天应允许退款。"""
-        paid_at = datetime.utcnow() - timedelta(days=10)
+        paid_at = datetime.now() - timedelta(days=10)
         deadline = paid_at + timedelta(days=15)
-        assert datetime.utcnow() <= deadline
+        assert datetime.now() <= deadline
 
     @pytest.mark.asyncio
     async def test_exceed_15_days_rejected(self):
         """支付后 16 天应拒绝退款。"""
-        paid_at = datetime.utcnow() - timedelta(days=16)
+        paid_at = datetime.now() - timedelta(days=16)
         deadline = paid_at + timedelta(days=15)
-        assert datetime.utcnow() > deadline
+        assert datetime.now() > deadline
 
     @pytest.mark.asyncio
     async def test_no_paid_at_no_limit(self):

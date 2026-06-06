@@ -176,7 +176,7 @@ async def start_voice_call(
         user_id=current_user.id,
         digital_human_id=data.digital_human_id,
         chat_session_id=data.chat_session_id,
-        start_time=datetime.utcnow(),
+        start_time=datetime.now(),
     )
     db.add(record)
     await db.flush()
@@ -201,7 +201,7 @@ async def end_voice_call(
     if not record:
         raise HTTPException(status_code=404, detail="通话记录不存在")
 
-    now = datetime.utcnow()
+    now = datetime.now()
     record.end_time = now
     if record.start_time:
         record.duration_seconds = int((now - record.start_time).total_seconds())

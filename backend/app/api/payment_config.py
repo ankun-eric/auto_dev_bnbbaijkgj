@@ -214,7 +214,7 @@ def _serialize_channel(ch: PaymentChannel) -> PaymentChannelResponse:
     [Bug 修复] config_masked 单字段失败降级为 ``****``，不让单条字段坏掉
     整条列表。
     """
-    now = datetime.utcnow()
+    now = datetime.now()
     try:
         masked = _build_masked_config(ch.channel_code, ch.config_json or {})
     except Exception as e:  # noqa: BLE001
@@ -258,7 +258,7 @@ def _safe_serialize_channel(
             getattr(ch, "channel_code", "<unknown>"), e, traceback.format_exc(),
         )
         try:
-            now = datetime.utcnow()
+            now = datetime.now()
             return PaymentChannelResponse(
                 id=ch.id or 0,
                 channel_code=ch.channel_code or "unknown",
@@ -344,7 +344,7 @@ async def _ensure_default_channels(db: AsyncSession) -> int:
     res = await db.execute(select(PaymentChannel.channel_code))
     existing = {r[0] for r in res.all()}
     inserted = 0
-    now = datetime.utcnow()
+    now = datetime.now()
     for ch in DEFAULT_CHANNELS:
         if ch["channel_code"] in existing:
             continue
@@ -480,7 +480,7 @@ async def update_payment_channel(
         # 如果配置变得不完整，自动禁用
         if not is_complete:
             ch.is_enabled = False
-    ch.updated_at = datetime.utcnow()
+    ch.updated_at = datetime.now()
     await db.commit()
     await db.refresh(ch)
     # [支付宝 H5 正式接入 v1.0] 配置保存后清缓存，下一次调用强制重建客户端
@@ -507,7 +507,7 @@ async def toggle_payment_channel(
     if payload.enabled and not ch.is_complete:
         raise HTTPException(status_code=400, detail="配置不完整，无法启用，请先完成必填字段")
     ch.is_enabled = bool(payload.enabled)
-    ch.updated_at = datetime.utcnow()
+    ch.updated_at = datetime.now()
     await db.commit()
     await db.refresh(ch)
     return _serialize_channel(ch)
@@ -565,7 +565,7 @@ async def test_payment_channel(
                         )
                     raise ValueError(f"字段 {label} 解密后为空")
     except DecryptionError as e:
-        ch.last_test_at = datetime.utcnow()
+        ch.last_test_at = datetime.now()
         ch.last_test_ok = False
         ch.last_test_message = (
             f"自检失败：解密失败，可能是 PAYMENT_CONFIG_ENCRYPTION_KEY 被更换过（{e}）"
@@ -573,7 +573,7 @@ async def test_payment_channel(
         await db.commit()
         raise HTTPException(status_code=400, detail=ch.last_test_message)
     except Exception as e:  # noqa: BLE001
-        ch.last_test_at = datetime.utcnow()
+        ch.last_test_at = datetime.now()
         ch.last_test_ok = False
         ch.last_test_message = f"自检失败：{e}"
         await db.commit()
@@ -589,7 +589,7 @@ async def test_payment_channel(
                 clear_alipay_client_cache,
             )
         except ImportError as e:  # 依赖未装：明确告知
-            ch.last_test_at = datetime.utcnow()
+            ch.last_test_at = datetime.now()
             ch.last_test_ok = False
             ch.last_test_message = f"支付宝 SDK 未安装：{e}"
             await db.commit()
@@ -609,7 +609,7 @@ async def test_payment_channel(
             # 未安装时会抛 RuntimeError("未安装 python-alipay-sdk...")，
             # 这里识别后给出与 ImportError 同样明确的提示。
             if "python-alipay-sdk" in err_text or "未安装" in err_text:
-                ch.last_test_at = datetime.utcnow()
+                ch.last_test_at = datetime.now()
                 ch.last_test_ok = False
                 ch.last_test_message = f"支付宝 SDK 未安装：{err_text}"
                 await db.commit()
@@ -641,13 +641,13 @@ async def test_payment_channel(
                 )
             else:
                 friendly = f"调用支付宝异常：{err_text}"
-            ch.last_test_at = datetime.utcnow()
+            ch.last_test_at = datetime.now()
             ch.last_test_ok = False
             ch.last_test_message = friendly
             await db.commit()
             raise HTTPException(status_code=400, detail=friendly)
 
-        ch.last_test_at = datetime.utcnow()
+        ch.last_test_at = datetime.now()
         ch.last_test_ok = bool(ok)
         ch.last_test_message = message
         await db.commit()
@@ -665,7 +665,7 @@ async def test_payment_channel(
         try:
             from app.services.wechat_pay_service import query_order_by_out_trade_no
         except ImportError as e:
-            ch.last_test_at = datetime.utcnow()
+            ch.last_test_at = datetime.now()
             ch.last_test_ok = False
             ch.last_test_message = f"微信支付服务模块导入失败：{e}"
             await db.commit()
@@ -676,7 +676,7 @@ async def test_payment_channel(
         private_key_pem = runtime.get("private_key", "")
 
         if not mch_id or not cert_serial_no or not private_key_pem:
-            ch.last_test_at = datetime.utcnow()
+            ch.last_test_at = datetime.now()
             ch.last_test_ok = False
             ch.last_test_message = "微信支付配置缺失：mch_id / cert_serial_no / private_key 有字段为空"
             await db.commit()
@@ -696,7 +696,7 @@ async def test_payment_channel(
 
             if status_code == 200:
                 # 200 表示查询到了订单，不应该发生（因为用的是随机订单号）
-                ch.last_test_at = datetime.utcnow()
+                ch.last_test_at = datetime.now()
                 ch.last_test_ok = True
                 ch.last_test_message = "测试通过：网络连通、签名正确"
                 await db.commit()
@@ -717,7 +717,7 @@ async def test_payment_channel(
             }
 
             if error_code in CONNECTED_ERROR_CODES or status_code == 404:
-                ch.last_test_at = datetime.utcnow()
+                ch.last_test_at = datetime.now()
                 ch.last_test_ok = True
                 ch.last_test_message = "测试通过：网络连通、签名正确、参数无误"
                 await db.commit()
@@ -734,7 +734,7 @@ async def test_payment_channel(
                 )
 
             if error_code == "PARAM_ERROR":
-                ch.last_test_at = datetime.utcnow()
+                ch.last_test_at = datetime.now()
                 ch.last_test_ok = True
                 ch.last_test_message = (
                     "测试通过：网络连通、签名正确（订单号格式问题导致的 PARAM_ERROR 属正常）"
@@ -752,7 +752,7 @@ async def test_payment_channel(
                 )
 
             if error_code in ("INVALID_REQUEST", "SIGN_ERROR", "CERT_ERROR"):
-                ch.last_test_at = datetime.utcnow()
+                ch.last_test_at = datetime.now()
                 ch.last_test_ok = False
                 ch.last_test_message = (
                     f"签名或证书错误：{error_code} - {error_message}。"
@@ -762,14 +762,14 @@ async def test_payment_channel(
                 raise HTTPException(status_code=400, detail=ch.last_test_message)
 
             if error_code == "APPID_MCHID_NOT_MATCH":
-                ch.last_test_at = datetime.utcnow()
+                ch.last_test_at = datetime.now()
                 ch.last_test_ok = False
                 ch.last_test_message = f"AppID 与商户号不匹配：{error_message}"
                 await db.commit()
                 raise HTTPException(status_code=400, detail=ch.last_test_message)
 
             # 其他错误
-            ch.last_test_at = datetime.utcnow()
+            ch.last_test_at = datetime.now()
             ch.last_test_ok = False
             ch.last_test_message = f"微信支付返回错误：{error_code} - {error_message}"
             await db.commit()
@@ -800,7 +800,7 @@ async def test_payment_channel(
                 )
             else:
                 friendly = f"调用微信支付异常：{err_text}"
-            ch.last_test_at = datetime.utcnow()
+            ch.last_test_at = datetime.now()
             ch.last_test_ok = False
             ch.last_test_message = friendly
             await db.commit()
@@ -809,7 +809,7 @@ async def test_payment_channel(
     # —— 其他通道：保留原轻量模式 ——
     msg = "参数完整性 + 签名工具自检通过（轻量模式）"
     detail = {"mode": "lightweight", "channel": channel_code}
-    ch.last_test_at = datetime.utcnow()
+    ch.last_test_at = datetime.now()
     ch.last_test_ok = True
     ch.last_test_message = msg
     await db.commit()

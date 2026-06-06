@@ -332,8 +332,8 @@ async def test_cron_expire_job(
             user_id=uid,
             plan_id=pid,
             billing_cycle="monthly",
-            start_at=datetime.utcnow() - timedelta(days=40),
-            expire_at=datetime.utcnow() - timedelta(days=1),
+            start_at=datetime.now() - timedelta(days=40),
+            expire_at=datetime.now() - timedelta(days=1),
             status="active",
             paid_amount=19.9,
         )

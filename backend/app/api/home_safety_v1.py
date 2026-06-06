@@ -147,10 +147,10 @@ class HomeSafetyDeviceBinding(Base):
     migrated_to_self = Column(Boolean, nullable=False, default=False)
     # [BUGFIX HOME-SAFETY-MEMBER-TAB-ALARM-REMARK 2026-05-29] 设备备注名（≤20 字，新设备必填，老设备可空）
     remark = Column(String(64), nullable=True)
-    bound_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    bound_at = Column(DateTime, nullable=False, default=datetime.now)
     unbound_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
 
 class HomeSafetyEmergencyContact(Base):
@@ -165,8 +165,8 @@ class HomeSafetyEmergencyContact(Base):
     enabled_for_water = Column(Integer, nullable=False, default=1)
     # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 紧急联系人按家庭成员隔离
     member_id = Column(Integer, nullable=True, index=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
 
 class HomeSafetyAlarm(Base):
@@ -179,7 +179,7 @@ class HomeSafetyAlarm(Base):
     # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] 网关ID 长度从 12 → 8（兼容 VARCHAR(16)）
     gateway_sn = Column(String(16), nullable=True)
     alarm_at = Column(DateTime, nullable=False)
-    received_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    received_at = Column(DateTime, nullable=False, default=datetime.now)
     dedupe_key = Column(String(96), nullable=False, index=True)
     dedupe_count = Column(Integer, nullable=False, default=1)
     notify_inapp = Column(Integer, nullable=False, default=0)
@@ -209,8 +209,8 @@ class HomeSafetyAlarm(Base):
     notify_dedup_skipped = Column(Integer, nullable=True, default=0)
     # [PRD-HOME-SAFETY-MEMBER-V2.1 2026-05-29] 触发告警的设备归属成员（冗余字段，便于按成员查询）
     member_id = Column(Integer, nullable=True, index=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
 
 class HomeSafetyCallbackConfig(Base):
@@ -235,8 +235,8 @@ class HomeSafetyCallbackConfig(Base):
     last_push_raw = Column(Text, nullable=True)
     # [BUGFIX HOME-SAFETY-V2-REVISION 2026-05-28] 判定依据，便于审计为何被判成功/失败
     last_push_judge_basis = Column(String(512), nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
 
 # [PRD-HOME-SAFETY-V2 2026-05-27] 推送历史表
@@ -244,7 +244,7 @@ class HomeSafetyCallbackPushHistory(Base):
     __tablename__ = "home_safety_callback_push_history"
 
     id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
-    pushed_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    pushed_at = Column(DateTime, nullable=False, default=datetime.now, index=True)
     pushed_url = Column(String(512), nullable=True)
     operator_user_id = Column(Integer, nullable=True)
     operator_username = Column(String(128), nullable=True)
@@ -252,7 +252,7 @@ class HomeSafetyCallbackPushHistory(Base):
     upstream_code = Column(Integer, nullable=True)
     upstream_message = Column(String(512), nullable=True)
     upstream_raw = Column(Text, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
 
 
 # [PRD-HOME-SAFETY-V2 2026-05-27] 回调接收流水（含异常）
@@ -261,7 +261,7 @@ class HomeSafetyCallbackLog(Base):
     __tablename__ = "home_safety_callback_log"
 
     id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
-    received_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    received_at = Column(DateTime, nullable=False, default=datetime.now, index=True)
     source_ip = Column(String(64), nullable=True)
     request_headers = Column(Text, nullable=True)
     request_body = Column(Text, nullable=True)
@@ -292,8 +292,8 @@ class HomeSafetyAiCallLog(Base):
     request_id = Column(String(64), nullable=True)
     call_status = Column(Integer, nullable=False, default=0)  # 0/1/2
     callback_payload = Column(Text, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
 
 # ────────────── Schemas ──────────────
@@ -947,7 +947,7 @@ async def bind_device(
         member_id=member_id_resolved,
         migrated_to_self=False,
         remark=remark_value,
-        bound_at=datetime.utcnow(),
+        bound_at=datetime.now(),
     )
     db.add(binding)
     await db.commit()
@@ -1042,7 +1042,7 @@ async def unbind_device(
     if not b:
         raise HTTPException(404, "设备不存在或已解绑")
     b.status = 0
-    b.unbound_at = datetime.utcnow()
+    b.unbound_at = datetime.now()
     await db.commit()
     return {"success": True}
 
@@ -1316,7 +1316,7 @@ async def handle_alarm(
     a.handle_status = 1
     a.handle_note = req.note
     a.handle_by = current_user.id
-    a.handled_at = datetime.utcnow()
+    a.handled_at = datetime.now()
     a.read_status = 1
     await db.commit()
     return {"success": True}
@@ -1356,7 +1356,7 @@ async def resolve_alarm(
         }
     a.handle_status = 1
     a.handle_by = current_user.id
-    a.handled_at = datetime.utcnow()
+    a.handled_at = datetime.now()
     a.read_status = 1
     await db.commit()
     return {
@@ -1583,7 +1583,7 @@ async def _update_callback_log(
             log.device_sn = device_sn[:32]
         if data_type is not None and not log.data_type:
             log.data_type = data_type[:64]
-        log.processed_at = datetime.utcnow()
+        log.processed_at = datetime.now()
         await db.commit()
     except Exception as e:  # pragma: no cover
         logger.warning("[home_safety_v2] 流水更新失败 id=%s err=%s", log_id, e)
@@ -1609,7 +1609,7 @@ async def upstream_alarm_callback(
 
     异常场景统一返回 200（除内部 DB 异常返回 500），避免厂商无效重试导致雪崩。
     """
-    received_at = datetime.utcnow()
+    received_at = datetime.now()
     source_ip = _extract_source_ip(request)
     raw_body = b""
     try:
@@ -1739,7 +1739,7 @@ async def upstream_alarm_callback(
                 alarm_at = None
         time_parse_failed = alarm_at is None
         if alarm_at is None:
-            alarm_at = datetime.utcnow()
+            alarm_at = datetime.now()
 
         raw_gw_id = (param.get("gwId") if param else None) or payload.get("gw_id") or payload.get("gateway_sn") or ""
         # [PRD-HOME-SAFETY-GWID-EPHONE 2026-05-28] gwId 长度从 12 → 8；若上游仍传 12 位，自动截断前 8 位并大写
@@ -2443,7 +2443,7 @@ async def admin_save_callback_config(
         cfg.callback_url = req.callback_url
     elif cfg.callback_domain:
         cfg.callback_url = _build_full_callback_url(cfg.callback_domain, cfg.callback_path)
-    cfg.updated_at = datetime.utcnow()
+    cfg.updated_at = datetime.now()
     await db.commit()
     return {"success": True}
 
@@ -2458,7 +2458,7 @@ async def admin_test_callback(
     if not cfg or not cfg.upstream_base_url:
         raise HTTPException(400, "请先保存上游基础 URL")
     ok = cfg.upstream_base_url.startswith("http://") or cfg.upstream_base_url.startswith("https://")
-    cfg.last_test_at = datetime.utcnow()
+    cfg.last_test_at = datetime.now()
     cfg.last_test_result = "✓ 连通正常 (200 OK)" if ok else "✗ URL 格式不合法"
     await db.commit()
     return {"success": ok, "result": cfg.last_test_result}
@@ -2607,7 +2607,7 @@ async def admin_push_upstream(
         callback_url=callback_url,
     )
 
-    now = datetime.utcnow()
+    now = datetime.now()
     cfg.last_pushed_at = now
     cfg.last_push_status = result["status"]
     cfg.last_push_url = callback_url
@@ -2944,7 +2944,7 @@ async def admin_precheck_callback_url(
                 target_url,
                 json={
                     "dataType": "__precheck__",
-                    "msgId": f"precheck-{int(datetime.utcnow().timestamp() * 1000)}",
+                    "msgId": f"precheck-{int(datetime.now().timestamp() * 1000)}",
                     "param": {},
                 },
                 headers={"X-HS-Precheck": "1"},

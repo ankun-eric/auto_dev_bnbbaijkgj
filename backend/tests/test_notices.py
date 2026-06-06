@@ -34,7 +34,7 @@ def admin_headers():
 @pytest.fixture(scope="module")
 def created_notice_id(admin_headers):
     """Create a notice and return its ID; delete after module tests."""
-    now = datetime.utcnow()
+    now = datetime.now()
     data = {
         "content": "自动化测试公告内容",
         "link_url": "/health-profile",
@@ -89,7 +89,7 @@ class TestAdminNoticesAPI:
         assert "total" in data
 
     def test_create_notice(self, admin_headers):
-        now = datetime.utcnow()
+        now = datetime.now()
         data = {
             "content": "独立创建测试公告",
             "link_url": None,
@@ -107,7 +107,7 @@ class TestAdminNoticesAPI:
         SESSION.delete(f"{BASE_URL}/api/admin/notices/{result['id']}", headers=admin_headers)
 
     def test_create_notice_requires_auth(self):
-        now = datetime.utcnow()
+        now = datetime.now()
         data = {
             "content": "无权限测试",
             "start_time": now.isoformat(),
@@ -161,7 +161,7 @@ class TestAdminNoticesAPI:
         assert resp.status_code == 404
 
     def test_delete_notice(self, admin_headers):
-        now = datetime.utcnow()
+        now = datetime.now()
         data = {
             "content": "待删除的公告",
             "start_time": now.isoformat(),

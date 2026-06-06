@@ -135,7 +135,7 @@ async def _count_occupied(
     """
     from app.core.config import settings
     timeout_minutes = int(getattr(settings, "PAYMENT_TIMEOUT_MINUTES", 15) or 15)
-    pending_threshold = datetime.utcnow() - timedelta(minutes=timeout_minutes)
+    pending_threshold = datetime.now() - timedelta(minutes=timeout_minutes)
 
     q = (
         select(func.count(OrderItem.id))
@@ -173,7 +173,7 @@ async def _count_occupied_store(
     """
     from app.core.config import settings
     timeout_minutes = int(getattr(settings, "PAYMENT_TIMEOUT_MINUTES", 15) or 15)
-    pending_threshold = datetime.utcnow() - timedelta(minutes=timeout_minutes)
+    pending_threshold = datetime.now() - timedelta(minutes=timeout_minutes)
     q = (
         select(func.count(OrderItem.id))
         .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)
@@ -208,7 +208,7 @@ async def _count_occupied_date(
     """
     from app.core.config import settings
     timeout_minutes = int(getattr(settings, "PAYMENT_TIMEOUT_MINUTES", 15) or 15)
-    pending_threshold = datetime.utcnow() - timedelta(minutes=timeout_minutes)
+    pending_threshold = datetime.now() - timedelta(minutes=timeout_minutes)
     q = (
         select(func.count(OrderItem.id))
         .join(UnifiedOrder, UnifiedOrder.id == OrderItem.order_id)

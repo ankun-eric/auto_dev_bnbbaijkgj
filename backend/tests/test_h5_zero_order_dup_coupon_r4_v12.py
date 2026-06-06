@@ -99,7 +99,7 @@ async def _grant_user_coupons(
     expire_at 各不相同（确保 ORDER BY 行为可观测）。
     """
     ids: list[int] = []
-    now = datetime.utcnow()
+    now = datetime.now()
     for i in range(count):
         uc = UserCoupon(
             user_id=user_id,

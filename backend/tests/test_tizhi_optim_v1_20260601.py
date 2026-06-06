@@ -39,7 +39,7 @@ async def _create_diagnosis(db_session, constitution_type: str = "特禀质") ->
     d = TCMDiagnosis(
         user_id=user.id,
         constitution_type=constitution_type,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(),
     )
     db_session.add(d)
     await db_session.commit()

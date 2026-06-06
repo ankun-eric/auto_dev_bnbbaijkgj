@@ -115,7 +115,7 @@ def mask_phone(phone: Optional[str]) -> Optional[str]:
 async def _ensure_membership(db: AsyncSession, user_id: int) -> UserMembership:
     res = await db.execute(select(UserMembership).where(UserMembership.user_id == user_id))
     m = res.scalar_one_or_none()
-    current_month = datetime.utcnow().strftime("%Y-%m")
+    current_month = datetime.now().strftime("%Y-%m")
     if m is None:
         m = UserMembership(
             user_id=user_id,

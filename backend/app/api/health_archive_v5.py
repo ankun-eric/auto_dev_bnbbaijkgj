@@ -367,7 +367,7 @@ async def resolve_alert(
     if row.status == "done":
         return {"ok": True, "already_done": True}
     row.status = "done"
-    row.resolved_at = datetime.utcnow()
+    row.resolved_at = datetime.now()
     await db.commit()
     return {"ok": True, "id": row.id}
 
@@ -387,7 +387,7 @@ async def resolve_all_alerts(
     await db.execute(
         update(HealthAlert)
         .where(and_(*cond))
-        .values(status="done", resolved_at=datetime.utcnow())
+        .values(status="done", resolved_at=datetime.now())
     )
     await db.commit()
     return {"ok": True}
@@ -402,7 +402,7 @@ async def seed_alerts(
     """开发/测试用：批量创建预警条目（含 24h 合并）。"""
     mid = _normalize_member_id(payload.member_id)
     created, merged = 0, 0
-    now = datetime.utcnow()
+    now = datetime.now()
     window_start = now - timedelta(hours=24)
     for raw in payload.items:
         alert_type = raw.get("alert_type") or "manual"
@@ -465,7 +465,7 @@ def _to_record_item(row: MedicalRecord, file_count: int, thumb: Optional[str]) -
     days_to_purge: Optional[int] = None
     if row.is_deleted and row.deleted_at is not None:
         deadline = row.deleted_at + timedelta(days=TRASH_KEEP_DAYS)
-        days_to_purge = max((deadline - datetime.utcnow()).days, 0)
+        days_to_purge = max((deadline - datetime.now()).days, 0)
     return MedicalRecordItem(
         id=row.id,
         member_id=row.member_id,
@@ -691,7 +691,7 @@ async def soft_delete_record(
     if row.is_deleted:
         return {"ok": True, "already_deleted": True}
     row.is_deleted = 1
-    row.deleted_at = datetime.utcnow()
+    row.deleted_at = datetime.now()
     await db.commit()
     return {"ok": True, "id": row.id, "purge_after_days": TRASH_KEEP_DAYS}
 
@@ -747,7 +747,7 @@ async def purge_expired(
     current_user: User = Depends(get_current_user),
 ):
     """到期 30 天的回收站物理清理（任何登录用户可调用，仅清理自己的）。"""
-    deadline = datetime.utcnow() - timedelta(days=TRASH_KEEP_DAYS)
+    deadline = datetime.now() - timedelta(days=TRASH_KEEP_DAYS)
     res = await db.execute(
         select(MedicalRecord.id).where(
             MedicalRecord.user_id == current_user.id,

@@ -120,7 +120,7 @@ async def _create_full_reduction_coupon_and_grant(
         user_id=user_id,
         coupon_id=coupon.id,
         status=UserCouponStatus.unused,
-        expire_at=datetime.utcnow() + timedelta(days=30),
+        expire_at=datetime.now() + timedelta(days=30),
     )
     db_session.add(uc)
     await db_session.commit()

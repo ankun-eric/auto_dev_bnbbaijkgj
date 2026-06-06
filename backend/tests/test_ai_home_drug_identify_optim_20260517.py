@@ -94,7 +94,7 @@ async def test_bug4_recent_session_is_just_now_not_8h_ago(
     detail = await client.get(f"/api/chat/sessions/{sid}", headers=auth_headers)
     created = datetime.fromisoformat(detail.json()["created_at"])
     # 与当前 UTC 时间差距应 < 1 分钟（不能是 8 小时）
-    now_utc = datetime.now(timezone.utc)
+    now_utc = datetime.now()
     delta_sec = abs((now_utc - created).total_seconds())
     assert delta_sec < 60, f"created_at 与当前时间差距过大：{delta_sec}s，可能存在时区 Bug"
 

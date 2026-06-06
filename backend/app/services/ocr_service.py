@@ -171,7 +171,7 @@ async def _aliyun_ocr(image_data: bytes, config: dict) -> str:
     payload = json.dumps(body_obj)
 
     nonce = uuid.uuid4().hex
-    timestamp_str = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    timestamp_str = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
 
     headers = {
         "Accept": "application/json",
@@ -375,7 +375,7 @@ async def ensure_access_token(
     cached_token: Optional[str],
     token_expires_at: Optional[datetime],
 ) -> tuple[str, datetime]:
-    now = datetime.utcnow()
+    now = datetime.now()
     if cached_token and token_expires_at and token_expires_at > now:
         return cached_token, token_expires_at
     result = await get_baidu_access_token(api_key, secret_key)

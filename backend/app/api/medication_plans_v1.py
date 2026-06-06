@@ -531,7 +531,7 @@ async def create_check_in(
     if schedule and len(existing) >= len(schedule):
         raise HTTPException(status_code=400, detail="今日全部时间点已打卡")
 
-    now = datetime.utcnow()
+    now = datetime.now()
     c = MedicationCheckIn(
         reminder_id=r.id,
         user_id=current_user.id,
@@ -546,7 +546,7 @@ async def create_check_in(
         "plan_id": r.id,
         "scheduled_time": data.scheduled_time,
         "check_in_time": c.check_in_time.isoformat() if c.check_in_time else None,
-        "server_time": datetime.utcnow().isoformat(),
+        "server_time": datetime.now().isoformat(),
     }
 
 
@@ -566,8 +566,8 @@ async def revoke_check_in(
     c = res.scalar_one_or_none()
     if not c:
         raise HTTPException(status_code=404, detail="打卡记录不存在")
-    created = c.created_at or c.check_in_time or datetime.utcnow()
-    if datetime.utcnow() - created > timedelta(minutes=5):
+    created = c.created_at or c.check_in_time or datetime.now()
+    if datetime.now() - created > timedelta(minutes=5):
         raise HTTPException(
             status_code=400,
             detail={"code": "REVOKE_TIMEOUT", "message": "撤销超时（仅限 5 分钟内）"},

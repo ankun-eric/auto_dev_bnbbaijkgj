@@ -68,7 +68,7 @@ async def _get_user_membership_config(db: AsyncSession, user_id: int) -> dict:
     - is_unlimited: 是否无上限（max_managed_by >= 9999 或 -1）
     - member_level: 会员等级名称
     """
-    now = datetime.utcnow()
+    now = datetime.now()
     sub_res = await db.execute(
         select(UserMembershipSub).where(
             UserMembershipSub.user_id == user_id,
@@ -137,7 +137,7 @@ async def _count_my_guardians_x(db: AsyncSession, user_id: int) -> tuple[int, in
     )
     active_count = int(active_res.scalar() or 0)
 
-    now = datetime.utcnow()
+    now = datetime.now()
     pending_res = await db.execute(
         select(func.count(ReverseGuardianInvitation.id)).where(
             ReverseGuardianInvitation.invitee_user_id == user_id,
@@ -200,7 +200,7 @@ async def list_my_guardians(
         active_count += 1
 
     # pending 项
-    now = datetime.utcnow()
+    now = datetime.now()
     pending_res = await db.execute(
         select(ReverseGuardianInvitation).where(
             ReverseGuardianInvitation.invitee_user_id == current_user.id,
@@ -292,7 +292,7 @@ async def remove_send_code(
 
     # 频率限制
     from app.models.models import SmsLog
-    one_min_ago = datetime.utcnow() - timedelta(minutes=1)
+    one_min_ago = datetime.now() - timedelta(minutes=1)
     recent_log = (await db.execute(
         select(SmsLog).where(
             SmsLog.phone == phone,
@@ -311,7 +311,7 @@ async def remove_send_code(
         phone=phone,
         code=code,
         type="remove_guardian",
-        expires_at=datetime.utcnow() + timedelta(minutes=5),
+        expires_at=datetime.now() + timedelta(minutes=5),
     )
     db.add(vc)
     await db.flush()
@@ -355,7 +355,7 @@ async def remove_guardian(
             VerificationCode.phone == phone,
             VerificationCode.code == code,
             VerificationCode.type == "remove_guardian",
-            VerificationCode.expires_at > datetime.utcnow(),
+            VerificationCode.expires_at > datetime.now(),
         ).order_by(VerificationCode.created_at.desc()).limit(1)
     )
     vc = vc_result.scalars().first()
@@ -375,7 +375,7 @@ async def remove_guardian(
         raise HTTPException(status_code=404, detail="守护关系不存在或无权操作")
 
     mgmt.status = "inactive"
-    mgmt.cancelled_at = datetime.utcnow()
+    mgmt.cancelled_at = datetime.now()
     mgmt.cancelled_by = current_user.id
 
     fm_result = await db.execute(
@@ -388,7 +388,7 @@ async def remove_guardian(
     for fm in fm_result.scalars().all():
         fm.status = "unbound"
         fm.sub_status = "unbinded"
-        fm.status_changed_at = datetime.utcnow()
+        fm.status_changed_at = datetime.now()
         fm.status_changed_by = current_user.id
         fm.status_reason = "reverse_guardian_unbind"
 
@@ -479,7 +479,7 @@ async def create_reverse_invite(
     # 数据卫生：仅把已过期的 pending 标记为 expired，不再"自动取消旧 pending"。
     # 原先"创建新邀请时强制 cancel 所有旧 pending"的逻辑会让列表里始终只剩 1 条 pending，
     # 与"X 受 Y 限制、允许多条 pending 并存"的新需求冲突，故移除。
-    now_dt = datetime.utcnow()
+    now_dt = datetime.now()
     pending_result = await db.execute(
         select(ReverseGuardianInvitation).where(
             ReverseGuardianInvitation.invitee_user_id == current_user.id,
@@ -508,7 +508,7 @@ async def create_reverse_invite(
         )
 
     invite_code = uuid.uuid4().hex
-    expires_at = datetime.utcnow() + timedelta(hours=INVITE_EXPIRE_HOURS)
+    expires_at = datetime.now() + timedelta(hours=INVITE_EXPIRE_HOURS)
 
     invitation = ReverseGuardianInvitation(
         invite_code=invite_code,
@@ -550,7 +550,7 @@ async def get_reverse_invite_detail(
     if not invitation:
         raise HTTPException(status_code=404, detail="邀请不存在")
 
-    if invitation.status == "pending" and invitation.expires_at < datetime.utcnow():
+    if invitation.status == "pending" and invitation.expires_at < datetime.now():
         invitation.status = "expired"
         await db.flush()
 
@@ -570,7 +570,7 @@ async def get_reverse_invite_detail(
     inviter_real_name = invitee_main_hp.name if invitee_main_hp else None
 
     check_result: str | None = None
-    if invitation.status == "expired" or (invitation.status == "pending" and invitation.expires_at < datetime.utcnow()):
+    if invitation.status == "expired" or (invitation.status == "pending" and invitation.expires_at < datetime.now()):
         check_result = "expired"
     elif invitation.status != "pending":
         check_result = invitation.status
@@ -624,7 +624,7 @@ async def accept_reverse_invite(
 
     if invitation.status != "pending":
         raise HTTPException(status_code=400, detail="该邀请已失效")
-    if invitation.expires_at < datetime.utcnow():
+    if invitation.expires_at < datetime.now():
         invitation.status = "expired"
         await db.flush()
         raise HTTPException(status_code=400, detail="邀请已过期")

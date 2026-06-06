@@ -76,12 +76,12 @@ async def _seed_order(
     async with test_session() as db:
         order = UnifiedOrder(
             user_id=user_id,
-            order_no=f"TEST_{datetime.utcnow().timestamp()}_{status}",
+            order_no=f"TEST_{datetime.now().timestamp()}_{status}",
             status=UnifiedOrderStatus(status),
             refund_status=RefundStatusEnum(refund_status),
             total_amount=paid_amount,
             paid_amount=paid_amount,
-            created_at=created_at or datetime.utcnow(),
+            created_at=created_at or datetime.now(),
         )
         db.add(order)
         await db.commit()
@@ -230,8 +230,8 @@ async def test_orders_statistics_count_and_amount_aggregation(client: AsyncClien
 @pytest.mark.asyncio
 async def test_orders_statistics_time_filter(client: AsyncClient, admin_headers):
     """start_at/end_at 时间筛选生效：用一个未来日期范围应得到全 0 数据。"""
-    future_start = (datetime.utcnow() + timedelta(days=365)).strftime("%Y-%m-%d")
-    future_end = (datetime.utcnow() + timedelta(days=370)).strftime("%Y-%m-%d")
+    future_start = (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d")
+    future_end = (datetime.now() + timedelta(days=370)).strftime("%Y-%m-%d")
     resp = await client.get(
         f"/api/admin/orders/statistics?start_at={future_start}&end_at={future_end}",
         headers=admin_headers,

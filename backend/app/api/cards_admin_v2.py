@@ -165,7 +165,7 @@ async def admin_card_usage_logs(
 
 def _parse_range(start: Optional[datetime], end: Optional[datetime]) -> tuple[datetime, datetime]:
     if end is None:
-        end = datetime.utcnow()
+        end = datetime.now()
     if start is None:
         start = end - timedelta(days=7)
     if start > end:

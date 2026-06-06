@@ -340,7 +340,7 @@ async def _record_pending(
         .limit(1)
     )
     rec = (await db.execute(stmt)).scalar_one_or_none()
-    now = datetime.utcnow()
+    now = datetime.now()
     if rec:
         rec.hit_count = (rec.hit_count or 1) + 1
         rec.last_hit_at = now
@@ -534,7 +534,7 @@ async def accept_pending(
     db.add(lib)
     rec.status = 1
     rec.operator_id = current_user.id
-    rec.operated_at = datetime.utcnow()
+    rec.operated_at = datetime.now()
     await db.commit()
     await db.refresh(lib)
     return {"code": 0, "data": {"library_id": lib.id}}
@@ -552,6 +552,6 @@ async def reject_pending(
         raise HTTPException(status_code=404, detail="pending record not found")
     rec.status = 2
     rec.operator_id = current_user.id
-    rec.operated_at = datetime.utcnow()
+    rec.operated_at = datetime.now()
     await db.commit()
     return {"code": 0}

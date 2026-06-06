@@ -353,7 +353,7 @@ async def test_scan_alert_with_injected_data(client: AsyncClient, auth_headers):
     async with test_session() as db:
         await db.execute(text(
             "UPDATE safety_rope_checkin SET checkin_at = :t"
-        ), {"t": datetime.utcnow() - timedelta(hours=49)})
+        ), {"t": datetime.now() - timedelta(hours=49)})
         await db.commit()
 
     import app.api.safety_rope_v1 as srv_mod

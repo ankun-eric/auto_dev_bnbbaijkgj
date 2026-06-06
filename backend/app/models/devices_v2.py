@@ -43,9 +43,9 @@ class DeviceCatalog(Base):
     is_active = mapped_column(Boolean, default=False, nullable=False)
     is_unique = mapped_column(Boolean, default=True, nullable=False)
     sort_order = mapped_column(Integer, default=0, nullable=False)
-    created_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = mapped_column(DateTime, default=datetime.now, nullable=False)
     updated_at = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime, default=datetime.now, onupdate=datetime.now, nullable=False
     )
 
 
@@ -60,10 +60,10 @@ class DeviceUserBinding(Base):
     sn = mapped_column(String(128), nullable=False, index=True)
     alias = mapped_column(String(64), nullable=True)
     member_id = mapped_column(Integer, ForeignKey("family_members.id"), nullable=True, index=True)
-    bound_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    bound_at = mapped_column(DateTime, default=datetime.now, nullable=False)
     unbound_at = mapped_column(DateTime, nullable=True)
     is_active = mapped_column(Boolean, default=True, nullable=False, index=True)
-    created_at = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = mapped_column(DateTime, default=datetime.now, nullable=False)
     updated_at = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime, default=datetime.now, onupdate=datetime.now, nullable=False
     )

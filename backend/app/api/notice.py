@@ -30,7 +30,7 @@ admin_dep = require_role("admin")
 
 @router.get("/notices/active")
 async def get_active_notices(db: AsyncSession = Depends(get_db)):
-    now = datetime.utcnow()
+    now = datetime.now()
     result = await db.execute(
         select(HomeNotice)
         .where(
@@ -113,7 +113,7 @@ async def admin_update_notice(
         raise HTTPException(status_code=404, detail="公告不存在")
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(notice, key, value)
-    notice.updated_at = datetime.utcnow()
+    notice.updated_at = datetime.now()
     await db.flush()
     await db.refresh(notice)
     return NoticeResponse.model_validate(notice)
@@ -145,7 +145,7 @@ async def admin_patch_notice_status(
     if not notice:
         raise HTTPException(status_code=404, detail="公告不存在")
     notice.is_enabled = data.is_enabled
-    notice.updated_at = datetime.utcnow()
+    notice.updated_at = datetime.now()
     await db.flush()
     await db.refresh(notice)
     return NoticeResponse.model_validate(notice)

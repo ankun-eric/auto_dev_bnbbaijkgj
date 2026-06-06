@@ -36,7 +36,7 @@ class CareV1UserPreference(Base):
     ui_mode_set_at = Column(DateTime, nullable=True)
     ui_mode_first_choice = Column(Boolean, nullable=False, default=False)
     sos_floating_enabled = Column(Boolean, nullable=False, default=True)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
 
 class CareV1SosEvent(Base):
@@ -55,7 +55,7 @@ class CareV1SosEvent(Base):
     notified_family_user_ids = Column(JSON, nullable=True)
     call_120_at = Column(DateTime, nullable=True)
     resolved_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
 
 
 class CareV1SosKeyword(Base):
@@ -66,7 +66,7 @@ class CareV1SosKeyword(Base):
     keyword = Column(String(64), nullable=False)
     enabled = Column(Boolean, nullable=False, default=True)
     updated_by = Column(Integer, nullable=True)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
 
 class CareV1ProactiveCardLog(Base):
@@ -76,9 +76,9 @@ class CareV1ProactiveCardLog(Base):
     user_id = Column(Integer, nullable=False, index=True)
     card_type = Column(String(32), nullable=False)
     card_content_json = Column(JSON, nullable=True)
-    shown_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    shown_at = Column(DateTime, nullable=False, default=datetime.now)
     user_action = Column(String(32), nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
 
 
 class CareV1VitalMeasurement(Base):
@@ -91,10 +91,10 @@ class CareV1VitalMeasurement(Base):
     value_diastolic = Column(Integer, nullable=True)
     value_numeric = Column(String(32), nullable=True)
     value_unit = Column(String(16), nullable=True)
-    measured_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    measured_at = Column(DateTime, nullable=False, default=datetime.now)
     source = Column(String(32), nullable=False, default="manual")
     device_id = Column(Integer, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
 
 
 class CareV1UserDevice(Base):
@@ -108,7 +108,7 @@ class CareV1UserDevice(Base):
     status = Column(String(16), nullable=False, default="online")
     battery_level = Column(Integer, nullable=True)
     last_seen_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=datetime.now)
 
 
 # ==================== Schemas ====================
@@ -160,7 +160,7 @@ async def update_ui_mode(
         pref = CareV1UserPreference(user_id=current_user.id)
         db.add(pref)
     pref.ui_mode = body.ui_mode
-    pref.ui_mode_set_at = datetime.utcnow()
+    pref.ui_mode_set_at = datetime.now()
     if body.first_choice is not None:
         pref.ui_mode_first_choice = body.first_choice
     if body.sos_floating_enabled is not None:

@@ -1,0 +1,26 @@
+=== Backend Module Structure ===
+CMD: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend ls /app/app/
+OUT: __init__.py
+__pycache__
+api
+core
+data
+init_cities.py
+init_data.py
+main.py
+models
+schemas
+services
+tasks
+utils
+CMD: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python3 -c 'import app.database; print("OK")'
+ERR: Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+ModuleNotFoundError: No module named 'app.database'
+
+=== Database Migration ===
+CMD: docker exec 6b099ed3-7175-4a78-91f4-44570c84ed27-backend python3 -c "
+import urllib.request
+try:
+    resp = urllib.reque
+OUT: API health: 200

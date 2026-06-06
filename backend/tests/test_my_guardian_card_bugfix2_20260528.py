@@ -82,7 +82,7 @@ async def _make_expired_invitation(inviter_user_id: int, member_id: int | None =
             inviter_user_id=inviter_user_id,
             member_id=member_id,
             status="expired",
-            expires_at=datetime.utcnow() - timedelta(hours=2),
+            expires_at=datetime.now() - timedelta(hours=2),
             relation_type="父亲",
         )
         s.add(inv)

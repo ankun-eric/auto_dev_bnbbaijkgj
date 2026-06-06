@@ -35,7 +35,7 @@ async def _handle_family_invite(code: str, db: AsyncSession):
     if invitation.status != "pending":
         raise HTTPException(status_code=400, detail="该邀请已失效")
 
-    if invitation.expires_at < datetime.utcnow():
+    if invitation.expires_at < datetime.now():
         invitation.status = "expired"
         # [BUGFIX-FAMILY-STATUS-ROOT-CAUSE-V2 2026-06-03] 治本：邀请过期同步回滚 FamilyMember
         from app.services.family_member_status_rollback import (

@@ -251,7 +251,7 @@ async def member_devices(
             ).order_by(DeviceBinding.created_at.desc())
         )
         devices = list(res2.scalars().all())
-        now = datetime.utcnow()
+        now = datetime.now()
         for d in devices:
             # 简化在线判定：last_sync_at 距今 < 10 分钟视为在线
             last = d.last_sync_at

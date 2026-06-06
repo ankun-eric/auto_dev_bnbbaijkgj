@@ -186,7 +186,7 @@ async def _seed_unified_order_with_store(user_id: int, with_store: bool = True, 
         if with_store:
             store = MerchantStore(
                 store_name="测试门店A",
-                store_code=f"STORE_{datetime.utcnow().timestamp()}",
+                store_code=f"STORE_{datetime.now().timestamp()}",
                 status="active",
             )
             db.add(store)
@@ -219,7 +219,7 @@ async def _seed_unified_order_with_store(user_id: int, with_store: bool = True, 
             await db.flush()
 
         order = UnifiedOrder(
-            order_no=f"UO_TEST_{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}",
+            order_no=f"UO_TEST_{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
             user_id=user_id,
             total_amount=88.00,
             paid_amount=88.00,
@@ -230,7 +230,7 @@ async def _seed_unified_order_with_store(user_id: int, with_store: bool = True, 
         db.add(order)
         await db.flush()
 
-        appt_time = datetime.utcnow() + timedelta(days=1) if with_appointment else None
+        appt_time = datetime.now() + timedelta(days=1) if with_appointment else None
         appt_data = {"time_slot": "09:00-10:00"} if with_appointment else None
 
         oi = OrderItem(

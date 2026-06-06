@@ -91,7 +91,7 @@ async def derive_v3_state(
     保留 db 入参是为了向后兼容调用方签名（短期内不动调用点），未来可以摘掉。
     """
     if now is None:
-        now = datetime.utcnow()
+        now = datetime.now()
 
     # 0. 本人卡片
     if member.is_self:

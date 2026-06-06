@@ -302,7 +302,7 @@ async def wechat_miniprogram_notify(
             )
             order.payment_method = UnifiedPaymentMethod.wechat
             order.payment_channel_code = "wechat_miniprogram"
-            order.updated_at = datetime.utcnow()
+            order.updated_at = datetime.now()
             try:
                 await db.commit()
             except Exception as e:
@@ -321,8 +321,8 @@ async def wechat_miniprogram_notify(
     # 12. 推进订单状态
     order.payment_method = UnifiedPaymentMethod.wechat
     order.payment_channel_code = "wechat_miniprogram"
-    order.paid_at = order.paid_at or datetime.utcnow()
-    order.updated_at = datetime.utcnow()
+    order.paid_at = order.paid_at or datetime.now()
+    order.updated_at = datetime.now()
 
     await _advance_status_after_payment(order, db)
 

@@ -77,7 +77,7 @@ async def _seed_order(user_id: int, items: list[dict]) -> int:
     async with test_session() as db:
         order = UnifiedOrder(
             user_id=user_id,
-            order_no=f"O{datetime.utcnow().timestamp():.0f}{user_id}",
+            order_no=f"O{datetime.now().timestamp():.0f}{user_id}",
             total_amount=Decimal("99.00"),
             paid_amount=Decimal("99.00"),
             status=UnifiedOrderStatus.completed,

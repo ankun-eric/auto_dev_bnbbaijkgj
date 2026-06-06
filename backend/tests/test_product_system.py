@@ -80,8 +80,8 @@ async def _seed_coupon(
             condition_amount=condition_amount,
             discount_value=discount_value,
             total_count=total_count,
-            valid_start=datetime.utcnow() - timedelta(days=1),
-            valid_end=datetime.utcnow() + timedelta(days=valid_days),
+            valid_start=datetime.now() - timedelta(days=1),
+            valid_end=datetime.now() + timedelta(days=valid_days),
             status=status,
         )
         db.add(coupon)

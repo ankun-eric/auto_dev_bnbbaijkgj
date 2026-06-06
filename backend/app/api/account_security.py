@@ -377,7 +377,7 @@ async def force_change_password(
         raise HTTPException(status_code=400, detail=str(e))
 
     current_user.password_hash = get_password_hash(data.new_password)
-    current_user.updated_at = datetime.utcnow()
+    current_user.updated_at = datetime.now()
     await db.commit()
 
     clear_must_change_password(current_user.id)
@@ -407,7 +407,7 @@ async def _change_password_common(
         raise HTTPException(status_code=400, detail="新密码不能与原密码相同")
 
     current_user.password_hash = get_password_hash(data.new_password)
-    current_user.updated_at = datetime.utcnow()
+    current_user.updated_at = datetime.now()
     await db.commit()
 
     clear_must_change_password(current_user.id)
@@ -493,7 +493,7 @@ async def merchant_staff_create(
         if data.avatar:
             target.avatar = data.avatar
         target.password_hash = get_password_hash(initial_password)
-        target.updated_at = datetime.utcnow()
+        target.updated_at = datetime.now()
 
     # 落 identity_type
     has_identity = (await db.execute(
@@ -575,14 +575,14 @@ async def merchant_staff_reset_password(
         raise HTTPException(status_code=400, detail="reset_type 必须是 default 或 custom")
 
     target.password_hash = get_password_hash(new_password)
-    target.updated_at = datetime.utcnow()
+    target.updated_at = datetime.now()
     mark_must_change_password(target.id)
     revoke_all_tokens_for_user(target.id)
 
     # 操作日志（PRD §M6.4）：本期落控制台 + 标记字段，无独立日志表的情况下使用 logger
     logger.info(
         "[STAFF_PASSWORD_RESET] reset_by=%s target=%s reset_type=%s ts=%s",
-        current_user.id, target.id, data.reset_type, datetime.utcnow().isoformat(),
+        current_user.id, target.id, data.reset_type, datetime.now().isoformat(),
     )
     await db.commit()
 
@@ -642,7 +642,7 @@ async def merchant_staff_toggle_status(
 
     for m in target_memberships:
         m.status = new_status
-        m.updated_at = datetime.utcnow()
+        m.updated_at = datetime.now()
 
     # 同步 user.status：若所有 membership 都被禁用则 user.status=disabled，否则 active
     target_user = (await db.execute(select(User).where(User.id == target_user_id))).scalar_one_or_none()
@@ -654,7 +654,7 @@ async def merchant_staff_toggle_status(
             target_user.status = "disabled"
         else:
             target_user.status = "active"
-        target_user.updated_at = datetime.utcnow()
+        target_user.updated_at = datetime.now()
         if new_status == "disabled":
             revoke_all_tokens_for_user(target_user_id)
 
@@ -877,7 +877,7 @@ async def merchant_update_shop_info(
 
     affected_appointments = 0
     if changed:
-        store.updated_at = datetime.utcnow()
+        store.updated_at = datetime.now()
         await db.commit()
         await db.refresh(store)
         # 营业时间发生变更时，扫描存量未核销预约（用于前端提示）
@@ -926,7 +926,7 @@ async def admin_reset_merchant_password(
         raise HTTPException(status_code=400, detail="reset_type 必须是 default 或 custom")
 
     target.password_hash = get_password_hash(new_password)
-    target.updated_at = datetime.utcnow()
+    target.updated_at = datetime.now()
     mark_must_change_password(target.id)
     revoke_all_tokens_for_user(target.id)
     logger.info(

@@ -221,7 +221,7 @@ async def test_derive_state_applying_within_24h():
         s.add(m); await s.flush()
         s.add(FamilyInvitation(
             inviter_user_id=3, member_id=m.id, invite_code="TEST001",
-            status="pending", expires_at=datetime.utcnow() + timedelta(hours=12),
+            status="pending", expires_at=datetime.now() + timedelta(hours=12),
         ))
         await s.flush()
         info = await derive_v3_state(s, member=m)
@@ -239,7 +239,7 @@ async def test_derive_state_invited_expired():
         s.add(m); await s.flush()
         s.add(FamilyInvitation(
             inviter_user_id=4, member_id=m.id, invite_code="TEST002",
-            status="expired", expires_at=datetime.utcnow() - timedelta(hours=1),
+            status="expired", expires_at=datetime.now() - timedelta(hours=1),
         ))
         await s.flush()
         info = await derive_v3_state(s, member=m)

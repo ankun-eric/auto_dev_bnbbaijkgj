@@ -1175,9 +1175,9 @@ async def admin_ship_order(
 
     order.tracking_company = data.tracking_company
     order.tracking_number = data.tracking_number
-    order.shipped_at = datetime.utcnow()
+    order.shipped_at = datetime.now()
     order.status = UnifiedOrderStatus.pending_receipt
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now()
 
     return {"message": "发货成功"}
 
@@ -1205,7 +1205,7 @@ async def admin_approve_refund(
         refund_req.refund_amount_approved = data.refund_amount
     else:
         refund_req.refund_amount_approved = refund_req.refund_amount
-    refund_req.updated_at = datetime.utcnow()
+    refund_req.updated_at = datetime.now()
 
     # [订单核销码状态与未支付超时治理 v1.0] 统一取消出口
     # 同步把所有 OrderItem.redemption_code_status 置为 expired
@@ -1272,7 +1272,7 @@ async def admin_membership_refund(
     # 标记订单已退款
     order.refund_status = RefundStatusEnum.refund_success
     order.status = UnifiedOrderStatus.refunded
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now()
 
     return {
         "ok": True,
@@ -1302,13 +1302,13 @@ async def admin_reject_refund(
     refund_req.status = RefundRequestStatus.rejected
     refund_req.admin_user_id = current_user.id
     refund_req.admin_notes = data.admin_notes
-    refund_req.updated_at = datetime.utcnow()
+    refund_req.updated_at = datetime.now()
 
     order_result = await db.execute(select(UnifiedOrder).where(UnifiedOrder.id == order_id))
     order = order_result.scalar_one_or_none()
     if order:
         order.refund_status = RefundStatusEnum.rejected
-        order.updated_at = datetime.utcnow()
+        order.updated_at = datetime.now()
 
     return {"message": "退款已拒绝"}
 

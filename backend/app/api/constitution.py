@@ -569,7 +569,7 @@ async def claim_detection_coupon(
         }
 
     # 计算过期时间
-    now = datetime.utcnow()
+    now = datetime.now()
     expire_at = now + timedelta(days=coupon.validity_days or DEFAULT_COUPON_VALIDITY_DAYS)
 
     try:

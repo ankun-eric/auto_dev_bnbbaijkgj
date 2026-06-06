@@ -33,9 +33,9 @@ class UserModePreference(Base):
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id = mapped_column(Integer, nullable=False, unique=True, index=True)
     mode = mapped_column(String(16), nullable=False, default="standard")
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
+    created_at = mapped_column(DateTime, default=datetime.now)
     updated_at = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=datetime.now, onupdate=datetime.now
     )
 
 
@@ -87,6 +87,6 @@ async def save_mode_preference(
         db.add(row)
     else:
         row.mode = data.mode
-        row.updated_at = datetime.utcnow()
+        row.updated_at = datetime.now()
     await db.flush()
     return SaveResult(success=True, mode=data.mode)

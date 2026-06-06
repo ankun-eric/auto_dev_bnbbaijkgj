@@ -176,7 +176,7 @@ def _normalize_status(value) -> str:
 
 
 def _generate_order_no() -> str:
-    ts = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    ts = datetime.now().strftime("%Y%m%d%H%M%S")
     rand = "".join(secrets.choice(string.digits) for _ in range(6))
     return f"UO{ts}{rand}"
 
@@ -253,7 +253,7 @@ async def _activate_user_card(
                 }
             )
 
-    now = datetime.utcnow()
+    now = datetime.now()
     valid_days = int(cd.valid_days or 365)
 
     # 续卡分支
@@ -407,7 +407,7 @@ async def purchase_card(
             "total_times": cd.total_times,
             "valid_days": cd.valid_days,
             "price": float(cd.price),
-            "snapshot_at": datetime.utcnow().isoformat(),
+            "snapshot_at": datetime.now().isoformat(),
             "from_product_id": data.from_product_id,
         },
         renew_from_user_card_id=data.renew_from_user_card_id,
@@ -458,8 +458,8 @@ async def pay_card_order(
 
     order.status = UnifiedOrderStatus.completed  # 卡订单支付即完成
     order.paid_amount = order.total_amount
-    order.paid_at = datetime.utcnow()
-    order.completed_at = datetime.utcnow()
+    order.paid_at = datetime.now()
+    order.completed_at = datetime.now()
 
     user_card = await _activate_user_card(db, order)
     return {
@@ -485,14 +485,14 @@ async def issue_redemption_code(
     uc = await _get_user_card_owned(db, current_user.id, user_card_id)
     if uc.status != UserCardStatus.active:
         raise HTTPException(status_code=400, detail="卡当前状态不可生成核销码")
-    if uc.valid_to < datetime.utcnow():
+    if uc.valid_to < datetime.now():
         raise HTTPException(status_code=400, detail="卡已过期")
     if (uc.remaining_times or 0) <= 0:
         raise HTTPException(status_code=400, detail="剩余次数不足")
 
     await _expire_old_codes(db, uc.id)
 
-    now = datetime.utcnow()
+    now = datetime.now()
     token = _gen_token()
     digits = _gen_digits(f"{uc.id}-{now.timestamp()}-{secrets.token_hex(4)}")
     code = CardRedemptionCode(
@@ -532,7 +532,7 @@ async def get_current_redemption_code(
         .where(
             CardRedemptionCode.user_card_id == uc.id,
             CardRedemptionCode.status == CardRedemptionCodeStatus.active,
-            CardRedemptionCode.expires_at > datetime.utcnow(),
+            CardRedemptionCode.expires_at > datetime.now(),
         )
         .order_by(CardRedemptionCode.issued_at.desc())
         .limit(1)
@@ -583,7 +583,7 @@ async def _check_frequency(
     times = int(fl.get("times", 0)) if isinstance(fl, dict) else 0
     if not scope or times <= 0:
         return True
-    now = datetime.utcnow()
+    now = datetime.now()
     if scope == "day":
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     elif scope == "week":
@@ -634,7 +634,7 @@ async def staff_redeem_card(
         raise HTTPException(status_code=404, detail="核销码无效")
     if code.status != CardRedemptionCodeStatus.active:
         raise HTTPException(status_code=409, detail="核销码已使用或失效")
-    if code.expires_at < datetime.utcnow():
+    if code.expires_at < datetime.now():
         code.status = CardRedemptionCodeStatus.expired
         await db.flush()
         raise HTTPException(status_code=410, detail="核销码已过期")
@@ -647,7 +647,7 @@ async def staff_redeem_card(
         raise HTTPException(status_code=404, detail="卡不存在")
     if uc.status != UserCardStatus.active:
         raise HTTPException(status_code=409, detail="卡已失效")
-    if uc.valid_to < datetime.utcnow():
+    if uc.valid_to < datetime.now():
         uc.status = UserCardStatus.expired
         await db.flush()
         raise HTTPException(status_code=410, detail="卡已过期")
@@ -693,7 +693,7 @@ async def staff_redeem_card(
         store_id=data.store_id,
         technician_id=data.technician_id,
         merchant_id=merchant_id,
-        used_at=datetime.utcnow(),
+        used_at=datetime.now(),
         notes=data.notes,
     )
     db.add(log)
@@ -701,7 +701,7 @@ async def staff_redeem_card(
     await db.refresh(log)
 
     code.status = CardRedemptionCodeStatus.used
-    code.used_at = datetime.utcnow()
+    code.used_at = datetime.now()
     code.used_by_log_id = log.id
 
     return {
@@ -808,7 +808,7 @@ async def refund_card_order(
     # 退款规则：未核销全额退（remaining_times == total_times 且 status=active 且未过期）
     if uc.status != UserCardStatus.active:
         raise HTTPException(status_code=400, detail="卡当前状态不可退款")
-    if uc.valid_to < datetime.utcnow():
+    if uc.valid_to < datetime.now():
         raise HTTPException(status_code=400, detail="卡已过期不可退款")
     if cd.total_times is not None and uc.remaining_times != cd.total_times:
         raise HTTPException(status_code=400, detail="已核销过的卡不可退款")
@@ -819,7 +819,7 @@ async def refund_card_order(
     cd.sales_count = max(0, (cd.sales_count or 0) - 1)
     order.status = UnifiedOrderStatus.refunded
     order.refund_status = RefundStatusEnum.refund_success
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now()
 
     return {"message": "退款成功", "user_card_id": uc.id, "order_id": order.id}
 
@@ -957,7 +957,7 @@ async def renew_card(
         raise HTTPException(status_code=400, detail="该卡不支持续卡")
 
     # 临期 7 天 / 过期 30 天内可续
-    now = datetime.utcnow()
+    now = datetime.now()
     delta = (uc.valid_to - now).days
     if delta > 7 and uc.status == UserCardStatus.active:
         # 仍非临期不限制续——按 PRD 入口，但接口不做硬卡，让用户也能提前续
@@ -1061,7 +1061,7 @@ async def my_renewable_cards(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    now = datetime.utcnow()
+    now = datetime.now()
     soon = now + timedelta(days=7)
     expired_30d_ago = now - timedelta(days=30)
 

@@ -44,7 +44,7 @@ async def _seed_store_and_order(
 ) -> tuple[MerchantStore, UnifiedOrder]:
     store = MerchantStore(
         store_name="联系商家测试门店",
-        store_code=f"SHOP-CONTACT-{datetime.utcnow().strftime('%H%M%S%f')}",
+        store_code=f"SHOP-CONTACT-{datetime.now().strftime('%H%M%S%f')}",
         contact_phone=contact_phone,
         address="北京市朝阳区联系商家路 1 号",
     )
@@ -61,7 +61,7 @@ async def _seed_store_and_order(
     await db_session.flush()
 
     order = UnifiedOrder(
-        order_no=f"UOCS{datetime.utcnow().strftime('%H%M%S%f')}",
+        order_no=f"UOCS{datetime.now().strftime('%H%M%S%f')}",
         user_id=user.id,
         total_amount=99,
         paid_amount=99,
@@ -79,7 +79,7 @@ async def _seed_store_and_order(
         quantity=1,
         subtotal=prod.sale_price,
         fulfillment_type=prod.fulfillment_type,
-        appointment_time=datetime.utcnow() + timedelta(days=2),
+        appointment_time=datetime.now() + timedelta(days=2),
         total_redeem_count=1,
         used_redeem_count=0,
     )
@@ -145,7 +145,7 @@ async def test_store_contact_falls_back_to_owner_phone_when_store_phone_empty(
 
     store = MerchantStore(
         store_name="无电话门店",
-        store_code=f"SHOP-NOPHONE-{datetime.utcnow().strftime('%H%M%S%f')}",
+        store_code=f"SHOP-NOPHONE-{datetime.now().strftime('%H%M%S%f')}",
         contact_phone=None,
         address="测试地址",
     )
@@ -181,7 +181,7 @@ async def test_store_contact_returns_null_when_no_phone_and_no_owner(
 ):
     store = MerchantStore(
         store_name="孤立门店",
-        store_code=f"SHOP-LONELY-{datetime.utcnow().strftime('%H%M%S%f')}",
+        store_code=f"SHOP-LONELY-{datetime.now().strftime('%H%M%S%f')}",
         contact_phone=None,
         address=None,
     )

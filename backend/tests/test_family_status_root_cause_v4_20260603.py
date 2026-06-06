@@ -31,7 +31,7 @@ async def current_user(db_session):
     from app.models.models import User
     from app.core.security import get_password_hash
     user = User(
-        phone=f"+86_v4_{int(datetime.utcnow().timestamp() * 1000) % 10_000_000}",
+        phone=f"+86_v4_{int(datetime.now().timestamp() * 1000) % 10_000_000}",
         password_hash=get_password_hash("test123"),
         nickname="测试用户A",
     )
@@ -46,7 +46,7 @@ async def other_user(db_session):
     from app.models.models import User
     from app.core.security import get_password_hash
     user = User(
-        phone=f"+86_v4o_{int(datetime.utcnow().timestamp() * 1000) % 10_000_000}",
+        phone=f"+86_v4o_{int(datetime.now().timestamp() * 1000) % 10_000_000}",
         password_hash=get_password_hash("test123"),
         nickname="测试用户B",
     )
@@ -94,11 +94,11 @@ async def _make_member_unbound(db, *, user_id, nickname="未绑定家人"):
 async def _make_invitation_pending(db, *, inviter_user_id, member_id, expires_in_seconds=86400):
     from app.models.models import FamilyInvitation
     inv = FamilyInvitation(
-        invite_code=f"test_v4_{member_id}_{datetime.utcnow().timestamp()}",
+        invite_code=f"test_v4_{member_id}_{datetime.now().timestamp()}",
         inviter_user_id=inviter_user_id,
         member_id=member_id,
         status="pending",
-        expires_at=datetime.utcnow() + timedelta(seconds=expires_in_seconds),
+        expires_at=datetime.now() + timedelta(seconds=expires_in_seconds),
     )
     db.add(inv)
     await db.flush()

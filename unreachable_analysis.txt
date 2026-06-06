@@ -1,0 +1,104 @@
+不可达总数: 140
+  前端页面404: 0
+  前端页面超时: 4
+  API 404 (真实): 94
+  API 双/api/前缀 404 (可能命名问题): 38
+  API 超时: 4
+
+=== 前端页面 404 ===
+
+=== 前端页面 超时 ===
+  [H5] /cards
+  [H5] /family-bindlist
+  [H5] /pay/success
+  [H5] /health-self-check/result/1
+
+=== API 404 (真实, 共94条) ===
+  /api/admin/audit/phones/codes/send
+  /api/admin/audit/phones/codes/verify
+  /api/admin/audit/phones/requests/1
+  /api/admin/cards/1/share-poster
+  /api/admin/coupons/1/reconciliation
+  /api/admin/coupons/1/regenerate-key
+  /api/admin/history
+  /api/admin/logo
+  /api/admin/membership/calculate-discount
+  /api/admin/membership/cancel
+  /api/admin/membership/me
+  /api/admin/membership/subscribe
+  /api/admin/orders
+  /api/admin/orders/distribution
+  /api/admin/orders/trends
+  /api/admin/orders/1/cancel
+  /api/admin/orders/1/complete
+  /api/admin/orders/1/confirm
+  /api/admin/orders/1/refund
+  /api/admin/orders/1/start-service
+  /api/admin/tags/templates/1/recommend
+  /api/admin/tags/templates/1/recommend/preview
+  /api/admin/tags/1/tags
+  /api/admin/1/personal-suggestion
+  /api/bottom-nav
+  /api/bottom-nav/sort
+  /api/bottom-nav/1
+  /api/cards/1/pay-card
+  /api/cards/1/refund-card
+  /api/cards/1/savings-tip
+  /api/chat/digital-humans
+  /api/chat/digital-humans/1
+  /api/chat/function-buttons/sort
+  /api/chat/function-buttons/sort-action
+  /api/chat/function-buttons/1
+  /api/chat/function-buttons/1/toggle-capsule
+  /api/chat/function-buttons/1/toggle-recommended
+  /api/chat/voice-service/config
+  /api/chat/voice-service/test-connection
+  /api/cities/hot/1
+  /api/config
+  /api/constitution/content-configs
+  /api/constitution/content-configs/1
+  /api/constitution/meta
+  /api/health-plan/check-duplicate
+  /api/health-self-check/body-part-dict
+  /api/health-self-check/body-part-dict/1
+  /api/health-self-check/health-check-templates
+  /api/health-self-check/health-check-templates/1
+  /api/home-banners/sort
+
+=== API 双/api/前缀 404 (共38条, 可能路由命名问题) ===
+  /api/admin/api/auth/merchant-status
+  /api/admin/api/guardian/v12/ai-call-quota
+  /api/admin/api/guardian/v12/emergency-quota
+  /api/admin/api/guardian/v12/emergency/simulate-serial-call
+  /api/admin/api/guardian/v12/i-guard
+  /api/admin/api/guardian/v12/invitations/records
+  /api/admin/api/guardian/v12/managed-quota-summary
+  /api/admin/api/guardian/v12/managed/1/all-guardians
+  /api/admin/api/guardian/v12/managed/1/proxy-pay
+  /api/admin/api/guardian/v12/owner/direct-adjust
+  /api/admin/api/guardian/v12/reminders
+  /api/admin/api/guardian/v12/reminders/1
+  /api/admin/api/guardian/v12/transfer/initiate
+  /api/admin/api/guardian/v12/transfer/pending
+  /api/admin/api/guardian/v12/transfer/1/approve
+  /api/admin/api/guardian/v12/transfer/1/cancel
+  /api/admin/api/guardian/v12/transfer/1/reject
+  /api/admin/api/merchant-categories
+  /api/admin/api/merchant/auth/login
+  /api/admin/api/merchant/v1/dashboard/metrics
+  /api/admin/api/merchant/v1/exports
+  /api/admin/api/merchant/v1/exports/placeholder/1
+  /api/admin/api/merchant/v1/invoice-profile
+  /api/admin/api/merchant/v1/orders
+  /api/admin/api/merchant/v1/orders/1/attachments
+  /api/admin/api/merchant/v1/orders/1/attachments/1
+  /api/admin/api/merchant/v1/reports
+  /api/admin/api/merchant/v1/role-templates
+  /api/admin/api/merchant/v1/settlements
+  /api/admin/api/merchant/v1/settlements/1
+
+=== API 超时 (共4条) ===
+  /api/admin/api/merchant/v1/settlements/1/dispute
+  /api/admin/chat-sessions
+  /api/admin/checkin-records
+  /api/admin/coupons/product-picker

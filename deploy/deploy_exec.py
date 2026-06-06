@@ -1,431 +1,237 @@
-#!/usr/bin/env python3
-"""Full deployment executor for noob-deploy skill."""
+"""Stage 3: Remote deployment executor."""
 import paramiko
-import sys
 import time
+import sys
+import os
 
-HOST = 'newbb.test.bangbangvip.com'
-USER = 'ubuntu'
-PASSWORD = 'Newbang888'
-PROJECT_DIR = '/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27'
-DEPLOY_ID = '6b099ed3-7175-4a78-91f4-44570c84ed27'
-GATEWAY_CONF = '/home/ubuntu/gateway/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf'
-GATEWAY_CONTAINER = 'gateway-nginx'
-DOMAIN = '6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com'
+HOST = "134.175.97.26"
+PORT = 22
+USER = "ubuntu"
+PASS = "Newbang888"
+DEPLOY_ID = "6b099ed3-7175-4a78-91f4-44570c84ed27"
+PROJECT_DIR = f"/home/ubuntu/{DEPLOY_ID}"
+DOMAIN = f"{DEPLOY_ID}.noob-ai.test.bangbangvip.com"
+GIT_URL = "https://codeup.aliyun.com/6a05a6159b7ce0afb00c035e/6b099ed3-7175-4a78-91f4-44570c84ed27.git"
+GIT_USER = "kun-an"
+GIT_TOKEN = "pt-djWjY3sqZzsvJ2nrhjV5e6mn_53e2cacd-e746-4659-8db4-024903ec9b74"
+ACR_ADDR = "crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com"
+ACR_USER = "ankun888"
+ACR_PASS = "xiaobai888"
 
-
-def get_ssh():
-    """Create SSH connection."""
+def ssh_connect():
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(HOST, username=USER, password=PASSWORD, timeout=30)
+    ssh.connect(HOST, port=PORT, username=USER, password=PASS, timeout=60)
     return ssh
 
-
-def run_cmd(ssh, cmd, timeout=120):
-    """Execute command on remote server."""
-    print(f"\n>>> {cmd}")
+def run(ssh, cmd, timeout=120, desc=""):
+    print(f"\n>>> [{desc}] {cmd[:120]}...")
     stdin, stdout, stderr = ssh.exec_command(cmd, timeout=timeout)
     out = stdout.read().decode('utf-8', errors='replace')
     err = stderr.read().decode('utf-8', errors='replace')
-    exit_code = stdout.channel.recv_exit_status()
+    code = stdout.channel.recv_exit_status()
     if out:
-        print(out)
+        print(out[-2000:] if len(out) > 2000 else out)
     if err:
-        print(f"STDERR: {err}")
-    print(f"[exit_code: {exit_code}]")
-    return out, err, exit_code
+        print("STDERR:", err[-500:] if len(err) > 500 else err)
+    print(f"exit={code}")
+    return out, err, code
 
-
-def step1_check():
-    """Step 1: Check server environment."""
-    print("=" * 60)
-    print("STEP 1: CHECK ENVIRONMENT")
-    print("=" * 60)
-    ssh = get_ssh()
+def main():
+    ssh = ssh_connect()
+    print("=== SSH Connected ===")
     
-    run_cmd(ssh, 'docker ps -a --format "table {{.Names}}\t{{.Status}}" | grep -E "NAMES|6b099ed3" || echo "No matching containers"')
-    run_cmd(ssh, 'docker network ls --filter name=6b099ed3 --format "{{.Name}}"')
-    run_cmd(ssh, f'docker exec {GATEWAY_CONTAINER} cat /etc/nginx/nginx.conf 2>/dev/null | head -120 || echo "Cannot read nginx.conf"')
-    run_cmd(ssh, f'docker exec {GATEWAY_CONTAINER} ls -la /etc/nginx/conf.d/ 2>/dev/null')
-    run_cmd(ssh, f'cat {GATEWAY_CONF} 2>/dev/null | head -5 || echo "Config file does not exist"')
-    run_cmd(ssh, f'cd {PROJECT_DIR} && git remote -v && echo "---" && git log --oneline -3')
-    run_cmd(ssh, f'head -30 {PROJECT_DIR}/docker-compose.prod.yml 2>/dev/null')
-    run_cmd(ssh, 'df -h /')
+    # ── Step 1: ACR Login ──
+    run(ssh, f"docker login --username={ACR_USER} --password={ACR_PASS} {ACR_ADDR}", 
+        desc="ACR Login")
     
-    ssh.close()
-    print("\n[STEP 1 COMPLETE]")
-
-
-def step2_pull():
-    """Step 2: Pull code from Codeup."""
-    print("=" * 60)
-    print("STEP 2: PULL CODE FROM CODEUP")
-    print("=" * 60)
-    ssh = get_ssh()
+    # ── Step 2: Git fetch latest code ──
+    auth_url = GIT_URL.replace("https://", f"https://{GIT_USER}:{GIT_TOKEN}@")
     
-    git_url = 'https://kun-an:pt-djWjY3sqZzsvJ2nrhjV5e6mn_53e2cacd-e746-4659-8db4-024903ec9b74@codeup.aliyun.com/6a05a6159b7ce0afb00c035e/6b099ed3-7175-4a78-91f4-44570c84ed27.git'
+    # Check if project dir exists
+    out, _, _ = run(ssh, f"test -d {PROJECT_DIR} && echo EXISTS || echo NOT_EXISTS", desc="Check project dir")
     
-    run_cmd(ssh, f'cd {PROJECT_DIR} && git remote set-url origin {git_url}')
-    run_cmd(ssh, f'cd {PROJECT_DIR} && git remote -v')
-    
-    out, err, code = run_cmd(ssh, f'cd {PROJECT_DIR} && git fetch origin master 2>&1', timeout=180)
-    if code != 0:
-        print("[WARN] Fetch failed, retrying...")
-        out, err, code = run_cmd(ssh, f'cd {PROJECT_DIR} && git fetch origin master 2>&1', timeout=180)
-    
-    if code == 0:
-        run_cmd(ssh, f'cd {PROJECT_DIR} && git reset --hard origin/master')
-        run_cmd(ssh, f'cd {PROJECT_DIR} && git log --oneline -5')
+    if "EXISTS" in out:
+        # Existing deployment - git fetch + reset
+        print("\n--- Existing deployment, updating code ---")
+        run(ssh, f"cd {PROJECT_DIR} && git remote set-url origin {auth_url}", desc="Set git remote")
+        run(ssh, f"cd {PROJECT_DIR} && git fetch --depth 1 origin 2>&1 || echo FETCH_FAILED", desc="Git fetch")
+        run(ssh, f"cd {PROJECT_DIR} && git reset --hard origin/master 2>&1 || git reset --hard origin/main 2>&1", desc="Git reset")
+        run(ssh, f"cd {PROJECT_DIR} && git clean -fd 2>&1", desc="Git clean")
     else:
-        print("[ERROR] Cannot fetch from Codeup!")
+        # Fresh clone
+        print("\n--- Fresh clone ---")
+        run(ssh, f"git clone --depth 1 --single-branch {auth_url} {PROJECT_DIR}", timeout=120, desc="Git clone")
     
-    ssh.close()
-    print("\n[STEP 2 COMPLETE]")
+    # Verify git
+    out, _, _ = run(ssh, f"cd {PROJECT_DIR} && git log -1 --oneline && git status", desc="Git status")
 
+    # ── Step 3: BUILD_COMMIT ──
+    out, _, _ = run(ssh, f"cd {PROJECT_DIR} && git log -1 --format='%H' 2>/dev/null || echo 'unknown'", desc="Get BUILD_COMMIT")
+    build_commit = out.strip().split('\n')[-1] if out.strip() else "unknown"
+    # Remove any leading/trailing quotes
+    build_commit = build_commit.strip("'\"")
+    print(f"BUILD_COMMIT={build_commit}")
+    
+    # Write .env file with BUILD_COMMIT
+    run(ssh, f"cd {PROJECT_DIR} && echo 'BUILD_COMMIT={build_commit}' > .env.production", desc="Write .env.production")
+    
+    # ── Step 4: Docker compose build ──
+    print("\n=== Building Docker images ===")
+    out, err, code = run(ssh, 
+        f"cd {PROJECT_DIR} && BUILD_COMMIT={build_commit} docker compose -f docker-compose.prod.yml build --pull 2>&1",
+        timeout=600, desc="Docker compose build")
+    
+    if code != 0:
+        print("Build with --pull failed, retrying without --pull...")
+        run(ssh,
+            f"cd {PROJECT_DIR} && BUILD_COMMIT={build_commit} docker compose -f docker-compose.prod.yml build 2>&1",
+            timeout=600, desc="Docker compose build (no pull)")
+    
+    # ── Step 5: Stop old containers and start new ──
+    print("\n=== Restarting containers ===")
+    run(ssh, f"cd {PROJECT_DIR} && docker compose -f docker-compose.prod.yml down 2>&1 || true", desc="Docker compose down")
+    run(ssh, f"cd {PROJECT_DIR} && BUILD_COMMIT={build_commit} docker compose -f docker-compose.prod.yml up -d 2>&1",
+        timeout=300, desc="Docker compose up")
+    
+    # ── Step 6: Wait for health checks ──
+    print("\n=== Waiting for health checks ===")
+    max_wait = 24
+    for i in range(max_wait):
+        time.sleep(5)
+        out, _, _ = run(ssh,
+            f"cd {PROJECT_DIR} && docker compose -f docker-compose.prod.yml ps --format json 2>/dev/null",
+            desc=f"Health check {i+1}/{max_wait}")
+        if 'healthy' in out.lower():
+            # Count healthy vs total
+            total = out.count('"Name"')
+            healthy = out.lower().count('"healthy"')
+            print(f"  [{i+1}/{max_wait}] {healthy}/{total} containers healthy")
+            if healthy >= total and total > 0:
+                print("All containers healthy!")
+                break
+        else:
+            print(f"  [{i+1}/{max_wait}] waiting...")
+    else:
+        print("WARNING: Health check timeout, checking status...")
+        run(ssh, f"cd {PROJECT_DIR} && docker compose -f docker-compose.prod.yml ps", desc="Container status")
 
-def step3_build():
-    """Step 3: Docker compose build and up."""
-    print("=" * 60)
-    print("STEP 3: DOCKER COMPOSE BUILD & UP")
-    print("=" * 60)
-    ssh = get_ssh()
+    # ── Step 7: Connect gateway to project network ──
+    run(ssh, f"docker network connect {DEPLOY_ID}-network gateway-nginx 2>&1 || echo 'already connected'", 
+        desc="Connect gateway to network")
     
-    # Check current compose file
-    print("\n--- Verifying docker-compose.prod.yml ---")
-    run_cmd(ssh, f'cat {PROJECT_DIR}/docker-compose.prod.yml')
-    
-    # Login to ACR
-    print("\n--- Logging into ACR ---")
-    run_cmd(ssh, 'docker login crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com -u ankun888 -p xiaobai888')
-    
-    # Stop old containers if any
-    print("\n--- Stopping old containers ---")
-    run_cmd(ssh, f'cd {PROJECT_DIR} && docker compose -f docker-compose.prod.yml down --remove-orphans 2>&1 || echo "No containers to stop"')
-    
-    # Build and start
-    print("\n--- Building and starting containers ---")
-    run_cmd(ssh, f'cd {PROJECT_DIR} && docker compose -f docker-compose.prod.yml build --no-cache 2>&1', timeout=1800)
-    
-    print("\n--- Starting containers ---")
-    run_cmd(ssh, f'cd {PROJECT_DIR} && docker compose -f docker-compose.prod.yml up -d 2>&1', timeout=300)
-    
-    # Wait for health checks
-    print("\n--- Waiting for containers to be healthy (60s) ---")
-    time.sleep(60)
-    
-    # Check status
-    print("\n--- Container status ---")
-    run_cmd(ssh, 'docker ps -a --format "table {{.Names}}\t{{.Status}}" | grep -E "NAMES|6b099ed3" || echo "No containers"')
-    
-    ssh.close()
-    print("\n[STEP 3 COMPLETE]")
-
-
-def step4_gateway():
-    """Step 4: Deploy gateway configuration."""
-    print("=" * 60)
-    print("STEP 4: DEPLOY GATEWAY CONFIGURATION")
-    print("=" * 60)
-    ssh = get_ssh()
-    
-    # Read the new gateway-routes.conf content from local
-    print("\n--- Reading local gateway-routes.conf ---")
-    with open('../gateway-routes.conf', 'r', encoding='utf-8') as f:
-        new_conf = f.read()
-    print(f"Read {len(new_conf)} bytes")
-    
-    # First, get the full nginx.conf to understand structure
-    print("\n--- Fetching full nginx.conf ---")
-    out, err, code = run_cmd(ssh, f'docker exec {GATEWAY_CONTAINER} cat /etc/nginx/nginx.conf')
-    nginx_conf = out
-    
-    # Check if include conf.d/*.conf is inside a server block (old structure)
-    # We need to add include at http level for server blocks
-    need_http_include = 'include /etc/nginx/conf.d/server-*.conf;' not in nginx_conf
-    
-    if need_http_include:
-        print("\n--- Modifying nginx.conf: adding http-level include for server blocks ---")
-        # Backup nginx.conf
-        run_cmd(ssh, f'docker exec {GATEWAY_CONTAINER} cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bak.{int(time.time())}')
-        
-        # Add include line before the closing } of http block
-        # Strategy: add include before the last } (closing http block)
-        # More reliably, add it after 'client_max_body_size' line
-        add_line = '    include /etc/nginx/conf.d/server-*.conf;'
-        
-        if 'include /etc/nginx/conf.d/server-*.conf;' not in nginx_conf:
-            # Insert after client_max_body_size line
-            cmd_insert = (
-                f"docker exec {GATEWAY_CONTAINER} sh -c \""
-                f"sed -i '/client_max_body_size 100m;/a\\\\    include /etc/nginx/conf.d/server-*.conf;' "
-                f"/etc/nginx/nginx.conf\""
-            )
-            run_cmd(ssh, cmd_insert)
-    
-    # Backup old config
-    print("\n--- Backing up old gateway config ---")
-    run_cmd(ssh, f'cp {GATEWAY_CONF} {GATEWAY_CONF}.bak.{int(time.time())} 2>/dev/null || echo "No old config to backup"')
-    
-    # Deploy new config as server-{DEPLOY_ID}.conf (for http-level include)
-    new_conf_path = f'/home/ubuntu/gateway/conf.d/server-{DEPLOY_ID}.conf'
-    print(f"\n--- Deploying new config to {new_conf_path} ---")
-    
-    # Write via Python on remote
-    conf_escaped = new_conf.replace('\\', '\\\\').replace('"', '\\"').replace('$', '\\$')
-    write_cmd = f'cat > {new_conf_path} << "NginxConfEOF"\n{new_conf}\nNginxConfEOF'
-    run_cmd(ssh, write_cmd, timeout=30)
-    
-    # Verify new config
-    print("\n--- Verifying new config ---")
-    run_cmd(ssh, f'cat {new_conf_path}')
-    
-    # Disable old location-based config
-    print("\n--- Disabling old location-based config ---")
-    run_cmd(ssh, f'mv {GATEWAY_CONF} {GATEWAY_CONF}.disabled 2>/dev/null || echo "No old config to disable"')
-    
-    # Copy new config into gateway container
-    print("\n--- Copying config into gateway container ---")
-    container_conf_path = f'/etc/nginx/conf.d/server-{DEPLOY_ID}.conf'
-    run_cmd(ssh, f'docker cp {new_conf_path} {GATEWAY_CONTAINER}:{container_conf_path}')
-    
-    # Also copy the old config as disabled into container
-    run_cmd(ssh, f'docker exec {GATEWAY_CONTAINER} sh -c "[ -f /etc/nginx/conf.d/{DEPLOY_ID}.conf ] && mv /etc/nginx/conf.d/{DEPLOY_ID}.conf /etc/nginx/conf.d/{DEPLOY_ID}.conf.disabled || echo No old config in container"')
+    # ── Step 8: Gateway config check and reload ──
+    print("\n=== Gateway config check ===")
+    # Verify the .server file exists
+    run(ssh, f"test -f /home/ubuntu/gateway/conf.d/{DEPLOY_ID}.server && echo 'SERVER_FILE_OK' || echo 'MISSING'",
+        desc="Check .server file")
     
     # Test nginx config
-    print("\n--- Testing nginx configuration ---")
-    run_cmd(ssh, f'docker exec {GATEWAY_CONTAINER} nginx -t')
+    out, err, code = run(ssh, "docker exec gateway-nginx nginx -t 2>&1", desc="Nginx config test")
+    if code != 0:
+        print("ERROR: nginx config test failed!")
+        # Try to recover
+        run(ssh, "docker exec gateway-nginx nginx -t 2>&1", desc="Nginx config test (retry)")
     
     # Reload nginx
-    print("\n--- Reloading nginx ---")
-    run_cmd(ssh, f'docker exec {GATEWAY_CONTAINER} nginx -s reload')
+    run(ssh, "docker exec gateway-nginx nginx -s reload 2>&1", desc="Nginx reload")
+    
+    time.sleep(3)
+    
+    # ── Step 9: Verify SSL ──
+    print("\n=== SSL Verification ===")
+    run(ssh, f"curl -vI https://{DOMAIN}/api/health 2>&1 | head -30", desc="SSL health check")
+    
+    # ── Step 10: Database migration ──
+    print("\n=== Database migration ===")
+    run(ssh,
+        f"docker exec -i {DEPLOY_ID}-backend sh -c 'cat > /tmp/db_migrate.py && cd /app && python /tmp/db_migrate.py' << 'PYEOF'\n"
+        "import asyncio\n"
+        "from app.core.database import engine, Base\n"
+        "async def check():\n"
+        "    async with engine.begin() as conn:\n"
+        "        await conn.run_sync(Base.metadata.create_all)\n"
+        "        print('create_all done')\n"
+        "asyncio.run(check())\n"
+        "PYEOF",
+        timeout=120, desc="DB create_all")
+    
+    # Verify database tables
+    run(ssh,
+        f"docker exec -i {DEPLOY_ID}-backend sh -c 'cat > /tmp/db_list.py && cd /app && python /tmp/db_list.py' << 'PYEOF'\n"
+        "import asyncio\n"
+        "from app.core.database import engine\n"
+        "from sqlalchemy import text\n"
+        "async def list_tables():\n"
+        "    async with engine.connect() as conn:\n"
+        "        result = await conn.execute(text('SHOW TABLES'))\n"
+        "        tables = [r[0] for r in result.fetchall()]\n"
+        "        print(f'Total tables: {len(tables)}')\n"
+        "        for t in sorted(tables)[:20]: print(f'  {t}')\n"
+        "asyncio.run(list_tables())\n"
+        "PYEOF",
+        timeout=60, desc="List DB tables")
+
+    # ── Step 11: Check admin user ──
+    print("\n=== Admin user check ===")
+    out, _, _ = run(ssh,
+        f"docker exec -i {DEPLOY_ID}-backend sh -c 'cat > /tmp/check_admin.py && cd /app && python /tmp/check_admin.py' << 'PYEOF'\n"
+        "import asyncio\n"
+        "from app.core.database import async_session\n"
+        "from sqlalchemy import text\n"
+        "async def check_admin():\n"
+        "    async with async_session() as db:\n"
+        "        r = await db.execute(text(\"SELECT id, phone, nickname, role FROM users WHERE role='admin' LIMIT 1\"))\n"
+        "        row = r.fetchone()\n"
+        "        if row:\n"
+        "            print(f'Admin exists: id={row[0]}, phone={row[1]}, nickname={row[2]}, role={row[3]}')\n"
+        "        else:\n"
+        "            print('NO_ADMIN')\n"
+        "asyncio.run(check_admin())\n"
+        "PYEOF",
+        timeout=30, desc="Check admin user")
+    
+    if "NO_ADMIN" in out:
+        print("Creating default admin user...")
+        run(ssh,
+            f"docker exec -i {DEPLOY_ID}-backend sh -c 'cat > /tmp/create_admin.py && cd /app && python /tmp/create_admin.py' << 'PYEOF'\n"
+            "import asyncio\n"
+            "from app.core.database import async_session\n"
+            "from app.models.models import User, UserRole\n"
+            "from app.core.security import get_password_hash\n"
+            "from sqlalchemy import select\n"
+            "async def create_admin():\n"
+            "    async with async_session() as db:\n"
+            "        r = await db.execute(select(User).where(User.role == UserRole.admin))\n"
+            "        user = r.scalar_one_or_none()\n"
+            "        if not user:\n"
+            "            db.add(User(phone='13800000000', nickname='admin', password_hash=get_password_hash('admin123'), role=UserRole.admin, is_superuser=True))\n"
+            "            await db.commit()\n"
+            "            print('Admin created: admin/admin123')\n"
+            "        else:\n"
+            "            print('Admin already exists')\n"
+            "asyncio.run(create_admin())\n"
+            "PYEOF",
+            timeout=30, desc="Create admin user")
+    
+    # ── Step 12: Final verification ──
+    print("\n=== Final Verification ===")
+    run(ssh, f"curl -s https://{DOMAIN}/api/health 2>&1", desc="Health endpoint")
+    run(ssh, f"cd {PROJECT_DIR} && docker compose -f docker-compose.prod.yml ps", desc="Container status")
+    
+    # BUILD_INFO verification
+    run(ssh,
+        f"docker exec {DEPLOY_ID}-backend cat /app/BUILD_INFO 2>/dev/null || echo 'no BUILD_INFO'",
+        desc="BUILD_INFO check")
+    
+    print("\n\n===== DEPLOYMENT COMPLETE =====")
+    print(f"Domain: https://{DOMAIN}")
+    print(f"API: https://{DOMAIN}/api/health")
+    print(f"Admin: https://{DOMAIN}/admin/")
+    print(f"H5: https://{DOMAIN}/")
+    print(f"Admin account: admin / admin123")
     
     ssh.close()
-    print("\n[STEP 4 COMPLETE]")
 
-
-def step5_verify():
-    """Step 5: Verify deployment."""
-    print("=" * 60)
-    print("STEP 5: VERIFY DEPLOYMENT")
-    print("=" * 60)
-    ssh = get_ssh()
-    
-    # Container status
-    print("\n--- Container status ---")
-    run_cmd(ssh, 'docker ps -a --format "table {{.Names}}\t{{.Status}}" | grep -E "NAMES|6b099ed3"')
-    
-    # Test HTTPS access
-    print("\n--- Testing HTTPS access ---")
-    run_cmd(ssh, f'curl -sk -o /dev/null -w "%{{http_code}}" https://{DOMAIN}/api/health 2>/dev/null || echo "CURL_FAILED"')
-    run_cmd(ssh, f'curl -sk -o /dev/null -w "%{{http_code}}" https://{DOMAIN}/ 2>/dev/null || echo "CURL_FAILED"')
-    run_cmd(ssh, f'curl -sk -o /dev/null -w "%{{http_code}}" https://{DOMAIN}/admin/ 2>/dev/null || echo "CURL_FAILED"')
-    
-    # Backend logs
-    print("\n--- Backend logs (last 10 lines) ---")
-    run_cmd(ssh, f'docker logs --tail 10 {DEPLOY_ID}-backend 2>/dev/null || echo "No backend container"')
-    
-    ssh.close()
-    print("\n[STEP 5 COMPLETE]")
-
-
-def step6_cleanup():
-    """Step 6: Clean up old services/configs."""
-    print("=" * 60)
-    print("STEP 6: CLEANUP OLD SERVICES")
-    print("=" * 60)
-    ssh = get_ssh()
-    
-    # List old disabled configs
-    print("\n--- Disabled/old configs ---")
-    run_cmd(ssh, f'ls -la /home/ubuntu/gateway/conf.d/*{DEPLOY_ID}* 2>/dev/null || echo "No matching files"')
-    
-    # Check for orphan containers
-    print("\n--- Orphan containers ---")
-    run_cmd(ssh, 'docker ps -a --filter "status=exited" --format "table {{.Names}}\t{{.Status}}" | grep -E "NAMES|6b099ed3" || echo "No exited containers"')
-    
-    ssh.close()
-    print("\n[STEP 6 COMPLETE]")
-
-
-
-
-
-def check_compose():
-    """Quick check of server docker-compose files."""
-    ssh = get_ssh()
-    run_cmd(ssh, f'cat {PROJECT_DIR}/docker-compose.prod.yml')
-    run_cmd(ssh, f'cat {PROJECT_DIR}/gateway-routes.conf')
-    ssh.close()
-
-
-
-def deploy_gateway():
-    """Deploy gateway config: modify nginx.conf, deploy new server block, disable old.
-    
-    Strategy: Use .server extension to avoid being matched by existing 
-    include /etc/nginx/conf.d/*.conf (which is inside server blocks).
-    Add include /etc/nginx/conf.d/*.server at http level.
-    """
-    import time as time_module
-    import os
-    import base64
-    
-    ssh = get_ssh()
-    
-    DEPLOY_ID = '6b099ed3-7175-4a78-91f4-44570c84ed27'
-    GATEWAY_CONF_PATH = f'/home/ubuntu/gateway/conf.d/{DEPLOY_ID}.conf'
-    SERVER_CONF_PATH = f'/home/ubuntu/gateway/conf.d/{DEPLOY_ID}.server'
-    CONTAINER = 'gateway-nginx'
-    ts = int(time_module.time())
-    
-    # 1. Get full nginx.conf
-    print("--- 1. Get nginx.conf ---")
-    out, err, code = run_cmd(ssh, f'docker exec {CONTAINER} cat /etc/nginx/nginx.conf')
-    nginx_conf = out
-    
-    # 2. Check if http-level include exists
-    has_http_include = 'include /etc/nginx/conf.d/*.server;' in nginx_conf
-    
-    if not has_http_include:
-        print("--- 2. Adding http-level include for server blocks ---")
-        # Backup nginx.conf
-        run_cmd(ssh, f'docker exec {CONTAINER} cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bak.{ts}')
-        
-        # Use python inside container to modify nginx.conf (more reliable than sed)
-        python_script = (
-            "import re; "
-            "conf = open('/etc/nginx/nginx.conf').read(); "
-            "new_line = '    include /etc/nginx/conf.d/*.server;\\n'; "
-            "# Insert before the last } (closing http block)"
-            "idx = conf.rfind('}'); "
-            "conf = conf[:idx] + new_line + conf[idx:]; "
-            "open('/etc/nginx/nginx.conf', 'w').write(conf); "
-            "print('nginx.conf updated successfully')"
-        )
-        run_cmd(ssh, f"docker exec {CONTAINER} python3 -c '{python_script}'")
-        
-        # Verify
-        print("--- Verify nginx.conf tail ---")
-        run_cmd(ssh, f'docker exec {CONTAINER} tail -10 /etc/nginx/nginx.conf')
-    else:
-        print("--- 2. HTTP-level include already exists ---")
-    
-    # 3. Read local gateway-routes.conf
-    print("--- 3. Reading local gateway-routes.conf ---")
-    local_conf_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'gateway-routes.conf')
-    with open(local_conf_path, 'r', encoding='utf-8') as f:
-        new_conf = f.read()
-    print(f"Read {len(new_conf)} bytes from {local_conf_path}")
-    
-    # 4. Write new config to server using .server extension
-    print(f"--- 4. Deploying to {SERVER_CONF_PATH} ---")
-    conf_b64 = base64.b64encode(new_conf.encode('utf-8')).decode('utf-8')
-    run_cmd(ssh, f'echo {conf_b64} | base64 -d > {SERVER_CONF_PATH}')
-    
-    # 5. Verify
-    print("--- 5. Verify new config ---")
-    run_cmd(ssh, f'head -10 {SERVER_CONF_PATH}')
-    
-    # 6. Disable old location-based config
-    print("--- 6. Disabling old config ---")
-    run_cmd(ssh, f'[ -f {GATEWAY_CONF_PATH} ] && mv {GATEWAY_CONF_PATH} {GATEWAY_CONF_PATH}.disabled.{ts} || echo "No old config"')
-    # Also disable in container if present
-    run_cmd(ssh, f'docker exec {CONTAINER} sh -c "[ -f /etc/nginx/conf.d/{DEPLOY_ID}.conf ] && mv /etc/nginx/conf.d/{DEPLOY_ID}.conf /etc/nginx/conf.d/{DEPLOY_ID}.conf.disabled.{ts} || echo No old config in container"')
-    
-    # 7. Copy new config into container using docker cp
-    print("--- 7. Copying new config to container ---")
-    container_target = f'/etc/nginx/conf.d/{DEPLOY_ID}.server'
-    # docker cp may fail if volume is read-only. Try directly via cat/tee from host
-    run_cmd(ssh, f'cat {SERVER_CONF_PATH} | docker exec -i {CONTAINER} tee {container_target} > /dev/null')
-    
-    # 8. Test nginx config
-    print("--- 8. Testing nginx config ---")
-    out, err, code = run_cmd(ssh, f'docker exec {CONTAINER} nginx -t')
-    
-    if code != 0:
-        print("\n[ERROR] nginx -t failed! Rolling back nginx.conf...")
-        # Restore from backup
-        run_cmd(ssh, f'docker exec {CONTAINER} cp /etc/nginx/nginx.conf.bak.{ts} /etc/nginx/nginx.conf')
-        run_cmd(ssh, f'docker exec {CONTAINER} nginx -t')
-        ssh.close()
-        return
-    
-    # 9. Reload
-    print("--- 9. Reloading nginx ---")
-    run_cmd(ssh, f'docker exec {CONTAINER} nginx -s reload')
-    
-    ssh.close()
-    print("\n[GATEWAY DEPLOYMENT COMPLETE]")
-
-
-
-if __name__ == '__main__':
-    action = sys.argv[1] if len(sys.argv) > 1 else 'all'
-    
-    steps = {
-        '1': step1_check,
-        'check': step1_check,
-        '2': step2_pull,
-        'pull': step2_pull,
-        '3': step3_build,
-        'build': step3_build,
-        '4': step4_gateway,
-        'gateway': step4_gateway,
-        '5': step5_verify,
-        'verify': step5_verify,
-        '6': step6_cleanup,
-        'cleanup': step6_cleanup,
-        'deploy-gw': deploy_gateway,
-    }
-    
-    if action in steps:
-        steps[action]()
-    elif action == 'all':
-        for step_name in ['check', 'pull', 'build', 'gateway', 'verify', 'cleanup']:
-            try:
-                steps[step_name]()
-            except Exception as e:
-                print(f"\n[ERROR in step {step_name}]: {e}")
-                import traceback
-                traceback.print_exc()
-    else:
-        print(f"Unknown action: {action}")
-        print(f"Available: {list(steps.keys())}")
-
-
-def verify():
-    """Verify deployment."""
-    ssh = get_ssh()
-    DOMAIN = '6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com'
-    DEPLOY_ID = '6b099ed3-7175-4a78-91f4-44570c84ed27'
-    
-    print("=" * 60)
-    print("VERIFY DEPLOYMENT")
-    print("=" * 60)
-    
-    # Container status
-    print("\n--- Container Status ---")
-    run_cmd(ssh, 'docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "NAMES|6b099ed3"')
-    
-    # Test HTTPS endpoints
-    print("\n--- Testing HTTPS Endpoints ---")
-    run_cmd(ssh, f'curl -sk -o /dev/null -w "HTTP %{{http_code}}" https://{DOMAIN}/api/health 2>&1 || echo "CURL_FAILED"')
-    run_cmd(ssh, f'curl -sk -o /dev/null -w "HTTP %{{http_code}}" https://{DOMAIN}/ 2>&1 || echo "CURL_FAILED"')
-    run_cmd(ssh, f'curl -sk -o /dev/null -w "HTTP %{{http_code}}" https://{DOMAIN}/admin/ 2>&1 || echo "CURL_FAILED"')
-    
-    # Test health endpoint content
-    print("\n--- Health Check Response ---")
-    run_cmd(ssh, f'curl -sk https://{DOMAIN}/api/health 2>&1 | head -20')
-    
-    # Test H5 page
-    print("\n--- H5 Homepage (first 500 chars) ---")
-    run_cmd(ssh, f'curl -sk https://{DOMAIN}/ 2>&1 | head -20')
-    
-    # Check gateway config
-    print("\n--- Gateway Config Status ---")
-    run_cmd(ssh, f'ls -la /home/ubuntu/gateway/conf.d/{DEPLOY_ID}.* 2>&1')
-    
-    ssh.close()
-    print("\n[VERIFY COMPLETE]")
-
+if __name__ == "__main__":
+    main()

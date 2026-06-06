@@ -906,7 +906,7 @@ async def create_share(
         raise HTTPException(status_code=404, detail="报告不存在")
 
     token = uuid.uuid4().hex
-    expires_at = datetime.utcnow() + timedelta(days=7)
+    expires_at = datetime.now() + timedelta(days=7)
 
     report.share_token = token
     report.share_expires_at = expires_at
@@ -929,7 +929,7 @@ async def create_share_by_path(
     if not report or report.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="报告不存在")
 
-    if report.share_token and report.share_expires_at and report.share_expires_at > datetime.utcnow():
+    if report.share_token and report.share_expires_at and report.share_expires_at > datetime.now():
         return ShareCreateResponse(
             share_url=f"/api/report/share/{report.share_token}",
             share_token=report.share_token,
@@ -937,7 +937,7 @@ async def create_share_by_path(
         )
 
     token = uuid.uuid4().hex
-    expires_at = datetime.utcnow() + timedelta(days=7)
+    expires_at = datetime.now() + timedelta(days=7)
 
     report.share_token = token
     report.share_expires_at = expires_at
@@ -964,7 +964,7 @@ async def view_share(
     if not report:
         raise HTTPException(status_code=404, detail="分享链接无效")
 
-    if report.share_expires_at and report.share_expires_at < datetime.utcnow():
+    if report.share_expires_at and report.share_expires_at < datetime.now():
         raise HTTPException(status_code=410, detail="分享链接已过期")
 
     indicators = [

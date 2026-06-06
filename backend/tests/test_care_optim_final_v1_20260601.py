@@ -84,7 +84,7 @@ async def _seed_reminder(times, checked_times=None):
                 reminder_id=rem.id,
                 user_id=u.id,
                 check_in_date=date.today(),
-                check_in_time=datetime.utcnow(),
+                check_in_time=datetime.now(),
             ))
         await s.commit()
         return u.id

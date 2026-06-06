@@ -153,7 +153,7 @@ def _extract_images(report: CheckupReport) -> List[str]:
 def _report_title(report: CheckupReport) -> str:
     if getattr(report, "title", None):
         return report.title  # type: ignore[return-value]
-    d = report.report_date or (report.created_at.date() if report.created_at else datetime.utcnow().date())
+    d = report.report_date or (report.created_at.date() if report.created_at else datetime.now().date())
     return f"{d.strftime('%Y-%m-%d')} 体检报告"
 
 
@@ -424,7 +424,7 @@ async def report_history_compare(
         user_id=current_user.id,
         family_member_id=body.member_id,
         report_name=compare_name[:200],
-        report_date=datetime.utcnow().date(),
+        report_date=datetime.now().date(),
         source_type="对比报告",
         ai_summary=comparison_content.get("health_advice", "")[:500] if isinstance(comparison_content, dict) else None,
         is_comparison=True,
@@ -454,7 +454,7 @@ async def report_history_delete(
     await _verify_ownership(db, record, current_user)
 
     record.is_deleted = True
-    record.updated_at = datetime.utcnow()
+    record.updated_at = datetime.now()
 
     if not record.is_comparison:
         cascade_q = await db.execute(
@@ -472,7 +472,7 @@ async def report_history_delete(
         )
         for comp in cascade_q.scalars().all():
             comp.is_deleted = True
-            comp.updated_at = datetime.utcnow()
+            comp.updated_at = datetime.now()
 
     return {"success": True, "message": "删除成功"}
 
@@ -493,7 +493,7 @@ async def report_history_share(
 
     if not record.share_token:
         record.share_token = uuid.uuid4().hex
-        record.updated_at = datetime.utcnow()
+        record.updated_at = datetime.now()
 
     share_url = f"/api/report-history/shared/{record.share_token}"
 
@@ -588,7 +588,7 @@ async def report_history_save_medical(
         member_id=record.family_member_id,
         category="checkup_report",
         title=record.report_name,
-        record_date=record.report_date or datetime.utcnow().date(),
+        record_date=record.report_date or datetime.now().date(),
         source="ai_interpret",
         ai_interpretation={"summary": record.ai_interpretation[:500]} if record.ai_interpretation else None,
     )

@@ -60,7 +60,7 @@ async def _save_tts_config(db: AsyncSession, data: dict):
     value_str = json.dumps(data, ensure_ascii=False)
     if config:
         config.config_value = value_str
-        config.updated_at = datetime.utcnow()
+        config.updated_at = datetime.now()
     else:
         db.add(SystemConfig(
             config_key=TTS_CONFIG_KEY,
