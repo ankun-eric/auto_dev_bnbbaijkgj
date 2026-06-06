@@ -210,6 +210,15 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
+    key: 'devices',
+    icon: <DatabaseOutlined />,
+    label: '设备管理',
+    children: [
+      { key: '/devices/scene-groups', label: '设备场景分类' },
+      { key: '/devices/catalog', label: '设备目录管理' },
+    ],
+  },
+  {
     key: 'messages',
     icon: <MessageOutlined />,
     label: '系统消息管理',
@@ -288,6 +297,7 @@ function getOpenKeys(pathname: string): string[] {
   if (pathname.startsWith('/search')) return ['search-manage'];
   if (pathname.startsWith('/system-messages') || pathname.startsWith('/alert-templates') || pathname.startsWith('/abnormal-thresholds') || pathname.startsWith('/alert-logs')) return ['messages'];
   if (pathname.startsWith('/sms') || pathname.startsWith('/settings') || pathname.startsWith('/wechat-push') || pathname.startsWith('/email-notify') || pathname.startsWith('/cos-config') || pathname.startsWith('/map-config') || pathname.startsWith('/system/')) return ['system'];
+  if (pathname.startsWith('/devices')) return ['devices'];
   if (pathname.startsWith('/health-records') || pathname.startsWith('/relation-types') || pathname.startsWith('/disease-presets') || pathname.startsWith('/family-management') || pathname.startsWith('/emergency-sources') || pathname.startsWith('/home-safety') || pathname.startsWith('/guardian-relations')) return ['health'];
   if (pathname.startsWith('/product-system')) return ['product-system'];
   return [];

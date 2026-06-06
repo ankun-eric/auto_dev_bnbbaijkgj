@@ -624,8 +624,8 @@ async def accept_invitation(
 
     notification = Notification(
         user_id=invitation.inviter_user_id,
-        title="守护邀请已接受",
-        content=f"{current_user.nickname or current_user.phone} 已成为您的守护者",
+        title="守护邀请已同意",
+        content=f"{current_user.nickname or current_user.phone} 已同意加入您的家庭成员",
         type=NotificationType.system,
         extra_data={
             "type": "family_management",
@@ -647,7 +647,7 @@ async def accept_invitation(
         recipient_user_id=invitation.inviter_user_id,
         sender_user_id=current_user.id,
         title="守护邀请已同意",
-        content=f"{acceptor_name} 已成为您的守护者，可在第一时间收到您的健康提醒",
+        content=f"{acceptor_name} 已同意加入您的家庭成员，成为您的守护对象",
         related_business_id=str(management.id),
         related_business_type="family_management",
         click_action="/family-bindlist",
@@ -658,8 +658,8 @@ async def accept_invitation(
         message_type="family_invite_accepted",
         recipient_user_id=current_user.id,
         sender_user_id=invitation.inviter_user_id,
-        title="已成功守护家人",
-        content=f"您已成功守护 {inviter_name}，可在第一时间收到对方的健康提醒",
+        title="已加入家庭守护",
+        content=f"您已同意 {inviter_name} 的守护邀请，对方可管理您的健康档案",
         related_business_id=str(management.id),
         related_business_type="family_management",
         click_action="/family-bindlist",
@@ -861,7 +861,7 @@ async def cancel_management(
     if mgmt.status != "active":
         raise HTTPException(status_code=400, detail="该管理关系已失效")
 
-    mgmt.status = "cancelled"
+    mgmt.status = "inactive"
     mgmt.cancelled_at = datetime.utcnow()
     mgmt.cancelled_by = current_user.id
 
@@ -884,12 +884,42 @@ async def cancel_management(
     )
     db.add(log)
 
-    # [PRD-FAMILY-GUARDIAN-V1] 解绑双向通知：守护者退出/被守护者踢人都互相通知
+    # [Bug-7] 解绑双向通知 SystemMessage + Notification
     other_user_id = (
         mgmt.managed_user_id if mgmt.manager_user_id == current_user.id else mgmt.manager_user_id
     )
     operator_role = "guardian" if mgmt.managed_user_id == current_user.id else "managed"
     op_name = current_user.nickname or current_user.phone or "对方"
+
+    # 查询对方姓名
+    other_user_result = await db.execute(
+        select(User).where(User.id == other_user_id)
+    )
+    other_user = other_user_result.scalar_one_or_none()
+    other_name = other_user.nickname or other_user.phone if other_user else "对方"
+
+    # SystemMessage - 给对方的通知
+    db.add(SystemMessage(
+        message_type="family_unbind",
+        recipient_user_id=other_user_id,
+        sender_user_id=current_user.id,
+        title="守护关系已解除",
+        content=f"{op_name} 已解除与您的家庭健康档案守护关系",
+        related_business_id=str(mgmt.id),
+        related_business_type="family_management",
+        click_action="/family-bindlist",
+    ))
+    # SystemMessage - 给操作者本人的回执
+    db.add(SystemMessage(
+        message_type="family_unbind",
+        recipient_user_id=current_user.id,
+        sender_user_id=other_user_id,
+        title="守护关系已解除",
+        content=f"您已解除与 {other_name} 的家庭健康档案守护关系",
+        related_business_id=str(mgmt.id),
+        related_business_type="family_management",
+        click_action="/family-bindlist",
+    ))
 
     # 给对方的通知
     db.add(Notification(
@@ -907,8 +937,8 @@ async def cancel_management(
     # 给操作者本人的回执通知
     db.add(Notification(
         user_id=current_user.id,
-        title="已解除守护关系",
-        content="您已成功解除家庭健康档案守护关系",
+        title="守护关系已解除",
+        content=f"您已解除与 {other_name} 的家庭健康档案守护关系",
         type=NotificationType.system,
         extra_data={
             "type": "family_management",

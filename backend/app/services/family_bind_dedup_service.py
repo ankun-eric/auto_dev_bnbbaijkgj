@@ -64,7 +64,12 @@ async def is_duplicate_bind(
             FamilyManagement.status == "active",
         ).limit(1)
     )
-    if exact.scalar_one_or_none() is not None:
+    exact_hit = exact.scalar_one_or_none()
+    if exact_hit is not None:
+        logger.info(
+            "[dup-check] user_id hit: manager=%s managed=%s mgmt_id=%s",
+            manager_user_id, managed_user_id, exact_hit,
+        )
         return True
 
     # 维度 2：手机号判重（同一人换了账号但手机号一致的漏网情况）
@@ -80,7 +85,16 @@ async def is_duplicate_bind(
             )
             .limit(1)
         )
-        if phone_hit.scalar_one_or_none() is not None:
+        ph_hit_id = phone_hit.scalar_one_or_none()
+        if ph_hit_id is not None:
+            logger.info(
+                "[dup-check] phone hit: manager=%s phone=%s mgmt_id=%s",
+                manager_user_id, phone, ph_hit_id,
+            )
             return True
 
+    logger.info(
+        "[dup-check] no duplicate: manager=%s managed=%s phone=%s",
+        manager_user_id, managed_user_id, phone,
+    )
     return False

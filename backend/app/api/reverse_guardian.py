@@ -374,7 +374,7 @@ async def remove_guardian(
     if not mgmt:
         raise HTTPException(status_code=404, detail="守护关系不存在或无权操作")
 
-    mgmt.status = "cancelled"
+    mgmt.status = "inactive"
     mgmt.cancelled_at = datetime.utcnow()
     mgmt.cancelled_by = current_user.id
 
@@ -405,11 +405,34 @@ async def remove_guardian(
     )
     guardian = guardian_result.scalar_one_or_none()
     managed_name = current_user.nickname or current_user.phone or "对方"
+    guardian_name = guardian.nickname or guardian.phone if guardian else "对方"
+
+    # [Bug-7] 解绑双向 SystemMessage
+    db.add(SystemMessage(
+        message_type="reverse_guardian_removed",
+        recipient_user_id=mgmt.manager_user_id,
+        sender_user_id=current_user.id,
+        title="守护关系已解除",
+        content=f"{managed_name} 已解除与您的家庭健康档案守护关系",
+        related_business_id=str(mgmt.id),
+        related_business_type="family_management",
+        click_action="/my-guardians",
+    ))
+    db.add(SystemMessage(
+        message_type="reverse_guardian_removed",
+        recipient_user_id=current_user.id,
+        sender_user_id=mgmt.manager_user_id,
+        title="守护关系已解除",
+        content=f"您已解除与 {guardian_name} 的家庭健康档案守护关系",
+        related_business_id=str(mgmt.id),
+        related_business_type="family_management",
+        click_action="/my-guardians",
+    ))
 
     db.add(Notification(
         user_id=mgmt.manager_user_id,
         title="守护关系已解除",
-        content=f"{managed_name} 已解除与您的守护关系",
+        content=f"{managed_name} 已解除与您的家庭健康档案守护关系",
         type=NotificationType.system,
         extra_data={
             "type": "family_management",
@@ -419,8 +442,8 @@ async def remove_guardian(
     ))
     db.add(Notification(
         user_id=current_user.id,
-        title="已解除守护关系",
-        content=f"您已成功解除与 {guardian.nickname or guardian.phone or '对方'} 的守护关系" if guardian else "您已成功解除守护关系",
+        title="守护关系已解除",
+        content=f"您已解除与 {guardian_name} 的家庭健康档案守护关系" if guardian else "您已解除家庭健康档案守护关系",
         type=NotificationType.system,
         extra_data={
             "type": "family_management",
@@ -687,7 +710,7 @@ async def accept_reverse_invite(
 
     db.add(Notification(
         user_id=invitation.invitee_user_id,
-        title="有人成为了您的守护者",
+        title="守护邀请已同意",
         content=f"{acceptor_name} 已接受您的邀请，成为您的守护者",
         type=NotificationType.system,
         extra_data={
@@ -700,8 +723,8 @@ async def accept_reverse_invite(
         message_type="reverse_invite_accepted",
         recipient_user_id=invitation.invitee_user_id,
         sender_user_id=current_user.id,
-        title="新守护者加入",
-        content=f"{acceptor_name} 已成为您的守护者，可在第一时间收到您的健康提醒",
+        title="守护邀请已同意",
+        content=f"{acceptor_name} 已接受您的邀请，成为您的守护者",
         related_business_id=str(management.id),
         related_business_type="family_management",
         click_action="/my-guardians",
@@ -710,8 +733,8 @@ async def accept_reverse_invite(
         message_type="reverse_invite_accepted",
         recipient_user_id=current_user.id,
         sender_user_id=invitation.invitee_user_id,
-        title="已成功守护家人",
-        content=f"您已成功守护 {invitee_name}，可在第一时间收到对方的健康提醒",
+        title="已成为守护者",
+        content=f"您已成为 {invitee_name} 的守护者，可管理对方的健康档案",
         related_business_id=str(management.id),
         related_business_type="family_management",
         click_action="/family-bindlist",

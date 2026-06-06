@@ -196,7 +196,7 @@ export default function MessagesPage() {
                       }
                       description={
                         <div className="mt-1">
-                          <div className="text-xs text-gray-400 truncate">{n.content || ''}</div>
+                          <div className="text-xs text-gray-400" style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{n.content || ''}</div>
                           <div className="flex items-center justify-between mt-1">
                             <span className="text-xs text-gray-300">{formatTime(n.created_at)}</span>
                             {isRejectMessage(n) && (

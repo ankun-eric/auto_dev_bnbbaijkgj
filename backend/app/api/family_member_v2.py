@@ -50,6 +50,7 @@ from app.models.models import (
     HealthProfile,
     Notification,
     NotificationType,
+    SystemMessage,
     User,
 )
 
@@ -1380,16 +1381,48 @@ async def unbind_member(
     # 验证成功后删除该验证码
     await db.delete(vc)
 
-    mgmt.status = "removed"
+    mgmt.status = "inactive"
     mgmt.cancelled_at = now
     mgmt.cancelled_by = current_user.id
 
+    # [Bug-7] 解绑双向 SystemMessage
+    op_name = current_user.nickname or current_user.phone or "对方"
+    other_user_id = mgmt.managed_user_id if mgmt.managed_user_id != current_user.id else None
+
+    if other_user_id:
+        other_user_result = await db.execute(
+            select(User).where(User.id == other_user_id)
+        )
+        other_user = other_user_result.scalar_one_or_none()
+        other_name = other_user.nickname or other_user.phone if other_user else "对方"
+
+        db.add(SystemMessage(
+            message_type="family_unbind",
+            recipient_user_id=other_user_id,
+            sender_user_id=current_user.id,
+            title="守护关系已解除",
+            content=f"{op_name} 已解除与您的家庭健康档案守护关系",
+            related_business_id=str(mgmt.id),
+            related_business_type="family_management",
+            click_action="/family-bindlist",
+        ))
+
+        db.add(SystemMessage(
+            message_type="family_unbind",
+            recipient_user_id=current_user.id,
+            sender_user_id=other_user_id,
+            title="守护关系已解除",
+            content=f"您已解除与 {other_name} 的家庭健康档案守护关系",
+            related_business_id=str(mgmt.id),
+            related_business_type="family_management",
+            click_action="/family-bindlist",
+        ))
+
     # 通知被守护人
-    if mgmt.managed_user_id and mgmt.managed_user_id != current_user.id:
+    if other_user_id:
         try:
-            op_name = current_user.nickname or current_user.phone or "对方"
             db.add(Notification(
-                user_id=mgmt.managed_user_id,
+                user_id=other_user_id,
                 title="守护关系已解除",
                 content=f"{op_name} 已解除与您的家庭健康档案守护关系",
                 type=NotificationType.system,

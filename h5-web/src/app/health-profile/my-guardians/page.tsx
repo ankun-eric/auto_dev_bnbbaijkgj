@@ -540,7 +540,7 @@ function MyGuardiansPageInner() {
             background: '#FFF4ED', border: '1px solid #FFD8B8', color: '#9A4500',
             borderRadius: 8, padding: 12, fontSize: 13, lineHeight: '20px', marginBottom: 16,
           }}>
-            ⚠️ 解除守护后将不再接收 TA 的健康提醒，且无法查看 TA 的详细健康数据。此操作不可恢复，请谨慎操作。
+            ⚠️ 作为被守护人移除守护者后，TA 将无法继续查看您的健康档案，您也不再收到 TA 的健康提醒。此操作不可恢复，请谨慎操作。
           </div>
 
           <div style={{ marginBottom: 12 }}>

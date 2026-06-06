@@ -89,7 +89,7 @@ export const FAM_THEME = {
  */
 export const UNBIND_GUARDIAN_CONFIRM = {
   title: '解除守护',
-  content: '解除后对方将无法查看您的健康数据，确定解除吗？',
+  content: '解除后对方将无法查看您的健康档案，确定解除吗？',
   cancelText: '取消',
   confirmText: '确定',
 };

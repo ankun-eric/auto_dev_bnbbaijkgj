@@ -1139,7 +1139,7 @@ function UnbindSmsPopup({
           background: '#FFF4ED', border: '1px solid #FFD8B8', color: '#9A4500',
           borderRadius: 8, padding: 12, fontSize: 13, lineHeight: '20px', marginBottom: 16,
         }}>
-          ⚠️ 解绑后将停止所有健康守护与提醒，且 TA 的健康数据您将无法继续查看。此操作不可恢复，请谨慎操作。
+          ⚠️ 作为管理方解除守护后，您将无法继续查看 TA 的健康档案，TA 也不再收到您的健康提醒。此操作不可恢复，请谨慎操作。
         </div>
 
         <div style={{ marginBottom: 12 }}>

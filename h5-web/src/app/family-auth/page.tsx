@@ -384,11 +384,38 @@ function FamilyAuthContent() {
           <div className="text-center py-20 text-gray-400 text-sm">加载中...</div>
         )}
 
-        {status === 'error' && (
+        {status === 'error' && (() => {
+          // [Bug-5] 根据后端返回的 detail 内容区分不同错误场景展示不同标题
+          const getErrorTitle = () => {
+            const msg = errorMsg || '';
+            if (msg.includes('已是该家庭的成员') || msg.includes('您已是对方的守护者') || msg.includes('重复绑定')) {
+              return '您已在守护关系中';
+            }
+            if (msg.includes('已过期')) {
+              return '邀请已过期';
+            }
+            if (msg.includes('已取消') || msg.includes('已失效')) {
+              return '邀请已取消';
+            }
+            if (msg.includes('不能接受自己')) {
+              return '无法处理邀请';
+            }
+            if (msg.includes('已达上限')) {
+              return '无法处理邀请';
+            }
+            if (msg.includes('已接受') || msg.includes('已被接受')) {
+              return '邀请已失效';
+            }
+            if (msg.includes('状态异常')) {
+              return '邀请状态异常';
+            }
+            return '无法处理邀请';
+          };
+          return (
           <div className="pt-12">
             <Result
               status="warning"
-              title="无法处理邀请"
+              title={getErrorTitle()}
               description={errorMsg}
             />
             <div className="mt-6 px-8">
@@ -408,7 +435,8 @@ function FamilyAuthContent() {
               </Button>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {status === 'confirm' && (invitation || reverseInvitation) && (
           <div className="pt-4">
