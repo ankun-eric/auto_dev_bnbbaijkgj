@@ -1,0 +1,8 @@
+Renamed: miniprogram_20260327_163902_ee9728f0.zip (102009 bytes)
+Uploaded to /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/h5-web/public/miniprogram_20260327_163902_ee9728f0.zip
+Docker cp:  
+HTTP status: 404
+
+=== DOWNLOAD URL ===
+https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com/miniprogram_20260327_163902_ee9728f0.zip
+Filename: miniprogram_20260327_163902_ee9728f0.zip

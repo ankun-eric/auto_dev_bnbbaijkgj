@@ -1,0 +1,55 @@
+[1/8] Connecting to server...
+[OK] SSH connected
+
+[2/8] Git pull latest code...
+  Directory exists, fetching...
+  Fetch: HEAD is now at 1b1f915e docs: 更新项目索引 + 生成日期时区简化优化用户体验手册 v4.0 From https://codeup.aliyun.com/6a05a6159b7ce0afb00c035e/6b099ed3-7175-4a78-91f4-44570c84ed27
+   dbfc1444..1b1f915e  master     -> origin/master
+
+[3/8] ACR login...
+  [OK] ACR login succeeded
+
+[4/8] Docker compose build & up...
+  Local deploy dir: C:\auto_output\bnbbaijkgj\deploy\
+  Current compose status: 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Up 29 minutes (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend Up 26 minutes (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-db Up About an hour (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Up 29 minutes (healthy)
+  Using compose file: /home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27/docker-compose.prod.yml
+
+[5/8] Health check...
+  6b099ed3-7175-4a78-91f4-44570c84ed27-backend: running healthy
+  6b099ed3-7175-4a78-91f4-44570c84ed27-h5: running healthy
+  6b099ed3-7175-4a78-91f4-44570c84ed27-admin: running healthy
+  6b099ed3-7175-4a78-91f4-44570c84ed27-db: running healthy
+
+[6/8] Gateway config update...
+  Config length: 2824 bytes
+  Written to /home/ubuntu/gateway/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf
+  docker cp result: Error response from daemon: mounted volume is marked read-only 
+  nginx -t: 2026/06/06 13:45:19 [emerg] 1590#1590: "server" directive is not allowed here in /etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf:10
+nginx: [emerg] "server" directive is not allowed here in /etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf:10
+nginx: configuration file /etc/nginx/nginx.conf test failed 
+  [ERROR] nginx config test failed!
+
+[7/8] Database initialization check...
+  DB connection check: Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+AttributeError: 'Engine' object has no attribute 'execute'
+DB_CHECK_FAILED
+  DB init: Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+ModuleNotFoundError: No module named 'app.database' 
+
+[8/8] Default account check...
+  Admin account check: Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+AttributeError: 'Engine' object has no attribute 'execute'
+ACCOUNT_CHECK_FAILED
+
+[FINAL] Verification...
+  Backend health: OCI runtime exec failed: exec failed: unable to start container process: exec: "curl": executable file not found in $PATH
+HEALTH_FAILED
+  H5 check: wget: can't connect to remote host: Connection refused
+  Admin check: wget: can't connect to remote host: Connection refused
+  Gateway external check: {"status":"ok","service":"bini-health-api"}

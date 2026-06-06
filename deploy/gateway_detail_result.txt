@@ -1,0 +1,136 @@
+=== Gateway conf.d files ===
+total 152
+drwxrwxr-x    3 1000     1001         12288 Jun  6 13:45 .
+drwxr-xr-x    1 root     root          4096 Jun  4 10:47 ..
+-rw-rw-r--    1 1000     1001          1254 Jun  4 07:38 0451a430-e3c8-49e2-b627-329938d2313d.conf
+-rw-rw-r--    1 1000     1001          1258 Jun  4 08:15 1f2b22da-528e-4e13-acee-6511a7b5b172.location
+-rw-rw-r--    1 1000     1001          2441 May 28 11:03 20d0760a-5230-4867-a343-a91a95e05d50.conf
+-rw-rw-r--    1 1000     1001          1771 Jun  4 04:36 2c2b48f8-c6fa-4411-b719-8d910baf4f9a.server
+-rw-rw-r--    1 1000     1001          2441 May 28 11:03 309c268a-80c8-431f-9747-e2c53ada724f.conf
+-rw-rw-r--    1 1000     1001          2026 Jun  2 05:22 3c3ddda4-aa5d-4d34-a40e-c2f886ed6186.conf.disabled
+-rw-rw-r--    1 1000     1001          3480 Jun  5 06:31 4ad2bc0a-9c36-4b60-9c81-69e945e53cc4.conf.route
+-rw-rw-r--    1 1000     1001          2379 Jun  4 10:35 538865dd-add6-44d3-ad7f-d1ff839f1e04.location
+-rw-rw-r--    1 1000     1001          1143 May 28 11:03 5fa64f53-c6e8-443c-9a5c-611e554ddde1.conf
+-rw-rw-r--    1 1000     1001          2274 May 28 11:04 617ba922-acf8-4859-9737-1854bad08497.conf
+-rw-rw-r--    1 1000     1001          1909 Jun  5 05:34 622c312c-ea3e-4c32-af33-9836db929371.server
+-rw-rw-r--    1 1000     1001          2441 May 28 11:03 6333c7ee-e664-4874-acb1-75365bd58709.conf
+-rw-rw-r--    1 1000     1001          2958 Jun  6 13:45 6b099ed3-7175-4a78-91f4-44570c84ed27.conf
+-rw-rw-r--    1 1000     1001          3555 May 31 15:06 6b099ed3-7175-4a78-91f4-44570c84ed27.conf.disabled.1780486562
+-rw-rw-r--    1 1000     1001          2472 Jun  5 17:46 6b099ed3-7175-4a78-91f4-44570c84ed27.conf.disabled.1780681956
+-rw-rw-r--    1 1000     1001          3033 Jun  6 05:21 6b099ed3-7175-4a78-91f4-44570c84ed27.server
+-rw-rw-r--    1 1000     1001          2155 Jun  4 04:59 745ea1f0-7b9d-449c-bd36-a2e4a2599d06.server
+-rw-rw-r--    1 1000     1001          2441 May 28 11:03 76078d4e-cf0a-40d0-92bc-ad40ea4436b2.conf
+-rw-rw-r--    1 1000     1001          2441 May 28 11:03 85048269-7f40-4ae8-88e2-0f3ce1ce19d1.conf
+-rw-r--r--    1 1000     1001          1516 Jun  4 05:15 911e7350-7584-4898-bb92-ac568a699575.server
+-rw-rw-r--    1 1000     1001          1346 Jun  1 17:38 9782217d-bbe9-45df-b57b-6f1db576316c.conf.disabled
+-rw-r--r--    1 root     root          2843 Jun  1 16:49 9f0604d2-45b2-41c9-ac88-7a317a80702f.conf.bak
+-rw-rw-r--    1 1000     1001          1713 Jun  6 04:36 a76689d0-e683-4127-a837-c4db7cd0687d.server
+-rw-rw-r--    1 1000     1001          2610 Jun  4 05:11 b04670f8-ef50-4fcc-92b5-e25f73121b54.server
+-rw-rw-r--    1 1000     1001          1848 Jun  6 11:13 d34e3165-af92-4887-b376-79fb266a3a9a.server
+-rw-rw-r--    1 1000     1001          1516 Jun  4 23:52 dce395b9-f2ce-4853-8c63-a7ccdfe5793a.server
+-rw-rw-r--    1 1000     1001           784 May 28 09:44 deploy_test.conf
+-rw-rw-r--    1 1000     1001          2068 Jun  6 13:33 e15e5f7c-bd14-422e-a830-440bf08a200d.server
+drwxr-xr-x    2 root     root          4096 Apr 16 16:30 gateway-routes
+-rw-r--r--    1 1000     1001          3939 Jun  4 08:27 noob_ai.server
+-rw-rw-r--    1 1000     1001            18 Jun  1 10:01 test_gateway.txt
+-rw-rw-r--    1 1000     1001          1632 May 28 08:44 test_line_prj.conf
+-rw-rw-r--    1 1000     1001          1230 Jun  1 13:32 yumingtest.conf.bak
+-rw-rw-r--    1 1000     1001          1230 May 31 20:50 yumingtest.conf.disabled
+
+=== Gateway nginx.conf includes ===
+7:    include       /etc/nginx/mime.types;
+43:        include /etc/nginx/conf.d/*.conf;
+143:        include /etc/nginx/conf.d/1f2b22da-528e-4e13-acee-6511a7b5b172.location;
+148:    include /etc/nginx/conf.d/*.server;
+149:    include /etc/nginx/conf.d/noob_ai.server;
+150:    include /etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.server;
+169:                include /etc/nginx/conf.d/*.conf;  # (enabled for new projects)
+190:        # include /etc/nginx/conf.d/*.conf; (disabled by wildcard fix)
+
+=== Project conf on host (first 30 lines) ===
+# ===== Project: 6b099ed3-7175-4a78-91f4-44570c84ed27 =====
+# 文件位置：/home/ubuntu/gateway/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf
+#
+# 注意：本文件中的 $connection_upgrade 变量依赖主 nginx.conf http 块中的 map 定义：
+#   map $http_upgrade $connection_upgrade {
+#       default upgrade;
+#       ''      close;
+#   }
+
+server {
+    listen 443 ssl http2;
+    server_name 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com;
+
+    ssl_certificate     /etc/nginx/ssl/wildcard.noob-ai.test.bangbangvip.com.crt;
+    ssl_certificate_key /etc/nginx/ssl/wildcard.noob-ai.test.bangbangvip.com.key;
+
+    # /api/ 路径 → 后端容器
+    location /api/ {
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        set $backend 6b099ed3-7175-4a78-91f4-44570c84ed27-backend;
+        proxy_pass http://$backend:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+
+=== Gateway volume mounts ===
+/home/ubuntu/gateway/nginx.conf -> /etc/nginx/nginx.conf ro
+/home/ubuntu/gateway/conf.d -> /etc/nginx/conf.d ro
+/home/ubuntu/gateway/ssl -> /etc/nginx/ssl ro
+/home/ubuntu/gateway/certbot-www -> /var/www/certbot ro
+/home/ubuntu -> /home/ubuntu ro
+
+=== Gateway container conf.d files ===
+# ===== Project: 6b099ed3-7175-4a78-91f4-44570c84ed27 =====
+# 文件位置：/home/ubuntu/gateway/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf
+#
+# 注意：本文件中的 $connection_upgrade 变量依赖主 nginx.conf http 块中的 map 定义：
+#   map $http_upgrade $connection_upgrade {
+#       default upgrade;
+#       ''      close;
+#   }
+
+server {
+    listen 443 ssl http2;
+    server_name 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com;
+
+    ssl_certificate     /etc/nginx/ssl/wildcard.noob-ai.test.bangbangvip.com.crt;
+    ssl_certificate_key /etc/nginx/ssl/wildcard.noob-ai.test.bangbangvip.com.key;
+
+    # /api/ 路径 → 后端容器
+    location /api/ {
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        set $backend 6b099ed3-7175-4a78-91f4-44570c84ed27-backend;
+
+=== Project network ID ===
+168e6fde5a2f991e2bd73e264cd1687253c9d5b841436d231fede1b98e2974f0
+
+=== Gateway network IDs ===
+f4c8a1359fdeb3bb178ae43e75bebebb9d246666ec440ae4bc1b98ada67f7b93
+a37e7e2d883a8c4e6c28975186b927e4e62558e3b54ac20b8de7ac921ca3acf9
+d6684886b39ae6fff11d9da4e7a141085beabe5a8e147748537e710695735733
+8962ad3c175ff8cfe97275322fb5d99999b10cca81e42388b67a875671861584
+ba759a624b8acc4a8be384e0383cf72ab531c72a09f17259f85f03934bc61933
+b2a20a4a4e855ba699c180171a580b46cdb2befd65fcb7cca57c281c63f575b1
+168e6fde5a2f991e2bd73e264cd1687253c9d5b841436d231fede1b98e2974f0
+8e1496a4403cc333ff4cb8034d1a7f26543f3d6cf3fdcfe52d421086beb40e23
+ec675c4df5d7115cba8c71d6cb7be184976663b3547c809a8729c1100cb86134
+417a9a378bd4488baa9c857c1e91562fae611a41f12c2858f8e5b8cac2abd0d4
+bbb2c45719658ea2d0528bee270ca423d4d7703028c4e9f436db5fb4e4d520d8
+bcf30b0343f04cc33bdf3ed899660d8254728e37901eb82b4682e2d852f346a9
+bdf44689d25f85a38f488e95099f3d22ca1d13db6deffd166a978c2c2817c67b
+
+=== External curl test ===
+{"status":"ok","service":"bini-health-api"}
+
+=== External curl test H5 ===
+200
+
+=== External curl test Admin ===
+200

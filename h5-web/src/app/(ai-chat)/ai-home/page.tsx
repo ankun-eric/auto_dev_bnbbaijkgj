@@ -4663,8 +4663,8 @@ export default function AiHomePage() {
                       data-testid="ai-home-welcome-avatar-wrap"
                       style={{
                         flexShrink: 0,
-                        width: 42,
-                        height: 42,
+                        width: 52,
+                        height: 52,
                         borderRadius: '50%',
                         background: '#FFFFFF',
                         border: '2px solid rgba(255,255,255,0.9)',
@@ -4681,7 +4681,7 @@ export default function AiHomePage() {
                             ? aiHomeConfig.welcome?.avatar?.image_url
                             : aiHomeConfig.welcome?.avatar?.emoji
                         }
-                        size={34}
+                        size={42}
                         shape="circle"
                         alt="AI 头像"
                         testId="ai-home-welcome-avatar"
@@ -4693,7 +4693,7 @@ export default function AiHomePage() {
                   </div>
 
                   {/* 副标题 */}
-                  <div style={{ fontSize: 16, opacity: 0.95, marginBottom: 10, paddingLeft: 52 }} data-testid="ai-home-welcome-text">
+                  <div style={{ fontSize: 16, opacity: 0.95, marginBottom: 10 }} data-testid="ai-home-welcome-text">
                     我是宾尼小康，聊聊健康问题吧~
                   </div>
 
@@ -4704,19 +4704,18 @@ export default function AiHomePage() {
                       onClick={goStdMedicationReminder}
                       data-testid="ai-home-med-reminder"
                       style={{
-                        background: 'rgba(255,255,255,0.15)',
-                        borderRadius: 10,
+                        background: 'rgba(255,255,255,0.25)',
+                        borderRadius: 12,
                         padding: '8px 12px',
                         fontSize: 13,
-                        display: 'inline-flex',
+                        display: 'flex',
                         alignItems: 'center',
                         gap: 6,
-                        maxWidth: '100%',
+                        width: '100%',
                         border: 'none',
                         color: 'rgba(255,255,255,0.85)',
                         cursor: 'pointer',
                         textAlign: 'left' as const,
-                        marginLeft: 52,
                       }}
                     >
                       <span aria-hidden="true">💊</span>

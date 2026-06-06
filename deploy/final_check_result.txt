@@ -1,0 +1,38 @@
+=== account_identities table ===
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Field	Type	Null	Key	Default	Extra
+id	int	NO	PRI	NULL	auto_increment
+user_id	int	NO	MUL	NULL	
+identity_type	enum('user','merchant_owner','merchant_staff')	NO		NULL	
+status	varchar(20)	YES		NULL	
+created_at	datetime	YES		NULL	
+updated_at	datetime	YES		NULL
+
+=== account_identities data ===
+mysql: [Warning] Using a password on the command line interface can be insecure.
+id	user_id	identity_type	status	created_at	updated_at
+2	3	user	active	2026-04-15 06:16:29	2026-04-15 06:16:29
+3	4	user	active	2026-04-15 06:54:56	2026-04-15 06:54:56
+4	5	user	active	2026-04-15 08:42:13	2026-04-15 08:42:13
+5	6	user	active	2026-04-15 09:40:15	2026-04-15 09:40:15
+6	7	user	active	2026-04-16 08:25:09	2026-04-16 08:25:09
+
+=== Admin users ===
+mysql: [Warning] Using a password on the command line interface can be insecure.
+id	phone	role	is_superuser	status
+1	13800000000	admin	1	active
+16	13800050505	admin	1	active
+36	13800013800	admin	0	NULL
+216	admin	admin	0	active
+
+=== Gateway in project network ===
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend
+6b099ed3-7175-4a78-91f4-44570c84ed27-db
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin
+gateway-nginx
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5
+
+=== Final external verification ===
+{"status":"ok","service":"bini-health-api"}
+H5: 200
+Admin: 200

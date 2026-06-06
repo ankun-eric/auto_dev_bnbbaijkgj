@@ -28,7 +28,7 @@ import InviteFamilyCard from '@/app/member-center/components/InviteFamilyCard';
 // 与 AI 首页 → 咨询人 → 新增咨询人 完全一致（ConsultTargetPicker 复用的就是该组件）。
 import NewFamilyMemberModal from '@/components/health-profile-v5/NewFamilyMemberModal';
 // [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 解除守护二次确认统一文案
-import { UNBIND_GUARDIAN_CONFIRM } from '@/lib/family-relation';
+import { UNBIND_GUARDIAN_CONFIRM_MANAGER } from '@/lib/family-relation';
 
 // ───────────── 类型 ─────────────
 
@@ -371,10 +371,10 @@ export default function ArchiveListPage() {
 
   const handleUnbind = async (m: MemberStateItem) => {
     const confirmed = await Dialog.confirm({
-      title: UNBIND_GUARDIAN_CONFIRM.title,
-      content: UNBIND_GUARDIAN_CONFIRM.content,
-      cancelText: UNBIND_GUARDIAN_CONFIRM.cancelText,
-      confirmText: UNBIND_GUARDIAN_CONFIRM.confirmText,
+      title: UNBIND_GUARDIAN_CONFIRM_MANAGER.title,
+      content: UNBIND_GUARDIAN_CONFIRM_MANAGER.content,
+      cancelText: UNBIND_GUARDIAN_CONFIRM_MANAGER.cancelText,
+      confirmText: UNBIND_GUARDIAN_CONFIRM_MANAGER.confirmText,
     });
     if (!confirmed) return;
     setUnbindSmsMember(m);
@@ -1139,7 +1139,7 @@ function UnbindSmsPopup({
           background: '#FFF4ED', border: '1px solid #FFD8B8', color: '#9A4500',
           borderRadius: 8, padding: 12, fontSize: 13, lineHeight: '20px', marginBottom: 16,
         }}>
-          ⚠️ 作为管理方解除守护后，您将无法继续查看 TA 的健康档案，TA 也不再收到您的健康提醒。此操作不可恢复，请谨慎操作。
+          ⚠️ 解除守护后，您将无法继续管理TA的健康档案。此操作不可恢复，请谨慎操作。
         </div>
 
         <div style={{ marginBottom: 12 }}>

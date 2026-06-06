@@ -1,0 +1,35 @@
+=== Git pull ===
+HEAD is now at 0cc7adb5 fix: system.py server-time 输出格式改为北京时间 YYYY-MM-DD HH:mm:ss，timezone 改为 Asia/Shanghai
+0cc7adb5 fix: system.py server-time 输出格式改为北京时间 YYYY-MM-DD HH:mm:ss，timezone 改为 Asia/Shanghai
+From https://codeup.aliyun.com/6a05a6159b7ce0afb00c035e/6b099ed3-7175-4a78-91f4-44570c84ed27
+ * branch              master     -> FETCH_HEAD
+   4e18e05f..0cc7adb5  master     -> origin/master
+
+=== Rebuild backend ===
+#13 exporting layers
+#13 exporting layers 0.6s done
+#13 exporting manifest sha256:f45e29dc2eb5a0f3ffc9e56a5224f198eacacfb8dc889a78ab353d1d08ab1177
+#13 exporting manifest sha256:f45e29dc2eb5a0f3ffc9e56a5224f198eacacfb8dc889a78ab353d1d08ab1177 0.0s done
+#13 exporting config sha256:3c0f914bfd7ffbfdd3559683526313b4110a306bf86a715a3fb174ee1ca2a889 0.0s done
+#13 exporting attestation manifest sha256:0b184f2f8e353405e2e2d937d672fadf91d0e9792ca0e6d21b7c161acf1e6369 0.0s done
+#13 exporting manifest list 
+=== Restart ===
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+
+=== Status ===
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin: running health=healthy
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend: running health=healthy
+6b099ed3-7175-4a78-91f4-44570c84ed27-db: running health=healthy
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5: running health=healthy
+=== Verify server-time (HTTPS) ===
+{"now_iso":"2026-06-06 13:18:12","now_unix_ms":1780751892998,"timezone":"Asia/Shanghai"}
+=== Verify health ===
+{"status":"ok","service":"bini-health-api"}

@@ -143,6 +143,11 @@ async def get_member_health_profile(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """获取家庭成员的 HealthProfile。
+
+    [Bug-2] 修复：当管理方查看被守护人档案时，应用被守护人的 user_id 查询 profile，
+    而非管理方自己的 user_id。确保「本人 Tab」的数据合并后能正确展示。
+    """
     # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03]
     # 对齐家人 Tab 的过滤口径，仅排除已软删除成员。
     # unbound 成员（已解绑/未绑定）应在列表中可见，可重新发起邀请。
@@ -159,16 +164,24 @@ async def get_member_health_profile(
     if not member:
         raise HTTPException(status_code=404, detail="家庭成员不存在")
 
+    # [Bug-2] 确定 profile 所属的 user_id：
+    # - 如果 member.member_user_id 存在且与 current_user 不同（即该成员代表另一个真实用户），
+    #   使用 member.member_user_id（被守护人的 user_id）
+    # - 否则使用 current_user.id（成员主人即当前用户）
+    profile_user_id = current_user.id
+    if member.member_user_id and member.member_user_id != current_user.id:
+        profile_user_id = member.member_user_id
+
     result = await db.execute(
         select(HealthProfile).where(
-            HealthProfile.user_id == current_user.id,
+            HealthProfile.user_id == profile_user_id,
             HealthProfile.family_member_id == member_id,
         )
     )
     profile = result.scalar_one_or_none()
     if not profile:
         profile = HealthProfile(
-            user_id=current_user.id,
+            user_id=profile_user_id,
             family_member_id=member_id,
             name=member.nickname,
             gender=member.gender,
@@ -191,6 +204,10 @@ async def upsert_member_health_profile(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """更新家庭成员的 HealthProfile。
+
+    [Bug-2] 修复：与 GET 对称，当管理方修改被守护人档案时使用被守护人的 user_id。
+    """
     # [PRD-FAMILY-V3-EMERGENCY-FIX 2026-06-03] 同 GET /profile/member/{member_id}，仅排除已软删除成员
     from app.services.family_status_constants import DELETED_STATUSES
     member_result = await db.execute(
@@ -204,15 +221,20 @@ async def upsert_member_health_profile(
     if not member:
         raise HTTPException(status_code=404, detail="家庭成员不存在")
 
+    # [Bug-2] 确定 profile 所属的 user_id
+    profile_user_id = current_user.id
+    if member.member_user_id and member.member_user_id != current_user.id:
+        profile_user_id = member.member_user_id
+
     result = await db.execute(
         select(HealthProfile).where(
-            HealthProfile.user_id == current_user.id,
+            HealthProfile.user_id == profile_user_id,
             HealthProfile.family_member_id == member_id,
         )
     )
     profile = result.scalar_one_or_none()
     if not profile:
-        profile = HealthProfile(user_id=current_user.id, family_member_id=member_id)
+        profile = HealthProfile(user_id=profile_user_id, family_member_id=member_id)
         db.add(profile)
 
     update_data = data.model_dump(exclude_unset=True)

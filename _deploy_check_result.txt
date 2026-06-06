@@ -1,0 +1,10 @@
+Git HEAD: 4162f88f docs: v3.0 Bug修复完成 — 10项修复 + 索引更新 + 用户体验手册
+
+Containers:
+  6b099ed3-7175-4a78-91f4-44570c84ed27-admin: running (Health: healthy)
+  6b099ed3-7175-4a78-91f4-44570c84ed27-backend: running (Health: healthy)
+  6b099ed3-7175-4a78-91f4-44570c84ed27-db: running (Health: healthy)
+  6b099ed3-7175-4a78-91f4-44570c84ed27-h5: running (Health: healthy)
+
+Server time: 
+Health: 

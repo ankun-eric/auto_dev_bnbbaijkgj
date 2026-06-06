@@ -203,6 +203,14 @@ export default function CareAiHomePage() {
       desc: '身份与健康名片，便于出示与求助',
       onClick: () => navigate('/care-ai-home/info-card'),
     },
+    {
+      key: 'brain-game',
+      icon: '🧩',
+      bg: 'linear-gradient(135deg, #AB47BC 0%, #7B1FA2 100%)',
+      title: '乐龄游戏',
+      desc: '趣味益智游戏，锻炼大脑活力',
+      onClick: () => navigate('/brain-game'),
+    },
   ];
 
   return (
@@ -522,8 +530,8 @@ export default function CareAiHomePage() {
             data-testid="care-home-robot-logo"
             style={{
               flexShrink: 0,
-              width: 42,
-              height: 42,
+              width: 52,
+              height: 52,
               borderRadius: '50%',
               background: '#FFFFFF',
               border: '2px solid rgba(255,255,255,0.9)',
@@ -538,7 +546,7 @@ export default function CareAiHomePage() {
             <img
               src={`${basePath}/binni-xiaokang-logo.png`}
               alt="宾尼小康"
-              style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }}
+              style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover' }}
             />
           </div>
           <div style={{ fontSize: 21, fontWeight: 700, lineHeight: 1.3 }} data-testid="care-home-greeting">
@@ -547,7 +555,7 @@ export default function CareAiHomePage() {
         </div>
 
         {/* 副标题 */}
-        <div style={{ fontSize: 16, opacity: 0.95, marginBottom: 10, paddingLeft: 52 }} data-testid="care-home-welcome-text">
+        <div style={{ fontSize: 16, opacity: 0.95, marginBottom: 10 }} data-testid="care-home-welcome-text">
           我是宾尼小康，聊聊健康问题吧~
         </div>
 
@@ -558,19 +566,18 @@ export default function CareAiHomePage() {
           onClick={goMedicationReminder}
           data-testid="care-home-med-reminder"
           style={{
-            background: 'rgba(255,255,255,0.15)',
-            borderRadius: 10,
+            background: 'rgba(255,255,255,0.25)',
+            borderRadius: 12,
             padding: '8px 12px',
             fontSize: 13,
-            display: 'inline-flex',
+            display: 'flex',
             alignItems: 'center',
             gap: 6,
-            maxWidth: '100%',
+            width: '100%',
             border: 'none',
             color: 'rgba(255,255,255,0.85)',
             cursor: 'pointer',
             textAlign: 'left' as const,
-            marginLeft: 52,
           }}
         >
           <span aria-hidden="true">💊</span>

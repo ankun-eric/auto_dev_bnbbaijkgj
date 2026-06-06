@@ -1,0 +1,37 @@
+=== MySQL containers ===
+STDOUT: 6b099ed3-7175-4a78-91f4-44570c84ed27-db mysql:8.0
+622c312c-ea3e-4c32-af33-9836db929371-mysql crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_doker_base/mysql:8.0
+538865dd-add6-44d3-ad7f-d1ff839f1e04-mysql mysql:8.0
+0451a430-e3c8-49e2-b627-329938d2313d-db mysql:8.0
+911e7350-7584-4898-bb92-ac568a699575-mysql mysql:8.0
+745ea1f0-7b9d-449c-bd36-a2e4a2599d06-mysql mysql:8.0
+2c2b48f8-c6fa-4411-b719-8d910baf4f9a-mysql crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_doker_base/mysql:8.0
+ed7f67c4-b4f4-4e66-9d43-010316c4069e-mysql mysql:8.0
+STDERR: 
+=== DB inspect ===
+STDOUT: NO_DB_CONTAINER
+STDERR: 
+=== DB ping ===
+STDOUT: DB_PING_FAILED
+STDERR: 
+=== Existing project containers ===
+STDOUT: 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Up 22 minutes (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Up 26 minutes (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin Up 26 minutes (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-db Up About an hour (healthy)
+STDERR: 
+=== All docker networks ===
+STDOUT: 0faabede-ad8a-439d-a946-b887ffcd8dee-network
+1f2b22da-528e-4e13-acee-6511a7b5b172-network
+2c2b48f8-c6fa-4411-b719-8d910baf4f9a-network
+3c3ddda4-aa5d-4d34-a40e-c2f886ed6186-network
+4ad2bc0a-9c36-4b60-9c81-69e945e53cc4-network
+5fa64f53-c6e8-443c-9a5c-611e554ddde1-network
+6b099ed3-7175-4a78-91f4-44570c84ed27-network
+6cfef81e-8bc8-482f-b248-3b58fed571cb-network
+7eabb913-3d3e-4361-9dbd-dcdf42fa061e-network
+9b51e155-b3d1-4515-8137-03bfd66446a1-network
+9f0604d2-45b2-41c9-ac88-7a317a80702f-network
+09fca
+=== Gateway network inspect ===
+STDOUT: f4c8a1359fdeb3bb178ae43e75bebebb9d246666ec440ae4bc1b98ada67f7b93 a37e7e2d883a8c4e6c28975186b927e4e62558e3b54ac20b8de7ac921ca3acf9 d6684886b39ae6fff11d9da4e7a141085beabe5a8e147748537e710695735733 8962ad3c175ff8cfe97275322fb5d99999b10cca81e42388b67a875671861584 ba759a624b8acc4a8be384e0383cf72ab531c72a09f17259f85f03934bc61933 b2a20a4a4e855ba699c180171a580b46cdb2befd65fcb7cca57c281c63f575b1 168e6fde5a2f991e2bd73e264cd1687253c9d5b841436d231fede1b98e2974f0 8e1496a4403cc333ff4cb8034d1a7f26543f3d6cf3fdc

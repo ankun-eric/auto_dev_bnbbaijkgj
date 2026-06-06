@@ -1,0 +1,56 @@
+=== Users table columns ===
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Field	Type	Null	Key	Default	Extra
+id	int	NO	PRI	NULL	auto_increment
+phone	varchar(20)	YES	UNI	NULL	
+password_hash	varchar(255)	YES		NULL	
+nickname	varchar(100)	YES		NULL	
+avatar	varchar(500)	YES		NULL	
+role	enum('user','admin','doctor','merchant','content_editor')	NO		user	
+wechat_openid	varchar(100)	YES	UNI	NULL	
+apple_id	varchar(100)	YES	UNI	NULL	
+member_card_no	varchar(50)	YES	UNI	NULL	
+member_level	int	YES		NULL	
+points	int	YES		NULL	
+status	varchar(20)	YES		NULL	
+is_superuser	tinyint(1)	NO		0	
+chat_font_size	varchar(20)	YES		NULL	
+created_at	datetime	YES		NULL	
+updated_at	datetime	YES		NULL	
+user_no	varchar(8)	YES	UNI	NULL	
+referrer_no	varchar(8)	YES	MUL	NULL	
+member_card_no_old	varchar(64)	YES		NULL	
+last_login_at	datetime	YES		NULL	
+is_active	tinyint(1)	NO		1	
+deleted_at	datetime	YES		NULL
+
+=== First 5 users ===
+mysql: [Warning] Using a password on the command line interface can be insecure.
+id	phone	password_hash	nickname	avatar	role	wechat_openid	apple_id	member_card_no	member_level	points	status	is_superuser	chat_font_size	created_at	updated_at	user_no	referrer_no	member_card_no_old	last_login_at	is_active	deleted_at
+1	13800000000	$2b$12$uW3aVv3kxHmnbc7bKfsLIerpGI8eDLKQ.3oBA9e6GyTc92.2O9PrS	?????	NULL	admin	NULL	NULL	F4AVWE	0	0	active	1	standard	2026-04-14 16:22:46	2026-06-06 05:29:52	26626618	NULL	NULL	2026-06-06 05:29:52	1	NULL
+2	13719036399	$2b$12$v5MO146IpEcW.PoTQaYgeeOJqAhZ.IZeh/rcxuGT0mUhHB9fqPPYm	???	https://xiaokang-prod-1420478721.cos.ap-guangzhou.myqcloud.com/images/e26d650cfb0c4cb7946411c419be4eae.jpeg	merchant	NULL	NULL	1	0	119	active	0	standard	2026-04-15 03:35:28	2026-06-04 03:10:27	77890360	NULL	NULL	2026-06-04 03:10:27	1	NULL
+3	18813557987	NULL	??7987	NULL	user	NULL	NULL	2	0	0	active	0	standard	2026-04-15 06:16:29	2026-04-15 14:52:57	98796048	NULL	NULL	NULL	1	NULL
+4	13925122381	NULL	??2381	NULL	user	NULL	NULL	3	0	0	active	0	standard	2026-04-15 06:54:56	2026-06-03 04:12:55	98763081	NULL	NULL	2026-06-03 04:12:55	1	NULL
+5	13726962489	NULL	??2489	NULL	user	NULL	NULL	4	0	0	active	0	standard	2026-04-15 08:42:13	2026-04-15 14:52:57	70197545	NULL	NULL	NULL	1	NULL
+
+=== Check accounts table ===
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1064 (42000) at line 1: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '%account% OR LIKE %admin% OR LIKE %user%' at line 1
+
+=== All tables matching auth/user ===
+account_identities
+care_v1_user_devices
+care_v1_user_preferences
+device_user_bindings
+user_addresses
+user_cards
+user_coupons
+user_feedback
+user_health_profiles
+user_membership_subs
+user_memberships
+user_mode_preferences
+user_plan_task_records
+user_plan_tasks
+user_plans
+users

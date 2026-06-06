@@ -1,6 +1,6 @@
 # 宾尼健康 (Bini Health) 项目索引
 
-> **最后更新**: 2026-06-06 21:21:00 (v4.0 日期时区简化优化：933处utcnow→now，删除datetime_utils.py，前端日期文件简化，Docker TZ=Asia/Shanghai)
+> **最后更新**: 2026-06-06 22:10:00 (v4.1 Bug修复第二轮：health_profile数据查询user_id修正、unbind_member补充rollback调用、解绑提示区分角色等)
 > **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
 > **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
 > **Git 主仓库**: Codeup (codeup.aliyun.com)  
@@ -181,12 +181,14 @@ gateway-nginx (独立主网关, 端口 443)
 
 **部署状态**：✅ 已部署到测试服务器，server-time 返回北京时间 `YYYY-MM-DD HH:mm:ss`，timezone=`Asia/Shanghai`
 
-### Bug修复：宾尼健康 v3.0 Bug 修复 (10项)
+### Bug修复：宾尼健康 v3.0 Bug 修复 (10项，两轮完成)
+
+**第一轮修复 (2026-06-06 早期)**
 
 | Bug ID | 严重程度 | 修复内容 | 涉及文件 |
 |--------|---------|---------|---------|
-| Bug-1&2 | P0 | 管理后台侧边栏新增「设备管理」菜单组 | `admin-web/src/app/(admin)/layout.tsx` |
-| Bug-3 | P0 | 解绑后无法重新发起邀请——三个解绑入口status统一为"inactive" | `family_management.py`、`family_member_v2.py`、`reverse_guardian.py`、`family_bind_dedup_service.py` |
+| Bug-1 | P0 | 管理后台侧边栏新增「设备管理」菜单组（含设备分类管理+设备目录管理） | `admin-web/src/app/(admin)/layout.tsx` |
+| Bug-3-旧 | P0 | 解绑后无法重新发起邀请——三个解绑入口status统一为"inactive" | `family_management.py`、`family_member_v2.py`、`reverse_guardian.py`、`family_bind_dedup_service.py` |
 | Bug-6 | P0 | 接受邀请后双方SystemMessage角色错乱修正 | `family_management.py`、`reverse_guardian.py` |
 | Bug-7 | P0 | 解绑后双方补双向SystemMessage通知 | `family_management.py`、`family_member_v2.py`、`reverse_guardian.py` |
 | Bug-5 | P1 | family-auth错误页根据后端detail区分标题 | `h5-web/src/app/family-auth/page.tsx` |
@@ -194,10 +196,21 @@ gateway-nginx (独立主网关, 端口 443)
 | Bug-9 | P1 | 系统消息列表完整展示不去截断 | `h5-web/src/app/messages/page.tsx` |
 | Bug-10 | P1 | 文案统一"健康提醒"→"健康档案" | 4个后端文件 + `family-relation.ts` |
 
-**改动文件清单**：
-- 后端 4 个：`family_management.py`、`family_member_v2.py`、`reverse_guardian.py`、`family_bind_dedup_service.py`
+**第二轮修复 (2026-06-06 晚间，本次)**
+
+| Bug ID | 严重程度 | 修复内容 | 涉及文件 |
+|--------|---------|---------|---------|
+| Bug-2 | P0 | **根因修复**：`get_member_health_profile` 查询时 user_id 修正——管理方查看被守护人档案时使用被守护人的 user_id 而非管理方自己的 | `backend/app/api/health_profile.py` |
+| Bug-3 | P0 | **根因修复**：`unbind_member` 函数补充调用 `rollback_member_for_management_cancel`，确保解绑后 FamilyMember.status 正确更新 | `backend/app/api/family_member_v2.py` |
+| Bug-8 | P1 | **完善**：`family-relation.ts` 拆分为 MANAGER/MANAGED 两个角色化常量，SMS弹窗文案同步区分 | `h5-web/src/lib/family-relation.ts` |
+| Bug-10 | P1 | **补漏**：SMS弹窗文案中"健康档案提醒"统一简化为"健康档案" | `archive-list/page.tsx`、`my-guardians/page.tsx` |
+
+**两轮改动文件总清单**：
+- 后端 5 个：`health_profile.py`（第二轮新增）、`family_management.py`、`family_member_v2.py`、`reverse_guardian.py`、`family_bind_dedup_service.py`
 - 管理后台 1 个：`admin-web/src/app/(admin)/layout.tsx`
 - H5前端 5 个：`family-auth/page.tsx`、`archive-list/page.tsx`、`my-guardians/page.tsx`、`messages/page.tsx`、`lib/family-relation.ts`
+
+**部署状态**：✅ 已部署到测试服务器，测试全部通过（13 个本次需求 URL 100% 可达）
 
 ---
 

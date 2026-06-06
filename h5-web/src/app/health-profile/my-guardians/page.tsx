@@ -8,7 +8,7 @@ import { showToast } from '@/lib/toast-unified';
 import GreenNavBar from '@/components/GreenNavBar';
 import api from '@/lib/api';
 import { BH_TOKENS } from '@/lib/health-tokens';
-import { UNBIND_GUARDIAN_CONFIRM } from '@/lib/family-relation';
+import { UNBIND_GUARDIAN_CONFIRM_MANAGED } from '@/lib/family-relation';
 
 // [PRD-GUARDIAN-DUALCARD-V1 2026-05-28] 守护我的人 详情：合并 active + pending 两类
 interface Guardian {
@@ -83,10 +83,10 @@ function MyGuardiansPageInner() {
   const handleRemove = async (g: Guardian) => {
     if (!g.management_id) return;
     const confirmed = await Dialog.confirm({
-      title: UNBIND_GUARDIAN_CONFIRM.title,
-      content: UNBIND_GUARDIAN_CONFIRM.content,
-      cancelText: UNBIND_GUARDIAN_CONFIRM.cancelText,
-      confirmText: UNBIND_GUARDIAN_CONFIRM.confirmText,
+      title: UNBIND_GUARDIAN_CONFIRM_MANAGED.title,
+      content: UNBIND_GUARDIAN_CONFIRM_MANAGED.content,
+      cancelText: UNBIND_GUARDIAN_CONFIRM_MANAGED.cancelText,
+      confirmText: UNBIND_GUARDIAN_CONFIRM_MANAGED.confirmText,
     });
     if (!confirmed) return;
     setRemoveGuardian(g);
@@ -540,7 +540,7 @@ function MyGuardiansPageInner() {
             background: '#FFF4ED', border: '1px solid #FFD8B8', color: '#9A4500',
             borderRadius: 8, padding: 12, fontSize: 13, lineHeight: '20px', marginBottom: 16,
           }}>
-            ⚠️ 作为被守护人移除守护者后，TA 将无法继续查看您的健康档案，您也不再收到 TA 的健康提醒。此操作不可恢复，请谨慎操作。
+            ⚠️ 解除守护后，TA将无法继续管理您的健康档案。此操作不可恢复，请谨慎操作。
           </div>
 
           <div style={{ marginBottom: 12 }}>

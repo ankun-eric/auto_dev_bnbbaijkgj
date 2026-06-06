@@ -1,0 +1,29 @@
+=== Git pull ===
+HEAD is now at dbfc1444 fix: 添加 TZ=Asia/Shanghai 到 backend 容器环境变量
+dbfc1444 fix: 添加 TZ=Asia/Shanghai 到 backend 容器环境变量
+From https://codeup.aliyun.com/6a05a6159b7ce0afb00c035e/6b099ed3-7175-4a78-91f4-44570c84ed27
+ * branch              master     -> FETCH_HEAD
+   0cc7adb5..dbfc1444  master     -> origin/master
+
+=== Restart backend with new TZ ===
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Started 
+
+=== Status ===
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin: running health=healthy
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend: running health=healthy
+6b099ed3-7175-4a78-91f4-44570c84ed27-db: running health=healthy
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5: running health=healthy
+=== Check TZ in container ===
+2026-06-06 21:19:29.785905
+('CST', 'CST')
+
+=== Verify server-time (HTTPS) ===
+{"now_iso":"2026-06-06 21:19:30","now_unix_ms":1780751970423,"timezone":"Asia/Shanghai"}
+=== Verify health (HTTPS) ===
+{"status":"ok","service":"bini-health-api"}

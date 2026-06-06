@@ -1385,6 +1385,12 @@ async def unbind_member(
     mgmt.cancelled_at = now
     mgmt.cancelled_by = current_user.id
 
+    # [Bug-3] 解绑后回滚 FamilyMember 状态，确保极简视图生效
+    from app.services.family_member_status_rollback import rollback_member_for_management_cancel
+    await rollback_member_for_management_cancel(
+        db, manager_user_id=mgmt.manager_user_id, managed_member_id=mgmt.managed_member_id
+    )
+
     # [Bug-7] 解绑双向 SystemMessage
     op_name = current_user.nickname or current_user.phone or "对方"
     other_user_id = mgmt.managed_user_id if mgmt.managed_user_id != current_user.id else None

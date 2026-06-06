@@ -84,15 +84,30 @@ export const FAM_THEME = {
 };
 
 /**
- * [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 解除守护 / 解除 二次确认统一文案
- * 「家庭成员」卡片「解除守护」与「守护我的人」卡片「解除」共用同一套提醒风格文案。
+ * [PRD-GUARDIAN-CARD-OPTIM-V1 2026-06-02] 解除守护二次确认文案。
+ * [Bug-8] 按角色拆分：
+ * - MANAGER：管理方视角（我守护的人 → 解除守护）
+ * - MANAGED：被守护方视角（守护我的人 → 解除）
  */
-export const UNBIND_GUARDIAN_CONFIRM = {
+
+/** 管理方解除守护（archive-list 页面，管理方视角） */
+export const UNBIND_GUARDIAN_CONFIRM_MANAGER = {
   title: '解除守护',
-  content: '解除后对方将无法查看您的健康档案，确定解除吗？',
+  content: '解除守护后，您将无法继续管理TA的健康档案。此操作不可恢复，请谨慎操作。',
   cancelText: '取消',
   confirmText: '确定',
 };
+
+/** 被守护方移除守护者（my-guardians 页面，被守护方视角） */
+export const UNBIND_GUARDIAN_CONFIRM_MANAGED = {
+  title: '解除守护',
+  content: '解除守护后，TA将无法继续管理您的健康档案。此操作不可恢复，请谨慎操作。',
+  cancelText: '取消',
+  confirmText: '确定',
+};
+
+/** @deprecated 使用 UNBIND_GUARDIAN_CONFIRM_MANAGER 或 UNBIND_GUARDIAN_CONFIRM_MANAGED */
+export const UNBIND_GUARDIAN_CONFIRM = UNBIND_GUARDIAN_CONFIRM_MANAGER;
 
 /** 常见慢性病（10 个） */
 export const CHRONIC_DISEASE_OPTIONS = [

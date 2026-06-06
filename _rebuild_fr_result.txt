@@ -1,0 +1,57 @@
+=== Rebuild admin-web ===
+#18 exporting to image
+#18 exporting layers
+#18 exporting layers 1.3s done
+#18 exporting manifest sha256:d1114509eb98a2fcfd788424cd970fec59ac8465c27a2e603ada75035aa2b795 0.0s done
+#18 exporting config sha256:869aefa52c4a5ed61d63310023b8826d4acdfb37a6436bde6c534f1388485fad 0.0s done
+#18 exporting attestation manifest sha256:aa5e36ecfc4356446e2f14205ab4e000147c99104440dbde488087598f97fbb2 0.0s done
+#18 exporting manifest list sha256:8d1af08ebcd1fec21a336b19a044d120e069908a0f5d442804a220eb7d839db4 0.0s done
+#18 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest done
+#18 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
+#18 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest 0.5s done
+#18 DONE 2.0s
+
+#19 resolving provenance for metadata file
+#19 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web Built 
+
+=== Rebuild h5-web ===
+#18 exporting to image
+#18 exporting layers
+#18 exporting layers 1.2s done
+#18 exporting manifest sha256:98f70356b6392cbc089a71d828b2990dabf70fe23b0d8b7ce82f61ce6eaeeab4 0.0s done
+#18 exporting config sha256:df34b699b51025a27c96d3992b1e04a114a96f3862a3d38a0c5f332b11df4bb4 0.0s done
+#18 exporting attestation manifest sha256:5a5b6c6354210e9cc5dc439a78d7e8a04b3c88779981b7e3044c4a7e1426a190 0.0s done
+#18 exporting manifest list sha256:ddb2ee2ed2408c89fe78ac890faff0f0f0a74ffc77943ca882cc46ea783fb847 0.0s done
+#18 naming to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest done
+#18 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
+#18 unpacking to docker.io/library/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest 0.6s done
+#18 DONE 1.9s
+
+#19 resolving provenance for metadata file
+#19 DONE 0.0s
+ Image 6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web Built 
+
+=== Restart ===
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Running 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreate 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Recreated 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Waiting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-db Healthy 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Starting 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Started 
+ Container 6b099ed3-7175-4a78-91f4-44570c84ed27-admin Started 
+
+=== Status ===
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin: running health=healthy
+6b099ed3-7175-4a78-91f4-44570c84ed27-backend: running health=healthy
+6b099ed3-7175-4a78-91f4-44570c84ed27-db: running health=healthy
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5: running health=healthy
+=== Verify server-time ===
+
+=== Verify health ===
+

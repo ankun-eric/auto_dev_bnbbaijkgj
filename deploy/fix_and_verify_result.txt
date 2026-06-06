@@ -1,0 +1,121 @@
+=== Fix .conf file ===
+out: 
+err: 
+
+=== nginx -t ===
+out: 2026/06/06 13:47:10 [warn] 1614#1614: the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.server:11
+nginx: [warn] the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.server:11
+2026/06/06 13:47:10 [warn] 1614#1614: the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/a76689d0-e683-4127-a837-c4db7cd0687d.server:9
+nginx: [warn] the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/a76689d0-e683-4127-a837-c4db7cd0687d.server:9
+2026/06/06 13:47:10 [warn] 1614#1614: protocol options redefined for 0.0.0.0:443 in /etc/nginx/conf.d/a76689d0-e683-4127-a837-c4db7cd0687d.server:9
+nginx: [warn] protocol options redefined for 0.0.0.0:443 in /etc/nginx/conf.d/a76689d0-e683-4127-a837-c4db7cd0687d.server:9
+2026/06/06 13:47:10 [warn] 1614#1614: the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/b04670f8-ef50-4fcc-92b5-e25f73121b54.server:5
+nginx: [warn] the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/b04670f8-ef50-4fcc-92b5-e25f73121b54.server:5
+2026/06/06 13:47:10 [warn] 1614#1614: the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/d34e3165-af92-4887-b376-79fb266a3a9a.server:7
+nginx: [warn] the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/d34e3165-af92-4887-b376-79fb266a3a9a.server:7
+2026/06/06 13:47:10 [warn] 1614#1614: protocol options redefined for 0.0.0.0:443 in /etc/nginx/conf.d/dce395b9-f2ce-4853-8c63-a7ccdfe5793a.server:2
+nginx: [warn] protocol options redefined for 0.0.0.0:443 in /etc/nginx/conf.d/dce395b9-f2ce-4853-8c63-a7ccdfe5793a.server:2
+2026/06/06 13:47:10 [warn] 1614#1614: the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/noob_ai.server:7
+nginx: [warn] the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/noob_ai.server:7
+2026/06/06 13:47:10 [warn] 1614#1614: protocol options redefined for 0.0.0.0:443 in /etc/nginx/conf.d/noob_ai.server:7
+nginx: [warn] protocol options redefined for 0.0.0.0:443 in /etc/nginx/conf.d/noob_ai.server:7
+2026/06/06 13:47:10 [warn] 1614#1614: the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/noob_ai.server:7
+nginx: [warn] the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/noob_ai.server:7
+2026/06/06 13:47:10 [warn] 1614#1614: the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.server:11
+nginx: [warn] the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.server:11
+2026/06/06 13:47:10 [warn] 1614#1614: protocol options redefined for 0.0.0.0:443 in /etc/nginx/nginx.conf:160
+nginx: [warn] protocol options redefined for 0.0.0.0:443 in /etc/nginx/nginx.conf:160
+2026/06/06 13:47:10 [warn] 1614#1614: the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/nginx.conf:202
+nginx: [warn] the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/nginx.conf:202
+2026/06/06 13:47:10 [warn] 1614#1614: protocol options redefined for 0.0.0.0:443 in /etc/nginx/nginx.conf:202
+nginx: [warn] protocol options redefined for 0.0.0.0:443 in /etc/nginx/nginx.conf:202
+2026/06/06 13:47:10 [warn] 1614#1614: conflicting server name "*.noob-ai.test.bangbangvip.com" on 0.0.0.0:80, ignored
+nginx: [warn] conflicting server name "*.noob-ai.test.bangbangvip.com" on 0.0.0.0:80, ignored
+2026/06/06 13:47:10 [warn] 1614#1614: conflicting server name "noob-ai.test.bangbangvip.com" on 0.0.0.0:80, ignored
+nginx: [warn] conflicting server name "noob-ai.test.bangbangvip.com" on 0.0.0.0:80, ignored
+2026/06/06 13:47:10 [warn] 1614#1614: conflicting server name "e15e5f7c-bd14-422e-a830-440bf08a200d.noob-ai.test.bangbangvip.com" on 0.0.0.0:80, ignored
+nginx: [warn] conflicting server name "e15e5f7c-bd14-422e-a830-440bf08a200d.noob-ai.test.bangbangvip.com" on 0.0.0.0:80, ignored
+2026/06/06 13:47:10 [warn] 1614#1614: conflicting server name "noob_ai.noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+nginx: [warn] conflicting server name "noob_ai.noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+2026/06/06 13:47:10 [warn] 1614#1614: conflicting server name "6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+nginx: [warn] conflicting server name "6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+2026/06/06 13:47:10 [warn] 1614#1614: conflicting server name "*.noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+nginx: [warn] conflicting server name "*.noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+2026/06/06 13:47:10 [warn] 1614#1614: conflicting server name "noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+nginx: [warn] conflicting server name "noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+2026/06/06 13:47:10 [warn] 1614#1614: conflicting server name "e15e5f7c-bd14-422e-a830-440bf08a200d.noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+nginx: [warn] conflicting server name "e15e5f7c-bd14-422e-a830-440bf08a200d.noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+err: 
+
+=== nginx reload ===
+out: 2026/06/06 13:47:11 [warn] 1620#1620: the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.server:11
+nginx: [warn] the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.server:11
+2026/06/06 13:47:11 [warn] 1620#1620: the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/a76689d0-e683-4127-a837-c4db7cd0687d.server:9
+nginx: [warn] the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/a76689d0-e683-4127-a837-c4db7cd0687d.server:9
+2026/06/06 13:47:11 [warn] 1620#1620: protocol options redefined for 0.0.0.0:443 in /etc/nginx/conf.d/a76689d0-e683-4127-a837-c4db7cd0687d.server:9
+nginx: [warn] protocol options redefined for 0.0.0.0:443 in /etc/nginx/conf.d/a76689d0-e683-4127-a837-c4db7cd0687d.server:9
+2026/06/06 13:47:11 [warn] 1620#1620: the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/b04670f8-ef50-4fcc-92b5-e25f73121b54.server:5
+nginx: [warn] the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/b04670f8-ef50-4fcc-92b5-e25f73121b54.server:5
+2026/06/06 13:47:11 [warn] 1620#1620: the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/d34e3165-af92-4887-b376-79fb266a3a9a.server:7
+nginx: [warn] the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/d34e3165-af92-4887-b376-79fb266a3a9a.server:7
+2026/06/06 13:47:11 [warn] 1620#1620: protocol options redefined for 0.0.0.0:443 in /etc/nginx/conf.d/dce395b9-f2ce-4853-8c63-a7ccdfe5793a.server:2
+nginx: [warn] protocol options redefined for 0.0.0.0:443 in /etc/nginx/conf.d/dce395b9-f2ce-4853-8c63-a7ccdfe5793a.server:2
+2026/06/06 13:47:11 [warn] 1620#1620: the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/noob_ai.server:7
+nginx: [warn] the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/noob_ai.server:7
+2026/06/06 13:47:11 [warn] 1620#1620: protocol options redefined for 0.0.0.0:443 in /etc/nginx/conf.d/noob_ai.server:7
+nginx: [warn] protocol options redefined for 0.0.0.0:443 in /etc/nginx/conf.d/noob_ai.server:7
+2026/06/06 13:47:11 [warn] 1620#1620: the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/noob_ai.server:7
+nginx: [warn] the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/noob_ai.server:7
+2026/06/06 13:47:11 [warn] 1620#1620: the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.server:11
+nginx: [warn] the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.server:11
+2026/06/06 13:47:11 [warn] 1620#1620: protocol options redefined for 0.0.0.0:443 in /etc/nginx/nginx.conf:160
+nginx: [warn] protocol options redefined for 0.0.0.0:443 in /etc/nginx/nginx.conf:160
+2026/06/06 13:47:11 [warn] 1620#1620: the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/nginx.conf:202
+nginx: [warn] the "listen ... http2" directive is deprecated, use the "http2" directive instead in /etc/nginx/nginx.conf:202
+2026/06/06 13:47:11 [warn] 1620#1620: protocol options redefined for 0.0.0.0:443 in /etc/nginx/nginx.conf:202
+nginx: [warn] protocol options redefined for 0.0.0.0:443 in /etc/nginx/nginx.conf:202
+2026/06/06 13:47:11 [warn] 1620#1620: conflicting server name "*.noob-ai.test.bangbangvip.com" on 0.0.0.0:80, ignored
+nginx: [warn] conflicting server name "*.noob-ai.test.bangbangvip.com" on 0.0.0.0:80, ignored
+2026/06/06 13:47:11 [warn] 1620#1620: conflicting server name "noob-ai.test.bangbangvip.com" on 0.0.0.0:80, ignored
+nginx: [warn] conflicting server name "noob-ai.test.bangbangvip.com" on 0.0.0.0:80, ignored
+2026/06/06 13:47:11 [warn] 1620#1620: conflicting server name "e15e5f7c-bd14-422e-a830-440bf08a200d.noob-ai.test.bangbangvip.com" on 0.0.0.0:80, ignored
+nginx: [warn] conflicting server name "e15e5f7c-bd14-422e-a830-440bf08a200d.noob-ai.test.bangbangvip.com" on 0.0.0.0:80, ignored
+2026/06/06 13:47:11 [warn] 1620#1620: conflicting server name "noob_ai.noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+nginx: [warn] conflicting server name "noob_ai.noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+2026/06/06 13:47:11 [warn] 1620#1620: conflicting server name "6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+nginx: [warn] conflicting server name "6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+2026/06/06 13:47:11 [warn] 1620#1620: conflicting server name "*.noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+nginx: [warn] conflicting server name "*.noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+2026/06/06 13:47:11 [warn] 1620#1620: conflicting server name "noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+nginx: [warn] conflicting server name "noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+2026/06/06 13:47:11 [warn] 1620#1620: conflicting server name "e15e5f7c-bd14-422e-a830-440bf08a200d.noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+nginx: [warn] conflicting server name "e15e5f7c-bd14-422e-a830-440bf08a200d.noob-ai.test.bangbangvip.com" on 0.0.0.0:443, ignored
+2026/06/06 13:47:11 [notice] 1620#1620: signal process started
+err: 
+
+=== Network check ===
+Gateway on project network: 
+
+=== DB check ===
+DB tables: mysql: [Warning] Using a password on the command line interface can be insecure.
+table_count
+258
+err: 
+
+=== Users table ===
+Users: mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1054 (42S22) at line 1: Unknown column 'username' in 'field list'
+err: 
+
+=== External verify ===
+API health: {"status":"ok","service":"bini-health-api"}
+H5 status: 200
+Admin status: 200
+
+=== Container status ===
+Containers: 6b099ed3-7175-4a78-91f4-44570c84ed27-backend Up 28 minutes (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-h5 Up 31 minutes (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-admin Up 31 minutes (healthy)
+6b099ed3-7175-4a78-91f4-44570c84ed27-db Up About an hour (healthy)

@@ -1,0 +1,30 @@
+=== Container system.py (lines 30-50) ===
+L31:     用途：
+L32:     - H5 / 微信小程序 / Flutter 三端在改约弹窗打开时调用，记录与本地的偏移
+L33:     - 之后所有"是否为今天 / 时段是否已过"判断均使用 (本地时间 - offset) 推算
+L34:     - 即便客户端时间被调快 1 天，前端仍按服务器时间过滤
+L35:     """
+L36:     utc_now = datetime.now()
+L37:     return {
+L38:         "now_iso": utc_now.strftime("%Y-%m-%dT%H:%M:%S.") + f"{utc_now.microsecond // 1000:03d}Z",
+L39:         "now_unix_ms": int(time.time() * 1000),
+L40:         "timezone": "UTC",
+L41:     }
+L42: 
+
+=== Server Git ===
+4e18e05f feat: 日期时区简化优化方案
+---
+commit 4e18e05fb1a40e47072672536615dcfa89367367
+Author: auto-dev <auto-dev@bnbbaijkgj.local>
+Date:   Sat Jun 6 21:06:21 2026 +0800
+
+    feat: 日期时区简化优化方案
+
+ _scan_dt.py                                        |    11 +
+ admin-web/src/lib/datetime.ts                      |    40 +-
+ admin_out.txt                                      |   109 +
+ all_routes_extracted.json                          |  7567 ++------
+
+=== Backend image ===
+2026-06-06T13:08:26.900824683Z 1b3b8d7f376b24df1095b0752357c0215309344116bd220e4f2731a18606d79d

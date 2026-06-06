@@ -4,6 +4,8 @@ services:
     build:
       context: ../backend
       dockerfile: ../deploy/Dockerfile.backend
+      args:
+        BUILD_COMMIT: ${BUILD_COMMIT:-unknown}
     container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-backend
     restart: unless-stopped
     healthcheck:
@@ -13,7 +15,7 @@ services:
       retries: 10
       start_period: 60s
     environment:
-      DATABASE_URL: mysql+aiomysql://root:xiaokang989aab@gz-cdb-nniq1lmp.sql.tencentcdb.com:27082/bini_health
+      DATABASE_URL: mysql+aiomysql://root:bini_health_2026@6b099ed3-7175-4a78-91f4-44570c84ed27-db:3306/bini_health
       SECRET_KEY: bini-health-secret-key-2026-very-secure
       AI_BASE_URL: ${AI_BASE_URL:-}
       AI_MODEL_NAME: ${AI_MODEL_NAME:-}
@@ -24,9 +26,9 @@ services:
       TENCENT_SMS_SIGN_NAME: ${TENCENT_SMS_SIGN_NAME:-呃唉帮帮网络}
       TENCENT_SMS_TEMPLATE_ID: ${TENCENT_SMS_TEMPLATE_ID:-2201340}
       TENCENT_SMS_APP_KEY: ${TENCENT_SMS_APP_KEY:-7e3c8242bf0799cca367fa18fa47a7ea}
-      STATIC_BASE_URL: ${STATIC_BASE_URL:-https://chat.benne-ai.com}
-      PROJECT_BASE_URL: ${PROJECT_BASE_URL:-https://chat.benne-ai.com}
-      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-https://chat.benne-ai.com}
+      STATIC_BASE_URL: ${STATIC_BASE_URL:-https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com}
+      PROJECT_BASE_URL: ${PROJECT_BASE_URL:-https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com}
+      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com}
       PAYMENT_TIMEOUT_MINUTES: ${PAYMENT_TIMEOUT_MINUTES:-15}
     volumes:
       - uploads_data:/app/uploads
@@ -46,6 +48,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: /api
         NEXT_PUBLIC_BASE_PATH: /admin
+        BUILD_COMMIT: ${BUILD_COMMIT:-unknown}
     container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-admin
     restart: unless-stopped
     healthcheck:
@@ -75,6 +78,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: /api
         NEXT_PUBLIC_BASE_PATH: ""
+        BUILD_COMMIT: ${BUILD_COMMIT:-unknown}
     container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
     restart: unless-stopped
     healthcheck:
