@@ -409,42 +409,110 @@ async def sync_regions_seed(
     """种子数据同步（内置 10 城市完整行政区划数据，无需调用高德 API）。
     
     从内置的 region_data 字典写入 brain_game_regions 表。
+    插入前先检查 (adcode, name, level, parent_adcode) 组合是否已存在，
+    存在则跳过，避免重复插入。
+    同步开始前先清理已有的重复数据（按 name/level/parent_adcode 分组保留最小 id）。
     适用于无法调用高德 API 或开发测试环境。
     """
     import json as _json
+    from sqlalchemy import select as _select, text as _text
+    
+    # 先清理已有重复数据：按 (name, level, parent_adcode) 分组，保留 id 最小的那条
+    cleanup_sql = _text("""
+        DELETE FROM brain_game_regions
+        WHERE id NOT IN (
+            SELECT * FROM (
+                SELECT MIN(id) FROM brain_game_regions
+                GROUP BY name, level, parent_adcode
+            ) AS tmp
+        )
+    """)
+    cleanup_result = await db.execute(cleanup_sql)
+    deleted_count = cleanup_result.rowcount
+    await db.commit()
+    if deleted_count:
+        logger.info(f"sync-seed 清理重复数据：删除了 {deleted_count} 条重复记录")
     
     region_data = _json.loads(REGION_DATA_JSON)
     inserted = 0
+    skipped = 0
 
-    def _process(node: dict, parent_adcode: Optional[str] = None):
-        nonlocal inserted
+    async def _process(node: dict, parent_adcode: Optional[str] = None):
+        nonlocal inserted, skipped
         adcode = node.get("adcode", "")
         name = node.get("name", "")
         level = node.get("level", "")
         
         if not adcode or not name:
             for child in node.get("children", []):
-                _process(child, parent_adcode)
+                await _process(child, parent_adcode)
             return
         
-        inserted += 1
-        region = BrainGameRegion(
-            adcode=adcode,
-            name=name,
-            level=level,
-            parent_adcode=parent_adcode,
-            center=node.get("center", ""),
+        existing = await db.execute(
+            _select(BrainGameRegion).where(
+                BrainGameRegion.adcode == adcode,
+                BrainGameRegion.name == name,
+                BrainGameRegion.level == level,
+                BrainGameRegion.parent_adcode == parent_adcode,
+            ).limit(1)
         )
-        db.add(region)
+        if existing.scalar_one_or_none() is not None:
+            skipped += 1
+        else:
+            inserted += 1
+            region = BrainGameRegion(
+                adcode=adcode,
+                name=name,
+                level=level,
+                parent_adcode=parent_adcode,
+                center=node.get("center", ""),
+            )
+            db.add(region)
         
         for child in node.get("children", []):
-            _process(child, adcode)
+            await _process(child, adcode)
 
     for root in region_data:
-        _process(root)
+        await _process(root)
 
     await db.commit()
-    return {"message": f"种子数据同步完成，共写入 {inserted} 条记录", "inserted": inserted}
+    return {
+        "message": f"种子数据同步完成，共写入 {inserted} 条记录，跳过 {skipped} 条已存在记录" + (f"，清理 {deleted_count} 条重复数据" if deleted_count else ""),
+        "inserted": inserted,
+        "skipped": skipped,
+        "deleted": deleted_count,
+    }
+
+
+@router.post("/regions/clean-duplicates")
+async def clean_duplicate_regions(
+    db: AsyncSession = Depends(get_db),
+):
+    """清理 brain_game_regions 表中的重复数据。
+
+    按 (name, level, parent_adcode) 分组，保留每组中 id 最小的记录，
+    删除其余重复记录。返回删除数量。
+    """
+    from sqlalchemy import text as _text
+
+    cleanup_sql = _text("""
+        DELETE FROM brain_game_regions
+        WHERE id NOT IN (
+            SELECT * FROM (
+                SELECT MIN(id) FROM brain_game_regions
+                GROUP BY name, level, parent_adcode
+            ) AS tmp
+        )
+    """)
+    result = await db.execute(cleanup_sql)
+    deleted_count = result.rowcount
+    await db.commit()
+
+    return {
+        "message": f"重复数据清理完成，共删除 {deleted_count} 条重复记录",
+        "deleted": deleted_count,
+    }
+
 
 # ──────────────── 成绩与排名接口 ────────────────
 

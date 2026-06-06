@@ -1,6 +1,6 @@
 # 宾尼健康 (Bini Health) 项目索引
 
-> **最后更新**: 2026-06-06 22:10:00 (v4.1 Bug修复第二轮：health_profile数据查询user_id修正、unbind_member补充rollback调用、解绑提示区分角色等)
+> **最后更新**: 2026-06-07 02:17:00 (v4.2 Bug修复第三轮：解绑后重新邀请"无法处理邀请"问题根因修复)
 > **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
 > **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
 > **Git 主仓库**: Codeup (codeup.aliyun.com)  
@@ -144,6 +144,33 @@ gateway-nginx (独立主网关, 端口 443)
 - Node.js: `node:20-alpine`
 - MySQL: `mysql:8.0`
 
+
+---
+
+## 最新变更 (2026-06-07)
+
+### Bug修复：解绑后重新邀请"无法处理邀请"根本原因修复 (v4.2)
+
+**改动量统计**：
+
+| 类别 | 改动项 | 数量 |
+|------|--------|------|
+| 后端 | `create_invitation` + `reinvite_member` 同步更新 `FamilyMember.sub_status` | 2 处 |
+| 后端 | `create_invitation` 重新邀请前清理旧的 `inactive` FamilyManagement 记录 | 1 处 |
+| 后端 | `accept_invitation` 复用旧的 `inactive` FamilyManagement 记录 | 1 处 |
+| 前端 H5 | `getErrorTitle()` 增加"邀请不存在"匹配 | 1 处 |
+| 测试 | 新增 pytest 测试用例 | 1 文件 |
+
+**改动文件清单**：
+
+| 文件 | 改动 |
+|------|------|
+| `backend/app/api/family_management.py` | 修复一：create_invitation 创建邀请后同步更新 FamilyMember.sub_status 为 "applying"（第226-231行）；修复二：重新邀请前清理旧的 inactive 状态 FamilyManagement 记录为 "removed"（第179-189行）；修复四：accept_invitation 接受邀请时优先复用旧的 inactive 状态 FamilyManagement 记录（第624-648行） |
+| `backend/app/api/family_member_v2.py` | 修复一：reinvite_member 创建邀请后同步更新 member.sub_status 为 "applying"（第1226-1230行） |
+| `h5-web/src/app/family-auth/page.tsx` | 修复三：getErrorTitle() 增加对"邀请不存在"的匹配，置于"已过期"匹配之前（第391-393行） |
+| `backend/tests/test_reinvite_after_unbind_v1_20260607.py` | 新增测试用例：7 个核心测试 + 1 个集成测试（skip），覆盖所有 4 项修复 |
+
+**部署状态**：✅ 已部署到测试服务器，HTTPS 全量检查通过
 
 ---
 
