@@ -1,6 +1,6 @@
 # 宾尼健康 (Bini Health) 项目索引
 
-> **最后更新**: 2026-06-07 02:17:00 (v4.2 Bug修复第三轮：解绑后重新邀请"无法处理邀请"问题根因修复)
+> **最后更新**: 2026-06-07 03:14:00 (v4.3 益智乐园修改汇总：卡片紧凑化 + 微信图标替换 + sync-seed防重复)
 > **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
 > **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
 > **Git 主仓库**: Codeup (codeup.aliyun.com)  
@@ -384,3 +384,45 @@ gateway-nginx (独立主网关, 端口 443)
 **部署状态**：✅ 已部署到测试服务器，测试全部通过（5 个关键 URL 100% 可达，3 个前端页面冒烟测试全部通过）
 
 **体验手册**：`user_docs/manual_20260606_235513_b170.md`
+
+---
+
+## 最新变更 (2026-06-07)
+
+### 需求：益智乐园（脑力游戏）修改汇总 (v4.3)
+
+本次共涉及 3 大类修改：
+
+| 序号 | 修改项 | 涉及文件 | 类型 |
+|------|--------|----------|------|
+| 1 | 首页三张功能卡片紧凑化 | `h5-web/public/brain-game.html` | 前端 UI |
+| 2 | 转发/分享图标换成微信图标 | `h5-web/public/brain-game.html` | 前端 UI |
+| 3 | 数据库地区数据重复清理 + sync-seed 接口防重复 | `backend/app/api/brain_game.py` | 后端 + 数据 |
+
+#### 修改一：首页三张功能卡片紧凑化
+- 卡片布局从纵向改为横向（图标在左、文字在右），三张卡片一屏内全部可见
+- 卡片内边距、间距、圆角、字号均缩小
+- HTML 新增 card-body 包裹层
+- 响应式断点字号同步适配（480px/380px）
+
+#### 修改二：转发/分享图标换成微信图标
+- 4 处 🔄 emoji 替换为微信 SVG 图标（#07C160 绿色气泡 + 白色微笑）
+- 涉及位置：组队挑战页按钮、组队结果页按钮、右下角浮动按钮、分享弹窗
+
+#### 修改三：sync-seed 接口防重复 + 重复数据清理
+- sync-seed 接口每插入一条前先查数据库是否有相同 (adcode, name, level, parent_adcode) 组合
+- 已存在则 skipped++，跳过不插入；不存在则执行 INSERT
+- 接口返回新增 `skipped` 和 `deleted` 字段
+- 新增 `POST /api/brain-game/regions/clean-duplicates` 端点用于手动清理重复数据
+- 清理逻辑：按 (name, level, parent_adcode) 分组保留 MIN(id)，删除其余重复记录
+
+**改动文件清单**：
+
+| 文件 | 改动 |
+|------|------|
+| `h5-web/public/brain-game.html` | 首页卡片紧凑化 CSS 布局/间距/字号 + HTML card-body 结构；4 处微信 SVG 图标替换；响应式断点字号适配 |
+| `backend/app/api/brain_game.py` | sync-seed 接口增加插入前查重逻辑 + 新增 clean-duplicates 端点 |
+
+**部署状态**：✅ 已部署到测试服务器，全部验证通过
+
+**体验手册**：`user_docs/manual_20260607_031303_b7f2.md`
