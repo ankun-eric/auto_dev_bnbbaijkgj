@@ -176,6 +176,18 @@ async def create_invitation(
         if active_mgmt_result.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="该成员已有激活的共管关系")
 
+        # [BUGFIX-REINVITE-AFTER-UNBIND-V1 2026-06-07] 修复二：重新邀请前清理旧的
+        # inactive FamilyManagement 记录，避免解绑后的残留记录干扰新邀请的接受流程。
+        old_mgmt_result = await db.execute(
+            select(FamilyManagement).where(
+                FamilyManagement.manager_user_id == current_user.id,
+                FamilyManagement.managed_member_id == member.id,
+                FamilyManagement.status == "inactive",
+            )
+        )
+        for mg in old_mgmt_result.scalars().all():
+            mg.status = "removed"
+
         # [BUG-FIX-INVITE-NULL-MEMBER 2026-05-25] 情况 1：自动取消旧 pending
         pending_result = await db.execute(
             select(FamilyInvitation).where(
@@ -210,6 +222,14 @@ async def create_invitation(
     except Exception:
         pass
     db.add(invitation)
+
+    # [BUGFIX-REINVITE-AFTER-UNBIND-V1 2026-06-07] 修复一：创建邀请后同步更新
+    # FamilyMember.sub_status 为 "applying"，确保解绑后重新邀请时前端能正确
+    # 识别成员处于"邀请中"状态，避免 invite_code 查询时因 member 为 None 导致"邀请不存在"。
+    if member is not None:
+        member.sub_status = "applying"
+        db.add(member)
+
     await db.flush()
 
     # [BUGFIX-DELETE-RATELIMIT-V1 2026-06-01] 仅在邀请创建成功后才记一次额度
@@ -601,13 +621,31 @@ async def accept_invitation(
     ):
         raise HTTPException(status_code=400, detail=DUPLICATE_BIND_DETAIL)
 
-    management = FamilyManagement(
-        manager_user_id=invitation.inviter_user_id,
-        managed_user_id=current_user.id,
-        managed_member_id=invitation.member_id,
-        status="active",
+    # [BUGFIX-REINVITE-AFTER-UNBIND-V1 2026-06-07] 修复四：接受邀请时复用旧的
+    # inactive FamilyManagement 记录。若解绑后重新邀请并接受，不应创建新记录，
+    # 而应将旧的 inactive 记录恢复为 active（保留审计连续性，避免孤儿记录）。
+    existing_mgmt_result = await db.execute(
+        select(FamilyManagement).where(
+            FamilyManagement.manager_user_id == invitation.inviter_user_id,
+            FamilyManagement.managed_member_id == invitation.member_id,
+            FamilyManagement.status == "inactive",
+        )
     )
-    db.add(management)
+    existing_mgmt = existing_mgmt_result.scalars().first()
+    if existing_mgmt:
+        existing_mgmt.status = "active"
+        existing_mgmt.managed_user_id = current_user.id
+        existing_mgmt.cancelled_at = None
+        existing_mgmt.cancelled_by = None
+        management = existing_mgmt
+    else:
+        management = FamilyManagement(
+            manager_user_id=invitation.inviter_user_id,
+            managed_user_id=current_user.id,
+            managed_member_id=invitation.member_id,
+            status="active",
+        )
+        db.add(management)
     await db.flush()
 
     log = ManagementOperationLog(

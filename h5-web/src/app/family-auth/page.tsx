@@ -388,6 +388,9 @@ function FamilyAuthContent() {
           // [Bug-5] 根据后端返回的 detail 内容区分不同错误场景展示不同标题
           const getErrorTitle = () => {
             const msg = errorMsg || '';
+            if (msg.includes('不存在') || msg.includes('邀请不存在')) {
+              return '邀请不存在';
+            }
             if (msg.includes('已是该家庭的成员') || msg.includes('您已是对方的守护者') || msg.includes('重复绑定')) {
               return '您已在守护关系中';
             }

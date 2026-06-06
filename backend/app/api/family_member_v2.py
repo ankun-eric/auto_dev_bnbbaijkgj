@@ -1222,6 +1222,13 @@ async def reinvite_member(
         nickname=member.nickname or "",
     )
     db.add(new_inv)
+
+    # [BUGFIX-REINVITE-AFTER-UNBIND-V1 2026-06-07] 修复一：重新邀请后同步更新
+    # FamilyMember.sub_status 为 "applying"，确保解绑后重新邀请时成员状态
+    # 与邀请状态一致，避免出现"邀请已发出但成员显示为已解绑"的不一致。
+    member.sub_status = "applying"
+    db.add(member)
+
     await db.flush()
 
     qr_url = (
