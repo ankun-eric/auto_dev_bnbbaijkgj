@@ -1,6 +1,6 @@
 # 宾尼健康 (Bini Health) 项目索引
 
-> **最后更新**: 2026-06-06 14:11:04 (v3.0 Bug修复：10项修复含管理后台设备菜单、守护流程修复、系统消息角色修正、文案统一)
+> **最后更新**: 2026-06-06 21:21:00 (v4.0 日期时区简化优化：933处utcnow→now，删除datetime_utils.py，前端日期文件简化，Docker TZ=Asia/Shanghai)
 > **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
 > **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
 > **Git 主仓库**: Codeup (codeup.aliyun.com)  
@@ -148,6 +148,38 @@ gateway-nginx (独立主网关, 端口 443)
 ---
 
 ## 最新变更 (2026-06-06)
+
+### 日期时区简化优化 (v4.0)
+
+**改动量统计**：
+
+| 类别 | 改动项 | 数量 |
+|------|--------|------|
+| 后端 | `datetime.utcnow()` → `datetime.now()` 全局替换 | 190+ 文件 |
+| 后端 | 删除 `datetime_utils.py`，新建 `time_format.py` (format_bj) | 2 文件 |
+| 后端 | 手动时区转换清理 | 3 处 |
+| 后端 | `datetime.now(timezone.utc)` → `datetime.now()` | 2 处 |
+| 后端 | API 返回格式统一为 `YYYY-MM-DD HH:mm:ss` | 全局 |
+| 前端 H5 | `datetime.ts` 简化（去除时区转换，用原生 API） | 1 文件 |
+| 前端 Admin | `datetime.ts` 简化（去除时区转换，用 dayjs） | 1 文件 |
+| 小程序 | `datetime.js` 简化 | 1 文件 |
+| Flutter | `datetime_utils.dart` 简化 | 1 文件 |
+| 数据库 | 迁移脚本（SQL + Python） | 2 文件 |
+| Docker | `TZ=Asia/Shanghai` 环境变量 | 1 处 |
+
+**关键文件**：
+- `backend/app/core/time_format.py` — 新增 `format_bj()` 时间格式化工具
+- `backend/app/utils/datetime_utils.py` — 已删除
+- `backend/app/api/system.py` — `server-time` 返回北京时间格式
+- `backend/migrations/migration_timezone_bj_20260606.sql` — SQL 迁移脚本
+- `backend/migrations/migration_timezone_bj_20260606.py` — Python 迁移脚本
+- `docker-compose.prod.yml` — 添加 `TZ: Asia/Shanghai`
+- `h5-web/src/lib/datetime.ts` — 简化版
+- `admin-web/src/lib/datetime.ts` — 简化版
+- `miniprogram/utils/datetime.js` — 简化版
+- `flutter_app/lib/utils/datetime_utils.dart` — 简化版
+
+**部署状态**：✅ 已部署到测试服务器，server-time 返回北京时间 `YYYY-MM-DD HH:mm:ss`，timezone=`Asia/Shanghai`
 
 ### Bug修复：宾尼健康 v3.0 Bug 修复 (10项)
 
