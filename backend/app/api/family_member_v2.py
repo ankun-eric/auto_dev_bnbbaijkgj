@@ -1197,6 +1197,18 @@ async def reinvite_member(
     if active_mgmt:
         raise HTTPException(status_code=400, detail="该档案已绑定守护关系，无需重新邀请")
 
+    # [BUGFIX-REINVITE-AFTER-UNBIND-V1 2026-06-07] 修复二补充：重新邀请前清理旧的
+    # inactive FamilyManagement 记录，与 create_invitation 保持一致。
+    old_mgmt_result = await db.execute(
+        select(FamilyManagement).where(
+            FamilyManagement.manager_user_id == current_user.id,
+            FamilyManagement.managed_member_id == member_id,
+            FamilyManagement.status == "inactive",
+        )
+    )
+    for mg in old_mgmt_result.scalars().all():
+        mg.status = "removed"
+
     # 取消所有 pending/rejected/expired
     inv_res = await db.execute(
         select(FamilyInvitation).where(

@@ -241,8 +241,12 @@ function FamilyAuthContent() {
         setStatus('error');
       }
     } catch (err: any) {
-      const detail = err?.response?.data?.detail || '获取邀请信息失败';
-      setErrorMsg(detail);
+      const detail = err?.response?.data?.detail;
+      if (!detail && !err?.response) {
+        setErrorMsg('网络连接异常，请检查网络后重试');
+      } else {
+        setErrorMsg(detail || '获取邀请信息失败');
+      }
       setStatus('error');
     }
   };
@@ -401,10 +405,10 @@ function FamilyAuthContent() {
               return '邀请已取消';
             }
             if (msg.includes('不能接受自己')) {
-              return '无法处理邀请';
+              return '无法接受自己发起的邀请';
             }
             if (msg.includes('已达上限')) {
-              return '无法处理邀请';
+              return '被管理人数已达上限';
             }
             if (msg.includes('已接受') || msg.includes('已被接受')) {
               return '邀请已失效';
