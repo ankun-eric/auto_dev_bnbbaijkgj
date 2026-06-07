@@ -6,7 +6,7 @@
 services:
   backend:
     build:
-      context: ./backend
+      context: ../backend
       args:
         BUILD_COMMIT: "${BUILD_COMMIT:-unknown}"
     image: crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_ai_apps/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest
@@ -47,7 +47,7 @@ services:
 
   admin-web:
     build:
-      context: ./admin-web
+      context: ../admin-web
       args:
         BUILD_COMMIT: "${BUILD_COMMIT:-unknown}"
     image: crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_ai_apps/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
@@ -75,7 +75,7 @@ services:
 
   h5-web:
     build:
-      context: ./h5-web
+      context: ../h5-web
       args:
         BUILD_COMMIT: "${BUILD_COMMIT:-unknown}"
     image: crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_ai_apps/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
