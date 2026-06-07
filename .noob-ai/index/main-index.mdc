@@ -1,6 +1,6 @@
 # 宾尼健康 (Bini Health) 项目索引
 
-> **最后更新**: 2026-06-07 03:14:00 (v4.3 益智乐园修改汇总：卡片紧凑化 + 微信图标替换 + sync-seed防重复)
+> **最后更新**: 2026-06-07 12:30:00 (v4.4 brain-game 页面优化：卡片横向布局 + 删除随便选一个按钮 + 删除 brain-game.html)
 > **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
 > **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
 > **Git 主仓库**: Codeup (codeup.aliyun.com)  
@@ -77,7 +77,7 @@ bnbbaijkgj/
 │   │   ├── devices/           # 我的设备（按场景分类展示 F8-F9）
 │   │   └── ...
 │   ├── public/
-│   │   └── brain-game.html   # 益智乐园 H5（数学游戏+排行+组队挑战，适老化设计）
+│   │   └── brain-game.html   # ❌ 已删除 (v4.4) — 统一使用 /brain-game Next.js 路由页面
 │   ├── Dockerfile
 │   └── package.json
 ├── admin-web/                # Next.js 管理后台
@@ -426,3 +426,27 @@ gateway-nginx (独立主网关, 端口 443)
 **部署状态**：✅ 已部署到测试服务器，全部验证通过
 
 **体验手册**：`user_docs/manual_20260607_031303_b7f2.md`
+
+---
+
+### 需求：brain-game 页面优化 (v4.4)
+
+本次将 `brain-game.html` 中的优化同步到 Next.js 路由页面 `/brain-game`，统一入口。
+
+| 序号 | 修改项 | 涉及文件 | 类型 |
+|------|--------|----------|------|
+| 1 | 首页三张功能卡片横向布局 | `h5-web/src/app/brain-game/page.tsx`、`page.css` | 前端 UI |
+| 2 | 删除省市区弹窗「随便选一个」按钮 | `h5-web/src/app/brain-game/page.tsx`、`page.css` | 前端 UI |
+| 3 | 删除 brain-game.html 文件 | `h5-web/public/brain-game.html` | 清理 |
+
+**改动文件清单**：
+
+| 文件 | 改动 |
+|------|------|
+| `h5-web/src/app/brain-game/page.tsx` | 三张卡片 JSX 增加 card-body 包裹层；删除 randomPick 函数；删除「随便选一个」按钮 |
+| `h5-web/src/app/brain-game/page.css` | .menu-card flex 布局；.card-icon 尺寸缩小；.menu-grid gap 调整；新增 .card-body；删除 .pf-skip |
+| `h5-web/public/brain-game.html` | 已删除 |
+
+**部署状态**：✅ 已部署到测试服务器，全部验证通过
+
+**体验手册**：`user_docs/manual_20260607_122910_d61b.md`
