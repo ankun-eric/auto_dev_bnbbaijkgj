@@ -70,17 +70,18 @@
 .brain-game-container .page-title p { font-size: 17px; color: #1565c0; }
 
 /* 首页 - 功能卡片 */
-.brain-game-container .menu-grid { display: flex; flex-direction: column; gap: 22px; }
+.brain-game-container .menu-grid { display: flex; flex-direction: column; gap: 18px; }
 .brain-game-container .menu-card {
   background: rgba(255,255,255,0.85);
-  border-radius: 28px;
-  padding: 32px 28px;
+  border-radius: 24px;
+  padding: 16px 20px;
   box-shadow: 0 8px 24px rgba(33,150,243,0.18);
   border: 2px solid rgba(255,255,255,0.6);
   cursor: pointer;
   transition: all 0.2s;
   position: relative;
   overflow: hidden;
+  display: flex; align-items: center; gap: 16px;
 }
 .brain-game-container .menu-card:active { transform: scale(0.98); box-shadow: 0 4px 12px rgba(33,150,243,0.12); }
 .brain-game-container .menu-card::before {
@@ -96,11 +97,10 @@
 .brain-game-container .card-team::before { background: linear-gradient(135deg, #81c784, #43a047); }
 
 .brain-game-container .card-icon {
-  width: 80px; height: 80px;
-  border-radius: 22px;
+  width: 56px; height: 56px; flex-shrink: 0;
+  border-radius: 16px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 46px;
-  margin-bottom: 18px;
+  font-size: 30px;
 }
 .brain-game-container .card-math .card-icon { background: linear-gradient(135deg, #fff3e0, #ffe0b2); }
 .brain-game-container .card-rank .card-icon { background: linear-gradient(135deg, #e1f5fe, #b3e5fc); }
@@ -113,6 +113,7 @@
 .brain-game-container .sub-item { font-weight: 500; }
 .brain-game-container .dot { color: #90caf9; margin: 0 8px; font-size: 22px; }
 .brain-game-container .card-desc { margin-top: 14px; font-size: 16px; color: #5c7ea3; line-height: 1.5; }
+.brain-game-container .card-body { flex: 1; min-width: 0; }
 .brain-game-container .footer { text-align: center; margin-top: 30px; font-size: 14px; color: #5c7ea3; }
 
 /* 浮动分享按钮 */
@@ -507,7 +508,6 @@
   border: none;
   cursor: pointer;
 }
-.brain-game-container .pf-skip { background: #f5f5f5; color: #666; }
 .brain-game-container .pf-ok {
   background: linear-gradient(135deg, #0288d1, #4fc3f7);
   color: white;

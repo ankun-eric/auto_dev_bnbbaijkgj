@@ -403,17 +403,7 @@ export default function BrainGamePage() {
     setPickerOpen(false);
   };
 
-  const randomPick = () => {
-    if (regionTree.length === 0) return;
-    const p = regionTree[0];
-    const city = p.children[Math.floor(Math.random() * p.children.length)];
-    if (!city) return;
-    const district = city.children[Math.floor(Math.random() * city.children.length)];
-    if (!district) return;
-    const street = district.children[Math.floor(Math.random() * district.children.length)];
-    if (!street) return;
-    setPickerSel({ province: p.name, city: city.name, district: district.name, street: street.name });
-  };
+
 
   // ========== 组队挑战 ==========
   const loadChallenges = useCallback(async () => {
@@ -617,33 +607,39 @@ export default function BrainGamePage() {
           <div className="menu-grid">
             <div className="menu-card card-math" onClick={() => navigate('math-difficulty')}>
               <div className="card-icon">🧮</div>
-              <div className="card-title">数学游戏</div>
-              <div className="card-subs">
-                <span className="sub-item">基础</span><span className="dot">·</span>
-                <span className="sub-item">进阶</span><span className="dot">·</span>
-                <span className="sub-item">挑战</span>
+              <div className="card-body">
+                <div className="card-title">数学游戏</div>
+                <div className="card-subs">
+                  <span className="sub-item">基础</span><span className="dot">·</span>
+                  <span className="sub-item">进阶</span><span className="dot">·</span>
+                  <span className="sub-item">挑战</span>
+                </div>
+                <div className="card-desc">每天动动脑，越玩越聪明</div>
               </div>
-              <div className="card-desc">每天动动脑，越玩越聪明</div>
             </div>
             <div className="menu-card card-rank" onClick={() => navigate('ranking')}>
               <div className="card-icon">🏆</div>
-              <div className="card-title">排行榜</div>
-              <div className="card-subs">
-                <span className="sub-item">街道</span><span className="dot">·</span>
-                <span className="sub-item">区域</span><span className="dot">·</span>
-                <span className="sub-item">城市</span>
+              <div className="card-body">
+                <div className="card-title">排行榜</div>
+                <div className="card-subs">
+                  <span className="sub-item">街道</span><span className="dot">·</span>
+                  <span className="sub-item">区域</span><span className="dot">·</span>
+                  <span className="sub-item">城市</span>
+                </div>
+                <div className="card-desc">看看您在街坊邻居中排第几</div>
               </div>
-              <div className="card-desc">看看您在街坊邻居中排第几</div>
             </div>
             <div className="menu-card card-team" onClick={() => navigate('team')}>
               <div className="card-icon">👥</div>
-              <div className="card-title">组队挑战</div>
-              <div className="card-subs">
-                <span className="sub-item">组队</span><span className="dot">·</span>
-                <span className="sub-item">PK</span><span className="dot">·</span>
-                <span className="sub-item">排行</span>
+              <div className="card-body">
+                <div className="card-title">组队挑战</div>
+                <div className="card-subs">
+                  <span className="sub-item">组队</span><span className="dot">·</span>
+                  <span className="sub-item">PK</span><span className="dot">·</span>
+                  <span className="sub-item">排行</span>
+                </div>
+                <div className="card-desc">邀请好友一起答题，比比谁的队伍更强</div>
               </div>
-              <div className="card-desc">邀请好友一起答题，比比谁的队伍更强</div>
             </div>
           </div>
           <div className="footer">益智乐园 · 让晚年更精彩</div>
@@ -1020,7 +1016,6 @@ export default function BrainGamePage() {
               ))}
             </div>
             <div className="picker-foot">
-              <button className="pf-btn pf-skip" onClick={randomPick}>随便选一个</button>
               <button
                 className="pf-btn pf-ok"
                 onClick={confirmPicker}
