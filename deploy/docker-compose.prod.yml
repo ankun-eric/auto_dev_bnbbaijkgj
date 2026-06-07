@@ -1,11 +1,15 @@
+# 生产环境 docker-compose.prod.yml
+# DEPLOY_ID: 6b099ed3-7175-4a78-91f4-44570c84ed27
+# 数据库: 腾讯云 MySQL (gz-cdb-nniq1lmp.sql.tencentcdb.com:27082)
+# 镜像来源: ACR (crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com)
+
 services:
   backend:
-    image: crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_ai_apps/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest
     build:
-      context: ../backend
-      dockerfile: ../deploy/Dockerfile.backend
+      context: ./backend
       args:
-        BUILD_COMMIT: ${BUILD_COMMIT:-unknown}
+        BUILD_COMMIT: "${BUILD_COMMIT:-unknown}"
+    image: crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_ai_apps/6b099ed3-7175-4a78-91f4-44570c84ed27-backend:latest
     container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-backend
     restart: unless-stopped
     healthcheck:
@@ -15,7 +19,8 @@ services:
       retries: 10
       start_period: 60s
     environment:
-      DATABASE_URL: mysql+aiomysql://root:bini_health_2026@db:3306/bini_health
+      TZ: Asia/Shanghai
+      DATABASE_URL: mysql+aiomysql://root:xiaokang989aab@gz-cdb-nniq1lmp.sql.tencentcdb.com:27082/bini_health
       SECRET_KEY: bini-health-secret-key-2026-very-secure
       AI_BASE_URL: ${AI_BASE_URL:-}
       AI_MODEL_NAME: ${AI_MODEL_NAME:-}
@@ -26,9 +31,10 @@ services:
       TENCENT_SMS_SIGN_NAME: ${TENCENT_SMS_SIGN_NAME:-呃唉帮帮网络}
       TENCENT_SMS_TEMPLATE_ID: ${TENCENT_SMS_TEMPLATE_ID:-2201340}
       TENCENT_SMS_APP_KEY: ${TENCENT_SMS_APP_KEY:-7e3c8242bf0799cca367fa18fa47a7ea}
-      STATIC_BASE_URL: ${STATIC_BASE_URL:-https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com}
-      PROJECT_BASE_URL: ${PROJECT_BASE_URL:-https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com}
-      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com}
+      STATIC_BASE_URL: https://chat.benne-ai.com
+      PROJECT_BASE_URL: https://chat.benne-ai.com
+      PUBLIC_API_BASE_URL: https://chat.benne-ai.com
+      PAYMENT_CONFIG_ENCRYPTION_KEY: ${PAYMENT_CONFIG_ENCRYPTION_KEY:-jzsuHsRKWp/Xy01k+8d4R2lNBvb3KQTGJJkxQXRjW2A=}
       PAYMENT_TIMEOUT_MINUTES: ${PAYMENT_TIMEOUT_MINUTES:-15}
     volumes:
       - uploads_data:/app/uploads
@@ -39,16 +45,12 @@ services:
         aliases:
           - 6b099ed3-7175-4a78-91f4-44570c84ed27-backend
 
-
   admin-web:
-    image: crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_ai_apps/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
     build:
-      context: ../admin-web
-      dockerfile: ../deploy/Dockerfile.admin
+      context: ./admin-web
       args:
-        NEXT_PUBLIC_API_URL: /api
-        NEXT_PUBLIC_BASE_PATH: /admin
-        BUILD_COMMIT: ${BUILD_COMMIT:-unknown}
+        BUILD_COMMIT: "${BUILD_COMMIT:-unknown}"
+    image: crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_ai_apps/6b099ed3-7175-4a78-91f4-44570c84ed27-admin-web:latest
     container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-admin
     restart: unless-stopped
     healthcheck:
@@ -64,21 +66,19 @@ services:
     expose:
       - "3000"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       app-network:
         aliases:
           - 6b099ed3-7175-4a78-91f4-44570c84ed27-admin
 
   h5-web:
-    image: crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_ai_apps/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
     build:
-      context: ../h5-web
-      dockerfile: ../deploy/Dockerfile.h5
+      context: ./h5-web
       args:
-        NEXT_PUBLIC_API_URL: /api
-        NEXT_PUBLIC_BASE_PATH: ""
-        BUILD_COMMIT: ${BUILD_COMMIT:-unknown}
+        BUILD_COMMIT: "${BUILD_COMMIT:-unknown}"
+    image: crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_ai_apps/6b099ed3-7175-4a78-91f4-44570c84ed27-h5-web:latest
     container_name: 6b099ed3-7175-4a78-91f4-44570c84ed27-h5
     restart: unless-stopped
     healthcheck:
@@ -94,7 +94,8 @@ services:
     expose:
       - "3001"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       app-network:
         aliases:

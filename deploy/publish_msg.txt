@@ -45,5 +45,15 @@ DB_TYPE=mysql
 DB_HOST=gz-cdb-nniq1lmp.sql.tencentcdb.com
 DB_PORT=27082
 DB_USER=root
-DB_PASS=xiaokangaab
+DB_PASS=xiaokang989aab
 DB_BACKUP=false
+
+# 数据库部署位置
+DB_LOCATION=腾讯云 MySQL
+DB_DETAIL=腾讯云云数据库 MySQL，地址 gz-cdb-nniq1lmp.sql.tencentcdb.com:27082，账号 root，密码 xiaokang989aab，数据库名 bini_health
+
+# 发布结果
+PUBLISH_STATUS=success
+PUBLISH_TIME=2026-06-07 15:25 UTC+8
+PROD_URL=https://chat.benne-ai.com
+APP_BUILD_STATUS=skipped (无代码变更)
