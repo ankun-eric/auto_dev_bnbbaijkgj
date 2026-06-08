@@ -1,6 +1,6 @@
 # 宾尼健康 (Bini Health) 项目索引
 
-> **最后更新**: 2026-06-08 09:49:00 (v4.5 Bug修复：家庭成员邀请页 getErrorTitle 匹配 + 微信跳转 fallback 优化)
+> **最后更新**: 2026-06-08 15:28:00 (v4.6 需求：用药提醒 - 历史打卡记录)
 > **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
 > **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
 > **Git 主仓库**: Codeup (codeup.aliyun.com)  
@@ -473,3 +473,48 @@ gateway-nginx (独立主网关, 端口 443)
 **部署状态**：✅ 已部署到测试服务器，全部验证通过
 
 **体验手册**：`user_docs/manual_20260607_122910_d61b.md`
+
+---
+
+## 最新变更 (2026-06-08)
+
+### 需求：用药提醒 - 历史打卡记录 (v4.6)
+
+**改动量统计**：
+
+| 类别 | 改动项 | 数量 |
+|------|--------|------|
+| 后端 | 新增 medication_history_v1.py（3个API端点：日历状态/打卡详情/补打卡） | 1 文件 |
+| 后端 | 新增 medication_history.py（6个Pydantic Schema） | 1 文件 |
+| 后端 | 修改 models.py（MedicationCheckIn新增check_in_type字段） | 1 文件 |
+| 后端 | 修改 main.py（注册medication_history_v1路由） | 1 文件 |
+| 后端 | 新增 pytest 测试用例 | 1 文件（14个用例） |
+| 前端 H5 | 新增 history/page.tsx（历史打卡记录页面，含日历+4种卡片状态+补打卡弹窗） | 1 文件 |
+| 前端 H5 | 新增 medication.ts API封装 | 1 文件 |
+| 前端 H5 | 修改 medication-reminder/page.tsx（新增历史记录入口按钮） | 1 文件 |
+
+**改动文件清单**：
+
+| 文件 | 改动 |
+|------|------|
+| `backend/app/api/medication_history_v1.py` | 新增：3个API端点（GET /api/medication/calendar 日历月视图状态、GET /api/medication/records 某天打卡详情、POST /api/medication/supplement 补打卡） |
+| `backend/app/schemas/medication_history.py` | 新增：6个Pydantic Schema（CalendarDayOut/CalendarResponse/RecordItemOut/RecordsResponse/SupplementRequest/SupplementResponse） |
+| `backend/app/models/models.py` | 修改：MedicationCheckIn新增check_in_type字段+索引idx_checkins_user_date |
+| `backend/app/main.py` | 修改：导入并注册medication_history_v1.router |
+| `backend/tests/test_medication_history_v1.py` | 新增：14个pytest测试用例 |
+| `h5-web/src/app/(ai-chat)/ai-home/medication-reminder/history/page.tsx` | 新增：历史打卡记录页面（日历网格+4种卡片状态+补打卡弹窗+月份切换） |
+| `h5-web/src/lib/api/medication.ts` | 新增：TypeScript类型定义+3个API函数封装 |
+| `h5-web/src/app/(ai-chat)/ai-home/medication-reminder/page.tsx` | 修改：Banner下方新增「📋 历史记录」入口按钮 |
+
+**功能要点**：
+- 页面路由：`/ai-home/medication-reminder/history`
+- 日历月份切换（左右箭头，默认选中昨天）
+- 日历日期状态标记（绿=全部打卡/橙=部分打卡/红=全部漏打/无圆点=无计划）
+- 4种打卡记录卡片状态（正常打卡/补打卡/可补打卡3天内/不可补超3天）
+- 补打卡确认弹窗（显示药品名+计划时间+补打卡时间）
+- 补打卡后卡片状态立即更新，日历圆点同步刷新
+- 老年用户友好设计（字体≥14px、触控区域≥44px、颜色对比醒目）
+
+**部署状态**：✅ 已部署到测试服务器，全部验证通过（前端页面200✅、3个新API端点401✅表示端点存在需认证）
+
+**体验手册**：`user_docs/manual_20260608_152730_d9e3.md`
