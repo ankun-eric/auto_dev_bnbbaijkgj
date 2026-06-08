@@ -149,6 +149,57 @@ gateway-nginx (独立主网关, 端口 443)
 
 ## 最新变更 (2026-06-08)
 
+### 需求：本人健康档案防重复方案 (v5.0)
+
+**改动量统计**：
+
+| 类别 | 改动项 | 数量 |
+|------|--------|------|
+| 后端 | 数据库模型变更（family_member_id: nullable → NOT NULL default=0） | 1 文件 |
+| 后端 | auth.py ensure_self_health_profile bug 修复 | 1 文件 |
+| 后端 | 4 处接口改造（查不到就报错） | 3 文件 |
+| 后端 | 全局 NULL → 0 替换（19 处查询过滤） | 9 文件 |
+| 后端 | 查询侧防御（scalar_one_or_none → scalars().first） | 2 文件 |
+| 数据库 | 脏数据清理 SQL 迁移脚本 | 1 文件 |
+| 数据库 | 唯一索引 DDL SQL 迁移脚本 | 1 文件 |
+| 测试 | pytest 测试用例 | 1 文件（14 个测试） |
+
+**改动文件清单**：
+
+| 文件 | 改动 |
+|------|------|
+| `backend/app/models/models.py` | HealthProfile.family_member_id: Integer→BigInteger, nullable=True→nullable=False, default=0 |
+| `backend/app/api/auth.py` | ensure_self_health_profile bug 修复：精确匹配 family_member_id，scalars().first()，创建时 family_member_id=0 |
+| `backend/app/api/health_profile.py` | GET/POST/PUT /profile: family_member_id.is_(None)→==0, scalar_one_or_none→scalars().first；PUT 查不到返回 404；POST 创建时 family_member_id=0 |
+| `backend/app/api/health_profile_self.py` | _get_self_profile: is_(None)→==0, scalar_one_or_none→scalars().first；PUT /self 查不到返回 404 |
+| `backend/app/api/family_management.py` | 3 处 is_(None)→==0；accept 中 elif not acceptor_hp 分支改为 raise HTTPException(400) |
+| `backend/app/api/admin.py` | is_(None)→==0 + scalar_one_or_none→scalars().first |
+| `backend/app/api/reverse_guardian.py` | is_(None)→==0 |
+| `backend/app/api/consultant_profile_card.py` | is_(None)→==0 |
+| `backend/app/api/care_card_v1.py` | is_(None)→==0 |
+| `backend/app/api/health_plan_v2.py` | MedicationReminder 3 处 is_(None)→==0 |
+| `backend/app/api/medication_plans_v1.py` | MedicationReminder is_(None)→==0 |
+| `backend/app/api/health_archive_v5.py` | MedicationReminder is_(None)→==0 |
+| `backend/app/api/chat_history.py` | ChatSession 2 处 is_(None)→==0 |
+| `backend/app/api/health_archive_optim_v2.py` | 兼容 or_ 简化为 ==0 |
+| `backend/migrations/migration_health_profile_dedup_20260608_step1_cleanup.sql` | SQL 脏数据清理脚本 |
+| `backend/migrations/migration_health_profile_dedup_20260608_step7_unique_index.sql` | SQL NULL→0 + 唯一索引 DDL |
+| `backend/tests/test_health_profile_dedup_20260608.py` | 14 个 pytest 测试用例 |
+
+**数据库变更**：
+- `health_profiles.family_member_id`: INT DEFAULT NULL → BIGINT NOT NULL DEFAULT 0
+- 新增唯一索引: `idx_user_family_member (user_id, family_member_id)`
+- 脏数据清理: 保留最早创建的本人档案，删除多余的
+
+**前端适配**：
+- 后端 404/400 错误信息通过 `detail` 字段返回，前端已有的通用错误处理自动展示（无需额外改动）
+
+**部署状态**：⏳ 待部署
+
+**设计文档**：`docs/design_健康档案防重复_20260608_161500.md`
+
+---
+
 ### 需求：健康档案完善判定逻辑简化 (v4.7)
 
 **改动量统计**：
@@ -176,7 +227,9 @@ gateway-nginx (独立主网关, 端口 443)
 
 **数据库变更**：无。health_profiles.guide_count 字段保留不删（仅代码层不再读写）。
 
-**部署状态**：待部署
+**部署状态**：✅ 已部署到测试服务器，HTTPS 全量检查通过（6/6 链接 100% 可达），guide-status 接口确认返回 404
+
+**体验手册**：`user_docs/manual_20260608_170637_a3f8.md`
 
 ---
 

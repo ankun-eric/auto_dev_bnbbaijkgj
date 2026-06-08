@@ -143,8 +143,8 @@ async def hero_counts(
         if fm_filter_id is not None:
             q = q.where(MedicationReminder.family_member_id == fm_filter_id)
         else:
-            # 本人：family_member_id IS NULL 或 0
-            q = q.where(or_(MedicationReminder.family_member_id.is_(None), MedicationReminder.family_member_id == 0))
+            # 本人：family_member_id = 0
+            q = q.where(MedicationReminder.family_member_id == 0)
         res = await db.execute(q)
         rems = list(res.scalars().all())
         total = 0

@@ -120,7 +120,7 @@ export default function MedicationHistoryPage() {
   /* ───── 加载日历 ───── */
   const loadCalendar = useCallback(async (year: number, month: number) => {
     try {
-      const res: any = await api.get('/medication/calendar', {
+      const res: any = await api.get('/api/medication/calendar', {
         params: { year, month },
       });
       const data = res.data || res;
@@ -134,7 +134,7 @@ export default function MedicationHistoryPage() {
   const loadRecords = useCallback(async (dateStr: string) => {
     setLoadingRecords(true);
     try {
-      const res: any = await api.get('/medication/records', {
+      const res: any = await api.get('/api/medication/records', {
         params: { date: dateStr },
       });
       const data = res.data || res;
@@ -188,7 +188,7 @@ export default function MedicationHistoryPage() {
     if (!supplementTarget) return;
     setSupplementLoading(true);
     try {
-      await api.post('/medication/supplement', {
+      await api.post('/api/medication/supplement', {
         plan_id: supplementTarget.plan_id,
         check_in_date: selectedDate,
         scheduled_time: supplementTarget.scheduled_time,

@@ -563,10 +563,10 @@ async def get_reverse_invite_detail(
     invitee_hp_result = await db.execute(
         select(HealthProfile).where(
             HealthProfile.user_id == invitation.invitee_user_id,
-            HealthProfile.family_member_id.is_(None),
+            HealthProfile.family_member_id == 0,
         )
     )
-    invitee_main_hp = invitee_hp_result.scalar_one_or_none()
+    invitee_main_hp = invitee_hp_result.scalars().first()
     inviter_real_name = invitee_main_hp.name if invitee_main_hp else None
 
     check_result: str | None = None

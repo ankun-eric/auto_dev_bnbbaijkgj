@@ -304,10 +304,10 @@ async def get_invitation_detail(
     inviter_hp_result = await db.execute(
         select(HealthProfile).where(
             HealthProfile.user_id == invitation.inviter_user_id,
-            HealthProfile.family_member_id.is_(None),
+            HealthProfile.family_member_id == 0,
         )
     )
-    inviter_main_hp = inviter_hp_result.scalar_one_or_none()
+    inviter_main_hp = inviter_hp_result.scalars().first()
     inviter_real_name = inviter_main_hp.name if inviter_main_hp else None
 
     member_result = await db.execute(
@@ -376,7 +376,7 @@ async def get_invitation_detail(
         acceptor_hp_res = await db.execute(
             select(HealthProfile).where(
                 HealthProfile.user_id == current_user.id,
-                HealthProfile.family_member_id.is_(None),
+                HealthProfile.family_member_id == 0,
             )
         )
         acceptor_hp = acceptor_hp_res.scalars().first()
@@ -536,7 +536,7 @@ async def accept_invitation(
     acceptor_hp_result = await db.execute(
         select(HealthProfile).where(
             HealthProfile.user_id == current_user.id,
-            HealthProfile.family_member_id.is_(None),
+            HealthProfile.family_member_id == 0,
         )
     )
     acceptor_hp = acceptor_hp_result.scalars().first()
@@ -565,36 +565,9 @@ async def accept_invitation(
                 if inviter_val is not None:
                     setattr(acceptor_hp, field, inviter_val)
         acceptor_hp.updated_at = datetime.now()
-    elif not acceptor_hp and inviter_hp:
-        # 仅当用户没有现成档案时，从邀请人档案派生
-        def _maybe(field_name: str):
-            if requested_keys is not None and field_name not in requested_keys:
-                return None
-            return getattr(inviter_hp, field_name, None)
-
-        acceptor_hp = HealthProfile(
-            user_id=current_user.id,
-            family_member_id=None,
-            name=_maybe("name"),
-            height=_maybe("height"),
-            weight=_maybe("weight"),
-            blood_type=_maybe("blood_type"),
-            gender=_maybe("gender"),
-            birthday=_maybe("birthday"),
-            smoking=_maybe("smoking"),
-            drinking=_maybe("drinking"),
-            exercise_habit=_maybe("exercise_habit"),
-            sleep_habit=_maybe("sleep_habit"),
-            diet_habit=_maybe("diet_habit"),
-            chronic_diseases=_maybe("chronic_diseases"),
-            medical_histories=_maybe("medical_histories"),
-            allergies=_maybe("allergies"),
-            drug_allergies=_maybe("drug_allergies"),
-            food_allergies=_maybe("food_allergies"),
-            other_allergies=_maybe("other_allergies"),
-            genetic_diseases=_maybe("genetic_diseases"),
-        )
-        db.add(acceptor_hp)
+    else:
+        # 查不到接受方本人档案时直接返回错误
+        raise HTTPException(status_code=400, detail="请先完善本人健康档案，再来接受邀请")
 
     # [F9] 数据合并：将 inviter 在 member 下录入的数据合并到 acceptor
     try:

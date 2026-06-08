@@ -118,22 +118,29 @@ async def ensure_self_health_profile(db: AsyncSession, user_id: int) -> None:
     )
     self_member = member_result.scalar_one_or_none()
 
-    result = await db.execute(
-        select(HealthProfile)
-        .where(HealthProfile.user_id == user_id)
-        .order_by(HealthProfile.id.asc())
-    )
-    profiles = result.scalars().all()
-    if profiles:
-        existing = profiles[0]
-        if self_member and existing.family_member_id != self_member.id:
-            existing.family_member_id = self_member.id
-            await db.flush()
+    # 精确匹配本人档案：self_member 存在时按 family_member_id == self_member.id，
+    # 否则按 family_member_id == 0（注册流程中 family_member_id 的兜底值）
+    if self_member:
+        result = await db.execute(
+            select(HealthProfile).where(
+                HealthProfile.user_id == user_id,
+                HealthProfile.family_member_id == self_member.id,
+            )
+        )
+    else:
+        result = await db.execute(
+            select(HealthProfile).where(
+                HealthProfile.user_id == user_id,
+                HealthProfile.family_member_id == 0,
+            )
+        )
+    existing = result.scalars().first()
+    if existing:
         return
 
     db.add(HealthProfile(
         user_id=user_id,
-        family_member_id=self_member.id if self_member else None,
+        family_member_id=self_member.id if self_member else 0,
     ))
     await db.flush()
 

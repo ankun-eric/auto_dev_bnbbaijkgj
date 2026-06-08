@@ -75,17 +75,17 @@ async def _get_health_profile(
             HealthProfile.family_member_id == member.id,
         )
     )
-    hp = result.scalar_one_or_none()
+    hp = result.scalars().first()
     if hp:
         return hp
     if member.is_self:
         result = await db.execute(
             select(HealthProfile).where(
                 HealthProfile.user_id == user.id,
-                HealthProfile.family_member_id.is_(None),
+                HealthProfile.family_member_id == 0,
             )
         )
-        return result.scalar_one_or_none()
+        return result.scalars().first()
     return None
 
 

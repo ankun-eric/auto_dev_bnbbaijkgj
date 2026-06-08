@@ -340,7 +340,7 @@ async def user_list_sessions(
         if tid > 0:
             query = query.where(ChatSession.family_member_id == tid)
         else:
-            query = query.where(ChatSession.family_member_id.is_(None))
+            query = query.where(ChatSession.family_member_id == 0)
     # 排序：置顶在前；同状态内按 last_active_at 倒序（兜底 updated_at）
     query = (
         query.order_by(
@@ -604,7 +604,7 @@ async def user_get_active_session(
         if tid > 0:
             query = query.where(ChatSession.family_member_id == tid)
         else:
-            query = query.where(ChatSession.family_member_id.is_(None))
+            query = query.where(ChatSession.family_member_id == 0)
     query = query.order_by(ChatSession.last_active_at.desc(), ChatSession.updated_at.desc()).limit(1)
     result = await db.execute(query)
     session = result.scalar_one_or_none()

@@ -44,7 +44,7 @@ def _apply_consultant_filter(stmt, consultant_id: Optional[int]):
     if consultant_id is None or consultant_id == -1:
         return stmt
     if consultant_id == 0:
-        return stmt.where(MedicationReminder.family_member_id.is_(None))
+        return stmt.where(MedicationReminder.family_member_id == 0)
     return stmt.where(MedicationReminder.family_member_id == consultant_id)
 
 # ──────────────── 工具函数 ────────────────

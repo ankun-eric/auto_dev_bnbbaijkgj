@@ -88,9 +88,9 @@ async def _find_active_same_name(
         MedicationReminder.user_id == user_id,
         MedicationReminder.status == "active",
     )
-    # family_member_id 维度过滤（None=本人态）
+    # family_member_id 维度过滤（0=本人态）
     if family_member_id is None or family_member_id == 0:
-        stmt = stmt.where(MedicationReminder.family_member_id.is_(None))
+        stmt = stmt.where(MedicationReminder.family_member_id == 0)
     elif family_member_id > 0:
         stmt = stmt.where(MedicationReminder.family_member_id == family_member_id)
     # family_member_id < 0：不过滤家庭成员维度（兼容旧调用）
@@ -179,7 +179,7 @@ async def check_medications_batch(
     if consultant_id and consultant_id > 0:
         conds.append(MedicationReminder.family_member_id == consultant_id)
     else:
-        conds.append(MedicationReminder.family_member_id.is_(None))
+        conds.append(MedicationReminder.family_member_id == 0)
 
     res = await db.execute(
         select(
@@ -516,11 +516,11 @@ async def list_medications_flat(
     # [PRD-AI-DRUG-CARD-MEDPLAN-V1 2026-05-18] 咨询人过滤：
     #   - None：不过滤（兼容旧客户端）
     #   - -1 ：明确不过滤
-    #   - 0  ：本人 → family_member_id IS NULL
+    #   - 0  ：本人 → family_member_id = 0
     #   - >0 ：指定家庭成员
     if consultant_id is not None and consultant_id != -1:
         if consultant_id == 0:
-            stmt = stmt.where(MedicationReminder.family_member_id.is_(None))
+            stmt = stmt.where(MedicationReminder.family_member_id == 0)
         else:
             stmt = stmt.where(MedicationReminder.family_member_id == consultant_id)
 

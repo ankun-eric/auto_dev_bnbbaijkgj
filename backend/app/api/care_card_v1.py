@@ -161,10 +161,10 @@ async def _get_self_profile(db: AsyncSession, user_id: int) -> Optional["HealthP
     result = await db.execute(
         select(HealthProfile).where(
             HealthProfile.user_id == user_id,
-            HealthProfile.family_member_id.is_(None),
+            HealthProfile.family_member_id == 0,
         )
     )
-    return result.scalar_one_or_none()
+    return result.scalars().first()
 
 
 async def _get_or_create_extra(db: AsyncSession, user_id: int) -> CareCardExtra:

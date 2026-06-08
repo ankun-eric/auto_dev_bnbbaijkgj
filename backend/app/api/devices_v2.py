@@ -27,7 +27,7 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.devices_v2 import DeviceCatalog, DeviceUserBinding
-from app.models.models import FamilyMember, User
+from app.models.models import FamilyMember, User, UserRole
 
 logger = logging.getLogger(__name__)
 
@@ -615,7 +615,7 @@ async def create_scene_group(
     db: AsyncSession = Depends(get_db),
 ):
     """创建场景分类（需管理员权限）。"""
-    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in ("admin", "superuser"):
+    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in (UserRole.admin, UserRole.superuser):
         raise HTTPException(status_code=403, detail="仅管理员可操作")
     from app.models.models import DeviceSceneGroup
     g = DeviceSceneGroup(
@@ -644,7 +644,7 @@ async def update_scene_group(
     db: AsyncSession = Depends(get_db),
 ):
     """编辑场景分类（需管理员权限）。"""
-    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in ("admin", "superuser"):
+    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in (UserRole.admin, UserRole.superuser):
         raise HTTPException(status_code=403, detail="仅管理员可操作")
     from app.models.models import DeviceSceneGroup
     g = await db.get(DeviceSceneGroup, group_id)
@@ -672,7 +672,7 @@ async def delete_scene_group(
     db: AsyncSession = Depends(get_db),
 ):
     """删除场景分类（需管理员权限，仅当分类下无设备时可删除）。"""
-    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in ("admin", "superuser"):
+    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in (UserRole.admin, UserRole.superuser):
         raise HTTPException(status_code=403, detail="仅管理员可操作")
     from app.models.models import DeviceSceneGroup
     from app.models.devices_v2 import DeviceCatalog as DC
@@ -747,7 +747,7 @@ async def admin_list_catalog(
     db: AsyncSession = Depends(get_db),
 ):
     """[F11] 管理后台：设备目录列表。"""
-    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in ("admin", "superuser"):
+    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in (UserRole.admin, UserRole.superuser):
         raise HTTPException(status_code=403, detail="仅管理员可操作")
     query = select(DeviceCatalog)
     if scene_group_id is not None:
@@ -782,7 +782,7 @@ async def admin_create_catalog(
     db: AsyncSession = Depends(get_db),
 ):
     """[F11] 管理后台：新增设备目录。"""
-    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in ("admin", "superuser"):
+    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in (UserRole.admin, UserRole.superuser):
         raise HTTPException(status_code=403, detail="仅管理员可操作")
     c = DeviceCatalog(
         brand_code=body.brand_code,
@@ -825,7 +825,7 @@ async def admin_update_catalog(
     db: AsyncSession = Depends(get_db),
 ):
     """[F11] 管理后台：编辑设备目录。"""
-    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in ("admin", "superuser"):
+    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in (UserRole.admin, UserRole.superuser):
         raise HTTPException(status_code=403, detail="仅管理员可操作")
     c = await db.get(DeviceCatalog, catalog_id)
     if not c:
@@ -859,7 +859,7 @@ async def admin_delete_catalog(
     db: AsyncSession = Depends(get_db),
 ):
     """[F11] 管理后台：删除设备目录。"""
-    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in ("admin", "superuser"):
+    if not getattr(current_user, "is_superuser", False) and getattr(current_user, "role", None) not in (UserRole.admin, UserRole.superuser):
         raise HTTPException(status_code=403, detail="仅管理员可操作")
     c = await db.get(DeviceCatalog, catalog_id)
     if not c:

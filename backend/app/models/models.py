@@ -720,7 +720,7 @@ class HealthProfile(Base):
 
     id = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    family_member_id = mapped_column(Integer, ForeignKey("family_members.id"), nullable=True)
+    family_member_id = mapped_column(BigInteger, ForeignKey("family_members.id"), nullable=False, default=0)
     name = mapped_column(String(100), nullable=True)
     height = mapped_column(Float, nullable=True)
     weight = mapped_column(Float, nullable=True)

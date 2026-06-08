@@ -2125,15 +2125,15 @@ async def admin_health_user_members(
         hp_result = await db.execute(
             select(HealthProfile).where(HealthProfile.family_member_id == member.id)
         )
-        hp = hp_result.scalar_one_or_none()
+        hp = hp_result.scalars().first()
         if hp is None:
             hp_result2 = await db.execute(
                 select(HealthProfile).where(
                     HealthProfile.user_id == user_id,
-                    HealthProfile.family_member_id.is_(None),
+                    HealthProfile.family_member_id == 0,
                 )
             )
-            hp = hp_result2.scalar_one_or_none() if member.is_self else None
+            hp = hp_result2.scalars().first() if member.is_self else None
 
         health_profile_data = None
         if hp:

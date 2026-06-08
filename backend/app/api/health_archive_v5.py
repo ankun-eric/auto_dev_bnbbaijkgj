@@ -221,7 +221,7 @@ async def get_overview(
             MedicationReminder.status == "active",
         ]
         if mid is None:
-            cond.append(MedicationReminder.family_member_id.is_(None))
+            cond.append(MedicationReminder.family_member_id == 0)
         else:
             cond.append(MedicationReminder.family_member_id == mid)
         cond.append(or_(

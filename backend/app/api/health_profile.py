@@ -55,10 +55,10 @@ async def get_health_profile(
     result = await db.execute(
         select(HealthProfile).where(
             HealthProfile.user_id == current_user.id,
-            HealthProfile.family_member_id.is_(None),
+            HealthProfile.family_member_id == 0,
         )
     )
-    profile = result.scalar_one_or_none()
+    profile = result.scalars().first()
     if not profile:
         raise HTTPException(status_code=404, detail="健康档案不存在")
     return HealthProfileResponse.model_validate(profile)
@@ -73,16 +73,16 @@ async def create_health_profile(
     result = await db.execute(
         select(HealthProfile).where(
             HealthProfile.user_id == current_user.id,
-            HealthProfile.family_member_id.is_(None),
+            HealthProfile.family_member_id == 0,
         )
     )
-    existing = result.scalar_one_or_none()
+    existing = result.scalars().first()
     if existing:
         raise HTTPException(status_code=400, detail="健康档案已存在，请使用更新接口")
 
     create_data = data.model_dump(exclude_unset=True)
     create_data.pop("family_member_id", None)
-    profile = HealthProfile(user_id=current_user.id, family_member_id=None, **create_data)
+    profile = HealthProfile(user_id=current_user.id, family_member_id=0, **create_data)
     db.add(profile)
     await db.flush()
     await db.refresh(profile)
@@ -107,13 +107,12 @@ async def update_health_profile(
     result = await db.execute(
         select(HealthProfile).where(
             HealthProfile.user_id == current_user.id,
-            HealthProfile.family_member_id.is_(None),
+            HealthProfile.family_member_id == 0,
         )
     )
-    profile = result.scalar_one_or_none()
+    profile = result.scalars().first()
     if not profile:
-        profile = HealthProfile(user_id=current_user.id, family_member_id=None)
-        db.add(profile)
+        raise HTTPException(status_code=404, detail="健康档案不存在，请联系客服")
 
     update_data = data.model_dump(exclude_unset=True)
     update_data.pop("family_member_id", None)
@@ -513,10 +512,10 @@ async def upload_checkup_report(
     profile_result = await db.execute(
         select(HealthProfile).where(
             HealthProfile.user_id == current_user.id,
-            HealthProfile.family_member_id.is_(None),
+            HealthProfile.family_member_id == 0,
         )
     )
-    profile = profile_result.scalar_one_or_none()
+    profile = profile_result.scalars().first()
     user_profile = None
     if profile:
         user_profile = {

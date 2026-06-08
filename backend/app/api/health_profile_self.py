@@ -80,7 +80,7 @@ async def _compute_missing_fields_v2(
     user_id: int,
     profile: Optional[HealthProfile],
 ) -> List[str]:
-    """[SIMPLIFIED 2026-06-08] 简化判定：只判断 health_profiles 表 family_member_id IS NULL 的
+    """[SIMPLIFIED 2026-06-08] 简化判定：只判断 health_profiles 表 family_member_id = 0 的
     name/gender/birthday 三个字段是否齐全。不再查 family_members 或 users 表做兜底。
     """
     missing: List[str] = []
@@ -184,14 +184,14 @@ def _serialize_profile(profile: Optional[HealthProfile], current_user: User) -> 
 
 
 async def _get_self_profile(db: AsyncSession, user_id: int) -> Optional[HealthProfile]:
-    """获取本人健康档案：family_member_id IS NULL 的那一条"""
+    """获取本人健康档案：family_member_id = 0 的那一条"""
     result = await db.execute(
         select(HealthProfile).where(
             HealthProfile.user_id == user_id,
-            HealthProfile.family_member_id.is_(None),
+            HealthProfile.family_member_id == 0,
         )
     )
-    return result.scalar_one_or_none()
+    return result.scalars().first()
 
 
 @router.get("/self")
@@ -256,8 +256,7 @@ async def update_self_profile(
 
     profile = await _get_self_profile(db, current_user.id)
     if profile is None:
-        profile = HealthProfile(user_id=current_user.id, family_member_id=None)
-        db.add(profile)
+        raise HTTPException(status_code=404, detail="请先完成注册流程，再完善健康档案")
 
     profile.name = str(name_raw).strip()
     profile.gender = gender_norm
