@@ -1285,6 +1285,52 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  /// [PRD-KEYWORD-TRIGGER-FIX 2026-06-08] 关键词触发意图检测
+  /// 在用户发送消息前调用 /api/chat/intent-detect，
+  /// 命中 questionnaire_ 或 button_ 意图时直接弹出功能卡片，不走 SSE 流式回复。
+  /// 返回 true 表示已处理（拦截），false 表示未命中需继续走 SSE。
+  Future<bool> _detectAndHandleIntent(String text) async {
+    try {
+      final resp = await _apiService.dio.post('/api/chat/intent-detect', data: {
+        'text': text,
+        'consultant_id': _initialFamilyMemberId,
+      });
+      final data = resp.data as Map<String, dynamic>?;
+      final intent = data?['intent']?.toString();
+      final buttonId = data?['button_id'];
+      if (intent != null && buttonId != null) {
+        FunctionButton? btn;
+        for (final b in _functionButtons) {
+          if (b.id.toString() == buttonId.toString()) {
+            btn = b;
+            break;
+          }
+        }
+        if (btn == null) return false;
+        if (intent.startsWith('questionnaire_') || intent.startsWith('button_')) {
+          final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+          if (chatProvider.currentSession == null) {
+            await chatProvider.createSession('health_qa');
+          }
+          final sessionId = chatProvider.currentSession?.id ?? '';
+          chatProvider.addMessageExternally(ChatMessage(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            sessionId: sessionId,
+            role: 'user',
+            content: text,
+            type: 'text',
+            createdAt: DateTime.now().toIso8601String(),
+          ));
+          _handleFunctionButton(btn);
+          return true;
+        }
+      }
+    } catch (_) {
+      // 静默失败，继续走 SSE
+    }
+    return false;
+  }
+
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       Future.delayed(const Duration(milliseconds: 100), () {
@@ -1420,7 +1466,11 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
     _textController.clear();
-    _sendMessageWithSSE(text);
+    _detectAndHandleIntent(text).then((handled) {
+      if (!handled && mounted) {
+        _sendMessageWithSSE(text);
+      }
+    });
   }
 
   Future<void> _pickImage() async {
@@ -1760,7 +1810,10 @@ class _ChatScreenState extends State<ChatScreen> {
         return;
       }
 
-      _sendMessageWithSSE(text);
+      final handled = await _detectAndHandleIntent(text);
+      if (!handled && mounted) {
+        _sendMessageWithSSE(text);
+      }
     } catch (_) {
       if (!mounted) return;
       Navigator.of(context).pop();
