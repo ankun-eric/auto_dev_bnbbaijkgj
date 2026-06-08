@@ -78,17 +78,4 @@ class HealthProfileV2Response(BaseModel):
         return self
 
 
-class HealthGuideStatusResponse(BaseModel):
-    should_show_guide: bool
-    guide_count: int
-    profile_completeness: float
 
-    model_config = ConfigDict(from_attributes=True)
-
-
-class HealthGuideUpdateRequest(BaseModel):
-    action: str  # "skip" or "complete"
-
-
-class HealthGuideUpdateResponse(BaseModel):
-    guide_count: int

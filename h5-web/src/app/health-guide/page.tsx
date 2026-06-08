@@ -188,7 +188,7 @@ export default function HealthGuidePage() {
     setSubmitting(true);
     try {
       await saveCurrentStep();
-      await api.post('/api/health/guide-status', { action: 'complete' });
+      try { localStorage.removeItem('healthGuideSkipCount'); } catch {}
       Toast.show({ content: '档案完善成功 ✓', duration: 2000 });
       setTimeout(() => router.replace('/ai-home'), 1500);
     } catch {
@@ -200,7 +200,9 @@ export default function HealthGuidePage() {
 
   const handleSkip = async () => {
     try {
-      await api.post('/api/health/guide-status', { action: 'skip' });
+      const key = 'healthGuideSkipCount';
+      const cnt = parseInt(localStorage.getItem(key) || '0', 10);
+      localStorage.setItem(key, String(cnt + 1));
     } catch {
       // ignore
     }

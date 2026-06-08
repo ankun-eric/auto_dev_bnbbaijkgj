@@ -80,57 +80,17 @@ async def _compute_missing_fields_v2(
     user_id: int,
     profile: Optional[HealthProfile],
 ) -> List[str]:
-    """[BUG_FIX 2026-05-29] 放宽判定：跨 health_profiles / family_members(is_self) / users 取并集
-
-    任一来源补齐字段即视为"已完善"，避免旧用户因数据落库位置差异被误弹。
-    判定口径仍要求 name/gender/birthday 三项均非空，仅放宽**取数来源**。
+    """[SIMPLIFIED 2026-06-08] 简化判定：只判断 health_profiles 表 family_member_id IS NULL 的
+    name/gender/birthday 三个字段是否齐全。不再查 family_members 或 users 表做兜底。
     """
-    name_ok = bool(profile is not None and not _is_name_empty(profile.name))
-    gender_ok = bool(profile is not None and profile.gender and str(profile.gender).strip())
-    birthday_ok = bool(profile is not None and profile.birthday is not None)
-
-    if not (name_ok and gender_ok and birthday_ok):
-        try:
-            from app.models.models import FamilyMember
-            result = await db.execute(
-                select(FamilyMember).where(
-                    FamilyMember.user_id == user_id,
-                    FamilyMember.is_self.is_(True),
-                )
-            )
-            sm = result.scalar_one_or_none()
-            if sm is not None:
-                if not name_ok and sm.nickname and not _is_name_empty(sm.nickname):
-                    name_ok = True
-                if not gender_ok and sm.gender and str(sm.gender).strip():
-                    gender_ok = True
-                if not birthday_ok and sm.birthday is not None:
-                    birthday_ok = True
-        except Exception:
-            pass
-
-    if not (name_ok and gender_ok and birthday_ok):
-        try:
-            result = await db.execute(select(User).where(User.id == user_id))
-            u = result.scalar_one_or_none()
-            if u is not None:
-                if not name_ok:
-                    rn = getattr(u, "real_name", None) or getattr(u, "nickname", None)
-                    if rn and not _is_name_empty(rn):
-                        name_ok = True
-                if not gender_ok and getattr(u, "gender", None):
-                    gender_ok = True
-                if not birthday_ok and getattr(u, "birthday", None) is not None:
-                    birthday_ok = True
-        except Exception:
-            pass
-
     missing: List[str] = []
-    if not name_ok:
+    if profile is None:
+        return ["name", "gender", "birthday"]
+    if _is_name_empty(profile.name):
         missing.append("name")
-    if not gender_ok:
+    if not profile.gender or not str(profile.gender).strip():
         missing.append("gender")
-    if not birthday_ok:
+    if profile.birthday is None:
         missing.append("birthday")
     return missing
 

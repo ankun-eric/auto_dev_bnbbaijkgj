@@ -1,6 +1,6 @@
 # 宾尼健康 (Bini Health) 项目索引
 
-> **最后更新**: 2026-06-08 15:28:00 (v4.6 需求：用药提醒 - 历史打卡记录)
+> **最后更新**: 2026-06-08 16:15:00 (v4.7 需求：健康档案完善判定逻辑简化)
 > **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
 > **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
 > **Git 主仓库**: Codeup (codeup.aliyun.com)  
@@ -35,7 +35,7 @@ bnbbaijkgj/
 │   │   │   ├── family_management.py
 │   │   │   ├── family_member_v2.py
 │   │   │   ├── guardian_system_v13.py
-│   │   │   ├── health_profile.py   # 健康档案（本人档案CRUD、成员档案GET/PUT、过敏/病史/用药/就诊/体检报告CRUD、引导状态）
+│   │   │   ├── health_profile.py   # 健康档案（本人档案CRUD、成员档案GET/PUT、过敏/病史/用药/就诊/体检报告CRUD）
 │   │   │   ├── health_profile_v3.py   # 健康档案V3（_verify_profile_access + 守护关系放行 F3）
 │   │   │   ├── health_metric_card_v1.py   # 健康指标卡V1（_verify_profile_access + 守护关系放行 F3）
 │   │   │   ├── devices_v2.py       # 我的设备V2 + 场景分类CRUD + 目录管理API (F5-F11)
@@ -148,6 +148,37 @@ gateway-nginx (独立主网关, 端口 443)
 ---
 
 ## 最新变更 (2026-06-08)
+
+### 需求：健康档案完善判定逻辑简化 (v4.7)
+
+**改动量统计**：
+
+| 类别 | 改动项 | 数量 |
+|------|--------|------|
+| 后端 | 简化 _compute_missing_fields_v2 判定逻辑 | 1 文件 |
+| 后端 | 下线 GET/POST /api/health/guide-status 接口 | 1 文件 |
+| 后端 | 删除 HealthGuide* Pydantic Schema | 1 文件 |
+| 前端 H5 | health-guide 页面适配（频控改 localStorage） | 1 文件 |
+| 前端 小程序 | health-guide 页面适配（频控改 wx.Storage） | 1 文件 |
+| 测试 | 新增 pytest 测试用例 | 1 文件 |
+
+**改动文件清单**：
+
+| 文件 | 改动 |
+|------|------|
+| `backend/app/api/health_profile_self.py` | 简化 _compute_missing_fields_v2：只查 health_profiles 表，删除查 users 和 family_members 的兜底/死代码 |
+| `backend/app/api/health_profile.py` | 删除 GET/POST /api/health/guide-status 路由和 handler，清理相关导入 |
+| `backend/app/schemas/health_v2.py` | 删除 HealthGuideStatusResponse / HealthGuideUpdateRequest / HealthGuideUpdateResponse 三个类 |
+| `h5-web/src/app/health-guide/page.tsx` | 前端适配：删除 POST /guide-status 调用，完成→清除 localStorage，跳过→记录 localStorage 频控 |
+| `miniprogram/pages/health-guide/index.js` | 小程序适配：删除 POST /guide-status 调用，完成→wx.removeStorageSync，跳过→wx.setStorageSync 频控 |
+| `backend/tests/test_health_profile_simplify_v1.py` | 新增测试：11 个 _compute_missing_fields_v2 测试 + 2 个 guide-status 404 测试 |
+| `.noob-ai/index/main-index.mdc` | 更新索引 |
+
+**数据库变更**：无。health_profiles.guide_count 字段保留不删（仅代码层不再读写）。
+
+**部署状态**：待部署
+
+---
 
 ### 需求：用药提醒 - 历史打卡记录 (v4.6)
 

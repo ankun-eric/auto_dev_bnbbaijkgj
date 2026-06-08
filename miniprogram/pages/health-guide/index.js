@@ -235,7 +235,7 @@ Page({
 
     try {
       await put('/api/health/profile', payload);
-      await post('/api/health/guide-status', { action: 'complete' }, { showLoading: false, suppressErrorToast: true });
+      try { wx.removeStorageSync('healthGuideSkipCount'); } catch (e) {}
       wx.showToast({ title: '档案创建成功', icon: 'success' });
       setTimeout(() => {
         wx.switchTab({ url: '/pages/home/index' });
@@ -246,7 +246,11 @@ Page({
   },
 
   skipGuide() {
-    post('/api/health/guide-status', { action: 'skip' }, { showLoading: false, suppressErrorToast: true }).catch(() => {});
+    try {
+      const key = 'healthGuideSkipCount';
+      const cnt = parseInt(wx.getStorageSync(key) || '0', 10);
+      wx.setStorageSync(key, String(cnt + 1));
+    } catch (e) {}
     wx.switchTab({ url: '/pages/home/index' });
   }
 });

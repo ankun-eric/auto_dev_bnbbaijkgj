@@ -36,9 +36,6 @@ from app.schemas.health import (
     VisitRecordResponse,
 )
 from app.schemas.health_v2 import (
-    HealthGuideStatusResponse,
-    HealthGuideUpdateRequest,
-    HealthGuideUpdateResponse,
     HealthProfileV2Response,
     HealthProfileV2Update,
 )
@@ -253,65 +250,6 @@ async def upsert_member_health_profile(
     await db.flush()
     await db.refresh(profile)
     return HealthProfileV2Response.model_validate(profile)
-
-
-# ── 健康档案引导状态 ──
-
-@router.get("/guide-status", response_model=HealthGuideStatusResponse)
-async def get_guide_status(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(HealthProfile).where(
-            HealthProfile.user_id == current_user.id,
-            HealthProfile.family_member_id.is_(None),
-        )
-    )
-    profile = result.scalar_one_or_none()
-    if not profile:
-        return HealthGuideStatusResponse(
-            should_show_guide=True,
-            guide_count=0,
-            profile_completeness=0.0,
-        )
-
-    fields = [profile.name, profile.gender, profile.birthday, profile.height, profile.weight, profile.blood_type]
-    filled = sum(1 for f in fields if f is not None)
-    completeness = round(filled / len(fields), 2)
-    guide_count = profile.guide_count or 0
-    should_show_guide = completeness < 1.0 and guide_count < 2
-
-    return HealthGuideStatusResponse(
-        should_show_guide=should_show_guide,
-        guide_count=guide_count,
-        profile_completeness=completeness,
-    )
-
-
-@router.post("/guide-status", response_model=HealthGuideUpdateResponse)
-async def update_guide_status(
-    data: HealthGuideUpdateRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(HealthProfile).where(
-            HealthProfile.user_id == current_user.id,
-            HealthProfile.family_member_id.is_(None),
-        )
-    )
-    profile = result.scalar_one_or_none()
-    if not profile:
-        profile = HealthProfile(user_id=current_user.id, family_member_id=None, guide_count=0)
-        db.add(profile)
-        await db.flush()
-
-    profile.guide_count = (profile.guide_count or 0) + 1
-    profile.updated_at = datetime.now()
-    await db.flush()
-    await db.refresh(profile)
-    return HealthGuideUpdateResponse(guide_count=profile.guide_count)
 
 
 # ── 过敏记录 ──
