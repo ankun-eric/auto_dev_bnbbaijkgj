@@ -1,2 +1,6 @@
-子目录或文件 C:\auto_output\bnbbaijkgj\user_docs 已经存在。
-处理: C:\auto_output\bnbbaijkgj\user_docs 时出错。
+A subdirectory or file C:\auto_output\bnbbaijkgj\deploy already exists.
+Error occurred while processing: C:\auto_output\bnbbaijkgj\deploy.
+A subdirectory or file echo already exists.
+Error occurred while processing: echo.
+A subdirectory or file done already exists.
+Error occurred while processing: done.

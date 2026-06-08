@@ -1,0 +1,17 @@
+{
+  "DEPLOY_ID": "6b099ed3-7175-4a78-91f4-44570c84ed27",
+  "项目域名": "6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com",
+  "服务器": "newbb.test.bangbangvip.com",
+  "部署状态": "✅ 成功",
+  "API状态": "200",
+  "H5状态": "200",
+  "Admin状态": "502",
+  "容器运行状态": [
+    "{.Names} {.Status}",
+    "{.Names} {.Status}",
+    "{.Names} {.Status}"
+  ],
+  "服务器连接": "ssh ubuntu@newbb.test.bangbangvip.com",
+  "项目目录": "/home/ubuntu/6b099ed3-7175-4a78-91f4-44570c84ed27",
+  "Gateway配置": "/home/ubuntu/gateway/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.server"
+}

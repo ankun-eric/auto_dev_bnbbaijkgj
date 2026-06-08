@@ -1,0 +1,57 @@
+{
+  "nginx_conf": "worker_processes auto;\r\nevents { worker_connections 1024; }\r\nhttp {\r\n    include /etc/nginx/mime.types;\r\n    default_type application/octet-stream;\r\n    sendfile on;\r\n    keepalive_timeout 65;\r\n    client_max_body_size 100m;\r\n    map $http_upgrade $connection_upgrade {\r\n        default upgrade;\r\n        ''      close;\r\n    }\r\n    include /etc/nginx/conf.d/*.conf;\r\n    server {\r\n        listen 80;\r\n        server_name _;\r\n        return 301 https://$host$request_uri;\r\n    }\r\n}",
+  "gateway_mode": "未知/自定义",
+  "gateway_note": "未找到 include conf.d/*.conf",
+  "route_check": "/home/ubuntu/gateway/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf:12:    server_name chat.benne-ai.com;\r\n/home/ubuntu/gateway/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf:18:    location /api/ {\r\n/home/ubuntu/gateway/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf:36:    location /uploads/ {\r\n/home/ubuntu/gateway/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf:47:    location /admin/ {\r\n/home/ubuntu/gateway/conf.d/6b099ed3-7175-4a78-91f4-44570c84ed27.conf:62:    location / {",
+  "nginx_locations": "16:        server_name _;",
+  "acr_tags": {
+    "python": [
+      "3.12-slim"
+    ],
+    "node": [
+      "20-alpine"
+    ],
+    "nginx": [
+      "latest (exists)"
+    ],
+    "alpine": [
+      "latest (exists)"
+    ],
+    "memcached": [
+      "latest (exists)"
+    ],
+    "redis": [
+      "latest (exists)"
+    ],
+    "golang": [
+      "latest (exists)"
+    ],
+    "eclipse-temurin": [
+      "latest (exists)"
+    ],
+    "postgres": [
+      "latest (exists)"
+    ],
+    "maven": [
+      "latest (exists)"
+    ],
+    "mongo": [
+      "latest (exists)"
+    ],
+    "mysql": [
+      "latest (exists)"
+    ]
+  },
+  "final_images": {
+    "python": "crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_doker_base/python:3.12-slim",
+    "node": "crpi-d7zlu3m44f38jufp.cn-guangzhou.personal.cr.aliyuncs.com/noob_doker_base/node:20-alpine"
+  },
+  "gateway_status": "gateway-nginx Up 3 days",
+  "gateway_networks": "NOT_FOUND",
+  "project_network": "6b099ed3-7175-4a78-91f4-44570c84ed27-network",
+  "tool_check": {
+    "python": "/usr/local/bin/python3",
+    "node": "/usr/local/bin/node\n/usr/bin/wget"
+  },
+  "disk_space": "/dev/vda2       266G   11G  245G   5% /"
+}

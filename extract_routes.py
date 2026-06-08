@@ -1,143 +1,100 @@
-"""提取所有前端路由（从 .next 构建文件）。"""
-import paramiko
+import os
 import re
-import json
 
-DEPLOY_ID = "6b099ed3-7175-4a78-91f4-44570c84ed27"
+api_dir = r"C:\auto_output\bnbbaijkgj\backend\app\api"
 
-ssh = paramiko.SSHClient()
-ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-ssh.connect('newbb.test.bangbangvip.com', port=22, username='ubuntu', password='Newbang888', timeout=15)
-
-def run(cmd, timeout=20):
-    stdin, stdout, stderr = ssh.exec_command(cmd, timeout=timeout)
-    out = stdout.read().decode('utf-8', errors='replace')
-    return out
-
-def extract_routes_from_next(container, label):
-    """从 .next/server/app 目录提取路由。"""
-    print(f"\n=== {label} ===")
-    
-    # 获取所有 page.js 文件
-    out = run(f'docker exec {container} find /app/.next/server/app -name "page.js" -type f 2>/dev/null')
-    routes = []
-    
-    for fpath in out.strip().split('\n'):
-        fpath = fpath.strip()
-        if not fpath:
-            continue
-        # /app/.next/server/app/xxx/page.js -> /xxx
-        # /app/.next/server/app/(admin)/xxx/page.js -> /xxx
-        # /app/.next/server/app/page.js -> /
-        rel = fpath.replace('/app/.next/server/app', '')
-        rel = rel.replace('/page.js', '')
-        # Remove route group prefixes like (admin)
-        rel = re.sub(r'/\([^)]+\)', '', rel)
-        if rel == '':
-            rel = '/'
-        routes.append(rel)
-    
-    routes = sorted(set(routes))
-    print(f"Found {len(routes)} routes:")
-    for r in routes:
-        print(f"  {r}")
-    return routes
-
-def extract_dynamic_routes(container, label):
-    """从 routes-manifest.json 提取动态路由。"""
-    out = run(f'docker exec {container} cat /app/.next/routes-manifest.json 2>/dev/null')
-    try:
-        manifest = json.loads(out)
-    except:
-        print(f"Failed to parse {label} routes-manifest")
-        return [], []
-    
-    redirects = []
-    for r in manifest.get('redirects', []):
-        redirects.append({
-            'source': r.get('source', ''),
-            'destination': r.get('destination', ''),
-            'statusCode': r.get('statusCode', 0)
-        })
-    
-    dynamic = []
-    for d in manifest.get('dynamicRoutes', []):
-        dynamic.append(d.get('page', ''))
-    
-    print(f"\n{label} redirects: {len(redirects)}")
-    for r in redirects:
-        print(f"  {r['source']} -> {r['destination']} ({r['statusCode']})")
-    
-    print(f"{label} dynamicRoutes: {len(dynamic)}")
-    for d in dynamic:
-        print(f"  {d}")
-    
-    return redirects, dynamic
-
-# Extract
-h5_routes = extract_routes_from_next(DEPLOY_ID + '-h5', 'H5')
-h5_redirects, h5_dynamic = extract_dynamic_routes(DEPLOY_ID + '-h5', 'H5')
-
-admin_routes = extract_routes_from_next(DEPLOY_ID + '-admin', 'Admin')
-admin_redirects, admin_dynamic = extract_dynamic_routes(DEPLOY_ID + '-admin', 'Admin')
-
-# Build full URL list
-base_url = "https://6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com"
-admin_base = base_url + "/admin"
-
-all_urls = []
-
-# H5 pages
-for r in h5_routes:
-    all_urls.append({"type": "h5_page", "url": base_url + r, "route": r})
-
-# Admin pages
-for r in admin_routes:
-    all_urls.append({"type": "admin_page", "url": base_url + "/admin" + r, "route": "/admin" + r})
-
-# Read backend routes from previous scan
-with open("route_scan_result.json", "r", encoding="utf-8") as f:
-    backend_data = json.load(f)
-
-for r in backend_data.get("backend_routes", []):
-    method = r["method"]
-    path = r["path"]
-    url = base_url + path
-    all_urls.append({
-        "type": "api",
-        "method": method,
-        "url": url,
-        "route": path,
-        "file": r.get("file", ""),
-        "line": r.get("line", 0)
-    })
-
-# Save full URL list
-output = {
-    "h5_routes": h5_routes,
-    "h5_redirects": h5_redirects,
-    "h5_dynamic": h5_dynamic,
-    "admin_routes": admin_routes,
-    "admin_redirects": admin_redirects,
-    "admin_dynamic": admin_dynamic,
-    "backend_routes": backend_data.get("backend_routes", []),
-    "all_urls": all_urls,
-    "summary": {
-        "h5_pages": len(h5_routes),
-        "admin_pages": len(admin_routes),
-        "backend_apis": len(backend_data.get("backend_routes", [])),
-        "total": len(all_urls)
-    }
+param_replacements = {
+    "user_id": "1", "id": "1", "target_id": "1", "member_id": "1",
+    "order_id": "1", "plan_id": "1", "category_id": "1",
+    "token": "test123", "session_id": "test123", "orderId": "1",
+    "type": "blood_pressure", "adcode": "110000",
+    "message_id": "1", "expert_id": "1", "article_id": "1",
+    "news_id": "1", "nav_id": "1", "word_id": "1", "config_id": "1",
+    "template_id": "1", "item_id": "1", "cat_id": "1", "rt_id": "1",
+    "dp_id": "1", "level_id": "1", "contact_id": "1",
+    "address_id": "1", "card_id": "1", "user_card_id": "1",
+    "coupon_id": "1", "form_id": "1", "field_id": "1",
+    "phone_id": "1", "request_id": "1", "mig_id": "1",
+    "tid": "1", "batch_id": "1", "code_id": "1", "partner_id": "1",
+    "binding_id": "1", "catalog_id": "1", "group_id": "1",
+    "alert_id": "1", "diagnosis_id": "1", "answer_id": "1",
+    "constitution_type": "qixu", "consultant_id": "1",
+    "record_id": "1", "share_token": "test123", "chat_type": "health",
 }
 
-with open("all_routes.json", "w", encoding="utf-8") as f:
-    json.dump(output, f, ensure_ascii=False, indent=2)
+def replace_params(path):
+    def repl(m):
+        param = m.group(1)
+        return param_replacements.get(param, "1")
+    return re.sub(r'\{(\w+)\}', repl, path)
 
-print(f"\n=== SUMMARY ===")
-print(f"H5 pages: {len(h5_routes)}")
-print(f"Admin pages: {len(admin_routes)}")
-print(f"Backend APIs: {len(backend_data.get('backend_routes', []))}")
-print(f"Total URLs: {len(all_urls)}")
-print(f"Saved to all_routes.json")
+router_prefixes = {}
+route_entries = []
 
-ssh.close()
+for root, dirs, files in os.walk(api_dir):
+    for fname in sorted(files):
+        if not fname.endswith('.py') or fname == '__init__.py':
+            continue
+        fpath = os.path.join(root, fname)
+        rel = os.path.relpath(fpath, r"C:\auto_output\bnbbaijkgj\backend")
+        
+        try:
+            with open(fpath, 'r', encoding='utf-8') as f:
+                lines = f.read().split('\n')
+        except:
+            continue
+        
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            m = re.match(r'^\s*(\w+)\s*=\s*APIRouter\s*\((.*)\)\s*$', line)
+            if m:
+                var_name = m.group(1)
+                args = m.group(2)
+                pfx_match = re.search(r'prefix\s*=\s*["\']([^"\']*)["\']', args)
+                prefix = pfx_match.group(1) if pfx_match else ""
+                router_prefixes.setdefault(fpath, []).append((var_name, prefix))
+            else:
+                # Multi-line APIRouter definition
+                m2 = re.match(r'^\s*(\w+)\s*=\s*APIRouter\s*\(\s*$', line)
+                if m2:
+                    var_name = m2.group(1)
+                    prefix = ""
+                    for j in range(i+1, min(i+10, len(lines))):
+                        pfx_m = re.search(r'prefix\s*=\s*["\']([^"\']*)["\']', lines[j])
+                        if pfx_m:
+                            prefix = pfx_m.group(1)
+                        if re.search(r'\)\s*$', lines[j]):
+                            break
+                    router_prefixes.setdefault(fpath, []).append((var_name, prefix))
+            i += 1
+        
+        for i, line in enumerate(lines, 1):
+            m = re.match(r'^\s*@(\w+)\.(get|post|put|patch|delete)\s*\(\s*["\']([^"\']*)["\']', line)
+            if m:
+                router_var, method, path = m.group(1), m.group(2).upper(), m.group(3)
+                route_entries.append((rel, i, router_var, method, path))
+            else:
+                m2 = re.match(r'^\s*@(\w+)\.(get|post|put|patch|delete)\s*\(\s*$', line)
+                if m2:
+                    router_var, method = m2.group(1), m2.group(2).upper()
+                    for j in range(i, min(i+10, len(lines))):
+                        pm = re.search(r'["\']([^"\']*)["\']', lines[j])
+                        if pm:
+                            path = pm.group(1)
+                            route_entries.append((rel, i, router_var, method, path))
+                            break
+
+for rel, line_no, router_var, method, path in route_entries:
+    actual_file = os.path.join(r"C:\auto_output\bnbbaijkgj\backend", rel)
+    prefixes = router_prefixes.get(actual_file, [])
+    prefix = ""
+    for var_name, pfx in prefixes:
+        if var_name == router_var:
+            prefix = pfx
+            break
+    full_path = prefix + path
+    full_path = replace_params(full_path)
+    if not full_path.startswith('/'):
+        full_path = '/' + full_path
+    print(f"{method} {full_path} → {rel}:{line_no}")

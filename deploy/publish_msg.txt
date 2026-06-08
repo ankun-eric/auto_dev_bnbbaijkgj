@@ -53,10 +53,10 @@ DB_LOCATION=腾讯云 MySQL
 DB_DETAIL=腾讯云云数据库 MySQL，地址 gz-cdb-nniq1lmp.sql.tencentcdb.com:27082，账号 root，密码 xiaokang989aab，数据库名 bini_health
 
 # 发布结果（本次发布）
-PUBLISH_STATUS=pending
-PUBLISH_TIME={待更新}
+PUBLISH_STATUS=success
+PUBLISH_TIME=2026-06-08 10:26 UTC+8
 PROD_URL=https://chat.benne-ai.com
-APP_BUILD_STATUS={待检测}
-BUILD_COMMIT={待部署}
-DEPLOY_VERSION={待部署}
-BACKUP_TAG={待创建}
+APP_BUILD_STATUS=skipped (无代码变更，flutter_app/ 在 b22505c..a0db415 间无 diff)
+BUILD_COMMIT=a0db415
+DEPLOY_VERSION=v20260608_101505
+BACKUP_TAG=backup-20260608101531

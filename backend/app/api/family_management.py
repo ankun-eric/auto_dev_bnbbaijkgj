@@ -366,22 +366,20 @@ async def get_invitation_detail(
     # 合并预览
     merge_preview: list[MergePreviewField] = []
     if current_user is not None and status == "pending" and not is_self_invite:
-        inviter_hp = (
-            await db.execute(
-                select(HealthProfile).where(
-                    HealthProfile.user_id == invitation.inviter_user_id,
-                    HealthProfile.family_member_id == invitation.member_id,
-                )
+        inviter_hp_res = await db.execute(
+            select(HealthProfile).where(
+                HealthProfile.user_id == invitation.inviter_user_id,
+                HealthProfile.family_member_id == invitation.member_id,
             )
-        ).scalar_one_or_none()
-        acceptor_hp = (
-            await db.execute(
-                select(HealthProfile).where(
-                    HealthProfile.user_id == current_user.id,
-                    HealthProfile.family_member_id.is_(None),
-                )
+        )
+        inviter_hp = inviter_hp_res.scalars().first()
+        acceptor_hp_res = await db.execute(
+            select(HealthProfile).where(
+                HealthProfile.user_id == current_user.id,
+                HealthProfile.family_member_id.is_(None),
             )
-        ).scalar_one_or_none()
+        )
+        acceptor_hp = acceptor_hp_res.scalars().first()
         for key, label in MERGEABLE_HEALTH_FIELDS:
             inviter_val = getattr(inviter_hp, key, None) if inviter_hp else None
             acceptor_val = getattr(acceptor_hp, key, None) if acceptor_hp else None
@@ -533,7 +531,7 @@ async def accept_invitation(
             HealthProfile.family_member_id == invitation.member_id,
         )
     )
-    inviter_hp = inviter_hp_result.scalar_one_or_none()
+    inviter_hp = inviter_hp_result.scalars().first()
 
     acceptor_hp_result = await db.execute(
         select(HealthProfile).where(
@@ -541,7 +539,7 @@ async def accept_invitation(
             HealthProfile.family_member_id.is_(None),
         )
     )
-    acceptor_hp = acceptor_hp_result.scalar_one_or_none()
+    acceptor_hp = acceptor_hp_result.scalars().first()
 
     # [PRD-FAMILY-AUTH-MP-V1] 根据 payload.merge_fields 控制合并范围
     # - None  → 兼容旧行为，合并所有可合并字段

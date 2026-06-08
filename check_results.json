@@ -1,0 +1,457 @@
+[
+  {
+    "type": "PAGE",
+    "path": "/",
+    "status": 200,
+    "redirects": 0,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/ai-home",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/ai-home/medication-reminder",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/ai-home/medication-reminder/history",
+    "status": 404,
+    "redirects": 1,
+    "ok": false
+  },
+  {
+    "type": "PAGE",
+    "path": "/login",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/health-profile",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/health-dashboard",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/health-plan",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/messages",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/settings",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/products",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/services",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/points",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/news",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/checkup",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/drug",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/tcm",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/glucose",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/brain-game",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/home-safety",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/devices",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/medical-records",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/care-ai-home",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/cards",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/merchant/login",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/health-plan/checkin",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/ai-home/medication-plans",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/ai-home/medication-plans/new",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/health-plan/custom",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "PAGE",
+    "path": "/checkup/compare",
+    "status": 200,
+    "redirects": 1,
+    "ok": true
+  },
+  {
+    "type": "API",
+    "path": "/api/health",
+    "status": 200,
+    "redirects": 0,
+    "ok": true
+  },
+  {
+    "type": "API",
+    "path": "/api/medication/calendar?year=2026&month=6",
+    "status": 404,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/medication/records?date=2026-06-07",
+    "status": 404,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/medication/today",
+    "status": 401,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/medication-reminder/plans",
+    "status": 401,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/medication-reminder/today",
+    "status": 401,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/medication-reminder/badge",
+    "status": 401,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/medication-plans/today",
+    "status": 401,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/medication-plans/hero-count",
+    "status": 401,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/medication-check-in",
+    "status": 405,
+    "redirects": 0,
+    "ok": true
+  },
+  {
+    "type": "API",
+    "path": "/api/auth/login",
+    "status": 405,
+    "redirects": 0,
+    "ok": true
+  },
+  {
+    "type": "API",
+    "path": "/api/health-plan",
+    "status": 404,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/bottom-nav",
+    "status": 404,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/home-config",
+    "status": 200,
+    "redirects": 0,
+    "ok": true
+  },
+  {
+    "type": "API",
+    "path": "/api/ai-home/config",
+    "status": 404,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/family/members",
+    "status": 401,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/points/balance",
+    "status": 401,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/orders/unified",
+    "status": 401,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/products",
+    "status": 200,
+    "redirects": 0,
+    "ok": true
+  },
+  {
+    "type": "API",
+    "path": "/api/services",
+    "status": 404,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/notifications",
+    "status": 401,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/messages/unread",
+    "status": 404,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/chat/sessions",
+    "status": 401,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/tcm/constitution",
+    "status": 404,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/health-dashboard",
+    "status": 404,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/glucose",
+    "status": 404,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/brain-game",
+    "status": 404,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/home-safety",
+    "status": 404,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/devices",
+    "status": 404,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/ocr",
+    "status": 404,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/scan",
+    "status": 422,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/report",
+    "status": 404,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/coupons",
+    "status": 404,
+    "redirects": 0,
+    "ok": false
+  },
+  {
+    "type": "API",
+    "path": "/api/cards",
+    "status": 200,
+    "redirects": 0,
+    "ok": true
+  },
+  {
+    "type": "API",
+    "path": "/api/membership",
+    "status": 404,
+    "redirects": 0,
+    "ok": false
+  }
+]
