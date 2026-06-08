@@ -1,6 +1,6 @@
 # 宾尼健康 (Bini Health) 项目索引
 
-> **最后更新**: 2026-06-07 12:30:00 (v4.4 brain-game 页面优化：卡片横向布局 + 删除随便选一个按钮 + 删除 brain-game.html)
+> **最后更新**: 2026-06-08 09:49:00 (v4.5 Bug修复：家庭成员邀请页 getErrorTitle 匹配 + 微信跳转 fallback 优化)
 > **DEPLOY_ID**: 6b099ed3-7175-4a78-91f4-44570c84ed27  
 > **项目域名**: 6b099ed3-7175-4a78-91f4-44570c84ed27.noob-ai.test.bangbangvip.com  
 > **Git 主仓库**: Codeup (codeup.aliyun.com)  
@@ -144,6 +144,29 @@ gateway-nginx (独立主网关, 端口 443)
 - Node.js: `node:20-alpine`
 - MySQL: `mysql:8.0`
 
+
+---
+
+## 最新变更 (2026-06-08)
+
+### Bug修复：家庭成员邀请页"无法处理邀请"前端修复 (v4.5)
+
+**改动量统计**：
+
+| 类别 | 改动项 | 数量 |
+|------|--------|------|
+| 前端 H5 | `getErrorTitle()` 字符串匹配修正：`'不能接受自己'` → `'自己发起的邀请'` | 1 处 |
+| 前端 H5 | 微信浏览器跳转 fallback 优化：超时 3000ms→1500ms + URL 变更检测 | 1 处 |
+
+**改动文件清单**：
+
+| 文件 | 改动 |
+|------|------|
+| `h5-web/src/app/family-auth/page.tsx` | 修复一：getErrorTitle() 匹配关键词从 `'不能接受自己'` 改为 `'自己发起的邀请'`（第410行）；修复二：微信浏览器跳转 fallback 超时从 3000ms 改为 1500ms，增加 beforeRedirect 变量做 URL 变更检测（第203-209行） |
+
+**部署状态**：✅ 已部署到测试服务器，HTTPS 全量检查通过（5 个关键 URL 100% 可达）
+
+**体验手册**：`user_docs/manual_20260608_094933_b8f2.md`
 
 ---
 

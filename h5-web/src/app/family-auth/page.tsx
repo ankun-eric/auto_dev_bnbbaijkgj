@@ -200,10 +200,13 @@ function FamilyAuthContent() {
       if (isWechat && !wechatCheckedRef.current) {
         wechatCheckedRef.current = true;
         const schemeUrl = `weixin://dl/business/?appid=wx_placeholder&path=/pages/family-auth/index&query=code%3D${code}`;
+        const beforeRedirect = window.location.href;
         window.location.href = schemeUrl;
         setTimeout(() => {
-          fetchInvitation();
-        }, 3000);
+          if (window.location.href === beforeRedirect || window.location.href === schemeUrl) {
+            fetchInvitation();
+          }
+        }, 1500);
         return;
       }
     }
@@ -404,7 +407,7 @@ function FamilyAuthContent() {
             if (msg.includes('已取消') || msg.includes('已失效')) {
               return '邀请已取消';
             }
-            if (msg.includes('不能接受自己')) {
+            if (msg.includes('自己发起的邀请')) {
               return '无法接受自己发起的邀请';
             }
             if (msg.includes('已达上限')) {
