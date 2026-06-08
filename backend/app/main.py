@@ -109,6 +109,7 @@ from app.api import (
     medication_plans_v1,
     medication_add_optim_v1,
     medication_today_v1,
+    medication_history_v1,
     health_archive_optim_v1,
     health_dashboard,
     questionnaire,
@@ -2666,6 +2667,8 @@ app.include_router(medication_plans_v1.router)
 app.include_router(medication_add_optim_v1.router)
 # [PRD-AI-HOME-OPTIM-FINAL-V1 2026-05-19] ai-home 首页优化 - 同源「今日用药」接口
 app.include_router(medication_today_v1.router)
+# [PRD-MED-HISTORY-V1] 用药提醒历史打卡记录
+app.include_router(medication_history_v1.router)
 # [PRD-468 2026-05-12] 健康档案改版 v3
 app.include_router(health_profile_v3.router)
 # [PRD-GLUCOSE-V1 2026-05-30] 血糖闭环管理模块

@@ -12,6 +12,7 @@ from sqlalchemy import (
     Enum,
     Float,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -2389,10 +2390,15 @@ class MedicationCheckIn(Base):
     user_id = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     check_in_date = mapped_column(Date, nullable=False)
     check_in_time = mapped_column(DateTime, nullable=True)
+    check_in_type = mapped_column(String(16), nullable=False, default="normal")
     created_at = mapped_column(DateTime, default=datetime.now)
 
     reminder = relationship("MedicationReminder", back_populates="check_ins")
     user = relationship("User")
+
+    __table_args__ = (
+        Index("idx_checkins_user_date", "user_id", "check_in_date"),
+    )
 
 
 class HealthCheckInItem(Base):

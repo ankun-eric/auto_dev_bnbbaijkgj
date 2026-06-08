@@ -213,6 +213,31 @@ export default function MedicationReminderPage() {
         </div>
       </div>
 
+      {/* 历史记录入口 */}
+      <div style={{ margin: '0 16px 16px' }}>
+        <button
+          onClick={() => router.push('/ai-home/medication-reminder/history')}
+          data-testid="med-reminder-history-btn"
+          style={{
+            width: '100%',
+            padding: '12px 0',
+            background: '#fff',
+            border: `1.5px solid ${BLUE}`,
+            borderRadius: 24,
+            fontSize: 15,
+            fontWeight: 600,
+            color: BLUE,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+          }}
+        >
+          📋 历史记录
+        </button>
+      </div>
+
       {/* 即将服用 */}
       {upcoming && (
         <div
